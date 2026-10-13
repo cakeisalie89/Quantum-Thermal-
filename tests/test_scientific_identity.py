@@ -1,9 +1,9 @@
 """The scientific digests are the substrate's digests, restated not imported.
 
-``scientific.identity`` restates two algorithms from ``qta_agent`` because
+``scientific.identity`` restates two algorithms from ``agent_substrate`` because
 the scientific core must not depend on the authority layer: canonical JSON
-(``qta_agent.canonical``) and the source-closure digest
-(``qta_agent.projection``). A restatement can drift, so this holds the two
+(``agent_substrate.canonical``) and the source-closure digest
+(``agent_substrate.projection``). A restatement can drift, so this holds the two
 to the same bytes on the same inputs, and holds the implementation digest to
 the behaviour it claims: a change anywhere in the closure changes it, a
 change outside does not, and an unreadable module leaves no identity.
@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import canonical, projection  # noqa: E402
+from agent_substrate import canonical, projection  # noqa: E402
 from scientific import identity  # noqa: E402
 
 
@@ -42,7 +42,7 @@ def test_both_refuse_what_is_not_json(bad):
 
 
 @pytest.mark.parametrize("modules", [
-    ("qta_agent.store",), ("qta_agent.events", "qta_agent.context"),
+    ("agent_substrate.store",), ("agent_substrate.events", "agent_substrate.context"),
 ])
 def test_source_closure_digests_agree(modules):
     import importlib

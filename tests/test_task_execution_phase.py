@@ -27,18 +27,18 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.audit import AuditIndex  # noqa: E402
-from qta_agent.canonical import digest_bytes  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
+from agent_substrate.audit import AuditIndex  # noqa: E402
+from agent_substrate.canonical import digest_bytes  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
     ACT_EXECUTION, ACT_TASK_TRANSITION, SUBMITTER_ID, VERIFIER_ID, WORKER_ID,
-    GovernedStage10,
+    GovernedTasks,
 )
-from qta_agent.reconstruct import (  # noqa: E402
+from agent_substrate.reconstruct import (  # noqa: E402
     compare_tasks, reconstruct_tasks,
 )
-from qta_agent.tasks import TaskTransitionError  # noqa: E402
+from agent_substrate.tasks import TaskTransitionError  # noqa: E402
 
 WS = "verification/stage10/_pytest_execution_phase"
 
@@ -51,7 +51,7 @@ def gov(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -171,7 +171,7 @@ def _lifecycle(tmp_path, *, execution_at: str, executor: str = "w",
 
 
 def _projection(tmp_path, log):
-    return GovernedStage10(root=ROOT, log=log,
+    return GovernedTasks(root=ROOT, log=log,
                            evidence=EvidenceStore(tmp_path / "evidence")
                            ).projection()
 

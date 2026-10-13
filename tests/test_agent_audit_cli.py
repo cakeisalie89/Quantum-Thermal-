@@ -32,12 +32,12 @@ if str(ROOT) not in sys.path:
 sys.path.insert(0, str(ROOT / "tools"))
 import audit_log as CLI  # noqa: E402
 
-from qta_agent.canonical import digest_bytes  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
+from agent_substrate.canonical import digest_bytes  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
     ACT_TASK_TRANSITION, SUBMITTER_ID, VERIFIER_ID, WORKER_ID,
-    GovernedStage10,
+    GovernedTasks,
 )
 
 WS = "verification/stage10/_pytest_auditcli"
@@ -51,7 +51,7 @@ def governed(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     run = g.run(tool_id="stage10.emit_artifact",

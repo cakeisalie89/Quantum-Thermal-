@@ -2,7 +2,7 @@
 
 Three claims, held here (D-2026-92):
 
-* THE PRIMITIVE. :mod:`qta_agent.ed25519` is a REFERENCE: it verifies, and
+* THE PRIMITIVE. :mod:`agent_substrate.ed25519` is a REFERENCE: it verifies, and
   it signs only test identities. Production authentication needs a provider
   that states VETTED and passes a conformance gate on behaviour, not on its
   label -- and a provisioned registry. Neither exists here.
@@ -27,26 +27,26 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import events as ev_mod  # noqa: E402
-from qta_agent import principals as pr  # noqa: E402
-from qta_agent import signature  # noqa: E402
-from qta_agent.agents import AgentDirectory  # noqa: E402
-from qta_agent.audit import AuditIndex  # noqa: E402
-from qta_agent.canonical import canonical_bytes, digest  # noqa: E402
-from qta_agent.capability import CapabilityLedger  # noqa: E402
-from qta_agent.events import (  # noqa: E402
+from agent_substrate import events as ev_mod  # noqa: E402
+from agent_substrate import principals as pr  # noqa: E402
+from agent_substrate import signature  # noqa: E402
+from agent_substrate.agents import AgentDirectory  # noqa: E402
+from agent_substrate.audit import AuditIndex  # noqa: E402
+from agent_substrate.canonical import canonical_bytes, digest  # noqa: E402
+from agent_substrate.capability import CapabilityLedger  # noqa: E402
+from agent_substrate.events import (  # noqa: E402
     ACT_SECURITY_PROFILE, PROFILE_AUTHENTICATED_REQUIRED,
     PROFILE_UNAUTHENTICATED_LEGACY, ChainBroken, EventLog, EventLogError,
 )
-from qta_agent.idempotency import IdempotencyLedger  # noqa: E402
-from qta_agent.memory import MemoryStore  # noqa: E402
-from qta_agent.netauth import NetworkAuthority  # noqa: E402
-from qta_agent.policy import PolicyStore  # noqa: E402
-from qta_agent.proposals import received  # noqa: E402
-from qta_agent.reconstruct import reconstruct, reconstruct_tasks  # noqa: E402
-from qta_agent.scheduler import Scheduler  # noqa: E402
-from qta_agent.secrets import SecretStore  # noqa: E402
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.idempotency import IdempotencyLedger  # noqa: E402
+from agent_substrate.memory import MemoryStore  # noqa: E402
+from agent_substrate.netauth import NetworkAuthority  # noqa: E402
+from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.proposals import received  # noqa: E402
+from agent_substrate.reconstruct import reconstruct, reconstruct_tasks  # noqa: E402
+from agent_substrate.scheduler import Scheduler  # noqa: E402
+from agent_substrate.secrets import SecretStore  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 OWNER = pr.test_identity("owner")
 ALICE = pr.test_identity("alice")
@@ -402,33 +402,33 @@ _POLICY_ID = "scheduler.default"
 #: Readers exercised here by BEHAVIOUR: each is built over a REQUIRED history
 #: on a log with no authenticator and must refuse, then over the same history
 #: on a log WITH one and must load. The rest of READER_COVERAGE's GATED
-#: entries -- GovernedStage10, GovernedOrigins, CheckpointStore -- need a
+#: entries -- GovernedTasks, GovernedOrigins, CheckpointStore -- need a
 #: governed root or a checkpoint directory to build; they are held by the
 #: structural test below, which proves they read only through the gated
 #: primitives.
 BEHAVIOUR = {
-    "qta_agent.store.AuthorityStore": lambda log: AuthorityStore(log).load(),
-    "qta_agent.reconstruct": lambda log: (reconstruct(log),
+    "agent_substrate.store.AuthorityStore": lambda log: AuthorityStore(log).load(),
+    "agent_substrate.reconstruct": lambda log: (reconstruct(log),
                                           reconstruct_tasks(log)),
-    "qta_agent.scheduler.Scheduler": lambda log: Scheduler(
+    "agent_substrate.scheduler.Scheduler": lambda log: Scheduler(
         log, policy=PolicyStore(log).load(), policy_id=_POLICY_ID,
         capacity={"slots": 1}).load(),
-    "qta_agent.memory.MemoryStore": lambda log: MemoryStore(log).load(),
-    "qta_agent.policy.PolicyStore": lambda log: PolicyStore(log).load(),
-    "qta_agent.audit.AuditIndex": lambda log: AuditIndex.from_log(log),
-    "qta_agent.agents.AgentDirectory": lambda log: AgentDirectory(log).load(),
-    "qta_agent.capability.CapabilityLedger":
+    "agent_substrate.memory.MemoryStore": lambda log: MemoryStore(log).load(),
+    "agent_substrate.policy.PolicyStore": lambda log: PolicyStore(log).load(),
+    "agent_substrate.audit.AuditIndex": lambda log: AuditIndex.from_log(log),
+    "agent_substrate.agents.AgentDirectory": lambda log: AgentDirectory(log).load(),
+    "agent_substrate.capability.CapabilityLedger":
         lambda log: CapabilityLedger(log).load(),
-    "qta_agent.idempotency.IdempotencyLedger":
+    "agent_substrate.idempotency.IdempotencyLedger":
         lambda log: IdempotencyLedger(log).load(),
-    "qta_agent.netauth.NetworkAuthority":
+    "agent_substrate.netauth.NetworkAuthority":
         lambda log: NetworkAuthority(log).load(),
-    "qta_agent.secrets.SecretStore": lambda log: SecretStore(log).load(),
-    "qta_agent.proposals.received": lambda log: received(log),
+    "agent_substrate.secrets.SecretStore": lambda log: SecretStore(log).load(),
+    "agent_substrate.proposals.received": lambda log: received(log),
 }
-STRUCTURAL_ONLY = {"qta_agent.governed_stage10.GovernedStage10",
-                   "qta_agent.governed_model.GovernedOrigins",
-                   "qta_agent.checkpoint.CheckpointStore"}
+STRUCTURAL_ONLY = {"agent_substrate.governed_tasks.GovernedTasks",
+                   "agent_substrate.governed_model.GovernedOrigins",
+                   "agent_substrate.checkpoint.CheckpointStore"}
 
 
 @pytest.mark.parametrize("reader", sorted(BEHAVIOUR))
@@ -450,11 +450,11 @@ def _last_name(node) -> str:
 
 
 def test_the_coverage_table_covers_every_module_that_reads_the_log():
-    """Every qta_agent module that calls a verified-read primitive is in the
+    """Every agent_substrate module that calls a verified-read primitive is in the
     table -- and ``tools/verified_read_guard.py`` holds that no production
     code reads the log any other way, so every one of them is gated."""
     readers = set()
-    for path in sorted((ROOT / "qta_agent").glob("*.py")):
+    for path in sorted((ROOT / "agent_substrate").glob("*.py")):
         if path.name == "events.py":
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -468,12 +468,12 @@ def test_the_coverage_table_covers_every_module_that_reads_the_log():
                                            "read_verified_from", "verify",
                                            "verify_from", "advance")
                     and _last_name(node.func.value).endswith("log")):
-                readers.add(f"qta_agent.{path.stem}")
-    assert {"qta_agent.store", "qta_agent.scheduler",
-            "qta_agent.reconstruct"} <= readers, (
+                readers.add(f"agent_substrate.{path.stem}")
+    assert {"agent_substrate.store", "agent_substrate.scheduler",
+            "agent_substrate.reconstruct"} <= readers, (
         f"the scan found too little to mean anything: {sorted(readers)}")
     covered = {k.rsplit(".", 1)[0] if k.count(".") > 1 else k
-               for k in pr.READER_COVERAGE if k.startswith("qta_agent.")}
+               for k in pr.READER_COVERAGE if k.startswith("agent_substrate.")}
     missing = sorted(r for r in readers if r not in covered)
     assert not missing, f"read the log and are not in READER_COVERAGE: {missing}"
     assert set(BEHAVIOUR) | STRUCTURAL_ONLY == {
@@ -503,7 +503,7 @@ def test_a_tool_that_opens_its_own_log_refuses_a_required_history(
 
 def test_the_hypothesis_lifecycle_is_recorded_as_not_built():
     assert pr.READER_COVERAGE["hypothesis lifecycle"] == pr.NOT_BUILT
-    assert not (ROOT / "qta_agent" / "hypothesis.py").exists(), (
+    assert not (ROOT / "agent_substrate" / "hypothesis.py").exists(), (
         "a hypothesis module exists: say what it does with authentication")
 
 

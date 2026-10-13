@@ -5,8 +5,8 @@ REJECTED.
 Without the FEniCSx and FMI runtimes the demonstration runs its generic
 leg only: the slab result is checked against the series solution, which the
 admission policy does not admit on (an ANALYTIC_REFERENCE), so the honest
-outcome there is REJECTED. With both runtimes (QTA_FENICSX_PYTHON,
-QTA_FMI_PYTHON; REQUIRED under QTA_INTEGRATIONS_REQUIRED) the full
+outcome there is REJECTED. With both runtimes (HARNESS_FENICSX_PYTHON,
+HARNESS_FMI_PYTHON; REQUIRED under HARNESS_INTEGRATIONS_REQUIRED) the full
 demonstration runs, FEniCSx admits the slab result, and the fault FMU is
 the twin that must be refused.
 """
@@ -138,9 +138,9 @@ def test_a_required_runtime_that_is_missing_fails_the_demonstration():
 
 
 def _runtimes():
-    fem = os.environ.get("QTA_FENICSX_PYTHON", "")
-    fmi = os.environ.get("QTA_FMI_PYTHON", "")
-    req = set(filter(None, os.environ.get("QTA_INTEGRATIONS_REQUIRED",
+    fem = os.environ.get("HARNESS_FENICSX_PYTHON", "")
+    fmi = os.environ.get("HARNESS_FMI_PYTHON", "")
+    req = set(filter(None, os.environ.get("HARNESS_INTEGRATIONS_REQUIRED",
                                           "").split(",")))
     if not (fem and fmi):
         if {"fenicsx", "fmi"} <= req:

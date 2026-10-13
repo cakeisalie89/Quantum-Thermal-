@@ -15,7 +15,7 @@ A learned prediction is none of those four. It is a LEARNED_PREDICTION,
 NON_AUTHORITATIVE, and REQUIRES_EXTERNAL_VERIFICATION: nothing in this
 package can mark its own output verified, accept a model, or replace a
 governed calculation, and the authority store refuses every edge into
-VERIFIED or PROMOTED for a learned record (``qta_agent.learned_rules``).
+VERIFIED or PROMOTED for a learned record (``agent_substrate.learned_rules``).
 
 It does not know the agent substrate and it does not know the QTA apparatus:
 no machine mode, gas species routing or gate is a concept here, and

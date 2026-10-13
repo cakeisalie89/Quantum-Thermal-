@@ -4,8 +4,8 @@ This module exists to answer one question without trusting the running
 system: *given only the log, what is canonical?*
 
 It is written as a SECOND implementation on purpose. It does not import
-:class:`~qta_agent.store.AuthorityStore` and does not share its reducer, and
-it does not import the modules whose decisions it re-checks -- not their
+:class:`~agent_substrate.store.AuthorityStore` and does not share its reducer,
+and it does not import the modules whose decisions it re-checks -- not their
 enums, not their tables, and above all not their ``check`` functions. If both
 agree, that is differential evidence: two implementations reading the same
 evidence reached the same verdict. Reusing the store's reducer, or calling
@@ -57,7 +57,7 @@ refusal recorded as a string rather than raised as somebody else's exception
 type.
 
 The two replays differ in what they do about a refusal, and deliberately.
-``governed_stage10.projection`` is ENFORCEMENT: it raises, because a reader
+``governed_tasks.projection`` is ENFORCEMENT: it raises, because a reader
 that cannot tell which records went through the gate must not hand back a
 state. This module is DIAGNOSIS: it records the problem and keeps going, so
 one bad record does not hide the twenty after it.
@@ -421,10 +421,11 @@ def _task_refusal(*, task_id, src, dst, actor, role, at_seq, lease, lease_id,
 # is not authority because the table above permits it. The cited bundle and
 # report are read, held to the admission policy the transition names, and
 # bound to the governed tasks that produced them. Production decides this in
-# qta_agent.result_rules and the origin view of qta_agent.governed_model;
-# this reader decides it again from the log and the evidence bytes, in its
-# own code, importing neither -- nor qta_agent.canonical: the digest a report
-# must name is recomputed below from its definition.
+# agent_substrate.result_rules and the origin view of
+# agent_substrate.governed_model; this reader decides it again from the log and
+# the evidence bytes, in its own code, importing neither -- nor
+# agent_substrate.canonical: the digest a report must name is recomputed below
+# from its definition.
 #
 # Three outcomes, and they are not two:
 #   ADMITTED      the evidence resolves here and supports the transition;
@@ -440,7 +441,7 @@ _SCI_KIND = "scientific_result"
 #: The states whose entry is an admission.
 _SCI_ADMITTING = frozenset({"VERIFIED", "PROMOTED"})
 #: NF-1T: a record whose kind begins with this has NO admission policy, so
-#: no edge into VERIFIED or PROMOTED (qta_agent.learned_rules, restated).
+#: no edge into VERIFIED or PROMOTED (agent_substrate.learned_rules, restated).
 _LEARNED_PREFIX = "learned_"
 
 #: Admission policies this reader can decide under. A transition naming any
@@ -705,10 +706,10 @@ _AUTHORITY_ACTIONS = frozenset({"record.create", "record.transition",
                                 "record.depend"})
 
 
-#: THE SECURITY PROFILE, RESTATED from :mod:`qta_agent.events` as data and
-#: not imported: the read primitive refuses an AUTHENTICATED_REQUIRED history
-#: to a reader with no authenticator, and this reader refuses it in its own
-#: code as well, so a primitive that stopped refusing is disagreed with.
+#: THE SECURITY PROFILE, RESTATED from :mod:`agent_substrate.events` as data
+#: and not imported: the read primitive refuses an AUTHENTICATED_REQUIRED
+#: history to a reader with no authenticator, and this reader refuses it in its
+#: own code as well, so a primitive that stopped refusing is disagreed with.
 _PROFILE_ACTION = "history.security_profile"
 _PROFILE_REQUIRED = "AUTHENTICATED_REQUIRED"
 _PROFILES = frozenset({"UNAUTHENTICATED_LEGACY", _PROFILE_REQUIRED})
@@ -951,7 +952,7 @@ def reconstruct_tasks(log: EventLog, *,
     """Replay the task lifecycle from the log alone. Never raises on content.
 
     A SECOND implementation, in plain dictionaries, sharing no reducer with
-    ``governed_stage10.projection``. See the module docstring for why that
+    ``governed_tasks.projection``. See the module docstring for why that
     duplication is the point rather than an oversight.
     """
     report, events = log.read_verified()
@@ -2655,8 +2656,8 @@ def _sub_context(ev, p: dict, out) -> None:
 
 
 #: The proposal envelope, restated rather than imported from
-#: qta_agent.proposals: its closed field set, the one authority value it may
-#: carry, how its id is derived, and the keys that would make it a claim
+#: agent_substrate.proposals: its closed field set, the one authority value it
+#: may carry, how its id is derived, and the keys that would make it a claim
 #: about authority. If the ingress and this reader drift apart, the
 #: divergence is the finding.
 _PROP_FIELDS = frozenset({
@@ -2777,10 +2778,11 @@ def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:
 def _replay_binding(ev, p: dict, bindings: dict, out) -> None:
     """Project one idempotency.bind, in this reader's own words.
 
-    Shares no code with :class:`~qta_agent.idempotency.IdempotencyLedger`.
-    The rules are restated rather than imported, because a second reader
-    that calls the first one's reducer is not a second reader -- it is the
-    same decision, run twice, agreeing with itself.
+    Shares no code with
+    :class:`~agent_substrate.idempotency.IdempotencyLedger`. The rules are
+    restated rather than imported, because a second reader that calls the first
+    one's reducer is not a second reader -- it is the same decision, run twice,
+    agreeing with itself.
 
     Records anomalies rather than raising: this module's contract is that a
     hostile history produces findings, not an exception that hides the rest
@@ -2913,10 +2915,10 @@ def _task_check_record(action: str, ev, p: dict, cur: dict) -> str:
 def _lease_of(cur: dict):
     """The lease this replay is currently holding, if any.
 
-    Plain fields rather than a :class:`~qta_agent.tasks.Lease`: constructing
-    the production dataclass here would import the layer this reader exists
-    to second-guess, and would inherit its idea of what a lease record even
-    looks like.
+    Plain fields rather than a :class:`~agent_substrate.tasks.Lease`:
+    constructing the production dataclass here would import the layer this
+    reader exists to second-guess, and would inherit its idea of what a lease
+    record even looks like.
     """
     return _parse_lease(cur.get("lease"))
 

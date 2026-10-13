@@ -22,18 +22,18 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
-    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedStage10,
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
+    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedTasks,
 )
-from qta_agent.idempotency import (  # noqa: E402
+from agent_substrate.idempotency import (  # noqa: E402
     ACT_BIND, IdempotencyConflict, IdempotencyError, IdempotencyLedger,
     binding_from_record, request_identity, scope_identity,
 )
-from qta_agent.reconstruct import compare_bindings, reconstruct_tasks  # noqa: E402,E501
-from qta_agent.tasks import TaskState  # noqa: E402
+from agent_substrate.reconstruct import compare_bindings, reconstruct_tasks  # noqa: E402,E501
+from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_idem"
 
@@ -56,7 +56,7 @@ def gov(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -280,7 +280,7 @@ def test_the_second_reader_reports_a_forged_owner_as_an_anomaly(log):
 # --- production: the real governed path, twice ------------------------------
 
 def test_resubmission_through_the_production_path_runs_the_work_once(gov):
-    """The row's actual claim. Not a helper: GovernedStage10.run, twice."""
+    """The row's actual claim. Not a helper: GovernedTasks.run, twice."""
     inputs = _inputs(gov)
     first = gov.run(tool_id="stage10.emit_artifact", inputs=inputs,
                     idempotency_key="nightly")
@@ -356,7 +356,7 @@ def test_a_resubmission_after_a_lost_response_needs_no_live_state(gov):
     inputs = _inputs(gov)
     first = gov.run(tool_id="stage10.emit_artifact", inputs=inputs,
                     idempotency_key="k")
-    reopened = GovernedStage10(root=gov.root,
+    reopened = GovernedTasks(root=gov.root,
                                log=EventLog(gov.log.path),
                                evidence=gov.evidence)
     reopened.out_rel = gov.out_rel
@@ -369,7 +369,7 @@ def test_a_resubmission_after_a_lost_response_needs_no_live_state(gov):
 def test_an_unregistered_submitter_cannot_own_a_namespace(gov):
     """Whoever submits owns a durable key namespace and is the policy
     subject. An arbitrary string held both until this check existed."""
-    from qta_agent.agents import IdentityError
+    from agent_substrate.agents import IdentityError
 
     with pytest.raises(IdentityError):
         gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
@@ -383,7 +383,7 @@ def test_two_submitters_do_not_share_a_key_in_production(gov):
     refused by the directory before the key is even consulted -- which is
     the correct order: identity first, then namespace.
     """
-    from qta_agent.agents import IdentityError
+    from agent_substrate.agents import IdentityError
 
     gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
             idempotency_key="shared")
@@ -394,7 +394,7 @@ def test_two_submitters_do_not_share_a_key_in_production(gov):
 
 
 def test_the_audit_explains_the_binding_and_the_execution_count(gov):
-    from qta_agent.audit import AuditIndex
+    from agent_substrate.audit import AuditIndex
 
     gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
             idempotency_key="nightly")
@@ -419,7 +419,7 @@ def test_the_audit_reports_the_binding_owner_from_the_event_not_the_payload(
     the same value. Only a record where they DISAGREE distinguishes the two,
     and that record is the one an attacker writes.
     """
-    from qta_agent.audit import AuditIndex
+    from agent_substrate.audit import AuditIndex
 
     gov.log.append(
         actor="stage10-worker", action=ACT_BIND, target="task-forged",
@@ -437,7 +437,7 @@ def test_the_audit_reports_the_binding_owner_from_the_event_not_the_payload(
 def test_the_audit_reports_a_task_that_ran_twice_as_a_gap(gov):
     """The evidence for 'it did not run twice' is the absence of a second
     record, so the auditor has to be able to notice a second record."""
-    from qta_agent.audit import AuditIndex
+    from agent_substrate.audit import AuditIndex
 
     run = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
                   idempotency_key="nightly")
@@ -598,7 +598,7 @@ TestIdempotencyMachine.settings = settings(
 
 def _external_gov(gov, timeout_s=1.0):
     """Point the runner at an EXTERNAL-effect tool with the same contract."""
-    from qta_agent.tools import (Determinism, Field_, OutputFile, Registry,
+    from agent_substrate.tools import (Determinism, Field_, OutputFile, Registry,
                                  SideEffect, ToolSpec)
 
     reg = Registry([ToolSpec(
@@ -626,7 +626,7 @@ def test_an_unsettled_external_resubmission_is_uncertain_not_duplicate(
     it; reporting DUPLICATE would assert the first attempt's outcome is
     known. Neither is true, and the answer says so.
     """
-    from qta_agent.execution import Limits
+    from agent_substrate.execution import Limits
 
     _external_gov(gov)
     real_run = type(gov.executor).run
@@ -702,7 +702,7 @@ def test_a_scoped_tool_that_timed_out_is_an_ordinary_duplicate(gov,
     that is recoverable by looking. Reporting it as UNCERTAIN would make
     every timeout unresolvable and the classification useless.
     """
-    from qta_agent.execution import Limits
+    from agent_substrate.execution import Limits
 
     real_run = type(gov.executor).run
 
@@ -737,7 +737,7 @@ def test_a_scoped_tool_that_timed_out_is_an_ordinary_duplicate(gov,
 # ==========================================================================
 
 def _timed_out_external(gov, monkeypatch):
-    from qta_agent.execution import Limits
+    from agent_substrate.execution import Limits
 
     _external_gov(gov)
     real_run = type(gov.executor).run
@@ -775,7 +775,7 @@ def test_the_escalation_is_delivered_not_only_filed(gov, monkeypatch,
                                                     tmp_path):
     """An escalation nobody is told about blocks work silently."""
     import io
-    from qta_agent.agents import StreamNotifier
+    from agent_substrate.agents import StreamNotifier
 
     buf = io.StringIO()
     gov.agents.notifier = StreamNotifier(buf)
@@ -826,7 +826,7 @@ def test_the_run_still_reports_when_the_escalation_cannot_be_raised(
     Losing the report to save the escalation would be the same trade the
     notifier refuses, one layer up.
     """
-    from qta_agent.agents import AgentError
+    from agent_substrate.agents import AgentError
 
     _timed_out_external(gov, monkeypatch)
 
@@ -848,7 +848,7 @@ def test_a_second_runner_sees_a_binding_made_after_it_was_built(gov):
     answer every lookup from the ledger it loaded at construction, find the
     key free, create its own task and bind the key again: a rebinding replay
     refuses on every load (D-2026-117). It must find the first's binding."""
-    other = GovernedStage10(root=ROOT, log=EventLog(gov.log.path),
+    other = GovernedTasks(root=ROOT, log=EventLog(gov.log.path),
                             evidence=gov.evidence)
     first = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
                     idempotency_key="two-runners")

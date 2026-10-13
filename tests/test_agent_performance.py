@@ -58,16 +58,16 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.audit import AuditIndex  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.checkpoint import CheckpointStore  # noqa: E402
-from qta_agent.events import Event as _Event  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.policy import PolicyStore  # noqa: E402
-from qta_agent.reconstruct import reconstruct  # noqa: E402
-from qta_agent.scheduler import Scheduler, default_policy  # noqa: E402
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.audit import AuditIndex  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.checkpoint import CheckpointStore  # noqa: E402
+from agent_substrate.events import Event as _Event  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.reconstruct import reconstruct  # noqa: E402
+from agent_substrate.scheduler import Scheduler, default_policy  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 #: The sizes every scaling guard uses. Far enough apart that the two cases are
 #: unmistakable: 8x the work costs about 8x linearly and about 64x
@@ -150,7 +150,7 @@ def _per_call(fn, *, floor: float = MIN_MEASURABLE_S,
 #: run and is a different system by the end. tools/performance_baseline.py
 #: sets this, collects what the guards measured, and appends the values to
 #: docs/performance_baseline.json against the commit they came from.
-_PERF_OUT = os.environ.get("QTA_PERF_OUT")
+_PERF_OUT = os.environ.get("HARNESS_PERF_OUT")
 
 
 #: The two kinds of measurement this file publishes (R49), kept apart
@@ -568,7 +568,7 @@ def test_the_ready_queue_counter_can_see_a_quadratic(tmp_path, monkeypatch):
     satisfy the equality above forever. Plant the obvious one -- readiness
     totting up in-flight resources, a full scan of the queue, for every
     job -- and the same probe must report n + n*n job records."""
-    from qta_agent.scheduler import Scheduler
+    from agent_substrate.scheduler import Scheduler
     real = Scheduler.readiness
 
     def quadratic(self, job, **kw):
@@ -684,7 +684,7 @@ def test_the_lookup_counter_can_see_an_enumerating_lookup(tmp_path,
     confirms the blob by listing its fan-out directory. It reads more
     entries the fuller the store -- the growth the timed guard could only
     guess at from a clock."""
-    from qta_agent import evidence as ev_mod
+    from agent_substrate import evidence as ev_mod
 
     real = EvidenceStore._read_verified
 
@@ -792,10 +792,10 @@ def test_the_governed_executor_leaves_no_child_processes(tmp_path):
     before = subprocess.run(
         ["sh", "-c", "ps -o pid= --ppid $$ 2>/dev/null | wc -l"],
         capture_output=True, text=True).stdout.strip()
-    from qta_agent.execution import Executor, Limits
-    from qta_agent.tools import Determinism, Field_, Registry, SideEffect
-    from qta_agent.tools import ToolSpec
-    from qta_agent.capability import Action, CapabilitySet, issue
+    from agent_substrate.execution import Executor, Limits
+    from agent_substrate.tools import Determinism, Field_, Registry, SideEffect
+    from agent_substrate.tools import ToolSpec
+    from agent_substrate.capability import Action, CapabilitySet, issue
 
     registry = Registry([ToolSpec(
         tool_id="perf.noop", version="1.0.0", summary="exit immediately",
@@ -1095,7 +1095,7 @@ def _count_full_passes(fn):
     an improvement it was not measuring. A pass over the file is a pass over
     the file whichever function asked for it.
     """
-    from qta_agent.events import EventLog as _EL
+    from agent_substrate.events import EventLog as _EL
 
     seen = {"passes": 0, "records": 0}
     real = _EL.read
@@ -1149,14 +1149,14 @@ MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN = 14
 
 
 def _governed(tmp_path, name: str):
-    from qta_agent.evidence import EvidenceStore as _ES
-    from qta_agent.governed_stage10 import GovernedStage10
+    from agent_substrate.evidence import EvidenceStore as _ES
+    from agent_substrate.governed_tasks import GovernedTasks
 
     base = ROOT / "verification" / "stage10" / f"_pytest_perf_{name}"
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=_ES(base / "evidence"))
     g.out_rel = f"verification/stage10/_pytest_perf_{name}/out"
     return g, base
@@ -1218,7 +1218,7 @@ def test_the_pass_probe_can_actually_see_a_regression(tmp_path):
     what the production caller did. This drives the count past the ceiling
     deliberately and requires the probe to notice.
     """
-    from qta_agent.events import EventLog as _EL
+    from agent_substrate.events import EventLog as _EL
 
     log = EventLog(tmp_path / "probe.jsonl")
     log.append(actor="a", action="record.create", target="r",
@@ -1243,7 +1243,7 @@ def test_the_probe_counts_BOTH_ways_into_a_whole_chain_check(tmp_path):
     improvement it was not measuring, in the direction that makes a guard
     look better while the system does the same thing.
     """
-    from qta_agent.events import EventLog as _EL
+    from agent_substrate.events import EventLog as _EL
 
     log = EventLog(tmp_path / "both.jsonl")
     log.append(actor="a", action="record.create", target="r",

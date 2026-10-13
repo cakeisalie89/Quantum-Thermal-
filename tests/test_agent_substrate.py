@@ -17,22 +17,22 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from qta_agent.authority import (  # noqa: E402
+from agent_substrate.authority import (  # noqa: E402
     EDGES, INITIAL, TERMINAL, Role, State, TransitionError,
     TransitionRequest, allowed_targets, check,
 )
-from qta_agent.canonical import (  # noqa: E402
+from agent_substrate.canonical import (  # noqa: E402
     CanonicalizationError, assert_digest_stable, digest,
     is_digest,
 )
-from qta_agent.events import (  # noqa: E402
+from agent_substrate.events import (  # noqa: E402
     _HASHED_FIELDS, ChainBroken, ChainState, EventLog,
 )
-from qta_agent.invalidation import (  # noqa: E402
+from agent_substrate.invalidation import (  # noqa: E402
     apply_invalidation, find_cycles, plan_invalidation,
 )
-from qta_agent.reconstruct import compare, reconstruct  # noqa: E402
-from qta_agent.store import (  # noqa: E402
+from agent_substrate.reconstruct import compare, reconstruct  # noqa: E402
+from agent_substrate.store import (  # noqa: E402
     AuthorityStore, ConcurrencyError, StoreError,
 )
 
@@ -376,7 +376,7 @@ def test_invalidation_runs_against_an_evidence_backed_store(tmp_path):
     withdrawn could never be marked STALE, leaving canonical authority resting
     on a withdrawn input with no way to correct it.
     """
-    from qta_agent.evidence import EvidenceStore
+    from agent_substrate.evidence import EvidenceStore
 
     ev = EvidenceStore(tmp_path / "blobs")
     report = ev.put(b"verification report")
@@ -476,7 +476,7 @@ def test_unverified_dependents_are_not_marked_stale(tmp_path):
 
 def test_invalidatable_states_are_derived_from_the_transition_table(tmp_path):
     """The two must not be able to drift apart again."""
-    from qta_agent.invalidation import INVALIDATABLE
+    from agent_substrate.invalidation import INVALIDATABLE
     assert INVALIDATABLE == frozenset(
         e.src for e in EDGES if e.dst is State.STALE)
     assert INVALIDATABLE == {State.VERIFIED, State.PROMOTED}
@@ -540,7 +540,7 @@ def test_reconstruction_uses_a_separate_implementation():
     If reconstruct imported the store's reducer, agreement between them would
     be circular and prove nothing.
     """
-    src = Path(ROOT, "qta_agent", "reconstruct.py").read_text()
+    src = Path(ROOT, "agent_substrate", "reconstruct.py").read_text()
     assert "AuthorityStore" not in src.split('"""', 2)[2], \
         "reconstruct must not import the store's reducer"
 
@@ -696,7 +696,7 @@ def test_I2_holds_even_if_the_edge_table_grows_an_edge_out_of_a_terminal_state(
     authority. Here such an edge is injected into the lookup table and the
     request is still refused, which is the property the guard actually buys.
     """
-    from qta_agent import authority as A
+    from agent_substrate import authority as A
 
     smuggled = A.Edge(State.REVOKED, State.UNDER_REVIEW,
                       frozenset({Role.VERIFIER}), reason="hypothetical")
@@ -880,7 +880,7 @@ def test_replay_does_not_require_evidence_that_has_since_been_archived(
     would turn an archival policy into a retroactive authority failure, so
     the re-authorization deliberately passes no resolver.
     """
-    from qta_agent.evidence import EvidenceStore
+    from agent_substrate.evidence import EvidenceStore
 
     ev = EvidenceStore(tmp_path / "blobs")
     report = ev.put(b"verification report")
@@ -1025,7 +1025,7 @@ def test_the_create_proposer_guard_makes_its_own_derivation_unobservable():
     import ast
 
     from pathlib import Path as _P
-    src = (_P(ROOT) / "qta_agent" / "store.py").read_text(
+    src = (_P(ROOT) / "agent_substrate" / "store.py").read_text(
         encoding="utf-8")
     lines = src.split("\n")
     guard = [i for i, x in enumerate(lines)
@@ -1063,7 +1063,7 @@ def test_the_create_proposer_guard_makes_its_own_derivation_unobservable():
 # ==========================================================================
 
 def _log_with_form(tmp_path, version, extra=None):
-    from qta_agent.events import EventLog as _EL
+    from agent_substrate.events import EventLog as _EL
 
     path = tmp_path / "formed.jsonl"
     lg = _EL(path)
@@ -1081,7 +1081,7 @@ def _log_with_form(tmp_path, version, extra=None):
 
 def test_a_newer_form_says_the_reader_is_old_not_that_the_log_is_bad(
         tmp_path):
-    from qta_agent.events import UnreadableForm
+    from agent_substrate.events import UnreadableForm
 
     lg = _log_with_form(tmp_path, 2, {"provenance_class": "v2-invented"})
     with pytest.raises(UnreadableForm) as exc:
@@ -1094,7 +1094,7 @@ def test_a_newer_form_says_the_reader_is_old_not_that_the_log_is_bad(
 
 
 def test_an_older_form_says_no_upgrade_is_registered(tmp_path):
-    from qta_agent.events import UnreadableForm
+    from agent_substrate.events import UnreadableForm
 
     lg = _log_with_form(tmp_path, 0)
     with pytest.raises(UnreadableForm) as exc:
@@ -1106,7 +1106,7 @@ def test_an_older_form_says_no_upgrade_is_registered(tmp_path):
 def test_an_unreadable_form_is_still_a_refusal(tmp_path):
     """Every existing caller must keep failing closed, so the new type is a
     MalformedEvent -- a caller that catches the old one is unaffected."""
-    from qta_agent.events import MalformedEvent, UnreadableForm
+    from agent_substrate.events import MalformedEvent, UnreadableForm
 
     assert issubclass(UnreadableForm, MalformedEvent)
     lg = _log_with_form(tmp_path, 7)
@@ -1119,8 +1119,8 @@ def test_a_genuinely_malformed_record_still_says_malformed(tmp_path):
     """ANTI-VACUITY. If every refusal became 'wrong form', the new message
     would be worse than the old one: it would send every operator to the
     upgrade page, including the one whose log really was altered."""
-    from qta_agent.events import EventLog as _EL
-    from qta_agent.events import MalformedEvent, UnreadableForm
+    from agent_substrate.events import EventLog as _EL
+    from agent_substrate.events import MalformedEvent, UnreadableForm
 
     path = tmp_path / "bad.jsonl"
     lg = _EL(path)
@@ -1264,8 +1264,8 @@ def test_running_the_cascade_leaves_the_same_answer(tmp_path):
     running the cascade does. Both have to end in the same verdict, or the
     system would have an incentive to prefer whichever reading it liked.
     """
-    from qta_agent.evidence import EvidenceStore
-    from qta_agent.invalidation import apply_invalidation
+    from agent_substrate.evidence import EvidenceStore
+    from agent_substrate.invalidation import apply_invalidation
 
     s = AuthorityStore(EventLog(tmp_path / "ev.jsonl"),
                        evidence=EvidenceStore(tmp_path / "ev")).load()

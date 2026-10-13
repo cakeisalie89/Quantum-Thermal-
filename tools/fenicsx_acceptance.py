@@ -35,7 +35,7 @@ F. Provenance: dolfinx, basix, UFL, PETSc, MPI, the solver options, every
 Writes one deterministic JSON report and exits 0 only when every criterion
 holds and every control is rejected.
 
-    QTA_FENICSX_PYTHON=<prefix>/bin/python \\
+    HARNESS_FENICSX_PYTHON=<prefix>/bin/python \\
         python tools/fenicsx_acceptance.py --out report.json
 """
 from __future__ import annotations

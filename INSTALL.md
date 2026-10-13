@@ -135,13 +135,13 @@ environment, created from a hash-pinned conda-forge lock (every package's
 sha256 is checked before use):
 
     uv run python tools/fenicsx_env.py create --prefix <dir>/fenicsx --root <dir>/mamba
-    export QTA_FENICSX_PYTHON=<dir>/fenicsx/bin/python
+    export HARNESS_FENICSX_PYTHON=<dir>/fenicsx/bin/python
 
 **The FMI runtime** (fmpy) likewise lives in its own environment, from its
 hash-pinned lock, and the FMU is built from vendored FMI 3.0 headers:
 
     uv run python tools/isolated_runtime.py create fmi --prefix <dir>/fmi-runtime
-    export QTA_FMI_PYTHON=<dir>/fmi-runtime/bin/python
+    export HARNESS_FMI_PYTHON=<dir>/fmi-runtime/bin/python
     uv run python tools/fmi_build.py --out <dir>/fmu_build
 
 With both set, the generic end-to-end demonstration runs through its
@@ -150,7 +150,7 @@ Snakemake rule, which passes the two runtimes to the tool
 them as arguments and can be told they are REQUIRED:
 
     uv run python tools/harness_demo.py run --out report.json \
-        --fenicsx-python "$QTA_FENICSX_PYTHON" --fmi-python "$QTA_FMI_PYTHON" \
+        --fenicsx-python "$HARNESS_FENICSX_PYTHON" --fmi-python "$HARNESS_FMI_PYTHON" \
         --require fenicsx,fmi
 
 The acceptance campaigns run through `tools/fenicsx_acceptance.py` and

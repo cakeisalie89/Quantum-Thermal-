@@ -3,7 +3,7 @@
 
 WHY A SUBPROCESS AND NOT A FUNCTION CALL
 
-``qta_agent.reconstruct`` is already a second implementation: it restates
+``agent_substrate.reconstruct`` is already a second implementation: it restates
 every authority rule in plain dicts rather than importing the reducers it
 checks. That is implementation-level separation, and it is real -- but it is
 separation the two readers keep by DISCIPLINE. Both live in one interpreter,
@@ -46,17 +46,17 @@ from pathlib import Path
 
 #: The only modules of this repository the verifier loads, measured: the
 #: package, the log, the canonical digest the log chains with, the action
-#: vocabulary, and the reader. The guard refuses every other qta_agent
+#: vocabulary, and the reader. The guard refuses every other agent_substrate
 #: module. It used to refuse the names in FORBIDDEN and admit the rest, and
 #: FORBIDDEN never named authority or tasks -- the two gates the reader was
 #: decoupled from -- nor any first reader added after it was written
 #: (D-2026-126). A list of what is permitted does not go stale that way.
 PERMITTED = frozenset({
-    "qta_agent",
-    "qta_agent.actions",
-    "qta_agent.canonical",
-    "qta_agent.events",
-    "qta_agent.reconstruct",
+    "agent_substrate",
+    "agent_substrate.actions",
+    "agent_substrate.canonical",
+    "agent_substrate.events",
+    "agent_substrate.reconstruct",
 })
 
 #: The PRIMARY reducers, named: the things being checked. Every one is
@@ -65,27 +65,27 @@ PERMITTED = frozenset({
 #: Importing one would make the second reading a second call to the first
 #: implementation, which agrees with itself for free.
 FORBIDDEN = frozenset({
-    "qta_agent.authority",
-    "qta_agent.tasks",
-    "qta_agent.store",
-    "qta_agent.scheduler",
-    "qta_agent.policy",
-    "qta_agent.capability",
-    "qta_agent.agents",
-    "qta_agent.memory",
-    "qta_agent.netauth",
-    "qta_agent.secrets",
-    "qta_agent.context",
-    "qta_agent.governed_stage10",
-    "qta_agent.idempotency",
-    "qta_agent.audit",
-    "qta_agent.checkpoint",
-    "qta_agent.invalidation",
-    "qta_agent.principals",
-    "qta_agent.proposals",
-    "qta_agent.result_rules",
-    "qta_agent.learned_rules",
-    "qta_agent.learned_lifecycle",
+    "agent_substrate.authority",
+    "agent_substrate.tasks",
+    "agent_substrate.store",
+    "agent_substrate.scheduler",
+    "agent_substrate.policy",
+    "agent_substrate.capability",
+    "agent_substrate.agents",
+    "agent_substrate.memory",
+    "agent_substrate.netauth",
+    "agent_substrate.secrets",
+    "agent_substrate.context",
+    "agent_substrate.governed_tasks",
+    "agent_substrate.idempotency",
+    "agent_substrate.audit",
+    "agent_substrate.checkpoint",
+    "agent_substrate.invalidation",
+    "agent_substrate.principals",
+    "agent_substrate.proposals",
+    "agent_substrate.result_rules",
+    "agent_substrate.learned_rules",
+    "agent_substrate.learned_lifecycle",
 })
 
 
@@ -96,7 +96,7 @@ class _Refuse(importlib.abc.MetaPathFinder):
     """
 
     def find_spec(self, fullname, path=None, target=None):
-        if (fullname.partition(".")[0] == "qta_agent"
+        if (fullname.partition(".")[0] == "agent_substrate"
                 and fullname not in PERMITTED):
             raise ImportError(
                 f"independent_verify refuses to import {fullname!r}. This "
@@ -108,8 +108,8 @@ class _Refuse(importlib.abc.MetaPathFinder):
 
 
 def main() -> int:
-    # Installed FIRST, before qta_agent is touched at all, so the guard is
-    # in place for every import this program will ever do.
+    # Installed FIRST, before agent_substrate is touched at all, so the guard
+    # is in place for every import this program will ever do.
     sys.meta_path.insert(0, _Refuse())
 
     ap = argparse.ArgumentParser(description=__doc__)
@@ -122,8 +122,8 @@ def main() -> int:
         sys.path.insert(0, args.root)
 
     try:
-        from qta_agent.events import EventLog
-        from qta_agent.reconstruct import (
+        from agent_substrate.events import EventLog
+        from agent_substrate.reconstruct import (
             reconstruct, reconstruct_subsystems, reconstruct_tasks,
         )
     except ImportError as exc:

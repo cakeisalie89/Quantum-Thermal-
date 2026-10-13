@@ -45,7 +45,7 @@ def test_the_allowlist_is_pinned_and_reasoned():
 
 
 def test_a_stale_allowlist_entry_fails_the_verifier(monkeypatch):
-    monkeypatch.setitem(guard.ALLOWED, ("qta_agent/store.py", "load",
+    monkeypatch.setitem(guard.ALLOWED, ("agent_substrate/store.py", "load",
                                         "RAW_READ"), "a site that no longer "
                         "exists, which an allowlist must not keep")
     assert guard.main() == 1
@@ -116,7 +116,7 @@ def test_the_controls_are_not_flagged(src):
 # --- the runtime half -----------------------------------------------------------
 
 def _log(tmp_path):
-    from qta_agent.events import EventLog
+    from agent_substrate.events import EventLog
     log = EventLog(tmp_path / "l.jsonl")
     log.append(actor="a", action="record.create", target="r",
                payload={"record_id": "r", "kind": "k", "proposer": "a"})
@@ -127,15 +127,15 @@ def _log(tmp_path):
     "log.read()", "[e for e in log]", "list(log)", "log.read(strict=False)"])
 def test_the_authority_layer_cannot_read_unverified(tmp_path, code):
     """Decided by the calling frame's module, so an alias cannot evade it."""
-    from qta_agent.events import UnverifiedReadRefused
-    g = {"__name__": "qta_agent.a_future_reducer", "log": _log(tmp_path)}
+    from agent_substrate.events import UnverifiedReadRefused
+    g = {"__name__": "agent_substrate.a_future_reducer", "log": _log(tmp_path)}
     with pytest.raises(UnverifiedReadRefused, match="without verifying"):
         exec(code, g)
 
 
 def test_the_authority_layer_can_read_verified(tmp_path):
     """Control: the verified path is open to the same caller."""
-    g = {"__name__": "qta_agent.a_future_reducer", "log": _log(tmp_path)}
+    g = {"__name__": "agent_substrate.a_future_reducer", "log": _log(tmp_path)}
     exec("report, events = log.read_verified()", g)
     assert g["report"].ok and len(g["events"]) == 1
 
@@ -151,7 +151,7 @@ def test_a_caller_outside_the_authority_layer_may_look(tmp_path):
 def test_the_refusal_is_not_an_event_log_error():
     """Projections catch EventLogError to fall back to a full read; this
     refusal must not be caught there and turned into a quiet fallback."""
-    from qta_agent.events import EventLogError, UnverifiedReadRefused
+    from agent_substrate.events import EventLogError, UnverifiedReadRefused
     assert not issubclass(UnverifiedReadRefused, EventLogError)
 
 

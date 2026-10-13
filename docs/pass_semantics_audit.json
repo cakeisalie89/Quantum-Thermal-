@@ -570,6 +570,41 @@
   {
    "leaks": [],
    "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "agent_substrate/__init__.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the agent authority substrate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "agent_substrate/_index_tool.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the agent authority substrate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1,
+     "pass_count": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "agent_substrate/governed_tasks.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the agent authority substrate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
     "DOCUMENTATION_HISTORY": {
      "results_gate_table": 5,
      "zero_pass": 1
@@ -1135,41 +1170,6 @@
    "path": "package_consistency_check.py",
    "rule_class": "LEGACY_COMPATIBILITY_GUARD",
    "why": "a root-level checker of the legacy package"
-  },
-  {
-   "leaks": [],
-   "occurrences": {
-    "LEGACY_COMPATIBILITY_GUARD": {
-     "automatic_gate_effect": 1
-    }
-   },
-   "path": "qta_agent/__init__.py",
-   "rule_class": "CURRENT_SCOPE",
-   "why": "the agent authority substrate"
-  },
-  {
-   "leaks": [],
-   "occurrences": {
-    "LEGACY_COMPATIBILITY_GUARD": {
-     "automatic_gate_effect": 1
-    }
-   },
-   "path": "qta_agent/_stage10_index_tool.py",
-   "rule_class": "CURRENT_SCOPE",
-   "why": "the agent authority substrate"
-  },
-  {
-   "leaks": [],
-   "occurrences": {
-    "LEGACY_COMPATIBILITY_GUARD": {
-     "automatic_gate_effect": 1,
-     "pass_count": 1,
-     "pass_remains_zero": 1
-    }
-   },
-   "path": "qta_agent/governed_stage10.py",
-   "rule_class": "CURRENT_SCOPE",
-   "why": "the agent authority substrate"
   },
   {
    "leaks": [],
@@ -2118,6 +2118,17 @@
    "leaks": [],
    "occurrences": {
     "TOOLING_REFERENCE": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "tools/mutations/governed_tasks_authority.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "mutation specs naming the code they mutate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
      "pass_count": 1
     }
    },
@@ -2133,17 +2144,6 @@
     }
    },
    "path": "tools/mutations/legacy/hardware_governance.json",
-   "rule_class": "TOOLING_REFERENCE",
-   "why": "mutation specs naming the code they mutate"
-  },
-  {
-   "leaks": [],
-   "occurrences": {
-    "TOOLING_REFERENCE": {
-     "results_gate_table": 1
-    }
-   },
-   "path": "tools/mutations/stage10_authority.json",
    "rule_class": "TOOLING_REFERENCE",
    "why": "mutation specs naming the code they mutate"
   },
@@ -2382,7 +2382,7 @@
   },
   {
    "class": "CURRENT_SCOPE",
-   "path": "qta_agent/*",
+   "path": "agent_substrate/*",
    "why": "the agent authority substrate"
   },
   {

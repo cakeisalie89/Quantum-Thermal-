@@ -56,7 +56,7 @@
       "statement": "Independent numerical agreement is not experimental validation.",
       "enforced_in": [
         {
-          "module": "qta_agent/result_rules.py",
+          "module": "agent_substrate/result_rules.py",
           "symbol": "verification_problems"
         },
         {
@@ -75,11 +75,11 @@
       "statement": "A signed or content-addressed artifact is not a scientifically correct one.",
       "enforced_in": [
         {
-          "module": "qta_agent/result_rules.py",
+          "module": "agent_substrate/result_rules.py",
           "symbol": "admission_problems"
         },
         {
-          "module": "qta_agent/evidence.py",
+          "module": "agent_substrate/evidence.py",
           "symbol": "EvidenceStore"
         }
       ],
@@ -93,7 +93,7 @@
       "statement": "An AI proposal is not a verified result.",
       "enforced_in": [
         {
-          "module": "qta_agent/authority.py",
+          "module": "agent_substrate/authority.py",
           "symbol": "check"
         }
       ],
@@ -108,7 +108,7 @@
       "statement": "Tool completion is not an accepted scientific result.",
       "enforced_in": [
         {
-          "module": "qta_agent/governed_model.py",
+          "module": "agent_substrate/governed_model.py",
           "symbol": "GovernedModelRuns"
         }
       ],
@@ -194,15 +194,15 @@
       "statement": "A learned prediction is not authority: no learned record can be VERIFIED or PROMOTED.",
       "enforced_in": [
         {
-          "module": "qta_agent/learned_rules.py",
+          "module": "agent_substrate/learned_rules.py",
           "symbol": "refusal"
         },
         {
-          "module": "qta_agent/store.py",
+          "module": "agent_substrate/store.py",
           "symbol": "AuthorityStore"
         },
         {
-          "module": "qta_agent/reconstruct.py",
+          "module": "agent_substrate/reconstruct.py",
           "symbol": "_LEARNED_PREFIX"
         }
       ],

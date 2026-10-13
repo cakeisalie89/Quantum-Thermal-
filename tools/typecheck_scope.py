@@ -46,7 +46,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DOC = ROOT / "docs" / "typing_scope.json"
 CONFIG = ROOT / "typecheck_active.ini"
 
-ACTIVE = ("qta_agent", "scientific", "scientific_ai",
+ACTIVE = ("agent_substrate", "scientific", "scientific_ai",
           "qta_multiphysics/stack", "integrations", "tools",
           "ro_crate_tools.py")
 TESTS = ("tests", "conftest.py")

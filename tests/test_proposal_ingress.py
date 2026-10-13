@@ -25,17 +25,17 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import proposals as PR  # noqa: E402
-from qta_agent import reconstruct as rc  # noqa: E402
-from qta_agent.agents import AgentRole, PrincipalKind, identity  # noqa: E402
-from qta_agent.authority import Role, State, TransitionError  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_model import (  # noqa: E402
+from agent_substrate import proposals as PR  # noqa: E402
+from agent_substrate import reconstruct as rc  # noqa: E402
+from agent_substrate.agents import AgentRole, PrincipalKind, identity  # noqa: E402
+from agent_substrate.authority import Role, State, TransitionError  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_model import (  # noqa: E402
     CHECK_WORKER_ID, REVIEWER_ID, GovernedModelRuns, ModelRunRefused,
 )
-from qta_agent.store import StoreError  # noqa: E402
+from agent_substrate.store import StoreError  # noqa: E402
 
 WS = "verification/stage10/_pytest_proposals"
 FIXTURE = ROOT / "integrations" / "proposals" / "recorded_fixture.jsonl"
@@ -229,7 +229,7 @@ def test_a_client_claiming_authority_is_refused(resp):
 
 
 def test_the_trusted_core_names_no_provider_and_imports_no_client():
-    src = (ROOT / "qta_agent" / "proposals.py").read_text().lower()
+    src = (ROOT / "agent_substrate" / "proposals.py").read_text().lower()
     for name in ("anthropic", "openai", "gemini", "import requests",
                  "import httpx", "urllib.request", "api_key"):
         assert name not in src, name

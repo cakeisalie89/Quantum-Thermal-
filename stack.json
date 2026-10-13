@@ -207,7 +207,7 @@
       "owner_module": "scientific.checks.fenicsx_slab",
       "optional_dependency": "dolfinx -- from the hash-pinned conda-forge lock integrations/fenicsx/environment.lock, created by tools/fenicsx_env.py; deliberately not a wheel dependency",
       "boundary": "a verifier, never a producer: it admits or refuses a slab result and nothing it computes is admitted as a result. One problem class, the transient slab. Run single-process with MPI offered only self and shared-memory transports (D-2026-124). Executed on a hosted runner with the runtime REQUIRED (harness-integrations run 37966478567 at 5ab44a7: fenicsx and end-to-end jobs green). qta_multiphysics/stack/fem_fenicsx.py, the Stage-10 adapter for the legacy finite-volume backends, stays STAGED for that scope.",
-      "verification": "python tools/fenicsx_acceptance.py --out fenicsx_acceptance.json  # with QTA_FENICSX_PYTHON set; the hosted fenicsx and end-to-end jobs",
+      "verification": "python tools/fenicsx_acceptance.py --out fenicsx_acceptance.json  # with HARNESS_FENICSX_PYTHON set; the hosted fenicsx and end-to-end jobs",
       "open_items": [
         "one problem class only: no FEniCSx check exists for the 2D axisymmetric or the 3D thermal models, or for the legacy finite-volume backends"
       ]
@@ -238,7 +238,7 @@
       "owner_module": "scientific.fmi_boundary",
       "optional_dependency": "fmpy -- from the hash-pinned integrations/fmi/runtime.lock, in its own runtime (tools/isolated_runtime.py)",
       "boundary": "one generic FMU (integrations/fmi/thermal_rc2, a two-node thermal RC network) is built from C against hash-checked FMI 3.0 headers, loaded by fmpy, stepped, its state serialized, restored and replayed; P2-P5 hold for it; its fault twin is REJECTED by the independent check. Executed on a hosted runner (harness-integrations run 37966478567 at 5ab44a7: fmi and end-to-end jobs green). Its bytes are claimed identical between two builds on one host only. qta_multiphysics/stack/fmi_contract.py keeps its DEFERRED interface contract for exporting the legacy solvers, which is not done.",
-      "verification": "python tools/fmi_acceptance.py  # with QTA_FMI_PYTHON set; the hosted fmi and end-to-end jobs",
+      "verification": "python tools/fmi_acceptance.py  # with HARNESS_FMI_PYTHON set; the hosted fmi and end-to-end jobs",
       "open_items": [
         "no FMU of the legacy finite-volume solvers is exported: fmi_contract.py's prerequisites for that export (FMI-P1 to FMI-P5) stay open for those solvers"
       ]
@@ -249,8 +249,8 @@
       "doc_key": "Authority substrate",
       "status": "ADOPTED",
       "since_stage": "harness",
-      "authority": "qta_agent: the authenticated event log and the authority store's gate decide admission; qta_agent/reconstruct.py is the independent second reader",
-      "owner_module": "qta_agent",
+      "authority": "agent_substrate: the authenticated event log and the authority store's gate decide admission; agent_substrate/reconstruct.py is the independent second reader",
+      "owner_module": "agent_substrate",
       "optional_dependency": null,
       "boundary": "decides admission of results and computes none: no scientific module imports it (tests/test_agent_substrate_isolation.py), and nothing learned or proposed reaches VERIFIED except through a governed run, an independent check and a distinct reviewer",
       "verification": "python -m pytest tests/test_agent_*.py  # and the qta-agent-substrate workflow's mutation shards",
@@ -275,8 +275,8 @@
       "doc_key": "AI proposal ingress",
       "status": "ADOPTED",
       "since_stage": "harness",
-      "authority": "qta_agent/authority.py: a proposal is NON_AUTHORITATIVE data; only a governed run, an independent check and a distinct reviewer reach a decision",
-      "owner_module": "qta_agent.proposals",
+      "authority": "agent_substrate/authority.py: a proposal is NON_AUTHORITATIVE data; only a governed run, an independent check and a distinct reviewer reach a decision",
+      "owner_module": "agent_substrate.proposals",
       "optional_dependency": null,
       "boundary": "recorded-fixture and external-client adapters behind one envelope; no provider SDK and no network in the trusted core; a proposal is never authority, whoever or whatever made it",
       "verification": "python -m pytest tests/test_proposal_ingress.py tests/test_harness_demo.py",

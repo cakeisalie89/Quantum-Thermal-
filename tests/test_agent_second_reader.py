@@ -30,14 +30,14 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.governed_stage10 import GovernedStage10  # noqa: E402
-from qta_agent.reconstruct import (  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.governed_tasks import GovernedTasks  # noqa: E402
+from agent_substrate.reconstruct import (  # noqa: E402
     compare_subsystems, reconstruct_subsystems,
 )
-from qta_agent.tasks import TaskState  # noqa: E402
+from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_second_reader"
 
@@ -49,7 +49,7 @@ def gov(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -443,7 +443,7 @@ def test_the_second_reader_bounds_renewals(gov):
 def test_the_second_reader_drops_the_renewal_count_on_requeue(gov):
     """Both readers must agree after a requeue, or the divergence report is
     reporting on the readers rather than on the log."""
-    from qta_agent.scheduler import FailureClass
+    from agent_substrate.scheduler import FailureClass
     s = _leased_job(gov, lease_seqs=10 ** 6)
     s.renew_lease(job_id="j-lease", worker="w1", lease_id="L1",
                   lease_seqs=10 ** 6)
@@ -464,7 +464,7 @@ def test_the_second_reader_drops_the_renewal_count_on_requeue(gov):
 # ==========================================================================
 
 def _register_service(gov):
-    from qta_agent.netauth import ServiceOperation, service
+    from agent_substrate.netauth import ServiceOperation, service
     return gov.network.register_service(
         service(service_id="registrar", hosts=("api.example.com",),
                 operations=(ServiceOperation("POST", "/v1/records"),),
@@ -482,8 +482,8 @@ def test_the_second_reader_rebuilds_a_service_contract(gov):
 
 
 def test_the_second_reader_refuses_a_re_registration_with_new_terms(gov):
-    from qta_agent.netauth import ACT_SERVICE_REGISTER, ServiceOperation
-    from qta_agent.netauth import service as _service
+    from agent_substrate.netauth import ACT_SERVICE_REGISTER, ServiceOperation
+    from agent_substrate.netauth import service as _service
     _register_service(gov)
     wider = _service(service_id="registrar", hosts=("api.example.com",),
                      operations=(ServiceOperation("POST", "/v1"),),
@@ -500,7 +500,7 @@ def test_the_second_reader_refuses_a_re_registration_with_new_terms(gov):
 def test_the_second_reader_counts_the_budget_and_notices_it_passed(gov):
     """Counted from the log, so a budget the scheduler believes is spent and
     one the log actually shows are two numbers that can be compared."""
-    from qta_agent.netauth import ACT_NET_REQUEST
+    from agent_substrate.netauth import ACT_NET_REQUEST
     _register_service(gov)
     for _ in range(3):
         gov.log.append(actor="w", action=ACT_NET_REQUEST, target="t1",
@@ -516,7 +516,7 @@ def test_the_second_reader_counts_the_budget_and_notices_it_passed(gov):
 def test_a_refused_call_does_not_count_against_the_budget(gov):
     """ANTI-VACUITY. If every recorded request counted, the budget would be
     spent by attempts that never happened."""
-    from qta_agent.netauth import ACT_NET_REQUEST
+    from agent_substrate.netauth import ACT_NET_REQUEST
     _register_service(gov)
     for _ in range(5):
         gov.log.append(actor="w", action=ACT_NET_REQUEST, target="t1",
@@ -735,7 +735,7 @@ def test_a_history_the_primary_REFUSES_is_still_read_by_the_second(gov):
     the two readers cannot run. If the second reader is silent, nothing in
     the system says anything about the forged record.
     """
-    from qta_agent.scheduler import Scheduler
+    from agent_substrate.scheduler import Scheduler
     s = _leased_job(gov)
     gov.log.append(actor="mallory", action="scheduler.transition",
                    target="j-lease",
@@ -906,7 +906,7 @@ def test_the_second_reader_follows_a_principal_standing_itself_down(gov):
 # disagree with itself.
 # --------------------------------------------------------------------------
 
-from qta_agent.agents import (                                   # noqa: E402
+from agent_substrate.agents import (                                   # noqa: E402
     ACT_ESCALATION, ACT_ESCALATION_ANSWER, AgentRole, BOOTSTRAP,
     PrincipalKind, identity,
 )
@@ -1126,7 +1126,7 @@ def test_the_second_reader_imports_none_of_the_layers_it_reads(gov):
     does not import, which is a check that fails for being right.
     """
     import ast
-    import qta_agent.reconstruct as R
+    import agent_substrate.reconstruct as R
 
     tree = ast.parse(Path(R.__file__).read_text(encoding="utf-8"))
     imported = set()
@@ -1148,11 +1148,11 @@ def test_the_second_reader_imports_none_of_the_layers_it_reads(gov):
     # stood over the nine subsystems below them saying the separation held.
     forbidden = {"agents", "scheduler", "policy", "capability", "memory",
                  "netauth", "secrets", "context", "authority", "tasks",
-                 "qta_agent.agents", "qta_agent.scheduler",
-                 "qta_agent.policy", "qta_agent.capability",
-                 "qta_agent.memory", "qta_agent.netauth",
-                 "qta_agent.secrets", "qta_agent.context",
-                 "qta_agent.authority", "qta_agent.tasks"}
+                 "agent_substrate.agents", "agent_substrate.scheduler",
+                 "agent_substrate.policy", "agent_substrate.capability",
+                 "agent_substrate.memory", "agent_substrate.netauth",
+                 "agent_substrate.secrets", "agent_substrate.context",
+                 "agent_substrate.authority", "agent_substrate.tasks"}
     leaked = sorted(imported & forbidden)
     assert not leaked, (
         f"the second reader imports {leaked}; it would then agree with those "
@@ -1170,7 +1170,7 @@ def test_the_second_reader_imports_only_the_log_and_the_action_names():
     the action vocabulary; everything else it restates.
     """
     import ast
-    import qta_agent.reconstruct as R
+    import agent_substrate.reconstruct as R
 
     tree = ast.parse(Path(R.__file__).read_text(encoding="utf-8"))
     resolved = set()
@@ -1181,14 +1181,14 @@ def test_the_second_reader_imports_only_the_log_and_the_action_names():
             resolved.add(node.module or "")
         elif isinstance(node, ast.ImportFrom) and node.level == 1:
             resolved.update(
-                [f"qta_agent.{node.module}"] if node.module
-                else [f"qta_agent.{a.name}" for a in node.names])
+                [f"agent_substrate.{node.module}"] if node.module
+                else [f"agent_substrate.{a.name}" for a in node.names])
         elif isinstance(node, ast.ImportFrom):
             resolved.add("." * node.level + (node.module or ""))
 
     allowed = {"__future__", "dataclasses", "typing", "hashlib", "json",
-               "qta_agent.actions", "qta_agent.events"}
-    assert resolved >= {"qta_agent.actions", "qta_agent.events"}, resolved
+               "agent_substrate.actions", "agent_substrate.events"}
+    assert resolved >= {"agent_substrate.actions", "agent_substrate.events"}, resolved
     extra = sorted(resolved - allowed)
     assert not extra, (
         f"the second reader imports {extra}; a reader that shares code with "
@@ -1218,8 +1218,8 @@ def test_the_second_reader_imports_only_the_log_and_the_action_names():
 # second reader -- so the gap cannot be widened by re-labelling it.
 # ---------------------------------------------------------------------------
 
-from qta_agent.agents import ACT_CLAIM  # noqa: E402
-from qta_agent.canonical import digest_bytes as _dg  # noqa: E402
+from agent_substrate.agents import ACT_CLAIM  # noqa: E402
+from agent_substrate.canonical import digest_bytes as _dg  # noqa: E402
 
 ACT_COMPENSATION = "task.compensation"
 VALUE = _dg(b"the value this claim is about")

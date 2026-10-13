@@ -5,7 +5,7 @@
  "label": "the framework's authorities are in 'authorities'; the hardware-era QTA package's are in 'legacy_authorities' and are authority for NOTHING active (docs/framework_boundary.json)",
  "authorities": {
   "event_history": {
-   "authority": "qta_agent/events.py :: EventLog -- the append-only, hash-chained log with a separately witnessed head; the only writable record of any decision",
+   "authority": "agent_substrate/events.py :: EventLog -- the append-only, hash-chained log with a separately witnessed head; the only writable record of any decision",
    "owner": "agent_substrate",
    "schema_version": "1",
    "means": "what happened, in order, tamper-evident: every other state below is a projection of it",
@@ -16,7 +16,7 @@
    ]
   },
   "authority_fsm": {
-   "authority": "qta_agent/authority.py :: the transition table and invariants I1-I6; qta_agent/store.py :: AuthorityStore, the projection that re-authorizes every transition on replay",
+   "authority": "agent_substrate/authority.py :: the transition table and invariants I1-I6; agent_substrate/store.py :: AuthorityStore, the projection that re-authorizes every transition on replay",
    "owner": "agent_substrate",
    "schema_version": "1",
    "means": "which claims are PROPOSED, VERIFIED, PROMOTED or withdrawn, and who moved them",
@@ -27,7 +27,7 @@
    ]
   },
   "scientific_admission": {
-   "authority": "qta_agent/result_rules.py :: admission policy scientific_result.admission/1, decided by the store live, on replay and on snapshot restore; restated independently in qta_agent/reconstruct.py",
+   "authority": "agent_substrate/result_rules.py :: admission policy scientific_result.admission/1, decided by the store live, on replay and on snapshot restore; restated independently in agent_substrate/reconstruct.py",
    "owner": "agent_substrate",
    "schema_version": "1",
    "means": "that a scientific_result's evidence -- a PASS from an independent implementation about this exact bundle, captured by governed tasks -- supports VERIFIED or PROMOTED",
@@ -38,18 +38,18 @@
    ]
   },
   "task_fsm": {
-   "authority": "qta_agent/tasks.py :: the task transition table; qta_agent/governed_stage10.py :: the projection on the production path; qta_agent/reconstruct.py :: reconstruct_tasks, the second reader",
+   "authority": "agent_substrate/tasks.py :: the task transition table; agent_substrate/governed_tasks.py :: the projection on the production path; agent_substrate/reconstruct.py :: reconstruct_tasks, the second reader",
    "owner": "agent_substrate",
    "schema_version": "1",
    "means": "whether a governed tool run was executed under lease and verified by an actor other than its executor",
    "does_not_mean": "that the tool's output is scientifically correct: a VERIFIED task is provenance",
    "enforced_by": [
-    "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_governed_tasks.py",
     "tests/test_agent_differential.py"
    ]
   },
   "scheduler_fsm": {
-   "authority": "qta_agent/scheduler.py :: the durable job queue -- readiness, leases, retry, cancellation",
+   "authority": "agent_substrate/scheduler.py :: the durable job queue -- readiness, leases, retry, cancellation",
    "owner": "agent_substrate",
    "schema_version": "1",
    "means": "which work is ready, running, finished or failed, across process deaths",
@@ -59,7 +59,7 @@
    ]
   },
   "memory_fsm": {
-   "authority": "qta_agent/memory.py :: remembered facts and their status",
+   "authority": "agent_substrate/memory.py :: remembered facts and their status",
    "owner": "agent_substrate",
    "schema_version": "1",
    "means": "what an agent was told and still holds",
@@ -69,7 +69,7 @@
    ]
   },
   "evidence_store": {
-   "authority": "qta_agent/evidence.py :: EvidenceStore, content-addressed and append-only; every read re-hashes",
+   "authority": "agent_substrate/evidence.py :: EvidenceStore, content-addressed and append-only; every read re-hashes",
    "owner": "agent_substrate",
    "schema_version": "1",
    "means": "the exact bytes a cited digest names (artifact integrity)",
@@ -183,10 +183,10 @@
    "note": "additive and workspace-only: no stack module is imported by the solvers or qta_full_sim.py, every writer refuses the canonical tree, automatic_gate_effect=NONE, and the s10_canonical_untouched rule re-verifies final_manifest.json after the stage runs"
   },
   "agent_authority_substrate": {
-   "authority": "qta_agent/authority.py :: the transition table and invariants I1-I6 that decide what may become canonical; qta_agent/events.py :: the append-only hash-chained log that is the only writable record of those decisions, serialized across processes by an advisory lock; qta_agent/evidence.py :: the content-addressed store that makes a cited digest resolvable, which is what turns I6 from a shape check into an existence check; qta_agent/capability.py :: CapabilityLedger, the grants IN FORCE projected from the log rather than assembled by the caller, so a grant the log never recorded authorizes nothing; qta_agent/checkpoint.py :: a cached verification result, never a second source of truth -- every use is reported as weaker than a full verification; qta_agent/safeio.py :: confined reads -- the authorized root opened once as a descriptor, every component opened descriptor-relative with O_NOFOLLOW, the OPENED object validated rather than the pathname, and a cited digest binding the result to content; qta_agent/readpath.py :: who may read what, default-deny and recorded; qta_agent/canonical.py :: the one byte representation every digest in the layer is taken over",
+   "authority": "agent_substrate/authority.py :: the transition table and invariants I1-I6 that decide what may become canonical; agent_substrate/events.py :: the append-only hash-chained log that is the only writable record of those decisions, serialized across processes by an advisory lock; agent_substrate/evidence.py :: the content-addressed store that makes a cited digest resolvable, which is what turns I6 from a shape check into an existence check; agent_substrate/capability.py :: CapabilityLedger, the grants IN FORCE projected from the log rather than assembled by the caller, so a grant the log never recorded authorizes nothing; agent_substrate/checkpoint.py :: a cached verification result, never a second source of truth -- every use is reported as weaker than a full verification; agent_substrate/safeio.py :: confined reads -- the authorized root opened once as a descriptor, every component opened descriptor-relative with O_NOFOLLOW, the OPENED object validated rather than the pathname, and a cited digest binding the result to content; agent_substrate/readpath.py :: who may read what, default-deny and recorded; agent_substrate/canonical.py :: the one byte representation every digest in the layer is taken over",
    "owner": "agent_substrate",
    "schema_version": "1.0.0",
-   "implementation": "qta_agent/ -- canonical (serialization), events (log, separate head witness, anchored incremental verification), evidence (content-addressed, self-verifying, append-only), capability (authority as a bounded object), tools (default-deny registry), execution (kernel-bounded subprocesses), checkpoint (cached verification results and projection snapshots), authority (state machine), policy (versioned rule documents, deny-overrides, decisions that name the document digest that decided), secrets (references that travel and values that do not), netauth (egress as a bounded grant, default deny), store (live projection, optimistic concurrency, idempotency keys that record what they completed), invalidation (transitive staleness derived from the transition table), reconstruct (a deliberately separate replay compared against the live projection), tasks (durable work lifecycle), scheduler (the durable queue: readiness, leases, classified retry, cancellation cascade), memory (remembered statements, structurally unable to become evidence), context (what the agent was shown, recorded apart from what is true), audit (turning the log into answers), governed_stage10 (the production caller)",
+   "implementation": "agent_substrate/ -- canonical (serialization), events (log, separate head witness, anchored incremental verification), evidence (content-addressed, self-verifying, append-only), capability (authority as a bounded object), tools (default-deny registry), execution (kernel-bounded subprocesses), checkpoint (cached verification results and projection snapshots), authority (state machine), policy (versioned rule documents, deny-overrides, decisions that name the document digest that decided), secrets (references that travel and values that do not), netauth (egress as a bounded grant, default deny), store (live projection, optimistic concurrency, idempotency keys that record what they completed), invalidation (transitive staleness derived from the transition table), reconstruct (a deliberately separate replay compared against the live projection), tasks (durable work lifecycle), scheduler (the durable queue: readiness, leases, classified retry, cancellation cascade), memory (remembered statements, structurally unable to become evidence), context (what the agent was shown, recorded apart from what is true), audit (turning the log into answers), governed_tasks (the production caller)",
    "consumers": [
     "tests/test_agent_substrate.py (transition table, log integrity, projection, invalidation, reconstruction)",
     "tests/test_agent_substrate_properties.py (Hypothesis property and stateful testing; invariants asserted on every reachable state)",
@@ -200,13 +200,13 @@
     "tests/test_agent_performance.py, test_agent_fuzz.py (asymptotic guards and a committed fuzz regression corpus)",
     "tests/test_agent_hostile_campaign.py (ONE hostile agent, sixteen escalating attempts against one shared log, then what the whole history shows; it found the replay re-authorizing against a starting state the writer supplied)",
     "tests/test_agent_readpath.py (the read boundary attacked at the open: traversal, symlinks at every position, FIFOs, sockets, devices, hard-link aliases, driven races between authorization and open, and capability scope)",
-    "tests/test_agent_governed_stage10.py (THE PRODUCTION CALLER, end to end)",
+    "tests/test_agent_governed_tasks.py (THE PRODUCTION CALLER, end to end)",
     "Snakefile :: rule s10_governed (the governed run is part of the build; a provenance gap, an unjoinable policy decision or a gapped authority record fails it)"
    ],
    "automatic_gate_effect": "NONE",
-   "does_not_mean": "This layer governs how claims ABOUT the project become canonical. It does not govern, compute, or influence any physics. Agent execution cannot directly mutate authoritative scientific state, evidence, or acceptance state except through the governed interfaces and event-derived authority machinery. No solver or scientific model imports qta_agent/, and nothing here moves an acceptance decision by itself. A record reaching PROMOTED here means a claim was proposed, independently verified, and promoted under a recorded policy -- it does not mean a gate passed, that anything was measured, or that hardware exists. Likewise a task reaching VERIFIED on the governed Stage-10 path means a declared tool ran under kernel-enforced CPU, address-space, output-size, process-count and core-dump bounds; was granted no network authority by this substrate; produced the bytes it claims; and a SEPARATED registered actor confirmed those bytes are still on disk. Those are two separate statements and only the first is the kernel's: none of the rlimits restricts networking, a child process can open sockets, and what is withheld is authority rather than capability. The in-process socket guard is a monkeypatch in the parent interpreter and is not containment; it does not exist in a child at all. That is provenance. It is not scientific validity.",
+   "does_not_mean": "This layer governs how claims ABOUT the project become canonical. It does not govern, compute, or influence any physics. Agent execution cannot directly mutate authoritative scientific state, evidence, or acceptance state except through the governed interfaces and event-derived authority machinery. No solver or scientific model imports agent_substrate/, and nothing here moves an acceptance decision by itself. A record reaching PROMOTED here means a claim was proposed, independently verified, and promoted under a recorded policy -- it does not mean a gate passed, that anything was measured, or that hardware exists. Likewise a task reaching VERIFIED on the governed Stage-10 path means a declared tool ran under kernel-enforced CPU, address-space, output-size, process-count and core-dump bounds; was granted no network authority by this substrate; produced the bytes it claims; and a SEPARATED registered actor confirmed those bytes are still on disk. Those are two separate statements and only the first is the kernel's: none of the rlimits restricts networking, a child process can open sockets, and what is withheld is authority rather than capability. The in-process socket guard is a monkeypatch in the parent interpreter and is not containment; it does not exist in a child at all. That is provenance. It is not scientific validity.",
    "note": "Enforcement is verified by mutation testing rather than by coverage: each check is deleted in turn and the suite must fail. tools/mutation_matrix.py exits non-zero on a survivor, on an anchor that no longer matches its source, on a source not restored byte-identically, on collateral damage to a tracked file, or on a post-run baseline that no longer passes; it refuses to start against a red baseline OR a non-deterministic one. The harness is itself mutated by tools/mutations/mutation_harness.json, after a defect was found in it: it could run a mutation against the PREVIOUS mutation's cached bytecode whenever both changed the file by the same number of bytes within one mtime second, which reported kills for mutations nothing had tested. A second harness defect was found the same way: its collateral-damage restore is 'git checkout HEAD --', which cannot tell a suite-damaged file from an uncommitted edit, and it destroyed real work twice in one session; the restore still happens and the discarded bytes are now kept under .mutation-quarantine/. A surviving mutation means a check is unprotected, not that it is redundant. Mutation testing asks whether a check that EXISTS is load-bearing; it cannot ask whether one is MISSING, because there is nothing to delete. Two techniques cover that: Hypothesis state machines over the authority, task and job machines, and a hostile-agent campaign against the governed path. Each found defects the other could not -- the campaign found the task replay re-authorizing a forged record against the starting state the record itself declared, which let one appended line move a task out of the sealed VERIFIED state. Narrative form: AGENT_SUBSTRATE.md; per-requirement status: docs/completion_matrix.json.",
-   "status": "BUILT_AND_VERIFIED_WITH_ONE_PRODUCTION_CALLER: qta_agent/governed_stage10.py is invoked by the Snakefile's s10_governed rule, so the substrate has a consumer that does real work and writes files somebody reads. tests/test_agent_substrate_isolation.py enforces the narrow, named crossing that permits it (two bridge modules reaching one thing, the Stage-10 write guard) and still forbids the other direction absolutely. What has NOT changed: nothing scientific has been promoted through this layer. No existing claim, gate, document, or canonical output has been re-derived under it, and PROMOTED in the authority state machine remains a state reached only in tests. The governed workflow is ONE workflow, of the safest available kind -- artifact generation with automatic_gate_effect=NONE -- and the ungoverned Stage-10 adapters remain directly callable, so the governed path is additive rather than the only route. Governing a claim, a gate or a canonical output is a separate change that must name which claims it governs and who holds each role."
+   "status": "BUILT_AND_VERIFIED_WITH_ONE_PRODUCTION_CALLER: agent_substrate/governed_tasks.py is invoked by the Snakefile's s10_governed rule, so the substrate has a consumer that does real work and writes files somebody reads. tests/test_agent_substrate_isolation.py enforces the narrow, named crossing that permits it (two bridge modules reaching one thing, the Stage-10 write guard) and still forbids the other direction absolutely. What has NOT changed: nothing scientific has been promoted through this layer. No existing claim, gate, document, or canonical output has been re-derived under it, and PROMOTED in the authority state machine remains a state reached only in tests. The governed workflow is ONE workflow, of the safest available kind -- artifact generation with automatic_gate_effect=NONE -- and the ungoverned Stage-10 adapters remain directly callable, so the governed path is additive rather than the only route. Governing a claim, a gate or a canonical output is a separate change that must name which claims it governs and who holds each role."
   }
  },
  "legacy_authorities_note": "The QTA package's single sources of truth, kept as they were for history and for the legacy verifier (package_consistency_check.py, LEGACY_QTA_VERIFIER) that still checks the QTA pipeline. Moved here in tranche 4 (directive 18). Retained physics parameters named below (units, solver profiles, meshes, seeds) migrate into model plugins' declared inputs as each model is extracted.",

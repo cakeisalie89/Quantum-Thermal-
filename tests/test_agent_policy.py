@@ -16,10 +16,10 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.canonical import is_digest  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.policy import (  # noqa: E402
+from agent_substrate.canonical import is_digest  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.policy import (  # noqa: E402
     ACT_POLICY_DECISION, ACT_POLICY_PUBLISH, ANY, Effect, PolicyDenied,
     PolicyError, PolicyRequest, PolicyStore, PolicyVersionError,
     PolicyObligationUnmet, UnknownPolicy, document, document_from_record,
@@ -254,7 +254,7 @@ def test_publication_with_a_mismatched_digest_is_refused(store, tmp_path):
     # Re-hash the EVENT so the chain still links: the attacker here is one who
     # can rewrite the log, and the question is whether the policy layer
     # notices that the document no longer matches its own claimed digest.
-    from qta_agent.canonical import digest as _digest
+    from agent_substrate.canonical import digest as _digest
     body = {k: v for k, v in rec.items() if k != "hash"}
     rec["hash"] = _digest(body)
     lines[-1] = json.dumps(rec, sort_keys=True, separators=(",", ":"))
@@ -354,7 +354,7 @@ def test_a_recorded_decision_carries_what_was_decided(store):
 # recomputed.
 
 def _forge(store, *, decision, digest_over=None):
-    from qta_agent.canonical import digest as _digest
+    from agent_substrate.canonical import digest as _digest
 
     body = {k: v for k, v in decision.items() if k != "at_seq"}
     store.log.append(
@@ -506,7 +506,7 @@ def test_the_reducer_is_only_ever_reached_in_log_order():
     """
     import ast
 
-    src = (ROOT / "qta_agent" / "policy.py").read_text(encoding="utf-8")
+    src = (ROOT / "agent_substrate" / "policy.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
     calls = [n for n in ast.walk(tree)
              if isinstance(n, ast.Call)
@@ -533,7 +533,7 @@ def test_the_reducer_is_only_ever_reached_in_log_order():
     # And nothing outside this module drives the reducer at all: every
     # caller above is in policy.py, so "in log order" is a property of this
     # file rather than of the whole package.
-    outside = [p.name for p in sorted((ROOT / "qta_agent").glob("*.py"))
+    outside = [p.name for p in sorted((ROOT / "agent_substrate").glob("*.py"))
                if p.name != "policy.py"
                and "PolicyStore(" in p.read_text(encoding="utf-8")
                and ".apply(" in p.read_text(encoding="utf-8")]
@@ -689,7 +689,7 @@ def test_a_recorded_allow_that_understates_its_obligations_is_refused(
     digest -- and drops the condition. Every reader downstream repeats the
     unconditional version.
     """
-    from qta_agent.events import EventLog
+    from agent_substrate.events import EventLog
     log = EventLog(tmp_path / "p.jsonl")
     store = PolicyStore(log).load()
     store.publish(_oblig_doc(), actor="owner")

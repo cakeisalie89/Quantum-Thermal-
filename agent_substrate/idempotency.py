@@ -204,7 +204,7 @@ class IdempotencyLedger:
     """Bindings in force, PROJECTED from the log rather than asserted.
 
     Same shape and the same reasoning as
-    :class:`~qta_agent.capability.CapabilityLedger`: a caller that
+    :class:`~agent_substrate.capability.CapabilityLedger`: a caller that
     assembles its own map can put anything in it, so the map is rebuilt
     from events and a binding nobody recorded does not exist.
     """

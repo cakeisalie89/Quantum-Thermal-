@@ -133,7 +133,7 @@ PATH_RULES = (
     # The current harness: every occurrence judged on its own.
     ("scientific_ai/*", CURRENT, "the learned-model substrate"),
     ("scientific/*", CURRENT, "the generic scientific framework"),
-    ("qta_agent/*", CURRENT, "the agent authority substrate"),
+    ("agent_substrate/*", CURRENT, "the agent authority substrate"),
     ("tools/neural.py", CURRENT, "the substrate's evidence tool"),
     ("tools/neural_ledger.py", CURRENT, "the substrate's ledger tool"),
     ("tests/neural_support.py", CURRENT, "the substrate's test support"),

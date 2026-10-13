@@ -87,57 +87,57 @@ HW_OUTPUT_WHY = (
 #: (glob, disposition, rationale, evidence). First match wins, so a specific
 #: file precedes its directory's rule. There is deliberately no catch-all.
 RULES = [
-    ("qta_agent/events.py", KAH,
+    ("agent_substrate/events.py", KAH,
      "Canonical event log. Phase 1.1: single-pass verified tail (advance, "
      "read_verified_from); read_verified returns only the verified prefix.",
      "defect: advance() verified one read and returned a second"),
-    ("qta_agent/store.py", KAH,
+    ("agent_substrate/store.py", KAH,
      "Authority projection. Phase 1.1 (load/_fold_new/load_from on one "
      "verified snapshot) + 1.4 (reducer identity bound into snapshots).",
      "defect: verify-then-read at load, _fold_new, load_from"),
-    ("qta_agent/checkpoint.py", KAH,
+    ("agent_substrate/checkpoint.py", KAH,
      "Log-position checkpoint; verify_with now returns the verified tail "
      "it checked.",
      "defect: load_from re-read the tail verify_with checked"),
-    ("qta_agent/projection.py", KAH,
+    ("agent_substrate/projection.py", KAH,
      "NEW in Phase 1.4: reducer identity (projection_kind, "
      "reducer_id/version/digest, schema version).",
      "directive s8 invariant"),
-    ("qta_agent/context.py", KAH,
+    ("agent_substrate/context.py", KAH,
      "Phase 1.2: summary provenance bound to real source bytes.",
      "defect: phantom summarizes_item + fabricated omission"),
-    ("qta_agent/agents.py", KAH,
+    ("agent_substrate/agents.py", KAH,
      "Phase 1.1: load() folds only the verified snapshot.",
      "verify-then-read at load"),
-    ("qta_agent/audit.py", KAH,
+    ("agent_substrate/audit.py", KAH,
      "Phase 1.1: from_log() indexes only the verified snapshot.",
      "verify-then-read (two further reads)"),
-    ("qta_agent/capability.py", KAH,
+    ("agent_substrate/capability.py", KAH,
      "Phase 1.1: load() folds only the verified snapshot.",
      "verify-then-read at load"),
-    ("qta_agent/idempotency.py", KAH,
+    ("agent_substrate/idempotency.py", KAH,
      "Phase 1.1: load() folds only the verified snapshot.",
      "verify-then-read at load"),
-    ("qta_agent/memory.py", KAH,
+    ("agent_substrate/memory.py", KAH,
      "Phase 1.1: load() folds only the verified snapshot.",
      "verify-then-read at load"),
-    ("qta_agent/netauth.py", KAH,
+    ("agent_substrate/netauth.py", KAH,
      "Phase 1.1: load() folds only the verified snapshot.",
      "verify-then-read at load"),
-    ("qta_agent/policy.py", KAH,
+    ("agent_substrate/policy.py", KAH,
      "Phase 1.1: load() folds only the verified snapshot.",
      "verify-then-read at load"),
-    ("qta_agent/reconstruct.py", KAH,
+    ("agent_substrate/reconstruct.py", KAH,
      "Independent second reader. Phase 1.1: replays the verified snapshot "
      "whose head it reports.",
      "verify-then-read in 3 reconstructors"),
-    ("qta_agent/scheduler.py", KAH,
+    ("agent_substrate/scheduler.py", KAH,
      "Job FSM. Phase 1.1: load/_fold_new on the verified snapshot.",
      "verify-then-read at load + fallback fold"),
-    ("qta_agent/secrets.py", KAH,
+    ("agent_substrate/secrets.py", KAH,
      "Phase 1.1: load() folds only the verified snapshot.",
      "verify-then-read at load"),
-    ("qta_agent/governed_stage10.py", RWG,
+    ("agent_substrate/governed_tasks.py", RWG,
      "The only production consumer of the substrate; bound to the "
      "'Stage-10' QTA stack artefacts. Phase 2 generalizes it into governed"
      " ScientificModel runs (typed request -> ResultBundle -> evidence). "
@@ -145,13 +145,13 @@ RULES = [
      "verified pass.",
      "imports qta_multiphysics.stack.workspace; docstring: 'a real "
      "Stage-10 run'"),
-    ("qta_agent/_stage10_tool.py", RWG,
+    ("agent_substrate/_artifact_tool.py", RWG,
      "Subprocess entry for governed Stage-10 artefact emission; becomes "
      "the generic governed model-run tool in Phase 2.",
-     "paired with governed_stage10.py"),
-    ("qta_agent/_stage10_index_tool.py", RWG,
+     "paired with governed_tasks.py"),
+    ("agent_substrate/_index_tool.py", RWG,
      "Second governed tool (digest index); generalize with "
-     "governed_stage10 in Phase 2.",
+     "governed_tasks in Phase 2.",
      "docstring names results_gate_table.csv as a possible input"),
     ("scientific_ai/neural/model/*.py", KAH,
      "NEW (NF-1T): the learned-model substrate's JAX implementation -- "
@@ -203,7 +203,7 @@ RULES = [
      "NEW (harness programme): the governed tool that runs a cited FMU in "
      "its declared runtime and writes its ResultBundle.",
      "tests/test_external_models.py"),
-    ("qta_agent/proposals.py", KAH,
+    ("agent_substrate/proposals.py", KAH,
      "NEW (harness programme): the AI proposal ingress -- a closed, "
      "provider-neutral, content-addressed, NON_AUTHORITATIVE envelope, "
      "received into the log by the ingress and submitted only through "
@@ -223,21 +223,21 @@ RULES = [
      "Observation kinds, Quantity, run and implementation identity. "
      "Standard library only; knows neither the agent nor the apparatus.",
      "tests/test_scientific_import_isolation.py"),
-    ("qta_agent/learned_rules.py", KAH,
+    ("agent_substrate/learned_rules.py", KAH,
      "NEW (NF-1T): no learned record becomes VERIFIED or PROMOTED -- no "
      "admission policy for learned models exists; enforced on the store's "
      "edge, live and on replay, and restated in the second reader.",
      "tests/test_neural_provenance.py"),
-    ("qta_agent/learned_lifecycle.py", KAH,
+    ("agent_substrate/learned_lifecycle.py", KAH,
      "NEW (NF-1T): a learned model's lifecycle in the one authority log, "
      "through the existing record actions, each link checked by digest "
      "before anything is written.",
      "tests/test_neural_provenance.py"),
-    ("qta_agent/*.py", KAI,
+    ("agent_substrate/*.py", KAI,
      "Generic governed-agent substrate (actions/authority/canonical/eviden"
      "ce/execution/hostid/invalidation/readpath/safeio/separate_verify/tas"
      "ks/tools). No QTA-hardware import or data reference.",
-     "import closure of qta_agent reaches no hardware module "
+     "import closure of agent_substrate reaches no hardware module "
      "(p0/reach.json)"),
     ("qta_multiphysics/fields.py", EXG,
      "Generic field containers.",
@@ -518,7 +518,7 @@ RULES = [
     ("qta_multiphysics/stack/workspace.py", EXG,
      "Output-location guard + deterministic writers; imported by the agent"
      " core.",
-     "reached from qta_agent.governed_stage10"),
+     "reached from agent_substrate.governed_tasks"),
     ("qta_multiphysics/stack/registry.py", EXG,
      "Fail-closed Pydantic validation of stack.json.",
      "directive s2"),
@@ -827,7 +827,7 @@ RULES = [
      "NEW (harness programme): the sigstore runtime, every wheel by hash.",
      "tests/test_supply_chain.py"),
     ("tools/neural_ledger.py", KAH,
-     "NEW (NF-1T): the one learned-model tool that imports qta_agent -- "
+     "NEW (NF-1T): the one learned-model tool that imports agent_substrate -- "
      "records the written documents in a fresh authority history and "
      "evaluates the claims; computes no scientific result; run by "
      "tools/neural.py as a separate process.",
@@ -969,8 +969,8 @@ RULES = [
      " 1.1).",
      ""),
     ("tests/test_agent_substrate_isolation.py", KAH,
-     "Layering and IO_LAYER extended for qta_agent/projection.py; new test"
-     " importer allowed (Phase 1).",
+     "Layering and IO_LAYER extended for agent_substrate/projection.py; "
+     "new test importer allowed (Phase 1).",
      ""),
     ("tests/test_governed_model.py", KAI,
      "NEW in Phase 2: a model result from proposal to authority, and every "
@@ -1231,7 +1231,7 @@ RULES = [
      ""),
     ("tests/test_sensitivity_cross_check.py", KAH,
      "NEW (harness programme): METHODS_DISAGREE produced and reported; "
-     "SALib required under QTA_UQ_REQUIRED=1.", ""),
+     "SALib required under HARNESS_UQ_REQUIRED=1.", ""),
     ("tests/test_hdf5_bundle.py", KAH,
      "NEW (harness programme): exact round trip, byte determinism, every "
      "tamper refused.", ""),
@@ -1294,7 +1294,7 @@ RULES = [
     ("tests/neural_support.py", KAH,
      "NEW (NF-1T): JAX for the substrate's tests, or a decision about its "
      "absence -- a skip on a developer's machine, a failure where "
-     "QTA_NEURAL_REQUIRED=1.",
+     "HARNESS_NEURAL_REQUIRED=1.",
      ""),
     ("tests/test_reference_backend.py", KAH,
      "NEW (D-2026-102): the reference recipe refused wherever it leaves the "

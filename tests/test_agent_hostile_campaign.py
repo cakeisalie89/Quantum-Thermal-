@@ -45,25 +45,25 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.agents import (  # noqa: E402
+from agent_substrate.agents import (  # noqa: E402
     AgentRole, PrincipalKind, identity,
 )
-from qta_agent.audit import AuditIndex  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.capability import (  # noqa: E402
+from agent_substrate.audit import AuditIndex  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.capability import (  # noqa: E402
     Action, Request, issue,
 )
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.idempotency import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.idempotency import (  # noqa: E402
     ACT_BIND, IdempotencyLedger,
 )
-from qta_agent.reconstruct import reconstruct_tasks  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
-    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedStage10,
+from agent_substrate.reconstruct import reconstruct_tasks  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
+    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedTasks,
 )
-from qta_agent.netauth import NetworkDenied  # noqa: E402
-from qta_agent.tasks import (  # noqa: E402
+from agent_substrate.netauth import NetworkDenied  # noqa: E402
+from agent_substrate.tasks import (  # noqa: E402
     TaskState, TaskTransitionError,
 )
 
@@ -99,7 +99,7 @@ def world(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    gov = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    gov = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                           evidence=EvidenceStore(base / "evidence"))
     gov.out_rel = f"{WS}/out"
     gov.agents.register(
@@ -236,7 +236,7 @@ def test_07_append_a_forged_transition_to_the_log(world, campaign):
     the forgery becomes a permanent record that it was ATTEMPTED, and never
     becomes state.
     """
-    from qta_agent.governed_stage10 import ACT_TASK_TRANSITION
+    from agent_substrate.governed_tasks import ACT_TASK_TRANSITION
 
     tid = world.honest_run.task_id
     # src=EXECUTING is a state this task is NOT in: it is VERIFIED, which is
@@ -259,7 +259,7 @@ def test_08_tamper_with_a_verified_artifact(world, campaign):
     original = path.read_bytes()
     path.write_bytes(b'{"payload": {"value": 9999}}')
     try:
-        from qta_agent.canonical import digest_bytes
+        from agent_substrate.canonical import digest_bytes
         assert digest_bytes(path.read_bytes()) != dg
         campaign.append(Attempt("tamper with a verified artifact", True,
                                 "the recorded digest no longer matches disk"))
@@ -287,7 +287,7 @@ def test_10_raise_its_own_priority_in_the_queue(world, campaign):
 
 def test_11_reach_the_network(world, campaign):
     """No egress grant was ever issued, so the authority denies everything."""
-    from qta_agent.netauth import NetworkRequest
+    from agent_substrate.netauth import NetworkRequest
 
     def attempt():
         decision = world.network.authorize(NetworkRequest(
@@ -373,8 +373,8 @@ def test_17_complete_a_task_naming_an_executor_that_does_not_exist(world,
     actor that completed the task was no longer the one verification had to
     differ from.
     """
-    from qta_agent.canonical import digest_bytes
-    from qta_agent.governed_stage10 import ACT_TASK_TRANSITION
+    from agent_substrate.canonical import digest_bytes
+    from agent_substrate.governed_tasks import ACT_TASK_TRANSITION
 
     tid = "task-hostile-ghost"
     dg = digest_bytes(b"a result nobody produced")
@@ -414,7 +414,7 @@ def test_18_report_an_outcome_on_a_job_it_does_not_hold(world, campaign):
     mallory". This writes the record that call would have written. The queue
     reloaded it and called the job SUCCEEDED.
     """
-    from qta_agent.scheduler import ACT_JOB_TRANSITION, Scheduler
+    from agent_substrate.scheduler import ACT_JOB_TRANSITION, Scheduler
 
     world.scheduler.enqueue(job_id="j-h9", work_digest=digest({"w": 9}),
                             submitter="owner")
@@ -441,7 +441,7 @@ def test_19_record_a_decision_the_rules_would_not_reach(world, campaign):
     The decision reducer folded these in unread, so the audit index quoted
     the invented rule back as the reason something was permitted.
     """
-    from qta_agent.policy import (
+    from agent_substrate.policy import (
         ACT_POLICY_DECISION, PolicyRequest, PolicyStore,
     )
 
@@ -469,7 +469,7 @@ def test_20_backdate_a_capability_over_what_it_already_did(world, campaign):
     agree with the backdated body, because content-binding catches tampering
     and not a self-consistent lie.
     """
-    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+    from agent_substrate.capability import ACT_ISSUE, CapabilityLedger
 
     backdated = issue(capability_id="cap-hostile-backdated", subject=HOSTILE,
                       action=Action.WRITE_PATHS, task_id="t-mine",

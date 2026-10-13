@@ -11,13 +11,13 @@ Companions: `FILE_DISPOSITION.csv` (one disposition per tracked file) and
 ## 1. Target
 
 The repository holds two systems that grew into each other: a governed
-scientific-agent substrate (`qta_agent/`) and a cryogenic-apparatus theory
+scientific-agent substrate (`agent_substrate/`) and a cryogenic-apparatus theory
 with its gates, machine FSM, BOM and output contract. The target keeps the
 first, keeps the physics and the scientific method of the second, and
 retires the apparatus as an authority:
 
 ```
-AI proposes                          qta_agent/agents.py, context.py, memory.py
+AI proposes                          agent_substrate/agents.py, context.py, memory.py
   -> event-sourced governed execution  events, tasks, scheduler, capability, tools, execution
   -> deterministic scientific computation   ScientificModel plugins            (Phase 2+)
   -> ResultBundle                                                              (Phase 2)
@@ -170,7 +170,7 @@ Recorded in `docs/DEFECT_LEDGER.md`; summarized in the tranche report.
 * **D-2026-70 -- verify-then-read, repository-wide.** 17 sites verified one
   read of the log and folded another -- 15 reducer loads, catch-up fallbacks
   and reconstructions; `EventLog.advance` itself; `AuthorityStore.load_from`
-  -- plus 3 helpers in `governed_stage10` that read with no verification at
+  -- plus 3 helpers in `governed_tasks` that read with no verification at
   all. All now fold the single verified read; the primitives return the
   verified prefix only.
 * **D-2026-71 -- reducer identity.** A projection snapshot names its reducer
@@ -194,7 +194,7 @@ Recorded in `docs/DEFECT_LEDGER.md`; summarized in the tranche report.
   re-checks every claim on read-back; a v1 record may not claim a summary.
 * **D-2026-76 -- verify-then-read, prevented.** A static AST guard over every
   production file and a runtime refusal of `EventLog.read()` to any other
-  `qta_agent` module. On the pre-D-2026-70 tree the static guard reports 20
+  `agent_substrate` module. On the pre-D-2026-70 tree the static guard reports 20
   sites.
 * **D-2026-74 -- closed.** PyYAML declared in `dev`; a standing check that
   every direct import is declared in a group that ships it.
@@ -219,7 +219,7 @@ from the table below, and why:
 * **Frozen dataclasses, not Pydantic.** The interfaces must be importable by
   anything, so they load nothing outside the standard library; validation is
   in `__post_init__` and fails closed the same way.
-* **`implementation_digest` restates** `qta_agent.projection`'s source-closure
+* **`implementation_digest` restates** `agent_substrate.projection`'s source-closure
   algorithm instead of importing it, because the scientific core may not
   depend on the authority layer; `tests/test_scientific_identity.py` holds
   the two to the same bytes. The named modules are imported; what they
@@ -270,7 +270,7 @@ the 2D axisymmetric solver with radial transport off, its own implementation
 digest, the shared components (k(T), Cp(T), the source term, the
 parameter-to-configuration mapping) stated as limitations, criterion
 unchanged from `reduction_2d_to_1d` (rel <= 0.15; measured 0.33%). FEniCSx
-stays STAGED as a third implementation. `qta_agent/governed_model.py` runs
+stays STAGED as a third implementation. `agent_substrate/governed_model.py` runs
 the model and the check as two governed Stage-10 tasks by different
 executors and lets a reviewer who did neither decide authority from the
 evidence. What the plan said before this was done:
@@ -486,7 +486,7 @@ work and does not close the entry by being planned.
   remain: that is the rest of C5.
 * ~~**The scientific-result content rule lives in `governed_model.decide`,
   not in the authority layer.**~~ *Closed in tranche 3.* The rule is
-  `qta_agent/result_rules.py`, enforced by `AuthorityStore.transition` on the
+  `agent_substrate/result_rules.py`, enforced by `AuthorityStore.transition` on the
   edges into VERIFIED and PROMOTED for kind `scientific_result`: the store
   reads the cited bundle and report from its evidence store and refuses the
   edge, and a store with no evidence attached cannot verify a result at all.
@@ -527,7 +527,7 @@ work and does not close the entry by being planned.
   refused by no replay here -- for scientific results or for any other
   record. *Done when:* appends are signed by the principal they name and
   replay verifies the signature against the identity registry.
-  *The seam exists (D-2026-89); the keys do not.* `qta_agent.principals`:
+  *The seam exists (D-2026-89); the keys do not.* `agent_substrate.principals`:
   attestations beside the log bind each event hash to an Ed25519 key, a
   registry supplied from outside the log says whose each key is, and the
   store and the independent reader, handed an authenticator, refuse actor
@@ -851,7 +851,7 @@ run reports; nothing below borrows a verdict from `71b58cb`'s runs.
 
 ### Files changed
 
-*Trust-boundary code (Phase 1):* `qta_agent/events.py` (single-pass verified
+*Trust-boundary code (Phase 1):* `agent_substrate/events.py` (single-pass verified
 tail, `read_verified_from`, verified-prefix rule, `read_from` removed),
 `checkpoint.py` (`read_verified_with`), `store.py` (one read at load /
 fallback / `load_from`; snapshot v2 with reducer identity; replay on a
@@ -859,7 +859,7 @@ foreign reducer), `projection.py` (new: `ReducerIdentity`, source-closure
 digest), `context.py` (summary provenance at build and on read-back),
 `agents.py`, `audit.py`, `capability.py`, `idempotency.py`, `memory.py`,
 `netauth.py`, `policy.py`, `reconstruct.py`, `scheduler.py`, `secrets.py`,
-`governed_stage10.py` (one verified read each); `qta_full_sim.py` (explicit
+`governed_tasks.py` (one verified read each); `qta_full_sim.py` (explicit
 interlock / precondition / status exceptions; no assert left).
 
 *Tests:* `tests/test_agent_snapshot_coherence.py` (new, 25),
@@ -917,7 +917,7 @@ run and every source restored byte-identical afterwards:
 | `agent_audit.json` (A1, Q1 re-anchored) | 33/33 |
 | `agent_substrate.json` (M16, M20, M30 re-anchored) | 52/52 |
 | `agent_execution.json` (L3 re-anchored) | 62/62 |
-| `stage10_authority.json` (G_R1, whose site moved into `_verified_events`) | 19/19 |
+| `governed_tasks_authority.json` (G_R1, whose site moved into `_verified_events`) | 19/19 |
 | **total** | **289/289** |
 
 The other 37 specifications were not run locally in this tranche; CI runs
@@ -933,7 +933,7 @@ all 46 on each commit.
   attempt, after syncing every dependency group as CI does.
 * Two structural guards refused intermediate states of this work, as they
   should: the substrate-isolation test refused a new test file importing
-  `qta_agent` until it was allowed by name, and refused `projection.py`
+  `agent_substrate` until it was allowed by name, and refused `projection.py`
   until it had a declared layer, a stated reason to read files, and a line in
   `AGENT_SUBSTRATE.md`.
 * The first dependency measurement was wrong twice and was corrected before
@@ -973,7 +973,7 @@ all 46 on each commit.
 3. Adapt `thermal_1d` as the proving case: its existing checks in
    `verification.py` become the declared invariants; `reduction_2d_to_1d`
    (a different discretization) is the independent check; one governed run
-   through `governed_stage10`'s path submits the `ResultBundle` as evidence.
+   through `governed_tasks`'s path submits the `ResultBundle` as evidence.
 4. Mutations for the new boundary: an invariant result that is not computed,
    an "independent" check that shares the producer's digest, a
    `SIMULATION_RESULT` accepted as `RAW_OBSERVATION`, a run reused on a
@@ -1024,7 +1024,7 @@ SHAs.
   D-2026-79 (A's runtime guard crashed the governed Snakemake rule, found by
   hosted CI) fixed.
 * **C** -- thermal 1D as a ScientificModel; the 2D-to-1D reduction as a
-  labelled independent check; `qta_agent/governed_model.py` from proposal to
+  labelled independent check; `agent_substrate/governed_model.py` from proposal to
   authority.
 
 ### Dispositions
@@ -1123,7 +1123,7 @@ E's hosted results are reported with it, not written here.
 
 ### What each commit did
 
-* **D** -- `qta_agent/result_rules.py`: what a `scientific_result` must show
+* **D** -- `agent_substrate/result_rules.py`: what a `scientific_result` must show
   before VERIFIED or PROMOTED, enforced by `AuthorityStore.transition` on
   those edges by reading the cited bundle and report from evidence, so a
   direct store transition is refused as `decide()` would refuse it (the 9.7
@@ -1282,8 +1282,8 @@ place: `package_consistency_check.py` (LEGACY_QTA_VERIFIER),
 README, CLAIMS_BOUNDARY, AUTHORITIES, RELEASE_POLICY, HDF5_DATA_MODEL (root);
 STACK, MANIFEST_BOUNDARY, INSTALL, TESTING reframed; `authorities.json`
 (active and legacy sections); `tools/claims_enforcement.py`;
-`.github/workflows/claude.yml`; `qta_agent/__init__.py`,
-`_stage10_index_tool.py`, `governed_stage10.py` and AGENT_SUBSTRATE.md's
+`.github/workflows/claude.yml`; `agent_substrate/__init__.py`,
+`_index_tool.py`, `governed_tasks.py` and AGENT_SUBSTRATE.md's
 isolation invariant; the Snakefile; `pyproject.toml`'s description.
 
 ### Files source-mined
@@ -1430,7 +1430,7 @@ from the runs for that exact SHA and no other.
 * Tracked files 680 [668]; 38 files changed (12 added, 26 modified).
   Dispositions 680 rows [668]: +12, each one rule -- 5 test files
   (KEEP_AND_HARDEN), 5 mutation specs and 2 substrate modules,
-  `qta_agent/ed25519.py` and `qta_agent/principals.py` (KEEP_AS_IS). No row
+  `agent_substrate/ed25519.py` and `agent_substrate/principals.py` (KEEP_AS_IS). No row
   of an existing file changed.
 * ACTIVE 111 [109] / TRANSITIONAL 75 [75] / LEGACY 33 [33] modules; ACTIVE
   importing legacy 0, opening a legacy file 0, importing legacy ontology 0;
@@ -1587,15 +1587,15 @@ external environment. DEFERRED: not built. LEGACY: retained as history.
 
 | Capability | Status | Where | Residual |
 |---|---|---|---|
-| event sourcing | ACTIVE | `qta_agent/events.py` | external head witness (39); multi-host (38) |
-| memory | ACTIVE | `qta_agent/memory.py` | hypothesis lifecycle not separate yet (15) |
-| authority | ACTIVE | `qta_agent/authority.py`, `store.py`, `result_rules.py`, `invalidation.py` | actors unauthenticated in production (3) |
-| scheduler | ACTIVE | `qta_agent/scheduler.py`, `tasks.py` | not authenticated (44) |
-| network authority | ACTIVE | `qta_agent/netauth.py` | binds the supervisor process, not the child |
-| secrets | ACTIVE | `qta_agent/secrets.py` | -- |
-| context | ACTIVE | `qta_agent/context.py` | -- |
-| evidence | ACTIVE | `qta_agent/evidence.py` | lookup's filesystem half timed (5) |
-| reconstruction | ACTIVE | `qta_agent/reconstruct.py`, `separate_verify.py` | shares the signature verdict with the primary (C) |
+| event sourcing | ACTIVE | `agent_substrate/events.py` | external head witness (39); multi-host (38) |
+| memory | ACTIVE | `agent_substrate/memory.py` | hypothesis lifecycle not separate yet (15) |
+| authority | ACTIVE | `agent_substrate/authority.py`, `store.py`, `result_rules.py`, `invalidation.py` | actors unauthenticated in production (3) |
+| scheduler | ACTIVE | `agent_substrate/scheduler.py`, `tasks.py` | not authenticated (44) |
+| network authority | ACTIVE | `agent_substrate/netauth.py` | binds the supervisor process, not the child |
+| secrets | ACTIVE | `agent_substrate/secrets.py` | -- |
+| context | ACTIVE | `agent_substrate/context.py` | -- |
+| evidence | ACTIVE | `agent_substrate/evidence.py` | lookup's filesystem half timed (5) |
+| reconstruction | ACTIVE | `agent_substrate/reconstruct.py`, `separate_verify.py` | shares the signature verdict with the primary (C) |
 | Monte Carlo | TRANSITIONAL | `qta_multiphysics/uncertainty.py`, `campaign_uncertainty_3d.py` (reaches legacy) | no generic MC over ScientificModel (13) |
 | UQ | TRANSITIONAL | same | typed uncertainty classes not operational (14) |
 | Bayesian inference | TRANSITIONAL | `qta_multiphysics/deep_expdesign/inference.py`, `posterior_model.py`, `calibration.py` | reaches the design registry through the package init (12, 18) |
@@ -1706,7 +1706,7 @@ Hosted CI for each SHA is below, taken from runs for that exact SHA only.
 * Tracked files 696 [680]; 52 files changed from `b683977` (16 added, 36
   modified). Dispositions 696 rows [680]: +16, each one rule -- 3 test
   files (KEEP_AND_HARDEN); 4 mutation specs, 7 fuzz-corpus findings and 2
-  modules, `qta_agent/signature.py` and `scientific/backend_probe.py`
+  modules, `agent_substrate/signature.py` and `scientific/backend_probe.py`
   (KEEP_AS_IS). No row of an existing file changed.
 * ACTIVE 113 [111] / TRANSITIONAL 75 [75] modules; ACTIVE importing legacy
   0, naming a legacy file 0, importing legacy ontology 0; TRANSITIONAL still
@@ -1857,7 +1857,7 @@ not R59's repair (item 64).
   that would admit one is built and mutated. Offered, not taken.
 * **Security profile (CB)**: closed in code. Missing: a governed writer that
   signs, so no governed history is REQUIRED today.
-* **Common authenticated event source (CB)**: every reader in `qta_agent`
+* **Common authenticated event source (CB)**: every reader in `agent_substrate`
   reads through the gated primitives -- fourteen GATED (two with their own
   verdict too), three tools REFUSES_REQUIRED_ONLY, the hypothesis lifecycle
   NOT_BUILT; a structural test holds the table complete.
@@ -1885,9 +1885,9 @@ Status is what code on an exercised path does. Changed rows first.
 
 | Capability | Status | Where | Residual |
 |---|---|---|---|
-| actor authentication | ACTIVE (seam), production EXTERNALLY_BLOCKED | `qta_agent/signature.py`, `principals.py`, `events.py` | no vetted provider, keys or pin (3, 8); writers unsigned (79) |
-| event sourcing | ACTIVE | `qta_agent/events.py` (+ prepare-first signed append) | multi-host (71); external witness (72) |
-| reconstruction | ACTIVE | `qta_agent/reconstruct.py` restates the profile | signature verdict shared, not restated (81) |
+| actor authentication | ACTIVE (seam), production EXTERNALLY_BLOCKED | `agent_substrate/signature.py`, `principals.py`, `events.py` | no vetted provider, keys or pin (3, 8); writers unsigned (79) |
+| event sourcing | ACTIVE | `agent_substrate/events.py` (+ prepare-first signed append) | multi-host (71); external witness (72) |
+| reconstruction | ACTIVE | `agent_substrate/reconstruct.py` restates the profile | signature verdict shared, not restated (81) |
 | run identity / backend | ACTIVE on Linux | `scientific/run_identity.py`, `backend_probe.py` | equivalence policy (23); non-Linux UNRESOLVED (82) |
 | fuzzing | ACTIVE | `tools/fuzz_substrate.py`, 27 targets incl. attestations, key_registry, cpuinfo, proc_maps | a floor, not a programme |
 | mutation | ACTIVE | 69 specs in 8 hosted shards | -- |
@@ -2342,8 +2342,8 @@ its constraint violations and calibration gaps are reported as found.
 3. **Ending branch**: `claude/scientific-python-stack-7rsq3m`.
 4. **Ending HEAD**: the commit carrying this report, whose parent is `0a0d43e`.
 5. **Dirty/clean**: clean at `8ee1e5b` and at `0a0d43e` (tracked tree equal to the commit; evidence generated from a clean tree, so every manifest names `8ee1e5b`).
-6. **Files added**: 52 at `8ee1e5b` -- `scientific_ai/__init__.py`; `scientific_ai/neural/` 16 modules and `model/` 9; `qta_agent/learned_rules.py`, `qta_agent/learned_lifecycle.py`; `tools/neural.py`, `tools/neural_ledger.py`, `tools/neural_legacy_audit.py`; `tools/mutations/neural_{accounting,tokens,routing,authority,training,parallel}.json`; `tests/neural_support.py` and 11 `tests/test_neural_*.py`; `NEURAL_SUBSTRATE.md`; `docs/neural/nf1t_inventory.json`, `docs/neural/legacy_semantic_audit.json`. 18 at `0a0d43e` -- `docs/neural/` (7 architecture, meta, distributed and claims documents; `dev/`: the dataset and its manifest, three training and three checkpoint manifests, the final checkpoint, the evaluation) and `tests/test_neural_evidence.py`.
-7. **Files modified**: `qta_agent/store.py`, `qta_agent/reconstruct.py` (the refusal), `pyproject.toml`, `uv.lock`, `.github/workflows/agent-substrate.yml`, `.github/workflows/release.yml`, `tools/workflow_contract.py`, `tools/file_disposition.py`, `tools/claims_enforcement.py`, `CLAIMS_BOUNDARY.md`, `docs/claims_boundary.json`, `AGENT_SUBSTRATE.md`, `docs/completion_matrix.json` (R51, R60), `docs/DEFECT_LEDGER.md` (D-2026-103), `tests/test_agent_substrate_isolation.py`, `tests/test_claims_boundary.py`, `tests/test_completion_matrix.py`, and the generated `FILE_DISPOSITION.csv`, `docs/corpus_allowlist.json`, `docs/byte_reproduction_profile.json` (witness re-established for the new lock), `ro-crate/ro-crate-metadata.json`, `stage7_reports/dependency_inventory.json`, `final_manifest.json`, `manifest_hash.txt`; at `0a0d43e` also `tools/neural.py` (the claims printout names each claim's scope) and `NEURAL_SUBSTRATE.md`.
+6. **Files added**: 52 at `8ee1e5b` -- `scientific_ai/__init__.py`; `scientific_ai/neural/` 16 modules and `model/` 9; `agent_substrate/learned_rules.py`, `agent_substrate/learned_lifecycle.py`; `tools/neural.py`, `tools/neural_ledger.py`, `tools/neural_legacy_audit.py`; `tools/mutations/neural_{accounting,tokens,routing,authority,training,parallel}.json`; `tests/neural_support.py` and 11 `tests/test_neural_*.py`; `NEURAL_SUBSTRATE.md`; `docs/neural/nf1t_inventory.json`, `docs/neural/legacy_semantic_audit.json`. 18 at `0a0d43e` -- `docs/neural/` (7 architecture, meta, distributed and claims documents; `dev/`: the dataset and its manifest, three training and three checkpoint manifests, the final checkpoint, the evaluation) and `tests/test_neural_evidence.py`.
+7. **Files modified**: `agent_substrate/store.py`, `agent_substrate/reconstruct.py` (the refusal), `pyproject.toml`, `uv.lock`, `.github/workflows/agent-substrate.yml`, `.github/workflows/release.yml`, `tools/workflow_contract.py`, `tools/file_disposition.py`, `tools/claims_enforcement.py`, `CLAIMS_BOUNDARY.md`, `docs/claims_boundary.json`, `AGENT_SUBSTRATE.md`, `docs/completion_matrix.json` (R51, R60), `docs/DEFECT_LEDGER.md` (D-2026-103), `tests/test_agent_substrate_isolation.py`, `tests/test_claims_boundary.py`, `tests/test_completion_matrix.py`, and the generated `FILE_DISPOSITION.csv`, `docs/corpus_allowlist.json`, `docs/byte_reproduction_profile.json` (witness re-established for the new lock), `ro-crate/ro-crate-metadata.json`, `stage7_reports/dependency_inventory.json`, `final_manifest.json`, `manifest_hash.txt`; at `0a0d43e` also `tools/neural.py` (the claims printout names each claim's scope) and `NEURAL_SUBSTRATE.md`.
 8. **Dependencies**: added the optional extra `neural` = `jax==0.11.2`, `jaxlib==0.11.2`, `ml-dtypes==0.6.0` (Apache-2.0; `ml-dtypes` because the checkpoint codec imports it directly, D-2026-74), with `opt-einsum` 3.4.0 (MIT) transitive. No existing locked version moved; 93 packages resolved. The reference-backend export (`build.sh`'s exact command) is byte-identical before and after (sha256 `4e0cfd0a...`). PyTorch was not chosen: `download.pytorch.org` is refused by the network policy and the PyPI x86-64 wheel is the CUDA build.
 9. **Architecture family**: `scientific-feature-token-moe` (`scientific-moe-config/1`). A token per scientific feature: identity row + value MLP over (z, sign, log10|v|/32, is_zero) + SI-exponent projection + dimension-class, role and validity rows; readout tokens; no positional encoding (set semantics). Pre-norm RMSNorm blocks, MHA/GQA without biases, routed SwiGLU experts (no shared expert in the flagship), float32 router with softmax top-k and renormalised gates, an optional GShard-style capacity per expert with every drop counted (the flagship and the development member are configured dropless), Switch load-balancing term; heteroscedastic Gaussian heads, bounded heads through a sigmoid. One configuration digest per member; the scale ladder is the same architecture.
 10. **Flagship exact total parameters**: 996,509,226,000 (trainable plus 8,200 non-trainable buffers: the feature and target standardisation statistics, 2 x 4,096 + 2 x 4).
@@ -2366,7 +2366,7 @@ its constraint violations and calibration gaps are reported as found.
 27. **FP8 parameter memory (estimate)**: 996,752,506,184 bytes (1.00 TB) for e4m3 weights plus one float32 scale per 128 x 128 block -- a storage estimate only; FP8 is refused as a training or inference precision ("estimation mode").
 28. **Training-state assumptions (estimate)**: mixed-precision Adam at 18 bytes per parameter (bf16 compute copy, fp32 master weights, fp32 gradients, two fp32 moments) = 17,937,165,920,400 bytes (17.9 TB), activations and communication buffers excluded; activations ~1 MiB per token kept for backward with checkpointing (bf16, 1,048,576-token batch); checkpoint 3.99 TB parameters only, 11.96 TB with optimizer state.
 29. **Active FLOPs (estimate)**: 401,699,334,160 forward FLOPs per token (multiply-add = 2); 1,205,098,002,480 training FLOPs per token, x 4/3 with activation checkpointing; expert-parallel routing traffic ~22 MB per token per forward pass at 8-way expert parallelism.
-30. **Full 1T real weights allocated**: no. `meta.materialize` refuses above 2 GiB unless `allow_large=True` and `QTA_NEURAL_ALLOW_LARGE_ALLOCATION=1`; `network.init` refuses a concrete key above 2 GiB independently; nothing in the repository sets either. The validation is `jax.eval_shape`: in a fresh process 1.24 s, 0 live arrays before and after, peak RSS +16.9 MB, the would-be 1,993,018,468,400 bytes refused. (The committed report shows +0 bytes because `all` ran it after training had already set the process's peak; the fresh-process figure is the meaningful one.)
+30. **Full 1T real weights allocated**: no. `meta.materialize` refuses above 2 GiB unless `allow_large=True` and `HARNESS_NEURAL_ALLOW_LARGE_ALLOCATION=1`; `network.init` refuses a concrete key above 2 GiB independently; nothing in the repository sets either. The validation is `jax.eval_shape`: in a fresh process 1.24 s, 0 live arrays before and after, peak RSS +16.9 MB, the would-be 1,993,018,468,400 bytes refused. (The committed report shows +0 bytes because `all` ran it after training had already set the process's peak; the fresh-process figure is the meaningful one.)
 31. **Full 1T training**: no.
 32. **Development model**: `dev`, 431,784 trainable parameters (431,808 with buffers), 135,912 active per token; hidden 64, 2 layers, 4 heads x 16, 8 experts of width 128, top_k 2, float32.
 33. **Development training result**: 4,000 steps, batch 64, Adam (clip 1.0), warmup 200 then cosine from 3e-3 to 3e-4; COMPLETED; NLL from 1.52 at step 0 to -3.81 at step 3,999; two fresh runs equal tensor for tensor at step 2,000; an EXACT_RESUME from the interrupted run's step-2,000 checkpoint ends bit-identical to the uninterrupted run. Claimed: CONFIGURATION_REPRODUCIBLE, DATASET_REPRODUCIBLE, SEEDED_EXECUTION, NUMERICALLY_REPRODUCIBLE, BITWISE_REPRODUCIBLE, CHECKPOINT_REPRODUCIBLE -- for this backend and one process only.
@@ -2383,12 +2383,12 @@ its constraint violations and calibration gaps are reported as found.
 44. **Expert utilisation**: both MoE layers use all 8 experts on the test split; largest share 19.7 % and 17.6 %; 0 tokens dropped in training (81 logged steps) and evaluation; final entropies 1.71 and 1.39 nats (ln 8 = 2.08).
 45. **Canonical outputs**: unchanged -- 89 declared files, set sha256 `c90b36d6...` equal to the start; `s10_full` 0 mismatches; the byte-reproduction witness re-established for the new lock with 88 of 88 canonical files byte-identical on the witnessed backend (`97b7772c...`).
 46. **Legacy semantic leak audit**: 0 `ACTIVE_NEURAL_SEMANTIC_LEAK`, 0 unclassified, gated in CI (`--check`) and by `verify`. Reported and not changed: 12 ACTIVE_GENERIC files (86 hits), 49 LEGACY_COMPATIBILITY, 78 LEGACY_SCIENTIFIC_HISTORY, 34 DOCUMENTATION_HISTORY -- cleaning those is tranche E.
-47. **Tests passed**: 5,559 at `0a0d43e` (local, in place, `QTA_NEURAL_REQUIRED=1`), 5,551 at `8ee1e5b`; the hosted full suite green at both SHAs (below). The start was 5,189 (section 16, measured at `f6b24ab`; `f303a73` changed no test): of the 370 added, 335 are the neural modules, 30 the mutation-harness tests parametrised over the six new specs, 3 the claims-boundary drop tests for EB12-EB14, and 2 the isolation layering tests for the two learned modules.
-48. **Tests skipped**: 9, all pre-existing and unrelated (none in `tests/test_neural_*`; `QTA_NEURAL_REQUIRED=1` makes a missing JAX a failure, not a skip).
+47. **Tests passed**: 5,559 at `0a0d43e` (local, in place, `HARNESS_NEURAL_REQUIRED=1`), 5,551 at `8ee1e5b`; the hosted full suite green at both SHAs (below). The start was 5,189 (section 16, measured at `f6b24ab`; `f303a73` changed no test): of the 370 added, 335 are the neural modules, 30 the mutation-harness tests parametrised over the six new specs, 3 the claims-boundary drop tests for EB12-EB14, and 2 the isolation layering tests for the two learned modules.
+48. **Tests skipped**: 9, all pre-existing and unrelated (none in `tests/test_neural_*`; `HARNESS_NEURAL_REQUIRED=1` makes a missing JAX a failure, not a skip).
 49. **Tests failed**: 0.
 50. **Mutations**: see below -- 88/88 on the six new specs, every re-run green.
 51. **Lint**: ruff clean on every added file and on every modified file but `tools/workflow_contract.py`, whose two E501 findings predate this tranche; the CI's lint step now names the substrate, its tools and its tests. `ruff check .` reports 1,445 findings at the start and the same 1,445 now -- the legacy tree, plus two pre-existing E501 in `tools/workflow_contract.py`.
-52. **Type check**: the Stage-10 mypy gate (stack-verify) green. The substrate is outside the repository's staged mypy enforcement, as `scientific/` and `qta_agent/` are: mypy reports 61 errors in 16 of its 30 new modules (unnarrowed optional MoE configuration, dictionary value types inferred from a first entry, untyped containers); a triage of all 61 found no runtime defect. Recorded as an R60 residual gap.
+52. **Type check**: the Stage-10 mypy gate (stack-verify) green. The substrate is outside the repository's staged mypy enforcement, as `scientific/` and `agent_substrate/` are: mypy reports 61 errors in 16 of its 30 new modules (unnarrowed optional MoE configuration, dictionary value types inferred from a first entry, untyped containers); a triage of all 61 found no runtime defect. Recorded as an R60 residual gap.
 53. **Package consistency**: PASS under the default policy and under `strict-reproduction` (witnessed backend); dependency declarations: 309 third-party imports, each declared where needed; the reference-backend export unchanged.
 54. **Known limitations**: below, "Unfinished, and exactly why".
 55-62. **Remaining work per rung**: below.
@@ -2399,7 +2399,7 @@ its constraint violations and calibration gaps are reported as found.
 
 | Check | Result |
 |---|---|
-| authoritative suite (local, in place, `QTA_NEURAL_REQUIRED=1`) | `8ee1e5b`: 5,551 passed, 9 skipped, 0 failed (23 m 23 s); `0a0d43e`: 5,559 passed, 9 skipped, 0 failed (23 m 51 s) |
+| authoritative suite (local, in place, `HARNESS_NEURAL_REQUIRED=1`) | `8ee1e5b`: 5,551 passed, 9 skipped, 0 failed (23 m 23 s); `0a0d43e`: 5,559 passed, 9 skipped, 0 failed (23 m 51 s) |
 | new neural tests | 335 in 12 modules, all passing: accounting 16, boundary 73, config 51, data 13, distributed 8, evidence 8, features 44, meta 25, model 23, MoE 14, provenance 43, training 17 |
 | property tests | 5 Hypothesis properties, in the suites above: abstract tensors count exactly what the accounting says over random configurations; configuration validation accepts exactly the legal attention dimensions; the log-magnitude and sign channels are exact at every scale; zero, negative and positive values stay separable; a split is always one of the declared ones |
 | mutation tests | 88/88 new; re-runs below; every hosted shard green |
@@ -2447,7 +2447,7 @@ failed the batch check -- fixed with a batch that divides).
   ARCHITECTURE_META_VALIDATED; the refusal is required above the budget
   only.
 * The full suite at the first C1 candidate: 12 failures, each a real rule
-  of the repository -- `qta_agent` imported by `tools/neural.py` (a tool
+  of the repository -- `agent_substrate` imported by `tools/neural.py` (a tool
   that generates data and trains; the authority part moved to
   `tools/neural_ledger.py`, run as its own process), the two learned
   modules unplaced in the substrate's layering, EB12-EB14 not stated in
@@ -2466,7 +2466,7 @@ failed the batch check -- fixed with a batch that divides).
 
 | SHA | agent-substrate, push / pull_request | stack-verify |
 |---|---|---|
-| `8ee1e5b` | 37566755617 / 37566759142: **all green**, 14 of 14 jobs each -- agent-substrate (lint, the legacy-semantics audit), full-suite (with the `neural` extra and `QTA_NEURAL_REQUIRED=1`, so a neural test cannot pass by skipping), dispatch-sensitivity, second-interpreter 3.13, cross-environment-3d, 8 mutation shards (all 78 specs; longest 58 min against the 150-min limit) and their aggregate | push 37566755602, pull_request 37566759195: green |
+| `8ee1e5b` | 37566755617 / 37566759142: **all green**, 14 of 14 jobs each -- agent-substrate (lint, the legacy-semantics audit), full-suite (with the `neural` extra and `HARNESS_NEURAL_REQUIRED=1`, so a neural test cannot pass by skipping), dispatch-sensitivity, second-interpreter 3.13, cross-environment-3d, 8 mutation shards (all 78 specs; longest 58 min against the 150-min limit) and their aggregate | push 37566755602, pull_request 37566759195: green |
 | `0a0d43e` | 37574169210 / 37574174428: **all green**, 14 of 14 jobs each -- as above, plus `tools/neural.py verify` in agent-substrate and `tests/test_neural_evidence.py` in the full suite; longest shard 56 min | pull_request 37574174415: green (its push trigger's path filter does not include this commit's files) |
 
 R60's `hosted_evidence` cites the two runs at `0a0d43e` with that commit's
@@ -2624,7 +2624,7 @@ within two lines that the gates are the legacy QTA ones, or it is a leak.
 The nine were: the agent-substrate workflow's header, the gates authority
 in `authorities.json` (two patterns, one line), `conftest.py`, the
 completion matrix's `does_not_mean` and its R55 detail,
-`qta_agent/governed_stage10.py`'s Stage-10 policy description (its policy
+`agent_substrate/governed_tasks.py`'s Stage-10 policy description (its policy
 digest changes with the text; nothing pins it), the reproduction profile's
 `DOES_NOT_MEAN` in `scientific/reproduction.py`, and
 `tools/test_isolation.py`. Each now says the count belongs to the legacy
@@ -2747,7 +2747,7 @@ expert selections per token across depth, 996,509,217,800 trainable,
 
 | Check | Result |
 |---|---|
-| authoritative suite (local, in place, `QTA_NEURAL_REQUIRED=1`, on the tree of this commit) | 5,692 passed, 9 skipped, 0 failed (5,701 collected) |
+| authoritative suite (local, in place, `HARNESS_NEURAL_REQUIRED=1`, on the tree of this commit) | 5,692 passed, 9 skipped, 0 failed (5,701 collected) |
 | tests added | 133 over `eb716ad`'s 5,568: `test_claim_hygiene` 39 (new), `test_mutation_harness` 84 (every committed spec through the harness's own validation, 79; the five per-spec checks on `claim_hygiene.json`), `test_claims_boundary` 3 (EB15-EB17), `test_neural_meta` 3, `test_neural_boundary` 2 (`status.py` placed in the substrate's layering), `test_neural_accounting` 1 (the locked architecture's exact counts), `test_neural_provenance` 1 (the refusal is exactly VERIFIED and PROMOTED for every learned kind) |
 | `tools/neural.py verify` | PASS -- both manifests' claim status, `claims.json`, the status JSON and its Markdown recomputed equal; chain intact |
 | development evidence | the ten files under `docs/neural/dev/` byte-identical to `eb716ad` |
@@ -2775,8 +2775,8 @@ a green baseline and null control and sources restored byte-identical:
 `neural_accounting` 20/20, `claims_boundary` 16/16, `completion_matrix`
 18/18, `repo_contract` 18/18, `mutation_shards` 12/12, `test_isolation`
 5/5, `reproduction_policy` 29/29, `mutation_harness` 21/21; and, because
-`qta_agent/governed_stage10.py`'s policy description changed,
-`stage10_authority` 19/19, `agent_actions` 6/6, `agent_agents` 61/61,
+`agent_substrate/governed_tasks.py`'s policy description changed,
+`governed_tasks_authority` 19/19, `agent_actions` 6/6, `agent_agents` 61/61,
 `agent_compensation` 15/15, `agent_idempotency` 20/20, `agent_job_graph`
 12/12, `agent_readpath` 21/21, `agent_recovery` 14/14,
 `agent_separate_verify` 11/11, `agent_tasks` 32/32, `governed_breadth`
@@ -2802,7 +2802,7 @@ documents.py`, `scientific_ai/neural/claims.py`, `tools/neural.py`
 (`rederive`, `status`, `verify` of both), `tools/neural_ledger.py`,
 `tools/neural_legacy_audit.py`, `tools/claims_enforcement.py`,
 `tools/file_disposition.py`, `tools/workflow_contract.py`, and the text of
-`qta_agent/governed_stage10.py`, `scientific/reproduction.py`,
+`agent_substrate/governed_tasks.py`, `scientific/reproduction.py`,
 `tools/test_isolation.py`, `conftest.py`; tests: `test_neural_meta.py`,
 `test_neural_accounting.py`, `test_neural_provenance.py`,
 `test_claims_boundary.py`, `test_completion_matrix.py`,
@@ -2822,7 +2822,7 @@ legacy_semantic_audit}.json`, `FILE_DISPOSITION.csv`,
 
 | SHA | agent-substrate, push / pull_request | stack-verify |
 |---|---|---|
-| `b7807bb` (C4) | 37823848084 / 37823855560: **all green**, 14 of 14 jobs each -- lint, the legacy-semantics and PASS-semantics audits, `tools/neural.py verify`, full-suite (the `neural` extra, `QTA_NEURAL_REQUIRED=1`), dispatch-sensitivity, second-interpreter 3.13, cross-environment-3d, 8 mutation shards (all 79 specs) and their aggregate. The push run's shard 4 lost its runner mid-step at attempt 1 (cancelled inside a step, no test had failed); that job alone was re-run once, and attempt 2 is green -- the pull_request run's shard 4 was green on the same commit at its first attempt | pull_request 37823855548: green, 2 of 2 jobs (its push trigger's path filter does not include this commit's files) |
+| `b7807bb` (C4) | 37823848084 / 37823855560: **all green**, 14 of 14 jobs each -- lint, the legacy-semantics and PASS-semantics audits, `tools/neural.py verify`, full-suite (the `neural` extra, `HARNESS_NEURAL_REQUIRED=1`), dispatch-sensitivity, second-interpreter 3.13, cross-environment-3d, 8 mutation shards (all 79 specs) and their aggregate. The push run's shard 4 lost its runner mid-step at attempt 1 (cancelled inside a step, no test had failed); that job alone was re-run once, and attempt 2 is green -- the pull_request run's shard 4 was green on the same commit at its first attempt | pull_request 37823855548: green, 2 of 2 jobs (its push trigger's path filter does not include this commit's files) |
 
 The hosted `--policy ci` package-consistency run the final validation
 above defers to, from the full-suite job of 37823848084: PACKAGE_STATUS

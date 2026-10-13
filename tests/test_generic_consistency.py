@@ -25,11 +25,11 @@ if str(ROOT) not in sys.path:
 sys.path.insert(0, str(ROOT / "tools"))
 
 import generic_consistency as GC  # noqa: E402
-from qta_agent.authority import State  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_model import REVIEWER_ID, GovernedModelRuns  # noqa: E402
-from qta_agent.reconstruct import Divergence  # noqa: E402
+from agent_substrate.authority import State  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_model import REVIEWER_ID, GovernedModelRuns  # noqa: E402
+from agent_substrate.reconstruct import Divergence  # noqa: E402
 
 WS = "verification/stage10/_pytest_generic_consistency"
 MODEL = {"model_id": "thermal.conduction_1d", "model_version": "1.0.0"}

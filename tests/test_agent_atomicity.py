@@ -43,15 +43,15 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
-    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedStage10,
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
+    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedTasks,
 )
-from qta_agent.reconstruct import (  # noqa: E402
+from agent_substrate.reconstruct import (  # noqa: E402
     compare_tasks, reconstruct_tasks,
 )
-from qta_agent.tasks import TaskState  # noqa: E402
+from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_atomicity"
 
@@ -88,7 +88,7 @@ def finished():
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    gov = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    gov = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                           evidence=EvidenceStore(base / "evidence"))
     gov.out_rel = f"{WS}/out"
     run = gov.run(tool_id="stage10.emit_artifact",
@@ -119,7 +119,7 @@ def _prefix_world(finished, n, tmp_path):
         "\n".join(finished["lines"][:n]) + ("\n" if n else ""),
         encoding="utf-8")
     shutil.copytree(finished["evidence"], d / "evidence")
-    gov = GovernedStage10(root=ROOT, log=EventLog(d / "log.jsonl"),
+    gov = GovernedTasks(root=ROOT, log=EventLog(d / "log.jsonl"),
                           evidence=EvidenceStore(d / "evidence"))
     return gov
 

@@ -42,7 +42,7 @@ from typing import Any
 
 def main(argv: list) -> int:
     if len(argv) != 2:
-        print("usage: _stage10_index_tool.py <json-inputs>", file=sys.stderr)
+        print("usage: _index_tool.py <json-inputs>", file=sys.stderr)
         return 2
     try:
         inputs = json.loads(argv[1])

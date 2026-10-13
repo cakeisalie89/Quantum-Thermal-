@@ -31,7 +31,7 @@ The directive's own test: a test-only caller does not count, a demonstration
 script does not count, an unused CLI does not count. So:
 
   * the work is executed as a bounded SUBPROCESS through
-    :class:`~qta_agent.execution.Executor`, not called in-process;
+    :class:`~agent_substrate.execution.Executor`, not called in-process;
   * the capability is scoped to this task and this tool, and the executor
     refuses without it;
   * every produced file is hashed into the evidence store, and the digests are
@@ -56,9 +56,10 @@ script does not count, an unused CLI does not count. So:
 
 WHERE THE NETWORK GUARD REACHES, AND WHERE IT STOPS
 
-The tool is executed as a SUBPROCESS. :func:`~qta_agent.netauth.socket_guard`
-replaces ``socket.socket.connect`` in the process that enters it, and a
-subprocess does not inherit a Python monkeypatch. So:
+The tool is executed as a SUBPROCESS.
+:func:`~agent_substrate.netauth.socket_guard` replaces
+``socket.socket.connect`` in the process that enters it, and a subprocess does
+not inherit a Python monkeypatch. So:
 
   IN-PROCESS MEDIATION -- what this module has.
       A connection attempted by this supervisor, or by any library it
@@ -71,8 +72,8 @@ subprocess does not inherit a Python monkeypatch. So:
       freely. Nothing here prevents that. Only a kernel-level boundary --
       a network namespace, seccomp, a firewall -- can, and this module
       neither creates one nor pretends to. See the "kernel layer (NOT
-      provided)" section of :mod:`qta_agent.netauth`, which has always said
-      so; for a long time this docstring did not, and the comment at the
+      provided)" section of :mod:`agent_substrate.netauth`, which has always
+      said so; for a long time this docstring did not, and the comment at the
       enforcement point below cross-referenced a sentence that was not here.
 
 ``test_the_parent_guard_does_not_bind_the_child`` proves the second half by
@@ -90,8 +91,8 @@ It does not make anything scientifically true. A VERIFIED task means a declared
 tool ran under a bounded environment, produced the bytes it says it produced,
 and a second actor confirmed those bytes are still there. That is a statement
 about provenance and nothing else. It moves no scientific result's
-authority: that takes the admission of ``qta_agent.result_rules``, decided by
-the authority store and re-decided on every replay.
+authority: that takes the admission of ``agent_substrate.result_rules``,
+decided by the authority store and re-decided on every replay.
 """
 from __future__ import annotations
 
@@ -205,7 +206,7 @@ OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
                    ACT_SEPARATE_VERIFY, ACT_REEXECUTION})
 
 
-def stage10_policy(version: int = 1) -> PolicyDocument:
+def governed_policy(version: int = 1) -> PolicyDocument:
     """The rules a governed Stage-10 run is subject to.
 
     Written as an explicit document rather than a permissive default so that
@@ -315,8 +316,8 @@ EXTERNAL_SETTLED: frozenset = frozenset({
 #: meant "the registry has more than one tool" and "more than one tool can
 #: run" were different statements and only the first was true.
 _TOOL_MODULE = {
-    "stage10.emit_artifact": "qta_agent._stage10_tool",
-    "stage10.digest_index": "qta_agent._stage10_index_tool",
+    "stage10.emit_artifact": "agent_substrate._artifact_tool",
+    "stage10.digest_index": "agent_substrate._index_tool",
 }
 
 
@@ -345,7 +346,7 @@ def tool_argv(tool_id: str, inputs: dict, *, modules=None) -> list:
     return [sys.executable, "-m", module, json.dumps(inputs, sort_keys=True)]
 
 
-def stage10_registry() -> Registry:
+def governed_registry() -> Registry:
     """The tools a governed Stage-10 run may invoke. Default-deny by omission.
 
     Each entry runs a module in a subprocess. They are declared
@@ -395,7 +396,7 @@ class TaskMovedUnderWriter(TaskTransitionError):
 
     Distinct from the state machine's own refusal on purpose: losing this
     race is somebody else's progress, and a caller may step aside from it
-    (:meth:`GovernedStage10.recover`); a move the machine FORBIDS is never
+    (:meth:`GovernedTasks.recover`); a move the machine FORBIDS is never
     that, and must not be swallowed with it.
     """
 
@@ -436,7 +437,7 @@ class GovernedRun:
     duplicate_of: str = ""
     #: Set when this call FINISHED a task an earlier submission under the
     #: same key began and a crash stopped: the state it was taken up from.
-    #: See :meth:`GovernedStage10._resume`.
+    #: See :meth:`GovernedTasks._resume`.
     resumed_from: str = ""
 
     @property
@@ -445,7 +446,7 @@ class GovernedRun:
         return bool(self.duplicate_of)
 
 
-class GovernedStage10:
+class GovernedTasks:
     """Runs Stage-10 work through the substrate. The production entry point."""
 
     def __init__(self, *, root: Path, log: EventLog, evidence: EvidenceStore,
@@ -453,7 +454,7 @@ class GovernedStage10:
         self.root = Path(root)
         self.log = log
         self.evidence = evidence
-        self.registry = registry or stage10_registry()
+        self.registry = registry or governed_registry()
         #: Entry point per tool, mutable beside :attr:`registry` for the same
         #: reason: a caller that supplies its own tools has to say how they
         #: are launched, and gets default-deny over its own mapping.
@@ -506,7 +507,7 @@ class GovernedStage10:
         try:
             self.policy.in_force(POLICY_ID)
         except Exception:                            # noqa: BLE001
-            self.policy.publish(stage10_policy(), actor="owner")
+            self.policy.publish(governed_policy(), actor="owner")
         roles = {SUBMITTER_ID: AgentRole.PROPOSER,
                  WORKER_ID: AgentRole.EXECUTOR,
                  VERIFIER_ID: AgentRole.VERIFIER}
@@ -530,9 +531,10 @@ class GovernedStage10:
         3,544 records to answer "where is the head" twenty-six times, against
         391 on the first run. Per-run work grows linearly with the history and
         the total is quadratic -- which is the defect
-        :meth:`~qta_agent.events.EventLog.advance` was written for, and its
-        docstring says so: *"That is the quadratic defect this repository has
-        already recorded twice, in a third place."* This was the third place.
+        :meth:`~agent_substrate.events.EventLog.advance` was written for, and
+        its docstring says so: *"That is the quadratic defect this repository
+        has already recorded twice, in a third place."* This was the third
+        place.
 
         The write path was never the problem: ``append`` has always carried
         an anchor and re-checked only the tail. It was the READ of the head
@@ -596,7 +598,7 @@ class GovernedStage10:
         """Fold ``events`` -- which the caller has just read VERIFIED, in one
         pass -- into task state. Private: :meth:`projection` is the entry
         point, and a caller holding its own verified read (the origin view of
-        :mod:`qta_agent.governed_model`) folds that same read rather than
+        :mod:`agent_substrate.governed_model`) folds that same read rather than
         reading the log a second time.
 
         ``start`` is a projection those events follow on from: :meth:`_move`
@@ -821,7 +823,7 @@ class GovernedStage10:
 
         This is duplicate suppression and durable request identity. It is
         not exactly-once execution against anything outside this system;
-        see :mod:`qta_agent.idempotency`.
+        see :mod:`agent_substrate.idempotency`.
         """
         if worker == verifier:
             raise ValueError(
@@ -1730,7 +1732,8 @@ class GovernedStage10:
         the authority log with its head witness and lock, and the evidence
         store. Supervisors write them under the writer lock and no tool
         does, so a change to them during a tool's run is not the tool's
-        (see :func:`qta_agent.execution._undeclared_writes`, D-2026-118)."""
+        (see :func:`agent_substrate.execution._undeclared_writes`,
+        D-2026-118)."""
         out = []
         root = self.root.resolve()
         for path in (self.log.path, self.log.head_path, self.log.lock_path,
@@ -2444,8 +2447,8 @@ class GovernedStage10:
         it. And this is the verification step -- the one place whose whole
         job is to be harder to fool than the code that produced the result.
 
-        Reading through :class:`~qta_agent.readpath.GovernedReader` binds the
-        read to an inode, refuses symlinks and special files, checks a
+        Reading through :class:`~agent_substrate.readpath.GovernedReader` binds
+        the read to an inode, refuses symlinks and special files, checks a
         capability the verifier actually holds, records every attempt, and
         passes the cited digest as the expectation so the identity of the
         bytes is checked by the same call that fetches them.

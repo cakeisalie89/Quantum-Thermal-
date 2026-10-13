@@ -96,14 +96,14 @@
    "path": "tools/workflow_contract.py",
    "find": "    out += [f\"knob is never turned -- {x}\" for x in unturned_knobs(body)]",
    "replace": "    out += []",
-   "rationale": "the elevated-scale step can drop its QTA_HORIZON_CYCLES assignment; the suite then runs at its compiled-in default, every assertion passes, the step goes green, and its name is a claim the run does not support"
+   "rationale": "the elevated-scale step can drop its HARNESS_HORIZON_CYCLES assignment; the suite then runs at its compiled-in default, every assertion passes, the step goes green, and its name is a claim the run does not support"
   },
   {
    "name": "K2_setting_the_knob_counts_as_raising_it",
    "path": "tools/workflow_contract.py",
    "find": "            if int(value) > default:",
    "replace": "            if True:",
-   "rationale": "QTA_HORIZON_CYCLES=1 satisfies the check; naming the variable becomes the same thing as elevating the scale"
+   "rationale": "HARNESS_HORIZON_CYCLES=1 satisfies the check; naming the variable becomes the same thing as elevating the scale"
   },
   {
    "name": "K3_a_continued_command_is_two_commands_again",

@@ -44,12 +44,12 @@ import test_proposal_crash_recovery as PCR  # noqa: E402
 from hangguard import PROCESS_DEADLINE_S  # noqa: E402
 from test_proposal_crash_recovery import reference  # noqa: E402,F401
 
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.reconstruct import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.reconstruct import (  # noqa: E402
     reconstruct, reconstruct_subsystems, reconstruct_tasks,
 )
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 RACERS = 4
 RX = "verification/stage10/_pytest_proposal_concurrency"
@@ -67,8 +67,8 @@ REFUSALS = {"TaskTransitionError", "TaskMovedUnderWriter",
 
 def _open(base: Path):
     import harness_demo as HD
-    from qta_agent import proposals as PR
-    from qta_agent.governed_model import GovernedModelRuns
+    from agent_substrate import proposals as PR
+    from agent_substrate.governed_model import GovernedModelRuns
     from qta_multiphysics.stack.rag_index import retrieve
     HD.WS = PCR.WS
     log = EventLog(base / "log.jsonl")
@@ -100,7 +100,7 @@ def _resubmit_worker(args):
 
 def _checkpoint_worker(args):
     go, base = args
-    from qta_agent.checkpoint import CheckpointStore
+    from agent_substrate.checkpoint import CheckpointStore
     _HD, log, ev, _ctx, G = _open(Path(base))
     g = G(root=ROOT, log=log, evidence=ev)
     XP._wait_for_start(go)
@@ -115,9 +115,9 @@ def _grant_worker(args):
     go, base, tag = args
     import time as _t
     import uuid as _u
-    from qta_agent.capability import Action, CapabilityLedger
-    from qta_agent.capability import issue as cap_issue
-    from qta_agent.netauth import NetworkAuthority, grant
+    from agent_substrate.capability import Action, CapabilityLedger
+    from agent_substrate.capability import issue as cap_issue
+    from agent_substrate.netauth import NetworkAuthority, grant
     log = EventLog(Path(base) / "log.jsonl")
     caps = CapabilityLedger(log).load()
     net = NetworkAuthority(log).load()
@@ -250,8 +250,8 @@ def test_four_first_submissions_of_one_proposal_run_it_once(
 
 def test_four_processes_checkpointing_at_once_leave_whole_checkpoints(
         reference, tmp_path):  # noqa: F811 - the imported fixture
-    from qta_agent.checkpoint import CheckpointStore
-    from qta_agent.governed_model import GovernedModelRuns
+    from agent_substrate.checkpoint import CheckpointStore
+    from agent_substrate.governed_model import GovernedModelRuns
     ref = reference
     log, ev, _g = PCR._crash_at(ref, len(ref["lines"]) - 1)
     seqs = _race(_checkpoint_worker, ROOT / PCR.WS, tmp_path)
@@ -282,8 +282,8 @@ def test_grants_issued_under_contention_start_where_they_are_written(
     resubmission test above). Four processes interleave capability and
     egress grants; every ledger then replays, and every grant starts where
     it sits."""
-    from qta_agent.capability import CapabilityLedger
-    from qta_agent.netauth import NetworkAuthority
+    from agent_substrate.capability import CapabilityLedger
+    from agent_substrate.netauth import NetworkAuthority
     base = tmp_path / "grants"
     base.mkdir()
     go = XP._go(tmp_path)

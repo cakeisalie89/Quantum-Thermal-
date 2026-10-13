@@ -1,6 +1,6 @@
 """Subprocess entry point: run one admitted model under governance.
 
-Launched by ``qta_agent.governed_model`` through the governed executor --
+Launched by ``agent_substrate.governed_model`` through the governed executor --
 policy, capability, bounded subprocess -- never called in-process. It
 resolves the model in the closed catalog, validates the parameters, runs it,
 and writes the ResultBundle and its artefacts into the governed workspace.

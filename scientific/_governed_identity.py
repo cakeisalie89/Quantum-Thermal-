@@ -1,11 +1,12 @@
 """Subprocess entry point: the run identity of a proposed model run.
 
-Launched by ``qta_agent.governed_model`` before a run, so a reuse decision is
-made against what the run WOULD be here -- this implementation digest, these
-validated parameters, this environment -- computed on the scientific side,
-where the model is known, and handed to the authority side as a document.
-It runs nothing and decides nothing: the comparison with a prior result, and
-the check that the prior's evidence is intact, happen in the bridge.
+Launched by ``agent_substrate.governed_model`` before a run, so a reuse
+decision is made against what the run WOULD be here -- this implementation
+digest, these validated parameters, this environment -- computed on the
+scientific side, where the model is known, and handed to the authority side as
+a document. It runs nothing and decides nothing: the comparison with a prior
+result, and the check that the prior's evidence is intact, happen in the
+bridge.
 """
 from __future__ import annotations
 

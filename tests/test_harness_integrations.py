@@ -4,9 +4,9 @@ Most of this runs anywhere: the slab and RC models, the closed-form series
 check, the FMU boundary reader against real and tampered archives, the
 FEniCSx lock, the FMU build's determinism. The parts that need an external
 runtime -- dolfinx for the finite-element check, fmpy to execute the FMU --
-run when one is configured (QTA_FENICSX_PYTHON, QTA_FMI_PYTHON) and are
+run when one is configured (HARNESS_FENICSX_PYTHON, HARNESS_FMI_PYTHON) and are
 SKIPPED otherwise; the hosted harness-integrations workflow sets
-QTA_INTEGRATIONS_REQUIRED, under which a missing runtime is a FAILURE, so
+HARNESS_INTEGRATIONS_REQUIRED, under which a missing runtime is a FAILURE, so
 those jobs cannot pass by skipping.
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ SLAB = {"L_m": 0.05, "k_W_m_K": 15.0, "rho_c_J_m3_K": 3.6e6,
 
 
 def _required(kind: str) -> bool:
-    return kind in os.environ.get("QTA_INTEGRATIONS_REQUIRED", "").split(",")
+    return kind in os.environ.get("HARNESS_INTEGRATIONS_REQUIRED", "").split(",")
 
 
 def _runtime(kind: str, var: str) -> str:

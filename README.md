@@ -33,10 +33,10 @@ full list, each boundary held by named code and tests, is in
 
 ## The architecture, in three parts
 
-**The agent authority substrate** (`qta_agent/`, `AGENT_SUBSTRATE.md`). The
+**The agent authority substrate** (`agent_substrate/`, `AGENT_SUBSTRATE.md`). The
 log (`events.py`) is the only writable record; everything else is a
 projection of it -- authority records (`authority.py`, `store.py`), durable
-tasks (`tasks.py`, `governed_stage10.py`), the scheduler, policy,
+tasks (`tasks.py`, `governed_tasks.py`), the scheduler, policy,
 capabilities, secrets, egress, memory, context and agents. A second,
 independent implementation (`reconstruct.py`) re-reads the same log without
 importing the first, and the two are compared.
@@ -62,7 +62,7 @@ Three meanings of "verified" are kept apart: *artifact integrity* (the same
 bytes, a digest), *scientific verification* (a bounded check passed, a
 `VerificationResult`) and *authority* (evidence judged sufficient, a record's
 state). A `scientific_result` reaches VERIFIED only under the admission
-policy `scientific_result.admission/1` (`qta_agent/result_rules.py`): a PASS
+policy `scientific_result.admission/1` (`agent_substrate/result_rules.py`): a PASS
 from an independent implementation about that exact bundle, every invariant
 holding, both documents captured by governed tasks, and the check executed by
 none of the proposer, the decider and the model's executor. The store decides
@@ -124,7 +124,7 @@ legacy_qta` (`workflow/legacy_qta.smk`), checked by the legacy verifier
 
 | Path | What it is |
 |---|---|
-| `qta_agent/` | the authority substrate: log, projections, governed execution, second reader |
+| `agent_substrate/` | the authority substrate: log, projections, governed execution, second reader |
 | `scientific/` | model, result, verification and observation interfaces; models and checks |
 | `qta_multiphysics/` | retained physics and the stack adapters; legacy QTA orchestration being retired |
 | `tools/` | verifiers: framework boundary, claims boundary, identity inventory, mutation harness |

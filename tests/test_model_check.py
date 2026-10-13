@@ -25,8 +25,8 @@ if str(ROOT) not in sys.path:
 
 TOOL = ROOT / "tools" / "model_check.py"
 
-from qta_agent import authority as A  # noqa: E402
-from qta_agent import scheduler as S  # noqa: E402
+from agent_substrate import authority as A  # noqa: E402
+from agent_substrate import scheduler as S  # noqa: E402
 
 
 def _checker():

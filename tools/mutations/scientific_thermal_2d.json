@@ -92,14 +92,14 @@
     },
     {
       "name": "T2_13_every_model_runs_under_the_1d_tool",
-      "path": "qta_agent/governed_model.py",
+      "path": "agent_substrate/governed_model.py",
       "find": "        run = self.gov.run(tool_id=MODEL_TOOLS[model_id], inputs=inputs,",
       "replace": "        run = self.gov.run(tool_id=TOOL_RUN, inputs=inputs,",
       "rationale": "the history says thermal 1D ran when thermal 2D did"
     },
     {
       "name": "T2_14_an_unknown_model_is_submitted",
-      "path": "qta_agent/governed_model.py",
+      "path": "agent_substrate/governed_model.py",
       "find": "        if model_id not in MODEL_TOOLS:\n",
       "replace": "        if False:\n",
       "rationale": "a model with no governed tool reaches the executor and leaves history"

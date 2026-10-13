@@ -116,8 +116,9 @@ class SecretNotYetIssued(SecretDenied):
     """The grant exists, and did not yet at the position being asked about.
 
     The other end of :class:`SecretExpired`. See the identical pair in
-    :mod:`qta_agent.capability`: a window checked at one end is a half-check,
-    and the end that was missing is the one an incident review depends on.
+    :mod:`agent_substrate.capability`: a window checked at one end is a
+    half-check, and the end that was missing is the one an incident review
+    depends on.
     """
 
 
@@ -456,9 +457,9 @@ def _encoded_forms(value: str) -> tuple:
 # holds; a value that has been through ``str`` cannot be zeroed at all (see
 # the module docstring). The load path therefore never constructs one -- the
 # bytes go from the read straight into the buffer the store will wipe. This
-# does not make the value unrecoverable: :mod:`qta_agent.safeio` hands back
-# an immutable ``bytes`` and that copy is not zeroable either. The claim is
-# narrow and is the same one the module makes everywhere: fewer copies, for
+# does not make the value unrecoverable: :mod:`agent_substrate.safeio` hands
+# back an immutable ``bytes`` and that copy is not zeroable either. The claim
+# is narrow and is the same one the module makes everywhere: fewer copies, for
 # a bounded time, and no promise that the runtime kept none.
 #
 # It also fetches ONE NAMED SECRET. A provider that returned "everything in
@@ -549,9 +550,9 @@ class FileSecretProvider(SecretProvider):
     projected volumes, systemd credentials, a mounted tmpfs -- so integrating
     with one is a path, not an SDK.
 
-    Reads go through :class:`qta_agent.safeio.ReadRoot`, which is the reason
-    this class is short. Confinement to the root, refusal of symlinks, the
-    aliased-file check and the size bound are that module's, already tested
+    Reads go through :class:`agent_substrate.safeio.ReadRoot`, which is the
+    reason this class is short. Confinement to the root, refusal of symlinks,
+    the aliased-file check and the size bound are that module's, already tested
     and already mutated against; re-implementing them here would be a second
     copy of the hard part.
 

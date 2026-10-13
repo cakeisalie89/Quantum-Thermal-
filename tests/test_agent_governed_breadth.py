@@ -37,14 +37,14 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.canonical import digest_bytes  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
-    ACT_REEXECUTION, GovernedStage10, stage10_registry, tool_argv,
+from agent_substrate.canonical import digest_bytes  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
+    ACT_REEXECUTION, GovernedTasks, governed_registry, tool_argv,
 )
-from qta_agent.tasks import TaskState  # noqa: E402
-from qta_agent.tools import Determinism, ToolNotRegistered  # noqa: E402
+from agent_substrate.tasks import TaskState  # noqa: E402
+from agent_substrate.tools import Determinism, ToolNotRegistered  # noqa: E402
 from qta_multiphysics.stack import workspace as WS_GUARD  # noqa: E402
 
 WS = "verification/stage10/_pytest_breadth"
@@ -57,7 +57,7 @@ def gov(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -102,12 +102,12 @@ def _declared(gov, run, name):
 
 def test_the_registry_holds_more_than_one_launchable_tool():
     """Registered AND launchable. The two used to be different sets."""
-    reg = stage10_registry()
+    reg = governed_registry()
     ids = sorted(reg.ids())
     assert len(ids) >= 2, f"the governed registry still holds only {ids}"
     for tool_id in ids:
         argv = tool_argv(tool_id, {})
-        assert argv[1] == "-m" and argv[2].startswith("qta_agent."), argv
+        assert argv[1] == "-m" and argv[2].startswith("agent_substrate."), argv
     # Distinct entry points. Two registry rows pointing at one module would
     # satisfy the count above and would still be one tool.
     modules = {tool_argv(t, {})[2] for t in ids}
@@ -196,7 +196,7 @@ def test_a_runner_built_the_way_the_workflow_builds_one_re_executes(request):
         shutil.rmtree(base)
     base.mkdir(parents=True)
     try:
-        g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+        g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                             evidence=EvidenceStore(base / "evidence"))
         assert not hasattr(g, "out_rel"), (
             "the runner grew the attribute the fixture used to supply; the "

@@ -1,6 +1,6 @@
 {
  "title": "Verify-then-read cannot silently re-enter",
- "note": "D-2026-76. The static guard walks every production file for a raw read, a tail parse, a resurrected read_from, or the file opened directly; the runtime guard refuses the raw parse to any qta_agent caller but the events module. Each mutation removes one rule, widens the scope or allowlist, or removes the runtime half.",
+ "note": "D-2026-76. The static guard walks every production file for a raw read, a tail parse, a resurrected read_from, or the file opened directly; the runtime guard refuses the raw parse to any agent_substrate caller but the events module. Each mutation removes one rule, widens the scope or allowlist, or removes the runtime half.",
  "suites": [
   "tests/test_verified_read_guard.py"
  ],
@@ -70,21 +70,21 @@
   },
   {
    "name": "VG10_the_runtime_refusal_is_removed",
-   "path": "qta_agent/events.py",
-   "find": "    if caller.startswith(\"qta_agent.\") and caller != __name__:",
+   "path": "agent_substrate/events.py",
+   "find": "    if caller.startswith(\"agent_substrate.\") and caller != __name__:",
    "replace": "    if False:",
    "rationale": "D-2026-76: the refusal an alias cannot evade is gone, and only the name-based scan remains"
   },
   {
    "name": "VG11_iteration_skips_the_runtime_refusal",
-   "path": "qta_agent/events.py",
+   "path": "agent_substrate/events.py",
    "find": "        _refuse_unverified_caller(2)\n        yield from self.read()",
    "replace": "        yield from self.read()",
    "rationale": "the events module becomes the caller of read(), so iterating the log from a reducer is allowed"
   },
   {
    "name": "VG12_a_nameless_caller_crashes_the_guard",
-   "path": "qta_agent/events.py",
+   "path": "agent_substrate/events.py",
    "find": "    if not isinstance(caller, str):\n        caller = \"\"\n",
    "replace": "    if False:\n        caller = \"\"\n",
    "rationale": "D-2026-79: exec'd code with __name__ = None (a Snakemake rule body) crashes the guard instead of being let through"

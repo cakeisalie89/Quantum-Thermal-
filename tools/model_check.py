@@ -20,8 +20,8 @@ The usual failure of model checking a real system is that somebody
 re-describes the system in the checker's language, the description drifts,
 and afterwards the proof is about a program nobody runs. There is no
 re-description here. The permitted-transition graph is DERIVED by calling
-the real authorization functions -- ``qta_agent.authority.check`` and
-``qta_agent.scheduler.check_edge`` -- over every combination of source,
+the real authorization functions -- ``agent_substrate.authority.check`` and
+``agent_substrate.scheduler.check_edge`` -- over every combination of source,
 destination, role, actor identity and evidence subset in a bounded space.
 Whatever those functions permit is what the graph contains, so a change to
 either is a change to the graph, and there is nothing to keep in step.
@@ -53,8 +53,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import authority as A          # noqa: E402
-from qta_agent import scheduler as S          # noqa: E402
+from agent_substrate import authority as A          # noqa: E402
+from agent_substrate import scheduler as S          # noqa: E402
 
 #: A digest-shaped value, so I6's syntactic check passes and the question
 #: being asked is about the RULES rather than about string shapes.

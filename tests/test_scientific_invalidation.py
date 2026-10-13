@@ -32,16 +32,16 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import reconstruct as rc  # noqa: E402
-from qta_agent import result_rules  # noqa: E402
-from qta_agent.authority import Role, State, TransitionError  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_model import (  # noqa: E402
+from agent_substrate import reconstruct as rc  # noqa: E402
+from agent_substrate import result_rules  # noqa: E402
+from agent_substrate.authority import Role, State, TransitionError  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_model import (  # noqa: E402
     REVIEWER_ID, GovernedModelRuns, ModelRun, CheckRun, ModelRunRefused,
 )
-from qta_agent.governed_stage10 import SUBMITTER_ID  # noqa: E402
-from qta_agent.tasks import TaskState, TaskTransitionError  # noqa: E402
+from agent_substrate.governed_tasks import SUBMITTER_ID  # noqa: E402
+from agent_substrate.tasks import TaskState, TaskTransitionError  # noqa: E402
 
 WS = "verification/stage10/_pytest_invalidation"
 CHECK = "thermal_1d.reduction_2d_radial_disabled"

@@ -160,7 +160,7 @@ class UnverifiedReadRefused(RuntimeError):
 
 
 def _refuse_unverified_caller(depth: int) -> None:
-    """Refuse the raw parse to any ``qta_agent`` module but this one.
+    """Refuse the raw parse to any ``agent_substrate`` module but this one.
 
     D-2026-76. The static guard (``tools/verified_read_guard.py``) finds a
     raw read by what the receiver is CALLED; an alias defeats it. This asks
@@ -168,7 +168,7 @@ def _refuse_unverified_caller(depth: int) -> None:
     the authority layer the raw parse is reachable only through
     :meth:`EventLog.read_verified` / :meth:`EventLog.read_verified_from`,
     whatever the caller named the object. Tests, tools and diagnostics are
-    outside ``qta_agent`` and are unaffected: an unverified parse is a
+    outside ``agent_substrate`` and are unaffected: an unverified parse is a
     legitimate thing to LOOK at, and never a legitimate thing to fold.
     """
     caller = sys._getframe(depth).f_globals.get("__name__")
@@ -177,7 +177,7 @@ def _refuse_unverified_caller(depth: int) -> None:
     # layer, and a guard that crashes on it is not a guard.
     if not isinstance(caller, str):
         caller = ""
-    if caller.startswith("qta_agent.") and caller != __name__:
+    if caller.startswith("agent_substrate.") and caller != __name__:
         raise UnverifiedReadRefused(
             f"{caller} read the event log without verifying it. Fold from "
             "log.read_verified() or log.read_verified_from(anchor): the "
@@ -456,8 +456,8 @@ class EventLog:
         #: Called with the verified events of every read (``complete`` for a
         #: whole-history read, not for an anchored tail) and returning a
         #: report with ``ok``, ``lines()`` and ``refused`` seqs -- in
-        #: practice :class:`qta_agent.principals.Authenticator`, which this
-        #: module does not import: the log sits below the key layer.
+        #: practice :class:`agent_substrate.principals.Authenticator`, which
+        #: this module does not import: the log sits below the key layer.
         self.authenticator = authenticator
         #: The profile the DEPLOYMENT requires. A history declaring less is
         #: a downgrade and does not read.
@@ -531,8 +531,8 @@ class EventLog:
         """Parse every record. With ``strict`` a malformed tail raises.
 
         UNVERIFIED: this parses, it does not check the chain. Inside
-        ``qta_agent`` only this module may call it (D-2026-76); everything
-        that folds records uses :meth:`read_verified`.
+        ``agent_substrate`` only this module may call it (D-2026-76);
+        everything that folds records uses :meth:`read_verified`.
         """
         _refuse_unverified_caller(2)
         import json
@@ -629,7 +629,7 @@ class EventLog:
         different reads of a file another process is appending to, and the
         second one returns records the first never checked. Reproduced, with
         a record whose chain link is broken landing in that window:
-        `governed_stage10.projection()` folded it and reported a task
+        `governed_tasks.projection()` folded it and reported a task
         attributed to an actor nobody authorized, from a log that did not
         verify -- under a docstring reading "rebuild task state from the
         verified log. Fail closed."
@@ -644,7 +644,7 @@ class EventLog:
         while this pass is in flight is a different matter and this does not
         address it; that is the threat model :meth:`verify` lives in
         generally, and the filesystem is trusted to the extent stated in
-        :mod:`qta_agent.checkpoint`.
+        :mod:`agent_substrate.checkpoint`.
 
         THE EVENTS ARE THE VERIFIED PREFIX, NOT THE WHOLE PARSE. Every record
         returned passed its link check; the first record that did not, and
@@ -1194,7 +1194,7 @@ class EventLog:
         seq, hash and all -- under the writer lock and BEFORE its bytes are
         written; if it raises, nothing is written. It is how a signed append
         makes the record's attestation durable first
-        (:func:`qta_agent.principals.signed_append`).
+        (:func:`agent_substrate.principals.signed_append`).
         """
         with self.exclusive():
             report = self._checked_head()
@@ -1381,7 +1381,7 @@ class EventLog:
             raise EventLogError(
                 f"an {PROFILE_AUTHENTICATED_REQUIRED} history is written "
                 "only with the record's attestation prepared before it "
-                "(qta_agent.principals.signed_append)")
+                "(agent_substrate.principals.signed_append)")
         if before_write is not None:
             before_write(ev)
 

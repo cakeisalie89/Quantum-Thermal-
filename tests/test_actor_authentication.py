@@ -7,7 +7,7 @@ too -- and the chain verifies; it can append a complete lifecycle under any
 actor name, and every reader re-authorizes it. Plan 9.7: "actors are names,
 not keys".
 
-These tests hold the seam that closes it (``qta_agent.principals``) and the
+These tests hold the seam that closes it (``agent_substrate.principals``) and the
 two readers that use it. Each attack is shown to pass the hash chain first,
 so the refusal is the signature's and not the chain's: actor substitution, a
 tampered signature, a tampered payload, a wrong key, a key nobody
@@ -27,14 +27,14 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import ed25519  # noqa: E402
-from qta_agent import principals as pr  # noqa: E402
-from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.checkpoint import CheckpointStore  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.reconstruct import reconstruct  # noqa: E402
-from qta_agent.store import AuthorityStore, StoreError  # noqa: E402
+from agent_substrate import ed25519  # noqa: E402
+from agent_substrate import principals as pr  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.checkpoint import CheckpointStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.reconstruct import reconstruct  # noqa: E402
+from agent_substrate.store import AuthorityStore, StoreError  # noqa: E402
 
 ALICE, BOB, MALLORY = (pr.test_identity(n)
                        for n in ("alice", "bob", "mallory"))

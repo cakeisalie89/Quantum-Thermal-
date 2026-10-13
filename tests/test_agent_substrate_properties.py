@@ -24,17 +24,17 @@ from hypothesis.stateful import (
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from qta_agent.authority import (  # noqa: E402
+from agent_substrate.authority import (  # noqa: E402
     TERMINAL, Role, State, TransitionError, TransitionRequest,
     check,
 )
-from qta_agent.canonical import (  # noqa: E402
+from agent_substrate.canonical import (  # noqa: E402
     CanonicalizationError, digest, is_digest,
 )
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.invalidation import apply_invalidation  # noqa: E402
-from qta_agent.reconstruct import compare, reconstruct  # noqa: E402
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.invalidation import apply_invalidation  # noqa: E402
+from agent_substrate.reconstruct import compare, reconstruct  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 DIG = "b" * 64
 

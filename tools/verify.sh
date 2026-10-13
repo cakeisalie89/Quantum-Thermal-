@@ -14,8 +14,8 @@
 # Never pipe a verifier into anything.
 set -uo pipefail
 
-log="${QTA_VERIFY_LOG:-$(mktemp)}"
-lines="${QTA_VERIFY_TAIL:-25}"
+log="${HARNESS_VERIFY_LOG:-$(mktemp)}"
+lines="${HARNESS_VERIFY_TAIL:-25}"
 
 "$@" >"$log" 2>&1
 status=$?

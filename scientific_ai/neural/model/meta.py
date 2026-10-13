@@ -28,7 +28,7 @@ REAL ALLOCATION IS OPT-IN
 bytes from the exact count FIRST and refuses anything above
 ``max_bytes`` (default ``REAL_ALLOCATION_LIMIT``, 2 GiB) unless the caller
 passes ``allow_large=True`` AND the environment sets
-``QTA_NEURAL_ALLOW_LARGE_ALLOCATION=1``. Neither is set by any test, tool
+``HARNESS_NEURAL_ALLOW_LARGE_ALLOCATION=1``. Neither is set by any test, tool
 or CI job in this repository.
 """
 from __future__ import annotations
@@ -46,7 +46,7 @@ from ._jax import require, versions
 
 REAL_ALLOCATION_LIMIT = 2 * 2 ** 30
 META_RSS_LIMIT = 1 * 2 ** 30
-ALLOW_ENV = "QTA_NEURAL_ALLOW_LARGE_ALLOCATION"
+ALLOW_ENV = "HARNESS_NEURAL_ALLOW_LARGE_ALLOCATION"
 
 
 class AllocationRefused(RuntimeError):

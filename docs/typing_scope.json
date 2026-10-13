@@ -1,7 +1,7 @@
 {
   "schema": "typing-scope/1",
   "active": [
-    "qta_agent",
+    "agent_substrate",
     "scientific",
     "scientific_ai",
     "qta_multiphysics/stack",

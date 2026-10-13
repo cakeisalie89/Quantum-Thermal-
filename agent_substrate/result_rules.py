@@ -67,8 +67,8 @@ reconstructible. Replay distinguishes the two ways it can fail:
 
 The rule reads JSON. It deliberately does not import ``scientific``.
 ``tests/test_agent_result_rules.py`` holds it to documents the scientific
-package actually writes, and :mod:`qta_agent.reconstruct` restates it in its
-own code, so a weakened rule here is not reproduced by the second reader.
+package actually writes, and :mod:`agent_substrate.reconstruct` restates it in
+its own code, so a weakened rule here is not reproduced by the second reader.
 """
 from __future__ import annotations
 

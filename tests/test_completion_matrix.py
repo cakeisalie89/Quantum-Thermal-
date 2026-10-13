@@ -229,7 +229,7 @@ def _row(**over):
     base.update({
         "id": "RX", "requirement": "a requirement",
         "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
-        "implementation": ["qta_agent/scheduler.py"],
+        "implementation": ["agent_substrate/scheduler.py"],
         "callers": [], "production_caller": "",
         "tests": ["tests/test_agent_scheduler.py"],
         "property_tests": [], "mutation_tests": [], "fuzzing": "none",
@@ -285,14 +285,14 @@ def test_the_validator_refuses_a_row_with_no_gaps_and_no_completion_claim():
 def test_the_validator_refuses_borrowed_mutation_coverage():
     """A row may not cite a spec that mutates somebody else's code."""
     problems = _problems(
-        implementation=["qta_agent/memory.py"],
+        implementation=["agent_substrate/memory.py"],
         mutation_tests=["tools/mutations/agent_scheduler.json"])
     assert any("none of this row's implementation" in p for p in problems), \
         problems
 
 
 def test_the_validator_refuses_a_production_caller_that_calls_nothing():
-    problems = _problems(implementation=["qta_agent/memory.py"],
+    problems = _problems(implementation=["agent_substrate/memory.py"],
                          production_caller="README.md")
     assert any("in a form that would import" in p for p in problems), (
         "a README that merely contains the word 'memory' passed as a"
@@ -300,7 +300,7 @@ def test_the_validator_refuses_a_production_caller_that_calls_nothing():
 
 
 def test_the_validator_refuses_a_path_that_does_not_exist():
-    problems = _problems(implementation=["qta_agent/does_not_exist.py"])
+    problems = _problems(implementation=["agent_substrate/does_not_exist.py"])
     assert any("does not exist" in p for p in problems), problems
 
 
@@ -799,7 +799,11 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: (tests and the ledger) nor the commit that attaches them changes a path
 #: any row's implementation digest covers, so the digests at efaf08a are
 #: the digests now.
-EXPECTED_EVIDENCE_COVERS = 50
+#:
+#: 50 -> 3 with the namespace rename (qta_agent -> agent_substrate): every
+#: implementation path a row names moved or had its imports rewritten, so
+#: 47 rows derive PREDATES until a later commit cites runs on the new tree.
+EXPECTED_EVIDENCE_COVERS = 3
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
@@ -854,7 +858,7 @@ def test_the_spec_count_the_matrix_claims_is_the_count_that_runs():
 
     WORTH RECORDING ABOUT THE MEASUREMENT ITSELF: the first attempt to check
     this used `tools/mutations/[a-z_]*\\.json` and reported that
-    stage10_authority.json was never invoked -- because the character class
+    governed_tasks_authority.json was never invoked -- because the character class
     has no digits and could not match its name. A scan that silently drops
     part of its subject reads exactly like a finding about that part. The
     pattern below takes digits, and the two-way comparison means a spec that

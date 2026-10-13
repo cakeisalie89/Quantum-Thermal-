@@ -55,10 +55,10 @@ A learned prediction is none of those. Every learned output is
 `LEARNED_PREDICTION`, `NON_AUTHORITATIVE`, `REQUIRES_EXTERNAL_VERIFICATION`.
 The substrate does not import the agent layer; its lifecycle is recorded in
 the ONE authority log through the existing record actions
-(`qta_agent/learned_lifecycle.py`), and the authority store refuses every
+(`agent_substrate/learned_lifecycle.py`), and the authority store refuses every
 edge into VERIFIED or PROMOTED for a record whose kind begins with
 `learned_` -- live, on replay, and in the independent second reader
-(`qta_agent/learned_rules.py`, `qta_agent/reconstruct.py`). No admission
+(`agent_substrate/learned_rules.py`, `agent_substrate/reconstruct.py`). No admission
 policy for learned models exists; writing one is the programme owner's
 decision, in a later tranche, with its own evidence. Nothing here replaces a
 governed calculation.
@@ -214,7 +214,7 @@ exactly this, all 64 MoE layers trace with legal routing, the heads resolve,
 no JAX array is created, peak memory grows by tens of megabytes, and a real
 allocation is refused twice over -- by `meta.materialize` and, independently,
 by `network.init` -- unless explicitly opted into
-(`allow_large=True` and `QTA_NEURAL_ALLOW_LARGE_ALLOCATION=1`, set by nothing
+(`allow_large=True` and `HARNESS_NEURAL_ALLOW_LARGE_ALLOCATION=1`, set by nothing
 in this repository).
 
 ## Estimates (not measurements)

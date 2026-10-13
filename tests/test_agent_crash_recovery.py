@@ -33,26 +33,26 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.agents import (  # noqa: E402
+from agent_substrate.agents import (  # noqa: E402
     AgentDirectory, AgentRole, PrincipalKind, identity,
 )
-from qta_agent.audit import AuditIndex  # noqa: E402
-from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.capability import (  # noqa: E402
+from agent_substrate.audit import AuditIndex  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.capability import (  # noqa: E402
     Action, CapabilitySet, issue as issue_cap,
 )
-from qta_agent.checkpoint import CheckpointStore  # noqa: E402
-from qta_agent.events import ChainBroken, EventLog  # noqa: E402
-from qta_agent.evidence import (  # noqa: E402
+from agent_substrate.checkpoint import CheckpointStore  # noqa: E402
+from agent_substrate.events import ChainBroken, EventLog  # noqa: E402
+from agent_substrate.evidence import (  # noqa: E402
     CorruptEvidence, EvidenceStore, UnknownEvidence,
 )
-from qta_agent.policy import PolicyStore  # noqa: E402
-from qta_agent.reconstruct import compare, reconstruct  # noqa: E402
-from qta_agent.scheduler import (  # noqa: E402
+from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.reconstruct import compare, reconstruct  # noqa: E402
+from agent_substrate.scheduler import (  # noqa: E402
     FailureClass, JobState, Scheduler, default_policy,
 )
-from qta_agent.store import AuthorityStore, StoreError  # noqa: E402
+from agent_substrate.store import AuthorityStore, StoreError  # noqa: E402
 
 WORK = digest({"work": "stage10"})
 
@@ -161,7 +161,7 @@ def test_a_worker_process_killed_mid_execution_leaves_a_recoverable_log(
     script.write_text(f'''
 import sys, time
 sys.path.insert(0, {str(ROOT)!r})
-from qta_agent.events import EventLog
+from agent_substrate.events import EventLog
 log = EventLog({str(log_path)!r})
 for i in range(1000):
     log.append(actor="w1", action="probe", target="t", payload={{"i": i}})
@@ -206,7 +206,7 @@ for i in range(1000):
 # softened in the process: a log missing records is still damage.
 
 def _log_with(tmp_path, n):
-    from qta_agent.events import EventLog as _EL
+    from agent_substrate.events import EventLog as _EL
     log = _EL(tmp_path / "log.jsonl")
     for i in range(n):
         log.append(actor="w1", action="probe", target="t", payload={"i": i})

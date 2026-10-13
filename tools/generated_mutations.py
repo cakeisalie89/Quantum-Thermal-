@@ -39,9 +39,10 @@ sample.
 
 USAGE
 
-    python3 tools/generated_mutations.py qta_agent/capability.py \\
+    python3 tools/generated_mutations.py agent_substrate/capability.py \\
         --suite tests/test_agent_delegation.py --sample 20 --seed 7
-    python3 tools/generated_mutations.py qta_agent/policy.py --emit out.json
+    python3 tools/generated_mutations.py agent_substrate/policy.py \\
+        --emit out.json
 """
 from __future__ import annotations
 

@@ -48,7 +48,7 @@ def test_an_ignored_file_is_not_in_scope():
     d = ROOT / ".mutation-quarantine" / "_scope_probe"
     d.mkdir(parents=True, exist_ok=True)
     probe = d / "b.py"
-    probe.write_text("import qta_agent.store  # probe\n")
+    probe.write_text("import agent_substrate.store  # probe\n")
     try:
         r = subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q",
                             str(probe)], capture_output=True)
@@ -84,7 +84,7 @@ def test_non_test_references_excludes_tests_and_finds_production():
     """The 'does this defence have a caller that is not its own test'
     question, which this project has had to ask three times."""
     prod = RS.non_test_references("check_egress_composition")
-    assert "qta_agent/netauth.py" in prod, (
+    assert "agent_substrate/netauth.py" in prod, (
         "the production caller added for the confused-deputy fix is gone")
     assert not [f for f in prod if f.startswith("tests/")]
 
@@ -94,7 +94,7 @@ def test_expired_leases_now_has_a_production_caller():
     the scheduler's input for returning stranded work to the queue. That is
     why a crashed supervisor stranded a task forever."""
     prod = RS.non_test_references("expired_leases")
-    assert "qta_agent/governed_stage10.py" in prod
+    assert "agent_substrate/governed_tasks.py" in prod
 
 
 def test_the_scope_helper_skips_the_retired_corpus():
@@ -203,7 +203,7 @@ def test_the_long_horizon_knob_is_turned_in_the_real_workflow():
 def test_a_workflow_that_never_raises_the_cycle_count_is_refused():
     """The defect this closes.
 
-    Drop `QTA_HORIZON_CYCLES=1200` and the suite runs at its compiled-in
+    Drop `HARNESS_HORIZON_CYCLES=1200` and the suite runs at its compiled-in
     default, every assertion in it still passes, the step goes green, and the
     step's name -- "long horizon at an elevated scale" -- is a claim the run
     does not support.
@@ -226,7 +226,7 @@ def test_a_cycle_count_at_or_below_the_default_is_not_elevated():
   x:
     steps:
       - run: |
-          QTA_HORIZON_CYCLES=10 uv run python -m pytest \\
+          HARNESS_HORIZON_CYCLES=10 uv run python -m pytest \\
             tests/test_agent_long_horizon.py -q
 """
     assert WC.unturned_knobs(body), "10 is below the default and not elevated"
@@ -271,11 +271,11 @@ def test_a_continued_command_is_read_as_one_command():
   x:
     steps:
       - run: |
-          QTA_HORIZON_CYCLES=9000 uv run python -m pytest \\
+          HARNESS_HORIZON_CYCLES=9000 uv run python -m pytest \\
             tests/test_agent_long_horizon.py -q -p no:randomly
 """
     cmds = WC._run_commands(body)
-    assert any("QTA_HORIZON_CYCLES=9000" in c
+    assert any("HARNESS_HORIZON_CYCLES=9000" in c
                and "test_agent_long_horizon.py" in c for c in cmds), cmds
     assert WC.unturned_knobs(body) == ()
 

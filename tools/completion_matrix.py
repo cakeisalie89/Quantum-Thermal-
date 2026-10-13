@@ -371,7 +371,8 @@ def validate(doc: dict) -> list:
                     # actually pulls the module in, including
                     # "from qta_multiphysics.stack import rag_index as R",
                     # while still being false of ordinary prose.
-                    forms.update({f"qta_agent.{m}", f"qta_agent/{m}",
+                    forms.update({f"agent_substrate.{m}",
+                                  f"agent_substrate/{m}",
                                   f"import {m}", f".{m} import"})
                 forms.update(impl)
                 if not any(f in text for f in forms):
@@ -385,7 +386,7 @@ def validate(doc: dict) -> list:
         # being true -- and a matrix nobody re-reads drifts exactly this way.
         # Twelve rows were found in that state at once, still saying "the
         # scheduler does not exist yet" months after it did.
-        modules = {q.stem for q in (ROOT / "qta_agent").glob("*.py")}
+        modules = {q.stem for q in (ROOT / "agent_substrate").glob("*.py")}
         for gap in row.get("residual_gaps", []):
             low = gap.lower()
             for phrase in ("does not exist yet", "do not exist yet",
@@ -399,8 +400,9 @@ def validate(doc: dict) -> list:
                 if named:
                     problems.append(
                         f"{rid}: a residual gap says {phrase!r} while "
-                        f"qta_agent/{sorted(named)[0]}.py exists; refresh the "
-                        "row rather than leaving documentation that has "
+                        f"agent_substrate/{sorted(named)[0]}.py exists; "
+                        "refresh the row rather than leaving documentation "
+                        "that has "
                         "stopped being true")
 
         # STALENESS, SECOND SPECIES. Three rows were found carrying "no

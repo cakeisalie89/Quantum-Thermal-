@@ -26,19 +26,19 @@ can query, rather than sitting in WAITING looking like they are about to start.
 
 TWO STATE MACHINES, ON PURPOSE
 
-:mod:`qta_agent.tasks` owns execution lifecycle: leased, executing, completed,
-verified. This module owns queue lifecycle: waiting, ready, dispatched,
-retrying. They are separate because they answer different questions and fail
-in different ways -- a task can be EXECUTING while its job is being cancelled,
-and collapsing the two would make that race unrepresentable rather than
-handled.
+:mod:`agent_substrate.tasks` owns execution lifecycle: leased, executing,
+completed, verified. This module owns queue lifecycle: waiting, ready,
+dispatched, retrying. They are separate because they answer different questions
+and fail in different ways -- a task can be EXECUTING while its job is being
+cancelled, and collapsing the two would make that race unrepresentable rather
+than handled.
 
 EVERY CLOCK IS THE LOG
 
 Backoff, lease expiry and aging are all measured in sequence numbers. Wall
 time is recorded and never consulted for a decision, for the same reason as in
-:mod:`qta_agent.capability`: two readers of the same log must reach the same
-verdict, and they do not share a clock.
+:mod:`agent_substrate.capability`: two readers of the same log must reach the
+same verdict, and they do not share a clock.
 
 RETRY IS CLASSIFIED, NOT AUTOMATIC
 
@@ -430,9 +430,9 @@ class Scheduler:
     def __init__(self, log, *, policy, policy_id: str,
                  capacity: dict | None = None):
         self.log = log
-        #: A :class:`~qta_agent.policy.PolicyStore`. Mandatory: a scheduler
-        #: whose policy is optional is a scheduler with no policy in the one
-        #: deployment where it matters.
+        #: A :class:`~agent_substrate.policy.PolicyStore`. Mandatory: a
+        #: scheduler whose policy is optional is a scheduler with no policy in
+        #: the one deployment where it matters.
         self.policy = policy
         self.policy_id = policy_id
         #: Resource ceilings this executor can actually satisfy.
@@ -957,10 +957,10 @@ class Scheduler:
         """Why this job may or may not be dispatched. Total; never raises.
 
         ``resolve`` is a predicate over an evidence digest and
-        ``capabilities`` a :class:`~qta_agent.capability.CapabilitySet`. Both
-        are optional ARGUMENTS rather than attributes so the scheduler cannot
-        hold authority it was not handed; a caller that omits them gets a
-        readiness answer that says so rather than one that silently skipped
+        ``capabilities`` a :class:`~agent_substrate.capability.CapabilitySet`.
+        Both are optional ARGUMENTS rather than attributes so the scheduler
+        cannot hold authority it was not handed; a caller that omits them gets
+        a readiness answer that says so rather than one that silently skipped
         the check.
         """
         if job.state in TERMINAL:

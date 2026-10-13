@@ -556,11 +556,12 @@ def _collect_outputs(cwd: Path, declared: tuple) -> tuple:
 
     ``declared`` is ``(name, relative path, required)`` triples already
     resolved from validated inputs by
-    :meth:`~qta_agent.tools.ToolSpec.resolve_outputs`, which refused any that
-    walked upward as a string. This is the other half: the path is resolved
-    against the REAL filesystem and refused if it lands outside ``cwd``,
-    because a relative path with no ``..`` in it reaches anywhere at all once
-    a symlink is involved, and a tool that wrote the symlink chose where.
+    :meth:`~agent_substrate.tools.ToolSpec.resolve_outputs`, which refused any
+    that walked upward as a string. This is the other half: the path is
+    resolved against the REAL filesystem and refused if it lands outside
+    ``cwd``, because a relative path with no ``..`` in it reaches anywhere at
+    all once a symlink is involved, and a tool that wrote the symlink chose
+    where.
 
     Returns ``(digests, paths, missing)``. Nothing raises: a collection
     problem is evidence about the run, and turning it into an exception would
@@ -685,7 +686,7 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
             # a later supervisor acting on a reused one would signal an
             # innocent program. Boot id and start time are what make the
             # number mean something after the process that recorded it is
-            # gone. See qta_agent.hostid.
+            # gone. See agent_substrate.hostid.
             child = identify(proc.pid)
             base["pid"] = child.pid
             base["pgid"] = child.pgid

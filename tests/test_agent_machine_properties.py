@@ -35,18 +35,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from qta_agent import scheduler as sch  # noqa: E402
-from qta_agent import tasks as tk  # noqa: E402
-from qta_agent.capability import (  # noqa: E402
+from agent_substrate import scheduler as sch  # noqa: E402
+from agent_substrate import tasks as tk  # noqa: E402
+from agent_substrate.capability import (  # noqa: E402
     Action, CapabilityDenied, CapabilityError, CapabilityLedger,
     CapabilityExpired, CapabilityRevoked, Request, issue,
 )
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.policy import PolicyStore  # noqa: E402
-from qta_agent.scheduler import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.scheduler import (  # noqa: E402
     FailureClass, JobState, Scheduler, backoff_for, default_policy,
 )
-from qta_agent.tasks import (  # noqa: E402
+from agent_substrate.tasks import (  # noqa: E402
     Lease, Task, TaskRole, TaskState, TaskTransition, TaskTransitionError,
     LeaseError,
 )
@@ -149,7 +149,7 @@ def test_a_lapsed_lease_never_authorizes_however_late(at_seq):
 @settings(max_examples=200, deadline=None)
 def test_completion_requires_a_real_digest(bad):
     """COMPLETED cites bytes. A citation that is not a digest is a sentence."""
-    from qta_agent.canonical import is_digest
+    from agent_substrate.canonical import is_digest
 
     assume(not is_digest(bad))
     task = _task(TaskState.EXECUTING, executed_by="w",
@@ -260,7 +260,7 @@ def _grant(**kw):
 @settings(max_examples=300, deadline=None)
 def test_a_grant_refuses_a_request_differing_in_any_single_field(field, other):
     """Bounded means bounded along every axis, not the ones a test picked."""
-    from qta_agent.capability import CapabilitySet
+    from agent_substrate.capability import CapabilitySet
 
     base = dict(actor="agent-1", action=Action.EXECUTE_TOOL, task_id="t1",
                 tool_id="probe", paths=("verification/stage10/probe/x",))
@@ -274,7 +274,7 @@ def test_a_grant_refuses_a_request_differing_in_any_single_field(field, other):
 @given(at_seq=st.integers(min_value=101, max_value=100_000))
 @settings(max_examples=200, deadline=None)
 def test_an_expired_grant_authorizes_nothing_at_any_later_position(at_seq):
-    from qta_agent.capability import CapabilitySet
+    from agent_substrate.capability import CapabilitySet
 
     caps = CapabilitySet(issued={"c1": _grant()}, at_seq=at_seq)
     with pytest.raises(CapabilityExpired):
@@ -286,7 +286,7 @@ def test_an_expired_grant_authorizes_nothing_at_any_later_position(at_seq):
 @given(at_seq=st.integers(min_value=2, max_value=100))
 @settings(max_examples=100, deadline=None)
 def test_a_revoked_grant_authorizes_nothing_at_any_position(at_seq):
-    from qta_agent.capability import CapabilitySet
+    from agent_substrate.capability import CapabilitySet
 
     caps = CapabilitySet(issued={"c1": _grant()}, revoked=frozenset({"c1"}),
                          at_seq=at_seq)

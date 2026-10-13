@@ -18,8 +18,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.netauth import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.netauth import (  # noqa: E402
     ACT_NET_GRANT, ACT_NET_REQUEST, AddressClass, Direction, EgressGrant,
     GuardedConnection, MODE_PINNED, MODE_UNPINNED_ACCEPTED,
     MalformedTarget, NetworkAuthority, NetworkDenied, NetworkError,
@@ -627,7 +627,7 @@ def test_the_module_states_which_layer_is_not_provided():
     """A guard described as stronger than it is will be relied on as such."""
     import re
 
-    import qta_agent.netauth as mod
+    import agent_substrate.netauth as mod
     doc = re.sub(r"\s+", " ", mod.__doc__ or "")
     assert "kernel layer (NOT provided)" in doc
     assert "This module cannot create them, does not pretend to" in doc
@@ -708,7 +708,7 @@ def test_the_authority_stamps_the_grants_start_from_the_log(tmp_path):
 
 
 def test_a_backdated_grant_record_is_refused_on_replay(tmp_path):
-    from qta_agent.netauth import ACT_NET_GRANT
+    from agent_substrate.netauth import ACT_NET_GRANT
 
     log = EventLog(tmp_path / "log.jsonl")
     for i in range(3):
@@ -727,7 +727,7 @@ def test_a_second_grant_under_one_id_does_not_silently_widen_the_first(
     """It used to overwrite. A record naming an existing grant_id with a
     wider host set replaced authority already in force, and nothing said so.
     """
-    from qta_agent.netauth import ACT_NET_GRANT
+    from agent_substrate.netauth import ACT_NET_GRANT
 
     log = EventLog(tmp_path / "log.jsonl")
     a = NetworkAuthority(log)
@@ -743,7 +743,7 @@ def test_a_second_grant_under_one_id_does_not_silently_widen_the_first(
 
 def test_the_same_grant_recorded_twice_is_still_a_replay(tmp_path):
     """The guard above must refuse a REPLACEMENT, not a retried append."""
-    from qta_agent.netauth import ACT_NET_GRANT
+    from agent_substrate.netauth import ACT_NET_GRANT
 
     log = EventLog(tmp_path / "log.jsonl")
     a = NetworkAuthority(log)
@@ -769,7 +769,7 @@ SECRET_VALUE = "hunter2-super-secret-token-value"
 
 def _deputy_world():
     """A credential for ONE host, and egress to two. Both grants legitimate."""
-    from qta_agent.secrets import (
+    from agent_substrate.secrets import (
         SecretStore, egress_purpose, grant as sec_grant,
     )
 
@@ -859,7 +859,7 @@ def test_the_composition_check_has_a_production_caller():
     # caller that has not been committed yet reads as absent and this guard
     # passes for the wrong reason -- which has cost three red pushes.
     production = set(non_test_references("check_egress_composition"))
-    assert production - {"qta_agent/secrets.py"}, (
+    assert production - {"agent_substrate/secrets.py"}, (
         "check_egress_composition is only referenced by its own module and "
         f"by tests: {sorted(production)}")
 
@@ -1040,7 +1040,7 @@ def test_re_registering_a_service_with_different_terms_is_refused(tmp_path):
 
 
 def test_a_forged_service_registration_fails_on_replay(tmp_path):
-    from qta_agent.netauth import ACT_SERVICE_REGISTER
+    from agent_substrate.netauth import ACT_SERVICE_REGISTER
     a = _served(tmp_path)
     svc = _service(quota_per_task=10_000)
     a.log.append(actor="mallory", action=ACT_SERVICE_REGISTER,
@@ -1053,7 +1053,7 @@ def test_a_forged_service_registration_fails_on_replay(tmp_path):
 
 
 def test_a_service_record_whose_digest_disagrees_is_refused(tmp_path):
-    from qta_agent.netauth import ACT_SERVICE_REGISTER
+    from agent_substrate.netauth import ACT_SERVICE_REGISTER
     log = EventLog(tmp_path / "log.jsonl")
     svc = _service()
     log.append(actor="mallory", action=ACT_SERVICE_REGISTER, target="s",
@@ -1429,7 +1429,7 @@ def test_the_pinned_and_unpinned_paths_agree_about_ports():
 
 import contextlib                                              # noqa: E402
 
-from qta_agent.netauth import ResolvedCandidate                # noqa: E402
+from agent_substrate.netauth import ResolvedCandidate                # noqa: E402
 
 V6_LOOPBACK = ("::1", socket.AF_INET6)
 V4_LOOPBACK = ("127.0.0.1", socket.AF_INET)
@@ -1868,7 +1868,7 @@ def test_an_incompatible_family_is_unusable_AS_A_DECISION():
 
 def test_selection_refuses_when_only_incompatible_candidates_are_permitted():
     """`_select_candidate` returns a REASON, never an unusable endpoint."""
-    from qta_agent.netauth import _select_candidate
+    from agent_substrate.netauth import _select_candidate
 
     v6 = ResolvedCandidate(socket.AF_INET6, socket.SOCK_STREAM,
                            socket.IPPROTO_TCP, ("::1", 1, 0, 0), "::1",

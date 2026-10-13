@@ -134,7 +134,7 @@ CHECKPOINT_ACTOR = "checkpointer"
 
 #: The actions THIS reducer applies. Everything else on the log is either
 #: another subsystem's business (skipped) or unrecognised (refused) -- see
-#: :mod:`qta_agent.actions` for why those two cases must be told apart.
+#: :mod:`agent_substrate.actions` for why those two cases must be told apart.
 OWNED = frozenset({ACT_CREATE, ACT_TRANSITION, ACT_DEPEND,
                    ACT_CHECKPOINT_STATE})
 
@@ -146,26 +146,27 @@ class AuthorityStore:
     def __init__(self, log: EventLog, *, evidence=None, origins=None,
                  authenticator=None):
         self.log = log
-        #: Optional :class:`~qta_agent.principals.Authenticator`. When
+        #: Optional :class:`~agent_substrate.principals.Authenticator`. When
         #: present, a history whose events are not attested by keys the
         #: registry holds for their actors is refused on load and on every
         #: catch-up. Absent -- as in production until keys are provisioned
         #: -- actors are names, as they always were.
         self.authenticator = authenticator
         #: Optional view of governed execution (see
-        #: :func:`qta_agent.result_rules.admission_problems`): answers "did an
-        #: authorized governed verification produce this report, about this
-        #: bundle, before this position". Supplied by the layer that runs
+        #: :func:`agent_substrate.result_rules.admission_problems`): answers
+        #: "did an authorized governed verification produce this report, about
+        #: this bundle, before this position". Supplied by the layer that runs
         #: governed tasks, because this one sits below them. Without it a
         #: scientific_result can be neither admitted live nor re-admitted on
         #: replay -- it reads back UNVERIFIABLE.
         self.origins = origins
-        #: Optional :class:`~qta_agent.evidence.EvidenceStore` (or anything
-        #: with a compatible ``contains``). When present, every cited digest
-        #: must resolve to content this store actually holds, which is what
-        #: turns I6 from "looks like a digest" into "is evidence". When
+        #: Optional :class:`~agent_substrate.evidence.EvidenceStore` (or
+        #: anything with a compatible ``contains``). When present, every cited
+        #: digest must resolve to content this store actually holds, which is
+        #: what turns I6 from "looks like a digest" into "is evidence". When
         #: absent, citations are checked for shape only -- see
-        #: :func:`~qta_agent.authority.check` for why that remains allowed.
+        #: :func:`~agent_substrate.authority.check` for why that remains
+        #: allowed.
         self.evidence = evidence
         self._records: dict = {}
         #: idempotency key -> the record it completed a request for. A set
@@ -187,7 +188,7 @@ class AuthorityStore:
         """The digest predicate to enforce with.
 
         ``None`` means shape-only enforcement -- see
-        :func:`~qta_agent.authority.check`.
+        :func:`~agent_substrate.authority.check`.
         """
         return None if self.evidence is None else self.evidence.contains
 
@@ -498,7 +499,7 @@ class AuthorityStore:
             # held to the admission policy the transition names, and bound
             # to the governed executions that produced them -- or, if they
             # cannot be read here, the record is UNVERIFIABLE rather than
-            # silently VERIFIED. See qta_agent.result_rules.
+            # silently VERIFIED. See agent_substrate.result_rules.
             admission, basis = self._admit(
                 cur, State(p["dst"]), merged_evidence,
                 policy=p.get("admission_policy"), actor=ev.actor,
@@ -551,7 +552,7 @@ class AuthorityStore:
         a digest over an unordered thing is not a digest over anything.
 
         ``projection`` names the reducer that produced it (see
-        :mod:`qta_agent.projection`). It is inside the snapshot, so the
+        :mod:`agent_substrate.projection`). It is inside the snapshot, so the
         state digest a checkpoint pins -- and the ``checkpoint.state`` record
         that pins it in the log -- covers it: the identity cannot be swapped
         without breaking the pin.
@@ -682,7 +683,7 @@ class AuthorityStore:
         therefore ALSO appended as a ``checkpoint.state`` record, where the
         hash chain covers it and rewriting it breaks verification.
 
-        Returns the written :class:`~qta_agent.checkpoint.Checkpoint`.
+        Returns the written :class:`~agent_substrate.checkpoint.Checkpoint`.
         """
         from . import checkpoint as cp_mod
 
@@ -1038,18 +1039,18 @@ class AuthorityStore:
 
         This used to be the first half alone, and the second half was
         somebody's job to remember. ``store.py`` applies one event at a time
-        and never looks at dependents; :mod:`qta_agent.invalidation` cascades
-        only when a caller runs it. So revoking a foundation left every
-        record promoted on the strength of it still PROMOTED, still returned
-        here, and still described as canonical authority -- with every
+        and never looks at dependents; :mod:`agent_substrate.invalidation`
+        cascades only when a caller runs it. So revoking a foundation left
+        every record promoted on the strength of it still PROMOTED, still
+        returned here, and still described as canonical authority -- with every
         individual transition legal and nothing in the enforcement path able
         to say otherwise. The auditor reported it as a provenance gap, which
         is an observation after the fact rather than an answer to "what is
         canonical right now".
 
         It is transitive by construction, because the shortcut is the bug
-        :mod:`qta_agent.invalidation` was written against: marking, or here
-        excluding, only the immediate children leaves the grandchild
+        :mod:`agent_substrate.invalidation` was written against: marking, or
+        here excluding, only the immediate children leaves the grandchild
         canonical on the same withdrawn input.
 
         A dependency cycle resolves to NOT canonical. A cycle is a modelling
@@ -1212,8 +1213,8 @@ class AuthorityStore:
 
         The edge's own rule is that the cited report EXISTS; for this kind
         that is not enough, so the content is read and held to the current
-        admission policy of :mod:`qta_agent.result_rules`, and its origin is
-        asked of the governed-execution view.
+        admission policy of :mod:`agent_substrate.result_rules`, and its origin
+        is asked of the governed-execution view.
         """
         try:
             problems = result_rules.admission_problems(

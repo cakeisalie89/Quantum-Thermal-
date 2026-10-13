@@ -71,7 +71,7 @@ def test_a_file_no_rule_names_is_refused():
     ("qta_multiphysics/machine_fsm.py", "RETIRE_TO_HISTORY"),
     ("qta_multiphysics/thermal_1d.py", "KEEP_AS_MODEL_PLUGIN"),
     ("qta_multiphysics/grids.py", "EXTRACT_GENERIC"),
-    ("qta_agent/events.py", "KEEP_AND_HARDEN"),
+    ("agent_substrate/events.py", "KEEP_AND_HARDEN"),
     ("thermal_3d_hotspots.csv", "DELETE_GENERATED_AND_REBUILD"),
     ("results_gate_table.csv", "RETIRE_TO_HISTORY"),
     ("final_manifest.json", "REGENERATE"),

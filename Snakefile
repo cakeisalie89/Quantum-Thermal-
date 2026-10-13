@@ -60,8 +60,8 @@ rule harness_demo:
     # retrieval context, the ingress, a governed model run, its HDF5
     # representation, independent checks, the reviewer's decision, a restart
     # from a checkpoint, reconstruction and an RO-Crate -- and, where the
-    # FEniCSx and FMI runtimes are given (QTA_FENICSX_PYTHON,
-    # QTA_FMI_PYTHON), the FEniCSx check admitting the result and the FMU
+    # FEniCSx and FMI runtimes are given (HARNESS_FENICSX_PYTHON,
+    # HARNESS_FMI_PYTHON), the FEniCSx check admitting the result and the FMU
     # leg with its negative twin, the fault FMU, which must be REJECTED.
     # The tool exits non-zero unless its judge accepts: no vacuous success.
     # Snakemake orders this; the store decides.
@@ -70,8 +70,8 @@ rule harness_demo:
         workspace=directory(f"{W10}/harness_demo"),
     shell:
         "{PY} tools/harness_demo.py run --out {output.report}"
-        " ${{QTA_FENICSX_PYTHON:+--fenicsx-python $QTA_FENICSX_PYTHON}}"
-        " ${{QTA_FMI_PYTHON:+--fmi-python $QTA_FMI_PYTHON}}"
+        " ${{HARNESS_FENICSX_PYTHON:+--fenicsx-python $HARNESS_FENICSX_PYTHON}}"
+        " ${{HARNESS_FMI_PYTHON:+--fmi-python $HARNESS_FMI_PYTHON}}"
 
 # ============ Stage-10 additive rules (scientific-stack adapters) ===========
 # Visualization interchange (ParaView/VTK, OpenUSD), a read-only retrieval
@@ -234,7 +234,7 @@ rule s10_canonical_untouched:
 
 # ---- governed Stage-10 artifact production ---------------------------------
 # The agent substrate's production path. Every other Stage-10 rule calls its
-# adapter directly; this one goes through qta_agent, so the artifact it
+# adapter directly; this one goes through agent_substrate, so the artifact it
 # produces carries a task record, a capability grant, a bounded execution
 # record, content-addressed evidence and an independent verification -- all in
 # a hash-chained log that replays to the same state.
@@ -259,16 +259,16 @@ rule s10_governed:
         import json
         from pathlib import Path
 
-        from qta_agent.events import EventLog
-        from qta_agent.evidence import EvidenceStore
-        from qta_agent.governed_stage10 import GovernedStage10
-        from qta_agent.tasks import TaskState
+        from agent_substrate.events import EventLog
+        from agent_substrate.evidence import EvidenceStore
+        from agent_substrate.governed_tasks import GovernedTasks
+        from agent_substrate.tasks import TaskState
 
         root = Path(".").resolve()
         base = root / W10 / "governed"
         base.mkdir(parents=True, exist_ok=True)
 
-        gov = GovernedStage10(
+        gov = GovernedTasks(
             root=root,
             log=EventLog(base / "task_log.jsonl"),
             evidence=EvidenceStore(base / "evidence"))
@@ -289,7 +289,7 @@ rule s10_governed:
                 "payload": {
                     "label": "MODEL_ONLY / FORECAST_ONLY",
                     "automatic_gate_effect": "NONE",
-                    "produced_by": "qta_agent governed Stage-10 path",
+                    "produced_by": "agent_substrate governed Stage-10 path",
                     "does_not_mean": (
                         "a governed run proves provenance, not scientific "
                         "validity; no gate is reachable from here and PASS "
@@ -345,7 +345,7 @@ rule s10_governed:
         # Each of these is a subsystem that is ON the path rather than beside
         # it. If any were merely available, the run would still have reached
         # VERIFIED and these assertions would not.
-        from qta_agent.scheduler import JobState
+        from agent_substrate.scheduler import JobState
 
         assert run.job_state == JobState.SUCCEEDED.value, (
             f"the queue record ended {run.job_state}, not SUCCEEDED; the "
@@ -381,7 +381,7 @@ rule s10_governed:
         # chain with a provenance hole fails the build: the transitions were
         # all permitted, but a hole is indistinguishable from a fabrication
         # nobody noticed, and a green build must not certify one.
-        from qta_agent.audit import AuditIndex
+        from agent_substrate.audit import AuditIndex
 
         index = AuditIndex.from_log(gov.log)
         explanation = index.explain_task(run.task_id)
@@ -411,7 +411,7 @@ rule s10_governed:
         # projection above. Two implementations that agree is differential
         # evidence; one implementation with a hole says nothing at all, and
         # the task projection is where a hole was actually found.
-        from qta_agent.reconstruct import compare_tasks, reconstruct_tasks
+        from agent_substrate.reconstruct import compare_tasks, reconstruct_tasks
 
         recon = reconstruct_tasks(gov.log)
         divergences = compare_tasks(gov.projection(), recon)
@@ -426,7 +426,7 @@ rule s10_governed:
         # network, secret and context projections were compared only
         # against a fresh replay of THEMSELVES -- which shares their
         # reducer, and so cannot see a mistake the two would make together.
-        from qta_agent.reconstruct import (compare_subsystems,
+        from agent_substrate.reconstruct import (compare_subsystems,
                                            reconstruct_subsystems)
 
         subs = reconstruct_subsystems(gov.log)
@@ -536,11 +536,11 @@ rule s10_governed_index:
         import json
         from pathlib import Path
 
-        from qta_agent.events import EventLog
-        from qta_agent.evidence import EvidenceStore
-        from qta_agent.governed_stage10 import (ACT_REEXECUTION,
-                                                GovernedStage10)
-        from qta_agent.tasks import TaskState
+        from agent_substrate.events import EventLog
+        from agent_substrate.evidence import EvidenceStore
+        from agent_substrate.governed_tasks import (ACT_REEXECUTION,
+                                                GovernedTasks)
+        from agent_substrate.tasks import TaskState
 
         root = Path(".").resolve()
         base = root / W10 / "governed_index"
@@ -550,7 +550,7 @@ rule s10_governed_index:
         # make "two workflows" one history with two entry points, and the
         # question this rule exists to answer is whether the governed path
         # works for a caller that is not the one it was written for.
-        gov = GovernedStage10(
+        gov = GovernedTasks(
             root=root,
             log=EventLog(base / "task_log.jsonl"),
             evidence=EvidenceStore(base / "evidence"))
@@ -601,7 +601,7 @@ rule s10_governed_index:
         # The provenance of THIS workflow, audited by the same index the
         # first one uses. A second caller with a provenance hole is a second
         # caller nobody checked.
-        from qta_agent.audit import AuditIndex
+        from agent_substrate.audit import AuditIndex
 
         idx = AuditIndex.from_log(gov.log)
         explanation = idx.explain_task(run.task_id)
@@ -612,7 +612,7 @@ rule s10_governed_index:
             "a governed run recorded a policy denial and still reported "
             f"success: {[d.summary for d in idx.denials()]}")
 
-        from qta_agent.reconstruct import compare_tasks, reconstruct_tasks
+        from agent_substrate.reconstruct import compare_tasks, reconstruct_tasks
 
         recon = reconstruct_tasks(gov.log)
         divergences = compare_tasks(gov.projection(), recon)
@@ -655,7 +655,7 @@ rule s10_governed_index:
 
 
 # ---- the governed SCIENTIFIC-MODEL path ------------------------------------
-# The production caller of qta_agent.governed_model: thermal.conduction_1d at
+# The production caller of agent_substrate.governed_model: thermal.conduction_1d at
 # its declared (forecast) configuration, run as a governed task, checked by
 # an independent implementation as a second governed task by a different
 # executor, and decided by a reviewer through the authority store -- which
@@ -675,11 +675,11 @@ rule s10_governed_model:
         import shutil
         from pathlib import Path
 
-        from qta_agent.authority import State
-        from qta_agent.events import EventLog
-        from qta_agent.evidence import EvidenceStore
-        from qta_agent.governed_model import TOOL_RUN, GovernedModelRuns
-        from qta_agent.tasks import TaskState
+        from agent_substrate.authority import State
+        from agent_substrate.events import EventLog
+        from agent_substrate.evidence import EvidenceStore
+        from agent_substrate.governed_model import TOOL_RUN, GovernedModelRuns
+        from agent_substrate.tasks import TaskState
 
         root = Path(".").resolve()
         base = root / W10 / "governed_model"
@@ -746,8 +746,8 @@ rule s10_governed_model:
             f"{decided2.evidence.get('rejection_reason')}")
 
         assert log.verify().ok, "the model task log does not verify"
-        from qta_agent.audit import AuditIndex
-        from qta_agent.reconstruct import compare_tasks, reconstruct_tasks
+        from agent_substrate.audit import AuditIndex
+        from agent_substrate.reconstruct import compare_tasks, reconstruct_tasks
 
         index = AuditIndex.from_log(log)
         record_gaps = [e for e in index.audit_records() if not e.complete]
@@ -763,7 +763,7 @@ rule s10_governed_model:
         # The authority records too, by the second reader WITH the evidence:
         # it re-decides each scientific admission in its own code, and must
         # admit both results and agree with the store field by field.
-        from qta_agent.reconstruct import compare, reconstruct
+        from agent_substrate.reconstruct import compare, reconstruct
         authority = reconstruct(log, evidence=g.evidence)
         assert not authority.unauthorized and not authority.anomalies, (
             authority.unauthorized + authority.anomalies)

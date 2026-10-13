@@ -27,7 +27,7 @@ env:
   # NF-1T: the full suite below includes the learned-model tests; with the
   # `neural` extra synced they run, and where it is absent they FAIL rather
   # than skip, so a release cannot be verified by skipping them.
-  QTA_NEURAL_REQUIRED: "1"
+  HARNESS_NEURAL_REQUIRED: "1"
 jobs:
   verify-and-release:
     runs-on: ubuntu-latest

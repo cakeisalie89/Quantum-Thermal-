@@ -17,13 +17,13 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.canonical import digest_bytes, is_digest  # noqa: E402
-from qta_agent.context import (  # noqa: E402
+from agent_substrate.canonical import digest_bytes, is_digest  # noqa: E402
+from agent_substrate.context import (  # noqa: E402
     ACT_CONTEXT_BUILD, DROP_ORDER, MANDATORY, ContextBudgetError,
     ContextBuilder, ContextError, Tier, manifest_from_record, record_context,
 )
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.secrets import SecretStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.secrets import SecretStore  # noqa: E402
 
 OWNER = "produce the Stage-10 artifact and do not touch any gate"
 POLICY = "policy scheduler.default@2: dispatch allowed, escalation denied"
@@ -551,7 +551,7 @@ def test_the_module_separates_the_three_reproducibility_claims():
     for it."""
     import re
 
-    import qta_agent.context as mod
+    import agent_substrate.context as mod
     doc = re.sub(r"\s+", " ", mod.__doc__ or "")
     assert "context reconstruction" in doc
     assert "model-output reproducibility" in doc
@@ -590,7 +590,7 @@ def test_a_context_item_has_nowhere_to_put_the_text():
     field the text could be stored in, so a manifest that leaked a prompt
     would require a schema change rather than a slip.
     """
-    from qta_agent.context import ContextItem, Omission
+    from agent_substrate.context import ContextItem, Omission
 
     for cls in (ContextItem, Omission):
         fields = set(cls.__dataclass_fields__)

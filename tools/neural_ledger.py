@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """The learned-model documents in an authority history (NF-1T).
 
-The ONE place the learned-model tooling touches ``qta_agent``. It reads the
-documents ``tools/neural.py`` has already written under ``docs/neural/``,
+The ONE place the learned-model tooling touches ``agent_substrate``. It reads
+the documents ``tools/neural.py`` has already written under ``docs/neural/``,
 records each of them in a FRESH, throwaway authority history through
-``qta_agent.learned_lifecycle`` (every link checked by digest before it is
-written), walks the route a reviewer would take -- into review, then the
+``agent_substrate.learned_lifecycle`` (every link checked by digest before it
+is written), walks the route a reviewer would take -- into review, then the
 edge into VERIFIED, which the store refuses for a learned record -- and
 evaluates the claims from what that history holds.
 
@@ -38,12 +38,12 @@ from scientific_ai.neural import claims, family, manifests, solver  # noqa
 def ledger_claims() -> dict:
     """Record every document in a FRESH authority history and evaluate the
     claims from what the history holds."""
-    from qta_agent.authority import Role, State
-    from qta_agent.events import EventLog
-    from qta_agent.evidence import EvidenceStore
-    from qta_agent.learned_lifecycle import LearnedLedger
-    from qta_agent.learned_rules import REFUSED_STATES
-    from qta_agent.store import AuthorityStore, StoreError
+    from agent_substrate.authority import Role, State
+    from agent_substrate.events import EventLog
+    from agent_substrate.evidence import EvidenceStore
+    from agent_substrate.learned_lifecycle import LearnedLedger
+    from agent_substrate.learned_rules import REFUSED_STATES
+    from agent_substrate.store import AuthorityStore, StoreError
     with tempfile.TemporaryDirectory() as tmp:
         log = EventLog(Path(tmp) / "authority.log")
         evid = EvidenceStore(Path(tmp) / "evidence")

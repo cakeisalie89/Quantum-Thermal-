@@ -18,20 +18,20 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.canonical import digest_bytes  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
+from agent_substrate.canonical import digest_bytes  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
     ACT_TASK_TRANSITION, SUBMITTER_ID, VERIFIER_ID, WORKER_ID,
-    GovernedRun, GovernedStage10, stage10_registry,
+    GovernedRun, GovernedTasks, governed_registry,
 )
-from qta_agent.tasks import (  # noqa: E402
+from agent_substrate.tasks import (  # noqa: E402
     LeaseError, TaskRole, TaskState, TaskTransitionError,
 )
-from qta_agent.scheduler import (  # noqa: E402
+from agent_substrate.scheduler import (  # noqa: E402
     FailureClass, JobState,
 )
-from qta_agent.tools import ToolNotRegistered  # noqa: E402
+from agent_substrate.tools import ToolNotRegistered  # noqa: E402
 
 WS = "verification/stage10/_pytest_governed"
 
@@ -49,7 +49,7 @@ def gov(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -93,9 +93,9 @@ def _read_cap(gov, task_id="t-direct", cap_id="cap-direct-read"):
     boundary refuses an unauthorized verifier live in test_agent_readpath.py
     and below.
     """
-    from qta_agent.capability import Action, issue
-    from qta_agent.governed_stage10 import READ_ROOT_ID, WORKSPACE_PREFIX
-    from qta_agent.readpath import read_scope
+    from agent_substrate.capability import Action, issue
+    from agent_substrate.governed_tasks import READ_ROOT_ID, WORKSPACE_PREFIX
+    from agent_substrate.readpath import read_scope
 
     cap = issue(capability_id=cap_id, subject=VERIFIER_ID,
                 action=Action.READ_PATHS, task_id=task_id,
@@ -138,7 +138,7 @@ def test_every_stage_is_recorded_in_the_hash_chained_log(gov):
 def test_the_state_survives_the_process_that_produced_it(gov):
     """Replay, not inference: a fresh projection over the same log agrees."""
     run = _run(gov)
-    reopened = GovernedStage10(root=ROOT, log=EventLog(gov.log.path),
+    reopened = GovernedTasks(root=ROOT, log=EventLog(gov.log.path),
                                evidence=gov.evidence)
     assert reopened.projection().get(run.task_id).state is TaskState.VERIFIED
 
@@ -163,7 +163,7 @@ def test_execution_happened_in_a_separate_process(gov):
     assert len(execs) == 1
     assert execs[0]["exit_status"] == 0
     assert execs[0]["tool_digest"] == \
-        stage10_registry().get("stage10.emit_artifact").digest()
+        governed_registry().get("stage10.emit_artifact").digest()
     assert execs[0]["limits"]["wall_seconds"] > 0
 
 
@@ -225,7 +225,7 @@ def test_a_completed_task_cannot_be_verified_by_the_executor(gov):
     """
     run = _run(gov)
     task = gov.projection().get(run.task_id)
-    from qta_agent.tasks import TaskTransition, check
+    from agent_substrate.tasks import TaskTransition, check
     req = TaskTransition(task_id=task.task_id, src=TaskState.COMPLETED,
                          dst=TaskState.VERIFIED, actor=WORKER_ID,
                          role=TaskRole.VERIFIER, at_seq=99,
@@ -240,7 +240,7 @@ def test_a_worker_with_a_lapsed_lease_cannot_report_completion(gov):
     """A worker back from the dead reports on work someone else may have redone."""
     run = _run(gov)
     task = gov.projection().get(run.task_id)
-    from qta_agent.tasks import Lease, TaskTransition, check
+    from agent_substrate.tasks import Lease, TaskTransition, check
     lapsed = Lease(lease_id="L1", holder=WORKER_ID, granted_seq=1,
                    expires_after_seq=5)
     executing = task.__class__(**{**task.__dict__,
@@ -391,7 +391,7 @@ def test_a_worker_cannot_name_a_fictitious_executor_and_verify_its_own_work(
                          "executed_by": "ghost-executor",
                          "result_digest": dg})
     try:
-        g2 = GovernedStage10(root=ROOT, log=log2, evidence=gov.evidence)
+        g2 = GovernedTasks(root=ROOT, log=log2, evidence=gov.evidence)
         with pytest.raises(TaskTransitionError, match="execution record says"):
             g2.projection()
     finally:
@@ -445,7 +445,7 @@ def test_a_task_that_never_RAN_cannot_name_an_executor_either(gov):
            executed_by="a-ghost-who-does-not-exist", result_digest=dg)
         tr("COMPLETED", "VERIFIED", "VERIFIER")
 
-        g2 = GovernedStage10(root=ROOT, log=log2, evidence=gov.evidence)
+        g2 = GovernedTasks(root=ROOT, log=log2, evidence=gov.evidence)
         with pytest.raises(TaskTransitionError, match="execution record says"):
             g2.projection()
     finally:
@@ -467,7 +467,7 @@ def test_the_replay_reads_src_from_itself_not_from_the_record(gov):
     from the state THEY replayed. This projection was the odd one out, and
     it is the one on the production path.
     """
-    src = (ROOT / "qta_agent" / "governed_stage10.py").read_text(
+    src = (ROOT / "agent_substrate" / "governed_tasks.py").read_text(
         encoding="utf-8")
     rule = src.split("elif ev.action == ACT_TASK_TRANSITION:", 1)[1]
     rule = rule.split("elif ev.action in", 1)[0]
@@ -528,7 +528,7 @@ def test_the_governed_rule_fails_the_build_on_an_unverified_run():
 
 def test_the_bridge_writes_through_the_stage10_guard_not_around_it():
     """The substrate adds authority; it does not replace the existing guard."""
-    tool = (ROOT / "qta_agent" / "_stage10_tool.py").read_text(encoding="utf-8")
+    tool = (ROOT / "agent_substrate" / "_artifact_tool.py").read_text(encoding="utf-8")
     assert "guard_output_dir" in tool, (
         "the governed tool must use the Stage-10 write guard, so a governed "
         "run is subject to the same allowlist as an ungoverned one")
@@ -545,7 +545,7 @@ def test_the_bridge_writes_through_the_stage10_guard_not_around_it():
 # whose forbidden transitions have never been attempted.
 # ---------------------------------------------------------------------------
 
-from qta_agent.tasks import (  # noqa: E402
+from agent_substrate.tasks import (  # noqa: E402
     TERMINAL, Lease, Task, TaskTransition, apply_transition, check,
 )
 
@@ -617,7 +617,7 @@ def test_a_request_may_not_rename_an_established_executor():
 
 def test_an_established_executor_is_never_replaced_by_a_request():
     """And the fold keeps it, so a later record cannot rewrite the trail."""
-    from qta_agent.tasks import apply_transition
+    from agent_substrate.tasks import apply_transition
 
     ran = _task(state=TaskState.COMPLETED, executed_by="worker-a",
                 result_digest=DIG)
@@ -742,7 +742,7 @@ def test_the_capability_is_scoped_to_exactly_what_the_tool_declared(gov):
     reads = [i for i in issued if i["action"] == "READ_PATHS"]
     assert len(execute) == 2 and len(reads) == 1
 
-    spec = stage10_registry().get("stage10.emit_artifact")
+    spec = governed_registry().get("stage10.emit_artifact")
     work = [i for i in execute if i["subject"] == WORKER_ID]
     reverify = [i for i in execute if i["subject"] == VERIFIER_ID]
     assert len(work) == 1 and len(reverify) == 1, issued
@@ -779,7 +779,7 @@ def test_a_timed_out_run_never_reaches_completed_or_verified(gov):
     proceed to evidence capture and verification, and those records would
     appear.
     """
-    from qta_agent.tools import Determinism, Field_, Registry, ToolSpec
+    from agent_substrate.tools import Determinism, Field_, Registry, ToolSpec
 
     slow = ToolSpec(
         tool_id="stage10.emit_artifact", version="1.0.0",
@@ -790,7 +790,7 @@ def test_a_timed_out_run_never_reaches_completed_or_verified(gov):
         determinism=Determinism.BYTE_IDENTICAL,
         writable_scope=("verification/stage10",), timeout_s=0.001)
     gov.registry = Registry([slow])
-    from qta_agent.execution import Executor
+    from agent_substrate.execution import Executor
     gov.executor = Executor(gov.registry, workspace=ROOT)
 
     run = _run(gov)
@@ -835,7 +835,7 @@ def test_the_policy_decision_is_recorded_and_names_its_document(gov):
 
 def test_a_policy_that_denies_stops_the_run_before_any_task_exists(gov):
     """Load-bearing, not decorative: denial ends the run."""
-    from qta_agent.policy import Effect, PolicyDenied, document, rule
+    from agent_substrate.policy import Effect, PolicyDenied, document, rule
 
     gov.policy.publish(document(
         policy_id="stage10.governed", version=2,
@@ -848,7 +848,7 @@ def test_a_policy_that_denies_stops_the_run_before_any_task_exists(gov):
 
 
 def test_the_work_really_went_through_the_scheduler(gov):
-    from qta_agent.scheduler import JobState
+    from agent_substrate.scheduler import JobState
 
     run = _run(gov)
     assert run.job_id and run.job_state == JobState.SUCCEEDED.value
@@ -860,7 +860,7 @@ def test_the_work_really_went_through_the_scheduler(gov):
 
 
 def test_a_failed_run_is_classified_by_the_scheduler_not_beside_it(gov):
-    from qta_agent.scheduler import JobState
+    from agent_substrate.scheduler import JobState
 
     run = _run(gov, inputs=_inputs(gov, name="../escape.json"))
     assert run.state in (TaskState.FAILED, TaskState.REJECTED)
@@ -869,7 +869,7 @@ def test_a_failed_run_is_classified_by_the_scheduler_not_beside_it(gov):
 
 
 def test_the_context_manifest_is_recorded_and_holds_no_prompt(gov):
-    from qta_agent.context import Tier, manifest_from_record
+    from agent_substrate.context import Tier, manifest_from_record
 
     run = _run(gov)
     (ev,) = [e for e in gov.log.read() if e.action == "context.build"]
@@ -896,7 +896,7 @@ def test_the_run_files_a_note_that_cannot_become_evidence(gov):
 
 
 def test_an_unregistered_worker_cannot_be_used(gov):
-    from qta_agent.agents import IdentityError
+    from agent_substrate.agents import IdentityError
 
     with pytest.raises(IdentityError, match="not registered"):
         _run(gov, worker="ghost-worker")
@@ -904,7 +904,7 @@ def test_an_unregistered_worker_cannot_be_used(gov):
 
 
 def test_an_actor_without_the_role_cannot_take_it(gov):
-    from qta_agent.agents import IdentityError
+    from agent_substrate.agents import IdentityError
 
     with pytest.raises(IdentityError, match="may not act as"):
         _run(gov, worker=VERIFIER_ID, verifier=WORKER_ID)
@@ -912,7 +912,7 @@ def test_an_actor_without_the_role_cannot_take_it(gov):
 
 def test_the_run_holds_no_egress_grant_at_all(gov):
     """Default deny, on the real path: nothing here needs the network."""
-    from qta_agent.netauth import NetworkRequest, parse_target
+    from agent_substrate.netauth import NetworkRequest, parse_target
 
     _run(gov)
     assert not [e for e in gov.log.read() if e.action == "network.grant"]
@@ -935,8 +935,8 @@ def test_execution_runs_inside_the_network_guard(gov, monkeypatch):
     """
     import socket
 
-    from qta_agent.execution import Executor
-    from qta_agent.netauth import GuardedConnection
+    from agent_substrate.execution import Executor
+    from agent_substrate.netauth import GuardedConnection
 
     attempted = {}
     real_run = Executor.run
@@ -980,13 +980,13 @@ def test_the_tool_inherits_nothing_from_the_parent_environment(gov,
     tool's environment is BUILT rather than inherited. That is why this path
     needs no secret grants: there is nothing to grant access to.
     """
-    from qta_agent.governed_stage10 import GOVERNED_ENV_KEYS
+    from agent_substrate.governed_tasks import GOVERNED_ENV_KEYS
 
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "a-credential-in-the-parent")
     monkeypatch.setenv("GITHUB_TOKEN", "another-one")
 
     seen = {}
-    from qta_agent.execution import Executor
+    from agent_substrate.execution import Executor
     real_run = Executor.run
 
     def capturing_run(self, **kw):
@@ -1009,7 +1009,7 @@ def test_the_governed_environment_allowlist_is_enforced_not_described(gov):
     fails here rather than reaching a tool.
     """
     env = gov._tool_environment()
-    from qta_agent.governed_stage10 import GOVERNED_ENV_KEYS
+    from agent_substrate.governed_tasks import GOVERNED_ENV_KEYS
     assert set(env) == set(GOVERNED_ENV_KEYS)
     assert env["OPENBLAS_NUM_THREADS"] == "1"
 
@@ -1023,7 +1023,7 @@ def test_the_executor_checks_against_the_log_not_the_caller_s_own_set(gov):
     had in hand, so a caller that skipped the append would have been
     authorized anyway. The set is now projected from the log.
     """
-    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+    from agent_substrate.capability import ACT_ISSUE, CapabilityLedger
 
     run = _run(gov)
     assert run.state is TaskState.VERIFIED
@@ -1046,7 +1046,7 @@ def test_a_capability_the_log_never_recorded_authorizes_nothing(gov,
     refusal is recorded rather than thrown away. What matters is that the run
     does not reach VERIFIED and that no process was started.
     """
-    from qta_agent.capability import CapabilityLedger
+    from agent_substrate.capability import CapabilityLedger
 
     def skip_the_record(self, cap, *, actor):
         # The caller mints a grant and never records it in the log.
@@ -1061,7 +1061,7 @@ def test_a_capability_the_log_never_recorded_authorizes_nothing(gov,
 
 
 def test_a_revoked_capability_stops_authorizing_without_the_caller_s_help(gov):
-    from qta_agent.capability import CapabilityRevoked, Request, Action
+    from agent_substrate.capability import CapabilityRevoked, Request, Action
 
     run = _run(gov)
     cap_id = next(e.payload["capability_id"] for e in gov.log.read()
@@ -1083,7 +1083,7 @@ def test_a_revoked_capability_stops_authorizing_without_the_caller_s_help(gov):
 
 
 def test_two_grants_cannot_share_an_id_in_the_log(gov, tmp_path):
-    from qta_agent.capability import (
+    from agent_substrate.capability import (
         ACT_ISSUE, Action, CapabilityError, CapabilityLedger, issue,
     )
 
@@ -1118,7 +1118,7 @@ def test_the_projection_never_takes_an_executor_from_a_payload():
     the operand that came back would be invisible in behaviour until someone
     built the forged history that needs it.
     """
-    src = (ROOT / "qta_agent" / "governed_stage10.py").read_text(
+    src = (ROOT / "agent_substrate" / "governed_tasks.py").read_text(
         encoding="utf-8")
     # Matched on fragments that survive the f-string line breaks: the first
     # version of this check searched for a sentence the source only contains
@@ -1134,7 +1134,7 @@ def test_the_projection_never_takes_an_executor_from_a_payload():
 
 def test_verification_reads_are_recorded_with_what_was_opened(gov):
     """A read that decides whether work is VERIFIED is worth an audit trail."""
-    from qta_agent.readpath import ACT_FILE_READ
+    from agent_substrate.readpath import ACT_FILE_READ
 
     run = _run(gov)
     reads = [e for e in gov.log.read() if e.action == ACT_FILE_READ]
@@ -1218,7 +1218,7 @@ def test_an_artifact_replaced_by_a_fifo_fails_instead_of_hanging(gov):
 
 def test_the_read_grant_does_not_authorize_writing(gov):
     """Separate authorities, asserted rather than assumed."""
-    from qta_agent.capability import Action, CapabilityDenied, Request
+    from agent_substrate.capability import Action, CapabilityDenied, Request
 
     run = _run(gov)
     read_cap = next(e.payload["capability_id"] for e in gov.log.read()
@@ -1274,7 +1274,7 @@ def test_the_declared_output_is_collected_by_the_executor_itself(gov):
 
 def test_a_run_that_produces_nothing_is_not_completed(gov, monkeypatch):
     """A zero exit with no artifact used to be a COMPLETED run with none."""
-    import qta_agent.governed_stage10 as g10
+    import agent_substrate.governed_tasks as g10
 
     real = g10.Executor.run
 
@@ -1324,9 +1324,9 @@ def test_an_external_tool_that_times_out_is_not_retried(gov, monkeypatch):
     tool that may already have changed state nobody here owns is
     UNSAFE_TO_RETRY, which the scheduler treats as final.
     """
-    from qta_agent.execution import Outcome as Out
-    from qta_agent.scheduler import RETRYABLE as SCHED_RETRYABLE
-    from qta_agent.tools import (Determinism, Field_, OutputFile, Registry,
+    from agent_substrate.execution import Outcome as Out
+    from agent_substrate.scheduler import RETRYABLE as SCHED_RETRYABLE
+    from agent_substrate.tools import (Determinism, Field_, OutputFile, Registry,
                                  SideEffect, ToolSpec)
 
     external = Registry([ToolSpec(
@@ -1347,7 +1347,7 @@ def test_an_external_tool_that_times_out_is_not_retried(gov, monkeypatch):
     # downstream of a genuine TIMED_OUT outcome rather than of a crafted
     # result, and sleeping thirty seconds against a one-second bound is not
     # a race.
-    from qta_agent.execution import Limits
+    from agent_substrate.execution import Limits
     real_run = type(gov.executor).run
 
     def _slow(self, **kw):
@@ -1369,8 +1369,8 @@ def test_an_external_tool_that_times_out_is_not_retried(gov, monkeypatch):
 
 def test_the_scoped_tool_keeps_its_ordinary_retryable_classification(gov):
     """The guard above must not have made every failure permanent."""
-    from qta_agent.execution import ExecutionResult, Outcome as Out
-    from qta_agent.tools import SideEffect
+    from agent_substrate.execution import ExecutionResult, Outcome as Out
+    from agent_substrate.tools import SideEffect
 
     r = ExecutionResult(outcome=Out.TIMED_OUT, tool_id="stage10.emit_artifact",
                         tool_version="1.0.0", tool_digest="d",
@@ -1579,7 +1579,7 @@ def test_the_parent_guard_does_not_bind_the_child():
     """
     import subprocess
     import textwrap
-    from qta_agent.netauth import NetworkAuthority, NetworkError, socket_guard
+    from agent_substrate.netauth import NetworkAuthority, NetworkError, socket_guard
 
     net = NetworkAuthority()          # no grant issued -> default deny
     prog = textwrap.dedent("""
@@ -1610,7 +1610,7 @@ def test_the_parent_guard_does_not_bind_the_child():
         f"stderr={proc.stderr[:200]!r}). If that is now DELIBERATE -- a "
         "network namespace, a seccomp filter, anything the kernel enforces -- "
         "then the boundary stated in this module's docstring, in "
-        "qta_agent/netauth.py and in completion_matrix row R32 is out of date "
+        "agent_substrate/netauth.py and in completion_matrix row R32 is out of date "
         "and must be re-strengthened to say what is actually enforced")
 
 
@@ -1629,7 +1629,7 @@ _CLAIM_SWEEP_EXEMPT = {
     # false sentence there would destroy the evidence that it was made.
     "docs/DEFECT_LEDGER.md": "records the historical claim on purpose",
     # This file quotes the forbidden strings in order to forbid them.
-    "tests/test_agent_governed_stage10.py": "defines the list",
+    "tests/test_agent_governed_tasks.py": "defines the list",
 }
 
 
@@ -1728,7 +1728,7 @@ def test_the_supervisor_IS_bound_during_a_governed_run(gov):
     inside the guarded block, in this interpreter, during execution.
     """
     import socket
-    from qta_agent.netauth import NetworkError
+    from agent_substrate.netauth import NetworkError
 
     # EVERY call, not the last one. A governed run enters the executor twice
     # -- once to execute and once to RE-EXECUTE under verification -- and each
@@ -1811,7 +1811,7 @@ def test_a_record_landing_mid_projection_is_not_folded_unverified(gov):
     path = gov.log.path
     forged = _forged_line(path)
 
-    from qta_agent.events import EventLog as _EL
+    from agent_substrate.events import EventLog as _EL
     real_read, state = _EL.read, {"n": 0}
 
     def read_then_append(self, *, strict=True):
@@ -1851,7 +1851,7 @@ def test_the_projection_reads_the_log_once(gov):
     the runner, which is the lesson of D-2026-37 one file over.
     """
     _run(gov)
-    from qta_agent.events import EventLog as _EL
+    from agent_substrate.events import EventLog as _EL
 
     real_read, n = _EL.read, {"c": 0}
 

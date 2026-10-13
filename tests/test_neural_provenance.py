@@ -18,13 +18,13 @@ from neural_support import require_jax  # noqa: E402
 
 jax = require_jax()
 
-from qta_agent import learned_rules  # noqa: E402
-from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.learned_lifecycle import LearnedLedger, LedgerError  # noqa
-from qta_agent.reconstruct import reconstruct  # noqa: E402
-from qta_agent.store import AuthorityStore, StoreError  # noqa: E402
+from agent_substrate import learned_rules  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.learned_lifecycle import LearnedLedger, LedgerError  # noqa
+from agent_substrate.reconstruct import reconstruct  # noqa: E402
+from agent_substrate.store import AuthorityStore, StoreError  # noqa: E402
 from scientific.identity import digest  # noqa: E402
 from scientific_ai.neural import documents, family, manifests  # noqa: E402
 from scientific_ai.neural.model import checkpoint as C  # noqa: E402

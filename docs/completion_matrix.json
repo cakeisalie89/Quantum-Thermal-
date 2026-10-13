@@ -10,16 +10,16 @@
       "requirement": "Tool execution as a full subsystem: identity, contract, schemas, capability, limits, timeout, cancellation, provenance",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/tools.py",
-        "qta_agent/execution.py"
+        "agent_substrate/tools.py",
+        "agent_substrate/execution.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_execution.py",
         "tests/test_agent_compensation.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "task.execution events record outcome, tool id, version and contract digest, exit status, signal number, stdout/stderr digests, the digest and resolved path of every DECLARED output file, any declared output not collected and why, any file inside the tool's writable scope that appeared, changed or vanished WITHOUT being declared, the tool's compensating action, the retry decision, the limits applied and the duration. task.compensation records an undo that RAN and the answered escalation that authorized running it",
       "authority_owner": "tools.Registry (default deny) + Executor.run",
       "evidence": "ExecutionResult carries tool digest, exit status, signal, stdout/stderr digests and byte counts, a digest per declared output file with the path it resolved to, the undeclared writes, duration and the limits actually applied",
@@ -34,7 +34,7 @@
       "tests": [
         "tests/test_agent_execution.py",
         "tests/test_agent_compensation.py",
-        "tests/test_agent_governed_stage10.py"
+        "tests/test_agent_governed_tasks.py"
       ],
       "property_tests": [],
       "mutation_tests": [
@@ -70,7 +70,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "ad3f2b39f3c64aabe0e473524c0c77395649102fb0bf56d6183d7026bfaff2d9",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -78,18 +78,18 @@
       "requirement": "Default deny for tool, filesystem, network, secret and external-service authority",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/tools.py",
-        "qta_agent/readpath.py",
-        "qta_agent/netauth.py",
-        "qta_agent/secrets.py",
-        "qta_agent/capability.py"
+        "agent_substrate/tools.py",
+        "agent_substrate/readpath.py",
+        "agent_substrate/netauth.py",
+        "agent_substrate/secrets.py",
+        "agent_substrate/capability.py"
       ],
       "callers": [
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "qta_multiphysics/stack/vtk_export.py",
         "qta_multiphysics/stack/rag_index.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "network.grant / network.request / network.result and secret.grant / secret.access events; the governed run holds zero egress grants and the Snakefile asserts it",
       "authority_owner": "tools.Registry for tools, readpath.GovernedReader for reads, netauth.NetworkAuthority for egress AND for per-service contracts and budgets, secrets.SecretStore for credentials",
       "evidence": "refusals are raised AND, for network and secrets, recorded: a control plane that logs only what it permitted cannot answer 'what did this agent try'",
@@ -100,7 +100,7 @@
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "n/a",
-      "security_boundary": "default deny everywhere. Reads: a structural test refuses any module in qta_agent that calls open/read_text/read_bytes outside a named I/O layer, so 'nothing forces a future caller to use GovernedReader' is now a rule the suite enforces rather than a convention somebody has to know. External services: a registered service is a NAMED party with an enumerated operation contract and a per-task call budget, and both the service and the egress grant must permit a request -- registering a service widens nothing",
+      "security_boundary": "default deny everywhere. Reads: a structural test refuses any module in agent_substrate that calls open/read_text/read_bytes outside a named I/O layer, so 'nothing forces a future caller to use GovernedReader' is now a rule the suite enforces rather than a convention somebody has to know. External services: a registered service is a NAMED party with an enumerated operation contract and a per-task call budget, and both the service and the egress grant must permit a request -- registering a service widens nothing",
       "tests": [
         "tests/test_agent_netauth.py",
         "tests/test_agent_readpath.py",
@@ -138,7 +138,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "064217d844394718b0daae641bce60ff118d4a0106e5080b5097b1d729fad326",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -146,21 +146,21 @@
       "requirement": "Subprocess and process-lifecycle semantics",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/execution.py",
-        "qta_agent/hostid.py"
+        "agent_substrate/execution.py",
+        "agent_substrate/hostid.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_execution.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "outcome, exit status and signal are durable in the task.execution event; the job's lease and state are durable in scheduler.transition events; the child's FULL identity -- pid, pgid, boot id and start ticks -- so a later supervisor can ask whether it is still that process rather than whether something now holds its number",
       "authority_owner": "execution.run_bounded",
       "evidence": "real exit status and signal number recorded separately",
       "provenance": "tool id, version and contract digest cited by every result",
       "failure_semantics": "a signalled death is not an exit status; a timeout is not a failure of the tool and not a success; a run is now bounded by IDLENESS as well as by wall time -- a tool that stops producing output is abandoned rather than held to the wall bound, because 'how long may this take' is the wrong question for work that has stopped making progress",
-      "recovery": "GovernedStage10.sweep_orphans() terminates a child left running by a supervisor that is provably gone, and only when the child is provably the same process that supervisor started. Anything short of both answers is reported and left alone",
+      "recovery": "GovernedTasks.sweep_orphans() terminates a child left running by a supervisor that is provably gone, and only when the child is provably the same process that supervisor started. Anything short of both answers is reported and left alone",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "terminate the group, grace, then kill",
@@ -199,7 +199,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "ea32b943564655d435c0e7939b16cbbfd4a3ced9e994dea0fc9e8c840a77826b",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -207,14 +207,14 @@
       "requirement": "Durable task/job lifecycle with centralized transitions",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/governed_stage10.py",
-        "qta_agent/hostid.py",
-        "qta_agent/tasks.py"
+        "agent_substrate/governed_tasks.py",
+        "agent_substrate/hostid.py",
+        "agent_substrate/tasks.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
-        "tests/test_agent_governed_stage10.py"
+        "agent_substrate/governed_tasks.py",
+        "tests/test_agent_governed_tasks.py"
       ],
       "production_caller": "Snakefile",
       "persistent_state": "task state is a projection of the hash-chained log",
@@ -222,14 +222,14 @@
       "evidence": "every transition records the edge's reason",
       "provenance": "actor and role on every transition record",
       "failure_semantics": "fail-closed; FAILED, TIMED_OUT and CANCELLED are distinct states, and VERIFIED is reachable only from COMPLETED",
-      "recovery": "GovernedStage10.recover() resolves task records a dead supervisor left, and runs at the start of every governed run. Stranded work returns to QUEUED -- never forward: completing a task from its own execution record would be a recovery process finishing another party's work under a lease nobody holds, which is the ownership bypass the lease exists to prevent. A COMPLETED task is reported, not moved: it awaits an independent verifier and inventing that verdict is what this system refuses",
+      "recovery": "GovernedTasks.recover() resolves task records a dead supervisor left, and runs at the start of every governed run. Stranded work returns to QUEUED -- never forward: completing a task from its own execution record would be a recovery process finishing another party's work under a lease nobody holds, which is the ownership bypass the lease exists to prevent. A COMPLETED task is reported, not moved: it awaits an independent verifier and inventing that verdict is what this system refuses",
       "retry": "FAILED and TIMED_OUT have explicit edges back to QUEUED",
       "idempotency": "task-level and owner-scoped: a binding under (submitter, tool, key) is durable before dispatch, so a resubmission returns the first task and starts nothing. Deduplication is at the TASK record, not only at the queue",
       "cancellation": "reachable from every pre-terminal state",
       "concurrency": "leases; optimistic only, no multi-process test",
       "security_boundary": "separation of duties between executor and verifier; the executor it is judged against comes from an execution record accepted only in EXECUTING from the lease holder (D-2026-86)",
       "tests": [
-        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_governed_tasks.py",
         "tests/test_agent_recovery.py",
         "tests/test_task_execution_phase.py"
       ],
@@ -258,7 +258,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "e999d2c8d25e11cf979e39b7b4975dd23841ce77a08f2f12d2913cd5fd75ca6a",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -266,11 +266,11 @@
       "requirement": "Leases, ownership and duplicate-execution prevention",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/tasks.py",
-        "qta_agent/scheduler.py"
+        "agent_substrate/tasks.py",
+        "agent_substrate/scheduler.py"
       ],
       "callers": [
-        "qta_agent/governed_stage10.py"
+        "agent_substrate/governed_tasks.py"
       ],
       "production_caller": "Snakefile",
       "persistent_state": "lease recorded on the task, expiring by log seq",
@@ -285,7 +285,7 @@
       "concurrency": "single holder; takeover only after expiry, and a requeue claiming a lapse is refused on replay when the lease is still live",
       "security_boundary": "an outcome may be reported only by the lease holder, only while the lease is live, and this is re-derived on replay from the state the replay reached -- not only refused at the write path, where it was advice a forged record walked around",
       "tests": [
-        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_governed_tasks.py",
         "tests/test_agent_scheduler.py"
       ],
       "property_tests": [],
@@ -317,7 +317,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "69acac3f3fd10b195e5b2786167a0b48ba001c1d89c54cb7b0fbd07e128e9b2c",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -325,18 +325,18 @@
       "requirement": "Scheduling and orchestration",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/scheduler.py",
-        "qta_agent/governed_stage10.py"
+        "agent_substrate/scheduler.py",
+        "agent_substrate/governed_tasks.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_scheduler.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "scheduler.enqueue / scheduler.transition / scheduler.priority events; the whole queue is a projection",
       "authority_owner": "Scheduler.readiness (dependencies, evidence, capability, capacity, policy) and check_edge",
-      "evidence": "the Snakemake rule runs a two-step GRAPH through GovernedStage10.run_graph, and asserts from the log that the dependent step's enqueue names its parent's job id and requires the evidence digest the parent produced -- so the ordering is the scheduler's rather than the rule's convention",
+      "evidence": "the Snakemake rule runs a two-step GRAPH through GovernedTasks.run_graph, and asserts from the log that the dependent step's enqueue names its parent's job id and requires the evidence digest the parent produced -- so the ordering is the scheduler's rather than the rule's convention",
       "provenance": "every readiness verdict, requeue, retry and cancellation is an event carrying its reason",
       "failure_semantics": "eight job states with a derived SEALED set; a permanently FAILED, CANCELLED or INVALIDATED job blocks everything transitively downstream at the moment it finishes, rather than leaving dependents WAITING until reconcile next runs",
       "recovery": "restart reloads the queue from the log; reconcile requeues lapsed leases and is idempotent",
@@ -381,7 +381,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "03a75e573985a3dfbe5d014e0bf2bcc4615e6c10a2de7e599316e60bd8fee7cb",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -389,19 +389,19 @@
       "requirement": "Agent identity and role authority",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/agents.py",
-        "qta_agent/tasks.py",
-        "qta_agent/principals.py",
-        "qta_agent/ed25519.py",
-        "qta_agent/signature.py",
-        "qta_agent/events.py"
+        "agent_substrate/agents.py",
+        "agent_substrate/tasks.py",
+        "agent_substrate/principals.py",
+        "agent_substrate/ed25519.py",
+        "agent_substrate/signature.py",
+        "agent_substrate/events.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_agents.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "agent.register / agent.retire / agent.message / agent.claim / agent.escalation events; the directory is a projection",
       "authority_owner": "AgentDirectory.require and check_separation",
       "evidence": "each identity has a content digest over agent id, instance id, kind and roles; the governed run requires registered worker and verifier identities and runs check_separation between them; replay re-authorizes every transition from the state IT reached, so presence in the log is never authority",
@@ -450,7 +450,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "d91a1fc62d797fffc12a0ed98a841e2c9bd1453583bafbf9e75be80b054e5247",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -458,15 +458,15 @@
       "requirement": "Human authority and escalation as workflow states",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/agents.py",
-        "qta_agent/governed_stage10.py"
+        "agent_substrate/agents.py",
+        "agent_substrate/governed_tasks.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_agents.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "agent.escalation and agent.escalation.answer events; open escalations are a projection of them. Delivery failures are held in memory and reported by AgentDirectory.undelivered -- deliberately NOT in the log, because whether a pager answered is not part of the authority history",
       "authority_owner": "AgentDirectory.answer -- HUMAN principals only",
       "evidence": "an escalation names its task, its question, the closed set of options offered and who raised it; an answer names the human principal who gave it and their reason",
@@ -510,7 +510,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "22df97b2612e22cb0d4fce743ad357099c78fbc0cab3a3a8c8487096a02c6b37",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -518,15 +518,15 @@
       "requirement": "Versioned, inspectable, testable policy engine",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/policy.py",
-        "qta_agent/authority.py"
+        "agent_substrate/policy.py",
+        "agent_substrate/authority.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
-        "qta_agent/scheduler.py"
+        "agent_substrate/governed_tasks.py",
+        "agent_substrate/scheduler.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "policy.publish events; documents are projected from the verified log",
       "authority_owner": "PolicyDocument.evaluate (deny-overrides, default deny) and authority.check (I5)",
       "evidence": "each Decision carries the deciding document's content digest, not only its id; the governed run publishes stage10.governed, consults it, and records the decision; a DENY rule stops the run before any task record exists. An ALLOW may be CONDITIONAL: the decision carries the obligations every matching allow rule attached, and the run's result carries the receipt naming what discharged each one",
@@ -571,7 +571,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "9f654ae27c9a27576dc2db4e6b726bab4f0be79c9bab6a5519b89b6b01ea00ee",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -579,16 +579,16 @@
       "requirement": "Capabilities as enforceable authority objects",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/capability.py",
-        "qta_agent/reconstruct.py"
+        "agent_substrate/capability.py",
+        "agent_substrate/reconstruct.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/execution.py",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/execution.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_execution.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "capability.issue / capability.revoke events; the in-force set is a projection of them, not a caller's variable",
       "authority_owner": "capability.CapabilityLedger.in_force + CapabilitySet.check for USE; CapabilityLedger._authorize_mint for EXISTENCE",
       "evidence": "every grant names subject, task, tool, scope, expiry and the grant it was attenuated from; the root issuer is an event of its own",
@@ -604,7 +604,7 @@
         "tests/test_agent_crash_recovery.py",
         "tests/test_agent_delegation.py",
         "tests/test_agent_execution.py",
-        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_governed_tasks.py",
         "tests/test_agent_second_reader.py"
       ],
       "property_tests": [],
@@ -641,7 +641,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "d2e085070bcf5a14e84c109853c2476ebad8ec383d1d42f21f6a0bf32411e22a",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -649,17 +649,17 @@
       "requirement": "Filesystem authority: immutable evidence vs workspace vs canonical outputs",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/safeio.py",
-        "qta_agent/readpath.py",
+        "agent_substrate/safeio.py",
+        "agent_substrate/readpath.py",
         "qta_multiphysics/stack/workspace.py",
-        "qta_agent/evidence.py"
+        "agent_substrate/evidence.py"
       ],
       "callers": [
-        "qta_agent/governed_stage10.py",
-        "qta_agent/evidence.py",
+        "agent_substrate/governed_tasks.py",
+        "agent_substrate/evidence.py",
         "tests/test_agent_readpath.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "file.read events: every governed read attempt, permitted or refused, with the identity of the object actually opened",
       "authority_owner": "safeio.read_beneath for confinement; readpath.GovernedReader for who may read; workspace.assert_in_workspace for writes",
       "evidence": "the authorized root is opened ONCE as a directory descriptor and every component is opened descriptor-relative with O_NOFOLLOW, so a symlink anywhere on the path is refused rather than followed; O_NONBLOCK on the final open means a substituted FIFO is refused instead of hanging; the OPENED object is fstat-ed and must be a regular file within bounds; and an expected digest binds the result to CONTENT rather than to a name",
@@ -674,7 +674,7 @@
       "tests": [
         "tests/test_agent_readpath.py",
         "tests/test_agent_evidence.py",
-        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_governed_tasks.py",
         "tests/test_agent_substrate.py"
       ],
       "property_tests": [],
@@ -716,7 +716,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "4fe38201809b2cf2f57af05219561d7d557cbd9f641d118905f44a7785c1a03a",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -724,14 +724,14 @@
       "requirement": "Network authority: explicit, auditable egress",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/netauth.py"
+        "agent_substrate/netauth.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_netauth.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "network.grant / network.request / network.result events; grants are projected from the verified log",
       "authority_owner": "NetworkAuthority.authorize (default deny) and socket_guard at the process layer",
       "evidence": "each decision carries the deciding grant's content digest; the governed run executes inside a socket guard with no egress grant, and a connection attempted BY THE SUPERVISING PROCESS during execution is refused. A connection attempted by the tool's own subprocess is NOT refused -- a subprocess does not inherit the monkeypatch -- and the boundary below is the one that governs that case",
@@ -776,7 +776,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "6943f9a0e4c1140ad261179a5528c4094e593f078b8529155c178410ef1f13f8",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -784,10 +784,10 @@
       "requirement": "Secret handling: references not inherited environment",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/secrets.py"
+        "agent_substrate/secrets.py"
       ],
       "callers": [
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_secrets.py",
         "tests/test_agent_secret_provider.py"
       ],
@@ -854,7 +854,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "108b33ddd14e4a59b77df2df8dfdd5faa0efbced9e1bb53759a2b333f43e6cac",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -862,14 +862,14 @@
       "requirement": "Context lifecycle as a controlled subsystem",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/context.py"
+        "agent_substrate/context.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_context.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "context.build events carry the manifest -- digests, tiers, lengths and omissions -- and never the assembled text",
       "authority_owner": "ContextBuilder.build; MANDATORY tiers cannot be dropped",
       "evidence": "every item is named by the digest of the exact bytes shown; the governed run builds and records a context manifest whose digest is written into governed_run.json",
@@ -912,7 +912,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "5a394a2653f63a788948ec551f02c713da8d511f244479cb2768bcc17f8f3ccb",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -949,7 +949,7 @@
       "property_tests": [],
       "mutation_tests": [
         "tools/mutations/corpus_allowlist.json",
-        "tools/mutations/stage10_authority.json"
+        "tools/mutations/governed_tasks_authority.json"
       ],
       "fuzzing": "tools/fuzz_substrate.py target 'rag_index' fuzzes the serialized index document parser",
       "differential": "none",
@@ -975,7 +975,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "546d679faf1d4c38104e711c56e9278868f90836c6a335143423c2adc9bb9a53",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -983,14 +983,14 @@
       "requirement": "Durable agent memory separated from evidence and authority",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/memory.py"
+        "agent_substrate/memory.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_memory.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "memory.write and memory.status events; entries and their derived status are a projection of them. The live store is bounded per entry AND in total",
       "authority_owner": "none, deliberately: memory influences proposals and decides nothing",
       "evidence": "an entry names its author, what it was derived from, and the author's own confidence as commentary. A search result is a different type entirely: MemoryHit carries evidence_status=REMEMBERED_TEXT_NOT_EVIDENCE as a class attribute no construction path can set, and the system's status alongside it, and offers no digest field at all",
@@ -1034,7 +1034,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "8bc6085c0926ee2681090935f598dfeb2b16cca67d310b1af7dc71beec027227",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1042,14 +1042,14 @@
       "requirement": "Multi-agent identity, message provenance and conflict handling",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/agents.py"
+        "agent_substrate/agents.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_agents.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "agent.register / agent.retire / agent.message / agent.claim / agent.escalation events; the directory is a projection",
       "authority_owner": "AgentDirectory.resolve under a DECLARED ConflictRule",
       "evidence": "claims name their value by digest, so two claims are compared without comparing prose; worker and verifier are distinct registered instances and the separation between them is checked by the directory",
@@ -1092,7 +1092,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "1495babffc26c1a740e9ab16541dfafc57109e6181b60481052b186deebf8796",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1100,15 +1100,15 @@
       "requirement": "Independent verification with real separation",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/reconstruct.py",
-        "qta_agent/separate_verify.py",
+        "agent_substrate/reconstruct.py",
+        "agent_substrate/separate_verify.py",
         "tools/independent_verify.py"
       ],
       "callers": [
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_separate_verify.py"
       ],
-      "production_caller": "qta_agent/governed_stage10.py",
+      "production_caller": "agent_substrate/governed_tasks.py",
       "persistent_state": "task.separate_verification events record what a process that cannot import these reducers concluded about the log this run wrote -- including when it refused, which is exactly the fact an auditor must be able to find",
       "authority_owner": "separate_verify.verify_in_separate_process; the verdict is the CHILD's",
       "evidence": "the child reads the log from disk, replays it with the second reader, and answers through one JSON document and an exit status; the parent re-derives nothing",
@@ -1119,7 +1119,7 @@
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "bounded by a wall clock, because a verifier that hangs never says no",
-      "security_boundary": "the child installs a meta-path finder, before qta_agent is touched, that RAISES on every module of qta_agent outside the five it loads (the package, events, canonical, actions, reconstruct), so a future edit reaching for the implementation under test stops the program instead of producing a circular agreement. It was a deny-list that never named authority or tasks until D-2026-126; the permitted set is held to what a real run loads. Separation is enforced rather than kept by discipline",
+      "security_boundary": "the child installs a meta-path finder, before agent_substrate is touched, that RAISES on every module of agent_substrate outside the five it loads (the package, events, canonical, actions, reconstruct), so a future edit reaching for the implementation under test stops the program instead of producing a circular agreement. It was a deny-list that never named authority or tasks until D-2026-126; the permitted set is held to what a real run loads. Separation is enforced rather than kept by discipline",
       "tests": [
         "tests/test_agent_separate_verify.py",
         "tests/test_agent_second_reader.py",
@@ -1156,7 +1156,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "0cb13e7b5c89465837a87d8260a1504115f2611ca8004bdd51918869d1647437",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1164,10 +1164,10 @@
       "requirement": "Transactions across real workflows",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/events.py",
-        "qta_agent/store.py",
-        "qta_agent/tasks.py",
-        "qta_agent/governed_stage10.py"
+        "agent_substrate/events.py",
+        "agent_substrate/store.py",
+        "agent_substrate/tasks.py",
+        "agent_substrate/governed_tasks.py"
       ],
       "callers": [
         "tests/test_agent_atomicity.py",
@@ -1223,7 +1223,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "b6193d7bc2ac334e15f4112ee17511d1cfa403915f862258379dd742b2bbc6aa",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1231,10 +1231,10 @@
       "requirement": "Event log at production-operational quality",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/events.py"
+        "agent_substrate/events.py"
       ],
       "callers": [
-        "qta_agent/store.py"
+        "agent_substrate/store.py"
       ],
       "production_caller": null,
       "persistent_state": "JSONL log + separately witnessed head",
@@ -1289,7 +1289,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "009408b669a3a87a5f6715dfc278c8fb17c6e455b53009cf04e224063599f405",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1297,10 +1297,10 @@
       "requirement": "Checkpointing",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/checkpoint.py"
+        "agent_substrate/checkpoint.py"
       ],
       "callers": [
-        "qta_agent/store.py"
+        "agent_substrate/store.py"
       ],
       "production_caller": "tools/harness_demo.py",
       "persistent_state": "one file per checkpoint, named by seq, written atomically and never overwritten; retention deletes old ones only while keeping recovery possible",
@@ -1342,7 +1342,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "67d12cda49bf09593046c8edae19752caf974e4d4e34ee41b4d879ead6e96468",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1350,7 +1350,7 @@
       "requirement": "Independent state reconstruction covering every event type",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/reconstruct.py"
+        "agent_substrate/reconstruct.py"
       ],
       "callers": [
         "Snakefile",
@@ -1405,7 +1405,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "f78c3f8f727f686bae952561b052932710f7f1b639e2831ad1d28ac136cc692a",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1413,12 +1413,12 @@
       "requirement": "Invalidation across every real dependency",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/invalidation.py",
-        "qta_agent/governed_model.py"
+        "agent_substrate/invalidation.py",
+        "agent_substrate/governed_model.py"
       ],
       "callers": [
-        "qta_agent/store.py",
-        "qta_agent/governed_model.py"
+        "agent_substrate/store.py",
+        "agent_substrate/governed_model.py"
       ],
       "production_caller": null,
       "persistent_state": "STALE transitions recorded in the log",
@@ -1462,7 +1462,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "966790aa56ac017a1469ee6812d1607a91142d846c52750c9445022bafe016bf",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1470,13 +1470,13 @@
       "requirement": "Observability sufficient for incident reconstruction",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/audit.py",
+        "agent_substrate/audit.py",
         "tools/audit_log.py"
       ],
       "callers": [
         ".github/workflows/agent-substrate.yml",
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_audit.py"
       ],
       "production_caller": "Snakefile",
@@ -1523,7 +1523,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "d16e1e977fac2e490bc3cf58617a088aa3623a563eb6cb6e9d1a6112c9440d12",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1531,13 +1531,13 @@
       "requirement": "Machine-usable audit queries over provenance chains",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/audit.py",
+        "agent_substrate/audit.py",
         "tools/audit_log.py"
       ],
       "callers": [
         ".github/workflows/agent-substrate.yml",
         "Snakefile",
-        "qta_agent/governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
         "tests/test_agent_audit.py"
       ],
       "production_caller": "Snakefile",
@@ -1583,7 +1583,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "d16e1e977fac2e490bc3cf58617a088aa3623a563eb6cb6e9d1a6112c9440d12",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1591,10 +1591,10 @@
       "requirement": "Crash and recovery testing at transaction boundaries",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/events.py",
-        "qta_agent/store.py",
-        "qta_agent/scheduler.py",
-        "qta_agent/checkpoint.py"
+        "agent_substrate/events.py",
+        "agent_substrate/store.py",
+        "agent_substrate/scheduler.py",
+        "agent_substrate/checkpoint.py"
       ],
       "callers": [
         "tests/test_agent_crash_recovery.py"
@@ -1649,7 +1649,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "f1c6db6b3803b1ae56cdb41517b2ad28982918dbc0f278021ce54b1ec036012d",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1657,16 +1657,16 @@
       "requirement": "Concurrency and race testing",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/events.py",
-        "qta_agent/evidence.py",
-        "qta_agent/store.py",
-        "qta_agent/scheduler.py",
-        "qta_agent/governed_stage10.py",
-        "qta_agent/proposals.py",
-        "qta_agent/capability.py",
-        "qta_agent/netauth.py",
-        "qta_agent/secrets.py",
-        "qta_agent/idempotency.py"
+        "agent_substrate/events.py",
+        "agent_substrate/evidence.py",
+        "agent_substrate/store.py",
+        "agent_substrate/scheduler.py",
+        "agent_substrate/governed_tasks.py",
+        "agent_substrate/proposals.py",
+        "agent_substrate/capability.py",
+        "agent_substrate/netauth.py",
+        "agent_substrate/secrets.py",
+        "agent_substrate/idempotency.py"
       ],
       "callers": [
         "tests/test_agent_concurrency.py"
@@ -1724,7 +1724,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "2d67a0960a2e28a528d2fd4478a69ae24bfff4390232689eef442bfd9922d9ca",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1732,13 +1732,13 @@
       "requirement": "Long-horizon testing",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/events.py",
-        "qta_agent/store.py",
-        "qta_agent/scheduler.py",
-        "qta_agent/memory.py",
-        "qta_agent/policy.py",
-        "qta_agent/proposals.py",
-        "qta_agent/governed_model.py"
+        "agent_substrate/events.py",
+        "agent_substrate/store.py",
+        "agent_substrate/scheduler.py",
+        "agent_substrate/memory.py",
+        "agent_substrate/policy.py",
+        "agent_substrate/proposals.py",
+        "agent_substrate/governed_model.py"
       ],
       "callers": [
         "tests/test_agent_long_horizon.py"
@@ -1746,7 +1746,7 @@
       "production_caller": null,
       "persistent_state": "one shared log carrying scheduler, authority, memory, policy and agent events across the whole trajectory; the governed model runs the campaign submits are recorded on the governed path's own control-plane log beside it -- one scheduler domain per log, see boundaries",
       "authority_owner": "the log",
-      "evidence": "a mixed workload of enqueue, dispatch, retry, cancel, invalidate, promote, remember, withdraw, checkpoint and crash, driven through repeated restarts and mid-operation SIGKILLs, with the invariants asserted over the WHOLE history rather than any single operation. The scale is set by QTA_HORIZON_CYCLES and asserted against the trajectory it produced; the hosted workflow runs a second pass at 1200 cycles, and a 2000-cycle run (~16,000 events) passes locally in 7m16s. Mid-flight, the RULES CHANGE under a running job: a version that denies cancellation is published while the job is DISPATCHED, the withdrawal is refused, the refusal is durable and names the version that made it, and restoring the rule lets the identical call through On every cycle an AI proposal is received from its own retrieval context through ONE long-lived ingress, and one in 65 is taken the whole way: submitted as a governed model run, executed in its own process, checked by the series check, decided by a reviewer. At the end every receipt is projected and none became authority, every submission was decided exactly once on a check report that exists, and the second reader reconstructs every proposal with no anomaly. Adding proposals to the campaign found D-2026-119 (each receipt re-read the whole log)",
+      "evidence": "a mixed workload of enqueue, dispatch, retry, cancel, invalidate, promote, remember, withdraw, checkpoint and crash, driven through repeated restarts and mid-operation SIGKILLs, with the invariants asserted over the WHOLE history rather than any single operation. The scale is set by HARNESS_HORIZON_CYCLES and asserted against the trajectory it produced; the hosted workflow runs a second pass at 1200 cycles, and a 2000-cycle run (~16,000 events) passes locally in 7m16s. Mid-flight, the RULES CHANGE under a running job: a version that denies cancellation is published while the job is DISPATCHED, the withdrawal is refused, the refusal is durable and names the version that made it, and restoring the rule lets the identical call through On every cycle an AI proposal is received from its own retrieval context through ONE long-lived ingress, and one in 65 is taken the whole way: submitted as a governed model run, executed in its own process, checked by the series check, decided by a reviewer. At the end every receipt is projected and none became authority, every submission was decided exactly once on a check report that exists, and the second reader reconstructs every proposal with no anomaly. Adding proposals to the campaign found D-2026-119 (each receipt re-read the whole log)",
       "provenance": "end-of-run invariants are checked against the LOG, not against the projection: every promotion is confirmed to have come from VERIFIED and to have been performed by someone other than the proposer",
       "failure_semantics": "the suite asserts intended end states per job class rather than 'nothing crashed'",
       "recovery": "nine crashes are mid-operation -- the process state is discarded between the two events of one logical operation, with no checkpoint -- and the tenth is a REAL child process sent SIGKILL while appending to the campaign's own log. After each, the chain verifies, the lease is still owned by the worker that held it, the attempt count has not moved, and the trajectory continues over the top",
@@ -1798,7 +1798,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "81b3d52d39ad1e9179a00ed7a038e98e7709e59697c6eeb87ad0fcbeda0657b1",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1806,14 +1806,14 @@
       "requirement": "Performance regression guards on critical paths",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/events.py",
-        "qta_agent/checkpoint.py",
-        "qta_agent/evidence.py",
-        "qta_agent/scheduler.py",
-        "qta_agent/canonical.py",
+        "agent_substrate/events.py",
+        "agent_substrate/checkpoint.py",
+        "agent_substrate/evidence.py",
+        "agent_substrate/scheduler.py",
+        "agent_substrate/canonical.py",
         "tools/performance_baseline.py",
-        "qta_agent/store.py",
-        "qta_agent/governed_model.py"
+        "agent_substrate/store.py",
+        "agent_substrate/governed_model.py"
       ],
       "callers": [
         "tests/test_agent_performance.py",
@@ -1823,7 +1823,7 @@
       "persistent_state": "docs/performance_baseline.json: one observation per guard per recording, each against the commit it was measured at",
       "authority_owner": "n/a",
       "evidence": "ratio guards across two history sizes; SHAPE guards fitting log-time against log-size at three sizes (100/400/1600) with the fit itself checked against a genuinely quadratic and a genuinely linear operation; a per-operation guard measuring the cost of twenty governed operations behind a 50-record history and behind a 1200-record one; and a positive control: reintroducing the quadratic append makes the ratio guard read 11.5x against a 10.0 ceiling; replay's origin view COUNTED: five scientific admissions in one load build one view of governed execution (ten with sharing off), and the independent reader one task replay; an evidence lookup enumerates no directory entry at 100 blobs or 800, where a planted enumerating lookup reads 272 then 778 (D-2026-88)",
-      "provenance": "every guard that fits a shape publishes its number when QTA_PERF_OUT is set; tools/performance_baseline.py collects them and appends to docs/performance_baseline.json with the commit and the time",
+      "provenance": "every guard that fits a shape publishes its number when HARNESS_PERF_OUT is set; tools/performance_baseline.py collects them and appends to docs/performance_baseline.json with the commit and the time",
       "failure_semantics": "a guard fails on shape or on a COUNT, not on wall time -- with one qualification this row used to omit. A ratio guard survives a machine that is UNIFORMLY slower; a shared runner is not uniformly slower, it is slow in bursts, and the two measurements a ratio is built from are taken at different moments. Guards comparing two SIZES survive that (an 8x spread puts healthy at about 8 and quadratic at about 64). The one guard comparing the same size at two different TIMES did not: it failed a hosted run at 4.74 against a 4.0 ceiling while the property was intact, and now counts re-hashed records instead of seconds (D-2026-37) -- equality where it used to allow 4x. A measurement the clock cannot resolve even over 512 repetitions skips and says so rather than reporting a number derived from noise",
       "recovery": "n/a",
       "retry": "n/a",
@@ -1879,7 +1879,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "aa88161447d9d53cbf4381b3ef08c90a808094785506e3064a1e61a4ab14caeb",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
       }
     },
     {
@@ -1896,7 +1896,7 @@
       "production_caller": ".github/workflows/agent-substrate.yml",
       "persistent_state": "tests/fuzz_corpus/ -- every input that ever produced a finding, replayed on every run",
       "authority_owner": "each target declares which exceptions ARE its refusal",
-      "evidence": "23 targets covering every parser and record decoder in the package plus the two state machines as sequences; two real defects found in netauth.grant and committed as corpus entries. A campaign now reports what it REACHED -- 2814 lines in qta_agent and 72 (state, operation, outcome) triples at 2000 cases -- and CI fails below a floor, because 'no findings' is the same sentence over a full campaign and an empty one",
+      "evidence": "23 targets covering every parser and record decoder in the package plus the two state machines as sequences; two real defects found in netauth.grant and committed as corpus entries. A campaign now reports what it REACHED -- 2814 lines in agent_substrate and 72 (state, operation, outcome) triples at 2000 cases -- and CI fails below a floor, because 'no findings' is the same sentence over a full campaign and an empty one",
       "provenance": "a finding carries the exact bytes, the target, the classification and the campaign seed",
       "failure_semantics": "a declared refusal is not a finding; an undeclared exception, a hang against a per-case deadline, and a sequence that leaves a log the system cannot replay are each findings, and the last of those is checked OUTSIDE the loop that tolerates refusals",
       "recovery": "n/a",
@@ -1941,7 +1941,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "ecf7eb18f83ac8c928207d21966165e7ec401a3a6446ad93ba1a9b33e56a6820",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1959,7 +1959,7 @@
       "production_caller": ".github/workflows/agent-substrate.yml",
       "persistent_state": "none",
       "authority_owner": "tools/mutation_matrix.py",
-      "evidence": "95 committed specs run in CI -- since the Phase-1 closure in eight deterministic shards (tools/mutation_shards.py; every spec in exactly one, every cycle, the matrix generated and checked) under an aggregate job that is green only when every shard succeeded (the count was 34 and went stale as specs were added; it is now checked against the workflow rather than asserted -- D-2026-47), covering qta_agent, the Stage-10 write guard, the completion-matrix validator, the fuzz harness, the mutation harness itself -- and now the scientific tree's evidence gate (cited on R57, which owns that module), where 8 of 11 checks turned out to be deletable with nothing noticing. A GENERATED operator set adds mutations nobody wrote: a 16-mutation sample over qta_agent/capability.py left 7 alive, 4 covered by another spec whose suite the sample did not run and 3 genuine holes, all three now permanent coverage as D22-D24. The fortieth is output_resolution.json: what a serialised number is allowed to mean, where a marking decided by magnitude instead of by why a value is zero, a floor of zero, and a claims table that names a rule without matching it are each restored and killed. The forty-first is unit_inventory.json: the dimension of every published number, where a suffix rule had been publishing a temperature gradient as metres and two fluxes as seconds. The forty-fifth and forty-sixth are agent_snapshot_coherence.json -- every reducer folds exactly the bytes it verified, 20/20 -- and enforcement_asserts.json -- enforcement that python -O cannot delete, 3/3 (D-2026-70, D-2026-73). The fifty-second and fifty-third are authority_result_rules.json -- the content rule for a scientific result, enforced by the authority store on the edge itself, 13/13 -- and governed_model_reuse.json -- a verified result reused only on evidence re-derived intact, every exclusion restored and killed, 20/20. The fifty-fourth and fifty-fifth are scientific_thermal_2d.json -- the second model's invariants, declared boundary and window, the 3D check speaking only to the problem it solves, and per-model tool routing -- and cryopanel_operating_point.json -- the cryopanel model's operating point as a declared input, with the ontology import put back and seen by the C1 test (retired to tools/mutations/legacy/ with the component model in tranche 4). The fifty-sixth is performance_counters.json: a regression planted in the ready queue -- a per-job rescan, a history re-read, a hidden scan of the job map -- killed by a counter where only a clock used to look (R49). The fifty-seventh is scientific_authority_replay.json: a scientific result's admission re-decided on replay, on snapshot restore and by the independent reader in its own code -- a forged admission applied on replay, evidence captured after a verdict, an invalidated check, an unknown policy, lost evidence read as admitted, and the second reader's content table emptied are each restored and killed, 25/25; authority_result_rules.json grew to 17/17 with it (D-2026-83). The fifty-eighth is second_reader_audit_actions.json: ledger follow-up A's seven audit actions, each rule of their second readers removed and killed, and secret.provision taken back out of the action registry (D-2026-85). Tranche 4 also took one OUT: hardware_governance.json retired with its subject to tools/mutations/legacy/, which no shard runs (directive 21); and added framework_boundary.json -- the ACTIVE/LEGACY boundary's own rules, each removed against a planted violation. The fifty-ninth is claims_boundary.json: the framework claims boundary's checker, where a dropped, inverted, duplicated or unstated boundary, code that does not define its symbol and a test that does not exist are each restored and killed, 16/16 (directive 14). The cryopanel extraction swapped one for one: surface_adsorption.json -- the Langmuir capture law extracted from the component model, its invariants and its independent check, each restored and killed as a generic scientific or trust error, 25/25 (directive 22). The sixtieth is generic_consistency.json: the framework's successor to the legacy verifier, each of its checks -- the chain, the store re-hashed, cited digests resolving, refused and undecidable transitions, the live store compared with the independent reader, the schemas, the subject, the admitted model and check, the exit status -- removed against a real governed history damaged that way (directive 17). scientific_interfaces.json grew to 27 with the generic observation boundary's time, sequence, exact record and digest (directive 26). The sixty-first and sixty-second are task_execution_phase.json -- an execution record accepted only in EXECUTING from the lease holder, by the task projection, the independent reader and the auditor, each refusal removed and killed, 10/10 (D-2026-86) -- and scientific_invalidation.json -- a scientific result resting on an invalidated or withdrawn governed origin made STALE and its dependents after it, a second origin keeping it, an interrupted invalidation settled, 14/14 (D-2026-87). The sixty-third is replay_origin_view.json -- one view of governed execution per replay, counted: each place that shares it made to share nothing, a question split across two views, the view held and unused, a nested scope discarding the outer one, the independent reader replaying tasks per admission, and the counter itself disabled, 11/11; performance_counters.json grew to 5 with a lookup that lists its bucket and one that searches the store (D-2026-88). The sixty-fourth is actor_authentication.json -- each refusal of the actor-authentication seam removed (a missing or unknown key, a key of another principal, an unchecked signature, no domain separation, test keys in production, chosen key ids, an unconfigured registry that authenticates nothing, the store and the independent reader ignoring the verdict, a checkpoint standing in for it, the malleable s + Q) and killed, 19/19 (D-2026-89). The sixty-fifth is run_identity_backend.json -- the numeric backend in the run identity: each part of it (SIMD set, core, thread and dispatch variables, native build, an unreadable CPU's host) dropped, every flag counted, the native digest blind to content, the caller's environment described instead of the tool's -- each killed, 9/9 (D-2026-90). The sixty-sixth is stress_campaign_coverage.json -- the six-process campaign's own instruments: its start line made a rendezvous on both sides (a worker that does not wait or waits in name only, a parent that releases early or on the first arrival, a line that never fills or a dead worker reported as anything else), its coverage judged on edges out of DISPATCHED rather than on labels, repetition or another machine's records, and its safety judgement run before any verdict of vacuity -- each killed, 15/15 (D-2026-91). The sixty-seventh is authenticated_history.json -- the signature-provider seam (the reference implementation taken for vetted, a label believed over behaviour, the malleable signature or a raising verifier let through, production without the vetted check) and the history's security profile (a REQUIRED history read without an authenticator, a refused event not ending the read, a declaration past genesis or unknown, the anchored read ungated, a downgrade accepted, the independent reader not restating it) -- each killed, 23/23 (D-2026-92). The sixty-eighth is signed_append_lifecycle.json -- the signed append across a crash (the attestation written after the record, a pending prepare taken for a finding or for an authentication, stale prepares left unaborted, a torn tail not repaired, an abort of a committed event ignored, an unsigned append to a REQUIRED history let through), the pinned registry (the pin not checked, production without it) and a key's life by position (expiry, not-yet-valid, revocation forward-only, a declared compromise reaching back, a replacement of another principal) -- each killed, 27/27 (D-2026-93). The sixty-ninth is backend_probe.json -- the backend a run actually used (the probe reading whichever BLAS the process loaded first, SciPy's BLAS or libm left out, a kernel or library assumed rather than asked, anything unresolved let through as resolved, a BLAS it cannot identify assumed, the probe importing NumPy at import time, installed bytes not hashed or a modified build not noticed, backend status left out of the identity, an unresolved backend reused, the governed identity not probed or its bundle describing another environment) -- each killed, 26/26 (D-2026-94). The seventieth is quantity_resolution.json -- every quantity that crossed zero between backends states what its method resolves, bound to the quantity itself: the energy ledger's floor as the energy its balance leaves unexplained plus the rounding bound of its sums, each mode's sample densities by their own solve, a relative change against the tightest tolerance of the solves compared, and every binding reconciled against the committed artefacts -- each killed, 16/16 (D-2026-98). The seventy-first is reproduction_policy.json -- which question a byte comparison answers: an unresolved backend never counted as merely different, a witnessed backend's drift never excused, the strict question never answered off the reference, the witness profile applicable only to the corpus, generator closure, exemptions and lock it binds, every part of the arithmetic path -- the installed native bytes included -- in the backend identity, and the checker strict by default and refusing early -- each killed, 29/29 (D-2026-101). The seventy-second is reference_backend.json -- the STAGED canonical reference backend: the recipe itself mutated (DYNAMIC_ARCH on, a host target, NumPy runtime dispatch or a native baseline, threads raised, FMA contraction, a passthrough CPU, an unresolved floating-point policy, build.sh ignoring the spec or trusting what it fetches or patches, run.sh on the host CPU, the host userspace or the caller's environment), a runtime that differs from the declaration certified, the host's cpuinfo, the virtual CPU, the rootfs or the native build dropped from or wrongly added to the reference identity, and the two-host verdict passing one CPU class twice, a missing file, a differing identity or another generator -- each killed, 75/75 (D-2026-102). The seventy-third to seventy-eighth are the learned-model substrate's (NF-1T): neural_accounting.json -- exact parameter accounting by category, the budget solver and the estimates; neural_tokens.json -- feature tokens, unit dimensions, governed datasets, OOD classes and constraints; neural_routing.json -- the router and the mixture-of-experts layer; neural_authority.json -- meta validation, both allocation guards, the claims, checkpoints, digest lineage and the learned-record refusal live, on replay and in the second reader; neural_training.json -- training and exact resume; neural_parallel.json -- the parallel plans and the expert-parallel layer -- each killed, 88/88 (D-2026-103). The seventy-ninth, claim_hygiene.json (the NF-1T closure), holds the PASS-semantics audit's label, window, no-effect, scope, word-boundary, unclassified and untracked rules, the current-status builder's separation from the legacy QTA gate table and its distributed, reproduction and allocation wording, and the claims' software-path-only reason -- 20/20 killed, each also by a test other than the committed-report check; neural_authority.json gains NU23-NU25 -- a trained subject described as unallocated, and PROMOTED left open to a learned record -- 25/25 (D-2026-104). The eightieth to ninety-third come with the harness completion programme: harness_status (the derived completion status, 21 mutations), proposal_ingress (28), ranking_equivalence (17), rust_selection (9), hdf5_bundle (8), ro_crate_conformance (7), external_models (5), checkpoint_recovery (10), performance_telemetry (5), harness_integrations (17: the FEniCSx and FMI surfaces that run without their runtimes), supply_chain (11: every verify layer broken alone), harness_demo (10: the demonstration's judge, and the scope it reports), typecheck_scope (5) and workflow_generic (4: the generic Snakemake path). The ninety-fourth and ninety-fifth come with its sections 44 and 45: proposal_crash_recovery (12: a stranded durable request resumed, never repeated and never decided on another report) and decided_appends (14: each race window opened on purpose, a grant stamped past its own expiry, and a concurrent append's witness temp file, D-2026-115 to D-2026-118 and D-2026-123).",
+      "evidence": "95 committed specs run in CI -- since the Phase-1 closure in eight deterministic shards (tools/mutation_shards.py; every spec in exactly one, every cycle, the matrix generated and checked) under an aggregate job that is green only when every shard succeeded (the count was 34 and went stale as specs were added; it is now checked against the workflow rather than asserted -- D-2026-47), covering agent_substrate, the Stage-10 write guard, the completion-matrix validator, the fuzz harness, the mutation harness itself -- and now the scientific tree's evidence gate (cited on R57, which owns that module), where 8 of 11 checks turned out to be deletable with nothing noticing. A GENERATED operator set adds mutations nobody wrote: a 16-mutation sample over agent_substrate/capability.py left 7 alive, 4 covered by another spec whose suite the sample did not run and 3 genuine holes, all three now permanent coverage as D22-D24. The fortieth is output_resolution.json: what a serialised number is allowed to mean, where a marking decided by magnitude instead of by why a value is zero, a floor of zero, and a claims table that names a rule without matching it are each restored and killed. The forty-first is unit_inventory.json: the dimension of every published number, where a suffix rule had been publishing a temperature gradient as metres and two fluxes as seconds. The forty-fifth and forty-sixth are agent_snapshot_coherence.json -- every reducer folds exactly the bytes it verified, 20/20 -- and enforcement_asserts.json -- enforcement that python -O cannot delete, 3/3 (D-2026-70, D-2026-73). The fifty-second and fifty-third are authority_result_rules.json -- the content rule for a scientific result, enforced by the authority store on the edge itself, 13/13 -- and governed_model_reuse.json -- a verified result reused only on evidence re-derived intact, every exclusion restored and killed, 20/20. The fifty-fourth and fifty-fifth are scientific_thermal_2d.json -- the second model's invariants, declared boundary and window, the 3D check speaking only to the problem it solves, and per-model tool routing -- and cryopanel_operating_point.json -- the cryopanel model's operating point as a declared input, with the ontology import put back and seen by the C1 test (retired to tools/mutations/legacy/ with the component model in tranche 4). The fifty-sixth is performance_counters.json: a regression planted in the ready queue -- a per-job rescan, a history re-read, a hidden scan of the job map -- killed by a counter where only a clock used to look (R49). The fifty-seventh is scientific_authority_replay.json: a scientific result's admission re-decided on replay, on snapshot restore and by the independent reader in its own code -- a forged admission applied on replay, evidence captured after a verdict, an invalidated check, an unknown policy, lost evidence read as admitted, and the second reader's content table emptied are each restored and killed, 25/25; authority_result_rules.json grew to 17/17 with it (D-2026-83). The fifty-eighth is second_reader_audit_actions.json: ledger follow-up A's seven audit actions, each rule of their second readers removed and killed, and secret.provision taken back out of the action registry (D-2026-85). Tranche 4 also took one OUT: hardware_governance.json retired with its subject to tools/mutations/legacy/, which no shard runs (directive 21); and added framework_boundary.json -- the ACTIVE/LEGACY boundary's own rules, each removed against a planted violation. The fifty-ninth is claims_boundary.json: the framework claims boundary's checker, where a dropped, inverted, duplicated or unstated boundary, code that does not define its symbol and a test that does not exist are each restored and killed, 16/16 (directive 14). The cryopanel extraction swapped one for one: surface_adsorption.json -- the Langmuir capture law extracted from the component model, its invariants and its independent check, each restored and killed as a generic scientific or trust error, 25/25 (directive 22). The sixtieth is generic_consistency.json: the framework's successor to the legacy verifier, each of its checks -- the chain, the store re-hashed, cited digests resolving, refused and undecidable transitions, the live store compared with the independent reader, the schemas, the subject, the admitted model and check, the exit status -- removed against a real governed history damaged that way (directive 17). scientific_interfaces.json grew to 27 with the generic observation boundary's time, sequence, exact record and digest (directive 26). The sixty-first and sixty-second are task_execution_phase.json -- an execution record accepted only in EXECUTING from the lease holder, by the task projection, the independent reader and the auditor, each refusal removed and killed, 10/10 (D-2026-86) -- and scientific_invalidation.json -- a scientific result resting on an invalidated or withdrawn governed origin made STALE and its dependents after it, a second origin keeping it, an interrupted invalidation settled, 14/14 (D-2026-87). The sixty-third is replay_origin_view.json -- one view of governed execution per replay, counted: each place that shares it made to share nothing, a question split across two views, the view held and unused, a nested scope discarding the outer one, the independent reader replaying tasks per admission, and the counter itself disabled, 11/11; performance_counters.json grew to 5 with a lookup that lists its bucket and one that searches the store (D-2026-88). The sixty-fourth is actor_authentication.json -- each refusal of the actor-authentication seam removed (a missing or unknown key, a key of another principal, an unchecked signature, no domain separation, test keys in production, chosen key ids, an unconfigured registry that authenticates nothing, the store and the independent reader ignoring the verdict, a checkpoint standing in for it, the malleable s + Q) and killed, 19/19 (D-2026-89). The sixty-fifth is run_identity_backend.json -- the numeric backend in the run identity: each part of it (SIMD set, core, thread and dispatch variables, native build, an unreadable CPU's host) dropped, every flag counted, the native digest blind to content, the caller's environment described instead of the tool's -- each killed, 9/9 (D-2026-90). The sixty-sixth is stress_campaign_coverage.json -- the six-process campaign's own instruments: its start line made a rendezvous on both sides (a worker that does not wait or waits in name only, a parent that releases early or on the first arrival, a line that never fills or a dead worker reported as anything else), its coverage judged on edges out of DISPATCHED rather than on labels, repetition or another machine's records, and its safety judgement run before any verdict of vacuity -- each killed, 15/15 (D-2026-91). The sixty-seventh is authenticated_history.json -- the signature-provider seam (the reference implementation taken for vetted, a label believed over behaviour, the malleable signature or a raising verifier let through, production without the vetted check) and the history's security profile (a REQUIRED history read without an authenticator, a refused event not ending the read, a declaration past genesis or unknown, the anchored read ungated, a downgrade accepted, the independent reader not restating it) -- each killed, 23/23 (D-2026-92). The sixty-eighth is signed_append_lifecycle.json -- the signed append across a crash (the attestation written after the record, a pending prepare taken for a finding or for an authentication, stale prepares left unaborted, a torn tail not repaired, an abort of a committed event ignored, an unsigned append to a REQUIRED history let through), the pinned registry (the pin not checked, production without it) and a key's life by position (expiry, not-yet-valid, revocation forward-only, a declared compromise reaching back, a replacement of another principal) -- each killed, 27/27 (D-2026-93). The sixty-ninth is backend_probe.json -- the backend a run actually used (the probe reading whichever BLAS the process loaded first, SciPy's BLAS or libm left out, a kernel or library assumed rather than asked, anything unresolved let through as resolved, a BLAS it cannot identify assumed, the probe importing NumPy at import time, installed bytes not hashed or a modified build not noticed, backend status left out of the identity, an unresolved backend reused, the governed identity not probed or its bundle describing another environment) -- each killed, 26/26 (D-2026-94). The seventieth is quantity_resolution.json -- every quantity that crossed zero between backends states what its method resolves, bound to the quantity itself: the energy ledger's floor as the energy its balance leaves unexplained plus the rounding bound of its sums, each mode's sample densities by their own solve, a relative change against the tightest tolerance of the solves compared, and every binding reconciled against the committed artefacts -- each killed, 16/16 (D-2026-98). The seventy-first is reproduction_policy.json -- which question a byte comparison answers: an unresolved backend never counted as merely different, a witnessed backend's drift never excused, the strict question never answered off the reference, the witness profile applicable only to the corpus, generator closure, exemptions and lock it binds, every part of the arithmetic path -- the installed native bytes included -- in the backend identity, and the checker strict by default and refusing early -- each killed, 29/29 (D-2026-101). The seventy-second is reference_backend.json -- the STAGED canonical reference backend: the recipe itself mutated (DYNAMIC_ARCH on, a host target, NumPy runtime dispatch or a native baseline, threads raised, FMA contraction, a passthrough CPU, an unresolved floating-point policy, build.sh ignoring the spec or trusting what it fetches or patches, run.sh on the host CPU, the host userspace or the caller's environment), a runtime that differs from the declaration certified, the host's cpuinfo, the virtual CPU, the rootfs or the native build dropped from or wrongly added to the reference identity, and the two-host verdict passing one CPU class twice, a missing file, a differing identity or another generator -- each killed, 75/75 (D-2026-102). The seventy-third to seventy-eighth are the learned-model substrate's (NF-1T): neural_accounting.json -- exact parameter accounting by category, the budget solver and the estimates; neural_tokens.json -- feature tokens, unit dimensions, governed datasets, OOD classes and constraints; neural_routing.json -- the router and the mixture-of-experts layer; neural_authority.json -- meta validation, both allocation guards, the claims, checkpoints, digest lineage and the learned-record refusal live, on replay and in the second reader; neural_training.json -- training and exact resume; neural_parallel.json -- the parallel plans and the expert-parallel layer -- each killed, 88/88 (D-2026-103). The seventy-ninth, claim_hygiene.json (the NF-1T closure), holds the PASS-semantics audit's label, window, no-effect, scope, word-boundary, unclassified and untracked rules, the current-status builder's separation from the legacy QTA gate table and its distributed, reproduction and allocation wording, and the claims' software-path-only reason -- 20/20 killed, each also by a test other than the committed-report check; neural_authority.json gains NU23-NU25 -- a trained subject described as unallocated, and PROMOTED left open to a learned record -- 25/25 (D-2026-104). The eightieth to ninety-third come with the harness completion programme: harness_status (the derived completion status, 21 mutations), proposal_ingress (28), ranking_equivalence (17), rust_selection (9), hdf5_bundle (8), ro_crate_conformance (7), external_models (5), checkpoint_recovery (10), performance_telemetry (5), harness_integrations (17: the FEniCSx and FMI surfaces that run without their runtimes), supply_chain (11: every verify layer broken alone), harness_demo (10: the demonstration's judge, and the scope it reports), typecheck_scope (5) and workflow_generic (4: the generic Snakemake path). The ninety-fourth and ninety-fifth come with its sections 44 and 45: proposal_crash_recovery (12: a stranded durable request resumed, never repeated and never decided on another report) and decided_appends (14: each race window opened on purpose, a grant stamped past its own expiry, and a concurrent append's witness temp file, D-2026-115 to D-2026-118 and D-2026-123).",
       "provenance": "none",
       "failure_semantics": "a survivor, an anchor that matches anything but once, a source not restored byte-identical, a test that damaged a tracked file, or a mutation killed ONLY by the suite timeout each fail the run. A timeout is not counted as coverage: it says nothing about which check was lost and costs the whole timeout every run",
       "recovery": "a recovery sidecar plus SIGTERM/SIGINT handlers restore sources; --recover restores from an interrupted run",
@@ -1973,7 +1973,7 @@
         "tests/test_agent_checkpoint.py",
         "tests/test_agent_evidence.py",
         "tests/test_agent_execution.py",
-        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_governed_tasks.py",
         "tests/test_agent_substrate.py",
         "tests/test_generated_mutations.py",
         "tests/test_mutation_harness.py"
@@ -2011,7 +2011,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "0974ca87ed113251fb45a34d2a3fcacc05c84ff0ffcf6277f1f5208415dc28fc",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2019,10 +2019,10 @@
       "requirement": "Machine-checked formal/state-machine invariants",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/authority.py",
-        "qta_agent/capability.py",
-        "qta_agent/scheduler.py",
-        "qta_agent/tasks.py",
+        "agent_substrate/authority.py",
+        "agent_substrate/capability.py",
+        "agent_substrate/scheduler.py",
+        "agent_substrate/tasks.py",
         "tools/model_check.py"
       ],
       "callers": [
@@ -2088,7 +2088,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "fa4ea86d4107440a1123259bea06ccbe783cccc5b9fa3869c7d78195352f012b",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2096,7 +2096,7 @@
       "requirement": "Differential testing across independent implementations",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/reconstruct.py"
+        "agent_substrate/reconstruct.py"
       ],
       "callers": [
         "Snakefile",
@@ -2152,7 +2152,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "f78c3f8f727f686bae952561b052932710f7f1b639e2831ad1d28ac136cc692a",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2162,14 +2162,14 @@
       "implementation": [
         "qta_multiphysics/stack/workspace.py",
         "qta_multiphysics/stack/rag_index.py",
-        "qta_agent/evidence.py",
-        "qta_agent/capability.py",
-        "qta_agent/tasks.py",
-        "qta_agent/governed_stage10.py"
+        "agent_substrate/evidence.py",
+        "agent_substrate/capability.py",
+        "agent_substrate/tasks.py",
+        "agent_substrate/governed_tasks.py"
       ],
       "callers": [
         "tests/test_agent_hostile_campaign.py",
-        "tests/test_agent_governed_stage10.py"
+        "tests/test_agent_governed_tasks.py"
       ],
       "production_caller": null,
       "persistent_state": "none",
@@ -2187,14 +2187,14 @@
         "tests/test_agent_authority_boundaries.py",
         "tests/test_agent_collusion.py",
         "tests/test_agent_cross_process.py",
-        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_governed_tasks.py",
         "tests/test_agent_hostile_campaign.py"
       ],
       "property_tests": [],
       "mutation_tests": [
         "tools/mutations/agent_execution.json",
         "tools/mutations/agent_tasks.json",
-        "tools/mutations/stage10_authority.json"
+        "tools/mutations/governed_tasks_authority.json"
       ],
       "fuzzing": "none",
       "differential": "none",
@@ -2225,7 +2225,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "532b267826de95d7e053b54c3e32c8a88d868e12ce02b1851c8b0b3eb8775f9c",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2233,21 +2233,21 @@
       "requirement": "Scientific workflow integration with a real production caller",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/governed_stage10.py",
-        "qta_agent/_stage10_tool.py",
-        "qta_agent/_stage10_index_tool.py",
-        "qta_agent/idempotency.py",
+        "agent_substrate/governed_tasks.py",
+        "agent_substrate/_artifact_tool.py",
+        "agent_substrate/_index_tool.py",
+        "agent_substrate/idempotency.py",
         "qta_multiphysics/stack/workspace.py"
       ],
       "callers": [
         "Snakefile",
-        "qta_agent/governed_stage10.py",
-        "tests/test_agent_governed_stage10.py",
+        "agent_substrate/governed_tasks.py",
+        "tests/test_agent_governed_tasks.py",
         "tests/test_agent_governed_breadth.py"
       ],
       "production_caller": "Snakefile",
       "persistent_state": "task log + content-addressed artifacts",
-      "authority_owner": "GovernedStage10.run, which now also requires the SUBMITTER to be a registered PROPOSER -- it is the policy subject and the owner of a durable key namespace, and an unregistered string held both",
+      "authority_owner": "GovernedTasks.run, which now also requires the SUBMITTER to be a registered PROPOSER -- it is the policy subject and the owner of a durable key namespace, and an unregistered string held both",
       "evidence": "every produced file hashed into the evidence store; the completion cites those digests. On the verified path the tool is then RE-RUN from its declared inputs into a scratch directory and the declared outputs are compared byte for byte, so the completion cites bytes that were reproduced rather than only bytes that are still there. A THIRD workflow, s10_governed_model, runs a scientific model through the same control plane: thermal 1D and its independent check as two governed tasks by different executors, the result decided through the authority store (which reads the cited report and bundle itself), then the identical proposal reused with no second model run and other parameters recomputed; it runs in s10_full and as its own step of agent-substrate.yml, with the auditor over its log",
       "provenance": "task, capability, execution and evidence records in one hash-chained log",
       "failure_semantics": "a non-COMPLETED outcome never reaches verification; a re-execution that disagrees, produces nothing, or covers no declared artifact fails verification rather than reporting agreement over an empty comparison; all three Snakemake rules fail the build on an unverified run, and the scientific-model rule also on a result the authority store does not verify, on an identical proposal that does not reuse it, and on one with other parameters that does",
@@ -2258,7 +2258,7 @@
       "concurrency": "three independent workflows, each with its own log and evidence store; Snakemake serialises them, and none shares durable state with another",
       "security_boundary": "capability scoped to the task, tool and workspace; bounded subprocess; writes go through the Stage-10 guard and READS through it too, so a tool that hashes caller-named paths cannot be pointed at a canonical output or outside the repository; the verifier MINTS its own bounded grant rather than borrowing the worker's, and reads the re-run's output through the confinement primitive so a tool that plants a symlink in its own output directory cannot make the verifier read what it points at; the governed output subtrees refuse an ungoverned writer; the idempotency namespace is scoped to the submitting identity, and that identity is checked against the agent directory before it can own one",
       "tests": [
-        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_governed_tasks.py",
         "tests/test_agent_governed_breadth.py",
         "tests/test_agent_idempotency.py"
       ],
@@ -2278,7 +2278,7 @@
         {
           "limit": "No solver, gate, manifest or canonical output is mediated by the substrate, and the three governed workflows cannot become a dependency of any of them.",
           "reason": "architectural_by_design",
-          "detail": "automatic_gate_effect = NONE is the invariant this repository exists to hold: a scientific result must not depend on whether the authority layer is importable, correct, or even present. Mediating a legacy QTA gate would make that forecast's PASS count a function of the control plane; mediating final_manifest.json or a canonical CSV would put the byte gate downstream of it. The engineering that CAN be done in that direction has been: the write allowlist confines Stage-10 to one subtree, the read guard refuses a canonical path so a governed digest of one cannot exist, test_the_workflow_touches_the_substrate_only_in_the_governed_rules names the complete set of rules that may reference qta_agent and fails if a rule is added or if a named one stops using it, and test_no_gate_computing_module_references_the_substrate refuses the import in the other direction. Widening further is not unfinished work; it is the thing the row would have to stop claiming."
+          "detail": "automatic_gate_effect = NONE is the invariant this repository exists to hold: a scientific result must not depend on whether the authority layer is importable, correct, or even present. Mediating a legacy QTA gate would make that forecast's PASS count a function of the control plane; mediating final_manifest.json or a canonical CSV would put the byte gate downstream of it. The engineering that CAN be done in that direction has been: the write allowlist confines Stage-10 to one subtree, the read guard refuses a canonical path so a governed digest of one cannot exist, test_the_workflow_touches_the_substrate_only_in_the_governed_rules names the complete set of rules that may reference agent_substrate and fails if a rule is added or if a named one stops using it, and test_no_gate_computing_module_references_the_substrate refuses the import in the other direction. Widening further is not unfinished work; it is the thing the row would have to stop claiming."
         },
         {
           "limit": "Outside the governed output subtrees the Stage-10 adapters stay directly callable, so the governed path is one route to those bytes rather than the only one.",
@@ -2306,7 +2306,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "26734f3e719b9eb6c38555a9dab801ceb5ddd4ca41d4add6e1793077bf400259",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
       }
     },
     {
@@ -2339,7 +2339,7 @@
       ],
       "property_tests": [],
       "mutation_tests": [
-        "tools/mutations/stage10_authority.json"
+        "tools/mutations/governed_tasks_authority.json"
       ],
       "fuzzing": "none",
       "differential": "none",
@@ -2366,7 +2366,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "a16bcabf55841ae250e8fe608bab28e18a5cd2a118ff32686949631425d963f2",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; qta-stack-verify pull_request run at efaf08a, green"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; qta-stack-verify pull_request run at efaf08a, green"
       }
     },
     {
@@ -2375,7 +2375,7 @@
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "authorities.json",
-        "qta_agent/__init__.py",
+        "agent_substrate/__init__.py",
         "qta_multiphysics/hardware_governance_3d.py",
         "tools/repo_scope.py",
         "hardware_reviewers.json"
@@ -2390,7 +2390,7 @@
       "authority_owner": "authorities.json :: agent_authority_substrate",
       "evidence": "automatic_gate_effect=NONE, enforced by an import scan over tracked AND untracked-unignored files -- the set a file joins the moment anybody commits. The other half of the same claim is qta_multiphysics/hardware_governance_3d.py, which decides whether an unreviewed hardware claim becomes evidence: automatic_gate_effect is NONE in every report it emits, a quarantined record is told it has no evidentiary standing, and a review must be bound to THIS record by digest AND authored by a reviewer who RESOLVES, in hardware_reviewers.json, to an entry of kind HUMAN whose registration chain reaches OUT_OF_BAND_BOOTSTRAP. THIS ROW SAID 'a review must be authored by a human' WHILE THAT WAS FALSE: until D-2026-42 the only refusal was a review that set authored_by_tool, so a program that omitted the flag authored a review that admitted a record into a gate-evidence dossier, and the mutation that killed the check killed the CONFESSING case. Mutation testing had earlier found 8 of 11 checks deletable with no test noticing; the spec is now 21 mutations and the ten added with D-2026-42 attack the reviewer resolution itself THE HARDWARE-GOVERNANCE HALF IS LEGACY QTA (directive 10, 21): as of tranche 4 its 21-mutation spec is tools/mutations/legacy/hardware_governance.json and runs in no active shard, so what it established above is historical evidence, not a verdict re-earned on every cycle; repo_contract.json is the half that still runs.",
       "provenance": "none",
-      "failure_semantics": "the isolation suite fails if anything outside qta_agent and its allowlisted tests imports the substrate, and it fails on the machine that introduced the importer rather than on a runner an hour later",
+      "failure_semantics": "the isolation suite fails if anything outside agent_substrate and its allowlisted tests imports the substrate, and it fails on the machine that introduced the importer rather than on a runner an hour later",
       "recovery": "none",
       "retry": "n/a",
       "idempotency": "n/a",
@@ -2417,7 +2417,7 @@
       "residual_gaps": [],
       "boundaries": [
         {
-          "limit": "there is no production caller and there must not be: this row is enforced by an ABSENCE -- nothing in the scientific tree imports qta_agent -- so there is no code path to call",
+          "limit": "there is no production caller and there must not be: this row is enforced by an ABSENCE -- nothing in the scientific tree imports agent_substrate -- so there is no code path to call",
           "reason": "architectural_by_design",
           "detail": "the row named a test as its production caller until the validator started refusing that, which is the right refusal: a test is not an operational path. The honest answer is null"
         },
@@ -2429,7 +2429,7 @@
         {
           "limit": "the reviewer roster is a DECLARATION, not authentication: nothing here can establish that an entry corresponds to a person, or that a review attributed to one was written by them. Whoever can write hardware_reviewers.json holds hardware-review authority",
           "reason": "requires_external_identity_authority",
-          "detail": "the same limit qta_agent/agents.py states for PrincipalKind.HUMAN, and for the same reason: a registration record is not a proof of personhood. What the roster buys is that the authority is named, readable and diffable, that it refuses to vouch for itself (self-registration, cycles and registration by a TOOL are all refused), and that it fails closed when absent or empty rather than open. It registers nobody today, so no review record is valid and no gate-evidence dossier can have entries"
+          "detail": "the same limit agent_substrate/agents.py states for PrincipalKind.HUMAN, and for the same reason: a registration record is not a proof of personhood. What the roster buys is that the authority is named, readable and diffable, that it refuses to vouch for itself (self-registration, cycles and registration by a TOOL are all refused), and that it fails closed when absent or empty rather than open. It registers nobody today, so no review record is valid and no gate-evidence dossier can have entries"
         }
       ],
       "blocker": null,
@@ -2440,7 +2440,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "6169d810f11fae9f925c59fa3ce8585276548e3894369449756145ad6acba1f3",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2505,7 +2505,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "1560604f4a24257d1fa49c6e878cd0e4ebe700dbae8edb687184730eaef0a40c",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2589,7 +2589,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "3d548f5e62ca4b8067d469d93d9095d93c91db18f7b977c0887baae25d69c75c",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2620,8 +2620,8 @@
         "scientific_ai/neural/model/evaluate.py",
         "scientific_ai/neural/model/pipeline.py",
         "scientific_ai/neural/model/parallel.py",
-        "qta_agent/learned_rules.py",
-        "qta_agent/learned_lifecycle.py",
+        "agent_substrate/learned_rules.py",
+        "agent_substrate/learned_lifecycle.py",
         "tools/neural.py",
         "tools/neural_ledger.py",
         "tools/neural_legacy_audit.py",
@@ -2634,7 +2634,7 @@
       ],
       "production_caller": "tools/neural.py",
       "persistent_state": "docs/neural/ (manifests, meta validations, claims, the legacy audit) and docs/neural/dev/ (the governed dataset, the training/resume/checkpoint manifests, the final checkpoint, the evaluation); the lifecycle as learned_* records in the authority log",
-      "authority_owner": "qta_agent/learned_rules.py (no learned record becomes VERIFIED or PROMOTED); scientific_ai/neural/claims.py (what may be said, from evidence)",
+      "authority_owner": "agent_substrate/learned_rules.py (no learned record becomes VERIFIED or PROMOTED); scientific_ai/neural/claims.py (what may be said, from evidence)",
       "evidence": "One architecture family -- scientific feature tokens (identity, value channels, SI dimension, context, validity), set semantics, pre-norm attention, top-k routed SwiGLU experts with observable routing and counted capacity drops, heteroscedastic heads. Exact parameter accounting by category, written apart from the network and compared with its tensors; a budget solver that resolves the flagship to 996,509,217,800 trainable parameters and 200,832,889,864 active per token (hidden 8192, 64 MoE layers of 64 experts, top_k 12, expert width 9728), meta-validated by jax.eval_shape with no array created and a real allocation refused by two independent guards; the scale ladder 50M..300B solved and meta-validated; a development member (431,784 parameters) trained end to end on a governed dataset of the admitted surface.langmuir_capture model, with fresh-run and exact-resume bitwise reproducibility on one backend, a safe checkpoint reloaded to identical outputs, evaluation per split and target with calibration, OOD degradation, constraint violations and router health; the lifecycle recorded through existing record actions with digest-checked links; expert parallelism, sharded gradients, activation checkpointing, accumulation and sharded checkpoints equal to their single-device originals on eight simulated devices; zero hardware-era machine semantics in the substrate (audited). The NF-1T closure separates the status vocabulary from what it could be mistaken for: the legacy QTA hardware forecast's PASS_count of 0 is reported only in a LEGACY_QTA_ONLY section of a status generated from the evidence (SCIENTIFIC_AI_STATUS.md), and an audit of every occurrence of the gate-table vocabulary finds zero current-harness statements that do not say whose it is (EB15); a trained subject's plain language says it was meta-validated and then allocated and trained, never that its weights were not allocated; simulated distributed execution reads SOFTWARE-PATH VALIDATION ONLY with tensor and pipeline parallelism PLAN_ONLY (EB16); a stored witness's byte identity is scoped to its witnessed backend and decision stability is never written as byte identity (EB17). Claim status and the claims document were re-derived from the unchanged evidence by tools/neural.py rederive: no dataset, checkpoint, weight or measurement moved. The substrate is inside the current-active type-check scope (tools/typecheck_scope.py check, run in CI): 0 errors, from 63 in 16 modules. The fixes are annotations and narrowing -- among them a ModelConfig.moe_block accessor that refuses a configuration with no MoE block where a None used to surface one attribute later -- and none changes a computed value: tools/neural.py verify recomputes the frozen development evidence unchanged. The hardware-era vocabulary in active generic files, which this row used to carry as an open gap, is closed and enforced: the legacy semantic audit (tools/neural_legacy_audit.py --check, in CI) now requires zero ACTIVE_GENERIC_SEMANTIC_LEAK as well as zero neural ones. Of the twelve files it reported, the one active document that carried a machine-mode requirement (stack.json's FMI element) now states the generic step semantics the FMU is tested against; the authorities registry's two are under its legacy_authorities key; the other ten are the QTA reference model plugins and their parameter set, whose domain is the apparatus -- nine of them in the witnessed canonical generator's closure, whose bytes may not change -- and the generic models wrapping two of them now carry none of the vocabulary on their contract surface (their provenance had recorded the legacy solver configuration's Mode-D threshold; it records the solver settings it uses, tested). What remains is research, paid compute, hardware or an owner's decision, each named against the harness contract in research_frontier, not software work.",
       "provenance": "every sample carries its input/target digests, bundle digest, parameter, implementation, environment and backend identity; every manifest is bound by digest to the configuration, dataset, run and checkpoint it names",
       "failure_semantics": "non-finite loss or router stops training (never COMPLETED); malformed, non-finite, out-of-domain or wrong-dimension inputs are refused; a checkpoint whose bytes, configuration or tensors differ is refused; a broken lineage link is refused before anything is written; a learned VERIFIED/PROMOTED edge is refused live, on replay and by the second reader",
@@ -2643,7 +2643,7 @@
       "idempotency": "evidence is content-addressed; a record id is its document's digest",
       "cancellation": "n/a",
       "concurrency": "the authority log's single-writer append; the substrate itself is single-process outside the simulated-device checks",
-      "security_boundary": "checkpoints are parsed as data (no pickle); real allocation above 2 GiB needs allow_large=True and QTA_NEURAL_ALLOW_LARGE_ALLOCATION=1",
+      "security_boundary": "checkpoints are parsed as data (no pickle); real allocation above 2 GiB needs allow_large=True and HARNESS_NEURAL_ALLOW_LARGE_ALLOCATION=1",
       "tests": [
         "tests/test_claim_hygiene.py",
         "tests/test_neural_accounting.py",
@@ -2683,7 +2683,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "aeed6d87647ce96cf13557331ddaad85d01c01c2e3e698b7fdc74b0ede014f3d",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -2753,7 +2753,7 @@
         "scientific/models/slab_transient.py",
         "scientific/models/thermal_1d.py",
         "scientific/models/thermal_2d.py",
-        "qta_agent/governed_model.py",
+        "agent_substrate/governed_model.py",
         "tools/generic_consistency.py"
       ],
       "callers": [
@@ -2763,7 +2763,7 @@
       ],
       "production_caller": "tools/harness_demo.py",
       "persistent_state": "result bundles and verification reports are content-addressed evidence blobs; the HDF5 file is written beside them as a representation, its digest recorded in the demonstration's report",
-      "authority_owner": "the authority store (qta_agent/governed_model.py through qta_agent/authority.py); the HDF5 file and the bundle carry none",
+      "authority_owner": "the authority store (agent_substrate/governed_model.py through agent_substrate/authority.py); the HDF5 file and the bundle carry none",
       "evidence": "Every model the harness runs is a ScientificModel: declared inputs with units and domains, outputs with a stated resolution, invariants computed on every run, an implementation digest over its in-package source closure. A run returns a ResultBundle whose digest covers parameters, outputs, invariants, convergence and run identity; a check returns a VerificationResult naming its independence and what it establishes. scientific/hdf5_bundle.py writes a bundle as HDF5 with a schema version, deterministic group and dataset naming, no timestamps, units and dimensions as attributes, artifacts as datasets, the bundle digest and verification links; reading it back gives a bundle with the same digest, and malformed files (wrong schema, a missing or altered dataset, a unit that does not round-trip) are refused. The file is representation: HDF5_AUTHORITY says so and the reader never returns a state. The generic thermal models record only the solver settings they use, so no hardware-era machine state reaches a generic result (tested against the legacy audit's own patterns).",
       "provenance": "the bundle digest, implementation digest, parameter digest and environment digest of every result; the HDF5 file records the bundle digest it represents",
       "failure_semantics": "a model refuses out-of-domain, non-finite or mistyped inputs before running; a failed integration is an output with status FAILED, never a number; the HDF5 reader refuses rather than repairs",
@@ -2799,7 +2799,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "90464418193d8ded0e7e6d24fea3b1870593739d439cb731c2790fcfd6d8cefa",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -2836,7 +2836,7 @@
       ],
       "production_caller": "tools/fenicsx_acceptance.py",
       "persistent_state": "the acceptance report and the environment record are workflow artifacts; a check's VerificationResult is an evidence blob cited by the decision",
-      "authority_owner": "the admission policy (qta_agent/governed_model.py): only an INDEPENDENT_IMPLEMENTATION check can admit; the series check is an ANALYTIC_REFERENCE and cannot",
+      "authority_owner": "the admission policy (agent_substrate/governed_model.py): only an INDEPENDENT_IMPLEMENTATION check can admit; the series check is an ANALYTIC_REFERENCE and cannot",
       "evidence": "The FEniCSx environment is created from an explicit conda-forge lock in which every package carries an md5 and a recorded sha256, checked before use; the runner is a separate program, identified by its bytes, run in that environment, answering a request it must echo by digest. The slab problem is solved with dolfinx P1/P2 elements and backward Euler on meshes refined twice: the acceptance campaign measures convergence at the a-priori orders, reduction to the 1D slab, energy balance, run-to-run determinism and rejection of three deliberately wrong inputs. As a check it compares the harness's own finite-difference solver against FEniCSx at the stated resolution and REJECTS a producer with a 10 % conductivity error; in the governed path it is the check that admits the slab result to VERIFIED, while the series check alone leaves it REJECTED. Executed locally end to end (governed slab VERIFIED); the hosted fenicsx and end-to-end jobs run it with the runtime REQUIRED, so a skip is a failure.",
       "provenance": "the runner's sha256, the environment record's per-package sha256, dolfinx's version in every result's provenance, the request digest echoed",
       "failure_semantics": "no runtime: the check reports NOT_RUN with the reason, never PASS; a runner that answers another request or omits provenance is refused; a package whose bytes differ from the record stops environment creation",
@@ -2866,7 +2866,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "a8c93cbe6c8f1684a5f0efb4a6c6844d629708ebd6b90fb53dae961019d731bd",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -2932,7 +2932,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "bfdb8c248c01d89b0dc1e4f71bc19c37518eb81f1770727b1cf47aa9bc97f56b",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -2987,7 +2987,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "0ec9247d331cb2180efc9a69fd68cb52d29d917b9e5e24c920d9ce868788fd50",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; qta-container-verify push run 37997302749 at efaf08a, green: digest-pinned base confirmed, the declared image built (image id sha256:93ccb893...86f24a) and run as the non-root user with no host virtualenv, container_verify.sh in the image, and the demonstration compared with a native run: slab EQUIVALENT_AT_DECLARED_RESOLUTION, decision stable"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; qta-container-verify push run 37997302749 at efaf08a, green: digest-pinned base confirmed, the declared image built (image id sha256:93ccb893...86f24a) and run as the non-root user with no host virtualenv, container_verify.sh in the image, and the demonstration compared with a native run: slab EQUIVALENT_AT_DECLARED_RESOLUTION, decision stable"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3050,7 +3050,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "81568c28eb36a8b8007a63225ad8b444b152b6936f8f05b629581e80905e65e0",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a (ro-crate: the committed crate ACCEPTED by both validators, every negative control refused by the internal one and agreeing except the one measured INTERNAL_STRICTER); supply-chain push run 37997302666 at efaf08a, green: the candidate built, signed with the workflow's OIDC identity, verified online, offline and by digest, and the tamper suite on a signed copy"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a (ro-crate: the committed crate ACCEPTED by both validators, every negative control refused by the internal one and agreeing except the one measured INTERNAL_STRICTER); supply-chain push run 37997302666 at efaf08a, green: the candidate built, signed with the workflow's OIDC identity, verified online, offline and by digest, and the tamper suite on a signed copy"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3072,20 +3072,20 @@
       "requirement": "AI proposal ingress: an AI's proposal received as NON_AUTHORITATIVE data, content-addressed, and able to reach authority only through a governed run, an independent check and a distinct reviewer",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/proposals.py",
+        "agent_substrate/proposals.py",
         "integrations/proposals/recorded_fixture.jsonl",
-        "qta_agent/actions.py",
-        "qta_agent/authority.py",
-        "qta_agent/reconstruct.py",
-        "qta_agent/governed_stage10.py",
-        "qta_agent/governed_model.py"
+        "agent_substrate/actions.py",
+        "agent_substrate/authority.py",
+        "agent_substrate/reconstruct.py",
+        "agent_substrate/governed_tasks.py",
+        "agent_substrate/governed_model.py"
       ],
       "callers": [
         "tools/harness_demo.py"
       ],
       "production_caller": "tools/harness_demo.py",
       "persistent_state": "proposal.receive records in the authority log (the envelope's digest and the receiving actor), the envelopes as evidence blobs",
-      "authority_owner": "qta_agent/authority.py (the gate: no edge from a proposal to VERIFIED, separation of duties on every edge into UNDER_REVIEW and out of it -- D-2026-105); qta_agent/reconstruct.py restates the rules for the second reader",
+      "authority_owner": "agent_substrate/authority.py (the gate: no edge from a proposal to VERIFIED, separation of duties on every edge into UNDER_REVIEW and out of it -- D-2026-105); agent_substrate/reconstruct.py restates the rules for the second reader",
       "evidence": "A proposal is a ProposalEnvelope with a closed schema: unknown keys, forbidden keys (any that name authority, state or verification) and anything that looks like a credential are refused, and its id is the sha256 of its canonical form. Adapters -- a recorded fixture, and an external client held to the same envelope -- produce envelopes from a governed retrieval context whose citations name each source file's sha256. The ingress records proposal.receive (idempotent by proposal id), lists pending proposals, and submits one as a governed model run whose result is PROPOSED; it can do nothing else. A proposer cannot take its own claim into review (D-2026-105), and the second reader refuses such a pickup appended past the store. In the demonstration three proposals are received; the slab run and the good FMU become VERIFIED only through independent checks and a distinct reviewer, and the twin is REJECTED. A running ingress reads the history once and catches up in O(new) after that (D-2026-119); the long-horizon campaign receives a proposal on every cycle and takes one in 65 through to a decision (R48).",
       "provenance": "every envelope's id is its digest; each proposal names its adapter, its context digest and, for iterations, its parent",
       "failure_semantics": "every refusal is a ProposalRefused naming the field; a forged receipt is refused on replay; a resubmission returns the existing record",
@@ -3122,7 +3122,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "4cc026625f4062dbc579126a8d15c199786c7c6bb6f040192a3e7194b49813d3",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3185,7 +3185,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "a7e0af9d325a0f0b4a53fc4faffe5d51fcdad416ba29700048a5b6737e505c22",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3216,7 +3216,7 @@
       "authority_owner": "the contracts file decides what equivalence means; scientific/equivalence.py only applies it",
       "evidence": "compare(a, b) returns BYTE_IDENTICAL, EQUIVALENT_AT_DECLARED_RESOLUTION (every compared output within the sum of the two stated resolutions, with provenance), NOT_EQUIVALENT or NOT_ESTABLISHED (no contract, or no invariant to compare) -- and reports decision stability separately, because two runs can decide alike without being equivalent. Contracts may not carry numbers of their own: a tolerance comes from the results' declared resolutions. Ranking groups values whose intervals overlap into tiers (connected components), reports every member of a tier as indistinguishable, and says AMBIGUOUS_AT_RESOLUTION when a top-k cut falls inside a tier -- the D-2026-99 shape, reproduced and refused. The sensitivity cross-check ranks parameters by one-at-a-time and by SALib Sobol indices and reports IDENTICAL, CONSISTENT or METHODS_DISAGREE, compared with Kendall tau over tiers.",
       "provenance": "every comparison names the two bundle digests, the contract and the resolutions used",
-      "failure_semantics": "an unknown model is NOT_ESTABLISHED, never assumed equivalent; a contract with a number in it is refused; SALib missing is GLOBAL_UNAVAILABLE, and under QTA_UQ_REQUIRED=1 a failure",
+      "failure_semantics": "an unknown model is NOT_ESTABLISHED, never assumed equivalent; a contract with a number in it is refused; SALib missing is GLOBAL_UNAVAILABLE, and under HARNESS_UQ_REQUIRED=1 a failure",
       "recovery": "n/a",
       "retry": "n/a",
       "idempotency": "n/a",
@@ -3243,7 +3243,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "3e8a5d85ed985a98a868bfcbbc87ed3e783ed511cbe4326872fd6363d59b3c13",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3305,7 +3305,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "e6ac3aae6eec7cde49adb692f56225c7937558c676adda69915590a4265180e7",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at efaf08a, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3332,7 +3332,7 @@
       "production_caller": null,
       "persistent_state": "docs/typing_scope.json: the active scope, the three frozen modules with their reason, and the legacy debt measured (errors per file)",
       "authority_owner": "typecheck_active.ini (its own file: pyproject.toml is in the byte-reproduction witness's environment lock and may not change); tools/typecheck_scope.py check is the CI step",
-      "evidence": "ACTIVE (qta_agent, scientific, scientific_ai, the stack adapters, the FMI/FEniCSx runtimes, every tool, ro_crate_tools.py) passes mypy with the repository's configuration and --check-untyped-defs: 0 errors, from 264. No global ignore: packages without type information are named one by one; the seven local ignores each name their code and give a reason (a test enforces both), the socket-patching ones in one function whose behaviour the netauth tests prove. Three modules -- the source closure of surface.langmuir_capture, whose digest the NF-1T dataset pins -- have typing-only codes disabled for them alone, and a test holds that list to the real closure and to the dataset's digest. The type pass found D-2026-108, a crash in the completion-matrix validator. Ruff is clean over the same scope. External and hand-edited inputs are validated strictly by closed schemas written for them -- the proposal envelope, the FMU description, the completion matrix, the harness contract, policy files, the supply-chain policy, the equivalence contracts -- each refusing unknown or malformed fields, with tests; Pydantic is used where it was already chosen (the Stage-7 boundary models, the stack registry, the RO-Crate writer), not added for uniformity.",
+      "evidence": "ACTIVE (agent_substrate, scientific, scientific_ai, the stack adapters, the FMI/FEniCSx runtimes, every tool, ro_crate_tools.py) passes mypy with the repository's configuration and --check-untyped-defs: 0 errors, from 264. No global ignore: packages without type information are named one by one; the seven local ignores each name their code and give a reason (a test enforces both), the socket-patching ones in one function whose behaviour the netauth tests prove. Three modules -- the source closure of surface.langmuir_capture, whose digest the NF-1T dataset pins -- have typing-only codes disabled for them alone, and a test holds that list to the real closure and to the dataset's digest. The type pass found D-2026-108, a crash in the completion-matrix validator. Ruff is clean over the same scope. External and hand-edited inputs are validated strictly by closed schemas written for them -- the proposal envelope, the FMU description, the completion matrix, the harness contract, policy files, the supply-chain policy, the equivalence contracts -- each refusing unknown or malformed fields, with tests; Pydantic is used where it was already chosen (the Stage-7 boundary models, the stack registry, the RO-Crate writer), not added for uniformity.",
       "provenance": "the scope and the frozen list are committed and checked by tests",
       "failure_semantics": "any error or a mypy that prints no summary fails the step",
       "recovery": "n/a",
@@ -3358,7 +3358,7 @@
         ],
         "commit": "efaf08a8b42c68531bd2a645ad452ec94712ca58",
         "implementation_sha256": "bce851a4f67c7197068be3cbf14f6a255d67bda12fd345e59aea58ce8e7ef1c0",
-        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
+        "note": "qta-agent-substrate push and pull_request runs at efaf08a, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and HARNESS_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       },
       "residual_gaps": [],
       "boundaries": [

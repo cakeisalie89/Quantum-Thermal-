@@ -39,26 +39,26 @@ for _p in (str(ROOT), str(ROOT / "tools")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from qta_agent import proposals as PR  # noqa: E402
-from qta_agent.agents import (  # noqa: E402
+from agent_substrate import proposals as PR  # noqa: E402
+from agent_substrate.agents import (  # noqa: E402
     AgentDirectory, AgentRole, PrincipalKind, identity,
 )
-from qta_agent.audit import AuditIndex  # noqa: E402
-from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.checkpoint import CheckpointStore  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.memory import MemoryStatus, MemoryStore  # noqa: E402
-from qta_agent.policy import (  # noqa: E402
+from agent_substrate.audit import AuditIndex  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.checkpoint import CheckpointStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.memory import MemoryStatus, MemoryStore  # noqa: E402
+from agent_substrate.policy import (  # noqa: E402
     Effect, PolicyDenied, PolicyRequest, PolicyStore, document, rule,
 )
-from qta_agent.reconstruct import compare, reconstruct  # noqa: E402
-from qta_agent.scheduler import (  # noqa: E402
+from agent_substrate.reconstruct import compare, reconstruct  # noqa: E402
+from agent_substrate.scheduler import (  # noqa: E402
     FailureClass, JobState, Scheduler, TERMINAL, backoff_for,
     default_policy,
 )
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 #: Cycles of the mixed workload. Each cycle writes roughly twenty events, so
 #: the default is a few thousand -- past the point where the two known
@@ -66,10 +66,10 @@ from qta_agent.store import AuthorityStore  # noqa: E402
 #: that runs on every push.
 #:
 #: RAISED BY ENVIRONMENT, AND RAISED IN CI. A scale knob nobody turns is a
-#: comment. ``QTA_HORIZON_CYCLES`` sets it, the hosted workflow runs a second
+#: comment. ``HARNESS_HORIZON_CYCLES`` sets it, the hosted workflow runs a second
 #: pass at a larger figure, and the number actually used is asserted on
 #: below so a run at the default cannot report itself as the long one.
-CYCLES = int(os.environ.get("QTA_HORIZON_CYCLES", "260"))
+CYCLES = int(os.environ.get("HARNESS_HORIZON_CYCLES", "260"))
 
 #: Restart every this many cycles. State must not drift across any of them.
 RESTART_EVERY = 40
@@ -211,7 +211,7 @@ def horizon(tmp_path_factory):
     import shutil
 
     import harness_demo as HD
-    from qta_agent.governed_model import GovernedModelRuns
+    from agent_substrate.governed_model import GovernedModelRuns
     from qta_multiphysics.stack.rag_index import retrieve
     h.agents.register(identity(agent_id=HD.AGENT, instance_id=HD.AGENT,
                                kind=PrincipalKind.AGENT,
@@ -487,7 +487,7 @@ def horizon(tmp_path_factory):
     script.write_text(f'''
 import sys
 sys.path.insert(0, {str(ROOT)!r})
-from qta_agent.events import EventLog
+from agent_substrate.events import EventLog
 log = EventLog({str(h.root / "log.jsonl")!r})
 for i in range(4000):
     log.append(actor="w1", action="memory.write",
@@ -596,7 +596,7 @@ def test_the_metric_is_documented_where_the_claim_is_made(horizon):
     Pinned so a later edit cannot raise the headline by widening what
     counts, which is the easiest way to make this suite dishonest.
     """
-    import qta_agent  # noqa: F401  - anchors ROOT for the read below
+    import agent_substrate  # noqa: F401  - anchors ROOT for the read below
 
     src = Path(__file__).read_text(encoding="utf-8")
     assert "WHAT COUNTS AS ONE GOVERNED OPERATION" in src
@@ -863,7 +863,7 @@ def test_the_refusal_is_durable_and_names_the_version_that_made_it(horizon):
     attempt left no trace at all -- the log answered "what was permitted"
     and could not answer "what was tried".
     """
-    from qta_agent.policy import ACT_POLICY_DECISION
+    from agent_substrate.policy import ACT_POLICY_DECISION
 
     denials = [
         e for e in horizon.log.read()
@@ -897,7 +897,7 @@ def test_the_denial_did_not_reach_backwards_over_earlier_decisions(horizon):
     AT THE TIME must still say so -- otherwise the history would be re-judged
     by rules written after it.
     """
-    from qta_agent.policy import ACT_POLICY_DECISION
+    from agent_substrate.policy import ACT_POLICY_DECISION
 
     changed_at = None
     for e in horizon.log.read():
@@ -940,7 +940,7 @@ def test_the_version_that_denied_is_not_the_one_in_force_now(horizon):
 def test_the_campaign_ran_at_the_scale_it_reports(horizon):
     """A run at the default must not be able to report itself as the long one.
 
-    QTA_HORIZON_CYCLES raises the scale, and the hosted workflow turns it
+    HARNESS_HORIZON_CYCLES raises the scale, and the hosted workflow turns it
     up. What makes that worth anything is that the number is checked against
     the trajectory rather than quoted from the environment: a knob that is
     read and not used is the most reassuring kind of nothing.
@@ -1001,19 +1001,19 @@ def test_two_scheduler_domains_do_not_share_a_log(horizon, tmp_path):
     writes nothing."""
     import shutil
 
-    from qta_agent.governed_stage10 import GovernedStage10
-    from qta_agent.policy import UnknownPolicy
+    from agent_substrate.governed_tasks import GovernedTasks
+    from agent_substrate.policy import UnknownPolicy
     copy = tmp_path / "log.jsonl"
     shutil.copyfile(horizon.log.path, copy)
     before = copy.read_bytes()
     with pytest.raises(UnknownPolicy, match="stage10.governed"):
-        GovernedStage10(root=ROOT, log=EventLog(copy),
+        GovernedTasks(root=ROOT, log=EventLog(copy),
                         evidence=horizon.evidence)
     assert copy.read_bytes() == before
 
 
 def test_the_second_reader_reconstructs_every_proposal(horizon):
-    from qta_agent.reconstruct import reconstruct_subsystems
+    from agent_substrate.reconstruct import reconstruct_subsystems
     sub = reconstruct_subsystems(horizon.log)
     assert len(sub.proposals) == horizon.cycles
     assert sub.anomalies == []

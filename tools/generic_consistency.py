@@ -16,7 +16,8 @@ It answers, for one event log and its evidence store:
 * EVENT_HISTORY -- does the hash chain verify?
 * EVIDENCE -- does every stored object hash to its name, and does every
   digest an authority record cites resolve?
-* RECONSTRUCTION -- does the independent reader (``qta_agent.reconstruct``),
+* RECONSTRUCTION -- does the independent reader
+  (``agent_substrate.reconstruct``),
   re-deciding every transition and every scientific admission from the
   evidence, refuse nothing and find nothing anomalous -- and does it agree
   with the live store's own projection, record by record?
@@ -51,11 +52,11 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import reconstruct as rc  # noqa: E402
-from qta_agent import result_rules  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore, is_digest  # noqa: E402
-from qta_agent.store import StoreError  # noqa: E402
+from agent_substrate import reconstruct as rc  # noqa: E402
+from agent_substrate import result_rules  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore, is_digest  # noqa: E402
+from agent_substrate.store import StoreError  # noqa: E402
 
 OK, FINDING, CANNOT_ASK = 0, 1, 2
 CHECKS = ("EVENT_HISTORY", "EVIDENCE", "RECONSTRUCTION",
@@ -65,7 +66,7 @@ CHECKS = ("EVENT_HISTORY", "EVIDENCE", "RECONSTRUCTION",
 def _live_store(log: EventLog, evidence: EvidenceStore):
     """The store's own projection of the log, with governed origin attached
     as production has it."""
-    from qta_agent.governed_model import GovernedModelRuns
+    from agent_substrate.governed_model import GovernedModelRuns
     return GovernedModelRuns(root=ROOT, log=log, evidence=evidence).authority
 
 

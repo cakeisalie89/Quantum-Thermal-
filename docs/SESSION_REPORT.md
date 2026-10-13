@@ -1,6 +1,6 @@
 # Completion report: the agent authority substrate
 
-**Scope.** This report covers `qta_agent/`, its production caller, and the
+**Scope.** This report covers `agent_substrate/`, its production caller, and the
 verification around both. It says what was built, what testing established,
 what it found, and what remains open.
 

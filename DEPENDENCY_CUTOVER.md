@@ -37,7 +37,7 @@ candidate's docstring and purpose, not by marker counts.** A regex census of
 hardware vocabulary (Mode A/B/C/D, BOM, interlock, gate, `BLOCKED`,
 `measured_in_this_system`, apparatus identifiers) was taken first and then
 used only as evidence to read against: it reports 20 "gate" hits in
-`qta_agent/scheduler.py`, every one of which is the job-FSM state
+`agent_substrate/scheduler.py`, every one of which is the job-FSM state
 `JobState.BLOCKED` and none of which is a QTA gate. A census is a proxy; the
 reading is the classification.
 
@@ -80,19 +80,19 @@ at run time.
 
 ## 2. Reachability, by core
 
-### 2.1 Agent core (`qta_agent/`, 31 modules): no hardware dependency
+### 2.1 Agent core (`agent_substrate/`, 31 modules): no hardware dependency
 
-The import closure of every `qta_agent` module reaches **no HW module and
-names no hardware data file.** The only module outside `qta_agent` it
+The import closure of every `agent_substrate` module reaches **no HW module and
+names no hardware data file.** The only module outside `agent_substrate` it
 reaches is `qta_multiphysics/stack/workspace.py`, the output-location guard,
 which is generic (it refuses writes to the repository root and to tracked
 canonical directories).
 
 The coupling that remains is naming and payload, not import:
-`governed_stage10.py` (with `_stage10_tool.py`, `_stage10_index_tool.py`) is
+`governed_tasks.py` (with `_artifact_tool.py`, `_index_tool.py`) is
 the substrate's only production consumer, and what it governs is "a real
 Stage-10 run" -- the QTA stack artefacts. That is the thing Phase 2 turns into
-a governed `ScientificModel` run. `_stage10_index_tool.py` mentions
+a governed `ScientificModel` run. `_index_tool.py` mentions
 `results_gate_table.csv` in its docstring as an example input, and reads
 nothing by that name.
 

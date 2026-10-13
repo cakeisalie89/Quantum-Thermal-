@@ -10,7 +10,7 @@
 # immutable 40-hex commit object.
 #
 # SCOPE, so a green badge is not over-read: the agent-substrate job lints
-# qta_agent/ and the tooling, runs every agent test suite plus the mutation
+# agent_substrate/ and the tooling, runs every agent test suite plus the mutation
 # harness's own suite, validates the completion matrix, runs the committed
 # verifiers against the tree, and executes the governed Stage-10 rule.
 #
@@ -39,7 +39,7 @@
 # structurally isolated from the scientific tree.
 #
 # What it proves scientifically: NOTHING. automatic_gate_effect = NONE. No
-# module under qta_agent/ is imported by any solver, by qta_full_sim.py, or by
+# module under agent_substrate/ is imported by any solver, by qta_full_sim.py, or by
 # metrics.py, and the isolation suite fails if that ever changes. The legacy
 # QTA hardware-forecast gate table -- whose historical PASS_count is 0, a fact
 # about that forecast and not a measure of this software -- is unaffected by
@@ -49,7 +49,7 @@ on:
   push:
     branches: ["**"]
     paths:
-      - "qta_agent/**"
+      - "agent_substrate/**"
       - "tests/test_agent_*.py"
       - "tools/mutation_matrix.py"
       - "tools/mutation_shards.py"
@@ -89,7 +89,7 @@ env:
   # NF-1T: the learned-model tests need the `neural` extra, which every sync
   # below installs. Where it is absent they FAIL instead of skipping, so a
   # job that synced the wrong environment cannot go green by skipping them.
-  QTA_NEURAL_REQUIRED: "1"
+  HARNESS_NEURAL_REQUIRED: "1"
 jobs:
   agent-substrate:
     runs-on: ubuntu-latest
@@ -102,10 +102,10 @@ jobs:
       - name: sync environment
         run: uv sync --frozen --all-groups --extra neural
       - name: lint the substrate and the guarded Stage-10 modules
-        # qta_agent/ is not in ruff's per-file-ignores, so E501 applies at the
+        # agent_substrate/ is not in ruff's per-file-ignores, so E501 applies at the
         # project's 79-column setting like any other non-legacy module.
         run: |
-          uv run ruff check qta_agent qta_multiphysics/stack \
+          uv run ruff check agent_substrate qta_multiphysics/stack \
             tests/test_agent_*.py tests/test_mutation_harness.py \
             tools/mutation_matrix.py tools/completion_matrix.py \
             tools/mutation_shards.py tests/test_mutation_shards.py \
@@ -201,7 +201,7 @@ jobs:
         # reducers by name; this walks every production file for the next
         # one -- a raw log read, a tail parse, read_from resurrected, or the
         # log file opened directly. EventLog.read() also refuses any other
-        # qta_agent module at run time; this is the static half.
+        # agent_substrate module at run time; this is the static half.
         run: uv run python tools/verified_read_guard.py
       - name: every direct import is declared where it is needed
         # D-2026-74. CI installs every group, so it cannot see a package that
@@ -322,7 +322,7 @@ jobs:
         # where the three quadratic paths this repository has recorded each
         # became visible. A knob nobody turns is a comment.
         run: |
-          QTA_HORIZON_CYCLES=1200 uv run python -m pytest \
+          HARNESS_HORIZON_CYCLES=1200 uv run python -m pytest \
             tests/test_agent_long_horizon.py -q -p no:randomly
       - name: fuzz the parsers and trust boundaries
         # Two jobs: replay every committed regression input, then run a
@@ -362,7 +362,7 @@ jobs:
           uv run python tools/audit_log.py "$LOG" replay
           uv run python tools/audit_log.py "$LOG" decisions --all
       - name: the governed scientific-model path actually runs
-        # The production caller of qta_agent.governed_model: thermal 1D run
+        # The production caller of agent_substrate.governed_model: thermal 1D run
         # and independently checked as two governed tasks, decided through
         # the authority store's content rule, then proposed again and
         # REUSED without a second model run -- and recomputed for other
@@ -497,9 +497,9 @@ jobs:
               tools/mutations/checkpoint_recovery.json
               tools/mutations/enforcement_asserts.json
               tools/mutations/generic_consistency.json
+              tools/mutations/governed_tasks_authority.json
               tools/mutations/harness_status.json
               tools/mutations/repo_contract.json
-              tools/mutations/stage10_authority.json
               tools/mutations/supply_chain.json
           - shard: 7
             specs: >-

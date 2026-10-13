@@ -2,7 +2,7 @@
 resolution, disagreement reported and never resolved.
 
 The SALib-dependent tests skip without SALib, except where
-QTA_UQ_REQUIRED=1 (stack-verify's full leg sets it) -- there a missing SALib
+HARNESS_UQ_REQUIRED=1 (stack-verify's full leg sets it) -- there a missing SALib
 is a failure, so the global path cannot pass by skipping.
 """
 from __future__ import annotations
@@ -27,8 +27,8 @@ VARIED = ("C1_J_K", "C2_J_K", "G12_W_K", "G2a_W_K", "Q_W")
 def _need_salib():
     if S.salib_available():
         return
-    if os.environ.get("QTA_UQ_REQUIRED") == "1":
-        pytest.fail("QTA_UQ_REQUIRED=1 and SALib is not installed")
+    if os.environ.get("HARNESS_UQ_REQUIRED") == "1":
+        pytest.fail("HARNESS_UQ_REQUIRED=1 and SALib is not installed")
     pytest.skip("SALib (the uq extra) is not installed")
 
 

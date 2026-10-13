@@ -19,15 +19,15 @@ required boundaries is missing. A sentence nobody enforces is not listed here.
 | EB1 | A simulation result is not a measurement. | `scientific/observation.py` (MEASURED); `scientific/result.py` (ResultBundle) |
 | EB2 | A synthetic observation is not a raw observation. | `scientific/observation.py` (SIMULATED) |
 | EB3 | Numerical convergence is not physical validation. | `scientific/verification.py` (Establishes) |
-| EB4 | Independent numerical agreement is not experimental validation. | `qta_agent/result_rules.py` (verification_problems); `scientific/verification.py` (Establishes) |
-| EB5 | A signed or content-addressed artifact is not a scientifically correct one. | `qta_agent/result_rules.py` (admission_problems); `qta_agent/evidence.py` (EvidenceStore) |
-| EB6 | An AI proposal is not a verified result. | `qta_agent/authority.py` (check) |
-| EB7 | Tool completion is not an accepted scientific result. | `qta_agent/governed_model.py` (GovernedModelRuns) |
+| EB4 | Independent numerical agreement is not experimental validation. | `agent_substrate/result_rules.py` (verification_problems); `scientific/verification.py` (Establishes) |
+| EB5 | A signed or content-addressed artifact is not a scientifically correct one. | `agent_substrate/result_rules.py` (admission_problems); `agent_substrate/evidence.py` (EvidenceStore) |
+| EB6 | An AI proposal is not a verified result. | `agent_substrate/authority.py` (check) |
+| EB7 | Tool completion is not an accepted scientific result. | `agent_substrate/governed_model.py` (GovernedModelRuns) |
 | EB8 | Retrieved RAG text is not evidence authority. | `qta_multiphysics/stack/rag_index.py` (retrieve) |
 | EB9 | A surrogate prediction is not ground truth. | `scientific/observation.py` (SIMULATED); `qta_multiphysics/deep_expdesign/ood.py` (fit_ood) |
 | EB10 | An optimization result is not a physical optimum. | `qta_multiphysics/stack/mdao_openmdao.py` (assert_design_variables); `scientific/observation.py` (SIMULATED) |
 | EB11 | Model calibration is not model validation. | `scientific/verification.py` (Establishes); `scientific/observation.py` (MEASURED) |
-| EB12 | A learned prediction is not authority: no learned record can be VERIFIED or PROMOTED. | `qta_agent/learned_rules.py` (refusal); `qta_agent/store.py` (AuthorityStore); `qta_agent/reconstruct.py` (_LEARNED_PREFIX) |
+| EB12 | A learned prediction is not authority: no learned record can be VERIFIED or PROMOTED. | `agent_substrate/learned_rules.py` (refusal); `agent_substrate/store.py` (AuthorityStore); `agent_substrate/reconstruct.py` (_LEARNED_PREFIX) |
 | EB13 | A meta-validated architecture is not an allocated, trained or validated model. | `scientific_ai/neural/claims.py` (evaluate); `scientific_ai/neural/model/meta.py` (materialize) |
 | EB14 | A development model's training is not the flagship's. | `scientific_ai/neural/claims.py` (evaluate); `scientific_ai/neural/claims.py` (derive_status) |
 | EB15 | A legacy QTA gate-table PASS count is not a status of the current harness. | `tools/pass_semantics_audit.py` (judge); `scientific_ai/neural/status.py` (build) |

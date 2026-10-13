@@ -28,7 +28,7 @@ SOURCES = sorted(PKG.rglob("*.py"))
 PURE = ["config", "accounting", "solver", "family", "estimates", "claims",
         "manifests", "units", "tokens", "features", "documents", "datasets",
         "constraints", "ood", "source_surface_adsorption"]
-FORBIDDEN_PACKAGES = ("qta_multiphysics", "qta_agent", "qta_full_sim",
+FORBIDDEN_PACKAGES = ("qta_multiphysics", "agent_substrate", "qta_full_sim",
                       "qta_sim_stages", "package_consistency_check")
 
 
@@ -72,23 +72,23 @@ def test_no_substrate_source_names_a_machine_mode_or_species_route(path):
 
 
 def test_only_the_ledger_tool_reaches_the_authority_substrate():
-    """The tool that generates data and trains never loads qta_agent.
+    """The tool that generates data and trains never loads agent_substrate.
 
     ``tools/neural.py`` runs the governed source model and trains; recording
     documents in an authority history is ``tools/neural_ledger.py``'s job,
-    in its own process. An import of qta_agent creeping back into the
+    in its own process. An import of agent_substrate creeping back into the
     generating tool would put a dataset and an authority verdict in one
     process -- the direction tests/test_agent_substrate_isolation.py exists
     to keep closed.
     """
     tools = ROOT / "tools"
     gen = _imports(tools / "neural.py")
-    assert not [n for n in gen if n.split(".")[0] == "qta_agent"], gen
+    assert not [n for n in gen if n.split(".")[0] == "agent_substrate"], gen
     assert "neural_ledger" not in gen
     assert "neural_ledger.py" in (tools / "neural.py").read_text(
         encoding="utf-8"), "the generating tool no longer runs the ledger"
     led = _imports(tools / "neural_ledger.py")
-    assert any(n.split(".")[0] == "qta_agent" for n in led)
+    assert any(n.split(".")[0] == "agent_substrate" for n in led)
 
 
 def test_no_substrate_test_names_them_either():
@@ -102,7 +102,7 @@ def test_the_pure_modules_load_no_framework():
     mods = ", ".join(f"scientific_ai.neural.{m}" for m in PURE)
     code = (f"import sys; import {mods}; "
             "bad = [m for m in sys.modules if m.split('.')[0] in "
-            "('jax', 'jaxlib', 'torch', 'qta_multiphysics', 'qta_agent')]; "
+            "('jax', 'jaxlib', 'torch', 'qta_multiphysics', 'agent_substrate')]; "
             "print(bad); sys.exit(1 if bad else 0)")
     r = subprocess.run([sys.executable, "-c", code], cwd=ROOT,
                        capture_output=True, text=True)
@@ -123,7 +123,7 @@ def test_jax_is_imported_in_exactly_one_guarded_place():
 
 def test_the_governance_layer_imports_no_numerics():
     for name in ("learned_rules.py", "learned_lifecycle.py"):
-        for imp in _imports(ROOT / "qta_agent" / name):
+        for imp in _imports(ROOT / "agent_substrate" / name):
             assert imp.split(".")[0] not in ("scientific", "scientific_ai",
                                              "numpy", "jax"), (name, imp)
 

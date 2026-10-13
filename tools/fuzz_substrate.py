@@ -3,8 +3,8 @@
 
 WHAT THIS IS FOR
 
-Every module in ``qta_agent`` refuses malformed input somewhere, and each of
-those refusals was written against the malformed inputs its author thought
+Every module in ``agent_substrate`` refuses malformed input somewhere, and each
+of those refusals was written against the malformed inputs its author thought
 of. Fuzzing is the part that supplies the ones nobody thought of: truncated
 records, type confusion, absurd sizes, structures that are valid JSON and
 invalid everything else.
@@ -97,7 +97,7 @@ class _Deadline:
 
 # ---- targets -------------------------------------------------------------
 def _log_reader(data: bytes):
-    from qta_agent.events import EventLog
+    from agent_substrate.events import EventLog
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "log.jsonl"
         path.write_bytes(data)
@@ -105,7 +105,7 @@ def _log_reader(data: bytes):
 
 
 def _head_reader(data: bytes):
-    from qta_agent.events import EventLog
+    from agent_substrate.events import EventLog
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "log.jsonl"
         path.write_bytes(b"")
@@ -114,7 +114,7 @@ def _head_reader(data: bytes):
 
 
 def _checkpoint_reader(data: bytes):
-    from qta_agent.checkpoint import CheckpointStore
+    from agent_substrate.checkpoint import CheckpointStore
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp) / "checkpoints"
         d.mkdir()
@@ -124,7 +124,7 @@ def _checkpoint_reader(data: bytes):
 
 
 def _evidence_name(data: bytes):
-    from qta_agent.evidence import EvidenceStore
+    from agent_substrate.evidence import EvidenceStore
     with tempfile.TemporaryDirectory() as tmp:
         return EvidenceStore(Path(tmp)).contains(
             data.decode("utf-8", "surrogateescape"))
@@ -138,7 +138,7 @@ def _read_path(data: bytes):
     as a string, it is compared against an authority, and it is then handed
     to the kernel. Anything it accepts, it accepts on behalf of a reader.
     """
-    from qta_agent.safeio import split_relative
+    from agent_substrate.safeio import split_relative
 
     return split_relative(data.decode("utf-8", "surrogateescape"))
 
@@ -154,7 +154,7 @@ def _read_beneath(data: bytes):
     import os
     import tempfile
 
-    from qta_agent.safeio import ReadRoot
+    from agent_substrate.safeio import ReadRoot
 
     rel = data.decode("utf-8", "surrogateescape")
     with tempfile.TemporaryDirectory() as d:
@@ -184,11 +184,11 @@ def replay_invariants(path) -> int:
     and an invariant that cannot fire is indistinguishable from one that
     holds.
     """
-    from qta_agent.events import EventLog
-    from qta_agent.policy import PolicyStore
-    from qta_agent.reconstruct import compare, reconstruct
-    from qta_agent.scheduler import JobState, Scheduler
-    from qta_agent.store import AuthorityStore
+    from agent_substrate.events import EventLog
+    from agent_substrate.policy import PolicyStore
+    from agent_substrate.reconstruct import compare, reconstruct
+    from agent_substrate.scheduler import JobState, Scheduler
+    from agent_substrate.store import AuthorityStore
 
     report = EventLog(path).verify()
     if not report.ok:
@@ -246,14 +246,14 @@ def _scheduler_sequence(data: bytes):
     """
     import tempfile
 
-    from qta_agent.authority import Role, State, TransitionError
-    from qta_agent.canonical import digest
-    from qta_agent.events import EventLog
-    from qta_agent.policy import PolicyError, PolicyStore
-    from qta_agent.scheduler import (
+    from agent_substrate.authority import Role, State, TransitionError
+    from agent_substrate.canonical import digest
+    from agent_substrate.events import EventLog
+    from agent_substrate.policy import PolicyError, PolicyStore
+    from agent_substrate.scheduler import (
         FailureClass, Scheduler, SchedulerError, default_policy,
     )
-    from qta_agent.store import AuthorityStore, StoreError
+    from agent_substrate.store import AuthorityStore, StoreError
 
     if not data:
         return None
@@ -342,8 +342,8 @@ def _policy_decision(data: bytes):
     thing standing between a forged ALLOW and every reader downstream
     repeating it.
     """
-    from qta_agent.events import EventLog
-    from qta_agent.policy import (
+    from agent_substrate.events import EventLog
+    from agent_substrate.policy import (
         ACT_POLICY_DECISION, ANY, Effect, PolicyStore, document, rule,
     )
     rec = json.loads(data.decode("utf-8", "surrogateescape"))
@@ -367,10 +367,10 @@ def _capability_chain(data: bytes):
     authority question the shape cannot ask: who minted it, what it claims to
     derive from, and whether that derivation widens anything.
     """
-    from qta_agent.capability import (
+    from agent_substrate.capability import (
         ACT_ISSUE, Action, CapabilityLedger, issue,
     )
-    from qta_agent.events import EventLog
+    from agent_substrate.events import EventLog
     rec = json.loads(data.decode("utf-8", "surrogateescape"))
     with tempfile.TemporaryDirectory() as tmp:
         log = EventLog(Path(tmp) / "log.jsonl")
@@ -385,26 +385,26 @@ def _capability_chain(data: bytes):
 
 
 def _url_target(data: bytes):
-    from qta_agent.netauth import parse_target
+    from agent_substrate.netauth import parse_target
     return parse_target(data.decode("utf-8", "surrogateescape"))
 
 
 def _host_match(data: bytes):
-    from qta_agent.netauth import host_matches
+    from agent_substrate.netauth import host_matches
     text = data.decode("utf-8", "surrogateescape")
     half = len(text) // 2 or 1
     return host_matches(text[:half], text[half:])
 
 
 def _redactor(data: bytes):
-    from qta_agent.secrets import Redactor
+    from agent_substrate.secrets import Redactor
     r = Redactor()
     r.add("s1", "a-secret-value-long-enough")
     return r.walk(data.decode("utf-8", "surrogateescape"))
 
 
 def _canonical(data: bytes):
-    from qta_agent.canonical import canonical_bytes
+    from agent_substrate.canonical import canonical_bytes
     return canonical_bytes(json.loads(data.decode("utf-8",
                                                   "surrogateescape")))
 
@@ -419,7 +419,7 @@ def _rag_index(data: bytes):
 
 
 def _proposal_refused():
-    from qta_agent.proposals import ProposalRefused
+    from agent_substrate.proposals import ProposalRefused
     return ProposalRefused
 
 
@@ -440,12 +440,12 @@ def _hdf5_refused():
 
 
 def _auth_error():
-    from qta_agent.principals import AuthenticationError
+    from agent_substrate.principals import AuthenticationError
     return AuthenticationError
 
 
 def _registry_seed() -> bytes:
-    from qta_agent import principals as pr
+    from agent_substrate import principals as pr
     reg = pr.KeyRegistry([pr.test_identity("owner").registered(),
                           pr.test_identity("alice").registered()],
                          allow_test_keys=True)
@@ -462,8 +462,8 @@ _GENUINE: dict = {}
 def _genuine_history():
     if _GENUINE:
         return _GENUINE
-    from qta_agent import principals as pr
-    from qta_agent.events import EventLog
+    from agent_substrate import principals as pr
+    from agent_substrate.events import EventLog
     tmp = Path(tempfile.mkdtemp(prefix="fuzz-att-"))
     log = EventLog(tmp / "log.jsonl")
     owner, alice = pr.test_identity("owner"), pr.test_identity("alice")
@@ -492,7 +492,7 @@ def _attestation_file(data: bytes):
     authenticated only if the file holds its GENUINE attestation. Anything
     else authenticated is ACCEPTED, the finding that matters.
     """
-    from qta_agent import principals as pr
+    from agent_substrate import principals as pr
     g = _genuine_history()
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "att.jsonl"
@@ -520,7 +520,7 @@ def _key_registry(data: bytes):
     """Fuzz a key-registry document. A document is refused or it is a
     registry whose every key id is derived from its key and whose every
     lifecycle is coherent -- nothing in between."""
-    from qta_agent import principals as pr
+    from agent_substrate import principals as pr
     reg = pr.KeyRegistry.from_bytes(data, allow_test_keys=True)
     for key in reg._keys.values():
         if key.key_id != pr.key_id(key.public, test=key.is_test):
@@ -569,8 +569,8 @@ def _proc_maps(data: bytes):
 # ---- the harness completion programme's parsers -------------------------
 
 def _envelope_seed() -> bytes:
-    from qta_agent import proposals as PR
-    from qta_agent.canonical import digest
+    from agent_substrate import proposals as PR
+    from agent_substrate.canonical import digest
     fixture = ROOT / "integrations" / "proposals" / "recorded_fixture.jsonl"
     ad = PR.RecordedFixtureAdapter(fixture.read_text(encoding="utf-8"))
     resp = next(iter(ad.responses({})))
@@ -586,7 +586,7 @@ def _proposal_envelope(data: bytes):
     """A proposal as an AI sends it. Whatever is accepted is sealed by its
     own content, NON_AUTHORITATIVE, and carries no authority-shaped key at
     any depth."""
-    from qta_agent import proposals as PR
+    from agent_substrate import proposals as PR
     env = PR.ProposalEnvelope.parse(json.loads(data.decode("utf-8")))
     rec = env.record
     if rec["proposal_id"] != PR.proposal_id_of(rec):
@@ -766,23 +766,23 @@ def _hdf5_reader(data: bytes):
 
 def _targets() -> dict:
     """name -> (callable, declared refusal exceptions, seed inputs)."""
-    from qta_agent.agents import (
+    from agent_substrate.agents import (
         AgentError, escalation_from_record, identity_from_record,
         message_from_record,
     )
-    from qta_agent.capability import (
+    from agent_substrate.capability import (
         CapabilityError, capability_from_record,
     )
-    from qta_agent.canonical import CanonicalizationError
-    from qta_agent.checkpoint import CheckpointError
-    from qta_agent.context import ContextError, manifest_from_record
-    from qta_agent.events import EventLogError
-    from qta_agent.evidence import EvidenceError
-    from qta_agent.memory import MemoryError_, entry_from_record
-    from qta_agent.safeio import SafeIOError
-    from qta_agent.netauth import NetworkError, grant_from_record
-    from qta_agent.policy import PolicyError, document_from_record
-    from qta_agent.scheduler import SchedulerError, job_from_record
+    from agent_substrate.canonical import CanonicalizationError
+    from agent_substrate.checkpoint import CheckpointError
+    from agent_substrate.context import ContextError, manifest_from_record
+    from agent_substrate.events import EventLogError
+    from agent_substrate.evidence import EvidenceError
+    from agent_substrate.memory import MemoryError_, entry_from_record
+    from agent_substrate.safeio import SafeIOError
+    from agent_substrate.netauth import NetworkError, grant_from_record
+    from agent_substrate.policy import PolicyError, document_from_record
+    from agent_substrate.scheduler import SchedulerError, job_from_record
 
     #: Every target may also raise these: a malformed byte string is not JSON
     #: and is not valid UTF-8, and saying so is a refusal like any other.
@@ -952,7 +952,7 @@ def _targets() -> dict:
 #
 # sys.monitoring (PEP 669) charges only for the code objects that stay
 # instrumented, and the callback returns DISABLE for every file outside
-# qta_agent -- permanently, per instruction. Measured cost on this suite:
+# agent_substrate -- permanently, per instruction. Measured cost on this suite:
 # 1.3x, against roughly 30x for sys.settrace. A tracer nobody can afford to
 # leave on is a tracer that gets switched off.
 
@@ -1002,12 +1002,12 @@ def _take_features() -> frozenset:
 
 #: Where coverage is counted: the substrate, and the scientific core, whose
 #: parsers read what the host says about itself (``cpuinfo``, ``proc_maps``).
-_COVERED = ("qta_agent", f"{os.sep}scientific{os.sep}")
+_COVERED = ("agent_substrate", f"{os.sep}scientific{os.sep}")
 
 
 class Coverage:
-    """Line coverage inside ``qta_agent`` and ``scientific``, collected per
-    case.
+    """Line coverage inside ``agent_substrate`` and ``scientific``, collected
+    per case.
 
     Falls back to collecting NOTHING when sys.monitoring is unavailable or
     its tool slot is taken -- and says so rather than reporting an empty

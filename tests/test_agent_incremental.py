@@ -30,11 +30,11 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.canonical import digest, is_digest  # noqa: E402
-from qta_agent.events import ChainBroken, EventLog  # noqa: E402
-from qta_agent.policy import PolicyStore  # noqa: E402
-from qta_agent.scheduler import Scheduler, default_policy  # noqa: E402
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.canonical import digest, is_digest  # noqa: E402
+from agent_substrate.events import ChainBroken, EventLog  # noqa: E402
+from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.scheduler import Scheduler, default_policy  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 
 class CountingLog(EventLog):

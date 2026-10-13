@@ -226,7 +226,7 @@ class Lease:
     #: is the log the dead process was writing to. This is the evidence
     #: that breaks that deadlock without introducing wall-clock deadlines:
     #: a recovering supervisor can ask the operating system whether the
-    #: holder is still there. See qta_agent.hostid for why a bare pid is
+    #: holder is still there. See agent_substrate.hostid for why a bare pid is
     #: not enough to ask with.
     #:
     #: Optional, and absent means "cannot say", never "gone".

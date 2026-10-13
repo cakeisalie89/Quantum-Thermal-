@@ -19,17 +19,17 @@ ROOT = str(Path(__file__).resolve().parent.parent)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from qta_agent.capability import (  # noqa: E402
+from agent_substrate.capability import (  # noqa: E402
     Action, Capability, CapabilityDenied, CapabilityError,
     CapabilityExpired, CapabilityNotYetIssued, CapabilityRevoked,
     CapabilitySet, CapabilityUnknown, Request, capability_from_record,
     digest_is_consistent, issue,
 )
-from qta_agent.execution import (  # noqa: E402
+from agent_substrate.execution import (  # noqa: E402
     RETRYABLE, SUCCESSFUL, CancellationToken, ExecutionResult, Executor,
     Limits, Outcome, run_bounded,
 )
-from qta_agent.tools import (  # noqa: E402
+from agent_substrate.tools import (  # noqa: E402
     Determinism, Field_, OutputFile, Registry, SideEffect,
     ToolContractViolation, ToolError, ToolNotRegistered, ToolSpec,
 )
@@ -378,16 +378,16 @@ def test_registration_is_checked_before_authorization(env):
 
 def test_the_child_does_not_inherit_the_callers_environment(env):
     """Inheritance is how a tool acquires credentials nobody granted it."""
-    os.environ["QTA_TEST_SECRET"] = "do-not-leak"
+    os.environ["HARNESS_TEST_SECRET"] = "do-not-leak"
     try:
         r = _run(env, [PY, "-c",
-                       "import os; print(os.environ.get('QTA_TEST_SECRET','ABSENT'))"])
+                       "import os; print(os.environ.get('HARNESS_TEST_SECRET','ABSENT'))"])
         assert r.outcome is Outcome.COMPLETED
         # The digest of b"ABSENT\n" -- the secret did not cross the boundary.
-        from qta_agent.canonical import digest_bytes
+        from agent_substrate.canonical import digest_bytes
         assert r.stdout_digest == digest_bytes(b"ABSENT\n")
     finally:
-        del os.environ["QTA_TEST_SECRET"]
+        del os.environ["HARNESS_TEST_SECRET"]
 
 
 def test_the_output_cap_is_enforced_by_the_kernel(env):
@@ -429,7 +429,7 @@ def test_the_child_is_recorded_by_identity_and_not_by_pid_alone(env):
     ``child_process`` key with a plausible number in it, which is the shape
     an unchecked field always has.
     """
-    from qta_agent.hostid import ProcessIdentity
+    from agent_substrate.hostid import ProcessIdentity
 
     r = _run(env, [PY, "-c", "print('ok')"])
     assert r.outcome is Outcome.COMPLETED, r.reason
@@ -544,7 +544,7 @@ def test_the_executor_never_signals_its_own_process_group(env, tmp_path):
     """
     import subprocess as sp
 
-    from qta_agent import execution as X
+    from agent_substrate import execution as X
 
     class _SameGroup:
         """A stand-in whose pid really is in our process group."""
@@ -586,7 +586,7 @@ def test_the_task_limit_is_relative_to_what_the_user_already_uses(env):
     reported SIGINT with no obvious cause. The limit now means "this much MORE
     than the user is already using".
     """
-    from qta_agent.execution import count_user_tasks
+    from agent_substrate.execution import count_user_tasks
 
     baseline = count_user_tasks()
     assert baseline > 0, "this process is owned by someone"
@@ -646,8 +646,8 @@ def test_a_very_large_excerpt_is_elided_in_the_middle(env):
 # ---------------------------------------------------------------------------
 
 def _ledger(tmp_path):
-    from qta_agent.capability import CapabilityLedger
-    from qta_agent.events import EventLog
+    from agent_substrate.capability import CapabilityLedger
+    from agent_substrate.events import EventLog
 
     log = EventLog(tmp_path / "caps.jsonl")
     return log, CapabilityLedger(log).load()
@@ -673,7 +673,7 @@ def test_a_grant_the_log_never_recorded_is_not_in_force(tmp_path):
                                                 "capability.issue"]
     assert ledger.root_issuer() == "scheduler"
     # A second ledger, built only from the log, reaches the same verdict.
-    from qta_agent.capability import CapabilityLedger
+    from agent_substrate.capability import CapabilityLedger
     rebuilt = CapabilityLedger(log).load()
     assert rebuilt.in_force(2).check(
         "c1", Request(actor="agent-1", action=Action.EXECUTE_TOOL,
@@ -702,7 +702,7 @@ def test_revocation_recorded_in_the_log_stops_a_grant(tmp_path):
     ledger.issue(_cap(), actor="scheduler")
     ledger.revoke("c1", actor="scheduler", reason="withdrawn")
 
-    from qta_agent.capability import CapabilityLedger
+    from agent_substrate.capability import CapabilityLedger
     rebuilt = CapabilityLedger(log).load()
     assert rebuilt.revoked_ids() == ("c1",)
     with pytest.raises(CapabilityRevoked):
@@ -728,7 +728,7 @@ def test_one_capability_id_cannot_name_two_different_grants(tmp_path):
 
     # And a log that already contains such a pair is refused on projection,
     # rather than silently resolving to whichever came last.
-    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+    from agent_substrate.capability import ACT_ISSUE, CapabilityLedger
     conflicting = _cap(tool_id="other")
     log.append(actor="mallory", action=ACT_ISSUE, target="t1",
                payload={"task_id": "t1", **conflicting.body()})
@@ -746,7 +746,7 @@ def test_the_same_grant_recorded_twice_is_not_a_conflict(tmp_path):
     :meth:`issue` returns -- the ledger stamps the grant's start with the seq
     its record lands at, so a caller's pre-stamp copy is a different grant.
     """
-    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+    from agent_substrate.capability import ACT_ISSUE, CapabilityLedger
 
     log, ledger = _ledger(tmp_path)
     cap = ledger.issue(_cap(), actor="scheduler")
@@ -756,7 +756,7 @@ def test_the_same_grant_recorded_twice_is_not_a_conflict(tmp_path):
 
 
 def test_a_revocation_naming_no_capability_is_refused(tmp_path):
-    from qta_agent.capability import ACT_REVOKE, CapabilityLedger
+    from agent_substrate.capability import ACT_REVOKE, CapabilityLedger
 
     log, ledger = _ledger(tmp_path)
     ledger.issue(_cap(), actor="scheduler")
@@ -770,8 +770,8 @@ def test_the_ledger_refuses_to_project_an_unverified_log(tmp_path):
     grants. Fail closed, as every other projection in this package does."""
     import json
 
-    from qta_agent.capability import CapabilityLedger
-    from qta_agent.events import ChainBroken
+    from agent_substrate.capability import CapabilityLedger
+    from agent_substrate.events import ChainBroken
 
     log, ledger = _ledger(tmp_path)
     ledger.issue(_cap(), actor="scheduler")
@@ -789,7 +789,7 @@ def test_the_ledger_skips_foreign_events_without_dropping_unknown_ones(
         tmp_path):
     """Several subsystems share one log; that must not make the ledger blind
     to an action nothing in this package writes."""
-    from qta_agent.capability import CapabilityLedger
+    from agent_substrate.capability import CapabilityLedger
 
     log, ledger = _ledger(tmp_path)
     log.append(actor="w", action="task.create", target="t1",
@@ -846,7 +846,7 @@ def test_the_ledger_stamps_the_start_rather_than_taking_it_from_the_caller(
 def test_a_record_that_names_its_own_start_is_refused_on_replay(tmp_path):
     """And the same rule from the other side: a record written around
     :meth:`issue` cannot claim a start of its own choosing."""
-    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+    from agent_substrate.capability import ACT_ISSUE, CapabilityLedger
 
     log, ledger = _ledger(tmp_path)
     for i in range(3):

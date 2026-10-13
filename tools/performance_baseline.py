@@ -88,7 +88,7 @@ def measure() -> list:
     """Run the guards and return what they measured."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "perf.jsonl"
-        env = dict(os.environ, QTA_PERF_OUT=str(out))
+        env = dict(os.environ, HARNESS_PERF_OUT=str(out))
         proc = subprocess.run(
             [sys.executable, "-m", "pytest", SUITE, "-q", "-p", "no:randomly"],
             cwd=str(ROOT), env=env, capture_output=True, text=True)

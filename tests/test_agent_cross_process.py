@@ -21,7 +21,7 @@ THE FIX THESE TESTS PIN
 
 An append that a decision depends on is now CONDITIONAL on the log not
 having moved since the decision was made
-(:meth:`qta_agent.events.EventLog.append_if_head`). The loser of a race
+(:meth:`agent_substrate.events.EventLog.append_if_head`). The loser of a race
 re-reads, discovers the job is no longer READY, and refuses -- which is the
 outcome the single-process tests always described and the multi-process
 reality did not deliver.
@@ -56,16 +56,16 @@ if HERE not in sys.path:
 
 from hangguard import PROCESS_DEADLINE_S  # noqa: E402
 
-from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.policy import PolicyStore  # noqa: E402
-from qta_agent.scheduler import (  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.scheduler import (  # noqa: E402
     ACT_JOB_TRANSITION, FailureClass, JobState, JobTransitionError,
     Scheduler, default_policy,
 )
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 WORK = digest({"work": "stage10"})
 
@@ -106,9 +106,9 @@ def _wait_for_start(go: str) -> None:
 
 def _open_scheduler(path):
     sys.path.insert(0, str(ROOT))
-    from qta_agent.events import EventLog as _EL
-    from qta_agent.policy import PolicyStore as _PS
-    from qta_agent.scheduler import Scheduler as _S
+    from agent_substrate.events import EventLog as _EL
+    from agent_substrate.policy import PolicyStore as _PS
+    from agent_substrate.scheduler import Scheduler as _S
     log = _EL(path)
     return _S(log, policy=_PS(log).load(), policy_id="scheduler.default",
               capacity={"slots": 1000}).load()
@@ -144,9 +144,9 @@ def _dispatch_many_worker(args):
 def _transition_worker(args):
     path, tag, go = args
     sys.path.insert(0, str(ROOT))
-    from qta_agent.authority import Role as _Role, State as _State
-    from qta_agent.events import EventLog as _EL
-    from qta_agent.store import AuthorityStore as _AS
+    from agent_substrate.authority import Role as _Role, State as _State
+    from agent_substrate.events import EventLog as _EL
+    from agent_substrate.store import AuthorityStore as _AS
     store = _AS(_EL(path)).load()
     _wait_for_start(go)
     try:
@@ -160,8 +160,8 @@ def _transition_worker(args):
 def _create_worker(args):
     path, tag, go = args
     sys.path.insert(0, str(ROOT))
-    from qta_agent.events import EventLog as _EL
-    from qta_agent.store import AuthorityStore as _AS
+    from agent_substrate.events import EventLog as _EL
+    from agent_substrate.store import AuthorityStore as _AS
     store = _AS(_EL(path)).load()
     _wait_for_start(go)
     try:
@@ -181,8 +181,8 @@ def _unconditional_worker(args):
     """
     path, tag, src, go = args
     sys.path.insert(0, str(ROOT))
-    from qta_agent.events import EventLog as _EL
-    from qta_agent.scheduler import ACT_JOB_TRANSITION as _ACT
+    from agent_substrate.events import EventLog as _EL
+    from agent_substrate.scheduler import ACT_JOB_TRANSITION as _ACT
     sched = _open_scheduler(path)
     job = sched.get("j1")
     _wait_for_start(go)
@@ -220,8 +220,8 @@ def _stress_worker(args):
     """
     path, tag, rounds, seed, go = args
     sys.path.insert(0, str(ROOT))
-    from qta_agent.canonical import digest as _digest
-    from qta_agent.scheduler import FailureClass as _FC
+    from agent_substrate.canonical import digest as _digest
+    from agent_substrate.scheduler import FailureClass as _FC
     sched = _open_scheduler(path)
     rng = random.Random(seed)
     _wait_for_start(go)
@@ -539,7 +539,7 @@ def test_a_refused_lease_renewal_writes_nothing(tmp_path):
     caller saw the right exception and every later load() hit the same
     refusal with nothing to catch it.
     """
-    from qta_agent.scheduler import JobTransitionError
+    from agent_substrate.scheduler import JobTransitionError
 
     log, sched = _world(tmp_path)
     sched.enqueue(job_id="j1", work_digest=WORK, submitter="sub")
@@ -633,7 +633,7 @@ def test_the_requeue_guard_is_not_refusing_everything(tmp_path):
 
 def test_a_refused_transition_writes_nothing(tmp_path):
     """The same property on the authority store."""
-    from qta_agent.authority import TransitionError
+    from agent_substrate.authority import TransitionError
 
     log = EventLog(tmp_path / "log.jsonl")
     store = AuthorityStore(log).load()
@@ -1062,8 +1062,8 @@ def test_reconcile_survives_a_job_that_moved_under_its_scan(tmp_path,
 def _forge(path, src, dst, job_id, actor):
     """Append a well-formed transition the gate would never have written."""
     sys.path.insert(0, str(ROOT))
-    from qta_agent.events import EventLog as _EL
-    from qta_agent.scheduler import ACT_JOB_TRANSITION as _ACT
+    from agent_substrate.events import EventLog as _EL
+    from agent_substrate.scheduler import ACT_JOB_TRANSITION as _ACT
     _EL(path).append(
         actor=actor, action=_ACT, target=job_id,
         payload={"job_id": job_id, "src": src, "dst": dst,

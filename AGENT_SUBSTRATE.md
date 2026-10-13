@@ -3,7 +3,7 @@
 Infrastructure for governed scientific agents. Nothing in it is a
 measurement, and nothing in it is a scientific result.
 
-`qta_agent/` is the authority for how claims *about* this project become
+`agent_substrate/` is the authority for how claims *about* this project become
 canonical. It is infrastructure, not science. Read §6 before reading anything
 else into it.
 
@@ -42,7 +42,7 @@ rather than a web:
 | `result_rules.py` | what a `scientific_result` must show before its record is VERIFIED or PROMOTED -- the named, versioned admission policy `scientific_result.admission/1`: a PASS from independent code about that exact bundle, every invariant holding, and ORIGIN: both documents captured by governed tasks before their verdicts, the check run by none of the proposer, the decider and the run's executor. Decided by the store on the live edge, again on replay and on snapshot restore (unreadable evidence: UNVERIFIABLE, never silently VERIFIED), and again by `reconstruct.py` in its own code |
 | `learned_rules.py` | no `learned_*` record becomes VERIFIED or PROMOTED (NF-1T): no admission policy for learned models exists, and every learned output is `LEARNED_PREDICTION`, `NON_AUTHORITATIVE`, `REQUIRES_EXTERNAL_VERIFICATION`. Refused by the store on the live edge before the append and again on replay; restated, not imported, by `reconstruct.py` |
 | `governed_model.py` | a scientific-model result from proposal to authority: the model run and its independent check as two governed tasks by different executors, and the authority decision by a reviewer who did neither (Phase 2); a proposal reuses a VERIFIED or PROMOTED result with the same run identity only when that result's evidence re-derives intact. Each model runs under its own governed tool (thermal 1D and 2D today). Its production caller is the Snakemake rule `s10_governed_model` |
-| `events.py` | append-only hash-chained log; the authority history. State is folded only from `read_verified()` / `read_verified_from()`: the raw `read()` refuses any other `qta_agent` module, and `tools/verified_read_guard.py` refuses it tree-wide (D-2026-76) |
+| `events.py` | append-only hash-chained log; the authority history. State is folded only from `read_verified()` / `read_verified_from()`: the raw `read()` refuses any other `agent_substrate` module, and `tools/verified_read_guard.py` refuses it tree-wide (D-2026-76) |
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |
 | `ed25519.py` | Ed25519 signatures (RFC 8032), standard library only: a REFERENCE implementation -- an oracle, and the signer of test identities. Not the production trust provider: one unaudited transcription, not constant time, and a review surface nobody else maintains |
@@ -62,7 +62,7 @@ rather than a web:
 | `learned_lifecycle.py` | a learned model's documents -- architecture, meta validation, dataset, training run, checkpoint, evaluation, distributed report -- as records through the existing `record.create` / `record.depend` actions, each digest link checked before anything is written; an upstream that is REVOKED, REJECTED or STALE is refused (NF-1T) |
 | `invalidation.py` | transitive consequence of a change |
 | `reconstruct.py` | a *second* implementation, for differential verification |
-| `separate_verify.py` | runs that second reading in another PROCESS, under an import guard that admits only the five modules the reader needs (the package, `events`, `canonical`, `actions`, `reconstruct`) and refuses every other `qta_agent` module -- an allow-list since D-2026-126, when the deny-list it replaced was found never to have named `authority` or `tasks` |
+| `separate_verify.py` | runs that second reading in another PROCESS, under an import guard that admits only the five modules the reader needs (the package, `events`, `canonical`, `actions`, `reconstruct`) and refuses every other `agent_substrate` module -- an allow-list since D-2026-126, when the deny-list it replaced was found never to have named `authority` or `tasks` |
 | `tasks.py` | durable work: state that survives the process that started it |
 | `scheduler.py` | the durable queue: readiness, leases, retry, cancellation |
 | `memory.py` | what the agent remembers, kept structurally apart from evidence |
@@ -70,9 +70,9 @@ rather than a web:
 | `agents.py` | several agents, role separation, and a human that cannot be simulated |
 | `audit.py` | turning the log into answers, and finding provenance holes |
 | `tools/audit_log.py` | those answers as a COMMAND: read-only, fail-closed, and run by CI over the governed run's own log |
-| `_stage10_tool.py` | the subprocess entry point a governed run executes |
-| `_stage10_index_tool.py` | the second tool: it hashes declared workspace files, so its result depends on the workspace rather than on its request — and it needs a READ guard a write allowlist cannot supply |
-| `governed_stage10.py` | **the production caller** — a real workflow, mediated end to end: policy, queue, identities, capability, context, network guard, evidence, independent verification, note |
+| `_artifact_tool.py` | the subprocess entry point a governed run executes |
+| `_index_tool.py` | the second tool: it hashes declared workspace files, so its result depends on the workspace rather than on its request — and it needs a READ guard a write allowlist cannot supply |
+| `governed_tasks.py` | **the production caller** — a real workflow, mediated end to end: policy, queue, identities, capability, context, network guard, evidence, independent verification, note |
 
 **The log is the truth and everything else is derived from it.** A lost
 projection costs time, never authority.
@@ -150,7 +150,7 @@ in turn, and the suite must fail:
 | Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 35 | re-run here |
 | Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 27 | re-run here |
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
-| Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
+| Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/governed_tasks_authority.json` | 15 | CI |
 
 **429 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
 single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
@@ -522,7 +522,7 @@ the live projection on every healthy run. The comparison caught that in its
 first execution, which is the point.
 
 The two differ in what they do about a refusal, deliberately.
-`governed_stage10.projection` is ENFORCEMENT and raises, because a reader that
+`governed_tasks.projection` is ENFORCEMENT and raises, because a reader that
 cannot tell which records went through the gate must not hand back a state.
 `reconstruct_tasks` is DIAGNOSIS and records the problem and keeps going, so
 one bad record does not hide the twenty after it. The governed Snakemake rule
@@ -630,7 +630,7 @@ Hypothesis with the invariants asserted on every reachable state.
 **Agent execution cannot directly mutate authoritative scientific state,
 evidence, or acceptance state except through the governed interfaces and
 event-derived authority machinery.** No solver or scientific model imports
-`qta_agent/`; evidence is content-addressed and append-only; a scientific
+`agent_substrate/`; evidence is content-addressed and append-only; a scientific
 result becomes authority only through an admission the store decides live
 and re-decides on replay. (The hardware-era form of this sentence -- "it
 cannot read or write any of the 83 gates, and PASS = 0 is unaffected" -- was
@@ -705,11 +705,11 @@ the checkpoint names.
 `log.verify().raise_if_bad()` followed by `for ev in log.read()` verifies one
 read of a shared file and folds another; a record appended between the two is
 folded with its chain link unchecked. D-2026-41 closed it in
-`governed_stage10.projection` and nowhere else. It stood in fifteen more
+`governed_tasks.projection` and nowhere else. It stood in fifteen more
 reducers, in `EventLog.advance` -- the O(new) path every live projection's
 catch-up takes -- and in `AuthorityStore.load_from`, whose comment said the
 tail it re-read was the tail "this load already reads and already verified".
-Three helpers in `governed_stage10` read the log with no verification at all,
+Three helpers in `governed_tasks` read the log with no verification at all,
 one of them choosing which tool spec checks a task.
 
 Every one now takes `(report, events)` from ONE pass: `read_verified()` for
@@ -763,7 +763,7 @@ load-bearing. A record from another host, or a kernel that does not publish
 as "it is gone" is how two workers end up running one task — the exact
 failure a lease exists to prevent — so only `GONE` authorises a reclaim.
 
-`GovernedStage10.recover()` is the caller. It runs at the start of every
+`GovernedTasks.recover()` is the caller. It runs at the start of every
 governed run, appends nothing when nothing is stranded, and moves a
 recovered task to `QUEUED` rather than forward. It does **not** complete a
 task from its own execution record, even when that record says the process
@@ -865,7 +865,7 @@ layer that governs nothing is a library, and a library cannot be wrong in the
 way a control plane can — none of these guarantees had ever met a workflow that
 does real work and produces real artifacts.
 
-`governed_stage10.py` puts one through the whole chain:
+`governed_tasks.py` puts one through the whole chain:
 
 ```
 intent → task record → validation → capability grant → lease
@@ -904,7 +904,7 @@ two named modules reaching one named thing, enforced by
 `tests/test_agent_substrate_isolation.py`.
 
 The other direction stays absolutely forbidden. Nothing in the scientific tree
-imports `qta_agent`, and no module here may reach a solver, a scientific
+imports `agent_substrate`, and no module here may reach a solver, a scientific
 model or legacy orchestration — because that is the direction in which an
 authority verdict could change a computed result.
 
@@ -935,7 +935,7 @@ They are kept apart because each is easy to mistake for the next:
 
 A VERIFIED *task* is the first. A `scientific_result` record reaches
 VERIFIED (the third) only through the second, under the admission policy of
-`qta_agent/result_rules.py`, and the policy is re-decided wherever authority
+`agent_substrate/result_rules.py`, and the policy is re-decided wherever authority
 is read back: the live edge refuses what it cannot establish; replay and
 snapshot restore re-decide under the policy the transition recorded, refuse
 what the evidence refutes, and mark UNVERIFIABLE what they cannot read --
@@ -950,7 +950,7 @@ experimental validation, and a report claiming to is refused.
 tests — no existing scientific claim, gate, document or canonical output has
 been re-derived under it.
 
-What HAS changed is that `qta_agent` is no longer consumer-less: a real
+What HAS changed is that `agent_substrate` is no longer consumer-less: a real
 Stage-10 run now goes through task lifecycle, capability, bounded execution,
 evidence and independent verification, and its state survives the process that
 produced it.

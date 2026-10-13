@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "label": "identity-bearing fields of every durable qta_agent action",
+  "label": "identity-bearing fields of every durable agent_substrate action",
   "note": "Reviewed classification; mechanical facts around it are checked by tools/identity_inventory.py, which fails when a new action is unclassified, when an entry names an action that no longer exists, when an entry records the wrong module, when a field uses a role the schema does not define, when an ACTOR field records no write path, no replay or no regression test, when it names a regression test that does not exist, or when the recorded independent-reader coverage disagrees with what reconstruct.py dispatches on. That last check is the one that turns 'the second reader covers every subsystem' from a claim into a measurement -- and 'dispatches on' is meant literally. It used to ask whether the action's name appeared anywhere in reconstruct.py's text, so a name in a docstring, in an anomaly message, or in a comment saying the action is deliberately not handled counted as coverage, while a handler written with single quotes counted as nothing. It is read from the parse tree now, and only from positions that decide which branch runs; an action whose name is present but branched on by nothing is reported as its own category rather than folded into either answer. D-2026-28.",
   "roles": {
     "ACTOR": "must derive from or equal ev.actor",
@@ -529,7 +529,7 @@
     },
     {
       "action": "task.compensation",
-      "module": "governed_stage10.py",
+      "module": "governed_tasks.py",
       "independent_reader": "YES",
       "fields": [
         {
@@ -544,7 +544,7 @@
     },
     {
       "action": "task.create",
-      "module": "governed_stage10.py",
+      "module": "governed_tasks.py",
       "independent_reader": "YES",
       "fields": [
         {
@@ -562,7 +562,7 @@
     },
     {
       "action": "task.evidence",
-      "module": "governed_stage10.py",
+      "module": "governed_tasks.py",
       "independent_reader": "YES",
       "fields": [
         {
@@ -577,7 +577,7 @@
     },
     {
       "action": "task.execution",
-      "module": "governed_stage10.py",
+      "module": "governed_tasks.py",
       "independent_reader": "YES",
       "fields": [
         {
@@ -592,7 +592,7 @@
     },
     {
       "action": "task.reexecution",
-      "module": "governed_stage10.py",
+      "module": "governed_tasks.py",
       "independent_reader": "YES",
       "fields": [
         {
@@ -607,7 +607,7 @@
     },
     {
       "action": "task.separate_verification",
-      "module": "governed_stage10.py",
+      "module": "governed_tasks.py",
       "independent_reader": "YES",
       "fields": [
         {
@@ -622,7 +622,7 @@
     },
     {
       "action": "task.transition",
-      "module": "governed_stage10.py",
+      "module": "governed_tasks.py",
       "independent_reader": "YES",
       "fields": [
         {

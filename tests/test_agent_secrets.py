@@ -21,12 +21,12 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.netauth import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.netauth import (  # noqa: E402
     AddressClass, NetworkAuthority, NetworkRequest, grant as net_grant,
     parse_target,
 )
-from qta_agent.secrets import (  # noqa: E402
+from agent_substrate.secrets import (  # noqa: E402
     ACT_SECRET_ACCESS, ACT_SECRET_GRANT, ANY_PURPOSE, MIN_SECRET_LEN,
     Redactor, Secret, SecretDenied, SecretError, SecretExpired, SecretRef,
     SecretRevoked, SecretStore, UnknownSecret, check_egress_composition,
@@ -178,7 +178,7 @@ def test_the_module_is_honest_about_what_redaction_misses(store):
     import hashlib
     import re
 
-    import qta_agent.secrets as mod
+    import agent_substrate.secrets as mod
     transformed = hashlib.sha256(VALUE.encode()).hexdigest()
     assert store.redactor().text(transformed) == transformed
     assert store.redactor().text(VALUE[::-1]) == VALUE[::-1]
@@ -467,7 +467,7 @@ def test_a_grant_does_not_reach_back_over_a_secret_already_read():
     read authorized?" with yes, for a read that happened before anyone had
     granted anything.
     """
-    from qta_agent.secrets import SecretNotYetIssued
+    from agent_substrate.secrets import SecretNotYetIssued
 
     s = SecretStore()
     s.register("api-token", VALUE)
@@ -510,7 +510,7 @@ def test_reveal_for_refuses_before_the_plaintext_exists(store):
     BEFORE producing the value, so a refusal happens without the plaintext
     ever being constructed.
     """
-    from qta_agent.netauth import (
+    from agent_substrate.netauth import (
         NetworkAuthority, NetworkRequest, grant as net_grant, parse_target,
     )
 
@@ -538,7 +538,7 @@ def test_reveal_for_refuses_before_the_plaintext_exists(store):
 
 def test_reveal_for_refuses_a_denied_destination(store):
     """A destination the network refused is not a destination at all."""
-    from qta_agent.netauth import (
+    from agent_substrate.netauth import (
         NetworkAuthority, NetworkRequest, parse_target,
     )
 
@@ -693,7 +693,7 @@ def test_replay_refuses_a_grant_that_predates_its_own_record(tmp_path):
     log, _ = _logged(tmp_path)
     g = _grant(grant_id="sg2")
     body = dict(g.body(), issued_seq=0)
-    from qta_agent.secrets import grant_from_record
+    from agent_substrate.secrets import grant_from_record
     forged = grant_from_record(body)
     log.append(actor="owner", action=ACT_SECRET_GRANT, target=TASK,
                payload={"grant": body, "grant_digest": forged.digest()})
@@ -705,7 +705,7 @@ def test_replay_refuses_a_rebound_grant_id(tmp_path):
     log, _ = _logged(tmp_path)
     other = _grant(subject="somebody-else")
     body = dict(other.body(), issued_seq=1)
-    from qta_agent.secrets import grant_from_record
+    from agent_substrate.secrets import grant_from_record
     forged = grant_from_record(body)
     log.append(actor="owner", action=ACT_SECRET_GRANT, target=TASK,
                payload={"grant": body, "grant_digest": forged.digest()})

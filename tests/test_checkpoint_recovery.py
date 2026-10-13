@@ -14,11 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import checkpoint as CP  # noqa: E402
-from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate import checkpoint as CP  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 
 def _history(tmp: Path, name: str = "a", n: int = 6):

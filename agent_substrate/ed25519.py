@@ -11,7 +11,7 @@ through their size, so this is safe for VERIFYING (every input is public)
 and for signing with the deterministic TEST identities, and it is not the
 signer a production key should be held by. Production signing is part of
 the key provisioning this repository leaves external (see
-:mod:`qta_agent.principals`).
+:mod:`agent_substrate.principals`).
 """
 from __future__ import annotations
 

@@ -28,8 +28,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.secrets import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.secrets import (  # noqa: E402
     ACT_SECRET_PROVISION, MAX_SECRET_BYTES, MIN_SECRET_LEN,
     FileSecretProvider, MappingSecretProvider, ProviderError,
     ProviderRefused, ProviderUnavailable, SecretError, SecretProvider,
@@ -105,7 +105,7 @@ def test_the_name_rule_refuses_before_the_filesystem_is_asked(
     been decorative. So the filesystem is made to explode, and the name rule
     still has to be the thing that fires.
     """
-    import qta_agent.safeio as safeio
+    import agent_substrate.safeio as safeio
 
     def explode(*a, **k):
         raise AssertionError("the filesystem was consulted for a bad name")
@@ -446,11 +446,11 @@ def test_no_module_in_the_package_reads_a_credential_from_the_environment():
     """
     import ast
 
-    from qta_agent.secrets import looks_like_a_secret_key
+    from agent_substrate.secrets import looks_like_a_secret_key
 
     offenders = []
     inspected = 0
-    for path in sorted((ROOT / "qta_agent").glob("*.py")):
+    for path in sorted((ROOT / "agent_substrate").glob("*.py")):
         inspected += 1
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
@@ -479,8 +479,8 @@ def test_the_governed_environment_still_inherits_nothing(secret_dir,
     BUILT, not copied. Adding a provider is only an improvement if that is
     still true afterwards.
     """
-    from qta_agent.governed_stage10 import GOVERNED_ENV_KEYS
+    from agent_substrate.governed_tasks import GOVERNED_ENV_KEYS
 
-    monkeypatch.setenv("QTA_API_TOKEN", VALUE)
-    assert "QTA_API_TOKEN" not in GOVERNED_ENV_KEYS
-    assert os.environ["QTA_API_TOKEN"] == VALUE
+    monkeypatch.setenv("HARNESS_API_TOKEN", VALUE)
+    assert "HARNESS_API_TOKEN" not in GOVERNED_ENV_KEYS
+    assert os.environ["HARNESS_API_TOKEN"] == VALUE

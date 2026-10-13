@@ -20,7 +20,7 @@ those:
   under its own identity, before anything runs -- so a crash after receipt
   loses nothing, and a resubmission finds the proposal already there;
 * SUBMITTING a MODEL_RUN proposal hands its requested model and parameters
-  to the governed model path (``qta_agent.governed_model``) with the
+  to the governed model path (``agent_substrate.governed_model``) with the
   proposal's id as the idempotency key: the run is then policy-checked,
   capability-bound, executed in a bounded subprocess, re-executed by a
   separate verifier, independently checked by a different executor and

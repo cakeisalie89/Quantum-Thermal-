@@ -295,10 +295,11 @@ def verify_signature(d: Path, policy: dict, *, mode: str,
     bundle = d / BUNDLE
     if not bundle.is_file():
         raise Refused("no signature bundle: a required signature is absent")
-    exe = sigstore_python or os.environ.get("QTA_SIGSTORE_PYTHON", "")
+    exe = sigstore_python or os.environ.get("HARNESS_SIGSTORE_PYTHON", "")
     if not exe:
-        raise Refused("no sigstore runtime (QTA_SIGSTORE_PYTHON) to verify "
-                      "with; an unverifiable signature is not a verified one")
+        raise Refused("no sigstore runtime (HARNESS_SIGSTORE_PYTHON) to "
+                      "verify with; an unverifiable signature is not a "
+                      "verified one")
     cmd = [exe, "-I", "-m", "sigstore", "verify", "identity",
            "--bundle", str(bundle), "--cert-identity",
            policy["signer_identity"], "--cert-oidc-issuer",

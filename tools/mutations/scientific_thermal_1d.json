@@ -71,21 +71,21 @@
     },
     {
       "name": "ST12_an_executor_may_decide",
-      "path": "qta_agent/governed_model.py",
+      "path": "agent_substrate/governed_model.py",
       "find": "        if reviewer in (run.worker, check.worker, run.submitter):\n",
       "replace": "        if False:\n",
       "rationale": "the executor certifies its own work"
     },
     {
       "name": "ST15_the_producer_may_run_its_own_check",
-      "path": "qta_agent/governed_model.py",
+      "path": "agent_substrate/governed_model.py",
       "find": "        if worker in (run.worker, run.submitter):\n",
       "replace": "        if False:\n",
       "rationale": "the model's executor runs the check on its own output"
     },
     {
       "name": "ST16_a_failed_run_is_proposed",
-      "path": "qta_agent/governed_model.py",
+      "path": "agent_substrate/governed_model.py",
       "find": "        if run.state is not TaskState.VERIFIED:\n            raise ModelRunRefused(f\"the governed run was",
       "replace": "        if False:\n            raise ModelRunRefused(f\"the governed run was",
       "rationale": "an unverified governed run becomes an authority record"

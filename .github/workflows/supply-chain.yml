@@ -52,17 +52,17 @@ jobs:
             --bundle rc/SHA256SUMS.sigstore.json rc/SHA256SUMS
       - name: verify online against the exact pinned identity and issuer
         run: |
-          QTA_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+          HARNESS_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
             uv run python tools/supply_chain.py verify --dir rc --mode online \
             --report verify_online.json
       - name: verify offline from the bundle's inclusion proof
         run: |
-          QTA_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+          HARNESS_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
             uv run python tools/supply_chain.py verify --dir rc --mode offline \
             --report verify_offline.json
       - name: tamper suite (every copy must be refused)
         run: |
-          QTA_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+          HARNESS_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
             uv run python tools/supply_chain.py tamper --dir rc --mode online \
             --report tamper.json
       - name: record the transparency-log entry

@@ -17,19 +17,19 @@ ROOT = str(Path(__file__).resolve().parent.parent)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from qta_agent import checkpoint as cp_mod  # noqa: E402
-from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.canonical import (  # noqa: E402
+from agent_substrate import checkpoint as cp_mod  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.canonical import (  # noqa: E402
     canonical_bytes, digest, is_digest,
 )
 from dataclasses import replace  # noqa: E402
-from qta_agent.checkpoint import (  # noqa: E402
+from agent_substrate.checkpoint import (  # noqa: E402
     Checkpoint, CheckpointAheadOfLog, CheckpointCorrupt, CheckpointError,
     CheckpointMismatch, CheckpointStore, check_against, create,
 )
-from qta_agent.events import ChainBroken, EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.store import (  # noqa: E402
+from agent_substrate.events import ChainBroken, EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.store import (  # noqa: E402
     SNAPSHOT_VERSION, AuthorityStore, StoreError,
 )
 
@@ -522,7 +522,7 @@ def test_a_snapshot_that_covers_a_different_seq_is_refused(tmp_path):
     cps = CheckpointStore(tmp_path / "cp")
     snap = s.snapshot()
     snap["loaded_through"] = 0                      # claims an earlier moment
-    from qta_agent.canonical import canonical_bytes
+    from agent_substrate.canonical import canonical_bytes
     dg = blobs.put(canonical_bytes(snap), media_type="application/json")
     cp = cp_mod.create(log, state_digest=dg)
     cps.write(cp)
@@ -790,10 +790,10 @@ def test_a_checkpoint_describes_the_position_it_pins(tmp_path):
     root = _Path(__file__).resolve().parent.parent
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
-    from qta_agent.checkpoint import CheckpointStore
-    from qta_agent.events import EventLog
-    from qta_agent.evidence import EvidenceStore
-    from qta_agent.store import AuthorityStore
+    from agent_substrate.checkpoint import CheckpointStore
+    from agent_substrate.events import EventLog
+    from agent_substrate.evidence import EvidenceStore
+    from agent_substrate.store import AuthorityStore
 
     log = EventLog(tmp_path / "log.jsonl")
     evidence = EvidenceStore(tmp_path / "evidence")
@@ -1584,7 +1584,7 @@ def test_a_declared_version_bump_alone_invalidates(tmp_path, monkeypatch):
     """The digest cannot see a behaviour change arriving from outside the
     package; ``REDUCER_VERSION`` is how a person says so, and it must work
     on its own."""
-    import qta_agent.store as store_mod
+    import agent_substrate.store as store_mod
     log, blobs, cps, s = _mixed_history(tmp_path)
     s.checkpoint(cps)
     monkeypatch.setattr(store_mod, "REDUCER_VERSION",
@@ -1596,7 +1596,7 @@ def test_a_declared_version_bump_alone_invalidates(tmp_path, monkeypatch):
 
 def test_an_unreadable_source_matches_nothing(tmp_path, monkeypatch):
     """'Cannot tell' is not 'same': no digest on either side is a refusal."""
-    import qta_agent.projection as proj
+    import agent_substrate.projection as proj
     log, blobs, cps, s = _mixed_history(tmp_path)
     s.checkpoint(cps)
     monkeypatch.setattr(proj, "_closure_digest_once", lambda mods: None)
@@ -1615,19 +1615,19 @@ def test_the_digest_covers_what_the_reducer_imports_lazily():
     """store.py imports checkpoint INSIDE functions. A closure built from
     top-level imports only would miss it, and a change there would not
     invalidate anything."""
-    from qta_agent.projection import mro_modules, source_closure
+    from agent_substrate.projection import mro_modules, source_closure
     covered = source_closure(mro_modules(AuthorityStore))
     assert covered is not None
-    for mod in ("qta_agent.store", "qta_agent.authority",
-                "qta_agent.events", "qta_agent.checkpoint",
-                "qta_agent.projection"):
+    for mod in ("agent_substrate.store", "agent_substrate.authority",
+                "agent_substrate.events", "agent_substrate.checkpoint",
+                "agent_substrate.projection"):
         assert mod in covered, f"{mod} is not covered by the reducer digest"
 
 
 def test_an_inheriting_subclass_is_identified_by_the_code_that_runs():
-    from qta_agent.projection import mro_modules
+    from agent_substrate.projection import mro_modules
     mods = mro_modules(_DropsLegacy)
-    assert "qta_agent.store" in mods, (
+    assert "agent_substrate.store" in mods, (
         "the base reducer the subclass delegates to is not covered")
     assert _DropsLegacy.__module__ in mods
 
@@ -1646,14 +1646,14 @@ def test_editing_the_inherited_reducer_changes_the_subclass_identity(
     base reducer's source as the digest sees it and requires the identity
     of a subclass that merely inherits it to change.
     """
-    import qta_agent.projection as proj
+    import agent_substrate.projection as proj
     before = _Inherits.reducer_identity().reducer_digest
     real = proj._locate
     edited = tmp_path / "store.py"
-    edited.write_bytes(real("qta_agent.store").read_bytes() + b"\n# edit\n")
+    edited.write_bytes(real("agent_substrate.store").read_bytes() + b"\n# edit\n")
     monkeypatch.setattr(
         proj, "_locate",
-        lambda name: edited if name == "qta_agent.store" else real(name))
+        lambda name: edited if name == "agent_substrate.store" else real(name))
     proj._closure_digest_once.cache_clear()
     try:
         after = _Inherits.reducer_identity().reducer_digest

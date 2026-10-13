@@ -66,9 +66,9 @@ tree was untouched.
 | FEniCSx | ADOPTED¹ | the governed producers; FEniCSx is an independent check | executed from a hash-pinned environment as an INDEPENDENT_IMPLEMENTATION check of the transient slab; a verifier, never a producer |
 | Selective Rust | **RESOLVED**² | the NumPy references | both kernels **REJECTED** by the measured rule; **no scientific path consumes Rust** |
 | FMI 3.0 | ADOPTED¹ | an FMU result is NON_AUTHORITATIVE until checked and reviewed | one generic FMU built, loaded by fmpy, stepped, its state saved, restored and replayed; the legacy solvers are not exported |
-| Authority substrate | ADOPTED | `qta_agent` | decides admission and computes no result; no scientific module imports it |
+| Authority substrate | ADOPTED | `agent_substrate` | decides admission and computes no result; no scientific module imports it |
 | Generic scientific layer | ADOPTED | `scientific` | models produce, checks verify, the store admits; imports no hardware ontology |
-| AI proposal ingress | ADOPTED | `qta_agent/authority.py` | a proposal is non-authoritative data, reaching a decision only through a governed run, an independent check and a distinct reviewer |
+| AI proposal ingress | ADOPTED | `agent_substrate/authority.py` | a proposal is non-authoritative data, reaching a decision only through a governed run, an independent check and a distinct reviewer |
 
 ¹ has open items — see §4.
 
@@ -114,7 +114,7 @@ so the name is retired. Retrieval returns **verbatim spans with citations**
 (`path:line_start-line_end`) plus the SHA-256 of the source file at index
 time, so a retrieved claim can be walked back and a stale index is detectable
 rather than silently wrong. There is no generation step: a person -- or an
-AI proposer, through `qta_agent/proposals.py`'s context assembly, which
+AI proposer, through `agent_substrate/proposals.py`'s context assembly, which
 records each hit's path and sha256 -- reads the cited span, and what it reads
 is never authority. A test asserts the module imports no network or model
 client, and every hit is stamped `RETRIEVED_TEXT_NOT_EVIDENCE`.

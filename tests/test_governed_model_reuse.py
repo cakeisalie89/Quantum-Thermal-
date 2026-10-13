@@ -22,15 +22,15 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.authority import Role, State, TransitionError  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_model import (  # noqa: E402
+from agent_substrate.authority import Role, State, TransitionError  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_model import (  # noqa: E402
     REVIEWER_ID, TOOL_RUN, GovernedModelRuns, ModelRunRefused,
 )
-from qta_agent.governed_stage10 import SUBMITTER_ID  # noqa: E402
-from qta_agent.tasks import TaskState  # noqa: E402
+from agent_substrate.governed_tasks import SUBMITTER_ID  # noqa: E402
+from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_models_reuse"
 CHECK = "thermal_1d.reduction_2d_radial_disabled"
@@ -261,7 +261,7 @@ def test_a_result_withdrawn_after_verification_is_not_reused(world, steps):
     assert rec.state is steps[-1][0]
     # The store clears the admission when authority is withdrawn.
     assert rec.admission is None
-    from qta_agent.result_rules import record_problems
+    from agent_substrate.result_rules import record_problems
     assert record_problems(rec.evidence, g.evidence.get) == [], (
         "the report no longer supports the bundle: the test would not "
         "isolate the state filter")
@@ -392,7 +392,7 @@ def test_a_result_this_reader_could_not_admit_is_not_reused(world):
     assert "does not resolve" in rec.admission_basis["detail"]
     blob.parent.mkdir(parents=True, exist_ok=True)
     blob.write_bytes(kept)
-    from qta_agent.result_rules import record_problems
+    from agent_substrate.result_rules import record_problems
     assert record_problems(rec.evidence, g2.evidence.get) == []
     assert first.record_id not in g2.reusable(_ident(world))
     g3 = GovernedModelRuns(root=ROOT, log=EventLog(base / "log.jsonl"),

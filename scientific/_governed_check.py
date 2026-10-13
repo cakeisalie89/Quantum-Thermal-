@@ -1,7 +1,7 @@
 """Subprocess entry point: run an admitted independent check on a bundle.
 
-Launched by ``qta_agent.governed_model`` as a SEPARATE governed task, by a
-different executor from the one that produced the bundle. It reads the
+Launched by ``agent_substrate.governed_model`` as a SEPARATE governed task, by
+a different executor from the one that produced the bundle. It reads the
 bundle from the governed workspace, refuses it unless its bytes hash to the
 digest the caller cites (the evidence the check is about, not whatever is on
 disk now), runs the check -- code with its own implementation digest -- and

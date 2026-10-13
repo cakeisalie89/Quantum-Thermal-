@@ -10,7 +10,7 @@ proves the repaired sites -- by name, from a table. A table proves the
 reducers that exist. It says nothing about the next one somebody writes.
 
 So this walks the parse tree of every tracked production file and refuses,
-outside ``qta_agent/events.py`` (where the primitives live):
+outside ``agent_substrate/events.py`` (where the primitives live):
 
 * ``RAW_READ``      -- ``<log>.read(...)``, or iterating ``<log>`` (``for ev
                        in log``, ``list(log)``): an unverified parse;
@@ -27,9 +27,9 @@ call to ``EventLog(...)``, or a name assigned from such an expression in the
 same function. That is a proxy for "this object is an EventLog", and aliasing
 defeats it (``x = self.log; x.read()`` is caught; ``x = getattr(self, n)`` is
 not). The runtime guard in ``EventLog.read`` is the complement: inside
-``qta_agent`` it refuses any caller but ``qta_agent.events`` whatever the
-caller named the object. Static scope is the whole tree; runtime scope is the
-authority layer. Neither alone is the claim.
+``agent_substrate`` it refuses any caller but ``agent_substrate.events``
+whatever the caller named the object. Static scope is the whole tree; runtime
+scope is the authority layer. Neither alone is the claim.
 
 The allowlist is by (file, function, rule), each entry with its reason, and
 the count is pinned by the test, so widening it is a reviewed change rather
@@ -41,7 +41,7 @@ module parses. Its four raw reads (in ``s10_governed`` and
 actions appear, that no egress grant exists, that a re-execution was
 recorded -- and fold nothing into state; ``s10_governed_model`` reads only
 through ``read_verified``. The runtime guard does not cover them either:
-rule bodies are not ``qta_agent`` modules (D-2026-79).
+rule bodies are not ``agent_substrate`` modules (D-2026-79).
 """
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 #: Where the primitives are defined. Reading the log is its job.
-EVENT_MODULE = "qta_agent/events.py"
+EVENT_MODULE = "agent_substrate/events.py"
 
 #: (file, enclosing function, rule) -> why this site may do it.
 ALLOWED = {
@@ -210,7 +210,7 @@ def main() -> int:
         for path, func, rule, line, what in violations:
             print(f"{path}:{line} [{func}] {rule}: {what}")
         print(f"{len(violations)} unverified read(s) of the event log outside "
-              "qta_agent/events.py. Fold from log.read_verified() / "
+              "agent_substrate/events.py. Fold from log.read_verified() / "
               "log.read_verified_from(anchor) instead, or allowlist the site "
               "with a reason.")
         return 1

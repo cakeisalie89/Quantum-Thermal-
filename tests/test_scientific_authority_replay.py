@@ -1,10 +1,10 @@
 """Replay re-admits scientific authority; it does not remember it.
 
 The store decides a scientific_result's edge into VERIFIED or PROMOTED under
-the admission policy of ``qta_agent.result_rules``, with origin asked of the
+the admission policy of ``agent_substrate.result_rules``, with origin asked of the
 governed task history. These tests hold REPLAY to the same rule, in two
 readers that share no code for it: the store's ``load()`` and the independent
-``qta_agent.reconstruct``.
+``agent_substrate.reconstruct``.
 
 Every forged history here starts from a genuine one -- thermal 1D run and
 checked as governed tasks and decided through the store -- and appends to the
@@ -26,19 +26,19 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import reconstruct as rc  # noqa: E402
-from qta_agent import result_rules  # noqa: E402
-from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.checkpoint import CheckpointStore  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_model import (  # noqa: E402
+from agent_substrate import reconstruct as rc  # noqa: E402
+from agent_substrate import result_rules  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.checkpoint import CheckpointStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_model import (  # noqa: E402
     CHECK_WORKER_ID, MODEL_RUN_TOOLS, REVIEWER_ID, VERIFIER_TOOLS,
     GovernedModelRuns, GovernedOrigins,
 )
-from qta_agent.governed_stage10 import SUBMITTER_ID  # noqa: E402
-from qta_agent.store import AuthorityStore, StoreError  # noqa: E402
+from agent_substrate.governed_tasks import SUBMITTER_ID  # noqa: E402
+from agent_substrate.store import AuthorityStore, StoreError  # noqa: E402
 
 WS = "verification/stage10/_pytest_models_replay"
 CHECK = "thermal_1d.reduction_2d_radial_disabled"

@@ -2,7 +2,7 @@
 
 D-2026-63. `tests/` has no `__init__.py`, so pytest puts `tests/` on
 `sys.path` and not the repository root. Three of 106 modules imported
-`tools.*` or `qta_agent` at top level without inserting the root themselves,
+`tools.*` or `agent_substrate` at top level without inserting the root themselves,
 and passed every full run because the alphabet put a module that does insert
 it first. Run alone, all three failed to collect.
 

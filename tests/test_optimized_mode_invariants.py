@@ -124,7 +124,7 @@ def test_a_machine_interlock_holds_under_both_builds(optimize):
     Under -O, LCVD and sensing on together -- the state the model calls a
     250x thermal overload -- validated cleanly, and the self-test that
     exists to catch exactly that printed "correctly blocked: False". The
-    guard below did not see it: it scanned qta_agent, tools and
+    guard below did not see it: it scanned agent_substrate, tools and
     qta_multiphysics, and qta_full_sim.py is at the root.
     """
     proc = _run(INTERLOCK_PROBE.format(root=str(ROOT)), optimize)
@@ -216,13 +216,13 @@ def test_the_scan_covers_the_root_modules():
     must be inside what is scanned."""
     files = set(_production_python())
     for rel in ("qta_full_sim.py", "release_trust.py", "verify_release.py",
-                "qta_agent/store.py", "tools/mutation_matrix.py"):
+                "agent_substrate/store.py", "tools/mutation_matrix.py"):
         assert rel in files, f"{rel} is not scanned"
 
 
 @pytest.mark.parametrize("found,needle", [
     ({"qta_full_sim.py": 1}, "outside the scientific tree"),
-    ({"qta_agent/store.py": 1}, "outside the scientific tree"),
+    ({"agent_substrate/store.py": 1}, "outside the scientific tree"),
     (dict(KNOWN_SELF_CHECKS, **{
         "qta_multiphysics/coupled_mode_solver.py": 2}), "1 classified"),
     (dict(KNOWN_SELF_CHECKS, **{"qta_multiphysics/grids.py": 1}),

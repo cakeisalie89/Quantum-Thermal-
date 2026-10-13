@@ -27,11 +27,11 @@ def test_every_tracked_python_file_is_in_exactly_one_scope():
 
 
 @pytest.mark.parametrize("required", [
-    "qta_agent/events.py", "scientific/catalog.py",
+    "agent_substrate/events.py", "scientific/catalog.py",
     "scientific_ai/neural/model/network.py",
     "qta_multiphysics/stack/rust_kernel.py",
     "integrations/fmi/fmpy_runner.py", "integrations/fenicsx/runner.py",
-    "qta_agent/proposals.py", "tools/harness_status.py",
+    "agent_substrate/proposals.py", "tools/harness_status.py",
     "tools/typecheck_scope.py", "ro_crate_tools.py",
 ])
 def test_the_active_scope_covers_what_the_directive_names(required):

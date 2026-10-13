@@ -36,7 +36,7 @@ from typing import FrozenSet
 
 #: action -> the module that owns and applies it.
 OWNERS: dict = {
-    # qta_agent.store -- the authority record state machine
+    # agent_substrate.store -- the authority record state machine
     "record.create": "store",
     "record.transition": "store",
     "record.depend": "store",
@@ -44,58 +44,58 @@ OWNERS: dict = {
     #: Written so a checkpoint's claim about state lives INSIDE the hash
     #: chain rather than only in a file anyone can rewrite. See D-2026-30.
     "checkpoint.state": "store",
-    # qta_agent.governed_stage10 -- the durable task lifecycle
-    "task.create": "governed_stage10",
-    "task.transition": "governed_stage10",
-    "task.execution": "governed_stage10",
-    "task.evidence": "governed_stage10",
-    "task.compensation": "governed_stage10",
-    "task.separate_verification": "governed_stage10",
-    "task.reexecution": "governed_stage10",
-    # qta_agent.capability -- the ledger that makes a grant real
+    # agent_substrate.governed_tasks -- the durable task lifecycle
+    "task.create": "governed_tasks",
+    "task.transition": "governed_tasks",
+    "task.execution": "governed_tasks",
+    "task.evidence": "governed_tasks",
+    "task.compensation": "governed_tasks",
+    "task.separate_verification": "governed_tasks",
+    "task.reexecution": "governed_tasks",
+    # agent_substrate.capability -- the ledger that makes a grant real
     "capability.issue": "capability",
     "capability.revoke": "capability",
     "capability.root": "capability",
-    # qta_agent.policy
+    # agent_substrate.policy
     "policy.publish": "policy",
     "policy.decision": "policy",
-    # qta_agent.scheduler
+    # agent_substrate.scheduler
     "scheduler.enqueue": "scheduler",
     "scheduler.transition": "scheduler",
     "scheduler.priority": "scheduler",
     "scheduler.lease_renew": "scheduler",
-    # qta_agent.memory
+    # agent_substrate.memory
     "memory.write": "memory",
     "memory.status": "memory",
-    # qta_agent.agents
+    # agent_substrate.agents
     "agent.register": "agents",
     "agent.retire": "agents",
     "agent.message": "agents",
     "agent.claim": "agents",
     "agent.escalation": "agents",
     "agent.escalation.answer": "agents",
-    # qta_agent.netauth
+    # agent_substrate.netauth
     "network.grant": "netauth",
     "network.service": "netauth",
     "network.request": "netauth",
     "network.result": "netauth",
-    # qta_agent.secrets
+    # agent_substrate.secrets
     "secret.grant": "secrets",
     "secret.access": "secrets",
     # Missing until follow-up A: a provisioning record made every reducer
     # on the log refuse the whole history as UNKNOWN (D-2026-85).
     "secret.provision": "secrets",
-    # qta_agent.context
+    # agent_substrate.context
     "context.build": "context",
-    # qta_agent.readpath -- every governed read, permitted or refused
+    # agent_substrate.readpath -- every governed read, permitted or refused
     "file.read": "readpath",
-    # qta_agent.idempotency -- durable, owner-scoped request identity
+    # agent_substrate.idempotency -- durable, owner-scoped request identity
     "idempotency.bind": "idempotency",
-    # qta_agent.proposals -- a proposal received at the ingress: input,
+    # agent_substrate.proposals -- a proposal received at the ingress: input,
     # NON_AUTHORITATIVE, recorded before anything runs
     "proposal.receive": "proposals",
-    # qta_agent.events -- the security profile a history is written under,
-    # declared by its first event and enforced by the read primitives
+    # agent_substrate.events -- the security profile a history is written
+    # under, declared by its first event and enforced by the read primitives
     # themselves; every reducer meets it at seq 0 and passes it by (D-2026-92)
     "history.security_profile": "events",
 }

@@ -1,7 +1,7 @@
 """Subprocess entry point: run the thermal_rc2 FMU under governance.
 
-Launched by ``qta_agent.governed_model`` through the governed executor. The
-FMU and its build record are cited by digest: the bytes on disk must hash
+Launched by ``agent_substrate.governed_model`` through the governed executor.
+The FMU and its build record are cited by digest: the bytes on disk must hash
 to what the caller cites, or nothing runs -- the result is about THAT
 archive, not whatever sits at the path now. The FMU is read at the FMI
 boundary, executed by fmpy in the runtime the task names (a declared,

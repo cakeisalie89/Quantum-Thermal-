@@ -26,17 +26,17 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
-    ACT_SEPARATE_VERIFY, GovernedStage10,
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
+    ACT_SEPARATE_VERIFY, GovernedTasks,
 )
-from qta_agent.separate_verify import (  # noqa: E402
+from agent_substrate.separate_verify import (  # noqa: E402
     EXIT_CLEAN, EXIT_FINDINGS, EXIT_IMPORT_GUARD, EXIT_UNREADABLE,
     SeparateVerification, SeparateVerificationFailed,
     verify_in_separate_process,
 )
-from qta_agent.tasks import TaskState  # noqa: E402
+from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_separate"
 VERIFIER = ROOT / "tools" / "independent_verify.py"
@@ -59,7 +59,7 @@ def gov(request, tmp_path):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -98,7 +98,7 @@ def test_the_verifier_refuses_to_import_the_reducers_it_checks():
         "import sys; sys.path.insert(0, %r);\n"
         "from tools.independent_verify import _Refuse;\n"
         "sys.meta_path.insert(0, _Refuse());\n"
-        "import qta_agent.scheduler\n" % str(ROOT)
+        "import agent_substrate.scheduler\n" % str(ROOT)
     )
     proc = subprocess.run([sys.executable, "-c", probe],
                           capture_output=True, text=True, cwd=str(ROOT))
@@ -107,9 +107,9 @@ def test_the_verifier_refuses_to_import_the_reducers_it_checks():
 
     # And the list is not empty, which a guard over nothing would be.
     assert len(FORBIDDEN) >= 8
-    for name in ("qta_agent.scheduler", "qta_agent.governed_stage10",
-                 "qta_agent.capability", "qta_agent.policy",
-                 "qta_agent.authority", "qta_agent.tasks"):
+    for name in ("agent_substrate.scheduler", "agent_substrate.governed_tasks",
+                 "agent_substrate.capability", "agent_substrate.policy",
+                 "agent_substrate.authority", "agent_substrate.tasks"):
         assert name in FORBIDDEN
 
 
@@ -140,7 +140,7 @@ def _admitted_by_the_guard(names):
 def test_every_named_primary_is_refused_including_the_two_gates():
     """D-2026-126: the guard refused FORBIDDEN and admitted everything else.
 
-    FORBIDDEN never named qta_agent.authority or qta_agent.tasks -- the two
+    FORBIDDEN never named agent_substrate.authority or agent_substrate.tasks -- the two
     gates reconstruct.py was decoupled from -- so this process, built to be
     the one place the shortcut is unavailable, would have loaded either
     without a word. Each name is probed in its own process: the claim is
@@ -159,7 +159,7 @@ def test_a_module_nobody_named_is_refused_too():
     """
     from tools.independent_verify import FORBIDDEN, PERMITTED
 
-    unnamed = ["qta_agent.hostid", "qta_agent.safeio"]
+    unnamed = ["agent_substrate.hostid", "agent_substrate.safeio"]
     assert not set(unnamed) & (FORBIDDEN | PERMITTED)
     assert _admitted_by_the_guard(unnamed) == []
 
@@ -181,7 +181,7 @@ def test_the_permitted_modules_are_what_the_verifier_actually_loads(log):
         "import tools.independent_verify as V;\n"
         "rc = V.main();\n"
         "print(json.dumps(sorted(m for m in sys.modules\n"
-        "                        if m.split('.')[0] == 'qta_agent')),\n"
+        "                        if m.split('.')[0] == 'agent_substrate')),\n"
         "      file=sys.stderr);\n"
         "raise SystemExit(rc)\n"
         % (str(ROOT), str(log.path), str(ROOT)))
@@ -196,8 +196,8 @@ def test_the_verifier_source_does_not_import_a_primary_reducer():
     """Structural, so the guard cannot be removed and the import added."""
     src = VERIFIER.read_text(encoding="utf-8")
     body = src.partition("def main()")[2]
-    for forbidden in ("qta_agent.scheduler", "qta_agent.governed_stage10",
-                      "qta_agent.store", "qta_agent.audit"):
+    for forbidden in ("agent_substrate.scheduler", "agent_substrate.governed_tasks",
+                      "agent_substrate.store", "agent_substrate.audit"):
         assert f"import {forbidden}" not in body
 
 
@@ -340,7 +340,7 @@ def test_a_run_is_REJECTED_when_the_independent_process_refuses(
     A verifier whose answer changes nothing is a log line, and this project
     has a name for those.
     """
-    import qta_agent.governed_stage10 as G
+    import agent_substrate.governed_tasks as G
 
     monkeypatch.setattr(
         G, "verify_in_separate_process",
@@ -357,7 +357,7 @@ def test_a_run_is_REJECTED_when_the_independent_process_refuses(
 def test_the_refusal_is_recorded_even_when_it_refuses(gov, monkeypatch):
     """'The independent verifier said no' is exactly the fact an auditor
     must be able to find."""
-    import qta_agent.governed_stage10 as G
+    import agent_substrate.governed_tasks as G
 
     monkeypatch.setattr(
         G, "verify_in_separate_process",
@@ -372,7 +372,7 @@ def test_the_refusal_is_recorded_even_when_it_refuses(gov, monkeypatch):
 
 
 def test_a_crashed_verifier_does_not_produce_a_verified_run(gov, monkeypatch):
-    import qta_agent.governed_stage10 as G
+    import agent_substrate.governed_tasks as G
 
     monkeypatch.setattr(
         G, "verify_in_separate_process",

@@ -28,16 +28,16 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.agents import (  # noqa: E402
+from agent_substrate.agents import (  # noqa: E402
     BOOTSTRAP, AgentError, AgentRole, PrincipalKind, identity,
 )
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
-    ACT_COMPENSATION, GovernedStage10,
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
+    ACT_COMPENSATION, GovernedTasks,
 )
-from qta_agent.tasks import TaskState  # noqa: E402
-from qta_agent.tools import (  # noqa: E402
+from agent_substrate.tasks import TaskState  # noqa: E402
+from agent_substrate.tools import (  # noqa: E402
     Determinism, Field_, OutputFile, Registry, SideEffect, ToolError, ToolSpec,
 )
 
@@ -51,7 +51,7 @@ def gov(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -100,13 +100,13 @@ def _external_with_undo(gov, **over):
     # a tool that was not the undo, and only its own missing inputs stopped
     # it doing something. Naming the module here is the test saying what it
     # actually wants run.
-    gov.tool_modules["stage10.revoke_artifact"] = "qta_agent._stage10_tool"
+    gov.tool_modules["stage10.revoke_artifact"] = "agent_substrate._artifact_tool"
     gov.executor = type(gov.executor)(reg, workspace=gov.root)
     return reg
 
 
 def _timed_out_run(gov, monkeypatch):
-    from qta_agent.execution import Limits
+    from agent_substrate.execution import Limits
 
     _external_with_undo(gov)
     real_run = type(gov.executor).run
@@ -273,7 +273,7 @@ def test_a_tool_with_no_compensating_tool_says_so_rather_than_pretending(
         gov, monkeypatch):
     """Not every external effect has an automatable undo, and a system that
     pretended otherwise would be worse than one that says so."""
-    from qta_agent.execution import Limits
+    from agent_substrate.execution import Limits
 
     reg = Registry([ToolSpec(
         tool_id="stage10.emit_artifact", version="1.0.0", summary="s",
@@ -437,7 +437,7 @@ def test_the_inventory_is_scoped_to_what_the_tool_may_write(gov):
     make a bounded execution proportional to the checkout, and would report
     every concurrent change anywhere as this tool's write.
     """
-    from qta_agent.execution import _inventory
+    from agent_substrate.execution import _inventory
 
     whole = _inventory(ROOT, ("",))
     scoped = _inventory(ROOT, ("verification/stage10",))

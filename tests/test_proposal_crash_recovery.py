@@ -41,11 +41,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import harness_demo as HD  # noqa: E402
-from qta_agent import proposals as PR  # noqa: E402
-from qta_agent.authority import State  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.reconstruct import reconstruct, reconstruct_tasks  # noqa: E402
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate import proposals as PR  # noqa: E402
+from agent_substrate.authority import State  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.reconstruct import reconstruct, reconstruct_tasks  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 WS = "verification/stage10/_pytest_proposal_crash"
 KEEP = ROOT / "verification" / "stage10" / "_pytest_proposal_crash_ref"
@@ -56,7 +56,7 @@ import json, sys
 sys.path[:0] = [{str(ROOT)!r}, {str(ROOT / "tools")!r}]
 import harness_demo as HD
 from pathlib import Path
-from qta_agent import proposals as PR
+from agent_substrate import proposals as PR
 from qta_multiphysics.stack.rag_index import retrieve
 HD.WS = {WS!r}
 log, ev, g = HD._world(Path({str(ROOT / WS)!r}))
@@ -171,8 +171,8 @@ def _crash_at(ref, upto: int):
     that event, a head witness that agrees, every evidence blob (a blob
     stored before the record citing it is harmless: nothing cites it), and
     the model's outputs once the execution that wrote them is in the log."""
-    from qta_agent.evidence import EvidenceStore
-    from qta_agent.governed_model import GovernedModelRuns
+    from agent_substrate.evidence import EvidenceStore
+    from agent_substrate.governed_model import GovernedModelRuns
     base = ROOT / WS
     if base.exists():
         shutil.rmtree(base)
@@ -271,7 +271,7 @@ def test_recovery_from_each_stage_finishes_once_and_verified(reference,
 
 
 def _register_executor(g, name: str) -> None:
-    from qta_agent.agents import AgentRole, PrincipalKind, identity
+    from agent_substrate.agents import AgentRole, PrincipalKind, identity
     g.gov.agents.register(identity(agent_id=name, instance_id=name,
                                    kind=PrincipalKind.AGENT,
                                    roles={AgentRole.EXECUTOR}), by="system")
@@ -283,7 +283,7 @@ def test_another_workers_resubmission_does_not_take_over_a_live_lease(
     own dispatch began. A different worker resubmitting the same proposal
     finds the job leased to someone else, live, and is told so: it runs
     nothing, leases nothing, and the rightful resubmission still finishes."""
-    from qta_agent.governed_model import ModelRunRefused
+    from agent_substrate.governed_model import ModelRunRefused
     ref = reference
     log, ev, g = _crash_at(ref, STAGES["lease issued"](ref, ref["events"]))
     _register_executor(g, "another-worker")
@@ -316,8 +316,8 @@ def test_a_completed_task_whose_records_disagree_is_never_verified(
     declared digest and the disk matches the capture, so only the agreement
     check stands between this and a VERIFIED verdict. It must stay
     COMPLETED and be reported, not verified."""
-    from qta_agent.governed_model import ModelRunRefused
-    from qta_agent.tasks import TaskRole, TaskState
+    from agent_substrate.governed_model import ModelRunRefused
+    from agent_substrate.tasks import TaskRole, TaskState
     ref = reference
     log, ev, g = _crash_at(ref, STAGES["artifact written"](ref, ref["events"]))
     tid = ref["task_id"]
@@ -349,8 +349,8 @@ def test_a_crash_while_checkpointing_the_projection_recovers(reference,
     that leaves a restart that either uses a whole checkpoint or replays the
     log in full -- and agrees with a full replay either way -- and resuming
     the path afterwards decides nothing a second time."""
-    from qta_agent.checkpoint import CheckpointStore
-    from qta_agent.governed_model import GovernedModelRuns
+    from agent_substrate.checkpoint import CheckpointStore
+    from agent_substrate.governed_model import GovernedModelRuns
     ref = reference
     log, ev, g = _crash_at(ref, len(ref["lines"]) - 1)
     cps = CheckpointStore(ROOT / WS / "checkpoints")
@@ -397,8 +397,8 @@ def test_a_resumed_attempt_runs_under_the_rules_in_force_when_it_resumes(
     published between the crash and the resubmission governs the resumed
     attempt. Denied, it runs nothing -- no lease, no execution, no verdict --
     and the refusal is recorded like any decision."""
-    from qta_agent.governed_stage10 import stage10_policy
-    from qta_agent.policy import Effect, PolicyDenied, document, rule
+    from agent_substrate.governed_tasks import governed_policy
+    from agent_substrate.policy import Effect, PolicyDenied, document, rule
     ref = reference
     log, ev, g = _crash_at(ref, STAGES["task queued"](ref, ref["events"]))
     # version 1's rules, and one more: this path is closed
@@ -408,7 +408,7 @@ def test_a_resumed_attempt_runs_under_the_rules_in_force_when_it_resumes(
                     actions=("stage10.execute",), subjects=("*",),
                     roles=("*",), resources=("*",),
                     reason="this path is closed"),
-               *stage10_policy().rules)), actor="owner")
+               *governed_policy().rules)), actor="owner")
     _, before = log.read_verified()
     with pytest.raises(PolicyDenied, match="this path is closed"):
         _path(log, g, ref["ctx"])
@@ -425,8 +425,8 @@ def test_a_lapsed_lease_is_taken_up_as_a_new_attempt(reference):
     lease over: the queue is reconciled first, the job is READY again, and
     the work is dispatched under a new lease as a second attempt, counted
     against the job's retry budget."""
-    from qta_agent.governed_stage10 import LEASE_SEQS, POLICY_ID
-    from qta_agent.policy import PolicyRequest
+    from agent_substrate.governed_tasks import LEASE_SEQS, POLICY_ID
+    from agent_substrate.policy import PolicyRequest
     ref = reference
     log, ev, g = _crash_at(ref, STAGES["lease issued"](ref, ref["events"]))
     for i in range(LEASE_SEQS + 1):
@@ -454,7 +454,7 @@ def test_a_decision_is_never_returned_for_another_checks_report(reference):
     reuse of the old verdict."""
     import dataclasses
 
-    from qta_agent.governed_model import ModelRunRefused
+    from agent_substrate.governed_model import ModelRunRefused
     ref = reference
     log, ev, g = _crash_at(ref, len(ref["lines"]) - 1)
     _, run, chk, rec = _path(log, g, ref["ctx"])

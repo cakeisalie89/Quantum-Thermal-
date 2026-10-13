@@ -73,7 +73,7 @@ jobs:
         # the full leg REQUIRES SALib: there a skipped global path is a
         # failure, so METHODS_DISAGREE cannot be passed by not computing it
         run: |
-          if [ "${{ matrix.extras }}" = "full" ]; then export QTA_UQ_REQUIRED=1; fi
+          if [ "${{ matrix.extras }}" = "full" ]; then export HARNESS_UQ_REQUIRED=1; fi
           uv run python -m pytest tests/test_stage10_stack.py tests/test_sensitivity_cross_check.py -q
       - name: the generic scientific workflow (the default target)
         run: uv run snakemake --cores 1

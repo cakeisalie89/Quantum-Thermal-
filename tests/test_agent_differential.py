@@ -34,16 +34,16 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
     ACT_TASK_TRANSITION, SUBMITTER_ID, VERIFIER_ID, WORKER_ID,
-    GovernedStage10,
+    GovernedTasks,
 )
-from qta_agent.reconstruct import (  # noqa: E402
+from agent_substrate.reconstruct import (  # noqa: E402
     compare_tasks, reconstruct_tasks,
 )
-from qta_agent.tasks import TaskState, TaskTransitionError  # noqa: E402
+from agent_substrate.tasks import TaskState, TaskTransitionError  # noqa: E402
 
 WS = "verification/stage10/_pytest_diff"
 
@@ -55,7 +55,7 @@ def gov(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -115,7 +115,7 @@ def test_the_reconstruction_shares_no_reducer_with_the_projection():
     """
     import ast
 
-    path = ROOT / "qta_agent" / "reconstruct.py"
+    path = ROOT / "agent_substrate" / "reconstruct.py"
     tree = ast.parse(path.read_text(encoding="utf-8"))
     imported: set = set()
     for node in ast.walk(tree):
@@ -132,7 +132,7 @@ def test_the_reconstruction_shares_no_reducer_with_the_projection():
     # Checked as IMPORTS rather than as text: the first version of this test
     # matched the module name in a docstring that explains the separation,
     # which would have failed for saying the right thing.
-    assert not {i for i in imported if "governed_stage10" in i}, (
+    assert not {i for i in imported if "governed_tasks" in i}, (
         "reconstruct imported the module it is supposed to check "
         "independently")
     assert "tasks.apply_transition" not in imported, (
@@ -268,7 +268,7 @@ def test_a_task_present_in_one_reader_only_is_a_divergence(gov):
 
 def test_the_reconstruction_refuses_a_tampered_log(gov):
     """A second opinion about a rewritten document is not a second opinion."""
-    from qta_agent.events import ChainBroken
+    from agent_substrate.events import ChainBroken
 
     _run(gov)
     lines = gov.log.path.read_text().splitlines()
@@ -327,7 +327,7 @@ def test_the_two_readers_agree_about_who_holds_a_lease(gov):
 
 def _forged_history(tmp_path, *, execution_record: bool):
     """A task moved end to end by ONE actor, naming a ghost as its executor."""
-    from qta_agent.canonical import digest_bytes
+    from agent_substrate.canonical import digest_bytes
 
     log = EventLog(tmp_path / "log.jsonl")
     tid = "t-forged"
@@ -393,10 +393,10 @@ def test_both_readers_refuse_the_forged_history_the_same_way(tmp_path, gov):
     of them called this task VERIFIED the package's central claim would be
     false, and the diff is what says so.
     """
-    from qta_agent.governed_stage10 import GovernedStage10
+    from agent_substrate.governed_tasks import GovernedTasks
 
     log, tid = _forged_history(tmp_path, execution_record=True)
-    g2 = GovernedStage10(root=ROOT, log=log, evidence=gov.evidence)
+    g2 = GovernedTasks(root=ROOT, log=log, evidence=gov.evidence)
     with pytest.raises(TaskTransitionError, match="execution record says"):
         g2.projection()
     assert reconstruct_tasks(log).verified_ids() == ()
@@ -456,18 +456,18 @@ def test_an_honest_create_is_not_flagged_by_the_second_reader(gov):
 # ---------------------------------------------------------------------------
 import ast as _ast  # noqa: E402
 
-from qta_agent import authority as _authority  # noqa: E402
-from qta_agent import reconstruct as _R  # noqa: E402
-from qta_agent import tasks as _tasks  # noqa: E402
-from qta_agent.canonical import digest_bytes as _digest_bytes  # noqa: E402
-from qta_agent.reconstruct import reconstruct as _reconstruct  # noqa: E402
+from agent_substrate import authority as _authority  # noqa: E402
+from agent_substrate import reconstruct as _R  # noqa: E402
+from agent_substrate import tasks as _tasks  # noqa: E402
+from agent_substrate.canonical import digest_bytes as _digest_bytes  # noqa: E402
+from agent_substrate.reconstruct import reconstruct as _reconstruct  # noqa: E402
 
 _DG = _digest_bytes(b"a report")
 _DG2 = _digest_bytes(b"a result")
 
 
 def _recon_source_tree():
-    path = ROOT / "qta_agent" / "reconstruct.py"
+    path = ROOT / "agent_substrate" / "reconstruct.py"
     return _ast.parse(path.read_text(encoding="utf-8"))
 
 
@@ -604,7 +604,7 @@ def test_the_restated_lease_shape_matches_production():
 
 def test_the_restated_digest_rule_matches_production():
     """Including the cases that are not 64 lowercase hex characters."""
-    from qta_agent.canonical import is_digest
+    from agent_substrate.canonical import is_digest
 
     for value in ("a" * 64, "A" * 64, "a" * 63, "a" * 65, "", "g" * 64,
                   "0123456789abcdef" * 4, None, 7, b"a" * 64,
@@ -1116,10 +1116,10 @@ def test_diagnostic_mode_still_applies_a_task_state_it_can_name(tmp_path):
 # added the code and the mutations in the same commit without ever holding
 # evidence that they died. The tests below live in a suite the spec runs.
 
-from qta_agent.authority import Role as _Role, State as _State  # noqa: E402
-from qta_agent.store import AuthorityStore as _Store  # noqa: E402
-from qta_agent.reconstruct import reconstruct as _reconstruct_auth  # noqa: E402
-from qta_agent.reconstruct import (  # noqa: E402
+from agent_substrate.authority import Role as _Role, State as _State  # noqa: E402
+from agent_substrate.store import AuthorityStore as _Store  # noqa: E402
+from agent_substrate.reconstruct import reconstruct as _reconstruct_auth  # noqa: E402
+from agent_substrate.reconstruct import (  # noqa: E402
     compare as _compare, reconstruct_subsystems as _subsystems,
 )
 
@@ -1321,7 +1321,7 @@ def test_an_anchor_two_records_back_is_otherwise_accepted(tmp_path):
 # These tests fail by NAMING THE DIFFERENCE, which is the whole value of a
 # restatement: agreement by construction would be unrecoverable.
 
-from qta_agent import scheduler as _sched  # noqa: E402
+from agent_substrate import scheduler as _sched  # noqa: E402
 
 
 def test_the_restated_job_edges_match_production():

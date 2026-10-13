@@ -17,15 +17,15 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.capability import (  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.capability import (  # noqa: E402
     Action, CapabilitySet, issue,
 )
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.policy import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.policy import (  # noqa: E402
     Effect, PolicyDenied, PolicyStore, document, rule,
 )
-from qta_agent.scheduler import (  # noqa: E402
+from agent_substrate.scheduler import (  # noqa: E402
     AGING_INTERVAL, BACKOFF_BASE_SEQS, CapacityError, DuplicateJob,
     FailureClass, Job, JobState, JobTransitionError, MAX_PRIORITY, RETRYABLE,
     MAX_LEASE_RENEWALS, Scheduler, SchedulerError, TERMINAL, UnknownJob,
@@ -631,7 +631,7 @@ def test_no_finished_job_can_resume_work(sched):
     changing is a fact recorded ABOUT finished work, not a resumption of it.
     What must be impossible is a finished job re-entering the queue.
     """
-    from qta_agent.scheduler import PENDING, allowed_targets
+    from agent_substrate.scheduler import PENDING, allowed_targets
     for state in sorted(TERMINAL, key=lambda s: s.value):
         assert not (allowed_targets(state) & (PENDING | {
             JobState.DISPATCHED})), (
@@ -647,7 +647,7 @@ def test_every_declared_edge_is_reachable():
     the docstring both said otherwise. Nothing caught it, because an
     unreachable edge looks exactly like a reachable one until something asks.
     """
-    from qta_agent.scheduler import EDGES, SEALED, check_edge
+    from agent_substrate.scheduler import EDGES, SEALED, check_edge
     for edge in EDGES:
         assert edge.src not in SEALED
         assert check_edge(edge.src, edge.dst, "j") is edge, (
@@ -655,7 +655,7 @@ def test_every_declared_edge_is_reachable():
 
 
 def test_the_same_invariant_holds_for_the_task_machine():
-    from qta_agent.tasks import (
+    from agent_substrate.tasks import (
         EDGES as T_EDGES, SEALED as T_SEALED, Task, TaskState,
         TaskTransition, check,
     )
@@ -666,7 +666,7 @@ def test_the_same_invariant_holds_for_the_task_machine():
                     executed_by="worker",
                     result_digest="1" * 64)
         if edge.requires_lease:
-            from qta_agent.tasks import Lease
+            from agent_substrate.tasks import Lease
             task = __import__("dataclasses").replace(
                 task, lease=Lease("L", "worker", 0, 10 ** 6))
         role = sorted(edge.roles, key=lambda r: r.value)[0]
@@ -863,7 +863,7 @@ def test_enqueueing_onto_a_cancelled_dependency_is_refused(sched):
 def test_no_sealed_dependency_state_is_acceptable(sched, state):
     """Every state from which SUCCEEDED is unreachable, not just the one the
     property test happened to find."""
-    from qta_agent.scheduler import CAN_STILL_SUCCEED, JobState
+    from agent_substrate.scheduler import CAN_STILL_SUCCEED, JobState
 
     assert JobState(state) not in CAN_STILL_SUCCEED
     _enqueue(sched, "dep")
@@ -889,7 +889,7 @@ def test_a_dependency_still_in_flight_is_accepted(sched):
     RETRY_WAIT is the ordinary case, and refusing it would make dependencies
     useless.
     """
-    from qta_agent.scheduler import JobState
+    from agent_substrate.scheduler import JobState
 
     _enqueue(sched, "dep")
     for i, dst in enumerate((None, JobState.READY)):
@@ -903,7 +903,7 @@ def test_a_dependency_still_in_flight_is_accepted(sched):
 
 def test_the_reachability_set_is_derived_from_the_edge_table(sched):
     """A hand-written list beside the table is a second place to forget."""
-    from qta_agent.scheduler import (
+    from agent_substrate.scheduler import (
         CAN_STILL_SUCCEED, EDGES, SEALED, JobState,
     )
 
@@ -930,7 +930,7 @@ def test_a_terminal_failure_blocks_everything_downstream(sched):
     and nobody looks; and a process that dies before the next tick leaves a
     queue on disk describing work as pending when it is not.
     """
-    from qta_agent.scheduler import JobState
+    from agent_substrate.scheduler import JobState
 
     _enqueue(sched, "parent")
     _enqueue(sched, "child", depends_on=("parent",))
@@ -960,7 +960,7 @@ def test_a_retryable_failure_does_not_block_dependents(sched):
     a dependent that waits is waiting for something that may yet arrive.
     Blocking it here would turn a transient outage into a dead queue.
     """
-    from qta_agent.scheduler import JobState
+    from agent_substrate.scheduler import JobState
 
     _enqueue(sched, "parent", max_attempts=3)
     _enqueue(sched, "child", depends_on=("parent",))
@@ -975,7 +975,7 @@ def test_a_retryable_failure_does_not_block_dependents(sched):
 
 def test_the_failure_cascade_does_not_rewrite_a_finished_dependent(sched):
     """A dependent that already finished keeps how it finished."""
-    from qta_agent.scheduler import JobState
+    from agent_substrate.scheduler import JobState
 
     _enqueue(sched, "parent")
     _enqueue(sched, "child", depends_on=("parent",))
@@ -994,7 +994,7 @@ def test_the_cascade_is_recorded_so_an_operator_can_see_it(sched):
     A state change nobody can attribute is a state change an operator cannot
     reason about after the fact.
     """
-    from qta_agent.scheduler import ACT_JOB_TRANSITION, JobState
+    from agent_substrate.scheduler import ACT_JOB_TRANSITION, JobState
 
     _enqueue(sched, "parent")
     _enqueue(sched, "child", depends_on=("parent",))
@@ -1142,7 +1142,7 @@ def test_a_governed_report_is_written_under_the_holders_identity(sched):
     Both facts are durable: replay re-checks ownership from the actor, and
     ``closed_by`` keeps the verifier's separate role visible to an auditor.
     """
-    from qta_agent.scheduler import ACT_JOB_TRANSITION
+    from agent_substrate.scheduler import ACT_JOB_TRANSITION
 
     _dispatched(sched)
     sched.report(job_id="j1", worker="worker-a", actor="verifier-1")
@@ -1227,7 +1227,7 @@ def test_report_refuses_at_the_CALL_SITE_not_as_a_replay_error(sched):
 
     # THE OTHER HALF, so this cannot pass by nothing ever mentioning a seq:
     # the same claim, appended directly, IS a replay error and says so.
-    from qta_agent.scheduler import ACT_JOB_TRANSITION
+    from agent_substrate.scheduler import ACT_JOB_TRANSITION
 
     sched.log.append(
         actor="mallory", action=ACT_JOB_TRANSITION, target="j1",
@@ -1293,7 +1293,7 @@ def test_a_refused_report_from_a_lapsed_lease_appends_nothing(sched):
 def _deny_raises(log):
     """A policy under which raising priority is refused, everything else is
     allowed. Published so the gate has something real to consult."""
-    from qta_agent.policy import ANY, Effect, document, rule
+    from agent_substrate.policy import ANY, Effect, document, rule
 
     pol = PolicyStore(log).load()
     pol.publish(document(policy_id="scheduler.default", version=1, rules=(
@@ -1502,7 +1502,7 @@ def test_replay_re_runs_the_enqueue_policy_gate(tmp_path):
     Otherwise a submitter the policy refuses gets its work into the queue by
     writing the record itself, which is the whole shape of this class.
     """
-    from qta_agent.policy import ANY, Effect, document, rule
+    from agent_substrate.policy import ANY, Effect, document, rule
 
     log = EventLog(tmp_path / "log.jsonl")
     pol = PolicyStore(log).load()
@@ -1534,7 +1534,7 @@ def test_the_priority_gate_matches_on_the_actor_not_a_payload_field(
     A record that could supply its own subject would pick which rule judges
     it, which is the same defect as naming your own executor.
     """
-    from qta_agent.policy import ANY, Effect, document, rule
+    from agent_substrate.policy import ANY, Effect, document, rule
 
     log = EventLog(tmp_path / "log.jsonl")
     pol = PolicyStore(log).load()
@@ -1572,7 +1572,7 @@ def test_a_raise_is_judged_by_the_policy_of_its_own_day(tmp_path):
     Without this, publishing a stricter policy would make every queue that
     ever raised a priority unloadable.
     """
-    from qta_agent.policy import ANY, Effect, document, rule
+    from agent_substrate.policy import ANY, Effect, document, rule
 
     def doc(version, extra=()):
         return document(policy_id="scheduler.default", version=version,
@@ -1729,7 +1729,7 @@ def test_the_record_does_not_get_to_name_its_own_expiry(sched):
     where it is standing, which is the same rule that stops a capability
     naming its own issued_seq.
     """
-    from qta_agent.scheduler import ACT_LEASE_RENEW
+    from agent_substrate.scheduler import ACT_LEASE_RENEW
     _leased(sched)
     sched.log.append(actor="w1", action=ACT_LEASE_RENEW, target="j1",
                      payload={"job_id": "j1", "lease_id": "L1",
@@ -1741,7 +1741,7 @@ def test_the_record_does_not_get_to_name_its_own_expiry(sched):
 
 def test_a_forged_renewal_by_a_non_holder_fails_on_replay(sched, tmp_path):
     """The write path refuses it, so an attacker appends it directly."""
-    from qta_agent.scheduler import ACT_LEASE_RENEW
+    from agent_substrate.scheduler import ACT_LEASE_RENEW
     _leased(sched)
     sched.log.append(actor="mallory", action=ACT_LEASE_RENEW, target="j1",
                      payload={"job_id": "j1", "lease_id": "L1",
@@ -1752,7 +1752,7 @@ def test_a_forged_renewal_by_a_non_holder_fails_on_replay(sched, tmp_path):
 
 
 def test_a_renewal_of_a_job_that_is_not_dispatched_is_refused(sched):
-    from qta_agent.scheduler import ACT_LEASE_RENEW
+    from agent_substrate.scheduler import ACT_LEASE_RENEW
     _enqueue(sched)
     sched.reconcile()
     sched.log.append(actor="w1", action=ACT_LEASE_RENEW, target="j1",
@@ -1791,7 +1791,7 @@ def test_a_refused_gate_leaves_a_record_of_what_was_tried(tmp_path):
     moment later, so recording the ALLOW too would double the log for no
     new information.
     """
-    from qta_agent.policy import ACT_POLICY_DECISION
+    from agent_substrate.policy import ACT_POLICY_DECISION
 
     log, s = _strict(tmp_path)
     before = len(log.read())
@@ -1815,7 +1815,7 @@ def test_a_refused_gate_leaves_a_record_of_what_was_tried(tmp_path):
 
 def test_a_permitted_gate_does_not_write_a_second_record(tmp_path):
     """The other half, so the rule above is a rule and not a habit."""
-    from qta_agent.policy import ACT_POLICY_DECISION
+    from agent_substrate.policy import ACT_POLICY_DECISION
 
     log, s = _strict(tmp_path)
     s.set_priority(job_id="j1", priority=MAX_PRIORITY, actor="operator",
@@ -1856,7 +1856,7 @@ def _attempts_charged(sched, job_id="j1"):
     Counting `job.attempts` would ask the reducer whether the reducer kept
     the count correctly. Counting dispatch records asks the history.
     """
-    from qta_agent.scheduler import ACT_JOB_TRANSITION
+    from agent_substrate.scheduler import ACT_JOB_TRANSITION
 
     return sum(1 for ev in sched.log.read()
                if ev.action == ACT_JOB_TRANSITION
@@ -1969,7 +1969,7 @@ def test_two_reconcilers_cannot_charge_the_same_lapse_twice(tmp_path):
     # Count the requeues OUT OF DISPATCHED. A job also reaches READY from
     # WAITING when its preconditions first hold, and counting that as a
     # requeue is how this assertion read a healthy log as a double charge.
-    from qta_agent.scheduler import ACT_JOB_TRANSITION
+    from agent_substrate.scheduler import ACT_JOB_TRANSITION
     requeues = [ev for ev in sched.log.read()
                 if ev.action == ACT_JOB_TRANSITION
                 and ev.payload.get("job_id") == "j1"

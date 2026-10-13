@@ -3,8 +3,8 @@
 
 WHY THIS IS A COMMAND AND NOT A NOTEBOOK
 
-``qta_agent.audit`` has had a queryable index for a while, and everything it
-could answer was reachable only by importing it and writing Python. That is
+``agent_substrate.audit`` has had a queryable index for a while, and everything
+it could answer was reachable only by importing it and writing Python. That is
 not an auditor: the person who needs it during an incident is the person least
 able to write a correct query against an unfamiliar API at the time they need
 it. Worse, an ad-hoc query written under pressure is itself unreviewed code
@@ -55,9 +55,9 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.audit import AuditIndex  # noqa: E402
-from qta_agent.events import ChainBroken, EventLog  # noqa: E402
-from qta_agent.reconstruct import reconstruct, reconstruct_tasks  # noqa: E402
+from agent_substrate.audit import AuditIndex  # noqa: E402
+from agent_substrate.events import ChainBroken, EventLog  # noqa: E402
+from agent_substrate.reconstruct import reconstruct, reconstruct_tasks  # noqa: E402
 
 OK, FINDING, CANNOT_ASK = 0, 1, 2
 
@@ -191,7 +191,7 @@ def cmd_replay(log, args) -> int:
     """
     evidence = None
     if getattr(args, "evidence", None):
-        from qta_agent.evidence import EvidenceStore
+        from agent_substrate.evidence import EvidenceStore
         if not Path(args.evidence).is_dir():
             print(f"no evidence store at {args.evidence}", file=sys.stderr)
             return CANNOT_ASK

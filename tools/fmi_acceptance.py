@@ -35,7 +35,7 @@ in its own runtime. The campaign, every item measured:
   closed form; the FAULT build (G12 10 % off inside, declared right) FAILS
   it.
 
-    QTA_FMI_PYTHON=<prefix>/bin/python python tools/fmi_acceptance.py \\
+    HARNESS_FMI_PYTHON=<prefix>/bin/python python tools/fmi_acceptance.py \\
         --work DIR --out report.json
 """
 from __future__ import annotations

@@ -65,28 +65,28 @@
   },
   {
    "name": "NU9_learned_rule_off",
-   "path": "qta_agent/learned_rules.py",
+   "path": "agent_substrate/learned_rules.py",
    "find": "    if is_learned(kind) and value in REFUSED_STATES:\n",
    "replace": "    if False:\n",
    "rationale": "a learned record may become VERIFIED"
   },
   {
    "name": "NU10_store_live_refusal_off",
-   "path": "qta_agent/store.py",
+   "path": "agent_substrate/store.py",
    "find": "            learned = learned_rules.refusal(cur.kind, dst)\n",
    "replace": "            learned = None\n",
    "rationale": "the live edge appends a refused transition before replay objects"
   },
   {
    "name": "NU11_second_reader_refusal_off",
-   "path": "qta_agent/reconstruct.py",
+   "path": "agent_substrate/reconstruct.py",
    "find": "                    and cur[\"kind\"].startswith(_LEARNED_PREFIX)\n",
    "replace": "                    and cur[\"kind\"].startswith(\"__never__\")\n",
    "rationale": "the second reader carries a learned VERIFIED forward"
   },
   {
    "name": "NU12_ledger_link_unchecked",
-   "path": "qta_agent/learned_lifecycle.py",
+   "path": "agent_substrate/learned_lifecycle.py",
    "find": "                if why is not None:\n",
    "replace": "                if False:\n",
    "rationale": "a training run of another dataset recorded"
@@ -177,7 +177,7 @@
   },
   {
    "name": "NU25_promoted_left_open_to_learned_records",
-   "path": "qta_agent/learned_rules.py",
+   "path": "agent_substrate/learned_rules.py",
    "find": "REFUSED_STATES = (\"VERIFIED\", \"PROMOTED\")\n",
    "replace": "REFUSED_STATES = (\"VERIFIED\",)\n",
    "rationale": "a learned output can be promoted without passing through VERIFIED's refusal"

@@ -8,7 +8,7 @@ D-2026-84). Each records what HAPPENED and changes nothing any reducer
 permits, which the identity inventory says with a reason per action. This
 module holds both halves of that:
 
-* each has a second reader now, in ``qta_agent/reconstruct.py``: records
+* each has a second reader now, in ``agent_substrate/reconstruct.py``: records
   its writer produced read clean (control), and a record its writer could
   not have produced is a finding, case by case;
 * a forged record of each kind -- one every primary reader accepts, so it
@@ -28,17 +28,17 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import reconstruct as rc  # noqa: E402
-from qta_agent.agents import (  # noqa: E402
+from agent_substrate import reconstruct as rc  # noqa: E402
+from agent_substrate.agents import (  # noqa: E402
     AgentDirectory, AgentRole, PrincipalKind, identity,
 )
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_model import GovernedModelRuns  # noqa: E402
-from qta_agent.netauth import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_model import GovernedModelRuns  # noqa: E402
+from agent_substrate.netauth import (  # noqa: E402
     NetworkAuthority, NetworkRequest, grant as net_grant, parse_target,
 )
-from qta_agent.secrets import (  # noqa: E402
+from agent_substrate.secrets import (  # noqa: E402
     MappingSecretProvider, SecretRef, SecretStore, grant as secret_grant,
 )
 
@@ -468,9 +468,9 @@ def test_every_durable_action_is_registered():
     provisioned. The inventory enumerated the constant; nothing held the
     registry to it."""
     import ast
-    from qta_agent import actions
+    from agent_substrate import actions
     written = set()
-    for f in sorted((ROOT / "qta_agent").glob("*.py")):
+    for f in sorted((ROOT / "agent_substrate").glob("*.py")):
         for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
             if (isinstance(node, ast.Assign) and len(node.targets) == 1
                     and isinstance(node.targets[0], ast.Name)
@@ -485,7 +485,7 @@ def test_every_durable_action_is_registered():
 def test_a_provisioned_secret_does_not_stop_the_other_readers(secrets):
     """The consequence, end to end: a genuine provisioning record on a
     shared log, and the readers that meet it on the way past still load."""
-    from qta_agent.store import AuthorityStore
+    from agent_substrate.store import AuthorityStore
     AuthorityStore(secrets).load()
     SecretStore(secrets).load()
     NetworkAuthority(secrets).load()

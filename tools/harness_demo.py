@@ -68,10 +68,10 @@ def _sha_file(p: Path) -> str:
 
 
 def _world(base: Path):
-    from qta_agent.agents import AgentRole, PrincipalKind, identity
-    from qta_agent.events import EventLog
-    from qta_agent.evidence import EvidenceStore
-    from qta_agent.governed_model import GovernedModelRuns
+    from agent_substrate.agents import AgentRole, PrincipalKind, identity
+    from agent_substrate.events import EventLog
+    from agent_substrate.evidence import EvidenceStore
+    from agent_substrate.governed_model import GovernedModelRuns
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
@@ -85,7 +85,7 @@ def _world(base: Path):
 
 
 def _receive(log, ctx, index: int, parent: str | None = None):
-    from qta_agent import proposals as PR
+    from agent_substrate import proposals as PR
     fixture = ROOT / "integrations" / "proposals" / "recorded_fixture.jsonl"
     ad = PR.RecordedFixtureAdapter(fixture.read_text(encoding="utf-8"),
                                    source=fixture.name)
@@ -194,9 +194,9 @@ def restart(base: Path, log, ev, g) -> dict:
     """Checkpoint the authority projection, then restart from it as a new
     process would: the checkpoint audit decides the load, and the recovered
     state must equal a full replay of the log (R41)."""
-    from qta_agent.checkpoint import CheckpointStore
-    from qta_agent.governed_model import GovernedModelRuns
-    from qta_agent.store import AuthorityStore
+    from agent_substrate.checkpoint import CheckpointStore
+    from agent_substrate.governed_model import GovernedModelRuns
+    from agent_substrate.store import AuthorityStore
     cps = CheckpointStore(base / "checkpoints")
     cp = g.checkpoint(cps)
     again = GovernedModelRuns(root=ROOT, log=log, evidence=ev,
@@ -211,8 +211,8 @@ def restart(base: Path, log, ev, g) -> dict:
 
 def reconstruction(log_path: Path, ev_dir: Path) -> dict:
     import generic_consistency
-    from qta_agent import reconstruct as rc
-    from qta_agent.events import EventLog
+    from agent_substrate import reconstruct as rc
+    from agent_substrate.events import EventLog
     res = generic_consistency.verify(log_path, ev_dir)
     findings = {k: v for k, v in res.items() if k != "notes" and v}
     sub = rc.reconstruct_subsystems(EventLog(log_path))
@@ -267,7 +267,7 @@ def crate(base: Path, report: dict) -> dict:
 
 
 def run(*, fenicsx: str | None, fmi: str | None, required: set) -> dict:
-    from qta_agent import proposals as PR
+    from agent_substrate import proposals as PR
     from qta_multiphysics.stack.rag_index import retrieve
     from scientific.backend_probe import run_environment
     if "fenicsx" in required and not fenicsx:

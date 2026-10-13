@@ -260,7 +260,7 @@ def test_prompt_injection_is_returned_only_as_verbatim_non_evidence(tmp_path):
 # ---------------------------------------------------------------------------
 # Mutation-isolating additions (not part of the recovered file).
 #
-# Running tools/mutations/stage10_authority.json against the recovered tests
+# Running tools/mutations/governed_tasks_authority.json against the recovered tests
 # left four mutations alive. Three were masked the same way: the hostile paths
 # the recovered tests use do not EXIST, so `is not a regular file` refused them
 # before the guard under test ever ran. The tests were therefore proving that

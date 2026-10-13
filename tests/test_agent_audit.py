@@ -12,13 +12,13 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.audit import (  # noqa: E402
+from agent_substrate.audit import (  # noqa: E402
     REDACTED, REQUIRED_RECORDS, AuditIndex, redact,
 )
-from qta_agent.events import ChainBroken, EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
-    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedStage10,
+from agent_substrate.events import ChainBroken, EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
+    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedTasks,
 )
 
 WS = "verification/stage10/_pytest_audit"
@@ -31,7 +31,7 @@ def gov(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -290,8 +290,8 @@ def test_the_audit_is_part_of_the_production_path():
 
 def _authority_world(tmp_path):
     """A store with an evidence-backed record, built the ordinary way."""
-    from qta_agent.authority import Role, State
-    from qta_agent.store import AuthorityStore
+    from agent_substrate.authority import Role, State
+    from agent_substrate.store import AuthorityStore
 
     log = EventLog(tmp_path / "auth.jsonl")
     ev = EvidenceStore(tmp_path / "ev")
@@ -458,7 +458,7 @@ def test_canonical_authority_resting_on_a_withdrawn_dependency_is_a_gap(
     """The cross-record hole, and the reason this is not redundant.
 
     ``store.py`` applies one event at a time and never looks at dependents.
-    :mod:`qta_agent.invalidation` cascades ONLY when a caller runs it. So a
+    :mod:`agent_substrate.invalidation` cascades ONLY when a caller runs it. So a
     cascade nobody ran leaves a PROMOTED record resting on a REVOKED one,
     every individual transition legal, and nothing in the enforcement path
     able to notice.
@@ -487,7 +487,7 @@ def test_running_the_cascade_closes_that_gap(tmp_path):
     If the auditor flagged the dependency regardless of whether the cascade
     ran, it would be reporting the design rather than a defect.
     """
-    from qta_agent.invalidation import apply_invalidation
+    from agent_substrate.invalidation import apply_invalidation
 
     log, ev, store, Role, State = _authority_world(tmp_path)
     _promote(store, ev, Role, State, "base")
@@ -546,7 +546,7 @@ def test_an_added_dependency_is_seen_too(tmp_path):
 # --- policy decisions: a query, not a chain ---------------------------------
 
 def _policy_world(tmp_path):
-    from qta_agent.policy import (
+    from agent_substrate.policy import (
         ANY, Effect, PolicyDocument, PolicyRequest, PolicyStore, Rule,
     )
 
@@ -685,7 +685,7 @@ def test_an_absent_decision_is_reported_not_invented(tmp_path):
 
 def test_policy_versions_are_read_from_the_log_not_the_projection(tmp_path):
     """The auditor must not depend on the code whose decision is in question."""
-    from qta_agent.policy import ANY, Effect, PolicyDocument, Rule
+    from agent_substrate.policy import ANY, Effect, PolicyDocument, Rule
 
     log, store, doc, PolicyRequest = _policy_world(tmp_path)
     v2 = PolicyDocument(
@@ -725,7 +725,7 @@ def test_the_governed_run_records_the_decision_that_permitted_it(gov):
 
 def _self_verified_log(tmp_path, *, executed_by=None):
     """One actor executes and verifies. Optionally naming someone else."""
-    from qta_agent.canonical import digest_bytes
+    from agent_substrate.canonical import digest_bytes
 
     log = EventLog(tmp_path / "log.jsonl")
     tid, dg = "t-self", digest_bytes(b"r")
@@ -772,7 +772,7 @@ def test_a_payload_naming_a_ghost_does_not_silence_that_report(tmp_path):
 
 def test_the_audit_takes_the_executor_from_the_execution_record(tmp_path):
     """Stated as the property, so it survives a rewrite of the check above."""
-    from qta_agent.canonical import digest_bytes
+    from agent_substrate.canonical import digest_bytes
 
     log = EventLog(tmp_path / "log.jsonl")
     tid, dg = "t-two", digest_bytes(b"r")
@@ -810,7 +810,7 @@ def test_the_execution_step_detail_never_carries_an_executor_claim():
     """
     import ast
 
-    src = (ROOT / "qta_agent" / "audit.py").read_text(encoding="utf-8")
+    src = (ROOT / "agent_substrate" / "audit.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
     fn = next(n for n in ast.walk(tree)
               if isinstance(n, ast.FunctionDef) and n.name == "explain_task")

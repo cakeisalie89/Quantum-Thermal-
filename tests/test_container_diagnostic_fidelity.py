@@ -286,7 +286,7 @@ def test_the_summary_prints_on_failure_and_names_the_failing_step(tmp_path):
     import subprocess
 
     src = (ROOT / "container_verify.sh").read_text(encoding="utf-8")
-    start = src.index("QTA_STEPS_OK=")
+    start = src.index("HARNESS_STEPS_OK=")
     end = src.index("trap _qta_summary EXIT") + len("trap _qta_summary EXIT")
     harness = tmp_path / "demo.sh"
     harness.write_text(

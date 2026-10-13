@@ -5,7 +5,7 @@ THE DEFAULT IS NO NETWORK
 A process that can open a socket can open any socket. Nothing about "this
 component only fetches the schema registry" is enforced by anything; it is a
 sentence in a design document that the runtime has never read. So egress here
-is a :class:`~qta_agent.capability.Capability`-shaped object: it names a
+is a :class:`~agent_substrate.capability.Capability`-shaped object: it names a
 subject, a task, a tool, an expiry, and exactly which destinations it covers.
 Anything not covered is refused, and a component holding a grant for one
 destination holds nothing at all for another.

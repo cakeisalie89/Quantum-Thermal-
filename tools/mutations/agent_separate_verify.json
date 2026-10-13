@@ -8,7 +8,7 @@
     {
       "name": "S1_the_import_guard_lets_the_primary_reducer_through",
       "path": "tools/independent_verify.py",
-      "find": "        if (fullname.partition(\".\")[0] == \"qta_agent\"\n                and fullname not in PERMITTED):",
+      "find": "        if (fullname.partition(\".\")[0] == \"agent_substrate\"\n                and fullname not in PERMITTED):",
       "replace": "        if False:",
       "rationale": "the second reading becomes a second call to the first implementation, which agrees with itself for free"
     },
@@ -35,49 +35,49 @@
     },
     {
       "name": "S5_a_crashed_verifier_is_a_pass",
-      "path": "qta_agent/separate_verify.py",
+      "path": "agent_substrate/separate_verify.py",
       "find": "    if proc.returncode == EXIT_CLEAN and doc.get(\"ok\"):",
       "replace": "    if True:",
       "rationale": "every non-zero exit, timeout and unreadable answer becomes agreement"
     },
     {
       "name": "S6_a_timeout_is_treated_as_success",
-      "path": "qta_agent/separate_verify.py",
+      "path": "agent_substrate/separate_verify.py",
       "find": "    except subprocess.TimeoutExpired:\n        return SeparateVerification(\n            ok=False, exit_status=None,",
       "replace": "    except subprocess.TimeoutExpired:\n        return SeparateVerification(\n            ok=True, exit_status=None,",
       "rationale": "a verifier that hangs never says no, which is not the same as saying yes"
     },
     {
       "name": "S7_an_unparseable_answer_is_a_verdict",
-      "path": "qta_agent/separate_verify.py",
+      "path": "agent_substrate/separate_verify.py",
       "find": "    except ValueError:\n        return SeparateVerification(\n            ok=False, exit_status=proc.returncode,",
       "replace": "    except ValueError:\n        return SeparateVerification(\n            ok=True, exit_status=proc.returncode,",
       "rationale": "an unparseable verdict is not a verdict"
     },
     {
       "name": "S8_a_missing_verifier_is_skipped_rather_than_refused",
-      "path": "qta_agent/separate_verify.py",
+      "path": "agent_substrate/separate_verify.py",
       "find": "    if not script.is_file():\n        return SeparateVerification(\n            ok=False, exit_status=None,",
       "replace": "    if not script.is_file():\n        return SeparateVerification(\n            ok=True, exit_status=None,",
       "rationale": "deleting the verifier becomes the cheapest way to make every run agree with itself"
     },
     {
       "name": "S9_the_production_path_does_not_consult_another_process",
-      "path": "qta_agent/governed_stage10.py",
+      "path": "agent_substrate/governed_tasks.py",
       "find": "        if ok:\n            sep = verify_in_separate_process(self.log.path, root=self.root)",
       "replace": "        if False:\n            sep = verify_in_separate_process(self.log.path, root=self.root)",
       "rationale": "the mechanism exists and nothing calls it, which is the shape of a defence with no caller"
     },
     {
       "name": "S10_the_independent_refusal_changes_nothing",
-      "path": "qta_agent/governed_stage10.py",
+      "path": "agent_substrate/governed_tasks.py",
       "find": "            if not sep.ok:\n                ok = False",
       "replace": "            if False:\n                ok = False",
       "rationale": "a verifier whose answer changes nothing is a log line, and this project has a name for those"
     },
     {
       "name": "S11_the_verdict_is_not_recorded",
-      "path": "qta_agent/governed_stage10.py",
+      "path": "agent_substrate/governed_tasks.py",
       "find": "            self.log.append(\n                actor=verifier, action=ACT_SEPARATE_VERIFY, target=task_id,\n                payload={\"task_id\": task_id, **sep.to_record()})",
       "replace": "            pass",
       "rationale": "'the independent verifier refused' is exactly the fact an auditor must be able to find"
@@ -85,15 +85,15 @@
     {
       "name": "S12_the_permitted_set_admits_the_authority_gate",
       "path": "tools/independent_verify.py",
-      "find": "    \"qta_agent.reconstruct\",\n})",
-      "replace": "    \"qta_agent.reconstruct\",\n    \"qta_agent.authority\",\n})",
+      "find": "    \"agent_substrate.reconstruct\",\n})",
+      "replace": "    \"agent_substrate.reconstruct\",\n    \"agent_substrate.authority\",\n})",
       "rationale": "D-2026-126: the gate the reader was decoupled from becomes loadable in the one process built so that it is not"
     },
     {
       "name": "S13_the_permitted_set_admits_a_module_the_verifier_never_loads",
       "path": "tools/independent_verify.py",
-      "find": "    \"qta_agent.reconstruct\",\n})",
-      "replace": "    \"qta_agent.reconstruct\",\n    \"qta_agent.hostid\",\n})",
+      "find": "    \"agent_substrate.reconstruct\",\n})",
+      "replace": "    \"agent_substrate.reconstruct\",\n    \"agent_substrate.hostid\",\n})",
       "rationale": "D-2026-126: PERMITTED stops being a measurement; room for an import nobody reviewed"
     }
   ]

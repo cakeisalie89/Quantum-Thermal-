@@ -184,7 +184,7 @@ def write_text_deterministic(path: StrPath, text: str) -> str:
             "-- indexed, hashed into the evidence store and re-derived by the "
             "verifier -- so an ungoverned writer here would launder an "
             "unrecorded file into a provenance chain. Run the work through "
-            "GovernedStage10, or write somewhere else in the workspace.")
+            "GovernedTasks, or write somewhere else in the workspace.")
     data = text.replace("\r\n", "\n").encode("utf-8")
     target.write_bytes(data)
     return hashlib.sha256(data).hexdigest()

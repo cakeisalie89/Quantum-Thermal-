@@ -30,15 +30,15 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 from hangguard import deadline  # noqa: E402
-from qta_agent.canonical import digest_bytes  # noqa: E402
-from qta_agent.capability import (  # noqa: E402
+from agent_substrate.canonical import digest_bytes  # noqa: E402
+from agent_substrate.capability import (  # noqa: E402
     Action, CapabilitySet, issue,
 )
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.readpath import (  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.readpath import (  # noqa: E402
     ACT_FILE_READ, GovernedReader, ReadDenied, ReadRequest, read_scope,
 )
-from qta_agent.safeio import (  # noqa: E402
+from agent_substrate.safeio import (  # noqa: E402
     NotARegularFile, PathRefused, ReadRoot, ReadTooLarge, SafeIOError,
     SourceChanged, SymlinkRefused, split_relative,
 )
@@ -290,7 +290,7 @@ def test_a_rename_after_the_open_cannot_redirect_the_read(tree):
     its place. The bytes that come back must be the ones the open bound to.
     """
     path = tree["root"] / "allowed.txt"
-    from qta_agent.safeio import open_beneath
+    from agent_substrate.safeio import open_beneath
 
     with ReadRoot(tree["root"]) as rr:
         fd = open_beneath(rr.fd, "allowed.txt")
@@ -513,7 +513,7 @@ def test_the_bytes_are_never_written_to_the_log(tree, tmp_path):
 def test_the_reader_refuses_an_unknown_action_nowhere(reader):
     """The action this module writes is registered, so shared-log readers
     classify it as FOREIGN rather than refusing the whole history."""
-    from qta_agent import actions
+    from agent_substrate import actions
 
     reader.read(_req("allowed.txt"), capability_id="cap-read")
     assert actions.owner(ACT_FILE_READ) == "readpath"
@@ -595,7 +595,7 @@ def test_a_hard_linked_file_is_refused_when_identity_matters(tree):
     only part of that the kernel reports, and for an artifact written once by
     one tool a count above one is already the answer.
     """
-    from qta_agent.safeio import AliasedFile
+    from agent_substrate.safeio import AliasedFile
 
     target = tree["root"] / "aliased.txt"
     target.write_bytes(b"content with two names")
@@ -650,7 +650,7 @@ def test_the_hard_link_check_keeps_a_production_caller():
     second way to change what the digest describes.
     """
     refs = _non_test_references("require_unique_link=True")
-    assert refs - {"qta_agent/safeio.py", "qta_agent/readpath.py"}, (
+    assert refs - {"agent_substrate/safeio.py", "agent_substrate/readpath.py"}, (
         "nothing outside tests passes require_unique_link=True, so the "
         f"alias check never runs in production: {sorted(refs)}")
 
@@ -665,7 +665,7 @@ def test_a_hard_linked_artifact_is_refused_by_the_verification_path(tmp_path):
     """
     import os
 
-    from qta_agent.safeio import AliasedFile, ReadRoot
+    from agent_substrate.safeio import AliasedFile, ReadRoot
 
     root = tmp_path / "root"
     root.mkdir()
@@ -813,7 +813,7 @@ def test_the_primitive_itself_defaults_to_refusing_an_alias(tree):
     default alone is invisible through ReadRoot. Defence in depth masking a
     hole in one of its layers is still a hole.
     """
-    from qta_agent.safeio import AliasedFile, read_beneath
+    from agent_substrate.safeio import AliasedFile, read_beneath
 
     target = tree["root"] / "primitive-alias.txt"
     target.write_bytes(b"two names")
@@ -838,7 +838,7 @@ def test_the_governed_reader_defaults_to_refusing_an_alias(reader, tree):
     its own default, and a test that only exercises one of them cannot see
     the other being relaxed.
     """
-    from qta_agent.safeio import AliasedFile
+    from agent_substrate.safeio import AliasedFile
 
     target = tree["root"] / "governed-alias.txt"
     target.write_bytes(b"aliased")
@@ -859,7 +859,7 @@ def test_a_missing_root_is_absent_not_merely_refused(tmp_path):
     evidence by catching FileNotFoundError -- began reporting an empty store
     as corrupt.
     """
-    from qta_agent.safeio import RootMissing
+    from agent_substrate.safeio import RootMissing
 
     missing = tmp_path / "never-existed"
     with pytest.raises(RootMissing) as exc:
@@ -885,7 +885,7 @@ def test_a_root_that_exists_but_cannot_be_opened_is_a_plain_refusal(
     and unreadable -- which is the more alarming case, reported as the
     calmer one.
     """
-    from qta_agent.safeio import PathRefused, RootMissing
+    from agent_substrate.safeio import PathRefused, RootMissing
 
     root = tmp_path / "root"
     root.mkdir()

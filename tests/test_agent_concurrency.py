@@ -32,14 +32,14 @@ if HERE not in sys.path:                # so hangguard imports without pytest
 
 from hangguard import PROCESS_DEADLINE_S, deadline  # noqa: E402
 
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.events import EventLog, EventLogError  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.policy import PolicyStore  # noqa: E402
-from qta_agent.scheduler import (  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.events import EventLog, EventLogError  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.scheduler import (  # noqa: E402
     JobState, JobTransitionError, Scheduler, SchedulerError, default_policy,
 )
-from qta_agent.store import AuthorityStore, ConcurrencyError  # noqa: E402
+from agent_substrate.store import AuthorityStore, ConcurrencyError  # noqa: E402
 
 #: Small enough to stay fast, large enough that an unlocked append would
 #: collide with near-certainty. Measured: at 4 x 15 the unlocked version
@@ -81,7 +81,7 @@ def _map_bounded(pool, fn, args, timeout: float = PROCESS_DEADLINE_S):
 def _append_worker(args):
     path, tag, count = args
     sys.path.insert(0, str(ROOT))
-    from qta_agent.events import EventLog as _EL
+    from agent_substrate.events import EventLog as _EL
     log = _EL(path)
     ok = failed = 0
     for i in range(count):
@@ -97,7 +97,7 @@ def _append_worker(args):
 def _evidence_worker(args):
     path, payload, count = args
     sys.path.insert(0, str(ROOT))
-    from qta_agent.evidence import EvidenceStore as _ES
+    from agent_substrate.evidence import EvidenceStore as _ES
     store = _ES(path)
     return [store.put(payload.encode()) for _ in range(count)]
 
@@ -228,7 +228,7 @@ def test_the_module_states_what_the_lock_does_not_cover():
     """Advisory, one host, local filesystem. Said in the module, not here."""
     import re
 
-    import qta_agent.events as mod
+    import agent_substrate.events as mod
     doc = re.sub(r"\s+", " ", mod.__doc__ or "")
     assert "ADVISORY" in doc
     assert "NFS" in doc
@@ -275,7 +275,7 @@ def test_two_writers_racing_on_one_record_do_not_both_win(tmp_path):
     # append wait out the whole lock timeout, so an unbounded
     # version of this test parks the suite for minutes.
     with deadline(LOCK_WAIT_DEADLINE_S):
-        from qta_agent.authority import Role, State
+        from agent_substrate.authority import Role, State
 
         log = EventLog(tmp_path / "log.jsonl")
         store = AuthorityStore(log).load()
@@ -337,7 +337,7 @@ def test_a_platform_without_advisory_locking_refuses_to_append(tmp_path,
     platform that cannot provide the lock gets an error naming the reason
     rather than a log that works until the first moment of concurrency.
     """
-    import qta_agent.events as mod
+    import agent_substrate.events as mod
 
     monkeypatch.setattr(mod, "fcntl", None)
     log = EventLog(tmp_path / "log.jsonl")

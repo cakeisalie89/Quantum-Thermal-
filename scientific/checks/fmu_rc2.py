@@ -54,7 +54,7 @@ FMU_MODEL_VERSION = "1.0.0"
 IMPLEMENTATION_MODULES = ("scientific.checks.fmu_rc2",)
 RUNNER = Path(__file__).resolve().parents[2] / "integrations" / "fmi" \
     / "fmpy_runner.py"
-ENV_VAR = "QTA_FMI_PYTHON"
+ENV_VAR = "HARNESS_FMI_PYTHON"
 GCI_SAFETY = 3.0
 RK4_RICHARDSON = 15.0          # 2^4 - 1
 TIMEOUT_S = 600

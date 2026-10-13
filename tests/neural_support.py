@@ -1,7 +1,7 @@
 """Shared by the NF-1T test modules: JAX, or a decision about its absence.
 
 The learned-model tests need the ``neural`` extra. Without it a developer's
-run SKIPS them with the reason; where ``QTA_NEURAL_REQUIRED=1`` (every CI
+run SKIPS them with the reason; where ``HARNESS_NEURAL_REQUIRED=1`` (every CI
 job that runs them) its absence is a FAILURE, so a CI run that installed
 the wrong environment cannot go green by skipping the substrate's tests.
 """
@@ -16,8 +16,8 @@ def require_jax():
     try:
         import jax
     except ImportError:
-        if os.environ.get("QTA_NEURAL_REQUIRED") == "1":
-            pytest.fail("QTA_NEURAL_REQUIRED=1 and JAX is not installed: "
+        if os.environ.get("HARNESS_NEURAL_REQUIRED") == "1":
+            pytest.fail("HARNESS_NEURAL_REQUIRED=1 and JAX is not installed: "
                         "uv sync --extra neural", pytrace=False)
         pytest.skip("the neural extra is not installed (uv sync --extra "
                     "neural)", allow_module_level=True)

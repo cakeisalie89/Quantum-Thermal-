@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.agents import (  # noqa: E402
+from agent_substrate.agents import (  # noqa: E402
     ACT_AGENT_REGISTER, ACT_AGENT_RETIRE, ACT_CLAIM, ACT_ESCALATION_ANSWER,
     ACT_ESCALATION, ACT_MESSAGE, BOOTSTRAP, AgentDirectory,
     AgentError, AgentRole,
@@ -26,8 +26,8 @@ from qta_agent.agents import (  # noqa: E402
     RecordingNotifier, StreamNotifier,
     check_separation, identity, identity_from_record,
 )
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
 
 VALUE_A = digest({"answer": "a"})
 VALUE_B = digest({"answer": "b"})
@@ -1473,7 +1473,7 @@ def test_every_immutable_dimension_is_a_real_message_field(tmp_path):
     A dimension named here and absent from Message would compare None to
     None forever -- a check that passes because it is looking at nothing.
     """
-    from qta_agent.agents import MESSAGE_IMMUTABLE, Message
+    from agent_substrate.agents import MESSAGE_IMMUTABLE, Message
     fields = set(Message.__dataclass_fields__)
     assert set(MESSAGE_IMMUTABLE) <= fields, (
         f"MESSAGE_IMMUTABLE names {set(MESSAGE_IMMUTABLE) - fields}, which "

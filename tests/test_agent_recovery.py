@@ -24,14 +24,14 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.governed_stage10 import GovernedStage10  # noqa: E402
-from qta_agent.hostid import (  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.governed_tasks import GovernedTasks  # noqa: E402
+from agent_substrate.hostid import (  # noqa: E402
     ALIVE, GONE, UNKNOWN, ProcessIdentity, boot_id, identify,
     liveness, parse_stat_start_ticks, start_ticks,
 )
-from qta_agent.tasks import TaskState  # noqa: E402
+from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_recovery"
 
@@ -49,7 +49,7 @@ def base(request):
 
 
 def _gov(base):
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{base.relative_to(ROOT).as_posix()}/out"
     return g
@@ -159,7 +159,7 @@ def test_a_truncated_or_unparseable_stat_line_is_none_not_a_guess():
 def test_boot_id_is_empty_rather_than_invented_when_unavailable(monkeypatch):
     """A synthesised boot id would differ between two processes on the SAME
     boot, making every record look stale and every recovery a reclaim."""
-    monkeypatch.setattr("qta_agent.hostid._BOOT_ID_PATH", "/nonexistent")
+    monkeypatch.setattr("agent_substrate.hostid._BOOT_ID_PATH", "/nonexistent")
     assert boot_id() == ""
 
 
@@ -170,20 +170,20 @@ def _crash_child(base, at_state="COMPLETED"):
     src = f'''
 import sys
 sys.path.insert(0, {str(ROOT)!r})
-from qta_agent.events import EventLog
-from qta_agent.evidence import EvidenceStore
-import qta_agent.governed_stage10 as g10
-from qta_agent.tasks import TaskState
-g = g10.GovernedStage10(root={str(ROOT)!r},
+from agent_substrate.events import EventLog
+from agent_substrate.evidence import EvidenceStore
+import agent_substrate.governed_tasks as g10
+from agent_substrate.tasks import TaskState
+g = g10.GovernedTasks(root={str(ROOT)!r},
     log=EventLog({str(base / "log.jsonl")!r}),
     evidence=EvidenceStore({str(base / "evidence")!r}))
 g.out_rel = {f"{base.relative_to(ROOT).as_posix()}/out"!r}
-real = g10.GovernedStage10._move
+real = g10.GovernedTasks._move
 def die(self, task, dst, *a, **k):
     if dst is TaskState.{at_state}:
         import os; os._exit(9)
     return real(self, task, dst, *a, **k)
-g10.GovernedStage10._move = die
+g10.GovernedTasks._move = die
 g.run(tool_id="stage10.emit_artifact",
       inputs={{"out_dir": g.out_rel, "name": "a.json",
                "payload": {{"v": 1}}}})
@@ -271,8 +271,8 @@ def test_a_live_holder_is_never_reclaimed(base):
     g = _gov(base)
     g.run(tool_id="stage10.emit_artifact", inputs=_inputs(g))
     # Strand a task by hand, with THIS still-running process as the holder.
-    import qta_agent.governed_stage10 as g10
-    from qta_agent.tasks import Lease
+    import agent_substrate.governed_tasks as g10
+    from agent_substrate.tasks import Lease
 
     task = g.run(tool_id="stage10.emit_artifact",
                  inputs=_inputs(g, name="b.json"))
@@ -282,7 +282,7 @@ def test_a_live_holder_is_never_reclaimed(base):
                  expires_after_seq=g.log.verify().head_seq + 10_000,
                  holder_process=identify().to_record())
     assert liveness(ProcessIdentity.from_record(live.holder_process)) is ALIVE
-    assert g10.GovernedStage10.recover  # the method under test exists
+    assert g10.GovernedTasks.recover  # the method under test exists
     # Nothing is stranded and the only live lease is this process's own.
     assert g.recover() == ()
 
@@ -292,7 +292,7 @@ def test_an_unknown_holder_is_not_reclaimed(base, monkeypatch):
     _crash_child(base, "COMPLETED")
     g = _gov(base)
     # Make every liveness answer UNKNOWN, as it would be off-host.
-    monkeypatch.setattr("qta_agent.governed_stage10.liveness",
+    monkeypatch.setattr("agent_substrate.governed_tasks.liveness",
                         lambda _identity: UNKNOWN)
     assert g.recover() == (), (
         "an inconclusive answer authorised a reclaim; that is how two "
@@ -323,15 +323,15 @@ def test_two_supervisors_recovering_one_task_requeue_it_once(base,
     _crash_child(base, "COMPLETED")
     first, second = _gov(base), _gov(base)
     (task,) = list(second.projection().tasks.values())
-    real = GovernedStage10._move
+    real = GovernedTasks._move
 
     def the_other_gets_there_first(self, *a, **kw):
-        monkeypatch.setattr(GovernedStage10, "_move", real)
+        monkeypatch.setattr(GovernedTasks, "_move", real)
         (theirs,) = first.recover()
         assert theirs["to"] == "QUEUED"
         return real(self, *a, **kw)
 
-    monkeypatch.setattr(GovernedStage10, "_move", the_other_gets_there_first)
+    monkeypatch.setattr(GovernedTasks, "_move", the_other_gets_there_first)
     assert second.recover() == ()
     requeued = [e for e in second.log.read()
                 if e.action == "task.transition"
@@ -389,7 +389,7 @@ def test_a_lapsed_lease_is_recovered_without_asking_the_operating_system(
         g.log.append(actor="system", action="agent.message",
                      target="tick", payload={"to": "nobody", "body": "tick"})
 
-    monkeypatch.setattr("qta_agent.governed_stage10.liveness",
+    monkeypatch.setattr("agent_substrate.governed_tasks.liveness",
                         lambda _identity: UNKNOWN)
     proj = g.projection()
     assert proj.expired_leases(), "the premise: the lease has now lapsed"
@@ -411,7 +411,7 @@ def test_an_in_flight_task_cannot_exist_without_a_lease(base):
     what makes that removal re-checkable: weaken the edge and this fails,
     and the mutation becomes meaningful again.
     """
-    from qta_agent.tasks import (Task, TaskRole, TaskTransition,
+    from agent_substrate.tasks import (Task, TaskRole, TaskTransition,
                                  TaskTransitionError, check)
 
     leased_no_lease = Task(task_id="t1", tool_id="x", submitter="s",
@@ -439,12 +439,12 @@ def test_an_orphan_of_a_dead_supervisor_is_terminated(base):
     src = f'''
 import subprocess, sys, os, json, time
 sys.path.insert(0, {str(ROOT)!r})
-from qta_agent.events import EventLog
-from qta_agent.evidence import EvidenceStore
-from qta_agent.execution import Limits
-import qta_agent.governed_stage10 as g10
-from qta_agent.tasks import TaskState
-g = g10.GovernedStage10(root={str(ROOT)!r},
+from agent_substrate.events import EventLog
+from agent_substrate.evidence import EvidenceStore
+from agent_substrate.execution import Limits
+import agent_substrate.governed_tasks as g10
+from agent_substrate.tasks import TaskState
+g = g10.GovernedTasks(root={str(ROOT)!r},
     log=EventLog({str(base / "log.jsonl")!r}),
     evidence=EvidenceStore({str(base / "evidence")!r}))
 g.out_rel = {f"{base.relative_to(ROOT).as_posix()}/out"!r}
@@ -454,13 +454,13 @@ def slow(self, **kw):
     kw["limits"] = Limits(wall_seconds=90.0)
     return real_run(self, **kw)
 type(g.executor).run = slow
-real_move = g10.GovernedStage10._move
+real_move = g10.GovernedTasks._move
 def die(self, task, dst, *a, **k):
     out = real_move(self, task, dst, *a, **k)
     if dst is TaskState.EXECUTING:
         os._exit(9)              # die WHILE the child is running
     return out
-g10.GovernedStage10._move = die
+g10.GovernedTasks._move = die
 g.run(tool_id="stage10.emit_artifact",
       inputs={{"out_dir": g.out_rel, "name": "a.json",
                "payload": {{"v": 1}}}})
@@ -499,7 +499,7 @@ def test_the_sweep_refuses_to_signal_its_own_process_group(base):
     runner dying with SIGTERM -- a symptom that looks like a sandbox problem
     and is neither.
     """
-    from qta_agent.governed_stage10 import _terminate_group
+    from agent_substrate.governed_tasks import _terminate_group
 
     me = identify()
     assert me.pgid == os.getpgrp(), "premise: our own group"
@@ -520,7 +520,7 @@ def test_the_sweep_refuses_to_signal_its_own_process_group(base):
 def test_a_record_with_no_process_group_is_refused_rather_than_guessed_at():
     """No group means nothing to signal. Falling back to the bare pid is
     what made the previous version kill its caller."""
-    from qta_agent.governed_stage10 import _terminate_group
+    from agent_substrate.governed_tasks import _terminate_group
 
     me = identify()
     result = _terminate_group(ProcessIdentity(pid=me.pid + 1, pgid=None,

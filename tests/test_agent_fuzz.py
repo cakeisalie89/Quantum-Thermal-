@@ -336,10 +336,10 @@ def test_the_replay_invariant_fires_on_a_log_that_cannot_be_verified(fuzz,
     all -- and one that cannot fire is indistinguishable from one that
     holds. It is a function for exactly this reason.
     """
-    from qta_agent.canonical import digest
-    from qta_agent.events import EventLog
-    from qta_agent.policy import PolicyStore
-    from qta_agent.scheduler import Scheduler, default_policy
+    from agent_substrate.canonical import digest
+    from agent_substrate.events import EventLog
+    from agent_substrate.policy import PolicyStore
+    from agent_substrate.scheduler import Scheduler, default_policy
 
     path = tmp_path / "log.jsonl"
     log = EventLog(path)
@@ -369,12 +369,12 @@ def test_the_replay_invariant_consults_the_second_reader(fuzz, tmp_path,
     purpose, so the comparison is made to report one and the invariant has
     to act on it.
     """
-    import qta_agent.reconstruct as R
+    import agent_substrate.reconstruct as R
 
-    from qta_agent.canonical import digest
-    from qta_agent.events import EventLog
-    from qta_agent.policy import PolicyStore
-    from qta_agent.scheduler import Scheduler, default_policy
+    from agent_substrate.canonical import digest
+    from agent_substrate.events import EventLog
+    from agent_substrate.policy import PolicyStore
+    from agent_substrate.scheduler import Scheduler, default_policy
 
     path = tmp_path / "log.jsonl"
     log = EventLog(path)

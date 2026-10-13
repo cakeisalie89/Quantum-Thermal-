@@ -27,9 +27,10 @@ WHERE THE CONTENT RULE LIVES
 "A scientific result is VERIFIED only on a PASS report about THIS bundle,
 from code other than the producer's, with every invariant of the bundle
 holding" is enforced by the authority store on the edge itself
-(:mod:`qta_agent.result_rules`), so a caller writing the transition directly
-is refused as :meth:`decide` would refuse it. :meth:`decide` applies the same
-function to choose between VERIFIED and REJECTED and to record the reasons.
+(:mod:`agent_substrate.result_rules`), so a caller writing the transition
+directly is refused as :meth:`decide` would refuse it. :meth:`decide` applies
+the same function to choose between VERIFIED and REJECTED and to record the
+reasons.
 
 REUSE
 
@@ -63,10 +64,10 @@ from .invalidation import (INVALIDATABLE, InvalidationPlan, apply_plan,
 from . import result_rules
 from .result_rules import KIND as RECORD_KIND
 from .result_rules import record_problems
-from .governed_stage10 import (
+from .governed_tasks import (
     ACT_EVIDENCE, ACT_EXECUTION, ACT_TASK_TRANSITION, POLICY_ID,
     SUBMITTER_ID, VERIFIER_ID, WORKER_ID, WORKSPACE_PREFIX, GovernedRun,
-    GovernedStage10,
+    GovernedTasks,
 )
 from .store import AuthorityStore, UnknownRecord
 from .tasks import TaskState
@@ -220,8 +221,8 @@ class CheckRun:
 
 
 #: The governed tools whose captured artefacts count as a VerificationResult's
-#: origin, and as a ResultBundle's. Restated as data in qta_agent.reconstruct;
-#: a conformance test holds the two to each other.
+#: origin, and as a ResultBundle's. Restated as data in
+#: agent_substrate.reconstruct; a conformance test holds the two to each other.
 VERIFIER_TOOLS = frozenset({TOOL_CHECK})
 MODEL_RUN_TOOLS = frozenset(MODEL_TOOLS.values()) | {TOOL_RUN_FMU}
 
@@ -423,13 +424,14 @@ class Invalidation:
 class GovernedModelRuns:
     def __init__(self, *, root: Path, log: EventLog,
                  evidence: EvidenceStore, checkpoints=None):
-        """``checkpoints``: a :class:`~qta_agent.checkpoint.CheckpointStore`
-        to RESTART from. The authority projection is then recovered by
-        :meth:`AuthorityStore.recover` -- the checkpoint audit decides
-        between a checkpoint-assisted load and a full replay, and
+        """``checkpoints``: a
+        :class:`~agent_substrate.checkpoint.CheckpointStore` to RESTART from.
+        The authority projection is then recovered by
+        :meth:`AuthorityStore.recover` -- the checkpoint audit decides between
+        a checkpoint-assisted load and a full replay, and
         :attr:`recovery` says which, and why. Without one, a full replay."""
         self.root = Path(root)
-        self.gov = GovernedStage10(root=root, log=log, evidence=evidence,
+        self.gov = GovernedTasks(root=root, log=log, evidence=evidence,
                                    registry=model_registry())
         self.gov.tool_modules = dict(_TOOL_MODULES)
         self.evidence = evidence
@@ -816,7 +818,7 @@ class GovernedModelRuns:
         if digest(bundle) != run.bundle_digest:
             problems.append("the bundle in evidence is not the one proposed")
         # The same admission the store enforces on the edge into VERIFIED
-        # (qta_agent.result_rules), content AND origin: here it chooses
+        # (agent_substrate.result_rules), content AND origin: here it chooses
         # between VERIFIED and REJECTED and supplies the reasons; there it is
         # what a caller writing the transition directly cannot get past.
         problems += result_rules.admission_problems(

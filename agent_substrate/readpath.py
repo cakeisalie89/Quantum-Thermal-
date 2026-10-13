@@ -1,6 +1,6 @@
 """Governed reads: who may read what, decided before the open and recorded.
 
-WHY THIS IS SEPARATE FROM :mod:`qta_agent.safeio`
+WHY THIS IS SEPARATE FROM :mod:`agent_substrate.safeio`
 
 ``safeio`` is a MECHANISM: it confines a read to a subtree, refuses symlinks
 and special files, and binds the operation to an inode instead of a name. It
@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from .capability import Action, CapabilityError, Request
 from .safeio import ReadResult, ReadRoot, SafeIOError, split_relative
 
-#: The action this module writes. Owned here; see qta_agent.actions.
+#: The action this module writes. Owned here; see agent_substrate.actions.
 ACT_FILE_READ = "file.read"
 
 
@@ -52,8 +52,8 @@ class ReadDenied(Exception):
 class ReadRequest:
     """What is being asked, described independently of who is asking.
 
-    Mirrors :class:`~qta_agent.capability.Request` and
-    :class:`~qta_agent.policy.PolicyRequest`: the decision compares a
+    Mirrors :class:`~agent_substrate.capability.Request` and
+    :class:`~agent_substrate.policy.PolicyRequest`: the decision compares a
     described request against a described grant and cannot consult the
     caller.
     """

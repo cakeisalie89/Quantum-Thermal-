@@ -97,7 +97,7 @@
    "vibration_transfer_profile.csv": "d30c1aa883a2b85c5544eaf36b52a491aaad5600d7fb032c8e2c457a2cedb21c"
   }
  },
- "checkpointing": "qta_agent.checkpoint checkpoints projections of the authority log; no model checkpoint format",
+ "checkpointing": "agent_substrate.checkpoint checkpoints projections of the authority log; no model checkpoint format",
  "datasets": {
   "available_governed_sources": [
    "thermal.conduction_1d",
@@ -127,7 +127,7 @@
    "REJECTED"
   ],
   "learned_record_rule": "none: a record of any kind could take the generic edges",
-  "log": "qta_agent.events.EventLog (hash-chained, append-only)",
+  "log": "agent_substrate.events.EventLog (hash-chained, append-only)",
   "second_reader_coverage": "39 of 39"
  },
  "feature_representations": {
@@ -144,7 +144,7 @@
  },
  "legacy_semantic_leakage_relevant": {
   ".github/": "6 hits in 3 files (comments)",
-  "qta_agent/": 0,
+  "agent_substrate/": 0,
   "scientific/": 0,
   "tools/": "33 hits in 12 files (classifier and history references)"
  },
@@ -174,7 +174,7 @@
   "scientific.identity (canonical digests, implementation digests)",
   "scientific.run_identity (environment and backend identity)",
   "scientific.result.ResultBundle",
-  "qta_agent.evidence.EvidenceStore (content-addressed)"
+  "agent_substrate.evidence.EvidenceStore (content-addressed)"
  ],
  "recorded": "2026-10-06, before any NF-1T change",
  "repository": {

@@ -17,7 +17,7 @@
    "name": "EA2_the_guard_scans_a_directory_list",
    "path": "tests/test_optimized_mode_invariants.py",
    "find": "    files = repository_files(\"*.py\", include_tests=False)\n",
-   "replace": "    files = [f for f in repository_files(\"*.py\", include_tests=False)\n             if f.startswith((\"qta_agent/\", \"tools/\", \"qta_multiphysics/\"))]\n",
+   "replace": "    files = [f for f in repository_files(\"*.py\", include_tests=False)\n             if f.startswith((\"agent_substrate/\", \"tools/\", \"qta_multiphysics/\"))]\n",
    "rationale": "the scope that missed qta_full_sim.py: an assert at the root is never scanned"
   },
   {

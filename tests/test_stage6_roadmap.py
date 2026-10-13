@@ -197,7 +197,7 @@ def test_the_exemplar_is_schema_valid_and_authority_invalid_as_shipped():
     It used to validate outright, which read as "a matrix update request
     this repository would accept". It would not: no reviewer is registered,
     so no request can be authorized here at all -- the same state
-    qta_agent.agents describes for escalations, where the mechanism exists
+    agent_substrate.agents describes for escalations, where the mechanism exists
     and its input does not.
 
     The assertion is therefore two-sided, and both sides matter. Every

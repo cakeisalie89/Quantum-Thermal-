@@ -197,8 +197,8 @@
     },
     {
       "filename": "README.md",
-      "size_bytes": 7188,
-      "sha256": "5d8cb20bd1c6138a2e425c121c775f0ad64eaa76fe51f40ec96a2715dfa12990",
+      "size_bytes": 7204,
+      "sha256": "baadd529b23decb1a06264ea7df95fed879449f43e65c6a81267e55b4339ba93",
       "generated_by": "manual",
       "purpose": "package README \u2014 canonical state and instructions"
     },
@@ -281,8 +281,8 @@
     },
     {
       "filename": "CLAIMS_BOUNDARY.md",
-      "size_bytes": 4195,
-      "sha256": "e77325f37b0dc1f5c0037b448bcaa9b853a7b6a4c5f62f3e540bec674245921d",
+      "size_bytes": 4243,
+      "sha256": "3ddb40553a0048d593e6850234d8134fefbfd8b4dccba05e2cd8ba36164238c6",
       "generated_by": "manual",
       "purpose": "explicit list of what the package does and does not claim"
     },
@@ -302,15 +302,15 @@
     },
     {
       "filename": ".gitignore",
-      "size_bytes": 1028,
-      "sha256": "c36081b38cdad23dc24d86223706aca923b7f77e3ae4ec1cc3647073c7c2b375",
+      "size_bytes": 1034,
+      "sha256": "a339442c8e2dbd9f8fc55cc1a03f0c2606d83bd2ec3edae7e9e4b6abef9573e8",
       "generated_by": "manual",
       "purpose": "excludes generated outputs and Python cache files"
     },
     {
       "filename": "INSTALL.md",
-      "size_bytes": 8535,
-      "sha256": "eb7a1035aa93486f6f639ee05c1e20e45d50085e970dc63bfd049bfac6c3f3b3",
+      "size_bytes": 8551,
+      "sha256": "a0a5afc1d37b5c5dabc1fd343726fc9b0cb40a350bc6c65d28f59ad3bc237104",
       "generated_by": "manual",
       "purpose": "External system dependencies and installation instructions"
     },
@@ -1765,8 +1765,8 @@
     },
     {
       "filename": "AUTHORITIES.md",
-      "size_bytes": 3994,
-      "sha256": "671df573e434dd8047dac93572392f31b8de206f10b0794075f537b51f49e459",
+      "size_bytes": 4042,
+      "sha256": "1379dc3461c3a0030ff8a43b88048bfa515d1be320ff86a146b7f083c919a27e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -1919,8 +1919,8 @@
     },
     {
       "filename": "authorities.json",
-      "size_bytes": 31602,
-      "sha256": "ee036f8e1ce7c9e9e3c6ff766759ae554e824e1fd213f68b0180bf91826cca94",
+      "size_bytes": 31724,
+      "sha256": "472deae0e8aa069def0e4357414ad42d9336b81f979546e45562d96a738b0de2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2220,8 +2220,8 @@
     },
     {
       "filename": "tests/test_stage6_roadmap.py",
-      "size_bytes": 13088,
-      "sha256": "a626bf842287a0e9d1dbfbae901a5d195f062cda71bc58e8edc74c0d64de28bd",
+      "size_bytes": 13094,
+      "sha256": "55b21d924836d68aaf000416e77c10630be8fa5c0962b44f3e4b9e77e3557ec1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -2255,8 +2255,8 @@
     },
     {
       "filename": "container_verify.sh",
-      "size_bytes": 8112,
-      "sha256": "fc639e41ff3d3237932c8db5aca8a820e7402a55db037e39a3fba0b3bd0bb400",
+      "size_bytes": 8168,
+      "sha256": "133ced8ab0b93454b211828822692d4204028c0658aa4dbac25947c1f4e7bb2f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2297,8 +2297,8 @@
     },
     {
       "filename": "Snakefile",
-      "size_bytes": 41550,
-      "sha256": "08484fb05b730219d67c5d3d54ca5f4fc6e878354ec2794463bbbce03a9ac10a",
+      "size_bytes": 41712,
+      "sha256": "d76ec85b3dcec85fc5922975e39a238d4d87e31a62792fb71e5f6d853e32496d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 11015,
-      "sha256": "85e74f044232a20eed8abe1c1c66834821225321de19fab79f687c9cc64fcea4",
+      "sha256": "b8a97d4de94d33f7d374db46686b6b199541d20d66229a33225e0110ea86dc47",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2458,8 +2458,8 @@
     },
     {
       "filename": ".github/workflows/release.yml",
-      "size_bytes": 9646,
-      "sha256": "155d5e5837a3990fe9092e8e8d9217bf881234834d98f564b042ae950a5af7a3",
+      "size_bytes": 9650,
+      "sha256": "796889915f0cc929cd07f6db4cc59b0869e046a30f3a77e29794e02158475ae9",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2500,8 +2500,8 @@
     },
     {
       "filename": ".github/workflows/stack-verify.yml",
-      "size_bytes": 4306,
-      "sha256": "0f5ca7d5d2df317cea9274ce7ddf75555be2cb4c7eb1c8070a0185032b03128d",
+      "size_bytes": 4310,
+      "sha256": "55f87969c5847ec592f07d1803377f5acea9fd933b588bf1823869b020122c0e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2563,8 +2563,8 @@
     },
     {
       "filename": "STACK.md",
-      "size_bytes": 19370,
-      "sha256": "60798289e84c489cab97682b1784a5ab009d91db056aa4276dcff007989016cb",
+      "size_bytes": 19388,
+      "sha256": "6c7d5d78d9bf3bc32b9217e0d543e5556454eb60a71468189b372f811d5989f4",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2633,8 +2633,8 @@
     },
     {
       "filename": "qta_multiphysics/stack/workspace.py",
-      "size_bytes": 9222,
-      "sha256": "9f45da9c467936edee88524763c8e1b2de35da1599aee51d8e5c1844c4113e44",
+      "size_bytes": 9220,
+      "sha256": "db0aac8bd088b6f424eaa7ac3847d70c28b2ff40b7282f03862899df19b4f514",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2668,8 +2668,8 @@
     },
     {
       "filename": "stack.json",
-      "size_bytes": 18008,
-      "sha256": "70deaabfb7ed9eb78c524690ef9379257a6cd2cf3ee621615098a08327df5f0d",
+      "size_bytes": 18046,
+      "sha256": "738e055a8ec53dea0327348c14042b801eab0784e7e8df2e1ae351913a7cccdb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2864,8 +2864,8 @@
     },
     {
       "filename": ".github/workflows/container-verify.yml",
-      "size_bytes": 7091,
-      "sha256": "d9c42d1a30023b28b3ec73fc87aec4c95c60d8111ebd6e52908378cdf96dc9db",
+      "size_bytes": 7095,
+      "sha256": "aa960a83df33c3b7281edee42c9f411a9ea3e026dd99d6cd9f15d5ae3498e66c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2997,125 +2997,125 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 49074,
-      "sha256": "85af6f697cb793d1cf172b10137771f8cd9d97b8604e8c82ca8376facc7a8ab6",
+      "size_bytes": 49131,
+      "sha256": "4140ecc7a9365b3e6efbdaa8a4727272de10e07aec3125403834c572e8709a98",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "AGENT_SUBSTRATE.md",
-      "size_bytes": 60139,
-      "sha256": "60638a69e95b2dbc7039077432278af8a6962efe36dbb0f0a0d59fd3350a2f27",
+      "size_bytes": 60169,
+      "sha256": "68827518b5e76b413d00c1c32e8cd25283e7c05d843151864c4a4fbbcc2a3be4",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/__init__.py",
-      "size_bytes": 3858,
-      "sha256": "aa93b029b24d53eeb61719cf1ea75716d9c620b07053641ddb9c6ca8ca8e8cde",
+      "filename": "agent_substrate/__init__.py",
+      "size_bytes": 3856,
+      "sha256": "8194fdf2c10009376d75c7e8f9b677692d35604fb71e028c65fb31050525b155",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/authority.py",
+      "filename": "agent_substrate/authority.py",
       "size_bytes": 11846,
       "sha256": "e246fe092e5e54536453f5e4025a72635e887a5a21dc79db83afb9331c5b8b70",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/canonical.py",
+      "filename": "agent_substrate/canonical.py",
       "size_bytes": 4739,
       "sha256": "1cc43a8ce503d1a116ba594abeb4acd8b0d2f29311af9ecfdc63ebe42d3bff33",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/events.py",
-      "size_bytes": 68299,
-      "sha256": "c060d15584499123ba7fb67f7051f3fe8c951269fe38f336f07eb0275bf2de80",
+      "filename": "agent_substrate/events.py",
+      "size_bytes": 68345,
+      "sha256": "b8dae6f96ed63bbb3d84ed581c87318527fd16940c1859d8ac5202436676ad25",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/evidence.py",
+      "filename": "agent_substrate/evidence.py",
       "size_bytes": 23107,
       "sha256": "7e5dad2d6bdf17a23360ed3c42aea19bcbf23ee77c693b829e349ea6e6c1b4f2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/invalidation.py",
+      "filename": "agent_substrate/invalidation.py",
       "size_bytes": 10525,
       "sha256": "1173a94b7419b050628b9e2df38ab7c023702de8b7e608e58df45eba65aa8609",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/reconstruct.py",
-      "size_bytes": 136345,
-      "sha256": "7a790a6bb48409aee80cbb82860984b3bf4f8ae009c13bdb99e67304e80bb8e5",
+      "filename": "agent_substrate/reconstruct.py",
+      "size_bytes": 136401,
+      "sha256": "6160e345ea0a89f9cb010cd8d79d5368ac040b419a50798bdc743718e55bc82b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/store.py",
-      "size_bytes": 63457,
-      "sha256": "695696c15a5de4f3aaf22f086021c4a3cc8d3e2f0f35b1d1637b481bcbe0f69d",
+      "filename": "agent_substrate/store.py",
+      "size_bytes": 63540,
+      "sha256": "10b9fc89e24ac59b0629389a2255efa10d982bf0b43970f0a8b4ea99371cb91d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_evidence.py",
-      "size_bytes": 26816,
-      "sha256": "14b0462e112552d1108f9e2f1ac3c2e09080aba2da1aa29812a4ed55910f6dd0",
+      "size_bytes": 26852,
+      "sha256": "a1c8aef64ddbaf3a2f9dcc9a0aa72f0af6f33dc661a6153cacaed5496496986c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_substrate.py",
-      "size_bytes": 55003,
-      "sha256": "39f67e4ab174a59fe9eb5476e1ef712fe1f928a15cb5a3b9bc75de75e5b5ccfc",
+      "size_bytes": 55123,
+      "sha256": "92650a27119a9e98b3bb0256f352c09523169475ef364e8dac0d551821f7bc2a",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_substrate_isolation.py",
-      "size_bytes": 42730,
-      "sha256": "f5525d1620467edce5e6a5b486f26916e75f6f323abc19cdb7bf6c0d52d9c5f1",
+      "size_bytes": 43062,
+      "sha256": "36b21aaa1d18b095498a09c6cd3e71fba86839473862684109ccdcff99c92190",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_substrate_properties.py",
-      "size_bytes": 12604,
-      "sha256": "41cf3792a092b8ed41145f241c7abeeae98b16b8937aaf205c32288c5a4a09b3",
+      "size_bytes": 12640,
+      "sha256": "1efca5cd1e56c51af63c2f3e61f03748749e7fe47bba5f9c2cd72a593bcdaccc",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutation_matrix.py",
-      "size_bytes": 29594,
-      "sha256": "04b820ab6973a4a0ab3cb71cbed276dca2d6b2b7a494ae9aa2b2d84cb44aedbe",
+      "size_bytes": 29600,
+      "sha256": "0e529e7686f8f578f0bbbd6861bd1ed254a7940e788334da0aea170b40954dbc",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_evidence.json",
-      "size_bytes": 8073,
-      "sha256": "81fc7f688a37a938faa1f2aeee0d17fab43681a9ed2c10a9f103c742f0ad21d0",
+      "size_bytes": 8205,
+      "sha256": "683cc665c65ea876d155d4fec3e1a7c3c5e6369d8f32138d04b0a1d5c0eb659f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_substrate.json",
-      "size_bytes": 23859,
-      "sha256": "84d7b68ac3fe542c3f17a72daf5fe018b4e7496dca13ff4a0997f45c4cf698ac",
+      "size_bytes": 24171,
+      "sha256": "3c4499d266a3dcf69fff09551ff63b31ad4b803d3554659bbfed6a500b6a6e3f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/checkpoint.py",
+      "filename": "agent_substrate/checkpoint.py",
       "size_bytes": 28546,
       "sha256": "01ed91eccfa164c4c05957bae0d308cd9924081d7b342241692b60e2b6ca29c0",
       "generated_by": "forecast-layer (qta_multiphysics)",
@@ -3123,76 +3123,76 @@
     },
     {
       "filename": "tests/test_agent_checkpoint.py",
-      "size_bytes": 76435,
-      "sha256": "da1dd4561b438b22ff8d39d3d04db28ba8e2b224242ae063c8ffe21019f9783f",
+      "size_bytes": 76585,
+      "sha256": "60d840debe95ea30189b26b2aa4a69cfa170d98d2384c74742a7fc14b94583bc",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_checkpoint.json",
-      "size_bytes": 20550,
-      "sha256": "a8c68e04f6ecbb94cc0e07219f87f810906652a72952986d435cbf590e8fe531",
+      "size_bytes": 20838,
+      "sha256": "00c9cc8996ec3dea254bd37acc96bf9fef343d524ec4820e75105efb40fb9b35",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "docs/CORPUS_RECOVERY_TRIAGE.md",
-      "size_bytes": 6105,
-      "sha256": "bc7de2215d82c04bff4323b692f877dabb1326c6fd6bf5a981bfc6a886e7aa4c",
+      "size_bytes": 6118,
+      "sha256": "3c88795cc9be7a2f899c887cf3530c66ea10ad6b305e8d41d9468574d17f8b28",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_authority_boundaries.py",
-      "size_bytes": 26680,
-      "sha256": "35b218de72a7d37b0dd0ebd3082f781a3f3828ec1d688e44059ce8c8e9ed8ea1",
+      "size_bytes": 26687,
+      "sha256": "caf1a20187eaab930d8d5e4732136f737a6bfacca39f6389ddd0e9cef32c1056",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
-      "filename": "tools/mutations/stage10_authority.json",
-      "size_bytes": 7942,
-      "sha256": "6d064b6a1e1fad6f71bd001e1b18e8a03987ae57f7242c17451eda22968df3ed",
+      "filename": "tools/mutations/governed_tasks_authority.json",
+      "size_bytes": 7950,
+      "sha256": "df1595e7dbbc83fb6fc6f59b6ea4da00959071a41b4de24bba3486940c2fd2e7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 300512,
-      "sha256": "2365843eb2415ca25dd304399eec31e62b43fc8d3c2c3790398b6a00fd7e8e3d",
+      "size_bytes": 301576,
+      "sha256": "4526eb9eb97d9e5cd16209fbb150af52f35805ce97698ffec8029f342444befe",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 42434,
-      "sha256": "5d6582e82369d4dc726595807d4e7ee3cfac2fe09ecb7e908d230d66d179f995",
+      "size_bytes": 42692,
+      "sha256": "52949df2abb879a07c823101a5cf07fb167f05835aa3e615eb8c81969a276576",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/completion_matrix.py",
-      "size_bytes": 35223,
-      "sha256": "afc3906f17d77cebaebf679da24e6a23b068e956d70caf83eb9f6bbc2f26d70d",
+      "size_bytes": 35308,
+      "sha256": "42128e8401ec569f85709fe08c8cb3feec8c71feb72586f894eefdc5417b46c0",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/capability.py",
+      "filename": "agent_substrate/capability.py",
       "size_bytes": 46214,
       "sha256": "9bf671ea0aea244a882b93f25ba93cd8c382b9c9c8b9bcb8922eb22793d82534",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/execution.py",
-      "size_bytes": 43182,
-      "sha256": "4969525de7d204a5cd0e8c83836bd51400f4206ac73ddbc19291094605974cec",
+      "filename": "agent_substrate/execution.py",
+      "size_bytes": 43198,
+      "sha256": "e56888ea30f00b256a0cc7168dab4c49bf58ab92cce2dfb3ae278399e8a2ceae",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/tools.py",
+      "filename": "agent_substrate/tools.py",
       "size_bytes": 26592,
       "sha256": "7362c16030ba78a5a8a4493b7f241f9d44acb9f671d556a60ed8013954148c78",
       "generated_by": "forecast-layer (qta_multiphysics)",
@@ -3200,155 +3200,155 @@
     },
     {
       "filename": "tests/test_agent_execution.py",
-      "size_bytes": 59412,
-      "sha256": "232debaff505911c056d04ae0359e75bd39ac4d4d8380e1efecaa8745ed80eed",
+      "size_bytes": 59532,
+      "sha256": "b2eceeedf828fa1a5a867b19ccc77e3353e62903b056894c8978a7fcc5653fad",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_execution.json",
-      "size_bytes": 21720,
-      "sha256": "7d193f98c5649afc27a47e8e124fe63c707eb68c0d8acfd32d20efc1f69f26dc",
+      "size_bytes": 22098,
+      "sha256": "b6fa6b0e5ec4842bd99e74cb22494db29e88356e8abda159fd1617d6c8bf7e9c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/_stage10_tool.py",
-      "size_bytes": 1755,
-      "sha256": "4bc421a26e3b60eb5cc1f63171b8307d5ad615045fd5fb07c7c71a106f3165c5",
+      "filename": "agent_substrate/_artifact_tool.py",
+      "size_bytes": 1756,
+      "sha256": "7437b551d7f67d609a428bbedfba1f8d527a904dc86ce8d9d6f8a32e07904f8c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/governed_stage10.py",
-      "size_bytes": 133443,
-      "sha256": "3bf976e4c4f23d2b657217255967680799ff79e716bfeb2852a9853237f9ea76",
+      "filename": "agent_substrate/governed_tasks.py",
+      "size_bytes": 133516,
+      "sha256": "f6aeeb4070efceb53a249309e4975cda7f05aa7bed045fc081c8a89f87df235e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/tasks.py",
-      "size_bytes": 18863,
-      "sha256": "68e0d284f5bf85eac1493e647a8d36af8b07fde362311057eeb0395443bd6cba",
+      "filename": "agent_substrate/tasks.py",
+      "size_bytes": 18869,
+      "sha256": "429f4cbf383c03d7cc5a2fb64dbda1c77622abb7e42d719ff69d254ef93700a2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "tests/test_agent_governed_stage10.py",
-      "size_bytes": 78955,
-      "sha256": "3c478039c58559f46e8bf8d30ef93d3b7a7af42aca8356401f63ea9196346b8b",
+      "filename": "tests/test_agent_governed_tasks.py",
+      "size_bytes": 79227,
+      "sha256": "4a841a93a8da8c9cf5773367d8cab16d5a539680d1707c4d1ad22f5c39eadadb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_tasks.json",
-      "size_bytes": 13563,
-      "sha256": "0e3e86bb3806855509c378a56b3e56a95050224b0b721e195722dd4c668a9539",
+      "size_bytes": 13712,
+      "sha256": "2bb213df132c2431e0769ed987e69c458cb43203e603140de2d9a78e42e67050",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/audit.py",
-      "size_bytes": 45240,
-      "sha256": "b87f4338df813b98485dadae87146834cbf0860b61536617ee0f0cf76157ed8d",
+      "filename": "agent_substrate/audit.py",
+      "size_bytes": 45246,
+      "sha256": "9b9ae2b603a24dad590371d602959b530d89221278d66d006a6299f3c7b61dd5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_audit.py",
-      "size_bytes": 43920,
-      "sha256": "614ad633b39b38e3bb10295abd3b917dca633549fa0cbc6314808cbf20932d28",
+      "size_bytes": 43992,
+      "sha256": "b9b1d88aa953bd6569b59ba18ceac48e72b3b183285a31e566dd675aa9d0dca9",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_audit.json",
-      "size_bytes": 12727,
-      "sha256": "ffa41e04463c391eb96476b8d6f707c056e0002784cd1309a0002ab5521cfd44",
+      "size_bytes": 12925,
+      "sha256": "d5792930b004753e29865667c13d44c1d99078ad1a214cfc6c2ffcb1a8dc66bf",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/context.py",
-      "size_bytes": 29472,
-      "sha256": "3511f66114f4488509e9084442d5547483a8433c4cc7f2d4077fce68064456fe",
+      "filename": "agent_substrate/context.py",
+      "size_bytes": 29478,
+      "sha256": "f97f300ea33d118528d5a986f3147def05db9b4ef1b765a6ae1686a1758476d3",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/memory.py",
+      "filename": "agent_substrate/memory.py",
       "size_bytes": 29572,
       "sha256": "1f8bc65f73636cf15acf3a9361d7b9598f0b0a2671eaf29ecf4f5b963a108416",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/netauth.py",
-      "size_bytes": 80329,
-      "sha256": "39fa144bbf17bb94c9842bec178912bccb3b747528ae098a4ed0b1bc2255489f",
+      "filename": "agent_substrate/netauth.py",
+      "size_bytes": 80335,
+      "sha256": "d9ef27fc9cf9beb558637ed2b28bce6f6b3589327685ae163d9d4f19bae3d172",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/policy.py",
-      "size_bytes": 34686,
-      "sha256": "5842ad9ac00bb21ebea53e4c4f5414c23ad11693dd1e812f6257ece8fce9c8ba",
+      "filename": "agent_substrate/policy.py",
+      "size_bytes": 34696,
+      "sha256": "db7c98e6a4731397c7a7b437b0527932eca7eff3d823edcf22d4756cf06da4e5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/scheduler.py",
-      "size_bytes": 91035,
-      "sha256": "e9100a2ded071989668f1ac2d3898af7897178c03eb8ad5a032d3306a9402779",
+      "filename": "agent_substrate/scheduler.py",
+      "size_bytes": 91059,
+      "sha256": "4117ffaf48d68f02f9a8effb9a36b39f24621c3e8eac9aade44a7f3f586993df",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/secrets.py",
-      "size_bytes": 50448,
-      "sha256": "8f8607fab66d591d9570b69fe4f2bf6aea5aef89a2e68ba3eec92d59b4899612",
+      "filename": "agent_substrate/secrets.py",
+      "size_bytes": 50470,
+      "sha256": "77378c7bc36a91de3393eb5b9af7ba99f23307e85568eaefa7d012f2d33bc207",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_context.py",
-      "size_bytes": 25016,
-      "sha256": "74266c8ce5373ad319ea2afd351803fa2fd9efab5d18497633189e61394dd7af",
+      "size_bytes": 25052,
+      "sha256": "bf7cf760d7fce0a5065ce237e306570ee2fc11acc00e8ccad50ca151150e5882",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_memory.py",
-      "size_bytes": 31009,
-      "sha256": "3fd818c0a93f0c5273a9625e823a67fe06864b3530949a1c603889a4315d842e",
+      "size_bytes": 31063,
+      "sha256": "41d2aefed997fa8792c1ef97f4e857a6682640067e019b47aa7e2fa02d5b9fa8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_netauth.py",
-      "size_bytes": 77652,
-      "sha256": "4332fc7ba0c781f0220aa6f5f37d36f48aa5c0b472ba388b7feedf5930736450",
+      "size_bytes": 77724,
+      "sha256": "a6ec552dc0b013c8b76cfa6aa8e9b587b333ec366a6db0e887469087c856d977",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_policy.py",
-      "size_bytes": 30649,
-      "sha256": "49e59044be584b45a2f4ba2e270f3cf83c8e56af0e84a7db921a8851ef57d678",
+      "size_bytes": 30703,
+      "sha256": "0374f5cf9ee40d7251ec503ce36a61e5c37b7ba0f173ebe0a4e61fbeefe71dd4",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_scheduler.py",
-      "size_bytes": 86960,
-      "sha256": "28bef269a2a3035f922d2d3307c4c9c6ab0776d3fae44f36e6cbea097b22c8c6",
+      "size_bytes": 87134,
+      "sha256": "c32dd89a59f3edc5f99d0001d84348dd82faddbe3a3f3cf737f7ed1cf81420ca",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_secrets.py",
-      "size_bytes": 30357,
-      "sha256": "027e8081569b93b9e268626749555c778a3d5644ac730b3bad337c0b806afe65",
+      "size_bytes": 30411,
+      "sha256": "5746a2d90fb19c4985056896ad133b434a8064103a652681eb6a1856ed912dfe",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3361,36 +3361,36 @@
     },
     {
       "filename": "tools/mutations/agent_memory_context.json",
-      "size_bytes": 24317,
-      "sha256": "43ef85b60b7c4ee8c7224ca6d2aed7be780d2f1a0f47166476413f80221dd348",
+      "size_bytes": 24677,
+      "sha256": "13c1d6c7b5aeddd8814153b639e331ebadc47b86762f11c31f005e7debe2bb64",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_netauth.json",
-      "size_bytes": 24274,
-      "sha256": "1381d886c780a717f8ab193d4be89749ebbce62064a64f759828738beaee821c",
+      "size_bytes": 24640,
+      "sha256": "8c579016a5fb4ac4fde76cec9a2bdfb6ebccc8c6ce64f10c7e7fb214795dc2ea",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_policy.json",
-      "size_bytes": 13768,
-      "sha256": "af8a5eb6b2a2e71ebac29923bc3b00207387add4e01e4c7ba3190dd3070a448a",
+      "size_bytes": 13942,
+      "sha256": "676d2ffb4be7b220f5140b4e1f7602d0f9e1ab35f6aecd7aec59d7bba70a282f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_scheduler.json",
-      "size_bytes": 27690,
-      "sha256": "7f74b29d1970df562be0248d1f75a43bb027e38b4e56f39a6d166100009e9be8",
+      "size_bytes": 28074,
+      "sha256": "75a32e92a5d31b847a9e6122fa35f6515dbb76d424554564b17b8c50d9186950",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_secrets.json",
-      "size_bytes": 15396,
-      "sha256": "e692031d855c6281fdd8b01f98d81828cec626893e1b53a79e9317c33af81168",
+      "size_bytes": 15606,
+      "sha256": "39630e66185e62f5acdca577f09af6c7fa51d89593fbfc830a5c800420b4d905",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3402,7 +3402,7 @@
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/agents.py",
+      "filename": "agent_substrate/agents.py",
       "size_bytes": 58982,
       "sha256": "7f1b9301011ec3f637ed99574ad4c936f1b7f025bc6b01da50f8290c67bd1d9b",
       "generated_by": "forecast-layer (qta_multiphysics)",
@@ -3410,43 +3410,43 @@
     },
     {
       "filename": "tests/test_agent_agents.py",
-      "size_bytes": 66187,
-      "sha256": "91c91e87ceda54a47744e171dc67e7ce3c196dcc324ee9e00160a5d143826441",
+      "size_bytes": 66211,
+      "sha256": "d4deb41296e116c9bb43f30ad0df777f0a1a6edfca35d6d64c933f96a27f8e64",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_agents.json",
-      "size_bytes": 27507,
-      "sha256": "056cf1824fbfb830d87a0407640bf027631a54c85a0822586a0b944bef90a0e5",
+      "size_bytes": 27865,
+      "sha256": "02a74bca11d99809b9fcf671057a1eae54ab10bc183690bfa7f392a4ba0ed9cd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/actions.py",
-      "size_bytes": 5909,
-      "sha256": "f600e224c93a677d2e556fe902689e506a54ecd201fe6533ef99c090694e96b3",
+      "filename": "agent_substrate/actions.py",
+      "size_bytes": 5977,
+      "sha256": "1e62fc3d25330d5220455f64110c4fcd6386f4aff93f5a2a76a86aa4c3916914",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_concurrency.py",
-      "size_bytes": 15402,
-      "sha256": "d6a5c24b2f5f784d310c2f83a5fdf951118b45ab7f46f5e102c548b7daf37699",
+      "size_bytes": 15468,
+      "sha256": "be49376e10597d7fd8cf9c643be7bf4a1cfa6f1da495f252f7a85dbc2f9d04a3",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_crash_recovery.py",
-      "size_bytes": 27643,
-      "sha256": "c32110e46dcdcd6647c3e18b4cdc2d17a3760b5d6d7cb43f5252fdad1b35ecab",
+      "size_bytes": 27727,
+      "sha256": "049805211157390e088c2d92904d542817e47cebfc252454fc09d5cd292524fb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_actions.json",
-      "size_bytes": 3533,
-      "sha256": "a58b95c0d88c9cb3ac435ea4e016050267f07bb7cc77b14f482b432aab525b15",
+      "size_bytes": 3565,
+      "sha256": "392e220e387bed52ed987f2a514e26eeee816a11204db8e8278d0738e13d05af",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3473,29 +3473,29 @@
     },
     {
       "filename": "tests/test_agent_fuzz.py",
-      "size_bytes": 17366,
-      "sha256": "55226f4ff645ccd30f329628374d36c8b2acf892cd6d6838b13bcaf45ff67e07",
+      "size_bytes": 17420,
+      "sha256": "c9bcc796f9585e71c27103b8f967310b015755cc2482375059029c832840894f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_long_horizon.py",
-      "size_bytes": 47180,
-      "sha256": "91e48dcc95a8a35c23a0628e639f076966da15285525f999a29f53322e8eda4e",
+      "size_bytes": 47312,
+      "sha256": "d5b195ecaa2795ab89c6341a62a3e54affb87751324e453702bd8eb910ba668f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_performance.py",
-      "size_bytes": 56610,
-      "sha256": "486fdd1286b9d0b7350bc48ba7cdd1b3837083b71b8f0f433b89e113f0ea2b4c",
+      "size_bytes": 56734,
+      "sha256": "d9b34e0d89a41fc5da7c7d68fa942e5d2f5cd86ee10e043193764f3da7f137fc",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/fuzz_substrate.py",
-      "size_bytes": 58341,
-      "sha256": "0ce1484142a98bb40ce05dcde9ae1af376db33cb7d38568935e71d03c3aaca73",
+      "size_bytes": 58647,
+      "sha256": "87afbfb64107598a5f2453328f0b612806a18582e936e7b44be90bbcd70808c1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3515,15 +3515,15 @@
     },
     {
       "filename": "tests/test_container_diagnostic_fidelity.py",
-      "size_bytes": 30372,
-      "sha256": "1956734afea4df23265b79cb1fcb314437a19d47f9cd0ef8247baf7cd815de3d",
+      "size_bytes": 30376,
+      "sha256": "8555e6009e8c624f2be65719101f8b18d964a6731787e4ccb2df97397e693b6c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_machine_properties.py",
-      "size_bytes": 22612,
-      "sha256": "8f9409723a2ade6143d5a1810f2e8e241ca0122bcb12c545e8936d5234a270cf",
+      "size_bytes": 22678,
+      "sha256": "54652bc54dedc2e38bc309d6133f066b7c6e4812f0c43fb6eecf354e529e513b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3536,41 +3536,41 @@
     },
     {
       "filename": "tests/test_agent_hostile_campaign.py",
-      "size_bytes": 29209,
-      "sha256": "b969e675ac3501c4f58d3f4b0ac911bfda30e41984d4c72bf22af53f107db14f",
+      "size_bytes": 29313,
+      "sha256": "eccd119772d79e7ca5b2ae0e71c096f250c07ab084fd0d2e2c659caa84ce0f22",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_differential.py",
-      "size_bytes": 62202,
-      "sha256": "2f61e9d7d4a7f10bae4de2a68c0b8ae51b352e76430b9a9fb08271c133e023a7",
+      "size_bytes": 62314,
+      "sha256": "87f7c293899cbcaf6eac03affc09922d02144369d8b4adfba360adafc5fab10b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_atomicity.py",
-      "size_bytes": 11214,
-      "sha256": "75d263d077adc08ef689fb7ca46133cc8e2fa6bcec44dca895c5146d2a2044d8",
+      "size_bytes": 11236,
+      "sha256": "a5d10850b9592ef9e752d465aae4eb6022a4eb0ef826fc3c4a916d882fb41c92",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "docs/SESSION_REPORT.md",
-      "size_bytes": 26296,
-      "sha256": "1a67535a8164651bc4f229892daf1cd8e81a0fe993a7618e4de955c966699562",
+      "size_bytes": 26302,
+      "sha256": "afcc244dc010347b84bd8d562c98fb8f1bbbe63636d3c6d44c98b707f08392d4",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/readpath.py",
-      "size_bytes": 7932,
-      "sha256": "50b20b3ae21681439beeaa8502a60e91a128a3cf288c42c79499fe168ceb3a38",
+      "filename": "agent_substrate/readpath.py",
+      "size_bytes": 7956,
+      "sha256": "f70cc7db391705763c1b0efcd0ca2dec4084f648c973fa445f37afbc9f2dbec7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/safeio.py",
+      "filename": "agent_substrate/safeio.py",
       "size_bytes": 20556,
       "sha256": "b1709deefb912882ed20925a943328ef77d37e576315ecde2ac9e19b8783f2e2",
       "generated_by": "forecast-layer (qta_multiphysics)",
@@ -3578,55 +3578,55 @@
     },
     {
       "filename": "tests/test_agent_readpath.py",
-      "size_bytes": 34985,
-      "sha256": "aaaca5f0dcc318e106f4299a7d40fd10a4ac49948f7860ba4d602005964dd910",
+      "size_bytes": 35075,
+      "sha256": "c68b03f7d66ac593ac65f012c585f666a36f5b32ceece7218915544e2863eabb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_readpath.json",
-      "size_bytes": 8269,
-      "sha256": "7c8707f89037588bcdcb17bd8370d961d69b0654ce211b687b6d0b2ab06d299f",
+      "size_bytes": 8387,
+      "sha256": "616d949e565dba239495173cdc3b772faed8ef4cecbc48b5eceddc7c52fc9a89",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_audit_cli.py",
-      "size_bytes": 11262,
-      "sha256": "fd98921a7416b56111e58589b4f7556ffdc89a066b0ab867f16089a5f233bf3f",
+      "size_bytes": 11280,
+      "sha256": "a955a2ac8495e2d03f0efd122b1808603929c288729183802fc0bc876876a10f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/audit_log.py",
-      "size_bytes": 12259,
-      "sha256": "fc4d474de146ff4f962ad4c2a5c0751f1d0dcbf9d51717020fe51031fb28e71c",
+      "size_bytes": 12289,
+      "sha256": "7a9d4688031fde8e925bd80ba6f2ab386df9e3dac5fec47dd8cdab1a38191eaa",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/idempotency.py",
-      "size_bytes": 16761,
-      "sha256": "4cbcc63d27328862519eb9ab241b26067f546d0214090626d7a2421a8e8b4a70",
+      "filename": "agent_substrate/idempotency.py",
+      "size_bytes": 16767,
+      "sha256": "66e0ba6a242818cd37be9c6f2252ff57474736803b7e25a963e7d45ce01c3523",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_idempotency.py",
-      "size_bytes": 37281,
-      "sha256": "4a4c00d8027e7362f2d8fd4d11e4f46b46c559f2bb66ef3967b64f84a148302d",
+      "size_bytes": 37377,
+      "sha256": "d9753737ccc04e70bae6cd5b3a2aaf884a537b7d3aca097d45bf5525ae4b0105",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_idempotency.json",
-      "size_bytes": 11190,
-      "sha256": "f32f15b83b0f353708e51007ea6322bdc2f98901de74bd6675ac15ff1d92750c",
+      "size_bytes": 11294,
+      "sha256": "8c852e392e4c807b03b1769d67f0afee4c4cb21b9a8846745c039f950695f288",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/hostid.py",
+      "filename": "agent_substrate/hostid.py",
       "size_bytes": 7342,
       "sha256": "e39446723d6233277881f92384493665f02d68f49b6d5bffed97496f83fb2b7e",
       "generated_by": "forecast-layer (qta_multiphysics)",
@@ -3634,29 +3634,29 @@
     },
     {
       "filename": "tests/test_agent_recovery.py",
-      "size_bytes": 22433,
-      "sha256": "31e53fb59e565c2c0eb408034da660c55fc3d503f9fae4a7afa05f2b44eb67e2",
+      "size_bytes": 22525,
+      "sha256": "eeb573e7b6c15e6fbd3c006c7e3bbf1cedd6aaf52ae3efd0b267821ac4341af1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_repo_contract.py",
-      "size_bytes": 14365,
-      "sha256": "051d715591979aca5265bdde85b134e53d3551c09d1e27bf96f3ef326f5eb8f3",
+      "size_bytes": 14397,
+      "sha256": "e5030b43e168f3d2178e4e40748d1454a6d9c52ed68fe049323b33e2e8a3e272",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_recovery.json",
-      "size_bytes": 7680,
-      "sha256": "2c2d5cc3d69e04bb9160601b0dfd524e72b51cd2b34f891dbd1a251ad089c562",
+      "size_bytes": 7752,
+      "sha256": "54e7b36f9d45385fb179be6b05664d0e9c933f14ebe685a72c0b2ecbd542ee91",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/repo_contract.json",
-      "size_bytes": 8709,
-      "sha256": "0b4213fb3faace3159a46b6bc9df548160b0130e8d8ccc0ab70bcfe6b2d2d733",
+      "size_bytes": 8717,
+      "sha256": "f7181f104836c854a1888f0e6d2bc602e2aa873299c9357816dc290ef57ee46f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3669,43 +3669,43 @@
     },
     {
       "filename": "tools/workflow_contract.py",
-      "size_bytes": 21139,
-      "sha256": "c0b707113f23169d06a8003cd65b30a6ef2a958ea5d14ffb04c7d35348a765a7",
+      "size_bytes": 21169,
+      "sha256": "28ad42f644c8fdcac58ba3f178829097ec0cd394d0ae2386ba1f721455dd7ba0",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_second_reader.py",
-      "size_bytes": 66318,
-      "sha256": "babc88c41d265e727181991bab0d15bccfdae4a69f4a5cebd4502995c15a89d1",
+      "size_bytes": 66516,
+      "sha256": "3580f0fad3ca6db0881337fd05ae59ab13086ca9ef6c4f85116c33c834c43fc5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_second_reader.json",
-      "size_bytes": 48720,
-      "sha256": "9ef03f7e600ed8561c6049cc4361fa719f0b88189f30d1bb126da5b60b729c96",
+      "size_bytes": 49356,
+      "sha256": "a84bbc6f416ec7cde7edcee59f986db3d67cb4672f1befc010838e22c6e4e933",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/verify.sh",
-      "size_bytes": 927,
-      "sha256": "3505c879fbda4a55937e61fa07d16cb2916a1428be33933b96b37df09739e805",
+      "size_bytes": 935,
+      "sha256": "a03f7cc8bac07a17688987c886977fbf891556ac94e0dafb8fc654ba59065d86",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 9303,
-      "sha256": "eac04b6c912aad6dc22fb00e788234f734cab158c63095c5a7b17154feba8711",
+      "sha256": "c46c18276fa86078ab747e3b5cf6ea0799e6de2b26f98253a1b07a32b16d0ee8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_delegation.py",
-      "size_bytes": 25667,
-      "sha256": "c90e5b2bcc29e4efadb554122f2f864861a89c6c5b9c6eba48deab3313615f51",
+      "size_bytes": 25709,
+      "sha256": "642ab23d7c1ac0dfea8542849619aaa40320212d68d66d333adc9a4bacb2ad74",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3718,15 +3718,15 @@
     },
     {
       "filename": "tools/mutations/agent_delegation.json",
-      "size_bytes": 13161,
-      "sha256": "8ab9af01ff0295faa60610bb4364d0a4a8d51ca380eaadc13e32422ceb523da2",
+      "size_bytes": 13323,
+      "sha256": "af40396eb409807446b40d279c7eac11c56c1f5068b764321da692f67e9dcfb3",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_lease_renewal.json",
-      "size_bytes": 5418,
-      "sha256": "c22b716a2fda492cd8c5d3d7e65c2e6e671d29b574bffb8f59a013008eacbf16",
+      "size_bytes": 5484,
+      "sha256": "a15689d58955aa660926f8824d0a85cd14d687663dc4003b7e5ba611affebb3a",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3739,99 +3739,99 @@
     },
     {
       "filename": "tests/test_agent_compensation.py",
-      "size_bytes": 20475,
-      "sha256": "ea48894382adc269a7c9d13cfa0eb3e4322c46c139d8191146cf87ec182e37bf",
+      "size_bytes": 20530,
+      "sha256": "a4c8bbf26078ec537b091f1ac490a6c385864ea79ff77bea5db457c542c39279",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_compensation.json",
-      "size_bytes": 6798,
-      "sha256": "6795bc7a40e5337c77706b414ff110da324df40ca49c6e500291fbeabf2d06f8",
+      "size_bytes": 6874,
+      "sha256": "4b9c623a042ae206a4d9d5e5c6e0c0deda75a800f553d6116b1a7c8132119930",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_service_authority.json",
-      "size_bytes": 6701,
-      "sha256": "e7256529bd1b3e6498a5cbdc662e354247756264c53a275b25fc7ed54e2bee79",
+      "size_bytes": 6779,
+      "sha256": "2c75ccc6e1ec4f7070a738719cd14ecb1ef3c813b74627c348719b572a3a32e6",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/separate_verify.py",
-      "size_bytes": 7229,
-      "sha256": "683c5dcd8b7e15a878884eb14b5a65d5800a15a473956429ea4b7ecedfda5f69",
+      "filename": "agent_substrate/separate_verify.py",
+      "size_bytes": 7235,
+      "sha256": "ec91e7a4f6705dcd566252bb48e5059abeacfed65c12309a4ff11d3f0bbfd8b3",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_separate_verify.py",
-      "size_bytes": 14349,
-      "sha256": "36f2843ef9efa25f7681376e38c19f2e8f6e5f3193168912c969a6b689ee1882",
+      "size_bytes": 14477,
+      "sha256": "63ad6d346e8eda6b1a4643577f78f811ce63e39b457866791ec9260497f5d862",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/independent_verify.py",
-      "size_bytes": 7516,
-      "sha256": "22d3d7635a9a9893225b51c4a6ffc4a1935456d1f71d4e8b594e29a77a5e83af",
+      "size_bytes": 7706,
+      "sha256": "a88857a9e241c05463d07f60bdbd1466dc04c5f7985062fd5e9994bbbc9b320d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_separate_verify.json",
-      "size_bytes": 6123,
-      "sha256": "f1c25270808a072fa10a0ecb5ff8a719ac89688e33cf17aaf6754e033b24bd6d",
+      "size_bytes": 6201,
+      "sha256": "870443e2d833394e55d17c6344ce82d70bd10294b6c23d6bbcc8475be44e9d72",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_job_graph.json",
-      "size_bytes": 5433,
-      "sha256": "f5a59c4972f94b220152f9a7a9251ed1a984508b615dbbc748f85b8ceb471c98",
+      "size_bytes": 5455,
+      "sha256": "231efef16e37d028a2f507621437f6a8038baf473a5be5b9cedc3ef660bd057d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_cross_process.py",
-      "size_bytes": 66429,
-      "sha256": "41c00d29e1ed90aa5d563bc7dacde43e3a960209fd2f6fd5b28e9f5a4ec5f289",
+      "size_bytes": 66573,
+      "sha256": "3b10df8d7d8e932651e03e86b043b26f70b0c61f795e132ee7bce87ad56dcc46",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_fault_injection.py",
-      "size_bytes": 26718,
-      "sha256": "b65faea9b16f9a08e0636844736067c7f762e1f786a14b66d45d686e3856a250",
+      "size_bytes": 26820,
+      "sha256": "7d83dc7f3896fa1c8ceaf3f3ddaaedcb0633de24ea2ec41ec29cc6469e242168",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_agent_secret_provider.py",
-      "size_bytes": 18897,
-      "sha256": "da36e7d5504678e34a251a18082b29829c7b364722a8e5e26731514e471f0f77",
+      "size_bytes": 18943,
+      "sha256": "90b92b0d84973e05f41d3ef91bd1b6d32ee28f64cb7cebc0a7c909052afb13be",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_cross_process.json",
-      "size_bytes": 7297,
-      "sha256": "d7998379ee99304f880e85d10668ce1dfb42d5d4b49e89ed775e54e4c5173d90",
+      "size_bytes": 7363,
+      "sha256": "df17bbc762f7a0b1044413fa5eb94b383d6b80667b95cd25dd67e02042f0ec63",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_fault_injection.json",
-      "size_bytes": 5977,
-      "sha256": "f7723dcc6d57761b7be8cd8639f61a4a00a486121f303bfcd731ed41314eb086",
+      "size_bytes": 6037,
+      "sha256": "8368a37f4e8778575c222127ae3eb7706e8e8ae62b2f980c45c6cbd51850731f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_secret_provider.json",
-      "size_bytes": 8480,
-      "sha256": "044af55267ad2499c4630dc0253a4629885ef592e7e7c50a9f46f59731dc4190",
+      "size_bytes": 8588,
+      "sha256": "b01fd874fbbdf581e265288ded1de1dd5f6d7184bb2a0b5f08ffa74b161a54a3",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3851,22 +3851,22 @@
     },
     {
       "filename": "tests/test_agent_incremental.py",
-      "size_bytes": 12290,
-      "sha256": "494319a77673c37a1cdb99bb7e6b8f16decaa5113ea77fee79a5df7e3ff768f0",
+      "size_bytes": 12320,
+      "sha256": "0c05b4164b3e98287715d4a7b0451a287b5a09b11498e5928bb440737b42616b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/agent_incremental.json",
-      "size_bytes": 5658,
-      "sha256": "c9ed9cdd94306a13e2feda124fc6c5c7026f0cd05d52aa529ff6c56a2b2bd76f",
+      "size_bytes": 5712,
+      "sha256": "f9b37befe8d7301ebbd3caa1539d4e634367303393ad9634bf92f7fb19be65e5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/performance_baseline.py",
-      "size_bytes": 10553,
-      "sha256": "7b6685b34bce75ff527cea63bdda8105108a1811fa12b5916556d2200dee0bf0",
+      "size_bytes": 10557,
+      "sha256": "901b27dab48ed3399b13addc0a357f6a42d44355e386f93f5d82527197495c45",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3879,29 +3879,29 @@
     },
     {
       "filename": "tests/test_generated_mutations.py",
-      "size_bytes": 6671,
-      "sha256": "63941acaf29729f1cd170482d6160122bebc193d0a5213f739052c0d295c280f",
+      "size_bytes": 6707,
+      "sha256": "636ab2b7eb66f0870fed46a95eea1edbb60353021b8975c119e12b248d5e12af",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/generated_mutations.py",
-      "size_bytes": 10699,
-      "sha256": "b7e2cca473163ac34d0d4875bf44cb4ccd74dc96755892920df7ddb874ca3432",
+      "size_bytes": 10722,
+      "sha256": "6f2a79e66adbbdbdddf8d31005df3e3842eb5102ac3aa55d67ba6906107773ce",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_model_check.py",
-      "size_bytes": 7862,
-      "sha256": "e9c04689b34823d809ae6010197362824e3d0f35dda0f6018ae9105e6a3bb7da",
+      "size_bytes": 7874,
+      "sha256": "3a414aacb5c0948d6424c00eb8a669030c5a6a64166de216353692eb21d5df93",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/model_check.py",
-      "size_bytes": 14742,
-      "sha256": "e531ee6888b72529f516d6fe911234689fd382b11b20c2172a03baaa3a0bfa42",
+      "size_bytes": 14766,
+      "sha256": "3db2493461b46102c93ebcad7c290ea573ad34c56dcd1e7d527f4036f91d28e8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3914,29 +3914,29 @@
     },
     {
       "filename": "tests/test_agent_collusion.py",
-      "size_bytes": 10475,
-      "sha256": "26218ef6d3e320f15eaa577c9e6c6de12688f31f74e4170824bf490124082dd6",
+      "size_bytes": 10535,
+      "sha256": "a448ad54bfa02de7dc190c3ba175fccdd6986bad2f67232cd30bd2ffccd05b63",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
-      "filename": "qta_agent/_stage10_index_tool.py",
-      "size_bytes": 4444,
-      "sha256": "1f9c48e99902f087525b448d7f11c8ee06806adad81756202a66aba9bcc6dfb6",
+      "filename": "agent_substrate/_index_tool.py",
+      "size_bytes": 4436,
+      "sha256": "0ae387905361d85488b5d8b18d1ad9fe207e7f2e16a0b1d0a90b35a3b056a4c6",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_governed_breadth.py",
-      "size_bytes": 17298,
-      "sha256": "96b2a9e9bed29ed5498214a3762b9137bc6b5c85377d95280f51d65f9d327c43",
+      "size_bytes": 17334,
+      "sha256": "8ac564ea8c07182dd8a1acbd42331cd314f8acfb90518a0adebaabedf63b4d38",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/governed_breadth.json",
-      "size_bytes": 10596,
-      "sha256": "82fa4daeb0b9583769ad6877c008d06e876f1abdec21f6addeb73638002285a4",
+      "size_bytes": 10630,
+      "sha256": "1b9e3bcd9d76038a7404c200610f410a65866bf4297ce65edebcd0b1235c16fe",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3956,15 +3956,15 @@
     },
     {
       "filename": "tools/mutations/cross_environment.json",
-      "size_bytes": 16609,
-      "sha256": "a1e4303b6bc472a1aec90719d3e8ec5dd23e8963d18d181dfdf36206bc43977e",
+      "size_bytes": 16645,
+      "sha256": "9fb3c83e8b160d6b4604b0d6ac914d198d7fb10ff25d6b7cbe01a409111d567d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 568466,
-      "sha256": "8f726c74ad6562952e4d95caa5d3f48a39b305bf058108e37bb3108f42607a0d",
+      "size_bytes": 569104,
+      "sha256": "dddf1f6ac7053d2497f36ea3daff3307f1ec606cac0ad1464047341f978bad82",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3977,8 +3977,8 @@
     },
     {
       "filename": "docs/identity_inventory.json",
-      "size_bytes": 29269,
-      "sha256": "dcf1490c8c1ea17ac2a0432d3f35288890c4bf0bc9123df6aa5426e2c451285e",
+      "size_bytes": 29261,
+      "sha256": "aba0b2ba9d3d1915a7bf627d8f74d70b01594859b9f4e4d3deb4fc700f4de4d5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3991,8 +3991,8 @@
     },
     {
       "filename": "tools/identity_inventory.py",
-      "size_bytes": 15257,
-      "sha256": "fa00b5f9e9787cda477afbfd25016ebbe0f868300071f9231b2079df27bdabba",
+      "size_bytes": 15269,
+      "sha256": "ce8206d7607fb9aed7af3fdaeb06a049b4ba55a1a63bc8eac31e8cfbd1578ca1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4019,8 +4019,8 @@
     },
     {
       "filename": "tests/test_optimized_mode_invariants.py",
-      "size_bytes": 9706,
-      "sha256": "b33ecfea3330c7cfbe3177a4989980ff19075de36e1f6ee69edcad8c170d26b4",
+      "size_bytes": 9724,
+      "sha256": "671dd5a40e2d88dd1b1aaace91fd76a9d16264e1d5529a3f02972faff4f62a4d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -4124,8 +4124,8 @@
     },
     {
       "filename": "tests/test_test_isolation.py",
-      "size_bytes": 7137,
-      "sha256": "eb54463df2fc13e64418c927558e224b85c9b6439ec622a5ad8e63b4150bfd7f",
+      "size_bytes": 7143,
+      "sha256": "c494e0b585a822d8e9972eccb29c863dd4b4463f0c95abf8f2b9aab2a1248868",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -4145,8 +4145,8 @@
     },
     {
       "filename": "tools/test_isolation.py",
-      "size_bytes": 4112,
-      "sha256": "f05dcabbfaa65def14090cd639e0fae471a4375b823909537df85a91c6367be3",
+      "size_bytes": 4118,
+      "sha256": "5a034a342546c1707112f4fe6ddf5d9acbd46957236ff24fec1adee51f336d9e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4180,27 +4180,27 @@
     },
     {
       "filename": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "size_bytes": 204130,
-      "sha256": "1ecc7f57136c04f84eb2b1e9bf2a2e48cce0540c33a287c606e04df9b4042692",
+      "size_bytes": 204372,
+      "sha256": "0b4db1689104824b6f5844065b697f182d272c0a7db188404bd031e5acfddc66",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "DEPENDENCY_CUTOVER.md",
-      "size_bytes": 17835,
-      "sha256": "7b7897041678c4ab0168d1193ab5fff9a3ce2c314bb7925e6105467ce7a463c1",
+      "size_bytes": 17842,
+      "sha256": "aaa0fd9081686d43f7e08fbccee6ab868e3a127db9e8bb5e55c9fc92d6a84b6b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "FILE_DISPOSITION.csv",
-      "size_bytes": 175652,
-      "sha256": "975f29cf02ba733a5bc55c7c197da54fc17d4afedc804d6f72dcd2db31f10aec",
+      "size_bytes": 176010,
+      "sha256": "71b0ab2aea36cacd598efc166e6441f784021e54855a78c7fc36177dbf48d75a",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/projection.py",
+      "filename": "agent_substrate/projection.py",
       "size_bytes": 10758,
       "sha256": "ce72d59b5200f6294ada96da03354660457a0eac7e0fbf3e3a6bf19ee0279c4b",
       "generated_by": "forecast-layer (qta_multiphysics)",
@@ -4208,36 +4208,36 @@
     },
     {
       "filename": "tests/test_agent_snapshot_coherence.py",
-      "size_bytes": 16301,
-      "sha256": "bee21f524c030bb0516de69a2f98233ef6d6b098c28a55ee2b6990e1442d40ef",
+      "size_bytes": 16395,
+      "sha256": "e51a0ca05916028fbf020cac66f0bf78f515c74f8c8abbcf692495eca4c46b52",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_file_disposition.py",
-      "size_bytes": 3212,
-      "sha256": "bfe9ac94c97d15fcf0ad634a29f48d78c969e8defb28e2c4c5d468af5df1ae49",
+      "size_bytes": 3218,
+      "sha256": "eaada7aeb018992b9de8014df7f7257a8c12b4bd26f802a68f2798b79c77c06d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/file_disposition.py",
-      "size_bytes": 85013,
-      "sha256": "94372886df98d1d0479d93f1ba0af907d5631126df537c43ed093ea47c35b581",
+      "size_bytes": 85162,
+      "sha256": "0efb392da87b06b43435f6922a1722f6bff5f8c6d3fff2c47ab16017cf6a4f65",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/agent_snapshot_coherence.json",
-      "size_bytes": 10683,
-      "sha256": "a953c9b860b2ed65c9fcb6b7f5ab9300dacf2685c5f0c9dd273d467136a1d696",
+      "size_bytes": 10808,
+      "sha256": "722e87fb3f35330b459d29ee9465be49b645259a09da4dfddf66ef51d43d7d74",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/enforcement_asserts.json",
-      "size_bytes": 1746,
-      "sha256": "7150b6bce593e3b01df98d82da4043ccc2fd27d1d828855f5c098c773a884193",
+      "size_bytes": 1752,
+      "sha256": "43ae5a9e33068e39c8e2c1ac3d658414b9e613f39bfbde9d888e5a1cf6e83e41",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4257,8 +4257,8 @@
     },
     {
       "filename": "tests/test_verified_read_guard.py",
-      "size_bytes": 7168,
-      "sha256": "611b33ae7d8756e19f16d81aae9940dfa797deddeee725845215e8798a59741f",
+      "size_bytes": 7204,
+      "sha256": "26db5ba3ded11f364f506173dea407ae3921f87f2e1dda3c5975e0589f020d7b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -4271,8 +4271,8 @@
     },
     {
       "filename": "tools/mutation_shards.py",
-      "size_bytes": 10794,
-      "sha256": "c5409c6600d8c92a08d13b1d8a310d510d8f29358cfaeb70bc88f1b7f2fa6cd7",
+      "size_bytes": 10801,
+      "sha256": "db900075fb1abafa40e968ec28266d46624d99cd97ad17c2b9607fb8bd64dc68",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4292,15 +4292,15 @@
     },
     {
       "filename": "tools/mutations/verified_read_guard.json",
-      "size_bytes": 4382,
-      "sha256": "9f6c341d8465193033cbb3d44471041df0e88f60d6d5532fb1c633f48271f9f7",
+      "size_bytes": 4412,
+      "sha256": "b6affeedc7bed9325782a79be15a9a2831c398229fb7f320b6549f4f94d43c62",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/verified_read_guard.py",
-      "size_bytes": 9151,
-      "sha256": "ec033f7deb5c530214d8d57e26a54201f7bb386ccdd698e383450995b00b97be",
+      "size_bytes": 9187,
+      "sha256": "34efa126799aa65576d51610a7c6da02280d81e4ea9fc5660b39ecd40c08d6e3",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4369,8 +4369,8 @@
     },
     {
       "filename": "tests/test_scientific_identity.py",
-      "size_bytes": 3852,
-      "sha256": "3b6b3f930b64943473d21ebf2b35e59fb778694bd286a4a4527d0577e7117096",
+      "size_bytes": 3894,
+      "sha256": "211a53119bfd83d3aba06ed17e372bf4bfda98e1fbb61093daf06e42c753affa",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -4396,23 +4396,23 @@
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/governed_model.py",
-      "size_bytes": 42813,
-      "sha256": "366fc9de465f1f1fca7de4985ff69479981031845ef9ad3f7ac3e3a63245bb76",
+      "filename": "agent_substrate/governed_model.py",
+      "size_bytes": 42839,
+      "sha256": "b495e44506db1ee7171f749738cfbb1a5f5cf6c39ba07234d52cd25d23e09858",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "scientific/_governed_check.py",
-      "size_bytes": 2282,
-      "sha256": "426465db42d8c8210eb0dc751f0bc42957cfa58a8f7d733f3bd978c15da3a1e0",
+      "size_bytes": 2288,
+      "sha256": "70d46156139889222fc1bc403ac3ddcaab903a38216ef49a3afc44c9e7596473",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "scientific/_governed_run.py",
-      "size_bytes": 1904,
-      "sha256": "4cc7d97c3ddf6cd22648337dded4401f0e66ec6df17cd9490be537c8af23ee5f",
+      "size_bytes": 1910,
+      "sha256": "0e87377667966d718deac3f37a15b8726242af52aef4c67918c72dda47e16f9e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4453,8 +4453,8 @@
     },
     {
       "filename": "tests/test_governed_model.py",
-      "size_bytes": 12890,
-      "sha256": "5b1748832eb261091347a1da0ae1b0642973823a5bc6af6ca0c50f72ca9130c7",
+      "size_bytes": 12942,
+      "sha256": "d81cf95f293a86d72514fb8193fcee42d150e04a1ef26ec89677fe69f1ae35d9",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -4467,50 +4467,50 @@
     },
     {
       "filename": "tools/mutations/scientific_thermal_1d.json",
-      "size_bytes": 4471,
-      "sha256": "75f49f862536794ea0d4f83abc3e2d1c2fd8f9ddde396b9e119043e0fdae5f0c",
+      "size_bytes": 4489,
+      "sha256": "1246a2de4cadebb74041861d0048844d398aa133fab8e7f17869e0ded6b99db1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/result_rules.py",
-      "size_bytes": 10940,
-      "sha256": "9d6efc692b0f9de36a831c6f6ec3d97113b942c3038091e673f5c9180528a0a9",
+      "filename": "agent_substrate/result_rules.py",
+      "size_bytes": 10946,
+      "sha256": "51f0def1cc8956ba03221db10561ae9de65568ee31108814fca689e757961eba",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "scientific/_governed_identity.py",
-      "size_bytes": 1599,
-      "sha256": "051d94092cb140c35bd1194ac0057bad21b699aa90b5391893052c6ac2b350ab",
+      "size_bytes": 1605,
+      "sha256": "acd34ad7bf0dbbc99cf7d506f93457e3024f64ee1b1fa0f77722346e49554b8c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_agent_result_rules.py",
-      "size_bytes": 11564,
-      "sha256": "5dfe86570303f5e28970f9884fa0de61b8964394a8ace95fb0779b9ec4d0ea27",
+      "size_bytes": 11612,
+      "sha256": "55746519228fc3c5944b1b9cebbd055ed766500ae46f9babdf55547743cdce93",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_governed_model_reuse.py",
-      "size_bytes": 22724,
-      "sha256": "58673b856074ab5c22394447e66cb84338a2ca6d171f9961ec9c61bc4158b517",
+      "size_bytes": 22776,
+      "sha256": "3c3be318ae7e381c6e9c87f7907c38d77cbc12ef710e787ba396016ac53162db",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/authority_result_rules.json",
-      "size_bytes": 6703,
-      "sha256": "3c0fddaf7f8e00362a8917d00fafb8a2603602e007861ec4d25fb9f00def5e06",
+      "size_bytes": 6811,
+      "sha256": "24b8b19149f066d78d568b96c9117e263a60ab329fe884c98e52f775574c34eb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/governed_model_reuse.json",
-      "size_bytes": 7530,
-      "sha256": "ac16cf00c461597610fdfbe94c300497cdc41001a23ff6692a48e1157d2ba95d",
+      "size_bytes": 7626,
+      "sha256": "02f4e929ad92506dd195de37fd86d208c5cebdb5538a96d7fe9ba69bae9eb4ad",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4537,43 +4537,43 @@
     },
     {
       "filename": "tools/mutations/performance_counters.json",
-      "size_bytes": 2574,
-      "sha256": "a0647fc84f31b72e8a1ea17fdd1d0924bf58ca592a73d42270b3dd84279f69cc",
+      "size_bytes": 2604,
+      "sha256": "03e5af60b5c18750542e5e15f84d5de6ed306cc672edc91cabe2e4a1a419b2ca",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/scientific_thermal_2d.json",
-      "size_bytes": 5438,
-      "sha256": "8732b5f8db1f0ef8480edd5c4bd877e31fbea9de8b94a3694c3f07b8595ec80e",
+      "size_bytes": 5450,
+      "sha256": "68a84a1252b7a3be1434b94e714ceb66944292a9810915590f41fceadc2cee48",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_scientific_authority_replay.py",
-      "size_bytes": 25620,
-      "sha256": "52442ec4f94c44729e4aac8e0715b796099a1366864197aaa9c4e943f85854b6",
+      "size_bytes": 25690,
+      "sha256": "513975e5e5b47277e964798b22cc1aa5ee20c5dd1eb9565b1b6ccb99168d22a8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/scientific_authority_replay.json",
-      "size_bytes": 9440,
-      "sha256": "be4197a7d9eda025f38e2ec055717705b6fa8d606382714e19f2733efccd46a7",
+      "size_bytes": 9590,
+      "sha256": "89375bd20974ee22d0da74527e62a51d43ec7a596c96fdb984961cdeedc06075",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_second_reader_audit_actions.py",
-      "size_bytes": 23210,
-      "sha256": "a52870323afb8dabe64dc8d50c65cb8c17364cf590f53feba9832bc67328bfc2",
+      "size_bytes": 23276,
+      "sha256": "38473d9e308619803056f7da2e78165f7f18da0f65140daf570a8e400ad26270",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/second_reader_audit_actions.json",
-      "size_bytes": 10106,
-      "sha256": "97d59fdbbd5127b2ad5a5a0c4c2040f7f8fdd8520abeb9013a1e88cf931cafee",
+      "size_bytes": 10274,
+      "sha256": "f98653514851e5ccec8d2e5acf35c7a74adc2173822e7e4667c6f1f3d95731e7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4593,8 +4593,8 @@
     },
     {
       "filename": "tests/test_framework_boundary.py",
-      "size_bytes": 7208,
-      "sha256": "7eb17482c7a973ad3b2d4a1fc2d2086224fafa3b649d7439a83bc3ffc4433b17",
+      "size_bytes": 7214,
+      "sha256": "97f19df212df20130dd5874a13728164e7f31640291f82116828c26ea20e5f32",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -4621,15 +4621,15 @@
     },
     {
       "filename": "docs/claims_boundary.json",
-      "size_bytes": 12309,
-      "sha256": "f362a60f604f6d1d52963efc652fc2281ca5e2673732ba5b3ff7e4b0909b3150",
+      "size_bytes": 12357,
+      "sha256": "8782e020337034ab5a780b76aa98a78c71e6ec49cbb6dd3f1710546094e19ed1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "docs/legacy/qta/AUTHORITIES.md",
-      "size_bytes": 4485,
-      "sha256": "8e5b61f189c13456153cf1a169badd8c0bfbb954254b4474220dad2974779e4c",
+      "size_bytes": 4491,
+      "sha256": "4e295eb066cdce29def3c77586562c5e719fa9bb10a73cf5c506bbe1aaac3be1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4726,8 +4726,8 @@
     },
     {
       "filename": "tests/test_generic_consistency.py",
-      "size_bytes": 10082,
-      "sha256": "c0d09c9007aca86db7e2a948097f3fe06d8c830e66d7e912686a7472934a79f5",
+      "size_bytes": 10112,
+      "sha256": "72026a96294f3321ed083fee5d5e5980c8a7a06e9e10d81fa2a3494a0cf7380e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -4740,8 +4740,8 @@
     },
     {
       "filename": "tools/generic_consistency.py",
-      "size_bytes": 9037,
-      "sha256": "0c6425bda776c081348c473dd232691bcf29458f7df0da76ea28896860b97d42",
+      "size_bytes": 9081,
+      "sha256": "92e1432ccea7d7c4942ebada0ed6730668111bbc0791ff5cfd6080de47b820fd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4761,71 +4761,71 @@
     },
     {
       "filename": "tests/test_scientific_invalidation.py",
-      "size_bytes": 18051,
-      "sha256": "b8dbdc3cade6c5e18d9fc0e9d94788a72855968a4fdd55b6cda36f0b55351dd5",
+      "size_bytes": 18097,
+      "sha256": "9b9609253a16b5301fadff823336908adbd4c939af6f05519a62b429d2700ad7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_task_execution_phase.py",
-      "size_bytes": 10372,
-      "sha256": "a3f817868b145feedfc63501751adc4bcd78afbdd065043343f853e4369cd7c7",
+      "size_bytes": 10406,
+      "sha256": "b0cf239ba5cc30aed5dbda43299cf25972aef93caaa440323781bc62e28e66b8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/scientific_invalidation.json",
-      "size_bytes": 5959,
-      "sha256": "9f4a751604cfbf44c31eae6999e619b1089f64242db512ecd2fca36b0bcd7220",
+      "size_bytes": 6039,
+      "sha256": "0163958929b4d01b33d306f20d8c3f88280a42413fabf4886fe587b48cd5b8c2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/task_execution_phase.json",
-      "size_bytes": 4089,
-      "sha256": "8d808b7978af3c40973f9297d43d63a148e0cb0d390ca94c9de9125715d50b15",
+      "size_bytes": 4147,
+      "sha256": "4b19467c85a3403408f1e296dfb54f2c7287522c4047055a4ff6d25e9c28fe46",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_replay_origin_view.py",
-      "size_bytes": 10398,
-      "sha256": "abef8e469ed0ca4cc66549c2e2913c19861f6eed46044fa826a206584f8f0e35",
+      "size_bytes": 10440,
+      "sha256": "c8bdd887d090f4de32b4f81d6e2766e82a4b919e6ed59a3cf5056938c0969b97",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/replay_origin_view.json",
-      "size_bytes": 4700,
-      "sha256": "300826bb281cad4268a12e2c2d7d1872251e5dfe7109ade1900536543822189f",
+      "size_bytes": 4766,
+      "sha256": "214755c7d22f8804c181bf212249bc4324d81aa9306aa93edab3b71bfa1a1979",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/ed25519.py",
-      "size_bytes": 4210,
-      "sha256": "12ca0be335158cabb86d37ed26bd8e77049637e48f79a58c76cefcfe40681c57",
+      "filename": "agent_substrate/ed25519.py",
+      "size_bytes": 4216,
+      "sha256": "4413935cde99ceeb3773b5d7c22aa979982e3d8f7721d0f500111f5f84085564",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/principals.py",
-      "size_bytes": 38398,
-      "sha256": "f6a493d580c740f6294caf34ad2a0c7fcdee44916132c8b8da041c059a02d29a",
+      "filename": "agent_substrate/principals.py",
+      "size_bytes": 38508,
+      "sha256": "6f367ee9b2304757207c586f216409116fa88f015d6eac879b8041b29138518a",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_actor_authentication.py",
-      "size_bytes": 17092,
-      "sha256": "368eed8abac773ddf4548d4be19fea8bc14ab77ba7cea214e7e9b39c3da574de",
+      "size_bytes": 17146,
+      "sha256": "8027ce13aea279e09e51c420ebdee83a90c0bccc952fbc68a9048af7706ebc8f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/actor_authentication.json",
-      "size_bytes": 6755,
-      "sha256": "866ded5f91ea7397c83260af2cef6fd8997ecf4f7543366aaf04763ec1107c22",
+      "size_bytes": 6875,
+      "sha256": "7108e12eb7960ea4550b492b28a2ad37818b5a53f16d3e2e235f94b5787b9f0e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4851,23 +4851,23 @@
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/signature.py",
-      "size_bytes": 7967,
-      "sha256": "cdaa4e8a03464d7b4edbb37ab6c06da191c9ee341eea5d46842b3aa96fcd577c",
+      "filename": "agent_substrate/signature.py",
+      "size_bytes": 7979,
+      "sha256": "a50573afc6145de6a3e19ba51feb5ee9bf1028d75d86bcb9b00af405f177fa53",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_authenticated_history.py",
-      "size_bytes": 24519,
-      "sha256": "653f706dc0a767e9f90afefb46cb75988790d8c671d4c3bdc0c814baed43e2b2",
+      "size_bytes": 24759,
+      "sha256": "2b62b062e9cd7dea27e409a2a84879c1cc6c17e43655f5e9bf06be5452e2c006",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/authenticated_history.json",
-      "size_bytes": 9432,
-      "sha256": "74c9666a5d2bba5a8e512197c3949a57db57a0883e81e4501e7232aa98da5b2d",
+      "size_bytes": 9570,
+      "sha256": "3d046271e21b06ec1babf85c434cd6a138bb2a06c768b3eb3d978d5fc86fde6e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4922,15 +4922,15 @@
     },
     {
       "filename": "tests/test_signed_append_lifecycle.py",
-      "size_bytes": 24966,
-      "sha256": "18bcde6c316f6a7d354d6c77af52cdca274502899064acbc7c57834cbe5cad08",
+      "size_bytes": 24990,
+      "sha256": "ed81172891d2e26ec22c572470693ed3c58afc3ebe3f08c1431436b8a72b27f0",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/signed_append_lifecycle.json",
-      "size_bytes": 16147,
-      "sha256": "54acb9e7c94021fe4d8ee4ea41bb3f243b4a96d6cce4c95d9c01bbd2f9be48da",
+      "size_bytes": 16345,
+      "sha256": "d08029fe56bb51c04c3aba041fb4b082a2c96de13359a12e51f7176f36d26fa1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5090,8 +5090,8 @@
     },
     {
       "filename": "NEURAL_SUBSTRATE.md",
-      "size_bytes": 18005,
-      "sha256": "d09621b7b44fc6dba7e5ed41757af3de88f2aa4578c130d0d57305f82ebe4432",
+      "size_bytes": 18027,
+      "sha256": "b1c256b09c9f98702f41dfb715590a84eb493c68b053e5b8f995e8d28134b56c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5104,29 +5104,29 @@
     },
     {
       "filename": "docs/neural/nf1t_inventory.json",
-      "size_bytes": 13368,
-      "sha256": "5a56e27dade9c876d944afe3e12106ebcef67dc08d83c0e0437841be8df63ce1",
+      "size_bytes": 13392,
+      "sha256": "566a2dc906219e6a5a679831d0a3a149c88a5238b160c214f367c90a41b741e9",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/learned_lifecycle.py",
+      "filename": "agent_substrate/learned_lifecycle.py",
       "size_bytes": 7227,
       "sha256": "471b6a97120100e1f8e5e73ea2c1c5df46b484cfd410e5fa205027341894ea66",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/learned_rules.py",
-      "size_bytes": 2424,
-      "sha256": "309f75937553303c693c10606b50fe515a144e4a6e93af7832936c866fd437b5",
+      "filename": "agent_substrate/learned_rules.py",
+      "size_bytes": 2430,
+      "sha256": "cb7b48db67bb9bf2309cfb18c0e2c098ade8129a6d04c144f9af77c315f90e15",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "scientific_ai/__init__.py",
-      "size_bytes": 1153,
-      "sha256": "37ab9e8e11067e9a8699971538a4492fe070d6933c855b9eb0ea8639ae2ce869",
+      "size_bytes": 1159,
+      "sha256": "45c0e8dd156eb5ddd3ab3cb5c1147b92ff10a660be2df257431ceddf6b8ad159",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5237,8 +5237,8 @@
     },
     {
       "filename": "scientific_ai/neural/model/meta.py",
-      "size_bytes": 9383,
-      "sha256": "88a52262bc50ab9d912cfb1fdde943e660284b6598124dc8d818a9b5f16a37f7",
+      "size_bytes": 9391,
+      "sha256": "7bdaeab44bfdd4d91a95ed90cbcf7cceeace5050695c645f9abb6dc0a21f26f7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5307,8 +5307,8 @@
     },
     {
       "filename": "tests/neural_support.py",
-      "size_bytes": 1749,
-      "sha256": "1c22337a41b2ed9cd89515079ee02fb912f36666e261efabd90ec56d009570d7",
+      "size_bytes": 1761,
+      "sha256": "5a2a20b806da15ce82169cce7bae0bb6d134b310392460d5cb06745916ce2546",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -5321,8 +5321,8 @@
     },
     {
       "filename": "tests/test_neural_boundary.py",
-      "size_bytes": 8257,
-      "sha256": "e180dedaa2a2d0404ae7b03bcbb9ff65bdb5a75728a1f6b0bde92f859660c61b",
+      "size_bytes": 8299,
+      "sha256": "7c6284e698f7a23d361ccc1092311a3c5045a7a20ae10f71b260d884cbf7ebde",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -5377,8 +5377,8 @@
     },
     {
       "filename": "tests/test_neural_provenance.py",
-      "size_bytes": 17594,
-      "sha256": "13853dd2596490613260801471f953ebaccef3058f1a9593321e5e6a95eaf2cc",
+      "size_bytes": 17636,
+      "sha256": "94b39c3d19e221e262eec3c3475a641a80ff3661e90f36e59254c875ac5010d2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -5398,8 +5398,8 @@
     },
     {
       "filename": "tools/mutations/neural_authority.json",
-      "size_bytes": 9069,
-      "sha256": "87307ed3cc880a7901c6a7e5074c4e5887f72b2df54585601d5c652a3baae530",
+      "size_bytes": 9099,
+      "sha256": "44001481a40aa027f5d60b660b56e726255a00e1ce8297bebd9dec6e89ee9079",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5447,8 +5447,8 @@
     },
     {
       "filename": "tools/neural_ledger.py",
-      "size_bytes": 6003,
-      "sha256": "982d0d3581e03241d991ed609b344539b82b5e7355a51e71ab32c65c132aa856",
+      "size_bytes": 6051,
+      "sha256": "6f965273f56ee70aa9c2bca7637a22e2fca96707f9dcb161dd67a77cb644af31",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5594,8 +5594,8 @@
     },
     {
       "filename": "docs/pass_semantics_audit.json",
-      "size_bytes": 62025,
-      "sha256": "36d978e93d78dcb679dfc6e40f325d44c9628c5456c75a0d3745e2ba5137a592",
+      "size_bytes": 62046,
+      "sha256": "2ce1488772c204c7e3b31c2ba328677cf85ff62e123602f412352fd418cdabd8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5608,8 +5608,8 @@
     },
     {
       "filename": "tests/test_claim_hygiene.py",
-      "size_bytes": 15603,
-      "sha256": "e1f25b1ea1a3f6cc6c2f08983f798ca61f29caa0f5fa603eef4dadab50ffd8f7",
+      "size_bytes": 15627,
+      "sha256": "1944581cd3450238ebbbc943462b0a4f7bf45b155ffd07675fa826535a5232cd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -5622,22 +5622,22 @@
     },
     {
       "filename": "tools/pass_semantics_audit.py",
-      "size_bytes": 15918,
-      "sha256": "7f88d4e73fe6f41082107bd011db885411a41666c756120b85bdc55287474d0a",
+      "size_bytes": 15924,
+      "sha256": "fd3df23adba290d3d3cb122f1f64f82e5e4543da575959649df6fb4ab8fb685f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": ".github/workflows/harness-integrations.yml",
-      "size_bytes": 13852,
-      "sha256": "26cdfdce5ae4d44ecb2b8423d040206f00973c53b5d240b09be71193f27d0440",
+      "size_bytes": 13902,
+      "sha256": "7b141b0a360e6d4c9761525bf744719d224d729c8e6742fd40a40cdcfbddc837",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": ".github/workflows/supply-chain.yml",
-      "size_bytes": 4316,
-      "sha256": "30e4759e9f533e0883e642279ccb973970f82ea794bef4847842d2db7c6323a0",
+      "size_bytes": 4328,
+      "sha256": "de537b71ba88adf160f35f66a414cf13056001698e7aaff00d34f8bcf75c3d36",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5741,15 +5741,15 @@
     },
     {
       "filename": "scientific/checks/fenicsx_slab.py",
-      "size_bytes": 10620,
-      "sha256": "9a93a08b6d47609e8e7c5d3754de983604b2212e059be3449038061a632481a3",
+      "size_bytes": 10628,
+      "sha256": "4c55af165edd52a6d5f0c1d76c2653dcc7e7fa235d5de25e589525820d856e37",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "scientific/checks/fmu_rc2.py",
-      "size_bytes": 13027,
-      "sha256": "0024495a948f44b30b1c1bc4a396ec83dc5ee6def26c9431f200e9314cd3fae0",
+      "size_bytes": 13031,
+      "sha256": "b06fe6afa153a3a0fe8c6816f73d73dfde5b3e0328156fcb5abc8e9c0481e698",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5783,22 +5783,22 @@
     },
     {
       "filename": "tests/test_harness_integrations.py",
-      "size_bytes": 20135,
-      "sha256": "ac93e0ff9c4c972c3ad94a1bccabfc01dbcd1a4676e14b34bbdab8cc5c4094ff",
+      "size_bytes": 20151,
+      "sha256": "2f0c43c3e09bbedc0104aaeac9a54efc346bf5748c25c0c98125ba39c2dfff08",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_supply_chain.py",
-      "size_bytes": 14957,
-      "sha256": "840ce47c4b203b74af34c141f2bf6d6f78fdc2403d0abb274b2a39b0fcba1a42",
+      "size_bytes": 14997,
+      "sha256": "cdb5830268d38f7c782a456c282a9143db9df783f3679a1bca7eaa4dc17c3c25",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/fenicsx_acceptance.py",
-      "size_bytes": 10613,
-      "sha256": "65acb51b5890c256bada42ac4b61f1a86abdb97bbbc4a2c28d8f14a2b90c174e",
+      "size_bytes": 10617,
+      "sha256": "707052fd4a4b81e385c2da8c687710d7ea32d3b8077f74d9f902e012e1d2fbf0",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5811,8 +5811,8 @@
     },
     {
       "filename": "tools/fmi_acceptance.py",
-      "size_bytes": 12320,
-      "sha256": "ae7de6e1a3cf21e6ed9d6d37510078976592f350c146d6d62d7c18eeda65eca6",
+      "size_bytes": 12324,
+      "sha256": "7eadd14db6b36c00398dfe0d71b3a1f7854409db063a96d05a5904a89d0d494f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5832,15 +5832,15 @@
     },
     {
       "filename": "tools/supply_chain.py",
-      "size_bytes": 24801,
-      "sha256": "ac3a36ee3691bc628b91b0b5b2db0f891c2a79d5a3adee933c636cf2a81c19e6",
+      "size_bytes": 24834,
+      "sha256": "8c5a258e1c55424c066fd60ca173d68e1ea079802ba17039c60ee052588fc7eb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 3893,
-      "sha256": "70edbbe8c2dffe38e4a26a916774b0f4c0d1a3e6cb98449da45e48c3167f491e",
+      "size_bytes": 9277,
+      "sha256": "93914f250ac4f5f71892309fbb31c1f2cfab60af21dcb100c2358f6739647336",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5853,8 +5853,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 10990,
-      "sha256": "05a32fe686962a3f944f4d3dc3e1909fd3c7cf48900c93eebec676301825868c",
+      "size_bytes": 20908,
+      "sha256": "c9fc99071f35d7be327171280da769149c1990590ca1ebe907b45bc5524c3d1d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5908,16 +5908,16 @@
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
-      "filename": "qta_agent/proposals.py",
-      "size_bytes": 28229,
-      "sha256": "cfa1b0a049ed6f3f5adaf5418930983ad46dcdc27dd0b8a88673fb1f2ba42882",
+      "filename": "agent_substrate/proposals.py",
+      "size_bytes": 28235,
+      "sha256": "96fae49108ef99b4d4424350c2c389a1e32a8069a8f7d55c4936b72732666a2b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "scientific/_governed_fmu.py",
-      "size_bytes": 2620,
-      "sha256": "2b9c4c24f89b3bd6682ad4bf5563c687b6e7b59ded5bf38f615deb54b75c1894",
+      "size_bytes": 2626,
+      "sha256": "c694c6ad6f9ef654bb6a508c3f51d419c7bf65e11f4f5ac1e2785b7e21bb04a8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5951,8 +5951,8 @@
     },
     {
       "filename": "tests/test_checkpoint_recovery.py",
-      "size_bytes": 8285,
-      "sha256": "8a829a3315d1505012331f19bf8488a41015feca6279bd41a3261c9691f4beb4",
+      "size_bytes": 8315,
+      "sha256": "0de67c166d7ea0615aee2dfec259f3b6cb41b59b42279162e8e905922dd27e7b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -5965,8 +5965,8 @@
     },
     {
       "filename": "tests/test_harness_demo.py",
-      "size_bytes": 8653,
-      "sha256": "5bc65a8101425e9728a8958bded931a680802d3afc57ac471f99804c44385455",
+      "size_bytes": 8677,
+      "sha256": "1e38fb8c1d1e0448630400d30cbaf66c4574c00d9b9b1fc049852d1d42c3de72",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -5986,8 +5986,8 @@
     },
     {
       "filename": "tests/test_proposal_ingress.py",
-      "size_bytes": 26222,
-      "sha256": "58bd1f241d1075fc420b3bbcb596de19bc9630c6d8df6a803a441dedcedfda0f",
+      "size_bytes": 26282,
+      "sha256": "107f4f0c6a9618f715e982c9462f92af61765dd6227a02778c3cc54ff3830462",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -6007,22 +6007,22 @@
     },
     {
       "filename": "tests/test_sensitivity_cross_check.py",
-      "size_bytes": 5565,
-      "sha256": "7dcde2d55b4f116f9380382f0fa27fec12dcbccead3bb77040cfe469e390a373",
+      "size_bytes": 5577,
+      "sha256": "7a06a5787913da4ea631456e81d9fa97e4451afbc1d3c485217fce615ecd2919",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/harness_demo.py",
-      "size_bytes": 19772,
-      "sha256": "26a8040167aaf2e876f320bd3ece60bdc7a2165dd97d28d7a056f19f064f103b",
+      "size_bytes": 19838,
+      "sha256": "11379911ee426f8b24f211c022b307b20739d74285b5d0493cc06b6a024950d2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tools/mutations/checkpoint_recovery.json",
-      "size_bytes": 3751,
-      "sha256": "753001743ed989017093206489d3f4edbfc581fda851c528e395c90fd1cdbad2",
+      "size_bytes": 3811,
+      "sha256": "9e09cb42838dd5953c35270b54746997d45f721abc985c634d7322b0b575bf81",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -6049,8 +6049,8 @@
     },
     {
       "filename": "tools/mutations/proposal_ingress.json",
-      "size_bytes": 8862,
-      "sha256": "a12989af5b1a85e0e4fb1ef45442311e1e047def476aa047b37834f4b13c9df8",
+      "size_bytes": 9030,
+      "sha256": "7c1d83b7e24ea3a352b62c4c8af2c633593243ad59578fc3dc61ae62a49cffe4",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -6098,22 +6098,22 @@
     },
     {
       "filename": "docs/typing_scope.json",
-      "size_bytes": 2039,
-      "sha256": "743da62cf5747d057c33b3853f70900433447db2532839e6590ad03d3bf58cf0",
+      "size_bytes": 2045,
+      "sha256": "da88aad51a015be5a98bf60c863278995f0bfc357e1e7a38c35c85cf8d6952de",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_typecheck_scope.py",
-      "size_bytes": 6858,
-      "sha256": "1358c93a1036b899a62a500cb32820a300ed422667da49a2cfb684819ecf7c5b",
+      "size_bytes": 6870,
+      "sha256": "b9e31636ceb8c5e65b0c2229766da39562ccba18abeb8bd413da7392825bcd01",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/typecheck_scope.py",
-      "size_bytes": 7376,
-      "sha256": "f533b546aacc2b6f72387485cd4eb63c4449b7ee9f85e8ea7f41889d09cc2267",
+      "size_bytes": 7382,
+      "sha256": "3e0b0245283de7372b0768fd00285d6c014c4e5ab991e838fed8bdff451fbb2a",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -6161,36 +6161,36 @@
     },
     {
       "filename": "tests/test_proposal_crash_recovery.py",
-      "size_bytes": 21423,
-      "sha256": "2aa06b17608eaf9558d968df7db1a261eab949f22fb22edc454a7a8a7fa9282e",
+      "size_bytes": 21535,
+      "sha256": "d8253bd9092cb9df17af28573df46e9e31450bda22f3d68854870acd14b4580e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/proposal_crash_recovery.json",
-      "size_bytes": 5413,
-      "sha256": "7feab4de9dca59439bc597ca6e45defa410eaf6d44f267e79234f3d9581cb21c",
+      "size_bytes": 5465,
+      "sha256": "a366d4cf437663340a017c2fc3be90f88cef9e58a66f9d2543729eda20c9a37c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_decided_appends.py",
-      "size_bytes": 15487,
-      "sha256": "e954ced5ecc0f8ca48747f325f82496517611df02c159b52c9c75c8992add68c",
+      "size_bytes": 15611,
+      "sha256": "648a5c9aadfa187ee4afce7154d43a32d8213e451dcecb57828843a0432e1cde",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tests/test_proposal_concurrency.py",
-      "size_bytes": 13058,
-      "sha256": "3c52b063c23ddfd06b9c201dd3d22b358362d56c2a356531388a4d96fe41b00e",
+      "size_bytes": 13142,
+      "sha256": "a9fb6d5433d68f57d98397a11635af967e4c42e1c06e92da98b8c020cd2d289b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/mutations/decided_appends.json",
-      "size_bytes": 6603,
-      "sha256": "574058d47056cd9573855e3ba2ca606110b3d6ccafba8abd06c8580b17d0996c",
+      "size_bytes": 6677,
+      "sha256": "f103a7d392d076b2dd87c27f84505b2725506d577cff9a3d0bbd6e0ccd34a224",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -6203,8 +6203,8 @@
     },
     {
       "filename": "docs/repository_inventory.json",
-      "size_bytes": 1211045,
-      "sha256": "8e1216ec4d9231c0bc14c44fd83c9496cc8df7110ffbe24bfd2b7189837c1b97",
+      "size_bytes": 1210999,
+      "sha256": "4da04c3afdc4d4e9be406e746529c605c7a8f85361866eed8efadf7a37410aa1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

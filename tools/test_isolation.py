@@ -8,9 +8,9 @@ PASS_count stays 0.
 WHY THIS EXISTS
 
 `tests/` has no `__init__.py`, so pytest puts `tests/` on `sys.path` and not
-the repository root. A module importing `tools.something` or `qta_agent` at
-top level therefore depends on some EARLIER module having inserted the root --
-and 103 of 106 modules do insert it, each with its own copy of the line.
+the repository root. A module importing `tools.something` or `agent_substrate`
+at top level therefore depends on some EARLIER module having inserted the root
+-- and 103 of 106 modules do insert it, each with its own copy of the line.
 
 Three did not, and they passed anyway, every run, because the alphabet put a
 module that inserts the path ahead of them. Run alone, all three failed to

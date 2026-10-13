@@ -48,14 +48,14 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.agents import (  # noqa: E402
+from agent_substrate.agents import (  # noqa: E402
     AgentRole, PrincipalKind, identity,
 )
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import GovernedStage10  # noqa: E402
-from qta_agent.netauth import NetworkDenied  # noqa: E402
-from qta_agent.tasks import TaskState  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import GovernedTasks  # noqa: E402
+from agent_substrate.netauth import NetworkDenied  # noqa: E402
+from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_collusion"
 
@@ -72,7 +72,7 @@ def world():
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    gov = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    gov = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                           evidence=EvidenceStore(base / "evidence"))
     gov.out_rel = f"{WS}/out"
     for agent_id, role in RING.items():
@@ -118,7 +118,7 @@ def test_the_same_attacker_acting_as_itself_is_still_refused(world):
     so a single principal never reaches the point of trying. The ring is a
     way past a check that exists, not a way past one that was never there.
     """
-    from qta_agent.agents import IdentityError
+    from agent_substrate.agents import IdentityError
 
     with pytest.raises(IdentityError, match="separation"):
         world.agents.register(
@@ -145,7 +145,7 @@ def test_the_artifact_is_still_the_bytes_the_record_names(world, ring_run):
     """Content addressing does not care who agreed with whom."""
     import json
 
-    from qta_agent.canonical import digest_bytes
+    from agent_substrate.canonical import digest_bytes
 
     produced = ROOT / world.out_rel / "collusion.json"
     assert produced.is_file()
@@ -185,7 +185,7 @@ def test_the_write_allowlist_still_binds_the_ring(world):
 
 def test_the_ring_still_cannot_reach_the_network(world):
     """Three cooperating roles hold three roles, not a grant."""
-    from qta_agent.netauth import (
+    from agent_substrate.netauth import (
         NetworkAuthority, NetworkRequest, parse_target,
     )
 
@@ -206,7 +206,7 @@ def test_the_ring_still_cannot_reach_the_network(world):
 def test_the_ring_cannot_cite_evidence_that_does_not_exist(world):
     """The one thing three cooperating roles most want is to agree that
     something was checked. Agreement is not a digest."""
-    from qta_agent.store import StoreError
+    from agent_substrate.store import StoreError
 
     with pytest.raises((StoreError, Exception)):
         world.store.create(
@@ -238,7 +238,7 @@ def test_the_boundary_is_written_where_somebody_will_read_it():
     Separation of duties assumes the identities are independent, and the
     module that enforces it has to say so where the enforcement is.
     """
-    src = (ROOT / "qta_agent" / "authority.py").read_text(encoding="utf-8")
+    src = (ROOT / "agent_substrate" / "authority.py").read_text(encoding="utf-8")
     assert "requires_distinct_actor" in src
     text = (ROOT / "AGENT_SUBSTRATE.md").read_text(encoding="utf-8")
     assert "colluding" in text.lower(), (

@@ -1061,7 +1061,7 @@ the test now resolves to the second, and says so.
 
 **STATUS** — repaired, as corrected prose. **No containment was added.**
 
-**DEFECT.** `governed_stage10.py`'s module docstring said the tool runs
+**DEFECT.** `governed_tasks.py`'s module docstring said the tool runs
 inside a network guard "so a dependency that phones home is refused", and
 that "if the tool opens a socket, the run does not complete". The real tool
 runs as a **subprocess**. The guard is a monkeypatch in the supervisor's
@@ -1528,7 +1528,7 @@ from the fix, and the spec was not re-run in that sitting. So the record
 claimed a repair whose only evidence was that the code looked right.
 
 **WHY IT MATTERS MORE THAN "two survivors".** The seven steps after it in the
-workflow — including `stage10_authority`, the corpus-allowlist completeness
+workflow — including `governed_tasks_authority`, the corpus-allowlist completeness
 check, the long-horizon campaign, the fuzz pass, the governed production path,
 the auditor, and the two post-campaign source-integrity checks — are `skipped`
 when a step fails. One unrun spec did not cost one matrix; it cost the tail of
@@ -1562,7 +1562,7 @@ mutations. 12/12, sources restored byte-identical.
 **CONFIRMED HOSTED.** `agent-substrate` at `7dc9a1f` completed all 55
 steps green, including steps 48–55 — the corpus-allowlist completeness
 check, the long-horizon campaign at elevated scale, the fuzz pass, the
-governed production path, the read-only auditor, `stage10_authority`,
+governed production path, the read-only auditor, `governed_tasks_authority`,
 "sources are unchanged after mutation testing" and "the substrate did
 not touch the canonical tree" — none of which had run at `104a6f1`.
 
@@ -1581,7 +1581,7 @@ spec nobody runs on a hosted runner protects nothing.
 | write path tested | yes | yes | yes | yes | n/a — prose | yes |
 | replay tested | yes | yes | yes | yes | n/a | n/a — no durable record |
 | second reader | yes | 28 of 37 actions, measured | yes | yes | n/a | n/a |
-| sibling mutation spec | `agent_scheduler`, `agent_cross_process`, `agent_lease_renewal`, `agent_incremental` | `agent_agents`, `agent_actions` | `agent_delegation`, `agent_memory_context`, `agent_secrets`, `agent_secret_provider` | `agent_netauth`, `agent_service_authority` | `stage10_authority` | `solver_failclosed` |
+| sibling mutation spec | `agent_scheduler`, `agent_cross_process`, `agent_lease_renewal`, `agent_incremental` | `agent_agents`, `agent_actions` | `agent_delegation`, `agent_memory_context`, `agent_secrets`, `agent_secret_provider` | `agent_netauth`, `agent_service_authority` | `governed_tasks_authority` | `solver_failclosed` |
 | wired into hosted CI | yes | yes | yes | yes | yes | yes |
 
 `tools/workflow_contract.py` answers the "wired" row by construction rather
@@ -1613,11 +1613,11 @@ is 486.
 Then the specs this table NAMES but whose target files this tranche did not
 touch, so that no row above rests on a hosted result alone:
 `agent_scheduler` 64/64 · `agent_cross_process` 8/8 · `agent_incremental` 9/9
-· `agent_memory_context` 40/40 · `stage10_authority` 15/15 ·
+· `agent_memory_context` 40/40 · `governed_tasks_authority` 15/15 ·
 `repo_contract` 12/12. **634 mutations across twenty-six specs, none
 surviving.**
 
-`stage10_authority` is the one that mattered most to run. It is step 53 of 55,
+`governed_tasks_authority` is the one that mattered most to run. It is step 53 of 55,
 and the failure at step 47 recorded in D-2026-22 SKIPPED it — so P0-5's own
 spec had no result at that commit, hosted or local. A spec that is wired into
 CI and never reaches the runner is wired in the sense the contract checks and
@@ -1625,7 +1625,7 @@ not in the sense that matters.
 
 **A checker that reported a defect that was not one.** `generate_manifest.py`
 refuses any path that is untracked and not ignored, which is right. But
-`qta_agent/execution.py` creates a `.exec-<random>/` scratch directory beside
+`agent_substrate/execution.py` creates a `.exec-<random>/` scratch directory beside
 the run and removes it in its `finally`, so a process that dies before that
 `finally` — a SIGKILL, a killed test session — leaks one, and the next
 manifest check reports MANIFEST DRIFT for a crash that had nothing to do with
@@ -1685,7 +1685,7 @@ it stops being true, or it is not answered.
 **DISCOVERED BY.** An external hostile review, after `5e761fc` declared P0
 complete. It read the live source instead of this ledger.
 
-**DEFECT.** `qta_agent/governed_stage10.py` — the production caller, the file
+**DEFECT.** `agent_substrate/governed_tasks.py` — the production caller, the file
 a reader of this substrate opens first — claimed:
 
 > the tool runs inside a network guard with no egress grant, so a dependency
@@ -1703,13 +1703,13 @@ not inherit a Python monkeypatch. Both sentences are false of the tool.
 **WHAT MAKES THIS RECORD DIFFERENT FROM D-2026-08 AND D-2026-15.** Those two
 already describe this defect. D-2026-15 is titled *"the production caller's
 docstring claimed containment it does not have"*. Neither of the commits
-carrying them modified `qta_agent/governed_stage10.py`. Not one line:
+carrying them modified `agent_substrate/governed_tasks.py`. Not one line:
 
 ```
-$ git show 4ece228 -- qta_agent/governed_stage10.py     # empty
-$ git show 104a6f1 -- qta_agent/governed_stage10.py     # empty
+$ git show 4ece228 -- agent_substrate/governed_tasks.py     # empty
+$ git show 104a6f1 -- agent_substrate/governed_tasks.py     # empty
 $ git log --all -S "WHERE THE NETWORK GUARD REACHES" \
-      -- qta_agent/governed_stage10.py                  # empty: never existed
+      -- agent_substrate/governed_tasks.py                  # empty: never existed
 ```
 
 The session record for that tranche states the module docstring was "rewritten
@@ -1758,7 +1758,7 @@ at the test that measures the boundary. The enforcement comment now says what
 it actually cross-references, and records that it used to claim corroboration
 it did not have.
 
-**AFFECTED REPRESENTATIONS.** Swept: the `governed_stage10.py` docstring and
+**AFFECTED REPRESENTATIONS.** Swept: the `governed_tasks.py` docstring and
 enforcement comment (both false, both repaired); `completion_matrix.json` row
 R32 `evidence`, which said "a connection attempted during execution is
 refused" without saying *by whom* (repaired — its `boundaries` field was
@@ -1810,7 +1810,7 @@ pass by reaching only one block. `W7` exists because that investigation found
 a third guarded site that no mutation had ever attacked.
 
 **FORBIDDEN FAKE FIXES.** Adding a monkeypatch to the child's entry point and
-calling it containment: the tool is `python -m qta_agent._stage10_tool`, and
+calling it containment: the tool is `python -m agent_substrate._artifact_tool`, and
 anything it imports can undo that as easily as the supervisor can. Deleting
 the sentence without stating the boundary. Claiming rlimits restrict
 networking — they do not, and
@@ -1954,7 +1954,7 @@ binding. The class was enforced only where it was already known.
 
 ```
 TypeError: AF_INET address must be a pair (host, port)
-  qta_agent/netauth.py  guarded_connect() -> original(self, _check(address))
+  agent_substrate/netauth.py  guarded_connect() -> original(self, _check(address))
 ```
 
 `full-suite` failed during the full pytest stage, so **package consistency
@@ -2185,7 +2185,7 @@ the whole time.
 **DISCOVERED BY.** P0-R12 of the second reopening. Not by a failing test —
 every test passed, and that is the finding.
 
-**DEFECT.** `qta_agent/reconstruct.py` is the package's independent reader: the
+**DEFECT.** `agent_substrate/reconstruct.py` is the package's independent reader: the
 thing that answers *given only the log, what is canonical?* without trusting
 the running system. For the nine subsystems at the bottom of the module it does
 exactly that, in plain strings and plain dicts, and says so in
@@ -2805,7 +2805,7 @@ The audit suite asserted the opposite, with its own anti-vacuity partner and
 an explanation:
 
 > `store.py` applies one event at a time and never looks at dependents.
-> `qta_agent.invalidation` cascades ONLY when a caller runs it. So a cascade
+> `agent_substrate.invalidation` cascades ONLY when a caller runs it. So a cascade
 > nobody ran leaves a PROMOTED record resting on a REVOKED one, every
 > individual transition legal, and nothing in the enforcement path able to
 > notice.
@@ -2893,7 +2893,7 @@ dependency graph exists.
 
 **CLASS** — `MEASUREMENT_DEFECT`, `QUADRATIC_PATH`, `IMPLEMENTATION_VS_DESIGN`.
 
-**AFFECTED COMMIT** — present since `governed_stage10.py` was written; still
+**AFFECTED COMMIT** — present since `governed_tasks.py` was written; still
 true at `577572d`.
 
 **DISCOVERED BY.** P1 of the second reopening, by instrumenting
@@ -2947,7 +2947,7 @@ A time guard on a subprocess-dominated operation cannot see the growth of the
 work inside it. That is the same defect class as D-2026-28: a measurement
 named after one thing, measuring another, and right by luck.
 
-**IMPLEMENTATION FIX.** `GovernedStage10._head_seq()` holds an anchor. The
+**IMPLEMENTATION FIX.** `GovernedTasks._head_seq()` holds an anchor. The
 first call verifies the whole chain and fails closed; after that `advance()`
 verifies only the records this caller has not seen, and refuses to move past
 a broken chain. Every record is verified exactly once per caller instead of
@@ -3389,7 +3389,7 @@ that exercise the modules it mutates and are not in its suite list. Run that
 and every spec reports dozens — `agent_checkpoint` alone shows 34 — because
 the relation available to a script is "this suite imports that module", and
 in this repository almost every agent suite imports `events`, `store` or
-`governed_stage10`. The relation that would matter is "this suite tests the
+`governed_tasks`. The relation that would matter is "this suite tests the
 rule this mutation removes", and nothing derives that from source.
 
 **AND THE AUTOMATIC VERSION WAS COSTED, NOT ASSUMED.** The other mechanical
@@ -3674,13 +3674,13 @@ It now returns FAIL.
 **WHAT THE SWEEP FOUND ALREADY GUARDED**, recorded so the next reader does
 not redo it: `completion_matrix`, `fuzz_substrate`, `performance_baseline`,
 `repo_scope`, `workflow_contract`, `package_consistency_check`,
-`_stage10_index_tool` and `mutation_matrix` each carry an explicit
+`_index_tool` and `mutation_matrix` each carry an explicit
 anti-vacuity guard. `tools/independent_verify.py` does not refuse an empty
 log — correctly, since an empty log is a legitimate state — but publishes
 `events_replayed` and a per-subsystem count beside its verdict, with a
 comment saying why. Not examined: `stage6_preservation_check`,
 `manuscript_consistency_check`, `verify_release`, `tools/audit_log`,
-`tools/model_check`, `qta_agent/separate_verify`. Saying which ones were not
+`tools/model_check`, `agent_substrate/separate_verify`. Saying which ones were not
 looked at is the difference between a sweep and a claim about one.
 
 ---
@@ -3772,7 +3772,7 @@ plus a measurement that named a quantity it was not counting.
 
 **DISCOVERED BY.** Working the P1 item recorded as "Stage-10 coherent read".
 
-**DEFECT.** `GovernedStage10.projection()` read:
+**DEFECT.** `GovernedTasks.projection()` read:
 
 ```python
 self.log.verify().raise_if_bad()
@@ -3816,7 +3816,7 @@ Stated narrowly, because the window is not all windows: records are read
 once, so nothing can land between the check and the fold. A rewrite of
 EARLIER bytes while the pass is in flight is a different matter and this does
 not address it. That is the threat model `verify()` lives in generally, and
-`qta_agent.checkpoint` already says how far the filesystem is trusted.
+`agent_substrate.checkpoint` already says how far the filesystem is trusted.
 
 **THE MEASUREMENT WAS NAMING THE WRONG QUANTITY, AND IT IS THE GUARD
 D-2026-32 BUILT.** `MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN = 13` counted
@@ -3926,7 +3926,7 @@ subject into two and the separation agreed.
 declares the roster; `resolve_reviewer()` requires an entry of kind `HUMAN`,
 not retired at the date claimed, whose `registered_by` chain reaches
 `OUT_OF_BAND_BOOTSTRAP` — refusing self-registration, cycles, and
-registration by a `TOOL`. That is the standard `qta_agent/agents.py` already
+registration by a `TOOL`. That is the standard `agent_substrate/agents.py` already
 holds `PrincipalKind.HUMAN` to, and the reason this repository has two
 authority systems and only one of them was enforcing.
 
@@ -4132,7 +4132,7 @@ perfectly, so the lapsed-lease requeue must still go through, on the same
 edge, from the same actor.
 
 **AND THE FILE CARRIED A SECOND DEFECT, FOUND ON THE WAY.**
-`qta_agent/scheduler.py` held **two byte-identical copies** of
+`agent_substrate/scheduler.py` held **two byte-identical copies** of
 `_probe_copy` and `_dry_run`, 38 lines apart. Python kept the second and
 discarded the first. Present in `HEAD`, confirmed against `git show` rather
 than assumed from the working tree.
@@ -4149,7 +4149,7 @@ exactly once — so nothing was masked yet.
 The copy is gone, and the check is a permanent test over the WHOLE
 substrate, `test_no_definition_in_the_substrate_is_silently_shadowed`,
 rather than a one-line deletion: an AST scan of every module and class in
-`qta_agent/` for a name defined twice in one scope. Verified by
+`agent_substrate/` for a name defined twice in one scope. Verified by
 reintroducing the duplicate, which it names by file, symbol and both line
 numbers. Two instances existed, both here; closing the example would have
 left the class open.
@@ -4382,7 +4382,7 @@ failure. The two are told apart by whoever reads the traceback and by
 nothing else.
 
 **THE SUBSTRATE WAS ALREADY CLEAN, WHICH IS WHY THIS IS P2 AND NOT WORSE.**
-`qta_agent` and `tools/` carry ZERO asserts. Every authority decision in
+`agent_substrate` and `tools/` carry ZERO asserts. Every authority decision in
 this repository is already a real refusal. The defect is confined to the
 scientific tree, and the worst of it sits in the one function that writes
 the number the whole package is judged by.
@@ -4409,7 +4409,7 @@ run cannot see this defect at all.
 
 **AND A SCAN, SO THE NEXT ONE CANNOT ARRIVE QUIETLY.**
 `test_no_new_assert_has_taken_over_an_enforcing_path` refuses any assert in
-`qta_agent` or `tools/`, and pins the scientific tree's remaining sites by
+`agent_substrate` or `tools/`, and pins the scientific tree's remaining sites by
 file. A new one has to be classified by a person -- self-check or
 enforcement -- rather than absorbed into a count nobody reads.
 
@@ -4583,7 +4583,7 @@ scan for invoked specs used
 tools/mutations/[a-z_]*\.json
 ```
 
-and reported that `stage10_authority.json` is never invoked by CI — which
+and reported that `governed_tasks_authority.json` is never invoked by CI — which
 would have been a far more serious finding, since D-2026-41's evidence names
 that matrix. It was false. The character class has no digits, so the pattern
 could not match the name it was searching for, and a scan that silently
@@ -4688,7 +4688,7 @@ not bear on it.
 | D-2026-38 (P1) | `agent-substrate` — the `agent_second_reader` matrix, now 103 mutations | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding, on the commit that carries all 103 |
 | D-2026-39 (P1) | `full-suite`'s pytest step, which carries `tests/test_stage8_data_provenance.py` | `d425d47` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run. Step 7, the byte gate, is red and is R59 |
 | D-2026-40 (P1) | `full-suite`'s pytest step, and the manifest-completeness suite inside it | `d425d47` | **`CURRENTLY_CLOSED`** — step 5 `success`, and `agent-substrate` step 8 ("derived artifacts are in step with their sources") `success` on the same commit: the step that was red at `3f26b27` for this exact file |
-| D-2026-41 (P1) | `full-suite`'s pytest step, and `agent-substrate`'s `stage10_authority` and `agent_substrate` matrices | this commit | pending its own hosted run; locally the forged record is refused, the projection makes one pass, and G_R1 and M51 were applied by hand and killed |
+| D-2026-41 (P1) | `full-suite`'s pytest step, and `agent-substrate`'s `governed_tasks_authority` and `agent_substrate` matrices | this commit | pending its own hosted run; locally the forged record is refused, the projection makes one pass, and G_R1 and M51 were applied by hand and killed |
 | D-2026-42 (P1) | `full-suite`'s pytest step, which carries the four hardware suites, plus `package_consistency_check.py` for the regenerated readiness artifact | `5c7002f` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run, and inside step 7 the line `[PASS] multiphysics: hardware governance (read-only, no hardware data, human-only review, automatic_gate_effect=NONE, ...)` on the regenerated artifact. Step 7 as a whole is red on exactly two byte comparisons, and that runner printed `openblas runtime kernel: Haswell` / `numpy SIMD found: ['X86_V3']` — no AVX-512, which is R59's signature and not this change |
 | D-2026-43 | `agent-substrate` step 43, the `agent_cross_process` matrix, which must read 11/11 | this commit | pending its own hosted run; locally X4 is killed by the new regression, the unreplayable log is reproduced, and the shadowed-definition scan is verified against a reintroduced duplicate |
 | D-2026-44 | `agent-substrate` step 7 ("completion matrix is self-consistent") and step 46, the `completion_matrix` mutation spec, now 18 | this commit | pending its own hosted run; locally 18/18 with C15 killed by the delimiter test it exposed, and the summary prints both axes |
@@ -4860,7 +4860,7 @@ claimed complete.
    other seven -- `agent.message`, `file.read`, `network.result`,
    `secret.access`, `secret.provision`, `task.reexecution`,
    `task.separate_verification` -- now have second readers in
-   `qta_agent/reconstruct.py`; `tools/identity_inventory.py` measures 38 of
+   `agent_substrate/reconstruct.py`; `tools/identity_inventory.py` measures 38 of
    38 from the parse tree, and the CI step title says so and is checked.
    Each of the seven stays classified NOT authority-changing, and
    `tests/test_second_reader_audit_actions.py` shows a forged one moving no
@@ -5156,8 +5156,8 @@ was asserting the outcome of a race.
 **DISCOVERED BY.** `second-interpreter (3.13)` going red at `34a9d68` on
 `test_a_worker_process_killed_mid_execution_leaves_a_recoverable_log`. The
 commit it failed on changed a 3D solver's hotspot ranking and touched
-nothing in `qta_agent/`, so the first question was whether it was this
-change's. It is not — and it is not somebody else's either: `qta_agent/`
+nothing in `agent_substrate/`, so the first question was whether it was this
+change's. It is not — and it is not somebody else's either: `agent_substrate/`
 does not exist on the base branch, so the substrate and this test are both
 this PR's work. Ownership established by checking, not assumed either way.
 
@@ -5388,7 +5388,7 @@ named list of paths rather than over the property it protects.
 
 **DISCOVERED BY.** The P2 item recorded as "duplicate residue", by running
 D-2026-43's shadowed-definition scan over the whole repository instead of
-over `qta_agent/`, which is all it was ever pointed at.
+over `agent_substrate/`, which is all it was ever pointed at.
 
 **DEFECT.** `qta_multiphysics/deep_expdesign/runner.py` defined
 `run_deep_expdesign_full` **twice**, at lines 120 and 298. Python keeps the
@@ -5420,7 +5420,7 @@ The tool that finds this defect was installed, was correct, and was running.
 CI's lint step names its paths —
 
 ```
-ruff check qta_agent qta_multiphysics/stack tests/test_agent_*.py ...
+ruff check agent_substrate qta_multiphysics/stack tests/test_agent_*.py ...
 ```
 
 — and `qta_multiphysics/deep_expdesign/` is not among them, so nothing ever
@@ -7149,7 +7149,7 @@ command extractor found on the way.
 **THE CLAIM AND ITS SUPPORT.** `tests/test_agent_long_horizon.py` compiles in
 
 ```python
-CYCLES = int(os.environ.get("QTA_HORIZON_CYCLES", "260"))
+CYCLES = int(os.environ.get("HARNESS_HORIZON_CYCLES", "260"))
 ```
 
 and the workflow has a step called **"long horizon at an elevated scale"**
@@ -7164,17 +7164,17 @@ That is the same shape as everything else in this ledger: the evidence for
 "elevated" was the step's title.
 
 **REPAIR.** `unturned_knobs()` requires at least one command the workflow
-actually runs to invoke that suite with `QTA_HORIZON_CYCLES` **above** the
+actually runs to invoke that suite with `HARNESS_HORIZON_CYCLES` **above** the
 default, and re-derives the default from the test's own source rather than
 repeating it, so raising it there cannot silently satisfy this. Setting the
-variable is not raising it: `QTA_HORIZON_CYCLES=10` is refused.
+variable is not raising it: `HARNESS_HORIZON_CYCLES=10` is refused.
 
 **THE SUB-DEFECT.** The check failed against a workflow that does turn the
 knob. `_run_commands()` returned one entry per LINE, so
 
 ```yaml
 run: |
-  QTA_HORIZON_CYCLES=1200 uv run python -m pytest \
+  HARNESS_HORIZON_CYCLES=1200 uv run python -m pytest \
     tests/test_agent_long_horizon.py -q -p no:randomly
 ```
 
@@ -7319,7 +7319,7 @@ without the basis, and moving it onto the mechanism is the Phase 4-6 work on
 
 ## D-2026-70 — seventeen reducers verified one read of the log and folded another
 
-**CLASS** — `DEFECT`, trust boundary, `qta_agent/`. The directive named the
+**CLASS** — `DEFECT`, trust boundary, `agent_substrate/`. The directive named the
 pattern; the sweep found how far it reached.
 
 **THE SHAPE.**
@@ -7332,7 +7332,7 @@ for ev in log.read():
 
 Two reads of a file other processes append to. A record landing between them
 is folded without its chain link ever being checked by the call folding it.
-D-2026-41 closed it in `governed_stage10.projection` and, as the phrase goes,
+D-2026-41 closed it in `governed_tasks.projection` and, as the phrase goes,
 nowhere else. It stood in:
 
 * the `load()` of `agents`, `capability`, `idempotency`, `memory`, `netauth`,
@@ -7358,7 +7358,7 @@ missed the last two: it matched `verify` followed by `read`, and those two
 were `verify_from` followed by `_read_tail` inside one method, and by
 `read_from` in another. Reading the code found them. A scan is a proxy.
 
-Beyond the pattern: three helpers in `governed_stage10` -- `_tool_of`,
+Beyond the pattern: three helpers in `governed_tasks` -- `_tool_of`,
 `_execution_record`, `_artifacts_of` -- read the log with **no verification
 at all**. `_tool_of` chooses the tool spec a task is verified against and the
 compensator that undoes it, so an appended record with a broken link could
@@ -7395,7 +7395,7 @@ A1, Q1 (`agent_audit`), S22, E27 (`agent_checkpoint`).
 
 ## D-2026-71 — a checkpoint of one reducer restored into another
 
-**CLASS** — `DEFECT`, `qta_agent/store.py`, `qta_agent/checkpoint.py`.
+**CLASS** — `DEFECT`, `agent_substrate/store.py`, `agent_substrate/checkpoint.py`.
 
 A snapshot at seq K is what the reducer of its day made of 0..K. The snapshot
 carried `snapshot_version: 1` and nothing about the code that produced it, so
@@ -7405,7 +7405,7 @@ and the result is a state no version of the code computes from the log.
 **Same event log + changed reducer semantics does not imply an old projection
 remains valid.**
 
-**REPAIR.** `qta_agent/projection.py` (new): `ReducerIdentity` =
+**REPAIR.** `agent_substrate/projection.py` (new): `ReducerIdentity` =
 `projection_kind`, `reducer_id`, `reducer_version`, `reducer_digest`,
 `projection_schema_version`. The digest is sha256 over the source of every
 module defining a class in the projection's MRO plus every in-package module
@@ -7450,7 +7450,7 @@ inheriting subclass's identity to change; RI4 dies to it.
 
 ## D-2026-72 — a summary of something that was never provided, and an omission invented for it
 
-**CLASS** — `DEFECT`, provenance, `qta_agent/context.py`.
+**CLASS** — `DEFECT`, provenance, `agent_substrate/context.py`.
 
 `ContextBuilder.add` checked that `summary_of` looked like a digest and that
 `summarizes_item` came with one. Nothing checked the item existed or that the
@@ -7497,7 +7497,7 @@ and the self-test built for exactly this prints `correctly blocked: {caught==1}`
 which under -O is `False` followed by a check mark.
 
 D-2026-45 converted the gate-table asserts and added a guard: no assert in
-`qta_agent/` or `tools/`, and the scientific tree's self-checks "pinned". The
+`agent_substrate/` or `tools/`, and the scientific tree's self-checks "pinned". The
 guard scanned three directories, and `qta_full_sim.py` is at the root. And the
 pin compared the SET OF FILES holding asserts while its docstring said "the
 count is pinned", so a second assert in a classified file joined the first
@@ -7555,7 +7555,7 @@ D-2026-77 for what regenerating the derived records found.
 
 ## D-2026-75 — a shown summary's source was not written down, so the reader could not check it
 
-**CLASS** — `DEFECT`, trust boundary, `qta_agent/context.py`. The durable
+**CLASS** — `DEFECT`, trust boundary, `agent_substrate/context.py`. The durable
 half of D-2026-72.
 
 D-2026-72 made the builder refuse a summary whose source was never provided
@@ -7587,7 +7587,7 @@ control green.
 
 ## D-2026-76 — verify-then-read was repaired at every site and prevented at none
 
-**CLASS** — `GAP`, `qta_agent/events.py` and the tree. The prevention half
+**CLASS** — `GAP`, `agent_substrate/events.py` and the tree. The prevention half
 of D-2026-70.
 
 D-2026-70 repaired twenty sites and `test_agent_snapshot_coherence.py` proves
@@ -7598,7 +7598,7 @@ reducer. `EventLog.read()` stayed public, unverified, and one keystroke from
 **REPAIR.** Two guards, because each alone is a proxy.
 
 * **Static** -- `tools/verified_read_guard.py` walks the parse tree of every
-  tracked production file (not `tests/`, not `attic/`; `qta_agent/events.py`
+  tracked production file (not `tests/`, not `attic/`; `agent_substrate/events.py`
   is where the primitives live) and refuses `RAW_READ` (`<log>.read()`, or
   iterating a log, or `list()`/`sorted()` of one), `TAIL_PARSE`
   (`._read_tail`), `READ_FROM` (the removed primitive, called or defined)
@@ -7607,7 +7607,7 @@ reducer. `EventLog.read()` stayed public, unverified, and one keystroke from
   One allowlisted site, pinned by count with its reason: the fuzz harness's
   parser target, where the unverified parse is the thing under test.
 * **Runtime** -- `EventLog.read()` and `__iter__` refuse any caller whose
-  module is under `qta_agent.` other than `qta_agent.events`, decided by the
+  module is under `agent_substrate.` other than `agent_substrate.events`, decided by the
   calling frame rather than by what the caller named the object, so an alias
   the static rule cannot follow still stops. The refusal,
   `UnverifiedReadRefused`, is deliberately **not** an `EventLogError`:
@@ -7618,7 +7618,7 @@ reducer. `EventLog.read()` stayed public, unverified, and one keystroke from
 **ANTI-VACUITY.** Run against `71b58cb` (before D-2026-70), the static
 guard reports **20 sites in 12 modules**: every reducer load and fallback,
 both audit indexes, the three reconstructors, the three unverified
-`governed_stage10` helpers and `load_from`'s `read_from`. It cannot see
+`governed_tasks` helpers and `load_from`'s `read_from`. It cannot see
 `EventLog.advance`, which is inside `events.py` and out of its scope by
 design; the snapshot-coherence tests hold that one. Every agent suite passes
 with the runtime guard in place (the full-suite run is in the plan's
@@ -7627,7 +7627,7 @@ checkpoint report).
 **TESTS / MUTATIONS.** `tests/test_verified_read_guard.py`, 36 tests: 16
 dangerous shapes, 8 controls that must not be flagged, the real tree, the
 allowlist pin, a stale allowlist entry failing the verifier, and the runtime
-refusal from a synthetic `qta_agent.*` caller with its controls.
+refusal from a synthetic `agent_substrate.*` caller with its controls.
 `tools/mutations/verified_read_guard.json`: **11/11 killed**.
 
 **THE INVARIANT.** Every event folded into authority state belongs to the
@@ -7665,7 +7665,7 @@ undeclared package -- was killed by a test added for it).
 
 ## D-2026-78 — a wall-clock bound that a fast process could outlive and still complete
 
-**CLASS** — `DEFECT`, `qta_agent/execution.py`. Found by cut C1, not by
+**CLASS** — `DEFECT`, `agent_substrate/execution.py`. Found by cut C1, not by
 looking for it.
 
 `run_bounded` waits for the child in 50 ms slices and looks at the deadline
@@ -7813,7 +7813,7 @@ is not, and this entry records a correction, not a prevention.
 own local run: I stopped a matrix with SIGTERM, compared the working tree's
 diff digest with the one taken before the run, and it differed.
 
-`qta_agent/authority.py` -- a file nothing in this tranche edits -- ended in
+`agent_substrate/authority.py` -- a file nothing in this tranche edits -- ended in
 the null control's line ("# mutation-harness null control: this line
 changes the bytes of this file and nothing it does"). There was no
 `.mutation-recovery.json`, and `--recover` said "nothing to recover". R51
@@ -7851,12 +7851,12 @@ recover from. **MUTATIONS.** `mutation_harness.json` gains
 `H_NC2_the_stop_handler_is_not_installed`.
 
 **RECOVERED HERE.** Both leftovers were undone by hand -- `git checkout
-HEAD -- qta_agent/authority.py`, and the probe removed from the index and the
+HEAD -- agent_substrate/authority.py`, and the probe removed from the index and the
 disk -- and the diff digest then matched the pre-run one again.
 
 ## D-2026-83 — a scientific result's admission was decided once, live, and replayed as authority
 
-**CLASS** — `DEFECT`, `qta_agent/store.py` and `qta_agent/reconstruct.py`.
+**CLASS** — `DEFECT`, `agent_substrate/store.py` and `agent_substrate/reconstruct.py`.
 Recorded as part of the trust-closure work this entry belongs to; reproduced
 against `f003e38` before any of it was written.
 
@@ -7866,7 +7866,7 @@ and PROMOTED -- in `AuthorityStore.transition`, the LIVE path. Replay did
 not ask it. `load()` re-authorizes every transition against the state
 machine (roles, separation of duties, digest-shaped evidence) and then
 applied the edge; so did snapshot restore, and so did the independent reader
-in `qta_agent/reconstruct.py`, whose restated rules are the same machine.
+in `agent_substrate/reconstruct.py`, whose restated rules are the same machine.
 A record.transition line appended to the log directly -- the writer the
 replay re-authorization exists to catch -- moved a `scientific_result` into
 VERIFIED on a report that says FAIL, and both readers agreed with it.
@@ -7962,7 +7962,7 @@ own text is not.
 
 ## D-2026-85 — provisioning a secret made every reducer on the log refuse the whole history
 
-**CLASS** — `DEFECT`, `qta_agent/actions.py`. Found by follow-up A's first
+**CLASS** — `DEFECT`, `agent_substrate/actions.py`. Found by follow-up A's first
 test: appending a genuine `secret.provision` record to a governed history
 made the task projection raise `UnknownAction` -- "no module in this package
 writes it".
@@ -7980,16 +7980,16 @@ anything else then read. The identity inventory enumerates every `ACT_*`
 constant; nothing held the registry to the same list.
 
 **REPAIR.** Registered. **TEST.** `test_every_durable_action_is_registered`
-holds the registry to every `ACT_*` constant in `qta_agent/`, parsed from
+holds the registry to every `ACT_*` constant in `agent_substrate/`, parsed from
 source; `test_a_provisioned_secret_does_not_stop_the_other_readers` is the
 consequence, end to end. **MUTATION.**
 `second_reader_audit_actions.json` `AR_REG_secret_provision_is_unregistered`.
 
 ## D-2026-86 — an execution record appended after the verdict renamed the executor, in all three readers
 
-**CLASS** — `DEFECT`, `qta_agent/governed_stage10.py` (the task
-projection), `qta_agent/reconstruct.py` (the independent task reader) and
-`qta_agent/audit.py`. Recorded in D-2026-83's NOT DONE and plan 9.7;
+**CLASS** — `DEFECT`, `agent_substrate/governed_tasks.py` (the task
+projection), `agent_substrate/reconstruct.py` (the independent task reader) and
+`agent_substrate/audit.py`. Recorded in D-2026-83's NOT DONE and plan 9.7;
 reproduced against `fafa7c4` before the repair.
 
 The execution record is the one durable statement of WHO RAN a task, and
@@ -8035,7 +8035,7 @@ executor as of the verdict in both directions. **MUTATIONS.**
 
 ## D-2026-87 — a scientific result stayed VERIFIED when the governed task it rested on was invalidated
 
-**CLASS** — `GAP`, `qta_agent/governed_model.py`, `qta_agent/invalidation.py`.
+**CLASS** — `GAP`, `agent_substrate/governed_model.py`, `agent_substrate/invalidation.py`.
 Plan 9.7 "Admission does not follow invalidation".
 
 Admission is judged where the transition stands (D-2026-83), so a check or
@@ -8046,7 +8046,7 @@ depending on it did not know. Nothing in the governed path moved a
 task to INVALIDATED at all: the edge existed in the task machine and only
 tests wrote it, straight to the log.
 
-**REPAIR.** `GovernedStage10.invalidate` writes VERIFIED -> INVALIDATED
+**REPAIR.** `GovernedTasks.invalidate` writes VERIFIED -> INVALIDATED
 through the gate (SYSTEM, with the reason). `GovernedModelRuns.invalidate_task`
 follows it: every `scientific_result` citing an artefact that task
 captured before its own verdict -- the bundle of a model run, the report of
@@ -8068,7 +8068,7 @@ stops between them leaves a result VERIFIED on a dead origin.
 `GovernedModelRuns.settle` follows every INVALIDATED task again, citing it;
 a task already followed reaches nothing, so settling twice is settling once.
 Nothing calls it automatically: it is the recovery step, as
-`GovernedStage10`'s stranded-task recovery is.
+`GovernedTasks`'s stranded-task recovery is.
 
 "Model artifact withdrawn" is read here as an artefact the model RUN
 produced. Withdrawing a model VERSION from the registry -- every result any
@@ -8093,8 +8093,8 @@ divergence. **MUTATIONS.** `scientific_invalidation.json` (new, 14).
 
 ## D-2026-88 — replay built one view of governed execution per admission, and the last timed guard compared one store with itself
 
-**CLASS** — `GAP`, `qta_agent/governed_model.py`, `qta_agent/store.py`,
-`qta_agent/reconstruct.py`; and `METHOD`, `tests/test_agent_performance.py`.
+**CLASS** — `GAP`, `agent_substrate/governed_model.py`, `agent_substrate/store.py`,
+`agent_substrate/reconstruct.py`; and `METHOD`, `tests/test_agent_performance.py`.
 Plan 9.7 "Replay cost" and plan 9.3 / R49's remaining timed guard.
 
 Every scientific admission is re-decided on replay (D-2026-83), and origin
@@ -8155,8 +8155,8 @@ recorded; no CI job publishes performance numbers.
 
 ## D-2026-89 — actors were names: an authentication seam, with production keys left external
 
-**CLASS** — `GAP`, `qta_agent/principals.py` and `qta_agent/ed25519.py`
-(new), `qta_agent/store.py`, `qta_agent/reconstruct.py`. Plan 9.7 "Actors
+**CLASS** — `GAP`, `agent_substrate/principals.py` and `agent_substrate/ed25519.py`
+(new), `agent_substrate/store.py`, `agent_substrate/reconstruct.py`. Plan 9.7 "Actors
 are names, not keys"; recorded in D-2026-83's NOT DONE.
 
 Every reader re-authorizes a history against the state machines, and the
@@ -8339,12 +8339,12 @@ scheduling -- R50 states that boundary.
 
 ## D-2026-92 — the reference signer could stand in for production, and authentication was optional by omission
 
-**CLASS** — `GAP`, `qta_agent/principals.py`, `qta_agent/events.py`,
-`qta_agent/ed25519.py`. Directive 6, sections 34-38 and 41.
+**CLASS** — `GAP`, `agent_substrate/principals.py`, `agent_substrate/events.py`,
+`agent_substrate/ed25519.py`. Directive 6, sections 34-38 and 41.
 
 Three things the actor-authentication seam (D-2026-89) left open:
 
-1. **The primitive had no assurance boundary.** `qta_agent/ed25519.py` -- a
+1. **The primitive had no assurance boundary.** `agent_substrate/ed25519.py` -- a
    pure-Python transcription of RFC 8032 -- was the only implementation, and
    nothing distinguished "the oracle the tests use" from "what production
    trusts". Constant time was the only stated caveat; the others are larger:
@@ -8359,7 +8359,7 @@ Three things the actor-authentication seam (D-2026-89) left open:
 
 **REPAIR.**
 
-* `qta_agent/signature.py` (new): a provider states its scheme and its
+* `agent_substrate/signature.py` (new): a provider states its scheme and its
   ASSURANCE. `REFERENCE_ONLY` verifies and signs only TEST identities -- a
   `Signer` holding a production key refuses to sign through it. Production
   authentication (`principals.production_authenticator`) needs a provider
@@ -8368,12 +8368,12 @@ Three things the actor-authentication seam (D-2026-89) left open:
   conforming Ed25519 makes: another message, a flipped bit, another key, a
   short signature, a short key, the malleable `s + Q`, and a verifier that
   raises rather than answering is refused too -- and a provisioned registry.
-* THE PROFILE (`qta_agent/events.py`): a history is written under
+* THE PROFILE (`agent_substrate/events.py`): a history is written under
   `UNAUTHENTICATED_LEGACY` (every existing log, read exactly as before) or
   `AUTHENTICATED_REQUIRED`, declared by its FIRST event
   (`principals.begin_history`, attested) and by no other. It is enforced in
   `read_verified` and `read_verified_from`, the primitives every reader in
-  `qta_agent` reads through: a REQUIRED history gives a reader with no
+  `agent_substrate` reads through: a REQUIRED history gives a reader with no
   authenticator no events; with one, any finding fails the report and the
   read ends before the first refused event; a writer's own head check is the
   same gate, so nothing is appended on top of an unauthenticated event. A
@@ -8398,7 +8398,7 @@ Three things the actor-authentication seam (D-2026-89) left open:
   misplaced declaration. `history.security_profile` is a registered action
   and an inventoried one: 39 of 39 durable actions independently read.
 * COVERAGE: `principals.READER_COVERAGE`, reader by reader. Fourteen readers
-  in `qta_agent` are GATED (two also give their own per-event verdict);
+  in `agent_substrate` are GATED (two also give their own per-event verdict);
   three tools that open their own log can only REFUSE a REQUIRED history;
   the hypothesis lifecycle is NOT_BUILT. A structural test holds that every
   module reading the log is in the table -- and `tools/verified_read_guard.py`
@@ -8437,8 +8437,8 @@ three tools refuse; the independent reader refuses on its own.
 
 ## D-2026-93 — a signed append was two unordered writes, the registry was any file, and a key had no life
 
-**CLASS** — `GAP` and `CRASH_SEMANTICS`, `qta_agent/principals.py`,
-`qta_agent/events.py`, `tools/fuzz_substrate.py`. Directive 6, sections 36,
+**CLASS** — `GAP` and `CRASH_SEMANTICS`, `agent_substrate/principals.py`,
+`agent_substrate/events.py`, `tools/fuzz_substrate.py`. Directive 6, sections 36,
 39, 40 and 42.
 
 1. **A signed append was two appends in the wrong order.** The event was
@@ -8606,7 +8606,7 @@ What D-2026-90 left the identity unable to say:
   canonicalises) and `proc_maps` (an answer is an absolute path the text
   names, of exactly that soname), in the bounded CI campaign and required by
   the fuzz test; the fuzzer's coverage now counts lines in `scientific/` as
-  well as `qta_agent/`. 5000 cases on each: no findings.
+  well as `agent_substrate/`. 5000 cases on each: no findings.
 
 **TEST.** `tests/test_backend_identity.py` (new): installed bytes resolved,
 a replaced library MODIFIED with RECORD unchanged, an unreadable one
@@ -8673,7 +8673,7 @@ governed tool, and the identity says what the tool actually ran on.
 
 ## D-2026-96 — a key that could no longer sign was refused by every reader, and never by the writer
 
-**CLASS** — `TRUST_BOUNDARY_GAP`, `qta_agent/principals.py`. Found by the
+**CLASS** — `TRUST_BOUNDARY_GAP`, `agent_substrate/principals.py`. Found by the
 directive-7 inventory of D-2026-93's key lifecycle; not R59.
 
 **WHAT WAS THERE.** D-2026-93 gave a key a life in log positions:
@@ -9116,8 +9116,8 @@ the canonical corpus is still the witnessed native backend's.
 ## D-2026-103 — a learned record could take every generic authority edge, and nothing existed that could state what a learned model is, trained on, or may claim
 
 **CLASS** — `LEARNED_SUBSTRATE_ABSENT`, NF-1T. `scientific_ai/neural/`,
-`qta_agent/learned_rules.py`, `qta_agent/learned_lifecycle.py`,
-`qta_agent/store.py`, `qta_agent/reconstruct.py`,
+`agent_substrate/learned_rules.py`, `agent_substrate/learned_lifecycle.py`,
+`agent_substrate/store.py`, `agent_substrate/reconstruct.py`,
 `tools/neural.py`, `tools/neural_ledger.py`, `tools/neural_legacy_audit.py`.
 
 **WHAT WAS THERE** (`docs/neural/nf1t_inventory.json`, recorded at
@@ -9135,11 +9135,11 @@ had been allocated, trained, or only described.
 
 **REPAIR.**
 
-* **The boundary first.** `qta_agent/learned_rules.py`: every kind prefixed
+* **The boundary first.** `agent_substrate/learned_rules.py`: every kind prefixed
   `learned_` is refused VERIFIED and PROMOTED -- in `AuthorityStore`
   before the append (a live transition never reaches the log) and again on
   replay (`_admit`), so a log written by anything else cannot carry one in.
-  The second reader (`qta_agent/reconstruct.py`) restates the rule
+  The second reader (`agent_substrate/reconstruct.py`) restates the rule
   independently and reports such a transition as unauthorized. No admission
   policy for learned models exists; every learned output is
   `LEARNED_PREDICTION`, `NON_AUTHORITATIVE`,
@@ -9149,7 +9149,7 @@ had been allocated, trained, or only described.
   whose upstream is REVOKED, REJECTED or STALE, or whose digests do not
   link. Only `tools/neural_ledger.py` drives it; `tools/neural.py`, which
   generates data and trains, runs that tool as a separate process and
-  imports nothing from `qta_agent` (a test pins it), so no process that
+  imports nothing from `agent_substrate` (a test pins it), so no process that
   computes a dataset or a model loads the authority substrate.
 * **A family, not a file name.** `scientific_ai/neural/config.py`,
   `accounting.py`, `solver.py`, `family.py`: one configuration-driven
@@ -9164,7 +9164,7 @@ had been allocated, trained, or only described.
   counted category by category against the arithmetic. A real allocation
   above 2 GiB is refused twice, independently -- `meta.materialize` and
   `network.init` -- unless `allow_large=True` AND
-  `QTA_NEURAL_ALLOW_LARGE_ALLOCATION=1`, which nothing in the repository
+  `HARNESS_NEURAL_ALLOW_LARGE_ALLOCATION=1`, which nothing in the repository
   sets.
 * **Data with provenance.** `source_surface_adsorption.py` builds every
   sample by one run of the admitted `surface.langmuir_capture@1.0.0` model
@@ -9242,7 +9242,7 @@ ARCHITECTURE_META_VALIDATED in its own right, training and reload only in
 FAMILY_MEMBER scope, and the attempt to accept the evaluation was refused
 by the store. Hosted: every job green at `8ee1e5b` (agent-substrate
 37566755617 and 37566759142; stack-verify 37566755602 and 37566759195) and at `0a0d43e` (agent-substrate 37574169210 and 37574174428; stack-verify 37574174415), the full suite run with the
-`neural` extra and `QTA_NEURAL_REQUIRED=1`, and all 78 mutation specs in
+`neural` extra and `HARNESS_NEURAL_REQUIRED=1`, and all 78 mutation specs in
 8 shards.
 
 ## D-2026-104 — the current programme read as "PASS = 0", a trained model was said to be unallocated, and simulated or witnessed results were worded as more than they are
@@ -9261,7 +9261,7 @@ green). Four reporting defects, none in a computed number:
   statements in seven files of the current harness (the agent-substrate
   workflow's header, the gates authority in `authorities.json`,
   `conftest.py`, the completion matrix's `does_not_mean` and its R55
-  detail, a policy description in `qta_agent/governed_stage10.py`, the
+  detail, a policy description in `agent_substrate/governed_tasks.py`, the
   reproduction profile's `DOES_NOT_MEAN`, `tools/test_isolation.py`) said
   "PASS remains 0" or its equivalents without saying whose PASS it was, and
   the PR description put it at the top as the branch's status. Read
@@ -9354,8 +9354,8 @@ was admitted. The broader semantic clean-up of the hardware-era vocabulary
 
 ## D-2026-105 — a proposer could take its own claim into review, and the reviewer then stalled on finding it there
 
-**CLASS** — `AUTHORITY`, harness completion programme. `qta_agent/authority.py`,
-`qta_agent/reconstruct.py`, `qta_agent/governed_model.py`.
+**CLASS** — `AUTHORITY`, harness completion programme. `agent_substrate/authority.py`,
+`agent_substrate/reconstruct.py`, `agent_substrate/governed_model.py`.
 
 **WHAT WAS THERE** (`b7807bb`). Separation of duties held at the verdict
 (UNDER_REVIEW to VERIFIED or REJECTED requires an actor other than the
@@ -9463,7 +9463,7 @@ matrix validated before and after.
 ## D-2026-109 — a foreign checkpoint was classed as records removed whenever the other log's records happened to be longer
 
 **CLASS** — `RECOVERY`, harness completion programme (R41).
-`qta_agent/checkpoint.py`.
+`agent_substrate/checkpoint.py`.
 
 **WHAT WAS THERE** (`3b82594`, and the classified audit added in this
 programme). `check_against` compared the checkpoint's end offset with the
@@ -9496,7 +9496,7 @@ both classes were and are unusable.
 ## D-2026-110 — a durable proposal stranded by a crash could never reach a decision
 
 **CLASS** — `RECOVERY`, harness completion programme (section 44).
-`qta_agent/governed_stage10.py`, `qta_agent/governed_model.py`.
+`agent_substrate/governed_tasks.py`, `agent_substrate/governed_model.py`.
 
 **WHAT WAS THERE** (`051acf7`). A submission bound to an idempotency key
 (the proposal ingress passes the proposal's id) was durable, and a
@@ -9513,7 +9513,7 @@ proposal-to-decision log after every append and resubmitting
 (`tests/test_proposal_crash_recovery.py`): 13 of 20 cuts could not finish.
 
 **REPAIR.** A resubmission takes up the bound task when finishing it repeats
-nothing (`GovernedStage10._resume`): CREATED and VALIDATED are admitted and
+nothing (`GovernedTasks._resume`): CREATED and VALIDATED are admitted and
 queued; QUEUED with a READY job is a new attempt under a new lease, counted
 against the retry budget; QUEUED with the job still dispatched to THIS
 worker identity under a live lease resumes that attempt -- the task edge
@@ -9644,9 +9644,9 @@ and shaped when present.
 ## D-2026-115 — task moves and proposal receipts were read, checked and appended with the lock around the append alone
 
 **CLASS** — `CONCURRENCY`, harness completion programme (section 45).
-`qta_agent/governed_stage10.py`, `qta_agent/proposals.py`.
+`agent_substrate/governed_tasks.py`, `agent_substrate/proposals.py`.
 
-**WHAT WAS THERE** (`051acf7`). `GovernedStage10._move` read the task, checked
+**WHAT WAS THERE** (`051acf7`). `GovernedTasks._move` read the task, checked
 the transition and appended, holding the writer lock for the append only;
 `ProposalIngress.receive` looked the proposal up and appended the same way.
 The scheduler and the authority store had learned this shape
@@ -9676,7 +9676,7 @@ PI7 re-anchored to the decided check; V9 to the tolerant recovery.
 ## D-2026-116 — a checkpoint's snapshot and its anchor were taken at two different heads
 
 **CLASS** — `CONCURRENCY` / `RECOVERY`, harness completion programme (R41,
-section 45). `qta_agent/store.py`.
+section 45). `agent_substrate/store.py`.
 
 **WHAT WAS THERE** (`051acf7`). `AuthorityStore.checkpoint` snapshotted the
 projection, then created the checkpoint at the CURRENT head, then appended
@@ -9699,9 +9699,9 @@ and equal to a full replay. Mutations C32 and C33 re-anchored.
 ## D-2026-117 — grants, roots and bindings decided from a head or a ledger read before the append
 
 **CLASS** — `CONCURRENCY`, harness completion programme (section 45).
-`qta_agent/capability.py`, `qta_agent/netauth.py`, `qta_agent/secrets.py`,
-`qta_agent/idempotency.py`, `qta_agent/governed_stage10.py`,
-`qta_agent/governed_model.py`.
+`agent_substrate/capability.py`, `agent_substrate/netauth.py`, `agent_substrate/secrets.py`,
+`agent_substrate/idempotency.py`, `agent_substrate/governed_tasks.py`,
+`agent_substrate/governed_model.py`.
 
 **WHAT WAS THERE** (`051acf7`), one shape in five places:
 
@@ -9758,7 +9758,7 @@ DA9-DA12. G15 re-anchored to the lifetime.
 ## D-2026-118 — the undeclared-write sweep charged concurrent supervisors' appends to the running tool
 
 **CLASS** — `CONCURRENCY`, harness completion programme (section 45).
-`qta_agent/execution.py`, `qta_agent/governed_stage10.py`.
+`agent_substrate/execution.py`, `agent_substrate/governed_tasks.py`.
 
 **WHAT WAS THERE** (`051acf7`). The sweep inventories a tool's writable
 scope before and after the run and reports every change it did not declare.
@@ -9784,7 +9784,7 @@ detect: the sweep never was, and is not now, the defence for that.
 ## D-2026-119 — every proposal receipt re-read and re-verified the whole log
 
 **CLASS** — `PERFORMANCE` (quadratic in history), harness completion
-programme (section 46). `qta_agent/proposals.py`.
+programme (section 46). `agent_substrate/proposals.py`.
 
 **WHAT WAS THERE** (`051acf7`). `ProposalIngress.receive` asked whether its
 proposal was already in the log by calling `received(self.log)`: a whole
@@ -9821,7 +9821,7 @@ the campaign does not build one per receipt.
 ## D-2026-120 — recovery swallowed the state machine's refusal along with the race it meant to tolerate
 
 **CLASS** — `DEFECT` (a defence weakened by its own repair), harness
-completion programme (section 45). `qta_agent/governed_stage10.py`.
+completion programme (section 45). `agent_substrate/governed_tasks.py`.
 
 **WHAT WAS THERE** (`9cc4a10`). D-2026-115 made `recover()` step aside
 when another supervisor had moved a stranded task first, by catching
@@ -9906,8 +9906,8 @@ reachable from this sandbox).
 ## D-2026-123 — the sweep still charged a concurrent append's witness temp file to the running tool
 
 **CLASS** — `CONCURRENCY` (an incomplete repair), harness completion
-programme (section 45). `qta_agent/execution.py`,
-`qta_agent/governed_stage10.py`, `qta_agent/governed_model.py`.
+programme (section 45). `agent_substrate/execution.py`,
+`agent_substrate/governed_tasks.py`, `agent_substrate/governed_model.py`.
 
 **WHAT WAS THERE** (`9cc4a10`). D-2026-118 stopped attributing writes to
 the log, its head witness, its lock and the evidence store to the running
@@ -10013,7 +10013,7 @@ stricter).
 review: "a second reader imports the first"). `tests/test_agent_second_reader.py`,
 `tests/test_agent_differential.py`, `tools/independent_verify.py`.
 
-**WHAT WAS THERE** (`0dc60e1`). `qta_agent/reconstruct.py` is the second
+**WHAT WAS THERE** (`0dc60e1`). `agent_substrate/reconstruct.py` is the second
 reader, and it stays independent only if it imports none of the layers it
 checks. Three AST tests guarded that. All three recorded `node.module` for
 an `ImportFrom` and skipped the node when `node.module` was None. In
@@ -10028,7 +10028,7 @@ checkpoint) were on no list.
 
 The runtime guard in `tools/independent_verify.py` had the same shape. It
 refused the names in `FORBIDDEN` and admitted every other module.
-`FORBIDDEN` never named `qta_agent.authority` or `qta_agent.tasks`, the two
+`FORBIDDEN` never named `agent_substrate.authority` or `agent_substrate.tasks`, the two
 gates the reader was decoupled from in D-2026-27. So the process built to
 be the one place the shortcut is unavailable would have loaded either one
 without a word.
@@ -10042,12 +10042,12 @@ Measured before the repair, against the guards at 1d14ae0:
 
 **REPAIR.** No production behaviour changes. Today `reconstruct.py`
 imports only `actions` and `events`, and the verifier process loads only
-`qta_agent`, `actions`, `canonical`, `events` and `reconstruct`.
+`agent_substrate`, `actions`, `canonical`, `events` and `reconstruct`.
 
 * The three AST guards now record the alias of `from . import X`.
 * A new test holds `reconstruct.py` to an allow-list: the standard modules
-  it uses, plus `qta_agent.actions` and `qta_agent.events`.
-* `tools/independent_verify.py` refuses every `qta_agent` module outside
+  it uses, plus `agent_substrate.actions` and `agent_substrate.events`.
+* `tools/independent_verify.py` refuses every `agent_substrate` module outside
   `PERMITTED`, the five modules above, measured.
 * `FORBIDDEN` stays as the named primaries, now including authority, tasks
   and the newer first readers.
@@ -10092,7 +10092,7 @@ was packed in. So a signed archive could lack files its own manifest lists,
 carry files it does not list, or carry a manifest describing other bytes,
 and still verify. `index.files_in_source_zip` was written and never read.
 
-Measured at 1d14ae0. A build whose archive dropped `qta_agent/authority.py`
+Measured at 1d14ae0. A build whose archive dropped `agent_substrate/authority.py`
 and was otherwise consistent verified as:
 
 ```

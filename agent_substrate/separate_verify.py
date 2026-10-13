@@ -2,7 +2,7 @@
 
 WHAT THIS ADDS OVER THE SECOND READER
 
-:mod:`qta_agent.reconstruct` is already a second implementation of every
+:mod:`agent_substrate.reconstruct` is already a second implementation of every
 authority rule. What it is not is a second *process*: it runs in this
 interpreter, shares this module cache, and keeps its independence by
 discipline. Discipline is a real defence and it is the kind that decays

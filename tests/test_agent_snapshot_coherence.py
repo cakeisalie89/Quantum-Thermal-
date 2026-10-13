@@ -9,7 +9,7 @@ THE DEFECT CLASS
 verifies one read of a file and folds another. Other processes append to that
 file, so a record landing between the two reads is folded without its chain
 link ever having been checked by the call doing the folding. D-2026-41 closed
-it in ``governed_stage10.projection`` and nowhere else; the same two lines
+it in ``governed_tasks.projection`` and nowhere else; the same two lines
 stood in fifteen more reducers, in ``EventLog.advance`` itself (the O(new)
 path every live projection uses), and in ``AuthorityStore.load_from``, whose
 comment claimed the tail it re-read was "the tail this load already reads and
@@ -42,25 +42,25 @@ ROOT = str(Path(__file__).resolve().parent.parent)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from qta_agent.agents import AgentDirectory  # noqa: E402
-from qta_agent.audit import AuditIndex  # noqa: E402
-from qta_agent.canonical import (  # noqa: E402
+from agent_substrate.agents import AgentDirectory  # noqa: E402
+from agent_substrate.audit import AuditIndex  # noqa: E402
+from agent_substrate.canonical import (  # noqa: E402
     CANONICAL_FORM_VERSION, canonical_bytes, digest,
 )
-from qta_agent.capability import CapabilityLedger  # noqa: E402
-from qta_agent.checkpoint import CheckpointStore  # noqa: E402
-from qta_agent.events import ChainBroken, Event, EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.idempotency import IdempotencyLedger  # noqa: E402
-from qta_agent.memory import MemoryStore  # noqa: E402
-from qta_agent.netauth import NetworkAuthority  # noqa: E402
-from qta_agent.policy import PolicyStore  # noqa: E402
-from qta_agent.reconstruct import (  # noqa: E402
+from agent_substrate.capability import CapabilityLedger  # noqa: E402
+from agent_substrate.checkpoint import CheckpointStore  # noqa: E402
+from agent_substrate.events import ChainBroken, Event, EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.idempotency import IdempotencyLedger  # noqa: E402
+from agent_substrate.memory import MemoryStore  # noqa: E402
+from agent_substrate.netauth import NetworkAuthority  # noqa: E402
+from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.reconstruct import (  # noqa: E402
     reconstruct, reconstruct_subsystems, reconstruct_tasks,
 )
-from qta_agent.scheduler import Scheduler  # noqa: E402
-from qta_agent.secrets import SecretStore  # noqa: E402
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.scheduler import Scheduler  # noqa: E402
+from agent_substrate.secrets import SecretStore  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 FORGED_ID = "FORGED-after-verification"
 
@@ -166,7 +166,7 @@ def _assert_folded_exactly_the_verified_bytes(window, seen):
 # --- every whole-log projection --------------------------------------------
 
 def _policy(log):
-    from qta_agent.scheduler import default_policy
+    from agent_substrate.scheduler import default_policy
     pol = PolicyStore(log).load()
     pol.publish(default_policy(), actor="owner")
     return pol

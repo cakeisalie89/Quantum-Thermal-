@@ -3,7 +3,7 @@
 
 WHY THIS IS A COMMITTED TOOL AND NOT A SCRATCH SCRIPT
 
-`authorities.json` claims that every enforcement point in `qta_agent/` is
+`authorities.json` claims that every enforcement point in `agent_substrate/` is
 verified by mutation testing. A claim of that kind is only as good as the
 ability to re-run it, so the harness and the mutation specifications live in
 the repository and are reviewable like anything else.

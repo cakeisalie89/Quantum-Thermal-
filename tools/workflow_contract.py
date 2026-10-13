@@ -134,8 +134,8 @@ def _run_commands(body: str) -> list:
     one command, and returning it as three was the same substitution one level
     down: it made the line ending in a continuation and the line carrying
     ``tests/test_agent_long_horizon.py`` two unrelated strings, so a check
-    asking whether that suite runs with QTA_HORIZON_CYCLES set could never see
-    both. It would have done the same to a continued ``uv sync --frozen``
+    asking whether that suite runs with HARNESS_HORIZON_CYCLES set could never
+    see both. It would have done the same to a continued ``uv sync --frozen``
     followed by its ``--group`` argument.
     """
     out, block_indent = [], None
@@ -266,7 +266,7 @@ def unturned_knobs(text: str | None = None) -> tuple:
     """A knob nobody turns is a comment.
 
     `tests/test_agent_long_horizon.py` compiles in a default cycle count and
-    reads `QTA_HORIZON_CYCLES` to raise it. The workflow has a step called
+    reads `HARNESS_HORIZON_CYCLES` to raise it. The workflow has a step called
     "long horizon at an elevated scale" that sets it, and nothing checked that
     the step still does: drop the assignment and the suite runs at its default,
     every assertion in it still passes, the step goes green, and its name is a
@@ -279,10 +279,10 @@ def unturned_knobs(text: str | None = None) -> tuple:
     if not src.exists():
         return (f"{src.name} is gone; the long-horizon claim has no subject",)
     m = re.search(r'CYCLES\s*=\s*int\(os\.environ\.get\(\s*'
-                  r'"QTA_HORIZON_CYCLES",\s*"(\d+)"\s*\)\)',
+                  r'"HARNESS_HORIZON_CYCLES",\s*"(\d+)"\s*\)\)',
                   src.read_text(encoding="utf-8"))
     if not m:
-        return ("cannot find the QTA_HORIZON_CYCLES default in "
+        return ("cannot find the HARNESS_HORIZON_CYCLES default in "
                 f"{src.name}; this check cannot say whether the knob is "
                 "turned above it",)
     default = int(m.group(1))
@@ -290,12 +290,12 @@ def unturned_knobs(text: str | None = None) -> tuple:
     for cmd in _run_commands(text if text is not None else _text()):
         if "test_agent_long_horizon.py" not in cmd:
             continue
-        for value in re.findall(r"QTA_HORIZON_CYCLES=(\d+)", cmd):
+        for value in re.findall(r"HARNESS_HORIZON_CYCLES=(\d+)", cmd):
             if int(value) > default:
                 elevated.append(int(value))
     if not elevated:
         return (f"no workflow command runs test_agent_long_horizon.py with "
-                f"QTA_HORIZON_CYCLES above its default of {default}; the "
+                f"HARNESS_HORIZON_CYCLES above its default of {default}; the "
                 "elevated-scale step would run the default scale and pass",)
     return ()
 
@@ -314,8 +314,8 @@ VERIFIER_EXEMPT = {
         "unrun_mutation_specs() already requires every specification to be "
         "passed to it",
     "tools/independent_verify.py":
-        "a subprocess verifier spawned by qta_agent/separate_verify.py with a "
-        "log path on argv, exercised by the agent suites; it is not a "
+        "a subprocess verifier spawned by agent_substrate/separate_verify.py "
+        "with a log path on argv, exercised by the agent suites; it is not a "
         "standalone gate and has no tree-wide verdict to report",
     "tools/regenerate_instrumented.py":
         "the wrapper package_consistency_check.py and reproduction_witness.py "

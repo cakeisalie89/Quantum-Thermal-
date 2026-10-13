@@ -27,18 +27,18 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.authority import Role, State, TransitionError  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_model import (  # noqa: E402
+from agent_substrate.authority import Role, State, TransitionError  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_model import (  # noqa: E402
     CHECK_WORKER_ID, REVIEWER_ID, TOOL_RUN, TOOL_RUN_2D, GovernedModelRuns,
     ModelRunRefused,
 )
-from qta_agent.governed_stage10 import (  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
     SUBMITTER_ID, WORKER_ID,
 )
-from qta_agent.store import StoreError  # noqa: E402
-from qta_agent.tasks import TaskState  # noqa: E402
+from agent_substrate.store import StoreError  # noqa: E402
+from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_models"
 CHECK = "thermal_1d.reduction_2d_radial_disabled"
@@ -189,7 +189,7 @@ def test_a_bundle_whose_invariant_failed_is_rejected(world):
     """A PASS report about a bundle that does not hold its own invariants is
     not enough: the reviewer reads the bundle too."""
     g, run, chk, _, _ = world
-    from qta_agent.canonical import digest
+    from agent_substrate.canonical import digest
     bundle = json.loads(g.evidence.get(run.bundle_sha256))
     bundle["invariants"][0]["holds"] = False
     sha = g.evidence.put(json.dumps(bundle, sort_keys=True).encode())
@@ -237,7 +237,7 @@ def test_a_failed_run_is_never_proposed(world):
 
 
 def test_the_record_cites_the_identity_its_bundle_carries(world):
-    from qta_agent.canonical import digest
+    from agent_substrate.canonical import digest
     g, run, _, _, _ = world
     rec = g.authority.get(run.record_id)
     bundle = json.loads(g.evidence.get(run.bundle_sha256))

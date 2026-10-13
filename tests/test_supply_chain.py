@@ -68,7 +68,7 @@ def test_no_sigstore_runtime_is_refused(rc, tmp_path, monkeypatch):
     c = tmp_path / "rc"
     shutil.copytree(rc, c)
     (c / SC.BUNDLE).write_text("{}")
-    monkeypatch.delenv("QTA_SIGSTORE_PYTHON", raising=False)
+    monkeypatch.delenv("HARNESS_SIGSTORE_PYTHON", raising=False)
     with pytest.raises(SC.Refused, match="sigstore runtime"):
         SC.verify(c, SC.load_policy(POLICY), mode="online")
 
@@ -178,10 +178,10 @@ def test_a_source_member_not_in_the_commit_is_refused(rc, tmp_path):
 def test_an_archive_that_lost_a_tracked_file_is_refused(rc, tmp_path):
     """D-2026-127. Each member was compared with the commit, and nothing
     compared the commit with the members: an archive missing
-    qta_agent/authority.py, whose manifest had been rewritten to match,
+    agent_substrate/authority.py, whose manifest had been rewritten to match,
     verified as "MATCHES <commit>"."""
-    c = _repack(rc, tmp_path, _without("qta_agent/authority.py"))
-    with pytest.raises(SC.Refused, match="missing.*qta_agent/authority.py"):
+    c = _repack(rc, tmp_path, _without("agent_substrate/authority.py"))
+    with pytest.raises(SC.Refused, match="missing.*agent_substrate/authority.py"):
         SC.verify(c, SC.load_policy(POLICY), mode="digests")
 
 
@@ -191,7 +191,7 @@ def test_a_member_whose_bytes_are_not_the_commits_is_refused(rc, tmp_path):
     each member with the commit's blob sees that authority.py was replaced.
     Without this case, removing that comparison killed nothing once the
     set comparison caught every planted file first."""
-    c = _repack(rc, tmp_path, _with("qta_agent/authority.py",
+    c = _repack(rc, tmp_path, _with("agent_substrate/authority.py",
                                     b"# replaced\n"))
     with pytest.raises(SC.Refused, match="is not the commit's"):
         SC.verify(c, SC.load_policy(POLICY), mode="digests")
@@ -204,9 +204,9 @@ def test_a_member_whose_bytes_are_not_the_commits_is_refused(rc, tmp_path):
 # archive is what its own manifest says the release is.
 
 @pytest.mark.parametrize("name, edit, kw, why", [
-    ("lost", _without("qta_agent/authority.py"),
+    ("lost", _without("agent_substrate/authority.py"),
      {"manifest_follows": False}, "which source.zip does not contain"),
-    ("changed", _with("qta_agent/authority.py", b"# replaced\n"),
+    ("changed", _with("agent_substrate/authority.py", b"# replaced\n"),
      {"manifest_follows": False}, "not the ones its manifest lists"),
     ("unlisted", _with("planted.py", b"print('x')\n"),
      {"manifest_follows": False}, "which its manifest does not list"),

@@ -28,7 +28,7 @@ if str(ROOT) not in sys.path:
 sys.path.insert(0, str(ROOT / "tools"))
 from repo_scope import files_matching, repository_files  # noqa: E402
 
-PKG = ROOT / "qta_agent"
+PKG = ROOT / "agent_substrate"
 
 #: The substrate's legitimate consumers: its own test modules, and the
 #: verification TOOLS that exist to attack it. Adding an entry here is a
@@ -78,7 +78,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_snapshot_coherence.py",
     "tests/test_agent_execution.py",
-    "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_governed_tasks.py",
     "tests/test_agent_governed_breadth.py",
     "tests/test_agent_idempotency.py",
     "tests/test_agent_recovery.py",
@@ -138,7 +138,7 @@ ALLOWED_IMPORTERS = {
 #:
 #: It used to be ``git grep``, which sees tracked files only, with a note
 #: saying the tracked set is the right question and only the timing is a
-#: trap. The trap then fired a THIRD time: a new test importing qta_agent was
+#: trap. The trap then fired a THIRD time: a new test importing agent_substrate was
 #: invisible until it was staged, the suite went green locally, and the tree
 #: that got pushed was red.
 #:
@@ -200,8 +200,8 @@ LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
           # child's import guard refuses at runtime.
           "separate_verify",
           "scheduler", "memory", "context", "agents", "audit",
-          "_stage10_tool", "_stage10_index_tool", "governed_stage10",
-          # Above governed_stage10, which it drives with its own tool
+          "_artifact_tool", "_index_tool", "governed_tasks",
+          # Above governed_tasks, which it drives with its own tool
           # registry; names the scientific tools by module string and
           # imports nothing outside the package.
           "governed_model",
@@ -226,16 +226,16 @@ LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
 #: ungoverned one -- the substrate adds authority, it does not replace the
 #: guard that was already there.
 BRIDGE_MODULES = {
-    "governed_stage10": {"qta_multiphysics"},
-    "_stage10_tool": {"qta_multiphysics"},
+    "governed_tasks": {"qta_multiphysics"},
+    "_artifact_tool": {"qta_multiphysics"},
     # The second tool, and the same single import. It reaches for the
     # Stage-10 guard's READ side as well as its write side, which is the
     # narrower crossing rather than a wider one: it is how a tool that hashes
     # caller-named paths is stopped from hashing a canonical output.
-    "_stage10_index_tool": {"qta_multiphysics"},
+    "_index_tool": {"qta_multiphysics"},
 }
 
-#: Reaching any of these from qta_agent would make an authority verdict able
+#: Reaching any of these from agent_substrate would make an authority verdict able
 #: to influence a computed result. Forbidden for EVERY module, bridges too.
 FORBIDDEN_SCIENTIFIC = {
     "qta_full_sim", "metrics", "runner_3d", "convergence_3d", "uncertainty",
@@ -290,7 +290,7 @@ def test_no_substrate_module_reaches_a_solver_or_a_gate():
         if hit:
             bad.append(f"{mod.name}: {sorted(hit)}")
     assert not bad, (
-        "qta_agent reached a solver or gate module; automatic_gate_effect="
+        "agent_substrate reached a solver or gate module; automatic_gate_effect="
         f"NONE would be false: {bad}")
 
 
@@ -305,7 +305,7 @@ def test_only_the_declared_bridges_reach_into_the_scientific_tree():
     for mod in _modules():
         allowed = BRIDGE_MODULES.get(mod.stem, set())
         for name in _all_imported_names(mod):
-            if name in stdlib or name == "qta_agent" or name in allowed:
+            if name in stdlib or name == "agent_substrate" or name in allowed:
                 continue
             bad.append(f"{mod.stem}: {name}")
     assert not bad, (
@@ -327,7 +327,7 @@ def test_the_core_substrate_is_stdlib_only():
         if mod.stem in BRIDGE_MODULES:
             continue
         for name in _all_imported_names(mod):
-            if name in stdlib or name == "qta_agent":
+            if name in stdlib or name == "agent_substrate":
                 continue
             bad.append(f"{mod.stem}: {name}")
     assert not bad, f"non-stdlib dependency in the core substrate: {bad}"
@@ -376,7 +376,7 @@ def test_the_importer_scan_sees_a_file_that_is_not_committed_yet():
     """
     probe = ROOT / "tools" / "_isolation_scan_probe.py"
     assert not probe.exists(), "the probe name is already taken"
-    probe.write_text("from qta_agent.canonical import digest  # probe\n")
+    probe.write_text("from agent_substrate.canonical import digest  # probe\n")
     try:
         assert probe.relative_to(ROOT).as_posix() in \
             _repository_python_files(), (
@@ -396,7 +396,7 @@ def test_the_importer_scan_ignores_what_git_ignores():
     ignored_dir = ROOT / ".mutation-quarantine" / "_isolation_probe"
     ignored_dir.mkdir(parents=True, exist_ok=True)
     probe = ignored_dir / "x.py"
-    probe.write_text("import qta_agent.store  # probe\n")
+    probe.write_text("import agent_substrate.store  # probe\n")
     try:
         r = subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q",
                             str(probe)], capture_output=True)
@@ -409,7 +409,7 @@ def test_the_importer_scan_ignores_what_git_ignores():
 
 def test_nothing_outside_the_package_imports_the_substrate():
     """The direction that would make a gate depend on an authority verdict."""
-    pattern = re.compile(r"^\s*(from|import)\s+qta_agent\b", re.MULTILINE)
+    pattern = re.compile(r"^\s*(from|import)\s+agent_substrate\b", re.MULTILINE)
     importers = set()
     for rel in _repository_python_files():
         path = ROOT / rel
@@ -419,10 +419,10 @@ def test_nothing_outside_the_package_imports_the_substrate():
             continue
         if pattern.search(body):
             importers.add(rel)
-    importers = {p for p in importers if not p.startswith("qta_agent/")}
+    importers = {p for p in importers if not p.startswith("agent_substrate/")}
     unexpected = importers - ALLOWED_IMPORTERS
     assert not unexpected, (
-        "qta_agent is imported outside its own package and tests, so a "
+        "agent_substrate is imported outside its own package and tests, so a "
         f"scientific result could now depend on an authority verdict: "
         f"{sorted(unexpected)}")
 
@@ -432,19 +432,22 @@ def test_no_gate_computing_module_references_the_substrate():
 
     The Snakefile is deliberately excluded here and checked separately below:
     it holds both gate rules and Stage-10 rules, and the governed Stage-10
-    rule referencing qta_agent is the production integration rather than a
+    rule referencing agent_substrate is the production integration rather than a
     violation. Everything that actually computes a gate is checked with no
     exception at all.
     """
-    offenders = [f for f in files_matching(r"qta_agent")
+    # The package name as a token: "test_agent_substrate_isolation.py",
+    # which a gate module's comment may point at, is not the package.
+    offenders = [f for f in files_matching(r"(?<![A-Za-z0-9_])"
+                                           r"agent_substrate")
                  if f == "qta_full_sim.py"
                  or f.startswith("qta_multiphysics/")
                  or f == "generate_manifest.py"]
     assert not offenders, (
-        f"a gate-computing module references qta_agent: {offenders}")
+        f"a gate-computing module references agent_substrate: {offenders}")
 
 
-#: The Snakemake rules permitted to reference qta_agent, and the complete
+#: The Snakemake rules permitted to reference agent_substrate, and the complete
 #: set of them: one workflow emitting a governed artifact, one indexing what
 #: the Stage-10 rules produced, and -- the deliberate third widening -- the
 #: governed scientific-model path, whose whole point is that a model result
@@ -456,7 +459,7 @@ GOVERNED_RULES = {"s10_governed", "s10_governed_index", "s10_governed_model"}
 def test_the_workflow_touches_the_substrate_only_in_the_governed_rules():
     """The production integration is confined to named rules.
 
-    A gate rule that imported qta_agent would make a scientific result depend
+    A gate rule that imported agent_substrate would make a scientific result depend
     on whether the authority layer is importable, which is exactly what
     automatic_gate_effect=NONE denies. Confining the reference to
     :data:`GOVERNED_RULES` keeps the integration real and keeps that denial
@@ -474,13 +477,13 @@ def test_the_workflow_touches_the_substrate_only_in_the_governed_rules():
     for block in text.split("\nrule ")[1:]:
         name = block.split(":", 1)[0].strip()
         body = block.split("\n", 1)[1] if "\n" in block else ""
-        if "qta_agent" not in body:
+        if "agent_substrate" not in body:
             continue
         reached.add(name)
         if name not in GOVERNED_RULES:
             offenders.append(name)
     assert not offenders, (
-        f"rules outside {sorted(GOVERNED_RULES)} reference qta_agent: "
+        f"rules outside {sorted(GOVERNED_RULES)} reference agent_substrate: "
         f"{offenders}")
     # AND THE ALLOWLIST IS NOT AHEAD OF THE WORKFLOW. A named rule that does
     # not exist, or exists and no longer touches the substrate, turns this
@@ -576,7 +579,7 @@ def test_the_registry_declares_the_substrate_has_no_gate_effect():
 def test_every_registered_substrate_module_exists():
     reg = json.loads((ROOT / "authorities.json").read_text(encoding="utf-8"))
     entry = reg["authorities"]["agent_authority_substrate"]
-    cited = set(re.findall(r"qta_agent/(\w+)\.py", entry["authority"]))
+    cited = set(re.findall(r"agent_substrate/(\w+)\.py", entry["authority"]))
     assert cited, "the registry must name the modules it governs"
     missing = [c for c in cited if not (PKG / f"{c}.py").exists()]
     assert not missing, f"registry names modules that do not exist: {missing}"
@@ -643,7 +646,7 @@ IO_LAYER = {
     # confined by the Stage-10 workspace read guard. Handing it a
     # GovernedReader would hand a tool the supervisor's authority, which is
     # the opposite of what running it in its own process is for.
-    "_stage10_index_tool": "a subprocess tool, confined by the workspace "
+    "_index_tool": "a subprocess tool, confined by the workspace "
                            "read guard rather than by a grant it holds",
 }
 
@@ -661,7 +664,7 @@ def test_only_the_io_layer_opens_files_directly():
 
     offenders = {}
     inspected = []
-    for path in sorted((ROOT / "qta_agent").glob("*.py")):
+    for path in sorted((ROOT / "agent_substrate").glob("*.py")):
         if path.stem in IO_LAYER:
             continue
         inspected.append(path.stem)
@@ -697,7 +700,7 @@ def test_only_the_io_layer_opens_files_directly():
 def test_the_io_layer_allowlist_is_not_vacuous():
     """ANTI-VACUITY. An allowlist naming every module would make the check
     above pass by examining nothing."""
-    modules = {p.stem for p in (ROOT / "qta_agent").glob("*.py")}
+    modules = {p.stem for p in (ROOT / "agent_substrate").glob("*.py")}
     governed = modules - set(IO_LAYER)
     assert len(governed) > len(IO_LAYER), (
         f"{len(IO_LAYER)} of {len(modules)} modules are exempt from the "
@@ -707,7 +710,7 @@ def test_the_io_layer_allowlist_is_not_vacuous():
 
 def test_every_io_layer_entry_names_a_module_that_exists():
     """A stale exemption is an exemption nobody notices is unused."""
-    modules = {p.stem for p in (ROOT / "qta_agent").glob("*.py")}
+    modules = {p.stem for p in (ROOT / "agent_substrate").glob("*.py")}
     stale = sorted(set(IO_LAYER) - modules)
     assert not stale, (
         f"IO_LAYER exempts {stale}, which are not modules in this package")
@@ -770,7 +773,7 @@ def _shadowed_definitions(root):
 def test_no_definition_ANYWHERE_is_silently_shadowed():
     """The rule of the test below, over everything this repository ships.
 
-    That scan was written for `qta_agent/` after D-2026-43 and pointed at
+    That scan was written for `agent_substrate/` after D-2026-43 and pointed at
     one package. While it guarded the substrate,
     `qta_multiphysics/deep_expdesign/runner.py` carried two definitions of
     `run_deep_expdesign_full` -- 176 lines and 213, DIVERGED, the first dead
@@ -794,7 +797,7 @@ def test_the_sweep_is_not_reporting_on_an_empty_file_list():
     owned = _owned_python_files(root)
     assert len(owned) > 200, f"the sweep found only {len(owned)} owned files"
     assert any("qta_multiphysics" in str(f) for f in owned)
-    assert any("qta_agent" in str(f) for f in owned)
+    assert any("agent_substrate" in str(f) for f in owned)
 
 
 def test_the_sweep_sees_a_shadowed_definition_in_a_file_the_repo_owns(tmp_path):
@@ -873,7 +876,7 @@ def test_a_decorated_redefinition_is_not_a_shadowed_definition(tmp_path):
 def test_no_definition_in_the_substrate_is_silently_shadowed():
     """A name defined twice in one scope: the first is dead and nothing says so.
 
-    Found while diagnosing D-2026-43. qta_agent/scheduler.py carried TWO
+    Found while diagnosing D-2026-43. agent_substrate/scheduler.py carried TWO
     byte-identical copies of `_probe_copy` and `_dry_run`, 38 lines apart.
     Python kept the second and discarded the first, silently. Nothing failed,
     because the copies agreed.
@@ -889,7 +892,7 @@ def test_no_definition_in_the_substrate_is_silently_shadowed():
     The scan is over the whole substrate, not over the file that had the
     defect: closing the example would leave the class open.
     """
-    root = Path(__file__).resolve().parent.parent / "qta_agent"
+    root = Path(__file__).resolve().parent.parent / "agent_substrate"
     shadowed = []
     for path in sorted(root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))

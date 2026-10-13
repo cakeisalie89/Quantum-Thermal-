@@ -48,13 +48,13 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.checkpoint import CheckpointError, CheckpointStore  # noqa: E402
-from qta_agent.events import ChainBroken, EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.policy import PolicyStore  # noqa: E402
-from qta_agent.scheduler import JobState, Scheduler  # noqa: E402
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.checkpoint import CheckpointError, CheckpointStore  # noqa: E402
+from agent_substrate.events import ChainBroken, EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.scheduler import JobState, Scheduler  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 WORK = digest({"work": "stage10"})
 
@@ -76,14 +76,14 @@ EIO = OSError(errno.EIO, "Input/output error")
 WORKER = '''
 import sys, time
 sys.path.insert(0, {root!r})
-from qta_agent.authority import Role, State
-from qta_agent.canonical import digest
-from qta_agent.checkpoint import CheckpointStore
-from qta_agent.events import EventLog
-from qta_agent.evidence import EvidenceStore
-from qta_agent.policy import PolicyStore
-from qta_agent.scheduler import Scheduler, default_policy
-from qta_agent.store import AuthorityStore
+from agent_substrate.authority import Role, State
+from agent_substrate.canonical import digest
+from agent_substrate.checkpoint import CheckpointStore
+from agent_substrate.events import EventLog
+from agent_substrate.evidence import EvidenceStore
+from agent_substrate.policy import PolicyStore
+from agent_substrate.scheduler import Scheduler, default_policy
+from agent_substrate.store import AuthorityStore
 
 home = {home!r}
 stop = sys.argv[1]
@@ -204,7 +204,7 @@ def test_a_real_sigkill_never_leaves_the_state_more_advanced(
     rec = Recovered(tmp_path)
     reached = BOUNDARIES.index(boundary)
 
-    from qta_agent.authority import State
+    from agent_substrate.authority import State
 
     if reached >= BOUNDARIES.index("proposal"):
         assert rec.store.get("r1").state is (
@@ -223,7 +223,7 @@ def test_a_real_sigkill_never_leaves_the_state_more_advanced(
                 "lease lapses, or two workers could hold one job")
         else:
             assert job.state is JobState.READY
-    from qta_agent.canonical import digest_bytes
+    from agent_substrate.canonical import digest_bytes
 
     artifact = digest_bytes(b"the artifact the tool wrote")
     stored = set(rec.blobs.list_digests())

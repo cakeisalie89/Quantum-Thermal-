@@ -73,7 +73,7 @@ WEIGHTS = {
     "model_check.json": 26, "mutation_harness.json": 1045,
     "output_resolution.json": 74, "repo_contract.json": 61,
     "resolution_inventory.json": 14, "solver_failclosed.json": 1417,
-    "stage10_authority.json": 770, "test_isolation.json": 42,
+    "governed_tasks_authority.json": 770, "test_isolation.json": 42,
     "unit_inventory.json": 26,
 }
 

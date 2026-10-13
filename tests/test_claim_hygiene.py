@@ -55,7 +55,7 @@ def test_the_committed_report_is_current_and_has_no_leak():
 
 
 @pytest.mark.parametrize("rel", ["scientific_ai/neural/x.py",
-                                 "qta_agent/x.py", "SCIENTIFIC_AI_STATUS.md",
+                                 "agent_substrate/x.py", "SCIENTIFIC_AI_STATUS.md",
                                  "docs/completion_matrix.json",
                                  "conftest.py"])
 def test_an_unlabelled_pass_statement_in_current_material_is_a_leak(
@@ -79,14 +79,14 @@ def test_a_statement_that_says_whose_pass_it_is_is_a_guard(tmp_path, label):
 
 def test_the_label_must_be_near_the_statement(tmp_path):
     text = "legacy\n\n\n\nPASS remains 0\n"
-    rep = _audit_text(tmp_path, "qta_agent/x.py", text)
+    rep = _audit_text(tmp_path, "agent_substrate/x.py", text)
     assert rep["current_ai_semantic_leaks"] == 1
 
 
 def test_the_no_effect_invariant_must_be_stated_as_none(tmp_path):
-    ok = _audit_text(tmp_path, "qta_agent/a.py",
+    ok = _audit_text(tmp_path, "agent_substrate/a.py",
                      "automatic_gate_effect = NONE\n")
-    bad = _audit_text(tmp_path, "qta_agent/b.py",
+    bad = _audit_text(tmp_path, "agent_substrate/b.py",
                       "automatic_gate_effect is whatever the run says\n")
     assert ok["current_ai_semantic_leaks"] == 0
     assert bad["current_ai_semantic_leaks"] == 1

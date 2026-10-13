@@ -26,13 +26,13 @@ ROOT = str(Path(__file__).resolve().parent.parent)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from qta_agent.capability import (  # noqa: E402
+from agent_substrate.capability import (  # noqa: E402
     ACT_ISSUE, ACT_REVOKE, ACT_ROOT, MAX_DELEGATION_DEPTH, Action,
     BadDelegation, CapabilityError, CapabilityExpired, CapabilityLedger,
     CapabilityRevoked, CapabilityUnknown, NotTheIssuer, Request, issue,
 )
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.reconstruct import reconstruct_subsystems  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.reconstruct import reconstruct_subsystems  # noqa: E402
 
 SCOPE = ("verification/stage10",)
 
@@ -336,7 +336,7 @@ def test_an_expired_parent_expires_a_child_that_should_not_exist(tmp_path):
     first. A ``CapabilitySet`` a caller assembles is under no such rule, and
     that is exactly the object ``check`` is handed.
     """
-    from qta_agent.capability import CapabilitySet
+    from agent_substrate.capability import CapabilitySet
     parent = _cap(cap_id="p", subject="holder", expires_after_seq=10)
     child = _cap(cap_id="c", subject="helper", parent_id="p",
                  expires_after_seq=99)
@@ -386,7 +386,7 @@ def test_a_chain_with_a_missing_link_grants_nothing(tmp_path):
 
 def test_a_delegation_cycle_is_refused_rather_than_walked(tmp_path):
     """Unreachable through delegate(); reachable through a hostile log."""
-    from qta_agent.capability import CapabilitySet
+    from agent_substrate.capability import CapabilitySet
     a = _cap(cap_id="a", parent_id="b", issued_seq=1)
     b = _cap(cap_id="b", parent_id="a", issued_seq=1)
     caps = CapabilitySet(issued={"a": a, "b": b}, revoked=frozenset(),
@@ -453,7 +453,7 @@ def test_a_capability_cannot_be_its_own_parent(tmp_path):
 # --------------------------------------------------------------------------
 #
 # tools/generated_mutations.py applied mechanical operators to
-# qta_agent/capability.py with no idea what any of it means, and a sample of
+# agent_substrate/capability.py with no idea what any of it means, and a sample of
 # sixteen left seven alive. Four of those were covered by
 # tools/mutations/agent_execution.json, whose suite this sample did not run
 # -- an artifact of the pairing rather than a hole. The three below were
@@ -498,7 +498,7 @@ def test_the_never_expires_sentinel_is_part_of_the_record_format(tmp_path):
     decided the sentinel is something else reads an unexpiring grant as one
     that expired before it was issued.
     """
-    from qta_agent.capability import (
+    from agent_substrate.capability import (
         NEVER_EXPIRES, capability_from_record,
     )
 

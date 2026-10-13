@@ -31,9 +31,10 @@
    "REVIEW_DATA_PROVENANCE": 11
   },
   "by_final_disposition": {
-   "PENDING": 516,
+   "MOVED": 41,
+   "PENDING": 470,
    "PROVENANCE_RESOLVED": 11,
-   "REGENERATED": 3,
+   "REGENERATED": 8,
    "RETAINED": 344
   },
   "cut_imports": 25,
@@ -8492,7 +8493,7 @@
     "tools/harness_status.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REGENERATED"
   },
   {
    "path": "HDF5_DATA_MODEL.md",
@@ -12761,7 +12762,7 @@
     "tools/file_disposition.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REGENERATED"
   },
   {
    "path": "docs/equivalence_contracts.json",
@@ -12883,7 +12884,7 @@
     "tools/harness_status.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REGENERATED"
   },
   {
    "path": "docs/identity_inventory.json",
@@ -12919,7 +12920,7 @@
     "tests/test_agent_second_reader.py",
     "tools/mutations/agent_second_reader.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REGENERATED"
   },
   {
    "path": "docs/legacy/qta/AUTHORITIES.md",
@@ -14352,7 +14353,7 @@
     "final_manifest.json",
     "tools/typecheck_scope.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REGENERATED"
   },
   {
    "path": "docs/unit_inventory.json",
@@ -18200,7 +18201,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/_stage10_index_tool.py",
@@ -18229,7 +18230,7 @@
     "tools/file_disposition.py",
     "tools/mutations/governed_breadth.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/_stage10_tool.py",
@@ -18259,7 +18260,7 @@
     "tools/file_disposition.py",
     "tools/mutations/governed_breadth.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/actions.py",
@@ -18308,7 +18309,7 @@
     "tools/mutations/authenticated_history.json",
     "tools/mutations/second_reader_audit_actions.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/agents.py",
@@ -18361,7 +18362,7 @@
     "tools/mutations/agent_snapshot_coherence.json",
     "tools/mutations/agent_substrate.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/audit.py",
@@ -18408,7 +18409,7 @@
     "tools/mutations/agent_snapshot_coherence.json",
     "tools/mutations/task_execution_phase.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/authority.py",
@@ -18485,7 +18486,7 @@
     "tools/mutations/agent_substrate.json",
     "tools/mutations/proposal_ingress.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/canonical.py",
@@ -18580,7 +18581,7 @@
     "tools/independent_verify.py",
     "tools/mutations/agent_incremental.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/capability.py",
@@ -18640,7 +18641,7 @@
     "tools/mutations/agent_snapshot_coherence.json",
     "tools/mutations/decided_appends.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/checkpoint.py",
@@ -18690,7 +18691,7 @@
     "tools/mutations/agent_fault_injection.json",
     "tools/mutations/checkpoint_recovery.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/context.py",
@@ -18729,7 +18730,7 @@
     "tools/independent_verify.py",
     "tools/mutations/agent_memory_context.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/ed25519.py",
@@ -18760,7 +18761,7 @@
     "tests/test_authenticated_history.py",
     "tools/mutations/actor_authentication.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/events.py",
@@ -18883,7 +18884,7 @@
     "tools/mutations/verified_read_guard.json",
     "tools/verified_read_guard.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/evidence.py",
@@ -18970,7 +18971,7 @@
     "tools/mutations/agent_readpath.json",
     "tools/mutations/performance_counters.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/execution.py",
@@ -19009,7 +19010,7 @@
     "tools/mutations/agent_execution.json",
     "tools/mutations/decided_appends.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/governed_model.py",
@@ -19084,7 +19085,7 @@
     "tools/mutations/scientific_thermal_1d.json",
     "tools/mutations/scientific_thermal_2d.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/governed_stage10.py",
@@ -19183,7 +19184,7 @@
     "tools/mutations/stage10_authority.json",
     "tools/mutations/task_execution_phase.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/hostid.py",
@@ -19212,7 +19213,7 @@
     "tools/mutations/agent_recovery.json",
     "tools/mutations/agent_separate_verify.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/idempotency.py",
@@ -19252,7 +19253,7 @@
     "tools/mutations/agent_snapshot_coherence.json",
     "tools/mutations/decided_appends.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/invalidation.py",
@@ -19288,7 +19289,7 @@
     "tools/mutations/agent_substrate.json",
     "tools/mutations/scientific_invalidation.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/learned_lifecycle.py",
@@ -19323,7 +19324,7 @@
     "tools/independent_verify.py",
     "tools/mutations/neural_authority.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/learned_rules.py",
@@ -19361,7 +19362,7 @@
     "tools/independent_verify.py",
     "tools/mutations/neural_authority.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/memory.py",
@@ -19402,7 +19403,7 @@
     "tools/mutations/agent_memory_context.json",
     "tools/mutations/agent_snapshot_coherence.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/netauth.py",
@@ -19456,7 +19457,7 @@
     "tools/mutations/agent_snapshot_coherence.json",
     "tools/mutations/decided_appends.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/policy.py",
@@ -19507,7 +19508,7 @@
     "tools/mutations/agent_policy.json",
     "tools/mutations/agent_snapshot_coherence.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/principals.py",
@@ -19554,7 +19555,7 @@
     "tools/mutations/authenticated_history.json",
     "tools/mutations/signed_append_lifecycle.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/projection.py",
@@ -19582,7 +19583,7 @@
     "tools/file_disposition.py",
     "tools/mutations/agent_checkpoint.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/proposals.py",
@@ -19625,7 +19626,7 @@
     "tools/independent_verify.py",
     "tools/mutations/proposal_ingress.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/readpath.py",
@@ -19660,7 +19661,7 @@
     "tools/mutations/agent_readpath.json",
     "tools/mutations/agent_substrate.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/reconstruct.py",
@@ -19764,7 +19765,7 @@
     "tools/mutations/second_reader_audit_actions.json",
     "tools/mutations/task_execution_phase.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/result_rules.py",
@@ -19807,7 +19808,7 @@
     "tools/mutations/authority_result_rules.json",
     "tools/mutations/scientific_authority_replay.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/safeio.py",
@@ -19844,7 +19845,7 @@
     "tools/mutations/agent_readpath.json",
     "tools/mutations/agent_substrate.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/scheduler.py",
@@ -19913,7 +19914,7 @@
     "tools/mutations/agent_snapshot_coherence.json",
     "tools/mutations/performance_counters.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/secrets.py",
@@ -19962,7 +19963,7 @@
     "tools/mutations/agent_snapshot_coherence.json",
     "tools/mutations/decided_appends.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/separate_verify.py",
@@ -19992,7 +19993,7 @@
     "tools/mutations/agent_separate_verify.json",
     "tools/workflow_contract.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/signature.py",
@@ -20021,7 +20022,7 @@
     "final_manifest.json",
     "tools/mutations/authenticated_history.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/store.py",
@@ -20122,7 +20123,7 @@
     "tools/mutations/replay_origin_view.json",
     "tools/mutations/scientific_authority_replay.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/tasks.py",
@@ -20178,7 +20179,7 @@
     "tools/mutations/agent_tasks.json",
     "tools/mutations/task_execution_phase.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_agent/tools.py",
@@ -20213,7 +20214,7 @@
     "tools/mutations/agent_compensation.json",
     "tools/mutations/agent_execution.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "qta_full_sim.py",
@@ -28479,7 +28480,7 @@
     "tools/mutations/governed_breadth.json",
     "tools/mutations/stage10_authority.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "tests/test_agent_hostile_campaign.py",
@@ -37022,7 +37023,7 @@
     "tools/mutation_shards.py",
     "tools/mutations/agent_snapshot_coherence.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "tools/mutations/stress_campaign_coverage.json",

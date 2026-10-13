@@ -35,8 +35,8 @@ TOOL = ROOT / "tools" / "generated_mutations.py"
 
 #: Modules the generator is exercised against. Chosen for shape rather than
 #: importance: one dense in comparisons and guards, one dense in constants.
-SUBJECTS = ("qta_agent/capability.py", "qta_agent/scheduler.py",
-            "qta_agent/policy.py")
+SUBJECTS = ("agent_substrate/capability.py", "agent_substrate/scheduler.py",
+            "agent_substrate/policy.py")
 
 
 def _tool():
@@ -85,8 +85,8 @@ def test_every_generated_mutation_obeys_the_harness_s_rules(gen, subject):
 
 
 def test_every_generated_mutation_names_the_module_it_mutates(gen):
-    for m in gen.candidates(ROOT / "qta_agent/policy.py"):
-        assert m["path"] == "qta_agent/policy.py"
+    for m in gen.candidates(ROOT / "agent_substrate/policy.py"):
+        assert m["path"] == "agent_substrate/policy.py"
         assert m["rationale"].startswith("line "), m["rationale"]
 
 
@@ -94,7 +94,7 @@ def test_the_sample_is_seeded_so_a_finding_can_be_re_run(gen, tmp_path):
     def sample(seed):
         out = tmp_path / f"s{seed}.json"
         subprocess.run(
-            [sys.executable, str(TOOL), "qta_agent/capability.py",
+            [sys.executable, str(TOOL), "agent_substrate/capability.py",
              "--sample", "12", "--seed", str(seed), "--emit", str(out)],
             cwd=str(ROOT), check=True, capture_output=True, timeout=300)
         return [m["name"] for m in

@@ -36,7 +36,7 @@ egress control, secret handling.
 
 The apparent hits are false friends: `m1_capability_*` is *hardware* capability
 grading, and the `*_audit.json` files are scientific path audits. So the
-`qta_agent/` layer had no stronger historical version to restore, and nothing in
+`agent_substrate/` layer had no stronger historical version to restore, and nothing in
 it was reimplemented over recovered work.
 
 ## 3. What WAS recovered, and what it proved
@@ -92,7 +92,7 @@ diagnosis.
 
 ## 5. Verification
 
-`tools/mutations/stage10_authority.json` — 15 mutations, each reopening one of
+`tools/mutations/governed_tasks_authority.json` — 15 mutations, each reopening one of
 these holes — **15/15 killed**.
 
 Four survived the first run. Three were masked identically: the hostile paths in

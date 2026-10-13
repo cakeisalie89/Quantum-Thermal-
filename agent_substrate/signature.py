@@ -3,11 +3,11 @@
 WHY A SEAM
 
 Actor authentication (D-2026-89) rests on one primitive, Ed25519. The only
-implementation in this package is :mod:`qta_agent.ed25519`, a transcription
-of RFC 8032 held to the RFC's own vectors. That makes it a REFERENCE: a good
-oracle, and the right signer for deterministic TEST identities. It is not
-enough assurance to become the production trust provider by default, and the
-reason is not only that it is not constant time:
+implementation in this package is :mod:`agent_substrate.ed25519`, a
+transcription of RFC 8032 held to the RFC's own vectors. That makes it a
+REFERENCE: a good oracle, and the right signer for deterministic TEST
+identities. It is not enough assurance to become the production trust provider
+by default, and the reason is not only that it is not constant time:
 
 * implementation assurance -- one transcription, reviewed by its author, with
   no independent audit, no fuzzing history and no deployment record;
@@ -90,7 +90,7 @@ class SignatureProvider(Protocol):
 
 @dataclass(frozen=True)
 class ReferenceEd25519:
-    """:mod:`qta_agent.ed25519` behind the provider interface. Verifies;
+    """:mod:`agent_substrate.ed25519` behind the provider interface. Verifies;
     signs only what the caller has marked a TEST identity."""
 
     provider_id: str = "qta-agent/reference-ed25519/v1"

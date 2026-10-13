@@ -14,7 +14,7 @@ of exactly the kind this repository distrusts everywhere else.
 So the inventory is an artefact, and the mechanical parts of it are checked
 rather than asserted:
 
-  * every ``ACT_*`` constant in ``qta_agent/`` must appear. A new durable
+  * every ``ACT_*`` constant in ``agent_substrate/`` must appear. A new durable
     action fails this until somebody classifies its identity fields;
   * no entry may name an action that does not exist, so the table cannot
     drift into describing a past version of the code;
@@ -59,7 +59,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PKG = ROOT / "qta_agent"
+PKG = ROOT / "agent_substrate"
 INVENTORY = ROOT / "docs" / "identity_inventory.json"
 
 #: Roles a payload field can play. ACTOR fields must derive from or equal

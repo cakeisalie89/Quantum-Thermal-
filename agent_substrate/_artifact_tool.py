@@ -18,7 +18,7 @@ import sys
 
 def main(argv: list) -> int:
     if len(argv) != 2:
-        print("usage: _stage10_tool.py <json-inputs>", file=sys.stderr)
+        print("usage: _artifact_tool.py <json-inputs>", file=sys.stderr)
         return 2
     try:
         inputs = json.loads(argv[1])

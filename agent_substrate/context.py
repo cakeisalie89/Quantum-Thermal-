@@ -20,8 +20,8 @@ model-output reproducibility
 
 authoritative workflow replay
     Rebuild the authority state from the log. That is
-    :mod:`qta_agent.reconstruct`, it does not involve a model at all, and it
-    is the only one of the three that decides anything.
+    :mod:`agent_substrate.reconstruct`, it does not involve a model at all, and
+    it is the only one of the three that decides anything.
 
 THE PROMPT IS NOT STATE
 

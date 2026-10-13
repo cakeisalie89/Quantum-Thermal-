@@ -3,9 +3,9 @@
 A learned model's history is recorded in the authority log as ordinary
 records (``record.create`` / ``record.depend``) of kinds that begin with
 ``learned_``: a dataset, an architecture, a meta-validation, a training run,
-a checkpoint, an evaluation (``qta_agent.learned_lifecycle``). Such a record
-can be PROPOSED, depended on, rejected, revoked and made STALE by the edges
-every record has.
+a checkpoint, an evaluation (``agent_substrate.learned_lifecycle``). Such a
+record can be PROPOSED, depended on, rejected, revoked and made STALE by the
+edges every record has.
 
 What it cannot be is VERIFIED or PROMOTED. For a scientific_result those
 edges require an admission policy (``result_rules``): a PASS from an

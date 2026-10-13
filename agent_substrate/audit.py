@@ -37,8 +37,8 @@ invisible to it and visible here --
   * an edge the state machine does not have, or one taken by the record's own
     proposer where separation of duties is required;
   * a record still PROMOTED whose dependency is no longer canonical. Nothing
-    in ``store.py`` watches dependents; :mod:`qta_agent.invalidation` cascades
-    only when a caller runs it, so a cascade that was never run leaves
+    in ``store.py`` watches dependents; :mod:`agent_substrate.invalidation`
+    cascades only when a caller runs it, so a cascade that was never run leaves
     canonical authority resting on withdrawn foundations and no single
     transition is wrong.
 

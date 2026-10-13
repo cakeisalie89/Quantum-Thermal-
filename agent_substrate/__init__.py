@@ -48,7 +48,7 @@ admission the store decides live and re-decides on every replay
 (``result_rules``). ``automatic_gate_effect = NONE``: nothing here moves an
 acceptance decision by itself.
 
-It DOES have a production caller: ``governed_stage10`` runs a real Stage-10
+It DOES have a production caller: ``governed_tasks`` runs a real Stage-10
 workflow through the whole chain, and the Snakemake rule ``s10_governed``
 fails the build unless that run reaches VERIFIED with no provenance gaps. The
 subsystems above it in this list -- policy, scheduler, secrets, netauth,

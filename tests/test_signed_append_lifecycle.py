@@ -19,9 +19,9 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import principals as pr  # noqa: E402
-from qta_agent.canonical import canonical_bytes  # noqa: E402
-from qta_agent.events import (  # noqa: E402
+from agent_substrate import principals as pr  # noqa: E402
+from agent_substrate.canonical import canonical_bytes  # noqa: E402
+from agent_substrate.events import (  # noqa: E402
     PROFILE_AUTHENTICATED_REQUIRED, ChainBroken, EventLog, EventLogError,
 )
 
@@ -206,7 +206,7 @@ def test_a_pending_prepare_does_not_authenticate_another_record(tmp_path):
     forged = EventLog(tmp_path / "log.jsonl")
     forged.authenticator = None
     head = log.verify()
-    from qta_agent.canonical import digest
+    from agent_substrate.canonical import digest
     body = {"seq": head.head_seq + 1, "event_id": "forged", "wall_time": 1.0,
             "actor": "alice", "action": "record.create", "target": "r666",
             "payload": {"record_id": "r666", "kind": "k",

@@ -22,16 +22,16 @@ HERE = str(Path(__file__).resolve().parent)
 if HERE not in sys.path:                # so hangguard imports without pytest
     sys.path.insert(0, HERE)
 
-from qta_agent.authority import (  # noqa: E402
+from agent_substrate.authority import (  # noqa: E402
     Role, State, TransitionError, TransitionRequest, check,
 )
-from qta_agent.canonical import digest_bytes  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import (  # noqa: E402
+from agent_substrate.canonical import digest_bytes  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import (  # noqa: E402
     CHUNK_BYTES, CorruptEvidence, EvidenceError, EvidenceStore,
     EvidenceTooLarge, MalformedDigest, UnknownEvidence, require_resolvable,
 )
-from qta_agent.store import AuthorityStore, StoreError  # noqa: E402
+from agent_substrate.store import AuthorityStore, StoreError  # noqa: E402
 
 REPORT = b'{"result":"verified","gates":83,"pass":0}'
 
@@ -432,7 +432,7 @@ def test_require_resolvable_is_the_single_implementation_of_the_rule():
     """
     import inspect
 
-    from qta_agent import authority, store as store_mod
+    from agent_substrate import authority, store as store_mod
     for src in (inspect.getsource(authority.check),
                 inspect.getsource(store_mod.AuthorityStore
                                   ._require_evidence_exists)):

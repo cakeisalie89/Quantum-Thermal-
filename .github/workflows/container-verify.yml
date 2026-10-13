@@ -97,7 +97,7 @@ jobs:
         run: |
           mkdir -p container-evidence
           chmod 0777 container-evidence
-          docker run --rm -e QTA_EVIDENCE_DIR=/evidence \
+          docker run --rm -e HARNESS_EVIDENCE_DIR=/evidence \
             -v "$PWD/container-evidence:/evidence" qta:hosted-verify
 
       # Section 49: the same demonstration natively, compared with the

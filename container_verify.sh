@@ -18,13 +18,13 @@ set -euo pipefail
 # only the pytest tail, so the earlier steps' results were never actually
 # seen. A marker per step turns the inference into a record, and the markers
 # are greppable so a later reader can confirm each one individually.
-QTA_STEPS_OK=""
-QTA_STEP_CURRENT=""
-step() { QTA_STEP_CURRENT="$1"; echo "::QTA-STEP-BEGIN:: $1"; }
+HARNESS_STEPS_OK=""
+HARNESS_STEP_CURRENT=""
+step() { HARNESS_STEP_CURRENT="$1"; echo "::QTA-STEP-BEGIN:: $1"; }
 done_() {
   echo "::QTA-STEP-OK:: $1"
-  QTA_STEPS_OK="${QTA_STEPS_OK}${QTA_STEPS_OK:+,}$1"
-  QTA_STEP_CURRENT=""
+  HARNESS_STEPS_OK="${HARNESS_STEPS_OK}${HARNESS_STEPS_OK:+,}$1"
+  HARNESS_STEP_CURRENT=""
 }
 
 # A SUMMARY AT THE END, because the beginning of the log is not reachable.
@@ -40,9 +40,9 @@ done_() {
 # knowing how far it got actually matters.
 _qta_summary() {
   local rc=$?
-  echo "::QTA-STEPS-COMPLETED:: ${QTA_STEPS_OK:-none}"
-  if [ -n "$QTA_STEP_CURRENT" ]; then
-    echo "::QTA-STEP-FAILED:: ${QTA_STEP_CURRENT}"
+  echo "::QTA-STEPS-COMPLETED:: ${HARNESS_STEPS_OK:-none}"
+  if [ -n "$HARNESS_STEP_CURRENT" ]; then
+    echo "::QTA-STEP-FAILED:: ${HARNESS_STEP_CURRENT}"
   fi
   echo "::QTA-EXIT:: ${rc}"
   return $rc
@@ -88,7 +88,7 @@ done_ "git-available"
 # boundary are re-checked, and a generic model is run and independently
 # verified -- with a deliberately wrong producer that must be rejected.
 step "harness-generic"
-QTA_NEURAL_REQUIRED=1 python tools/neural.py verify
+HARNESS_NEURAL_REQUIRED=1 python tools/neural.py verify
 python tools/pass_semantics_audit.py --check
 python tools/framework_boundary.py --check
 python tools/claims_enforcement.py
@@ -114,10 +114,10 @@ done_ "harness-generic"
 # check, the reviewer's decision, a restart from a checkpoint, reconstruction
 # and an RO-Crate. Without the FEniCSx and FMI runtimes (not in this image)
 # its generic leg runs, whose honest outcome is REJECTED: the series check is
-# not an admitted independent check. The report goes to QTA_EVIDENCE_DIR when
+# not an admitted independent check. The report goes to HARNESS_EVIDENCE_DIR when
 # the host mounts one, so the workflow can compare it with a native run.
 step "harness-demo"
-EVID="${QTA_EVIDENCE_DIR:-/tmp}"
+EVID="${HARNESS_EVIDENCE_DIR:-/tmp}"
 python tools/harness_demo.py run --out "$EVID/harness_demo_container.json"
 echo "::QTA-DEMO:: report sha256 $(sha256sum "$EVID/harness_demo_container.json" | cut -c1-64)"
 done_ "harness-demo"
@@ -166,7 +166,7 @@ if [ "${collected:-0}" -lt 300 ]; then
   exit 1
 fi
 echo "pytest collected ${collected} tests"
-QTA_NEURAL_REQUIRED=1 python -m pytest tests/ -q
+HARNESS_NEURAL_REQUIRED=1 python -m pytest tests/ -q
 
 step "stage6_preservation"
 python stage6_preservation_check.py

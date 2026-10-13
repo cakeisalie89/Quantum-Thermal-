@@ -19,11 +19,11 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import result_rules  # noqa: E402
-from qta_agent.authority import Role, State, TransitionError  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate import result_rules  # noqa: E402
+from agent_substrate.authority import Role, State, TransitionError  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -118,7 +118,7 @@ def test_the_store_refuses_a_report_that_does_not_support_it(world, change,
 
 def test_a_bundle_whose_invariant_failed_is_not_verified(world):
     store, ev, bundle, report = world
-    from qta_agent.canonical import digest
+    from agent_substrate.canonical import digest
     broken = json.loads(json.dumps(bundle))
     broken["invariants"][0]["holds"] = False
     rid = _under_review(store, ev, broken)
@@ -163,7 +163,7 @@ def test_a_bundle_that_is_not_a_simulation_result_is_not_verified(world):
     A bundle presented as an observation is refused even with a report
     that is about it and says PASS."""
     store, ev, bundle, report = world
-    from qta_agent.canonical import digest
+    from agent_substrate.canonical import digest
     measured = {**json.loads(json.dumps(bundle)),
                 "observation_kind": "PROCESSED_OBSERVATION"}
     rid = _under_review(store, ev, measured)
@@ -245,7 +245,7 @@ def test_promotion_is_held_to_the_same_rule(world):
 def test_a_bundle_with_no_invariants_is_not_verified(world):
     """An empty invariant list is not 'every invariant holds'."""
     store, ev, bundle, report = world
-    from qta_agent.canonical import digest
+    from agent_substrate.canonical import digest
     bare = {**json.loads(json.dumps(bundle)), "invariants": []}
     rid = _under_review(store, ev, bare)
     with pytest.raises(TransitionError, match="none run"):

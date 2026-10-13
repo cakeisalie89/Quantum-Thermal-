@@ -16,13 +16,13 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.authority import (  # noqa: E402
+from agent_substrate.authority import (  # noqa: E402
     Role, State, TransitionError, TransitionRequest, check,
 )
-from qta_agent.canonical import digest  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.memory import (  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.memory import (  # noqa: E402
     ACT_MEMORY_STATUS, ACT_MEMORY_WRITE, MAX_ENTRY_BYTES, MAX_RECALL,
     MemoryEntry, MemoryError_, MemoryHit,
     MemoryIsNotEvidence, MemoryStatus, MemoryStore, MemoryTooLarge,
@@ -70,7 +70,7 @@ def test_the_authority_path_cannot_import_memory():
     import ast
 
     for module in ("authority", "store", "tasks", "scheduler", "capability"):
-        src = (ROOT / "qta_agent" / f"{module}.py").read_text(encoding="utf-8")
+        src = (ROOT / "agent_substrate" / f"{module}.py").read_text(encoding="utf-8")
         tree = ast.parse(src)
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.level == 1:
@@ -336,7 +336,7 @@ def test_nothing_ever_moves_back_to_active(tmp_path):
 
     Reinstating the old one would leave the log saying it was never stale.
     """
-    from qta_agent.memory import STATUS_EDGES, MemoryStatus
+    from agent_substrate.memory import STATUS_EDGES, MemoryStatus
 
     for src, dsts in STATUS_EDGES.items():
         assert MemoryStatus.ACTIVE not in dsts, (
@@ -590,7 +590,7 @@ def test_the_total_bound_refuses_a_write_that_would_cross_it(mem,
                                                              monkeypatch):
     """The per-entry bound stops one large write and permits a million small
     ones, which reaches the same place more slowly."""
-    monkeypatch.setattr("qta_agent.memory.MAX_TOTAL_BYTES", 200)
+    monkeypatch.setattr("agent_substrate.memory.MAX_TOTAL_BYTES", 200)
     mem.remember(memory_id="m1", author="a", text="x" * 150)
 
     with pytest.raises(MemoryTooLarge) as exc:
@@ -606,7 +606,7 @@ def test_the_total_bound_counts_LIVE_text_only(mem, monkeypatch):
     bound protects is what a projection has to hold and a recall has to
     search.
     """
-    monkeypatch.setattr("qta_agent.memory.MAX_TOTAL_BYTES", 200)
+    monkeypatch.setattr("agent_substrate.memory.MAX_TOTAL_BYTES", 200)
     mem.remember(memory_id="m1", author="a", text="x" * 150)
     with pytest.raises(MemoryTooLarge):
         mem.remember(memory_id="m2", author="a", text="y" * 100)

@@ -23,8 +23,8 @@ The FEM solution must also be laterally uniform (the 2D problem reduces to
 the 1D slab only if it is), within 1e-9 K; a solve that is not has not
 solved this problem and the check FAILS on it.
 
-AVAILABILITY. Without a dolfinx interpreter (``QTA_FENICSX_PYTHON`` unset or
-not runnable) the check reports NOT_RUN with the reason: an unavailable
+AVAILABILITY. Without a dolfinx interpreter (``HARNESS_FENICSX_PYTHON`` unset
+or not runnable) the check reports NOT_RUN with the reason: an unavailable
 verifier is not a passing one.
 
 WHAT IT ESTABLISHES, AND WHAT IT DOES NOT. Agreement of two discretizations
@@ -58,7 +58,7 @@ MODEL_VERSION = "1.0.0"
 IMPLEMENTATION_MODULES = ("scientific.checks.fenicsx_slab",)
 RUNNER = Path(__file__).resolve().parents[2] / "integrations" / "fenicsx" \
     / "runner.py"
-ENV_VAR = "QTA_FENICSX_PYTHON"
+ENV_VAR = "HARNESS_FENICSX_PYTHON"
 #: The MPI transports a single-process run uses: the process itself and
 #: shared memory. The pinned MPICH initialises through UCX, and UCX probes
 #: whatever network devices the host has; on some hosted runners that probe

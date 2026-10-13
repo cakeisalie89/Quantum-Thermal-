@@ -187,8 +187,9 @@ def _match_field(values, what: str) -> tuple:
 class PolicyRequest:
     """What is being asked, described independently of who is asking.
 
-    Mirrors :class:`~qta_agent.capability.Request`: the evaluation compares a
-    described request against described rules, and cannot consult the caller.
+    Mirrors :class:`~agent_substrate.capability.Request`: the evaluation
+    compares a described request against described rules, and cannot consult
+    the caller.
     """
 
     action: str

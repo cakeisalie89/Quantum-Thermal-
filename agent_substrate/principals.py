@@ -38,18 +38,18 @@ marked, and a registry built for production refuses them. Provisioning real
 keys -- who holds them, where, how they rotate -- is a deployment decision.
 
 THE PRIMITIVE, AND WHO STANDS BEHIND IT. Ed25519 (RFC 8032), behind the
-provider seam of :mod:`qta_agent.signature`. The only implementation here,
-:mod:`qta_agent.ed25519`, is a REFERENCE: it verifies, and it signs only TEST
-identities -- a :class:`Signer` holding a production key refuses to sign with
-it. Production authentication (:func:`production_authenticator`) needs a
-provider the deployment injects, which states VETTED and passes the seam's
-conformance gate, AND a provisioned registry. Neither exists in this
+provider seam of :mod:`agent_substrate.signature`. The only implementation
+here, :mod:`agent_substrate.ed25519`, is a REFERENCE: it verifies, and it signs
+only TEST identities -- a :class:`Signer` holding a production key refuses to
+sign with it. Production authentication (:func:`production_authenticator`)
+needs a provider the deployment injects, which states VETTED and passes the
+seam's conformance gate, AND a provisioned registry. Neither exists in this
 repository: EXTERNALLY_BLOCKED, and nothing here pretends otherwise.
 
 THE PROFILE. An authenticator given to a reader is an option; a history
 declared ``AUTHENTICATED_REQUIRED`` (:func:`begin_history`) is not. Its
-declaration is the first event, and :mod:`qta_agent.events` enforces it in
-the verified-read primitives every reader reads through: without an
+declaration is the first event, and :mod:`agent_substrate.events` enforces it
+in the verified-read primitives every reader reads through: without an
 authenticator, no event of such a history is read. :data:`READER_COVERAGE`
 says, reader by reader, what that means -- and the tests hold each line.
 """
@@ -814,7 +814,7 @@ def begin_history(log, attestations: Attestations, signer: Signer, *,
 
 #: WHO AUTHENTICATES, reader by reader -- the coverage the actor-
 #: authentication directive asks to be kept rather than assumed. Every
-#: reader in ``qta_agent`` reads the log through ``read_verified`` or
+#: reader in ``agent_substrate`` reads the log through ``read_verified`` or
 #: ``read_verified_from`` on the EventLog it is GIVEN, so each is GATED: it
 #: authenticates every event when that log carries an authenticator, and
 #: reads nothing of an AUTHENTICATED_REQUIRED history when it does not.
@@ -827,24 +827,24 @@ GATED_AND_OWN_VERDICT = "GATED_AND_OWN_VERDICT"
 REFUSES_REQUIRED_ONLY = "REFUSES_REQUIRED_ONLY"
 NOT_BUILT = "NOT_BUILT"
 READER_COVERAGE = {
-    "qta_agent.store.AuthorityStore": GATED_AND_OWN_VERDICT,
-    "qta_agent.reconstruct": GATED_AND_OWN_VERDICT,
-    "qta_agent.governed_stage10.GovernedStage10": GATED,
-    "qta_agent.governed_model.GovernedOrigins": GATED,
-    "qta_agent.scheduler.Scheduler": GATED,
-    "qta_agent.memory.MemoryStore": GATED,
-    "qta_agent.policy.PolicyStore": GATED,
-    "qta_agent.audit.AuditIndex": GATED,
-    "qta_agent.agents.AgentDirectory": GATED,
-    "qta_agent.capability.CapabilityLedger": GATED,
-    "qta_agent.idempotency.IdempotencyLedger": GATED,
-    "qta_agent.netauth.NetworkAuthority": GATED,
-    "qta_agent.secrets.SecretStore": GATED,
-    "qta_agent.checkpoint.CheckpointStore": GATED,
+    "agent_substrate.store.AuthorityStore": GATED_AND_OWN_VERDICT,
+    "agent_substrate.reconstruct": GATED_AND_OWN_VERDICT,
+    "agent_substrate.governed_tasks.GovernedTasks": GATED,
+    "agent_substrate.governed_model.GovernedOrigins": GATED,
+    "agent_substrate.scheduler.Scheduler": GATED,
+    "agent_substrate.memory.MemoryStore": GATED,
+    "agent_substrate.policy.PolicyStore": GATED,
+    "agent_substrate.audit.AuditIndex": GATED,
+    "agent_substrate.agents.AgentDirectory": GATED,
+    "agent_substrate.capability.CapabilityLedger": GATED,
+    "agent_substrate.idempotency.IdempotencyLedger": GATED,
+    "agent_substrate.netauth.NetworkAuthority": GATED,
+    "agent_substrate.secrets.SecretStore": GATED,
+    "agent_substrate.checkpoint.CheckpointStore": GATED,
     # The AI proposal ingress's projection of its receipts: read through
     # read_verified, and it refuses a receipt whose digest or target is not
     # its envelope's.
-    "qta_agent.proposals.received": GATED_AND_OWN_VERDICT,
+    "agent_substrate.proposals.received": GATED_AND_OWN_VERDICT,
     "tools/audit_log.py": REFUSES_REQUIRED_ONLY,
     "tools/generic_consistency.py": REFUSES_REQUIRED_ONLY,
     "tools/independent_verify.py": REFUSES_REQUIRED_ONLY,

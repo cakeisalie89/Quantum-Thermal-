@@ -65,7 +65,7 @@ on:
       - "tools/rust_kernel_decision.py"
       - "tools/performance_baseline.py"
       - "tests/test_agent_performance.py"
-      - "qta_agent/**"
+      - "agent_substrate/**"
       - "docs/rust_kernel_decisions.json"
       - ".github/workflows/harness-integrations.yml"
       - "pyproject.toml"
@@ -95,14 +95,14 @@ jobs:
       - name: FEniCSx acceptance (A-F), negative controls included
         run: |
           set -euo pipefail
-          QTA_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python" \
+          HARNESS_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python" \
             uv run python tools/fenicsx_acceptance.py --out fenicsx_acceptance.json
       - name: the integration tests, with FEniCSx REQUIRED (a skip is a failure)
         # the whole file, not a -k selection: test names do not all carry
         # the runtime's name, and a selection that matches nothing passes
         run: |
-          QTA_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python" \
-          QTA_INTEGRATIONS_REQUIRED=fenicsx \
+          HARNESS_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python" \
+          HARNESS_INTEGRATIONS_REQUIRED=fenicsx \
             uv run python -m pytest -q -rs tests/test_harness_integrations.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
         if: always()
@@ -140,12 +140,12 @@ jobs:
       - name: FMI 3.0 acceptance (P1-P5, tamper refusals, fault FMU)
         run: |
           set -euo pipefail
-          QTA_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python" \
+          HARNESS_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python" \
             uv run python tools/fmi_acceptance.py --work fmi_work --out fmi_acceptance.json
       - name: the integration tests, with FMI REQUIRED (a skip is a failure)
         run: |
-          QTA_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python" \
-          QTA_INTEGRATIONS_REQUIRED=fmi \
+          HARNESS_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python" \
+          HARNESS_INTEGRATIONS_REQUIRED=fmi \
             uv run python -m pytest -q -rs tests/test_harness_integrations.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
         if: always()
@@ -184,15 +184,15 @@ jobs:
       - name: the demonstration, through the generic Snakemake rule
         run: |
           set -euo pipefail
-          export QTA_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python"
-          export QTA_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python"
+          export HARNESS_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python"
+          export HARNESS_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python"
           uv run snakemake harness_demo --cores 1 --forcerun harness_demo
           cp verification/stage10/harness_demo_report.json .
       - name: the demonstration's tests, both runtimes REQUIRED
         run: |
-          QTA_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python" \
-          QTA_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python" \
-          QTA_INTEGRATIONS_REQUIRED=fenicsx,fmi \
+          HARNESS_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python" \
+          HARNESS_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python" \
+          HARNESS_INTEGRATIONS_REQUIRED=fenicsx,fmi \
             uv run python -m pytest -q -rs tests/test_harness_demo.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
         if: always()

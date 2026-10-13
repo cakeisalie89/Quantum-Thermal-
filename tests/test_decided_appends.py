@@ -18,13 +18,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import (  # noqa: E402
-    SUBMITTER_ID, GovernedStage10,
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_tasks import (  # noqa: E402
+    SUBMITTER_ID, GovernedTasks,
 )
-from qta_agent.idempotency import IdempotencyLedger  # noqa: E402
-from qta_agent.tasks import TaskRole, TaskState, TaskTransitionError  # noqa: E402
+from agent_substrate.idempotency import IdempotencyLedger  # noqa: E402
+from agent_substrate.tasks import TaskRole, TaskState, TaskTransitionError  # noqa: E402
 
 WS = "verification/stage10/_pytest_decided"
 
@@ -36,7 +36,7 @@ def gov(request):
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
-    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+    g = GovernedTasks(root=ROOT, log=EventLog(base / "log.jsonl"),
                         evidence=EvidenceStore(base / "evidence"))
     g.out_rel = f"{WS}/{name}/out"
     yield g
@@ -91,7 +91,7 @@ def test_a_submission_that_loses_the_bind_cancels_its_orphan(gov,
     decided under the lock against the log, answers with that binding; this
     submission cancels the task it created before anything is queued and
     answers with the bound one. One task runs."""
-    other = GovernedStage10(root=ROOT, log=EventLog(gov.log.path),
+    other = GovernedTasks(root=ROOT, log=EventLog(gov.log.path),
                             evidence=gov.evidence)
     real = other.idempotency.lookup
     first: dict = {}
@@ -119,7 +119,7 @@ def test_a_submission_that_loses_the_bind_cancels_its_orphan(gov,
     ledger = IdempotencyLedger(EventLog(gov.log.path)).load()
     # the second reader accepts the history the lost bind left: the orphan's
     # cancellation, the one binding, the run that took it
-    from qta_agent.reconstruct import (
+    from agent_substrate.reconstruct import (
         compare_bindings, compare_tasks, reconstruct_subsystems,
         reconstruct_tasks,
     )
@@ -136,8 +136,8 @@ def test_a_record_landing_just_before_the_checkpoint_is_in_its_snapshot(
     """Another writer appends after this store last read and before the
     checkpoint takes the lock. The snapshot is taken under the lock, caught
     up to that head, so the checkpoint describes the position it anchors."""
-    from qta_agent.checkpoint import CheckpointStore
-    from qta_agent.store import AuthorityStore
+    from agent_substrate.checkpoint import CheckpointStore
+    from agent_substrate.store import AuthorityStore
     log = EventLog(tmp_path / "log.jsonl")
     ev = EvidenceStore(tmp_path / "ev")
     store = AuthorityStore(log, evidence=ev).load()
@@ -169,10 +169,10 @@ def test_a_checkpoint_whose_snapshot_misdescribes_its_anchor_is_replayed_past(
     pinned to a later one. The audit cannot fault it -- it parses and names
     this log's bytes -- and load_from refuses it; the restart replays from
     genesis and says so, rather than failing to start."""
-    from qta_agent import checkpoint as cp_mod
-    from qta_agent.canonical import canonical_bytes
-    from qta_agent.checkpoint import CheckpointStore
-    from qta_agent.store import AuthorityStore
+    from agent_substrate import checkpoint as cp_mod
+    from agent_substrate.canonical import canonical_bytes
+    from agent_substrate.checkpoint import CheckpointStore
+    from agent_substrate.store import AuthorityStore
     log = EventLog(tmp_path / "log.jsonl")
     ev = EvidenceStore(tmp_path / "ev")
     store = AuthorityStore(log, evidence=ev).load()
@@ -197,7 +197,7 @@ def test_a_supervisor_appending_while_a_tool_runs_is_not_the_tools_write(
     """Another supervisor appends to the shared log while this one's tool is
     running. The log sits inside the tool's writable scope; the append is
     not the tool's and does not fail its run."""
-    import qta_agent.execution as X
+    import agent_substrate.execution as X
     real = X._collect_outputs
 
     def a_supervisor_appends_meanwhile(cwd, declared):
@@ -226,7 +226,7 @@ def _filler(log, n):
 
 
 def _capability_grant(log):
-    from qta_agent.capability import Action, CapabilityLedger, issue
+    from agent_substrate.capability import Action, CapabilityLedger, issue
     led = CapabilityLedger(log).load()
     head = len(log.read()) - 1
     cap = issue(capability_id="c1", subject="v", action=Action.EXECUTE_TOOL,
@@ -238,7 +238,7 @@ def _capability_grant(log):
 
 
 def _egress_grant(log):
-    from qta_agent.netauth import NetworkAuthority, grant
+    from agent_substrate.netauth import NetworkAuthority, grant
     auth = NetworkAuthority(log).load()
     head = len(log.read()) - 1
     g = grant(grant_id="g1", subject="w", task_id="t1", tool_id="fetch",
@@ -250,7 +250,7 @@ def _egress_grant(log):
 
 
 def _secret_grant(log):
-    from qta_agent.secrets import SecretStore, grant
+    from agent_substrate.secrets import SecretStore, grant
     store = SecretStore(log)
     store.register("api-token", "hunter2-super-secret-token-value")
     head = len(log.read()) - 1
@@ -271,9 +271,9 @@ def test_a_grant_the_stamp_moves_past_its_expiry_is_refused_unwritten(
     it ended. Such a grant was never valid and every replay refuses it --
     appended, it would leave a log no runner can open. Refused under the
     lock instead, with nothing written, and the log still replays."""
-    from qta_agent.capability import CapabilityError
-    from qta_agent.netauth import NetworkError
-    from qta_agent.secrets import SecretError
+    from agent_substrate.capability import CapabilityError
+    from agent_substrate.netauth import NetworkError
+    from agent_substrate.secrets import SecretError
     log = EventLog(tmp_path / "log.jsonl")
     _filler(log, 1)
     issue_it, replay = make(log)
@@ -293,7 +293,7 @@ def test_a_one_action_grant_lives_from_where_it_is_stamped(tmp_path):
     bounded by a lifetime, not by an expiry computed from an earlier head:
     after other writers land first, the grant is still in force for exactly
     its own position and the three after it."""
-    from qta_agent.capability import Action, CapabilityLedger, issue
+    from agent_substrate.capability import Action, CapabilityLedger, issue
     log = EventLog(tmp_path / "log.jsonl")
     _filler(log, 1)
     led = CapabilityLedger(log).load()
@@ -318,7 +318,7 @@ def test_a_concurrent_appends_witness_temp_file_is_not_the_tools(
     the tool ran and gone after -- or the reverse -- it was charged to the
     tool as an undeclared write and the run refused, in four-process races
     under load (D-2026-123)."""
-    import qta_agent.execution as X
+    import agent_substrate.execution as X
     real = X._collect_outputs
     gone = gov.log.path.parent / ".head-vanishes.tmp"
     gone.write_text("{}")                     # there when the tool starts
@@ -339,7 +339,7 @@ def test_a_concurrent_appends_witness_temp_file_is_not_the_tools(
 def test_a_supervisor_name_pattern_does_not_cover_a_subdirectory():
     """The pattern names files at its own depth. A file under a directory
     that happens to match it is the tool's to answer for."""
-    from qta_agent.execution import _undeclared_writes
+    from agent_substrate.execution import _undeclared_writes
     stamp = (1, 1)
     found = _undeclared_writes(
         {}, {"d/.head-a.tmp": stamp, "d/.head-a/b.tmp": stamp,

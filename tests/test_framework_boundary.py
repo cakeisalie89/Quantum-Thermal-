@@ -44,7 +44,7 @@ def test_the_boundary_is_not_vacuous(real):
     module the plants use is on the active side."""
     active = set(real.modules("ACTIVE"))
     assert CLEAN_MOD in active
-    assert {"qta_agent.store", "scientific.result"} <= active
+    assert {"agent_substrate.store", "scientific.result"} <= active
     assert {"qta_multiphysics.machine_fsm",
             "qta_multiphysics.hardware_governance_3d"} <= real.legacy_modules
     assert "BOM.csv" in real.legacy_files

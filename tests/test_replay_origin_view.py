@@ -29,15 +29,15 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent import reconstruct as rc  # noqa: E402
-from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.checkpoint import CheckpointStore  # noqa: E402
-from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_model import (  # noqa: E402
+from agent_substrate import reconstruct as rc  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.checkpoint import CheckpointStore  # noqa: E402
+from agent_substrate.events import EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_model import (  # noqa: E402
     GovernedModelRuns, GovernedOrigins,
 )
-from qta_agent.store import AuthorityStore  # noqa: E402
+from agent_substrate.store import AuthorityStore  # noqa: E402
 
 WS = "verification/stage10/_pytest_origin_view"
 CHECK = "thermal_1d.reduction_2d_radial_disabled"
