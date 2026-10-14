@@ -369,8 +369,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 434595,
-      "sha256": "d4429446020bf99a39389cc0f2599268421bf0ee5d89083d56a8d53c20bab9f8"
+      "size_bytes": 435107,
+      "sha256": "0311c4fdfd5053405197b9c250f0fb12c029077d385d796693a452fcf3d61f6e"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -385,7 +385,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3233,
-      "sha256": "fc270311e535094c26ce3c5e8874764023520bd2a5ec8f8849d369d437f1ac84"
+      "sha256": "0c4429e57ef554f71e8d1df1e32fe39a3dc6bd6ee3da63553364edeeb2ef1f76"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -1434,8 +1434,8 @@
     },
     {
       "filename": "tests/test_no_enforcing_asserts.py",
-      "size_bytes": 4424,
-      "sha256": "56d09fe581996de018504f3bcc084e70a82a359e417836ce4fd2f054a09cb75a"
+      "size_bytes": 5033,
+      "sha256": "7a053984407308871a88a2006a7ce7255c39d2b2c41a002b5b6b1e9269dcb3e6"
     },
     {
       "filename": "tests/test_performance_telemetry.py",

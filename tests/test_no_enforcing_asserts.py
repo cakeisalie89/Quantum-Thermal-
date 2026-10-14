@@ -49,11 +49,25 @@ def _production_python():
     return files
 
 
-def test_no_production_module_contains_an_assert():
-    found = _asserts_in(_production_python())
+def _refuse_any(found: dict) -> None:
+    """The rule itself, so it can be handed a tree that breaks it."""
     assert found == {}, (
         "asserts that `python -O` deletes; make each a real refusal: "
         f"{found}")
+
+
+def test_no_production_module_contains_an_assert():
+    _refuse_any(_asserts_in(_production_python()))
+
+
+def test_the_rule_refuses_a_tree_with_an_assert(tmp_path):
+    """ANTI-VACUITY for the verdict: on a clean tree the rule never fires,
+    so a rule that counted asserts and then accepted them would pass above.
+    Handed a planted assert, it must refuse."""
+    (tmp_path / "m.py").write_text("def f(x):\n    assert x\n",
+                                   encoding="utf-8")
+    with pytest.raises(AssertionError, match="python -O"):
+        _refuse_any(_asserts_in(["m.py"], root=tmp_path))
 
 
 def test_the_scan_covers_every_layer():

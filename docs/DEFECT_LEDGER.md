@@ -7599,10 +7599,15 @@ reported two survivors: RC8 deleted a hard-coded set of retired package
 roots that the inventory's `__init__.py` rows already supplied (an
 equivalent mutant over dead code), and RI1 passed pending dispositions,
 which the real tree -- with nothing pending -- could no longer show.
+Hosted shard 7 at `725073b` reported one more, from a specification
+rewritten in this tranche: `enforcement_asserts.json` EA3 turned the
+no-assert rule's verdict into `isinstance(found, dict)` and survived,
+because the rule only ever ran on a clean tree, where a verdict that accepts
+every count passes too.
 
 **ROOT CAUSE.** A specification was removed when its NAME was about a
 retired model, and the inventory's rule recorded the file, not the targets
-of its mutations.
+of its mutations. The rewritten specification was pushed without being run.
 
 **REPAIR.** `reproduction_policy.json` retained with RP1-RP18 (its retired
 targets dropped; 18/18 killed); `governed_model.json` new with GM1-GM6
@@ -7617,6 +7622,8 @@ the work -- an import matched by its retired package, not only by an
 inventoried module -- killed by a planted import of a submodule no row
 names; RI1 is held by a planted pending disposition with its non-applied
 control. The inventory now classes `reproduction_policy.json` PRESERVE.
+The no-assert rule's verdict is a function handed a planted assert, which it
+must refuse (`test_the_rule_refuses_a_tree_with_an_assert`; EA 3/3).
 
 **NOT CLAIMED.** The sweep compared removed specifications' targets with the
 tree; it does not show that every retained enforcement point has a mutation.
