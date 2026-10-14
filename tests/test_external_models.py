@@ -1,20 +1,17 @@
-"""External models and implementation decisions, held to their rules
-without their runtimes: the FMU bundle's own invariants, the catalog's
-admission of an external model, the governed FMU tool's refusal of bytes
-nobody cited, and the selective-Rust decision rule over synthetic
-measurements."""
+"""External models, held to their rules without their runtimes: the FMU
+bundle's own invariants, the catalog's admission of an external model, and
+the governed FMU tool's refusal of bytes nobody cited."""
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools"))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-import rust_kernel_decision as RKD  # noqa: E402
 from scientific import catalog  # noqa: E402
 from scientific.checks import fmu_rc2  # noqa: E402
 from scientific.quantity import Quantity, ResolutionClass as RC  # noqa: E402
@@ -102,79 +99,3 @@ def test_the_governed_fmu_tool_refuses_bytes_nobody_cited(tmp_path,
     assert GF._cited(WS, str(f), good, "FMU") == b"fmu bytes"
     with pytest.raises(SystemExit, match="not the FMU cited"):
         GF._cited(WS, str(f), "0" * 64, "FMU")
-
-
-# ------------------------------------------------------------ selective Rust
-
-def _measurement(parity=True, speedup=3.0, sites=None):
-    k = {"bit_identical": parity, "max_ulp_difference": 0 if parity else 2,
-         "n_test_values": 4096,
-         "timing": {"4096": {"speedup": 1.0},
-                    "1000000": {"speedup": speedup}}}
-    cfg = {"extension_importable": True, "numpy_version": "2.4.4",
-           "simd": {}, "kernels": {"face_conductance": dict(k)}}
-    return {"configs": {"native": cfg,
-                        "without_x86_v4": json.loads(json.dumps(cfg)),
-                        "x86_v2_baseline": json.loads(json.dumps(cfg))},
-            "call_sites": sites if sites is not None else
-            {"scientific/solver.py": 10}, "workload_n": 1000000}
-
-
-def test_a_kernel_meeting_every_criterion_is_adopted():
-    d = RKD.decide(_measurement())["face_conductance"]
-    assert d["decision"] == "RUST_KERNEL_face_conductance_ADOPTED"
-    assert d["failed_criteria"] == []
-
-
-@pytest.mark.parametrize("kw, criterion", [
-    ({"sites": {}}, "NO_PRODUCTION_CALL_SITE"),
-    ({"speedup": 1.5}, "SPEEDUP_BELOW"),
-])
-def test_a_kernel_failing_a_criterion_is_rejected(kw, criterion):
-    d = RKD.decide(_measurement(**kw))["face_conductance"]
-    assert d["decision"].endswith("_REJECTED")
-    assert any(c.startswith(criterion) for c in d["failed_criteria"])
-
-
-def test_parity_must_hold_in_every_dispatch_not_just_one():
-    m = _measurement()
-    m["configs"]["without_x86_v4"]["kernels"]["face_conductance"][
-        "bit_identical"] = False
-    d = RKD.decide(m)["face_conductance"]
-    assert d["decision"].endswith("_REJECTED")
-    assert d["failed_criteria"][0].startswith(
-        "NOT_BIT_IDENTICAL_IN_EVERY_DISPATCH")
-
-
-def test_an_unmeasured_extension_decides_nothing():
-    m = _measurement()
-    m["configs"]["native"]["extension_importable"] = False
-    with pytest.raises(SystemExit):
-        RKD.decide(m)
-
-
-def test_the_committed_decisions_are_current():
-    assert RKD.check() == []
-
-
-def test_a_new_call_site_invalidates_the_decisions(monkeypatch):
-    monkeypatch.setattr(RKD, "call_sites",
-                        lambda root=RKD.ROOT: {"scientific/new.py": 3})
-    assert any("call sites changed" in p for p in RKD.check())
-
-
-def test_a_measurement_deciding_otherwise_is_a_problem(monkeypatch):
-    """A runner whose measurement would ADOPT a kernel the registry rejects
-    fails the check: the committed decision must be what measurement
-    decides, wherever it is re-measured."""
-    m = _measurement()
-    for c in m["configs"].values():
-        c["kernels"]["conductivity_power_law"] = dict(
-            c["kernels"]["face_conductance"], bit_identical=False)
-    monkeypatch.setattr(RKD, "call_sites",
-                        lambda root=RKD.ROOT: {"scientific/solver.py": 10})
-    probs = RKD.check(m)
-    assert any("face_conductance: recorded RUST_KERNEL_face_conductance_"
-               "REJECTED, this measurement decides "
-               "RUST_KERNEL_face_conductance_ADOPTED" in p for p in probs)
-    assert not any(p.startswith("conductivity_power_law") for p in probs)

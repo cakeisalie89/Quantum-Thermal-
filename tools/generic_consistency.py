@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 """The generic consistency verifier: a governed history, checked by its bytes.
 
-The successor to the legacy QTA verifier, not a trimmed copy of it.
-``package_consistency_check.py`` is the LEGACY_QTA_VERIFIER: it regenerates
-the hardware-era output set and checks it against the 83-gate table, the
-BOM, the mode semantics and the QTA release expectations, and it stays for as
-long as that payload ships. This checks what the framework itself produces --
-an event history, the evidence it cites, and the scientific results decided
-from them -- and none of the QTA vocabulary: no gate table, no PASS count, no
-machine FSM, no BOM, no Mode B/C/D. ``tests/test_generic_consistency.py``
-holds that as well as the checks.
+It checks what the harness itself produces -- an event history, the
+evidence it cites, and the scientific results decided from them -- by their
+bytes, and nothing else. ``tests/test_generic_consistency.py`` holds the
+checks.
 
 It answers, for one event log and its evidence store:
 

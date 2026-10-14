@@ -45,11 +45,11 @@ scientific model imports this package (``tests/test_agent_substrate_
 isolation.py``); evidence is content-addressed and append-only
 (``evidence``); and a scientific result becomes authority only through an
 admission the store decides live and re-decides on every replay
-(``result_rules``). ``automatic_gate_effect = NONE``: nothing here moves an
+(``result_rules``). ``authority_effect = NONE``: nothing here moves an
 acceptance decision by itself.
 
-It DOES have a production caller: ``governed_tasks`` runs a real Stage-10
-workflow through the whole chain, and the Snakemake rule ``s10_governed``
+It DOES have a production caller: ``governed_tasks`` runs a real governed
+workflow through the whole chain, and the Snakemake rule ``governed_tasks``
 fails the build unless that run reaches VERIFIED with no provenance gaps. The
 subsystems above it in this list -- policy, scheduler, secrets, netauth,
 memory, context, agents -- are implemented and tested but are NOT yet on that

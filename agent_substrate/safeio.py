@@ -6,7 +6,7 @@ The write side of this project learned the lesson the expensive way. A guard
 that validated an output directory and then let the caller call
 ``write_bytes`` on whatever it liked was advisory, and a recovered adversarial
 test proved it: it overwrote README.md and wrote ``{"status": "PASS"}`` into
-the canonical gate table during an ordinary test run. The fix was to move the
+a tracked output during an ordinary test run. The fix was to move the
 allowlist to the point of the write.
 
 Reads had the same shape and had not been fixed. Every governed read in this

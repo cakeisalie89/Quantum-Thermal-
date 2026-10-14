@@ -39,28 +39,22 @@ AGENT_WF = WORKFLOWS / "agent-substrate.yml"
 
 #: Jobs agent-substrate.yml must define, and why the matrix leans on each.
 REQUIRED_JOBS = {
-    "agent-substrate": "the mutation matrices and the agent suites",
-    "full-suite": "the FULL pytest suite and package_consistency_check.py, "
-                  "which R58 used to record as release-only",
+    "agent-substrate": "the verifiers, the audits, the agent suites and the "
+                       "governed runs",
+    "full-suite": "the FULL pytest suite",
     "second-interpreter": "the substrate on a Python other than the pin",
     "dispatch-sensitivity": "the FULL suite on a NumPy without AVX-512. "
                             "GitHub's runners have it, so every other job "
                             "here measures one side of the dispatch and only "
-                            "one; D-2026-53a and D-2026-58 both live on the "
-                            "other side. Required, so that deleting the job "
-                            "is a contract failure rather than a quiet loss "
-                            "of the only thing that looks there",
+                            "one. Required, so that deleting the job is a "
+                            "contract failure rather than a quiet loss of "
+                            "the only thing that looks there",
     "mutation-shards": "every mutation specification, in the deterministic "
                        "shards tools/mutation_shards.py plans; each spec "
                        "keeps its baseline, null control and restore check",
     "mutation-matrices": "the aggregate: green only when every shard's "
                          "result is success, so a lost or cancelled shard "
                          "is red rather than absent",
-    "cross-environment-3d": "R59: regenerate the 3D outputs on a hosted "
-                            "runner and compare them against the committed "
-                            "copies, emitting the result to the JOB LOG "
-                            "rather than to an artifact whose storage host "
-                            "an egress policy can refuse",
 }
 
 #: Commands that must appear somewhere in agent-substrate.yml.
@@ -71,33 +65,21 @@ REQUIRED_COMMANDS = (
      "derived artifacts are in step with their sources"),
     ("uv run python ro_crate_tools.py validate",
      "the RO-Crate validates"),
-    ("uv run python package_consistency_check.py",
-     "package consistency, in full-suite"),
-    ("uv run python package_consistency_check.py --policy ci",
-     "the PORTABLE question in the required jobs: byte-identical, or "
-     "decision-stable under a different resolved backend. The strict one "
-     "there would make a required job red whenever GitHub assigns a CPU the "
-     "witness never saw -- red by design, which is how a real failure hides "
-     "(directive 7)"),
-    ("uv run python tools/reproduction_witness.py check",
-     "the byte-reproduction witness still applies to the tree it binds"),
-    ("uv run python tools/neural_legacy_audit.py --check",
-     "the learned-model substrate carries none of the hardware-era machine "
-     "semantics, and every occurrence elsewhere is classified (NF-1T)"),
-    ("uv run python tools/pass_semantics_audit.py --check",
-     "the legacy gate table's PASS count is stated only as the legacy "
-     "forecast's, never as the current harness's status (NF-1T closure)"),
+    ("uv run python tools/repo_content_audit.py --check",
+     "the tree carries none of the retired hardware programme, and the "
+     "committed content audit is the one the tree produces"),
+    ("uv run python tools/repo_inventory.py check --applied",
+     "every baseline file is classified and its disposition applied"),
+    ("uv run python tools/harness_status.py verify",
+     "the completion status is the one the evidence derives"),
     ("uv run python tools/neural.py verify",
      "the learned-model evidence re-derives: exact counts, abstract "
      "validation of the ~1T configuration, the digest chain, the claims "
      "(NF-1T)"),
-    ("uv run python tools/reference_backend.py recipe",
-     "the reference backend's recipe leaves no part of the arithmetic to "
-     "the host"),
+    ("uv run python tools/typecheck_scope.py check",
+     "the active type-check scope"),
     ("uv run python -m pytest tests/ -q",
      "the complete pytest suite, in full-suite"),
-    ("analysis/collect_container_3d.py",
-     "the R59 cross-environment comparison, in cross-environment-3d"),
     ("uv run python tools/corpus_allowlist.py",
      "the corpus allowlist still describes the committed corpus, so adding "
      "a governed document without reviewing it into the list fails here "
@@ -317,17 +299,12 @@ VERIFIER_EXEMPT = {
         "a subprocess verifier spawned by agent_substrate/separate_verify.py "
         "with a log path on argv, exercised by the agent suites; it is not a "
         "standalone gate and has no tree-wide verdict to report",
-    "tools/regenerate_instrumented.py":
-        "the wrapper package_consistency_check.py and reproduction_witness.py "
-        "run the canonical generator INSIDE, with an entry and a record path "
-        "on argv; it runs on the real tree every time the package check does "
-        "and has no verdict of its own",
 }
 
 
 def _everywhere() -> str:
     """Every committed workflow: a verifier whose runtime only one job
-    installs (the RO-Crate validator, the Rust toolchain, FEniCSx, FMI) is
+    installs (the RO-Crate validator, FEniCSx, FMI) is
     run there, and that counts."""
     return "\n".join([_text()] + [
         wf.read_text(encoding="utf-8")
@@ -422,8 +399,8 @@ def problems() -> tuple:
     out += [f"knob is never turned -- {x}" for x in unturned_knobs(body)]
     # A verifier executed by ANY hosted workflow has its verdict taken on the
     # tree; the harness-integrations jobs run the ones that need a runtime
-    # this matrix job does not install (the RO-Crate validator, the Rust
-    # toolchain).
+    # this matrix job does not install (the RO-Crate validator, FEniCSx,
+    # FMI).
     everywhere = "\n".join([body] + [
         wf.read_text(encoding="utf-8")
         for wf in sorted(WORKFLOWS.glob("*.yml")) if wf != AGENT_WF])

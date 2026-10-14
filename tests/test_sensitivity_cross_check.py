@@ -79,7 +79,7 @@ def test_methods_that_disagree_are_reported_as_such():
     assert rep["rankings"]["OAT"][0]["members"] == ["a"]
     assert rep["rankings"]["SOBOL_SALIB"][0]["members"] == ["b"]
     assert rep["interpretation"].startswith("REQUIRES_HUMAN_INTERPRETATION")
-    assert rep["automatic_gate_effect"] == "NONE"
+    assert rep["authority_effect"] == "NONE"
     for field in ("response", "parameter_domain", "base_point", "methods",
                   "rankings", "comparison"):
         assert rep[field], field

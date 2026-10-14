@@ -9,19 +9,17 @@
 # This workflow builds the declared image there -- same Dockerfile, same
 # digest-pinned base, same entrypoint, same non-root user -- and runs it.
 #
-# HISTORY, measured (container_verification.md): nine dispatched runs from
-# 2026-08-23 to 2026-09-08 built the image and ran it as the non-root user
-# every time after the first; their failures were, in order, a root-owned
-# /qta, governed files hidden by .dockerignore, and then canonical byte
-# divergence on runners without the witnessed backend -- which the in-image
-# check now asks under --policy ci, the portable question.
+# HISTORY, measured (container_verification.md): the dispatched runs from
+# 2026-08-23 built the image and ran it as the non-root user every time after
+# the first; their first failures were a root-owned working directory and
+# governed files hidden by .dockerignore, both fixed in the Dockerfile.
 #
-# NON-AUTHORITATIVE. Nothing here can move a gate, a threshold or an authority
-# state. It grants `contents: read` and nothing else -- no id-token, no write of
+# NON-AUTHORITATIVE. Nothing here can move a result, a threshold or an
+# authority state. It grants `contents: read` and nothing else -- no id-token, no write of
 # any kind -- so it cannot sign, push or comment. Its products are evidence:
 # whether the declared image builds, runs, and passes its in-image
 # verification, and the identity (config digest, layers) of the image that did.
-name: qta-container-verify
+name: container-verify
 on:
   # Every push to this branch builds and runs the declared image: a
   # dispatch-only trigger cannot fire until the workflow reaches the default
@@ -70,37 +68,35 @@ jobs:
           echo "digest pin confirmed against the served manifest"
 
       - name: build the declared image
-        run: docker build -t qta:hosted-verify .
+        run: docker build -t harness:hosted-verify .
 
       - name: confirm the image runs as the declared non-root user
         run: |
-          U=$(docker run --rm qta:hosted-verify id -un)
+          U=$(docker run --rm harness:hosted-verify id -un)
           echo "container user: $U"
-          [ "$U" = "qta" ] || { echo "EXPECTED USER qta, GOT $U"; exit 1; }
-          docker run --rm qta:hosted-verify sh -c 'echo "PATH=$PATH"; command -v python'
+          [ "$U" = "harness" ] || { echo "EXPECTED USER harness, GOT $U"; exit 1; }
+          docker run --rm harness:hosted-verify sh -c 'echo "PATH=$PATH"; command -v python'
 
       # No host .venv is mounted anywhere; the image must be self-sufficient.
       - name: confirm no dependency on a host virtualenv
         run: |
-          docker run --rm qta:hosted-verify python -c \
+          docker run --rm harness:hosted-verify python -c \
             "import sys; print(sys.prefix); assert '/opt/venv' in sys.prefix, sys.prefix"
-          docker run --rm qta:hosted-verify python -c \
-            "import numpy, scipy, qutip, h5py; print(numpy.__version__, scipy.__version__, qutip.__version__, h5py.__version__)"
+          docker run --rm harness:hosted-verify python -c \
+            "import numpy, scipy, h5py; print(numpy.__version__, scipy.__version__, h5py.__version__)"
 
       # The governed verification the container declares as its entrypoint.
-      # This is the step that would raise the evidence state from RUNTIME_BUILT
-      # to RUNTIME_SCIENTIFICALLY_REPRODUCED.
       - name: run the governed in-container verification
         # the evidence directory is mounted so the in-image demonstration's
         # report can be compared with a native run below; the image's user
-        # (qta) writes it, so the directory is made writable first
+        # (harness) writes it, so the directory is made writable first
         run: |
           mkdir -p container-evidence
           chmod 0777 container-evidence
           docker run --rm -e HARNESS_EVIDENCE_DIR=/evidence \
-            -v "$PWD/container-evidence:/evidence" qta:hosted-verify
+            -v "$PWD/container-evidence:/evidence" harness:hosted-verify
 
-      # Section 49: the same demonstration natively, compared with the
+      # The same demonstration natively, compared with the
       # container's under the equivalence policy. Byte equality is not
       # required where the numerical backend legitimately differs; the
       # comparison classifies the slab result (BYTE_IDENTICAL,
@@ -121,13 +117,13 @@ jobs:
         if: always()
         run: |
           mkdir -p container-evidence
-          { docker version; echo; docker images qta:hosted-verify; } \
+          { docker version; echo; docker images harness:hosted-verify; } \
             > container-evidence/runtime.txt 2>&1 || true
           # the image's identity: its config digest and every layer, so the
           # evidence names the exact image that ran, not a tag
           docker image inspect --format \
             '{"image_id": "{{.Id}}", "layers": {{json .RootFS.Layers}}, "source_sha": "'"$GITHUB_SHA"'"}' \
-            qta:hosted-verify > container-evidence/image_identity.json 2>&1 || true
+            harness:hosted-verify > container-evidence/image_identity.json 2>&1 || true
           cat container-evidence/image_identity.json || true
           grep -E '^FROM |^USER |^CMD ' Dockerfile > container-evidence/declared.txt || true
 

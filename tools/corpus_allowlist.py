@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_multiphysics.stack.rag_index import (  # noqa: E402
+from agent_substrate.rag_index import (  # noqa: E402
     CORPUS_ALLOWLIST, CorpusMembershipError, allowlist_document,
     assert_corpus_is_allowlisted,
 )

@@ -1,16 +1,15 @@
-"""NF-1T s.2, s.53, s.62: the substrate keeps the hardware era out.
+"""NF-1T: the learned-model substrate stands alone.
 
-A future change that brings a machine mode, a B-to-C-to-D sequence or a
-gas-species routing rule into the learned-model substrate -- by name, by
-import, or by importing a module that carries one -- fails here.
-
-This file is the one place in the substrate's tests allowed to SPELL the
-terms (the audit classifies it TEST_OF_BOUNDARY); it never uses them.
+It imports neither the agent substrate (only ``tools/neural_ledger.py``
+records its documents in an authority history, in its own process) nor any
+module the repository retired, and its sources, tools and tests carry none
+of the retired programme's vocabulary -- read with the repository content
+audit's own patterns (``tools/repo_content_audit.py``), so there is one
+definition of that vocabulary and this file spells none of it.
 """
 from __future__ import annotations
 
 import ast
-import csv
 import subprocess
 import sys
 from pathlib import Path
@@ -21,15 +20,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
-import neural_legacy_audit as A  # noqa: E402
+import repo_content_audit as RCA  # noqa: E402
 
 PKG = ROOT / "scientific_ai"
 SOURCES = sorted(PKG.rglob("*.py"))
 PURE = ["config", "accounting", "solver", "family", "estimates", "claims",
         "manifests", "units", "tokens", "features", "documents", "datasets",
         "constraints", "ood", "source_surface_adsorption"]
-FORBIDDEN_PACKAGES = ("qta_multiphysics", "agent_substrate", "qta_full_sim",
-                      "qta_sim_stages", "package_consistency_check")
+FORBIDDEN_PACKAGES = ("agent_substrate",)
 
 
 def _imports(path: Path) -> list:
@@ -42,12 +40,14 @@ def _imports(path: Path) -> list:
     return out
 
 
-def _legacy_modules() -> set:
-    with (ROOT / "FILE_DISPOSITION.csv").open(newline="") as fh:
-        rows = list(csv.reader(fh))
-    return {r[0][:-3].replace("/", ".") for r in rows
-            if len(r) > 1 and r[1] == "RETIRE_TO_HISTORY"
-            and r[0].endswith(".py")}
+def _retired_modules() -> set:
+    return RCA.retired_from_inventory(ROOT)[1]
+
+
+def _terms(text: str) -> list:
+    scanned = RCA._strip_protocol(text)
+    return sorted({m.group(0).lower() for _, rx in RCA._TERMS
+                   for m in rx.finditer(scanned)})
 
 
 def test_there_is_a_substrate_to_check():
@@ -56,19 +56,20 @@ def test_there_is_a_substrate_to_check():
 
 @pytest.mark.parametrize("path", SOURCES, ids=lambda p: str(p.relative_to(
     ROOT)))
-def test_no_substrate_module_imports_the_legacy_or_the_agent_layer(path):
-    legacy = _legacy_modules()
+def test_no_substrate_module_imports_a_retired_or_the_agent_layer(path):
+    retired = _retired_modules()
     for name in _imports(path):
-        root = name.split(".")[0]
-        assert root not in FORBIDDEN_PACKAGES, (path, name)
-        assert name not in legacy, (path, name)
+        parts = name.split(".")
+        assert parts[0] not in FORBIDDEN_PACKAGES, (path, name)
+        assert not any(".".join(parts[:i]) in retired
+                       for i in range(1, len(parts) + 1)), (path, name)
 
 
 @pytest.mark.parametrize("path", SOURCES + [ROOT / "tools" / "neural.py",
                                    ROOT / "tools" / "neural_ledger.py"],
                          ids=lambda p: str(p.relative_to(ROOT)))
-def test_no_substrate_source_names_a_machine_mode_or_species_route(path):
-    assert A.hits(path.read_text(encoding="utf-8")) == {}, path
+def test_no_substrate_source_carries_the_retired_vocabulary(path):
+    assert _terms(path.read_text(encoding="utf-8")) == [], path
 
 
 def test_only_the_ledger_tool_reaches_the_authority_substrate():
@@ -92,17 +93,29 @@ def test_only_the_ledger_tool_reaches_the_authority_substrate():
 
 
 def test_no_substrate_test_names_them_either():
-    for path in sorted((ROOT / "tests").glob("test_neural_*.py")):
-        if path.name == "test_neural_boundary.py":
-            continue
-        assert A.hits(path.read_text(encoding="utf-8")) == {}, path
+    tests = sorted((ROOT / "tests").glob("test_neural_*.py"))
+    assert tests
+    for path in tests:
+        assert _terms(path.read_text(encoding="utf-8")) == [], path
+
+
+def test_the_scan_sees_a_retired_name_and_a_retired_import(tmp_path):
+    """CONTROL: the two checks above are not vacuous. A retired output's
+    name is a finding, and so is importing a module the inventory
+    retired."""
+    assert _terms("reads " + RCA.RETIRED_NAMES[0])
+    mod = sorted(_retired_modules())[0]
+    probe = tmp_path / "probe.py"
+    probe.write_text(f"import {mod}\n", encoding="utf-8")
+    assert mod in _imports(probe)
+    assert mod in _retired_modules()
 
 
 def test_the_pure_modules_load_no_framework():
     mods = ", ".join(f"scientific_ai.neural.{m}" for m in PURE)
     code = (f"import sys; import {mods}; "
             "bad = [m for m in sys.modules if m.split('.')[0] in "
-            "('jax', 'jaxlib', 'torch', 'qta_multiphysics', 'agent_substrate')]; "
+            "('jax', 'jaxlib', 'torch', 'agent_substrate')]; "
             "print(bad); sys.exit(1 if bad else 0)")
     r = subprocess.run([sys.executable, "-c", code], cwd=ROOT,
                        capture_output=True, text=True)
@@ -126,79 +139,3 @@ def test_the_governance_layer_imports_no_numerics():
         for imp in _imports(ROOT / "agent_substrate" / name):
             assert imp.split(".")[0] not in ("scientific", "scientific_ai",
                                              "numpy", "jax"), (name, imp)
-
-
-def test_the_audit_finds_no_neural_leak_and_no_unexplained_file():
-    rep = A.audit()
-    assert rep["active_neural_semantic_leaks"] == 0
-    assert rep["unclassified"] == 0
-
-
-def test_the_audit_finds_no_generic_leak_either():
-    """Enforced since the harness programme: it was only reported, and the
-    one active document that carried a machine-mode requirement (the FMI
-    element of stack.json) now states the generic step semantics the FMU
-    is actually tested against."""
-    rep = A.audit()
-    assert rep["active_generic_semantic_leaks"] == 0, [
-        f["path"] for f in rep["findings"]
-        if f["class"] == "ACTIVE_GENERIC_SEMANTIC_LEAK"]
-
-
-def test_every_qta_plugin_finding_says_whether_the_witness_freezes_it():
-    rep = A.audit()
-    plugins = [f for f in rep["findings"]
-               if f["class"] == "QTA_MODEL_PLUGIN_DOMAIN"]
-    assert plugins and all("in_witnessed_generator_closure" in f
-                           for f in plugins)
-    assert any(f["in_witnessed_generator_closure"] for f in plugins)
-
-
-@pytest.mark.parametrize("doc, unscoped", [
-    ('{"legacy_authorities": {"m": "Mode B processing"}}', 0),
-    ('{"legacy": ["methane routing"], "x": "generic"}', 0),
-    ('{"authorities": {"m": "Mode B processing"}}', 1),
-    ('{"open_items": ["a step may not straddle a Mode C change"]}', 1),
-    ('{"Mode_D": 1}', 1),
-    ('not json', None),
-])
-def test_an_active_json_hit_is_legacy_only_under_a_legacy_key(doc,
-                                                               unscoped):
-    assert A.unscoped_json_hits(doc) == unscoped
-
-
-def test_an_active_json_document_with_an_unscoped_hit_is_a_leak(tmp_path):
-    (tmp_path / "FILE_DISPOSITION.csv").write_text(
-        "path,disposition\nreg.json,KEEP_AND_HARDEN\n"
-        "old.json,KEEP_AND_HARDEN\n")
-    (tmp_path / "reg.json").write_text('{"items": ["Mode B only"]}')
-    (tmp_path / "old.json").write_text(
-        '{"legacy_items": ["Mode B only"]}')
-    rep = A.audit(tmp_path, files=["reg.json", "old.json"])
-    by = {f["path"]: f["class"] for f in rep["findings"]}
-    assert by == {"reg.json": "ACTIVE_GENERIC_SEMANTIC_LEAK",
-                  "old.json": "LEGACY_SCOPED_SECTION"}
-    assert rep["active_generic_semantic_leaks"] == 1
-
-
-@pytest.mark.parametrize("planted,cls", [
-    ("scientific_ai/neural/new_router.py", "ACTIVE_NEURAL_SEMANTIC_LEAK"),
-    ("tools/neural_export.py", "ACTIVE_NEURAL_SEMANTIC_LEAK"),
-    ("tests/test_neural_new.py", "ACTIVE_NEURAL_SEMANTIC_LEAK"),
-    ("docs/neural/new_report.json", "ACTIVE_NEURAL_SEMANTIC_LEAK"),
-])
-def test_a_planted_leak_would_be_classified_as_one(planted, cls):
-    assert A.classify(planted, {})[0] == cls
-
-
-@pytest.mark.parametrize("line", [
-    "route species by Mode B", "mode_c_threshold = 3", "MODE_D",
-    "B -> C -> D", "B→C→D", "methane inventory",
-    "helium leak"])
-def test_the_audit_patterns_catch_each_spelling(line):
-    assert A.hits(line), line
-
-
-def test_ordinary_words_are_not_mistaken_for_the_terms():
-    assert A.hits("a model mode of operation; modern methods; "
-                  "the hello world; mode argument") == {}

@@ -3,7 +3,7 @@
 `authorities.json` and `AGENT_SUBSTRATE.md` state the invariant: agent
 execution cannot directly mutate authoritative scientific state, evidence, or
 acceptance state except through the governed interfaces and event-derived
-authority machinery (`automatic_gate_effect = NONE`). Prose cannot enforce
+authority machinery (`authority_effect = NONE`). Prose cannot enforce
 that. One `import` from a solver would make every one of those sentences
 false while every other test in the repository stayed green.
 
@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
-from repo_scope import files_matching, repository_files  # noqa: E402
+from repo_scope import repository_files  # noqa: E402
 
 PKG = ROOT / "agent_substrate"
 
@@ -127,6 +127,14 @@ ALLOWED_IMPORTERS = {
     # NF-1T. The learned-record boundary's own tests: the store's live and
     # replayed refusal, the second reader's, and the lifecycle's links.
     "tests/test_neural_provenance.py",
+    # Writes the retrieval corpus allowlist from rag_index's own document
+    # function: a reviewed commit, not a library call, approves a corpus.
+    # It computes no scientific result.
+    "tools/corpus_allowlist.py",
+    "tests/test_agent_authority_boundaries.py",
+    "tests/test_agent_retrieval.py",
+    # Runs one real refusal of the authority gate under `python -O`.
+    "tests/test_no_enforcing_asserts.py",
     # NF-1T. Records ALREADY-WRITTEN learned-model documents in a fresh,
     # throwaway history and evaluates the claims; it computes no scientific
     # result and trains nothing. tools/neural.py, which does both, runs it
@@ -201,6 +209,9 @@ LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
           "separate_verify",
           "scheduler", "memory", "context", "agents", "audit",
           "_artifact_tool", "_index_tool", "governed_tasks",
+          # Read-only retrieval over the reviewed corpus. Imports nothing
+          # internal; its one crossing is the workspace guard's read side.
+          "rag_index",
           # Above governed_tasks, which it drives with its own tool
           # registry; names the scientific tools by module string and
           # imports nothing outside the package.
@@ -215,32 +226,47 @@ LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
 #: thing they may reach for.
 #:
 #: The direction matters and the two are not symmetric. Science importing the
-#: agent would let a gate depend on an authority verdict, which is the failure
-#: this whole package is built to make impossible -- that stays absolutely
-#: forbidden. The agent importing a workflow is what GOVERNING a workflow
-#: means; a control plane with no reachable production path is a library.
+#: agent would let a result depend on an authority verdict, which is the
+#: failure this whole package is built to make impossible -- that stays
+#: absolutely forbidden. The agent reaching the workspace guard is what lets
+#: a governed tool write and read exactly where an ungoverned one may.
 #:
-#: So the crossing is allowed, named, and narrow: two bridge modules, one
-#: import, and it is the Stage-10 WRITE GUARD rather than any solver. A
-#: governed run is therefore subject to exactly the same write allowlist as an
+#: So the crossing is allowed, named, and narrow: three modules, one import,
+#: and it is the workspace GUARD (``scientific.workspace``) rather than any
+#: model. A governed run is subject to exactly the same write allowlist as an
 #: ungoverned one -- the substrate adds authority, it does not replace the
-#: guard that was already there.
+#: guard.
 BRIDGE_MODULES = {
-    "governed_tasks": {"qta_multiphysics"},
-    "_artifact_tool": {"qta_multiphysics"},
+    "_artifact_tool": {"scientific"},
     # The second tool, and the same single import. It reaches for the
-    # Stage-10 guard's READ side as well as its write side, which is the
-    # narrower crossing rather than a wider one: it is how a tool that hashes
-    # caller-named paths is stopped from hashing a canonical output.
-    "_index_tool": {"qta_multiphysics"},
+    # guard's READ side as well as its write side, which is how a tool that
+    # hashes caller-named paths is stopped from hashing a tracked file.
+    "_index_tool": {"scientific"},
+    # Retrieval writes its index into the workspace and reads only the
+    # reviewed corpus, through the same guard.
+    "rag_index": {"scientific"},
 }
 
-#: Reaching any of these from agent_substrate would make an authority verdict able
-#: to influence a computed result. Forbidden for EVERY module, bridges too.
-FORBIDDEN_SCIENTIFIC = {
-    "qta_full_sim", "metrics", "runner_3d", "convergence_3d", "uncertainty",
-    "config", "machine_fsm", "mode_sequence_3d", "state_machine_3d",
-}
+#: The one scientific module a bridge may import.
+BRIDGE_TARGET = "scientific.workspace"
+
+
+def _scientific_imports(path: Path) -> set:
+    """Every ``scientific`` module a file imports, by full dotted name,
+    lazy imports included."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found.update(a.name for a in node.names
+                         if a.name.split(".")[0] == "scientific")
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 \
+                and node.module and node.module.split(".")[0] == "scientific":
+            if node.module == "scientific":
+                found.update(f"scientific.{a.name}" for a in node.names)
+            else:
+                found.add(node.module)
+    return found
 
 
 def _modules():
@@ -278,20 +304,32 @@ def _all_imported_names(path: Path) -> set:
 
 # --- the substrate does not reach into the science ---------------------------
 
-def test_no_substrate_module_reaches_a_solver_or_a_gate():
+def test_no_substrate_module_reaches_a_scientific_model():
     """The direction that would let an authority verdict change a result.
 
     Absolute, and it applies to the bridge modules too: a bridge may call the
-    Stage-10 write guard, and may not call anything that computes physics.
+    workspace guard, and may not import anything that computes.
     """
     bad = []
     for mod in _modules():
-        hit = _all_imported_names(mod) & FORBIDDEN_SCIENTIFIC
+        hit = _scientific_imports(mod) - {BRIDGE_TARGET}
         if hit:
             bad.append(f"{mod.name}: {sorted(hit)}")
     assert not bad, (
-        "agent_substrate reached a solver or gate module; automatic_gate_effect="
-        f"NONE would be false: {bad}")
+        "agent_substrate reached a scientific module other than the "
+        f"workspace guard; authority_effect=NONE would be false: {bad}")
+
+
+def test_the_scientific_scan_sees_a_model_import(tmp_path):
+    """CONTROL: a planted model import, eager or lazy, is seen."""
+    probe = tmp_path / "probe.py"
+    probe.write_text("from scientific import workspace\n"
+                     "def f():\n"
+                     "    from scientific.models import slab_transient\n"
+                     "    import scientific.catalog\n", encoding="utf-8")
+    assert _scientific_imports(probe) == {
+        "scientific.workspace", "scientific.models",
+        "scientific.catalog"}
 
 
 def test_only_the_declared_bridges_reach_into_the_scientific_tree():
@@ -333,24 +371,17 @@ def test_the_core_substrate_is_stdlib_only():
     assert not bad, f"non-stdlib dependency in the core substrate: {bad}"
 
 
-def test_a_bridge_may_only_reach_the_stage10_write_guard():
+def test_a_bridge_may_only_reach_the_workspace_guard():
     """Named narrowly: the guard, not the package.
 
-    ``qta_multiphysics`` is a large tree. A bridge that may import any of it
-    could import a solver tomorrow without changing the allowlist, so the
-    permitted SYMBOL is pinned too.
+    ``scientific`` holds the models. A bridge that may import any of it
+    could import a model tomorrow without changing the allowlist, so the
+    permitted MODULE is pinned too -- and each bridge really does use it,
+    or it would not need to be a bridge.
     """
     for stem in BRIDGE_MODULES:
-        src = (PKG / f"{stem}.py").read_text(encoding="utf-8")
-        for line in src.splitlines():
-            stripped = line.strip()
-            if "qta_multiphysics" not in stripped:
-                continue
-            if stripped.startswith("#") or stripped.startswith(('"', "'")):
-                continue
-            assert "qta_multiphysics.stack" in stripped, (
-                f"{stem}.py reaches qta_multiphysics outside the stack "
-                f"workspace layer: {stripped}")
+        found = _scientific_imports(PKG / f"{stem}.py")
+        assert found == {BRIDGE_TARGET}, (stem, found)
 
 
 # --- the science does not reach into the substrate ---------------------------
@@ -427,48 +458,55 @@ def test_nothing_outside_the_package_imports_the_substrate():
         f"{sorted(unexpected)}")
 
 
-def test_no_gate_computing_module_references_the_substrate():
-    """A gate must not be computable only when the substrate is importable.
+def test_no_scientific_module_imports_the_substrate():
+    """A result must not be computable only when the substrate is importable.
 
-    The Snakefile is deliberately excluded here and checked separately below:
-    it holds both gate rules and Stage-10 rules, and the governed Stage-10
-    rule referencing agent_substrate is the production integration rather than a
-    violation. Everything that actually computes a gate is checked with no
-    exception at all.
+    Read from the parse tree, lazy imports included, over every module of
+    the scientific layer and the learned-model substrate -- the code that
+    computes -- and the manifest generator. Their docstrings may NAME the
+    substrate (several say they do not know it); an import is what counts.
     """
-    # The package name as a token: "test_agent_substrate_isolation.py",
-    # which a gate module's comment may point at, is not the package.
-    offenders = [f for f in files_matching(r"(?<![A-Za-z0-9_])"
-                                           r"agent_substrate")
-                 if f == "qta_full_sim.py"
-                 or f.startswith("qta_multiphysics/")
-                 or f == "generate_manifest.py"]
+    offenders = []
+    for rel in _repository_python_files():
+        if not (rel.startswith(("scientific/", "scientific_ai/"))
+                or rel == "generate_manifest.py"):
+            continue
+        tree = ast.parse((ROOT / rel).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            names = ([a.name for a in node.names]
+                     if isinstance(node, ast.Import) else
+                     [node.module] if isinstance(node, ast.ImportFrom)
+                     and node.level == 0 and node.module else [])
+            if any(n.split(".")[0] == "agent_substrate" for n in names):
+                offenders.append(rel)
     assert not offenders, (
-        f"a gate-computing module references agent_substrate: {offenders}")
+        f"a computing module imports agent_substrate: {sorted(offenders)}")
 
 
 #: The Snakemake rules permitted to reference agent_substrate, and the complete
 #: set of them: one workflow emitting a governed artifact, one indexing what
-#: the Stage-10 rules produced, and -- the deliberate third widening -- the
-#: governed scientific-model path, whose whole point is that a model result
-#: reaches authority only through the substrate. None of the three is a gate
-#: rule, and a fourth should look as deliberate as this one.
-GOVERNED_RULES = {"s10_governed", "s10_governed_index", "s10_governed_model"}
+#: the workflow rules produced, the governed scientific-model path, whose
+#: whole point is that a model result reaches authority only through the
+#: substrate, and the read-only retrieval index the agent side builds over
+#: the reviewed corpus. None of them computes a scientific result, and a
+#: fifth should look as deliberate as this one.
+GOVERNED_RULES = {"governed_tasks", "governed_index", "governed_model",
+                  "retrieval_index"}
 
 
 def test_the_workflow_touches_the_substrate_only_in_the_governed_rules():
     """The production integration is confined to named rules.
 
-    A gate rule that imported agent_substrate would make a scientific result depend
-    on whether the authority layer is importable, which is exactly what
-    automatic_gate_effect=NONE denies. Confining the reference to
+    A rule that computed a result and imported agent_substrate would make a
+    scientific result depend on whether the authority layer is importable,
+    which is exactly what authority_effect=NONE denies. Confining the reference to
     :data:`GOVERNED_RULES` keeps the integration real and keeps that denial
     true.
     """
     raw = (ROOT / "Snakefile").read_text(encoding="utf-8")
     # Comment lines are stripped first. A block that ends where the next rule
     # BEGINS also swallows that rule's preceding comments, so the explanation
-    # above s10_governed would otherwise be attributed to whatever rule came
+    # above governed_tasks would otherwise be attributed to whatever rule came
     # before it -- a false positive that says nothing about the code.
     text = "\n".join(line for line in raw.splitlines()
                      if not line.lstrip().startswith("#"))
@@ -559,17 +597,16 @@ def test_reconstruct_does_not_import_the_implementation_it_checks():
 
 # --- the registry says what the code does ------------------------------------
 
-def test_the_registry_declares_the_substrate_has_no_gate_effect():
+def test_the_registry_declares_the_substrate_has_no_authority_effect():
     reg = json.loads((ROOT / "authorities.json").read_text(encoding="utf-8"))
     entry = reg["authorities"]["agent_authority_substrate"]
-    assert entry["automatic_gate_effect"] == "NONE"
+    assert entry["authority_effect"] == "NONE"
     assert "does_not_mean" in entry, (
         "the boundary between provenance and physics must be explicit")
     blob = " ".join(entry["does_not_mean"].split()).lower()
     # Matched on substance, not typography: a test that breaks when someone
     # rewraps a paragraph is a test that gets loosened rather than fixed.
-    # The invariant is the generic one (directive 12); "PASS=0 is
-    # unaffected" was its hardware-era example, and retired with the gates.
+    # The invariant is the generic one (directive 12).
     assert re.search(r"cannot directly mutate authoritative scientific\s+"
                      r"state, evidence, or acceptance state", blob), (
         "the disclaimer does not state the invariant")
@@ -589,7 +626,7 @@ def test_the_narrative_document_mirrors_the_registry():
     """`AGENT_SUBSTRATE.md` may elaborate; it may not contradict."""
     doc = (ROOT / "AGENT_SUBSTRATE.md").read_text(encoding="utf-8")
     flat = " ".join(doc.replace("*", " ").split())
-    assert "automatic_gate_effect" in doc and "NONE" in doc
+    assert "authority_effect" in doc and "NONE" in doc
     assert re.search(r"cannot directly mutate authoritative scientific "
                      r"state, evidence, or acceptance state except through "
                      r"the governed interfaces", flat), (
@@ -643,11 +680,18 @@ IO_LAYER = {
     "projection": "the package's own source, to digest reducer identity",
     # A TOOL, not a layer of the substrate. It runs in a bounded subprocess
     # with no log handle, no capability set and no network, and its reads are
-    # confined by the Stage-10 workspace read guard. Handing it a
+    # confined by the governed workspace read guard. Handing it a
     # GovernedReader would hand a tool the supervisor's authority, which is
     # the opposite of what running it in its own process is for.
     "_index_tool": "a subprocess tool, confined by the workspace "
                            "read guard rather than by a grant it holds",
+    # Retrieval reads the REVIEWED corpus: every path must be in the
+    # committed allowlist, at the digest the allowlist records, under the
+    # corpus root, and a symlink or traversal is refused before the read.
+    # It holds no grant because it is handed no caller authority; what it
+    # may read is what a reviewed commit declared.
+    "rag_index": "the reviewed corpus, confined by the committed "
+                 "allowlist and its digests",
 }
 
 _READ_CALLS = {"read_text", "read_bytes"}
@@ -774,12 +818,11 @@ def test_no_definition_ANYWHERE_is_silently_shadowed():
     """The rule of the test below, over everything this repository ships.
 
     That scan was written for `agent_substrate/` after D-2026-43 and pointed at
-    one package. While it guarded the substrate,
-    `qta_multiphysics/deep_expdesign/runner.py` carried two definitions of
-    `run_deep_expdesign_full` -- 176 lines and 213, DIVERGED, the first dead
-    because Python keeps the last. Ruff had been reporting it as F811 the
-    whole time; CI lints a named list of paths and that package is not on
-    it, so nothing read the finding.
+    one package. While it guarded the substrate, a package outside it carried
+    two definitions of one function -- 176 lines and 213, DIVERGED, the
+    first dead because Python keeps the last. Ruff had been reporting it as
+    F811 the whole time; CI linted a named list of paths and that package was
+    not on it, so nothing read the finding.
 
     A rule scoped to a list protects the list, not the property.
     """
@@ -796,7 +839,7 @@ def test_the_sweep_is_not_reporting_on_an_empty_file_list():
     root = Path(__file__).resolve().parent.parent
     owned = _owned_python_files(root)
     assert len(owned) > 200, f"the sweep found only {len(owned)} owned files"
-    assert any("qta_multiphysics" in str(f) for f in owned)
+    assert any("scientific" in str(f) for f in owned)
     assert any("agent_substrate" in str(f) for f in owned)
 
 
@@ -809,7 +852,7 @@ def test_the_sweep_sees_a_shadowed_definition_in_a_file_the_repo_owns(tmp_path):
     sweep actually takes.
     """
     root = Path(__file__).resolve().parent.parent
-    planted = root / "qta_multiphysics" / "_shadow_sweep_probe.py"
+    planted = root / "scientific" / "_shadow_sweep_probe.py"
     planted.write_text("def f():\n    pass\n\n\ndef f():\n    pass\n",
                        encoding="utf-8")
     subprocess.run(["git", "add", "-N", str(planted)], cwd=root, check=True,
@@ -852,7 +895,7 @@ def test_a_decorated_redefinition_is_not_a_shadowed_definition(tmp_path):
     would make the gate cry wolf on ordinary Python, and a gate that cries
     wolf is a gate that gets switched off."""
     root = Path(__file__).resolve().parent.parent
-    planted = root / "qta_multiphysics" / "_decorated_probe.py"
+    planted = root / "scientific" / "_decorated_probe.py"
     planted.write_text(
         "class C:\n"
         "    @property\n"

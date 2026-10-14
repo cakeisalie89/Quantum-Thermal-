@@ -1,8 +1,8 @@
-"""The current-active type-check scope (directive s.27): every tracked
-Python file in exactly one of ACTIVE, TESTS or LEGACY; the active scope
-covering what the directive names; the mypy override held to exactly the
-modules frozen by NF-1T provenance, and those modules really frozen; every
-local ignore narrow and explained; legacy debt recorded apart."""
+"""The current-active type-check scope: every tracked Python file in
+exactly one of ACTIVE or TESTS, none unscoped; the active scope covering
+every production layer; the mypy override held to exactly the modules
+frozen by NF-1T provenance, and those modules really frozen; every local
+ignore narrow and explained."""
 from __future__ import annotations
 
 import json
@@ -24,48 +24,39 @@ def test_every_tracked_python_file_is_in_exactly_one_scope():
     assert sum(len(v) for v in parts.values()) == len(files)
     seen = [f for v in parts.values() for f in v]
     assert len(seen) == len(set(seen)) == len(files)
+    assert parts["unscoped"] == [], parts["unscoped"]
 
 
 @pytest.mark.parametrize("required", [
     "agent_substrate/events.py", "scientific/catalog.py",
+    "scientific/integrations/vtk_export.py",
     "scientific_ai/neural/model/network.py",
-    "qta_multiphysics/stack/rust_kernel.py",
     "integrations/fmi/fmpy_runner.py", "integrations/fenicsx/runner.py",
     "agent_substrate/proposals.py", "tools/harness_status.py",
-    "tools/typecheck_scope.py", "ro_crate_tools.py",
+    "tools/typecheck_scope.py", "ro_crate_tools.py", "generate_manifest.py",
 ])
-def test_the_active_scope_covers_what_the_directive_names(required):
+def test_the_active_scope_covers_every_production_layer(required):
     assert TS.partition([required])["active"] == [required]
 
 
-@pytest.mark.parametrize("legacy", [
-    "qta_full_sim.py", "qta_multiphysics/runner.py",
-    "package_consistency_check.py",
-])
-def test_the_hardware_era_tree_is_legacy_debt_not_active(legacy):
-    assert TS.partition([legacy])["legacy"] == [legacy]
-
-
-def test_a_sibling_directory_is_not_mistaken_for_an_active_one():
-    """``tools`` is active; ``tools_old/x.py`` is not inside it."""
-    assert TS.partition(["tools_old/x.py"])["legacy"] == ["tools_old/x.py"]
-    assert TS.partition(["scientificx.py"])["legacy"] == ["scientificx.py"]
+def test_a_file_outside_every_scope_is_reported_not_absorbed():
+    """CONTROL: a new top-level module, or a sibling directory, is
+    UNSCOPED -- there is no third set code can land in unchecked."""
+    assert TS.partition(["tools_old/x.py"])["unscoped"] == ["tools_old/x.py"]
+    assert TS.partition(["scientificx.py"])["unscoped"] == ["scientificx.py"]
+    assert TS.partition(["new_root.py"])["unscoped"] == ["new_root.py"]
 
 
 def test_the_mypy_override_is_exactly_the_frozen_list():
     assert TS.config_frozen() == set(TS.FROZEN)
 
 
-def test_the_witnessed_environment_lock_is_not_where_typing_is_configured():
-    """pyproject.toml is in the byte-reproduction witness's environment lock;
-    the active scope's configuration is a file of its own so that typing
-    work cannot make the witness stop applying (as a first draft did)."""
-    prof = json.loads((ROOT / "docs" / "byte_reproduction_profile.json")
-                      .read_text())
-    assert "pyproject.toml" in prof["environment"]["lock"]
-    assert TS.CONFIG.name not in prof["environment"]["lock"]
+def test_the_check_reads_the_active_configuration_file():
+    """mypy is run with ``typecheck_active.ini`` and nothing else: no
+    ``[tool.mypy]`` in pyproject.toml can quietly widen or narrow it."""
     assert "--config-file" in (ROOT / "tools" / "typecheck_scope.py"
                                ).read_text()
+    assert "[tool.mypy" not in (ROOT / "pyproject.toml").read_text()
 
 
 def test_the_frozen_modules_are_the_closure_the_dataset_pins():
@@ -125,13 +116,10 @@ def test_every_ignore_in_the_active_scope_is_local_coded_and_explained():
 
 def test_the_recorded_scope_matches_the_tool():
     doc = json.loads(TS.DOC.read_text())
-    assert doc["active"] == list(TS.ACTIVE)
-    assert doc["tests"] == list(TS.TESTS)
-    assert doc["frozen"] == {m: TS.FROZEN[m] for m in sorted(TS.FROZEN)}
-    debt = doc["legacy"]
-    assert debt["errors"] >= 0 and debt["measured_files"] > 0
-    assert sum(debt["by_file"].values()) == debt["errors"]
-    assert all(TS.partition([f])["legacy"] == [f] for f in debt["by_file"])
+    assert doc == TS.document(), (
+        "docs/typing_scope.json is stale: python tools/typecheck_scope.py "
+        "write")
+    assert doc["unscoped"] == []
 
 
 @pytest.mark.parametrize("text, want", [

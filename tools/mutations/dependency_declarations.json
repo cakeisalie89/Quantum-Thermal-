@@ -36,8 +36,8 @@
     {
       "name": "DD5_tests_are_not_scanned",
       "path": "tools/dependency_declarations.py",
-      "find": "    return sorted(p for p in r.stdout.split(\"\\0\")\n                  if p and not p.startswith(\"attic/\"))\n",
-      "replace": "    return sorted(p for p in r.stdout.split(\"\\0\")\n                  if p and not p.startswith((\"attic/\", \"tests/\")))\n",
+      "find": "    return sorted(p for p in r.stdout.split(\"\\0\") if p)\n",
+      "replace": "    return sorted(p for p in r.stdout.split(\"\\0\")\n                  if p and not p.startswith(\"tests/\"))\n",
       "rationale": "the scope shrinks to exclude the directory the defect was in"
     },
     {

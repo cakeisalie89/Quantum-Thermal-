@@ -11,14 +11,14 @@ checked here:
      a set of size one that could not have grown without an edit in a
      different file;
   2. inside the governed output subtree the governed path is the ONLY route.
-     Outside it the Stage-10 adapters stay directly callable on purpose, and
+     Outside it the workspace writers stay directly callable on purpose, and
      that is asserted here rather than assumed, because a guard that turned
      out to block the ungoverned pipeline would be a regression the governed
      tests could not see;
   3. a tool that hashes paths a caller names needs a READ guard. The write
      allowlist says nothing about reads, and a governed digest of
-     ``results_gate_table.csv`` would put a canonical output into a
-     provenance chain the substrate is not allowed to mediate.
+     ``final_manifest.json`` would put a tracked file into a provenance
+     chain the substrate is not allowed to mediate.
 
 Every test runs against the real workspace, because the guards under test are
 the real workspace's guards.
@@ -45,7 +45,7 @@ from agent_substrate.governed_tasks import (  # noqa: E402
 )
 from agent_substrate.tasks import TaskState  # noqa: E402
 from agent_substrate.tools import Determinism, ToolNotRegistered  # noqa: E402
-from qta_multiphysics.stack import workspace as WS_GUARD  # noqa: E402
+from scientific import workspace as WS_GUARD  # noqa: E402
 
 WS = "verification/stage10/_pytest_breadth"
 
@@ -127,7 +127,7 @@ def test_the_second_tool_reaches_VERIFIED_over_real_workspace_files(gov):
     assert run.artifacts, "a verified run with no artifacts proves nothing"
     body = _declared(gov, run, "index.json")
     assert body["n_files"] == 3, body
-    assert body["automatic_gate_effect"] == "NONE"
+    assert body["authority_effect"] == "NONE"
     for entry in body["files"]:
         assert digest_bytes((ROOT / entry["path"]).read_bytes()) \
             == entry["sha256"]
@@ -267,7 +267,7 @@ def test_a_comparison_that_covers_nothing_is_not_agreement(gov):
 # --------------------------------------------------------------------------
 
 @pytest.mark.parametrize("target", [
-    "results_gate_table.csv",           # a canonical, byte-gated output
+    "stack.json",                       # a tracked registry
     "final_manifest.json",              # the manifest
     "README.md",
     "/etc/hostname",
@@ -332,7 +332,7 @@ def test_an_ungoverned_writer_cannot_write_into_the_governed_subtree():
         # baseline, which is the one trap the harness exists to close.
         try:
             with pytest.raises(ValueError,
-                               match="governed Stage-10 path only"):
+                               match="governed path only"):
                 WS_GUARD.write_json_deterministic(target, {"forged": True})
             assert not target.exists(), (
                 f"{target} exists after a refused write")

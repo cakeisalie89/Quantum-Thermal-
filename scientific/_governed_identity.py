@@ -24,7 +24,7 @@ def main(argv: list) -> int:
         print(f"inputs are not JSON: {exc}", file=sys.stderr)
         return 2
 
-    from qta_multiphysics.stack import workspace as WS
+    from scientific import workspace as WS
 
     from .catalog import models
     from .model import run_identity_for

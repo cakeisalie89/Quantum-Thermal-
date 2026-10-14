@@ -442,7 +442,7 @@ def main() -> int:
         # A mutation that disables a safety guard lets the SUITE damage files
         # the harness never touched. Verifying only that the mutated sources
         # were restored misses that entirely -- and it happened: removing the
-        # Stage-10 write guard let a test replace a 261-line governed README
+        # workspace write guard let a test replace a 261-line governed README
         # with one line of forged text, and the corrupted file was nearly
         # committed alongside a manifest regenerated over it. The tracked
         # working tree is therefore checked after every mutation, not just the

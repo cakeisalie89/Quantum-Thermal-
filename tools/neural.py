@@ -8,7 +8,8 @@
     distributed   the parallel checks, on eight SIMULATED CPU devices
     architecture  meta-validate and write the model manifests of the
                   development model and the flagship, and the family table
-    audit         the legacy-semantics audit report
+    audit         the repository content audit over the learned-model
+                  substrate's own files: no retired content in them
     claims        record every document in a fresh authority history (by
                   tools/neural_ledger.py, in its own process) and write the
                   claims and statuses it supports
@@ -69,10 +70,9 @@ F = {
     "status": EVID / "current_status.json",
     "status_md": Path("SCIENTIFIC_AI_STATUS.md"),
 }
-#: The legacy QTA hardware forecast's gate table: read for the status's
-#: LEGACY_QTA_ONLY section and nothing else.
-LEGACY_QTA_GATE_TABLE = Path("results_gate_table.csv")
-REPRODUCTION_WITNESS = Path("docs") / "byte_reproduction_profile.json"
+#: The learned-model substrate's own files, which the content audit must
+#: find clean.
+NEURAL_PATHS = ("scientific_ai/", "docs/neural/")
 DATASET_ID = "surface_adsorption_dev_v1"
 DESIGN = {"n_in": 3072, "n_ood": 384, "design_seed": 20261006,
           "split_seed": 7}
@@ -456,9 +456,25 @@ def cmd_architecture(args) -> int:
 
 # -- audit and claims ------------------------------------------------------
 
+def neural_content_findings() -> list:
+    """The repository content audit (``tools/repo_content_audit.py``) over
+    the learned-model substrate's own files. An allowance no file in this
+    subset uses is not a finding here: the whole-tree audit owns that."""
+    import repo_content_audit as RCA
+    files = [f for f in RCA.tracked(ROOT) if f.startswith(NEURAL_PATHS)]
+    if not files:
+        return [{"category": "SCOPE", "path": ", ".join(NEURAL_PATHS),
+                 "detail": "no file in scope: a clean audit of nothing"}]
+    return [f for f in RCA.audit(ROOT, files)["findings"]
+            if f["category"] != "STALE_ALLOWANCE"]
+
+
 def cmd_audit(args) -> int:
-    import neural_legacy_audit
-    return neural_legacy_audit.main(["--write"])
+    found = neural_content_findings()
+    for f in found:
+        print(f"{f['category']}: {f['path']}: {f['detail']}")
+    print(f"learned-model substrate content: {len(found)} finding(s)")
+    return 1 if found else 0
 
 
 def ledger_claims() -> dict:
@@ -522,22 +538,9 @@ def cmd_rederive(args) -> int:
     return rc or cmd_status(args)
 
 
-def _gate_statuses() -> dict:
-    """Status counts of the legacy QTA gate table, for its own section of
-    the status and nothing else."""
-    import collections
-    import csv
-    with (ROOT / LEGACY_QTA_GATE_TABLE).open(newline="",
-                                             encoding="utf-8") as fh:
-        return dict(collections.Counter(r["status"]
-                                        for r in csv.DictReader(fh)))
-
-
 def build_status() -> dict:
     from scientific.reproduction import NOT_ESTABLISHED
     from scientific_ai.neural import status as S
-    import neural_legacy_audit
-    import pass_semantics_audit
     keys = ("flagship_manifest", "flagship_meta", "dev_manifest", "claims",
             "training", "dataset_manifest", "evaluation", "checkpoint",
             "distributed", "family")
@@ -546,11 +549,7 @@ def build_status() -> dict:
         return hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
 
     sources = {
-        "neural_evidence": {str(F[k]): sha(F[k]) for k in sorted(keys)},
-        "reproduction_witness": {"path": str(REPRODUCTION_WITNESS),
-                                 "sha256": sha(REPRODUCTION_WITNESS)},
-        "legacy_qta_gate_table": {"path": str(LEGACY_QTA_GATE_TABLE),
-                                  "sha256": sha(LEGACY_QTA_GATE_TABLE)}}
+        "neural_evidence": {str(F[k]): sha(F[k]) for k in sorted(keys)}}
     return S.build(
         flagship_manifest=read_json(F["flagship_manifest"]),
         flagship_meta=read_json(F["flagship_meta"]),
@@ -562,11 +561,7 @@ def build_status() -> dict:
         checkpoint=read_json(F["checkpoint"]),
         distributed=read_json(F["distributed"]),
         family=read_json(F["family"]),
-        witness_profile=read_json(REPRODUCTION_WITNESS),
         equivalence=NOT_ESTABLISHED,
-        pass_audit=pass_semantics_audit.audit(),
-        mode_audit=neural_legacy_audit.audit(),
-        legacy_gate_statuses=_gate_statuses(),
         sources=sources)
 
 
@@ -578,9 +573,7 @@ def cmd_status(args) -> int:
     f = st["flagship"]
     print(f"status: flagship {f['status']}, "
           f"{f['trainable_parameters']:,} trainable; development "
-          f"{st['development']['status']}; legacy QTA PASS_count "
-          f"{st['legacy_qta_hardware_forecast']['PASS_count']} "
-          f"({st['legacy_qta_hardware_forecast']['classification']})")
+          f"{st['development']['status']}")
     return 0
 
 
@@ -693,17 +686,12 @@ def cmd_verify(args) -> int:
     need((ROOT / F["status_md"]).read_text(encoding="utf-8")
          == S.render(st), "SCIENTIFIC_AI_STATUS.md does not follow from "
          "the evidence: tools/neural.py status")
-    need(st["legacy_qta_hardware_forecast"]["classification"]
-         == S.LEGACY_LABEL, "the legacy gate table lost its label")
     need(st["distributed"]["hardware"] == "NOT_VALIDATED"
          or st["distributed"]["hardware_executed"],
          "the status claims hardware validation without a hardware run")
-    import neural_legacy_audit
-    aud = neural_legacy_audit.audit()
-    need(aud["active_neural_semantic_leaks"] == 0 and aud["unclassified"]
-         == 0, "legacy semantic leak or unclassified finding")
-    need(aud == read_json(neural_legacy_audit.OUT),
-         "the committed legacy audit is stale")
+    found = neural_content_findings()
+    need(not found, "the learned-model substrate carries retired content: "
+         + "; ".join(f"{f['path']}: {f['detail']}" for f in found[:5]))
     for p in problems:
         print(f"  PROBLEM: {p}")
     print(f"neural evidence: {'PASS' if not problems else 'FAIL'} -- "

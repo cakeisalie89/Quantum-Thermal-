@@ -1,59 +1,55 @@
-# The governed scientific workflow (Snakemake).
+# The governed scientific workflow of the Scientific AI Harness (Snakemake).
 #
-# The DEFAULT target, scientific_generic, runs the framework's own path: the
-# end-to-end demonstration from a recorded proposal to a decided, restarted,
-# reconstructed and packaged result (harness_demo), a governed model run
-# checked and decided (s10_governed_model), the governed
-# Stage-10 artifact path (s10_governed, s10_governed_index), and the
-# scientific-stack adapters -- VTK and OpenUSD export, the read-only retrieval
-# index, the FEniCSx acceptance harness, Rust parity, the FMI contract --
-# closed by a check that the tracked tree was not touched. It needs no
-# machine FSM, no hardware governance, no BOM and no gate table, and
-# tests/test_workflow_split.py proves that from the DAG, not from this text.
+# The DEFAULT target, scientific_generic, runs the harness's own path:
 #
-# LEGACY QTA lives in workflow/legacy_qta.smk, included at the end, and stays
-# invocable explicitly until it retires: the Stage-7 verification chain over
-# qta_full_sim.py (full_verification), the Stage-8 HDF5 / RO-Crate payload
-# (s8_full), the gate-table stack report with s10_full, and legacy_qta for
-# all of them.
+#   harness_demo     the end-to-end demonstration, from a recorded proposal to
+#                    a decided, restarted, reconstructed and packaged result,
+#                    with its negative twin refused;
+#   governed_model   a governed model run, checked by an independent
+#                    implementation and decided by a reviewer, reused by its
+#                    evidence, and a PASS the admission policy does not name
+#                    refused;
+#   governed_tasks   the governed artifact path: a job graph through the
+#                    scheduler, policy, capability, bounded execution,
+#                    evidence and a separated verifier;
+#   governed_index   a second governed workflow over the real outputs of the
+#                    rules below;
+#   viz_vtk, viz_usd the slab model's solved field and domain as VTK and
+#                    OpenUSD, round-tripped and byte-deterministic;
+#   retrieval_index  the read-only retrieval index over reviewed documents;
+#   tree_untouched   the tracked tree still matches its manifest.
 #
-# Usage:
-#   snakemake --cores 1                       # the generic workflow
-#   snakemake --cores 1 s10_governed_model    # one governed model run
-#   snakemake --cores 1 legacy_qta            # the legacy QTA pipeline
+# Snakemake ORDERS this; the authority store decides. Every rule writes under
+# verification/ (the workspace is verification/stage10 -- a path recorded in
+# capability scopes, kept as it is), never into the tracked tree.
+# tests/test_workflow_generic.py holds the DAG to that. --cores 1 is the
+# supported invocation.
 #
-# Every rule writes under verification/ (the generic workspace is
-# verification/stage10), never into the tracked tree. --cores 1 is the
-# supported invocation: canonical generation is single-writer by design.
+#   snakemake --cores 1                    # the generic workflow
+#   snakemake --cores 1 governed_model     # one governed model run
+#   snakemake --cores 1 uq_sobol           # opt-in: OAT and Sobol cross-check
+#   snakemake --cores 1 mdao_doe           # opt-in: OpenMDAO exploration
 
 import hashlib, json, os, sys
 from pathlib import Path
 
-# One interpreter for every rule. The rules previously mixed bare "python3"
-# with ".venv/bin/python": outside a "uv run" shell, "python3" is the system
-# interpreter, which has no numpy, so every rule using it failed at import
-# while the rules using the venv passed. sys.executable is whatever
-# interpreter is running Snakemake, which is by construction the project
-# environment.
+# One interpreter for every rule: sys.executable is whatever interpreter is
+# running Snakemake, which is by construction the project environment.
 PY = sys.executable
 
-WS = "verification/snakemake"      # legacy QTA workspace
-W10 = "verification/stage10"       # generic workspace
-SRC_OUTPUTS = [l.split()[1] for l in []]  # populated at rule level
-EXEMPT = {"deep_surrogate_readiness.json"}
+W10 = "verification/stage10"       # the governed workspace
 
 def _sha(p):
     return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 rule scientific_generic:
-    # The default target. Every input is produced by a rule in this file;
-    # none reaches a rule of the legacy QTA workflow file.
+    # The default target. Every input is produced by a rule in this file.
     input:
         f"{W10}/harness_demo_report.json",
         f"{W10}/governed_model/governed_model_run.json",
         f"{W10}/governed/governed_run.json",
         f"{W10}/governed_index/index_run.json",
-        f"{W10}/canonical_untouched.json",
+        f"{W10}/tree_untouched.json",
 
 rule harness_demo:
     # The generic end-to-end demonstration: a recorded proposal, governed
@@ -73,151 +69,87 @@ rule harness_demo:
         " ${{HARNESS_FENICSX_PYTHON:+--fenicsx-python $HARNESS_FENICSX_PYTHON}}"
         " ${{HARNESS_FMI_PYTHON:+--fmi-python $HARNESS_FMI_PYTHON}}"
 
-# ============ Stage-10 additive rules (scientific-stack adapters) ===========
-# Visualization interchange (ParaView/VTK, OpenUSD), a read-only retrieval
-# index, the staged FEniCSx acceptance harness, selective-Rust parity, and the
-# deferred FMI contract. Every rule writes ONLY under verification/stage10 and
-# the closing rule proves the tracked tree was not touched. Software
-# verification only.
+
+# ---- representations of a solved model -------------------------------------
+# The slab model run once, its temperature field exported as VTK cell data
+# and its domain as an OpenUSD stage. Neither adds physics; each is read back
+# by a reader that shares no code with its writer, and written twice to show
+# the bytes do not move.
+
+SLAB = {"L_m": 0.05, "k_W_m_K": 15.0, "rho_c_J_m3_K": 3.6e6,
+        "q_W_m3": 2e5, "h_W_m2_K": 50.0, "T_inf_K": 300.0, "T0_K": 300.0,
+        "t_end_s": 600.0}
 
 
-def _stage10_result():
-    """One small deterministic 3D solve shared by the visualization rules."""
-    from qta_multiphysics.config import default_config
-    from qta_multiphysics.mesh_3d import Grid3DConfig
-    from qta_multiphysics.thermal_3d_transient import solve_thermal_3d
-    return solve_thermal_3d(default_config(), Grid3DConfig(nx=6, ny=6, nz=8),
-                            n_eval=4)
+def _slab_run():
+    from scientific.model import run_model_with_artifacts
+    from scientific.models.slab_transient import SlabTransientModel
+    return run_model_with_artifacts(SlabTransientModel(), SLAB)
 
 
-rule s10_viz_vtk:
-    # each exporter owns its own directory: the determinism rule digests a
-    # whole directory, so sharing one with another writer would make the
-    # comparison depend on job scheduling
-    output: f"{W10}/viz/vtk/thermal_3d_vtk_manifest.json"
+rule viz_vtk:
+    output: f"{W10}/viz/vtk/slab_vtk_report.json"
     run:
-        from qta_multiphysics.stack import vtk_export as V
-        m = V.export_thermal_3d(_stage10_result(), f"{W10}/viz/vtk")
-        assert m["automatic_gate_effect"] == "NONE"
-        assert m["n_timesteps_exported"] >= 1
+        from scientific import workspace as WS
+        from scientific.integrations import vtk_export as V
+        bundle, arts = _slab_run()
+        field = V.slab_field(arts["temperature_field"])
+        prov = {"model": bundle.model_id, "bundle_digest": bundle.digest()}
+        doc = V.vtr_document(field, time_s=SLAB["t_end_s"], provenance=prov)
+        out = WS.guard_output_dir(f"{W10}/viz/vtk")
+        first = WS.write_text_deterministic(out / "slab_T.vtr", doc)
+        again = WS.write_text_deterministic(
+            out / "slab_T.vtr",
+            V.vtr_document(V.slab_field(_slab_run()[1]["temperature_field"]),
+                           time_s=SLAB["t_end_s"], provenance=prov))
+        report = V.export_report(field, doc, prov)
+        report["byte_identical_on_reexport"] = first == again
+        assert report["round_trip"]["problems"] == [], report["round_trip"]
+        assert first == again
+        WS.write_json_deterministic(output[0], report)
 
-rule s10_viz_vtk_determinism:
-    # a re-export must reproduce every byte: the .vtr/.pvd payload is the
-    # visualization counterpart of the project's byte-gated CSV outputs
-    input: f"{W10}/viz/vtk/thermal_3d_vtk_manifest.json"
-    output: f"{W10}/viz_determinism.json"
+rule viz_usd:
+    output: f"{W10}/viz/usd/slab_usd_report.json"
     run:
-        from qta_multiphysics.stack import vtk_export as V
-        before = V.export_dir_digest(f"{W10}/viz/vtk")
-        V.export_thermal_3d(_stage10_result(), f"{W10}/viz/vtk")
-        after = V.export_dir_digest(f"{W10}/viz/vtk")
-        Path(output[0]).write_text(json.dumps(
-            {"n_files": len(before), "byte_identical_on_reexport":
-             before == after, "digests": after}, indent=1, sort_keys=True))
-        assert before == after
+        from scientific import workspace as WS
+        from scientific.integrations import usd_export as U
+        bundle, _ = _slab_run()
+        outs = {o.name: (o.quantity.value, o.quantity.unit)
+                for o in bundle.outputs if o.quantity is not None}
+        scene = U.slab_scene(SLAB, outs)
+        doc = U.usda_document(scene)
+        out = WS.guard_output_dir(f"{W10}/viz/usd")
+        WS.write_text_deterministic(out / "slab.usda", doc)
+        validation = U.validate(doc)
+        # usd-core is optional: UNAVAILABLE is reported, never recorded as a
+        # pass; where it is installed the stage must say what was declared
+        if validation["availability"] == "AVAILABLE":
+            assert validation["problems"] == [], validation
+        WS.write_json_deterministic(output[0], U.export_report(
+            scene, doc, validation,
+            {"model": bundle.model_id, "bundle_digest": bundle.digest()}))
 
-rule s10_viz_usd:
-    output: f"{W10}/viz/usd/qta_domain_usd_manifest.json"
-    run:
-        from qta_multiphysics.stack import usd_export as U
-        m = U.export_usd_scene(_stage10_result(), f"{W10}/viz/usd")
-        # usd-core is optional: an absent validator reports UNAVAILABLE and
-        # must never be recorded as a pass
-        assert m["validation"]["availability"] in ("AVAILABLE", "UNAVAILABLE")
-        if m["validation"]["availability"] == "AVAILABLE":
-            assert m["validation"]["result"] == "VALID", m["validation"]
-
-rule s10_rag_index:
+rule retrieval_index:
     output: f"{W10}/rag/rag_index.json"
     run:
-        from qta_multiphysics.stack import rag_index as R
+        from agent_substrate import rag_index as R
         info = R.write_index(f"{W10}/rag")
         idx = R.load_index(output[0])
         assert idx.stale_files() == [], idx.stale_files()
         assert info["n_chunks"] > 0
 
-rule s10_fenicsx_acceptance:
-    # FEniCSx stays STAGED; what CI proves today is that the acceptance
-    # harness measures zero error for an exact solver and detects second-order
-    # convergence for a real discretisation
-    output: f"{W10}/fem/fenicsx_acceptance.json"
-    run:
-        from qta_multiphysics.stack import fem_fenicsx as F
-        exact = F.run_acceptance(F.analytic_reference_solver,
-                                 n_cells_sequence=(10, 20))
-        conv = F.run_acceptance(F.fv_reference_solver,
-                                n_cells_sequence=(20, 40, 80))
-        status = F.status_report(f"{W10}/fem")
-        assert exact["verdict"] == "EXACT_RECOVERED", exact
-        assert conv["verdict"] == "PASS", conv
-        assert conv["observed_order_L2"] >= \
-            F.ACCEPTANCE_CRITERIA["mms_observed_order_min"]
-        assert status["adoption_status"] == "STAGED"
-        Path(output[0]).parent.mkdir(parents=True, exist_ok=True)
-        Path(output[0]).write_text(json.dumps(
-            {"harness_self_check": exact, "order_detection": conv,
-             "adoption_status": status["adoption_status"],
-             "dolfinx_available": status["availability"] == "AVAILABLE"},
-            indent=1, sort_keys=True))
-
-rule s10_rust_parity:
-    output: f"{W10}/rust/rust_kernel_status.json"
-    run:
-        from qta_multiphysics.stack import rust_kernel as R
-        rep = R.status_report(f"{W10}/rust")
-        assert rep["default_backend"] == "numpy"
-        # a committed decision admits a kernel, never an on-host parity
-        # verdict; every kernel has one, and an adopted kernel is still bit
-        # identical to the NumPy reference wherever it is measured here
-        assert set(rep["decisions"]) == {k["kernel"] for k in rep["kernels"]}
-        for name, decision in rep["decisions"].items():
-            assert decision in (f"RUST_KERNEL_{name}_ADOPTED",
-                                f"RUST_KERNEL_{name}_REJECTED"), decision
-        for k in rep["kernels"]:
-            if k["kernel"] in rep["adopted_kernels"] and \
-                    k["parity"] != "NOT_MEASURED":
-                assert k["parity"] == "BIT_IDENTICAL", k
-
-rule s10_fmi_contract:
-    output: f"{W10}/fmi/fmi_readiness.json"
-    run:
-        from qta_multiphysics.stack import fmi_contract as F
-        rep = F.write_contract(f"{W10}/fmi")
-        assert rep["adoption_status"] == "DEFERRED"
-        assert rep["fmu_produced"] is False and rep["ready_to_export"] is False
-        names = {p.name for p in Path(f"{W10}/fmi").iterdir()}
-        assert "modelDescription.xml" not in names
-        assert not any(n.endswith(".fmu") for n in names)
-
-rule s10_tests:
-    # runs under sys.executable, not a hard-coded .venv path, so the
-    # fail-closed leg (no optional extras installed) is exercised in the
-    # environment it is actually meant to prove
-    output: f"{W10}/tests_stage10.json"
-    run:
-        import hashlib as _h, subprocess as _sp, sys as _sy
-        log = Path(f"{output[0]}.log")
-        log.parent.mkdir(parents=True, exist_ok=True)
-        r = _sp.run([_sy.executable, "-m", "pytest",
-                     "tests/test_stage10_stack.py", "-q", "-rs"],
-                    capture_output=True, text=True)
-        log.write_text(r.stdout + r.stderr)
-        assert r.returncode == 0, r.stdout[-2000:]
-        Path(output[0]).write_text(json.dumps(
-            {"suite": "stage10_stack", "interpreter": _sy.executable,
-             "log_sha256": _h.sha256(log.read_bytes()).hexdigest()},
-            indent=1, sort_keys=True))
-
-rule s10_canonical_untouched:
-    # The governance check for this stage: after every Stage-10 rule has run,
-    # every canonical file must still match final_manifest.json byte for byte.
+rule tree_untouched:
+    # After every rule has run, every tracked file still matches
+    # final_manifest.json byte for byte.
     input:
-        f"{W10}/viz_determinism.json",
-        f"{W10}/viz/usd/qta_domain_usd_manifest.json",
-        f"{W10}/rag/rag_index.json", f"{W10}/fem/fenicsx_acceptance.json",
-        f"{W10}/rust/rust_kernel_status.json", f"{W10}/fmi/fmi_readiness.json",
-        f"{W10}/tests_stage10.json",
-    output: f"{W10}/canonical_untouched.json"
+        f"{W10}/viz/vtk/slab_vtk_report.json",
+        f"{W10}/viz/usd/slab_usd_report.json",
+        f"{W10}/rag/rag_index.json",
+        f"{W10}/governed/governed_run.json",
+        f"{W10}/governed_index/index_run.json",
+        f"{W10}/governed_model/governed_model_run.json",
+        f"{W10}/harness_demo_report.json",
+    output: f"{W10}/tree_untouched.json"
     run:
         man = json.loads(Path("final_manifest.json").read_text())
         bad = [e["filename"] for e in man["files"]
@@ -228,25 +160,25 @@ rule s10_canonical_untouched:
         rep = {"entries": len(man["files"]), "mismatches": len(bad),
                "mismatch_names": bad,
                "detached_hash_ok": stored == _sha("final_manifest.json"),
-               "note": "Stage-10 adapters wrote only under verification/"}
+               "note": "every rule wrote only under verification/"}
         Path(output[0]).write_text(json.dumps(rep, indent=1, sort_keys=True))
         assert not bad and rep["detached_hash_ok"], rep
 
-# ---- governed Stage-10 artifact production ---------------------------------
-# The agent substrate's production path. Every other Stage-10 rule calls its
-# adapter directly; this one goes through agent_substrate, so the artifact it
+# ---- governed artifact production ---------------------------------
+# The agent substrate's production path. It goes through agent_substrate, so
+# the artifact it
 # produces carries a task record, a capability grant, a bounded execution
 # record, content-addressed evidence and an independent verification -- all in
 # a hash-chained log that replays to the same state.
 #
-# It is part of s10_full deliberately. A governed path nobody runs is not a
-# production path, and the point of this rule is that the ordinary Stage-10
-# workflow now exercises the control plane rather than merely being able to.
+# It is part of the default target deliberately. A governed path nobody runs
+# is not a production path, and the point of this rule is that the ordinary
+# workflow exercises the control plane rather than merely being able to.
 #
-# automatic_gate_effect = NONE. It writes one JSON artifact into the Stage-10
-# workspace and cannot reach a gate, a threshold or a canonical output.
+# authority_effect = NONE. It writes JSON artifacts into the governed
+# workspace and cannot reach a result, a threshold or a tracked file.
 
-rule s10_governed:
+rule governed_tasks:
     output:
         # NAMED, not positional. The report used to be written to output[1],
         # and adding a second artifact in the middle silently redirected it
@@ -287,25 +219,23 @@ rule s10_governed:
                 "out_dir": f"{W10}/governed/out",
                 "name": "governed_artifact.json",
                 "payload": {
-                    "label": "MODEL_ONLY / FORECAST_ONLY",
-                    "automatic_gate_effect": "NONE",
-                    "produced_by": "agent_substrate governed Stage-10 path",
+                    "label": "PROVENANCE_ONLY NOT_EVIDENCE",
+                    "authority_effect": "NONE",
+                    "produced_by": "agent_substrate governed path",
                     "does_not_mean": (
                         "a governed run proves provenance, not scientific "
-                        "validity; no gate is reachable from here and PASS "
-                        "remains 0"),
+                        "validity; no result is admitted from here"),
                 },
             }, ()),
             ("summary", "stage10.emit_artifact", {
                 "out_dir": f"{W10}/governed/out",
                 "name": "governed_summary.json",
                 "payload": {
-                    "label": "MODEL_ONLY / FORECAST_ONLY",
-                    "automatic_gate_effect": "NONE",
+                    "label": "PROVENANCE_ONLY NOT_EVIDENCE",
+                    "authority_effect": "NONE",
                     "summarises": "governed_artifact.json",
                     "does_not_mean": (
-                        "a summary of a governed run is still provenance; "
-                        "PASS remains 0"),
+                        "a summary of a governed run is still provenance"),
                 },
             }, ("artifact",)),
         ])
@@ -368,7 +298,7 @@ rule s10_governed:
         # No egress grant was ever issued, and the default is no network.
         assert not [ev for ev in gov.log.read()
                     if ev.action == "network.grant"], (
-            "a governed Stage-10 run needs no network and must hold no "
+            "a governed artifact run needs no network and must hold no "
             "egress grant")
 
         # The note this run filed is a note. Its digest must not resolve as
@@ -470,13 +400,12 @@ rule s10_governed:
             "context_manifest_digest": run.context_digest,
             "memory_id": run.memory_id,
             "egress_grants": 0,
-            "automatic_gate_effect": "NONE",
-            "scientific_PASS_count": 0,
+            "authority_effect": "NONE",
             "does_not_mean": (
                 "a VERIFIED task means a declared tool ran bounded, produced "
                 "the bytes it claims, and a separated actor confirmed they "
                 "are still there. That is provenance. It is not scientific "
-                "validity, not a measurement, and not a gate."),
+                "validity and not a measurement."),
             "provenance": explanation.to_record(),
             "policy_decision": decision.to_record(),
             "policy_denials": 0,
@@ -516,18 +445,18 @@ rule s10_governed:
 #     the run, and a failed run never reaches verification;
 #   * the read guard is on the path, not beside it.
 #
-# automatic_gate_effect = NONE, and this rule is where that is most worth
-# saying: it READS the artifacts of five other rules and writes an index of
-# what it found. An index is provenance. It is not a gate, it is not a
-# manifest, no canonical output is among its inputs -- the read guard refuses
-# them -- and nothing downstream of it can change the PASS count.
+# authority_effect = NONE, and this rule is where that is most worth saying:
+# it READS the artifacts of five other rules and writes an index of what it
+# found. An index is provenance. It is not a manifest, no tracked file is
+# among its inputs -- the read guard refuses them -- and nothing downstream of
+# it can admit a result.
 
-rule s10_governed_index:
+rule governed_index:
     input:
         artifact=f"{W10}/governed/out/governed_artifact.json",
         summary=f"{W10}/governed/out/governed_summary.json",
-        vtk=f"{W10}/viz/vtk/thermal_3d_vtk_manifest.json",
-        usd=f"{W10}/viz/usd/qta_domain_usd_manifest.json",
+        vtk=f"{W10}/viz/vtk/slab_vtk_report.json",
+        usd=f"{W10}/viz/usd/slab_usd_report.json",
         rag=f"{W10}/rag/rag_index.json",
     output:
         index=f"{W10}/governed_index/out/stage10_index.json",
@@ -586,16 +515,16 @@ rule s10_governed_index:
             f"the index covers {indexed['n_files']} of {len(files)} declared "
             "files; a partial index that reports success is the vacuous "
             "shape this repository has shipped once already")
-        assert indexed["automatic_gate_effect"] == "NONE"
+        assert indexed["authority_effect"] == "NONE"
 
-        # No canonical output is reachable from here, and that is checked
+        # No tracked file is reachable from here, and that is checked
         # rather than asserted in prose: every indexed path is inside the
-        # Stage-10 workspace, which is where the read guard confines it.
+        # governed workspace, which is where the read guard confines it.
         for entry in indexed["files"]:
             assert entry["path"].startswith(W10 + "/"), (
                 f"the index names {entry['path']}, which is outside the "
-                "Stage-10 workspace; the substrate does not mediate "
-                "canonical outputs and an index entry naming one would say "
+                "governed workspace; the substrate does not mediate "
+                "tracked files and an index entry naming one would say "
                 "it did")
 
         # The provenance of THIS workflow, audited by the same index the
@@ -636,14 +565,13 @@ rule s10_governed_index:
             "reexecution_records": len(reexec),
             "indexed_files": indexed["n_files"],
             "workflow": "second governed workflow; independent log and "
-                        "evidence store from s10_governed",
-            "automatic_gate_effect": "NONE",
-            "scientific_PASS_count": 0,
+                        "evidence store from governed_tasks",
+            "authority_effect": "NONE",
             "does_not_mean": (
                 "an index of governed artifacts records which bytes were "
                 "present when a governed run read them. It is provenance, "
-                "not scientific validity; no canonical output is indexed, no "
-                "gate is reachable, and PASS remains 0"),
+                "not scientific validity; no tracked file is indexed and no "
+                "result is admitted"),
             "provenance": explanation.to_record(),
             "independent_replay": {
                 "agrees": True, "divergences": 0,
@@ -668,10 +596,9 @@ rule s10_governed_index:
 # reference.
 #
 # A VERIFIED scientific_result is a checked simulation result. It is not a
-# measurement, not experimental validation, not PROMOTED, and not a gate:
-# automatic_gate_effect = NONE and PASS stays 0.
+# measurement, not experimental validation and not PROMOTED.
 
-rule s10_governed_model:
+rule governed_model:
     output:
         report=f"{W10}/governed_model/governed_model_run.json",
     run:
@@ -825,35 +752,47 @@ rule s10_governed_model:
                     g.evidence.get(check2.report_sha256))["check_id"]},
             "observation_kind": bundle["observation_kind"],
             "promoted": False,
-            "automatic_gate_effect": "NONE",
-            "scientific_PASS_count": 0,
+            "authority_effect": "NONE",
             "does_not_mean": (
                 "a VERIFIED scientific_result is a simulation result whose "
                 "bundle holds its invariants and which an independent "
                 "implementation agreed with within a borrowed criterion. It "
-                "is a forecast at assumed inputs: not a measurement, not "
-                "experimental validation, not promoted, and not a gate"),
+                "is a simulation at assumed inputs: not a measurement, not "
+                "experimental validation, and not promoted"),
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-# ---- opt-in Stage-10 rules (each evaluation is a full 3D solve) ------------
-# Not part of s10_full: a Sobol cross-check is ~96 solves and a DOE sweep is
-# one solve per sample. Run them deliberately, as with --heavy-3d.
 
-rule s10_uq_sobol:
-    output: f"{W10}/uq/salib_sobol_cross_check.json"
+# ---- opt-in explorations (not part of the default target) -----------------
+# Each evaluation is a model run: run them deliberately.
+
+rule uq_sobol:
+    output: f"{W10}/uq/sensitivity_cross_check.json"
     run:
-        from qta_multiphysics.stack import sensitivity_salib as S
-        rep = S.run_cross_check(f"{W10}/uq", method="sobol", n_base=16)
-        assert rep["role"] == "CROSS_CHECK_ONLY"
+        from scientific import workspace as WS
+        from scientific import sensitivity as S
+        from scientific.models.slab_transient import SlabTransientModel
+        varied = {k: SLAB[k] for k in ("k_W_m_K", "h_W_m2_K", "q_W_m3")}
+        fixed = {k: v for k, v in SLAB.items() if k not in varied}
+        resp = S.model_response(SlabTransientModel(), "T_at_0",
+                                {**fixed, "n_cells": 40, "n_steps": 120})
+        rep = S.cross_check(resp, varied, n_base=16)
+        assert rep["authority"] == "NON_AUTHORITATIVE"
+        WS.guard_output_dir(f"{W10}/uq")
+        WS.write_json_deterministic(output[0], rep)
 
-rule s10_mdao_doe:
+rule mdao_doe:
     output: f"{W10}/mdao/openmdao_doe.json"
     run:
-        from qta_multiphysics.stack import mdao_openmdao as M
-        rep = M.run_doe(f"{W10}/mdao", n_samples=8)
-        assert rep["status"] == "NOT_A_RECOMMENDATION"
-
-
-# ---- LEGACY QTA, invoked explicitly (see the header) -------------------------
-include: "workflow/legacy_qta.smk"
+        from scientific import workspace as WS
+        from scientific.integrations import openmdao_doe as D
+        from scientific.models.slab_transient import SlabTransientModel
+        rep = D.run_doe(SlabTransientModel(),
+                        {**SLAB, "n_cells": 40, "n_steps": 120},
+                        {"k_W_m_K": (5.0, 50.0), "h_W_m2_K": (10.0, 200.0)},
+                        ("T_at_0", "T_at_L"), n_samples=8)
+        assert rep["label"] == "EXPLORATION_ONLY NOT_A_RECOMMENDATION"
+        if rep["availability"] == "AVAILABLE":
+            assert rep["cross_check"]["verdict"] == "BITWISE_IDENTITY", rep
+        WS.guard_output_dir(f"{W10}/mdao")
+        WS.write_json_deterministic(output[0], rep)

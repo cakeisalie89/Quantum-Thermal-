@@ -21,11 +21,11 @@ This package is the middle of that line, and only the middle:
 * ``identity``     -- canonical digests and implementation digests;
 * ``run_identity`` -- when a verified run may be reused instead of recomputed.
 
-It does not know the agent substrate (``qta_agent``) and it does not know the
-QTA apparatus: a model is identified by what it computes and by the digest of
-the code that computes it, never by a machine mode or a gate. Proposing,
-executing under governance, and deciding authority stay in ``qta_agent``. A
-model's ``run`` writes no authority event and cannot certify its own output.
+It does not know the agent substrate (``agent_substrate``): a model is
+identified by what it computes and by the digest of the code that computes
+it, never by where it runs or who asked. Proposing, executing under
+governance, and deciding authority stay in ``agent_substrate``. A model's
+``run`` writes no authority event and cannot certify its own output.
 
 Importing any module here loads nothing outside the standard library.
 """

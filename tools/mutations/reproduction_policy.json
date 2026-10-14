@@ -1,10 +1,8 @@
 {
-  "title": "Which question a byte comparison answers, and the witness that decides it",
-  "note": "D-2026-101. RP1-RP18: the verdict and the backend identity -- unresolved never different, a witnessed backend's drift never excused, strict never answered off the reference, the profile applicable only to the corpus, closure, exemptions and lock it binds, and every part of the arithmetic path in the identity. RP19-RP22: the witness tool's generation-record binding and early strict check. RP23-RP25: the wrapper's measured closure. RP26-RP29: the checker's wiring -- strict by default, strict fails early, 'stale' only for witnessed drift, a supplied tree never inherits the verifier's identity.",
+  "title": "Which question a byte comparison answers, and what each answer may say",
+  "note": "D-2026-101. RP1-RP18: the verdict and the backend identity in scientific/reproduction.py -- unresolved never different, a witnessed backend's drift never excused, strict never answered off the reference, the profile applicable only to the corpus, closure, exemptions and lock it binds, and every part of the arithmetic path in the identity. RP19-RP29 targeted the witness tool, the instrumented wrapper and the package checker, which left with the retired programme.",
   "suites": [
-    "tests/test_reproduction_verdict.py",
-    "tests/test_regenerate_instrumented.py",
-    "tests/test_checker_reproduction_policy.py"
+    "tests/test_reproduction_verdict.py"
   ],
   "mutations": [
     {
@@ -132,83 +130,6 @@
       "find": "        \"native\": {d: {k: n.get(k) for k in (\"status\", \"native_files\",\n                                             \"native_sha256\",\n                                             \"installed_sha256\")}\n",
       "replace": "        \"native\": {d: {k: n.get(k) for k in (\"status\", \"native_files\")}\n",
       "rationale": "the installed native bytes leave the identity: a rebuilt or patched NumPy with the same version and file count is the same backend"
-    },
-    {
-      "name": "RP19_a_generation_record_binds_any_tree",
-      "path": "tools/reproduction_witness.py",
-      "find": "    if not produced or rec.get(\"outputs\") != produced:\n",
-      "replace": "    if not produced:\n",
-      "rationale": "a supplied tree inherits a record of other bytes"
-    },
-    {
-      "name": "RP20_any_backend_is_the_reference",
-      "path": "tools/reproduction_witness.py",
-      "find": "    witness = R.witness_for(doc, identity)\n    if witness is None:\n",
-      "replace": "    witness = R.witness_for(doc, identity) or doc[\"witnesses\"][0]\n    if witness is None:\n",
-      "rationale": "the early strict check accepts a backend nobody witnessed"
-    },
-    {
-      "name": "RP21_an_unresolved_backend_passes_the_early_check",
-      "path": "tools/reproduction_witness.py",
-      "find": "    identity = R.backend_identity(record)\n    if identity is None:\n        return {\"ok\": False, \"backend_status\": R.UNRESOLVED,\n",
-      "replace": "    identity = R.backend_identity(record) or {}\n    if identity is None:\n        return {\"ok\": False, \"backend_status\": R.UNRESOLVED,\n",
-      "rationale": "an unresolved backend is reported as a resolved stranger"
-    },
-    {
-      "name": "RP22_the_early_check_ignores_applicability",
-      "path": "tools/reproduction_witness.py",
-      "find": "    if inapplicable:\n        return {\"ok\": False, \"reasons\": [\n",
-      "replace": "    if False:\n        return {\"ok\": False, \"reasons\": [\n",
-      "rationale": "the release runs on a tree its witness never saw"
-    },
-    {
-      "name": "RP23_outputs_read_back_are_inputs",
-      "path": "tools/regenerate_instrumented.py",
-      "find": "        if p == me or (p + os.sep).startswith(outputs + os.sep) \\\n",
-      "replace": "        if p == me \\\n",
-      "rationale": "an output the generator reads back binds the profile to itself"
-    },
-    {
-      "name": "RP24_written_files_are_inputs",
-      "path": "tools/regenerate_instrumented.py",
-      "find": "    if isinstance(mode, str) and any(c in mode for c in \"wax+\"):\n        return\n",
-      "replace": "    if False:\n        return\n",
-      "rationale": "a file only written counts as read"
-    },
-    {
-      "name": "RP25_loaded_modules_are_not_inputs",
-      "path": "tools/regenerate_instrumented.py",
-      "find": "    for mod in list(sys.modules.values()):\n",
-      "replace": "    for mod in []:\n",
-      "rationale": "a module imported from its byte-code cache escapes the closure"
-    },
-    {
-      "name": "RP26_the_default_policy_is_permissive",
-      "path": "package_consistency_check.py",
-      "find": "POLICY = _arg(\"--policy\") or \"strict-reproduction\"\n",
-      "replace": "POLICY = _arg(\"--policy\") or \"ci\"\n",
-      "rationale": "a caller who asks nothing gets the portable question"
-    },
-    {
-      "name": "RP27_strict_regenerates_anyway",
-      "path": "package_consistency_check.py",
-      "find": "        if not _early[\"ok\"]:\n",
-      "replace": "        if False:\n",
-      "rationale": "strict spends the regeneration on a machine it will refuse"
-    },
-    {
-      "name": "RP28_every_refusal_is_called_stale",
-      "path": "package_consistency_check.py",
-      "find": "            if _rs == \"BYTE_DRIFT_COMPARABLE_BACKEND\":\n",
-      "replace": "            if True:\n",
-      "rationale": "a different machine's digits are reported as stale outputs again"
-    },
-    {
-      "name": "RP29_verify_existing_borrows_the_verifier",
-      "path": "package_consistency_check.py",
-      "find": "            _record = _rw.generation_record_for(GENERATION_RECORD,\n                                                gen_outputs_dir)\n",
-      "replace": "            _record = {\"environment\": _rw.probe_environment(PKG, [\"numpy\", \"scipy\"])}\n",
-      "rationale": "a supplied tree is classified by the identity of the process verifying it"
     }
   ]
 }

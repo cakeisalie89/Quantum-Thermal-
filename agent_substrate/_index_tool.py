@@ -1,4 +1,4 @@
-"""The subprocess entry point for the governed Stage-10 digest index.
+"""The subprocess entry point for the governed digest index.
 
 Provenance only: what it writes records what a governed run looked at. It
 is not a scientific result and not evidence for one.
@@ -12,7 +12,7 @@ not disagree, because the output was a pure function of an argument that was
 already in the task record.
 
 This tool's output is a function of the WORKSPACE. It reads files that other
-Stage-10 rules produced and derives an index over their bytes. Three
+workflow rules produced and derives an index over their bytes. Three
 consequences follow, and each of them is a property the first tool could not
 exercise:
 
@@ -50,7 +50,7 @@ def main(argv: list) -> int:
         print(f"inputs are not JSON: {exc}", file=sys.stderr)
         return 2
 
-    from qta_multiphysics.stack import workspace as WS
+    from scientific import workspace as WS
 
     files = inputs["files"]
     if not isinstance(files, list) or not files:
@@ -66,7 +66,7 @@ def main(argv: list) -> int:
             print(f"file entry is not a string: {rel!r}", file=sys.stderr)
             return 2
         # READ guard. Same allowlist as the write guard, and for the same
-        # reason: the substrate may look at the Stage-10 workspace and
+        # reason: the substrate may look at the governed workspace and
         # nowhere else. A path that escapes by symlink resolves out and is
         # refused here rather than being hashed under the name it was given.
         try:
@@ -86,8 +86,8 @@ def main(argv: list) -> int:
 
     entries.sort(key=lambda e: e["path"])
     index = {
-        "label": "MODEL_ONLY / FORECAST_ONLY",
-        "automatic_gate_effect": "NONE",
+        "label": "PROVENANCE_ONLY NOT_EVIDENCE",
+        "authority_effect": "NONE",
         "n_files": len(entries),
         "files": entries,
         "does_not_mean": (

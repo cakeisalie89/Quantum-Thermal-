@@ -5,23 +5,22 @@ scientific evidence, and not authority. The authority for what a result is,
 and whether it is admitted, is the event log and the authority store; an
 HDF5 file is an export of their artifacts.
 
-What any HDF5 export here must carry, whatever it represents:
+`scientific/hdf5_bundle.py` writes a `ResultBundle` and reads it back, and
+what it writes must carry:
 
-* **units** on every numeric dataset, taken from the source's declared units
-  and never invented (an unknown unit is the literal string `unresolved`);
-* **schema version** and **dataset provenance**: the digests of the source
-  artifacts, the model and run identity that produced them;
-* **content digest** of every source, so the export can be checked against
-  what it claims to represent;
-* **numerical-resolution metadata** where the source states it;
+* **units** on every numeric dataset, taken from the bundle's declared
+  quantities and never invented;
+* **schema version** and **provenance**: the model, its version and
+  implementation digest, the parameter and environment digests and the run
+  identity;
+* **the bundle's own digest**, so the file can be checked against the
+  record it claims to represent;
+* **numerical-resolution metadata** where a quantity states it;
 * **deterministic writing**: sorted creation order, `track_times=False`,
   fixed compression, no timestamps, no absolute paths -- byte identity is
   claimed only within the locked environment;
-* **equivalence checks**: exact parsed-value equality against the sources,
-  with no tolerance.
+* **an exact read-back**: the bundle reconstructed from the file must be the
+  bundle written, with no tolerance.
 
-The generic model represents scientific `ResultBundle` artifacts. The HDF5
-file the repository ships today, `qta_scientific_results.h5`, represents the
-legacy QTA pipeline's 88 governed outputs; its contract is
-`docs/legacy/qta/HDF5_DATA_MODEL.md`, still built and checked as documented
-there, and it retires with that payload.
+`tests/test_hdf5_bundle.py` holds these, and `tools/mutations/hdf5_bundle.json`
+removes each in turn.

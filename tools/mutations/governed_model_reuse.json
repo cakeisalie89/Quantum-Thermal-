@@ -127,9 +127,9 @@
     },
     {
       "name": "GR18_the_bundle_records_no_identity",
-      "path": "scientific/models/thermal_1d.py",
-      "find": "                        \"run_identity\":\n                            run_identity_for(self, inputs).to_record(),\n",
-      "replace": "                        # no run identity recorded\n",
+      "path": "scientific/models/slab_transient.py",
+      "find": "                        \"environment\": env,\n                        \"run_identity\":\n                            run_identity_for(self, p).to_record()}), \\\n",
+      "replace": "                        \"environment\": env}), \\\n",
       "rationale": "a bundle with no identity in its provenance"
     },
     {

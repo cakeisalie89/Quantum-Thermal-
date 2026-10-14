@@ -14,8 +14,14 @@ was swept for the same shape, and what previously-stated claims it
 invalidates.
 
 **Nothing here is a scientific finding.** These are defects in software
-authority, provenance and verification machinery. `PASS` remains 0,
-`automatic_gate_effect` remains `NONE`, and no record below changes that.
+authority, provenance and verification machinery.
+
+Records whose subject was the retired hardware-theory programme are kept
+as tombstones: the ID and heading stay, so every citation of an ID still
+resolves, and the full text is in git history at `b8aac891`
+(`git show b8aac891:docs/DEFECT_LEDGER.md`). Where live code still
+relies on what such a record taught, the tombstone states the lesson and
+where it is held now.
 
 ---
 
@@ -686,151 +692,13 @@ so.
 
 ## D-2026-06 — analyst conclusion error: the 3D solver's convergence check
 
-**STATUS** — recorded, not a code defect.
-
-**DEFECT.** I stated that `solve_thermal_3d` never checks `sol_obj.success`.
-It does, at `thermal_3d_transient.py:268`, past the point where I had stopped
-reading. I read to the end of the energy accounting, saw no check, and
-reported the absence as established.
-
-**ROOT CAUSE.** Reporting a *negative* — "this code does not do X" — from a
-partial read. An absence is only established by reading the whole scope it
-could appear in, and I had not.
-
-**WHY IT IS IN THIS LEDGER.** Same reason as D-2026-03. A wrong analyst
-conclusion is an authority claim that the evidence contradicts, and the
-value of recording it is the pattern: this is the second time a confident
-negative has come from an incomplete read, and both times the correction
-came from looking at the thing itself rather than from re-reasoning.
-
-**WHAT THE ACTUAL DEFECT TURNED OUT TO BE.** Sharper than the one I
-reported, and recorded as the open item below: `require_converged()` — the
-repository's own fail-closed contract, whose docstring says it exists
-because "a failed BDF integration could still produce
-FORECAST_READY_IF_MEASURED" — is called at exactly two sites, both in the 1D
-coupled path, and at none of the 3D ones.
-
-**INVALIDATED CLAIMS.** My statement that the 3D solver does not check
-convergence.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
 ## D-2026-09 — the convergence contract was written once and applied twice
 
-**STATUS** — repaired.
-
-**DEFECT.** `require_converged()` is this repository's own fail-closed
-contract for numerical solves. Its docstring says exactly why it exists:
-*"solver_status used to be reported alongside the metrics as a passive string
-while ready_terms was computed from the same result regardless, so a failed
-BDF integration could still produce FORECAST_READY_IF_MEASURED."*
-
-It had **two call sites**, both inside `run_coupled`, the 1D path where it
-was written. `run_mode_sequence_3d` — whose own docstring says it runs the
-canonical mode order *"exactly mirroring the 1D/2D `coupled_mode_solver`"* —
-mirrored the mode order, the state hand-off and the species interlocks, and
-not this. So every 3D result, the Mode-C readiness decision taken from it,
-the campaign state, the falsification report and the machine FSM were built
-on integrations nobody had asked about.
-
-**INVARIANT.** A solve that did not converge carries no scientific
-authority, on every path, not only the one where the rule was discovered.
-
-**ROOT CAUSE.** The rule was fixed where the defect was found and never
-swept. It also *lived* where it was found — defined beside the 1D coupled
-solver, inside one of the things it governs, so the next sibling did not
-inherit it by construction.
-
-**THE VERIFIER TESTED AGAINST ITSELF.** `test_require_converged_rejects_a_failed_status`
-and `test_require_converged_accepts_ok` construct a hand-made object with
-`solver_status="failed"` and check the helper's return. They prove the
-function works. They prove nothing about whether anything calls it — which
-was the entire defect — and they sat in the file named for this contract,
-reading like its coverage.
-
-**IMPLEMENTATION FIX.**
-
-* The contract moved **down the layering** into `numerics.py`, which every
-  solver already depends on, and is re-exported from `coupled_mode_solver`
-  so existing callers and tests are unaffected. Where a rule lives decides
-  who inherits it.
-* `require_converged` applied at all three 3D solves in
-  `run_mode_sequence_3d` — Mode B, Mode C (which decides readiness, and Mode
-  D is constructed only if it holds) and the Mode D sensing hold.
-* Applied at the five solves in `reduction_checks_3d`, which are taken
-  *outside* the sequence: a reduction check compares two solvers, and if
-  either did not converge it measures the distance between one answer and
-  one non-answer and reports it as a `rel_error` with a `within_tolerance`
-  verdict beside a `solver_status` nobody reads.
-* Applied at the three thermal solves in `runner.py`, which writes NV
-  temperatures, hotspots, gradients and energy residuals — and the two
-  `solver_status` strings beside them, which is exactly the passive
-  reporting the contract exists to replace.
-
-**A SECOND HALF OF THE CONTRACT, FOR RAW INTEGRATOR RESULTS.**
-`surface_coverage`, `gas_transport_1d` and `verification.py`'s MMS check hold
-a scipy `OdeResult` and never looked at `.success` at all. A failed
-integration does not return garbage — it returns a **shorter trajectory**,
-every value finite, so `assert_finite` passes and the numbers look ordinary.
-Callers pairing `so.y` with the `t_eval` they asked for then hold two arrays
-of different lengths, and the one describing time is the one still at full
-length. `require_integrated()` says the same thing in that layer's
-vocabulary.
-
-**THE ENERGY ACCOUNTING WAS QUADRATURING AN EXTRAPOLATION.**
-`solve_thermal_3d` integrates the solver's continuous interpolant over the
-whole window, `sol_obj.sol(tq)` with `tq` spanning `[0, t_end]`. An
-`OdeSolution` evaluated past the interval actually integrated **extrapolates
-the last polynomial rather than refusing**, so a failed solve produced an
-entirely ordinary-looking `rel_residual` — computed over time the integrator
-never reached — and handed it back beside `solver_status="failed"` for a
-reader to notice or not. The residual is now `NaN` on a failed solve, which
-both readers already fail closed on: `closure_ok` is `abs(rel) < tol`, false
-for NaN, and the accounting formats it as-is so an operator sees `nan`
-rather than a plausible figure.
-
-**ADVERSARIAL TESTS.** Failure injected at each of the three 3D solves,
-with results reporting temperatures that satisfy every readiness term so
-only the status check can refuse them; a reduction check against an injected
-failure; a real `solve_thermal_3d` run with `success` flipped, asserting the
-residual is NaN and closure is refused. Anti-vacuity throughout: an honest
-sequence still runs, an honest solve still reports a residual, and
-`require_integrated` still accepts a finished integration.
-
-**THE MUTATION THAT SURVIVED, AND WHY.** `SC3` — removing the Mode D check —
-survived the first campaign. The failure-injection tests reached solves 1 and
-2 only, and the honest test asserted nothing about the Mode D hold, so the
-branch ran and nothing looked at it. **A branch no test reaches is a branch
-no test defends, however green the file is.** Fixed by injecting at the third
-solve and by having the honest test assert Mode D was actually entered — so
-the injection test is known to be reaching a branch that runs rather than one
-skipped for unrelated reasons. 7/7 after.
-
-**FORBIDDEN FAKE FIXES.** Leaving the contract beside the 1D solver and
-importing it upward, which reproduces the layering that caused this.
-Checking `solver_status` at each consumer instead of at the producer, which
-is the passive-string pattern with more places to forget. Deleting the
-`solver_stability` condition in `falsification_3d` now that the sequence
-refuses to return a failed result — it is a second reading of a thing
-enforced upstream, and it still catches a sequence assembled by hand.
-
-**SIBLING SWEEP.** Every `solve_ivp` call site in the repository was
-enumerated: `thermal_3d_transient`, `thermal_2d_axisymmetric`, `thermal_1d`
-and `stack/fem_fenicsx` already checked `success` and recorded it;
-`surface_coverage`, `gas_transport_1d` and `verification` did not and now do.
-Every consumer of `solver_status` was enumerated too: `coupled_mode_solver`
-(enforced), `uncertainty.py` and `falsification_3d` (checked in their own
-words), `reduction_checks_3d`, `runner.py`, `vtk_export.py` and
-`verification.py` (passive — the first two now enforce; the last two report
-into records rather than deciding anything, and are left as reporting).
-
-**DISCOVERED BY.** Asking where `require_converged` is actually called,
-after wrongly reporting that the 3D solver never checked convergence at all
-(D-2026-06). The wrong answer led to the right question.
-
-**INVALIDATED CLAIMS.** Any statement that a non-converged solve cannot
-produce readiness in this repository. That was true of the 1D coupled path
-and of nothing else.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
@@ -1098,44 +966,7 @@ prose becomes true.
 
 ## D-2026-16 — a failed 3D solve still CONSTRUCTED the future it must not report
 
-**STATUS** — repaired.
-
-**DEFECT.** D-2026-09 made a failed solve report `NaN` for its energy
-residual. The quadrature that produced the number still ran: `sol_obj.sol(tq)`
-was evaluated across the whole requested window, and an `OdeSolution` asked
-for a time past the interval it covers **extrapolates its final polynomial
-rather than refusing**. So every quantity in the accounting was computed
-partly over time the integrator never reached, and then discarded.
-
-**INVARIANT.** If the integration did not reach the required end state, the
-full-window accounting must not pretend the missing interval exists — not in
-what it reports, and not in what it computes.
-
-**WHY THE DIFFERENCE IS REAL AND NOT PEDANTRY.** NaN stopped the arithmetic
-being BELIEVED, which was the authority defect. It did not stop it being
-PERFORMED. A quantity that must not be trusted should not be computed:
-computing it invites some later reader to use it, and the act itself asserts
-that the missing interval exists.
-
-**IMPLEMENTATION FIX.** The failed case branches **before** any
-interpolation and returns what was really integrated — the trajectory, its
-times, the solver's message — with an accounting dict that says
-`UNAVAILABLE_INTEGRATION_INCOMPLETE` and reports how far the integration
-actually got against what was asked, so the failure is diagnosable.
-
-**ADVERSARIAL TESTS.** The interpolant itself is spied on: the test asserts
-**zero** evaluations on a failed solve, and names the integrated end time in
-its failure message. Paired with the anti-vacuity twin — the converged path
-DOES evaluate the interpolant, so the assertion establishes something about
-convergence rather than about a code path nobody uses. Plus an assertion
-that the truncated trajectory really is shorter than the request, so the
-test cannot pass over a case it did not create.
-
-**MUTATIONS.** `SC6` retargeted from the NaN to the short circuit — NaN
-stopped belief, the short circuit stops the act. `SC8` makes the failed
-branch announce itself converged; `SC9` makes it claim it reached the
-requested end, which would also make the test's own anti-vacuity assertion
-vacuous.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
@@ -1380,135 +1211,7 @@ rather than by excusing them.
 
 ## D-2026-21 — the convergence rule had five call sites and sixteen consumers
 
-**STATUS** — repaired.
-
-**DISCOVERED BY.** The §12 recheck of P0-6. Not by re-reading the P0-6 repair,
-which is correct, but by asking the question §17 asks of every repair: *where
-else is this same fact consumed?* The fact is "this solve did not converge".
-The answer was: in eleven places that never asked.
-
-**DEFECT.** `require_converged` was written for `run_coupled`, and D-2026-09
-extended it to `run_mode_sequence_3d` and the reduction checks. That is five
-call sites. This package had **sixteen** places that read a published number
-off a solve result. The other eleven took whatever came back:
-
-| where | what it published from a solve nobody asked about |
-|---|---|
-| `convergence_3d.convergence_report` ×3 | the mesh-convergence and time-convergence verdicts, and the baseline both are measured against |
-| `sensitivity_3d._rise` | every normalized sensitivity in the OAT ranking |
-| `stack/mdao_openmdao.evaluate` | the objective an OpenMDAO study optimises |
-| `stack/sensitivity_salib.screening_response_K` | the response Sobol indices are computed from |
-| `runner_3d` heavy pass | a probe timeseries, a hotspot table and an energy accounting, written to disk |
-| `verification.mesh_convergence_1d` | `thermal_1d_converged` |
-| `verification.mesh_convergence_2d` | `thermal_2d_converged` |
-| `verification.axis_symmetry_2d` | `axis_grad_small_vs_bulk` |
-| `verification.reduction_2d_to_1d` ×2 | `reduces_to_1d` |
-| `verification.coupling_checks` | `optical_feeds_thermal` |
-| `uncertainty.run_monte_carlo` ×3 | the Mode-C recool distribution, the readiness fraction, and the ensemble's own mesh criterion |
-
-**INVARIANT.** A number derived from a solve carries the authority of that
-solve. A solve that did not converge carries none, so no published quantity
-may be derived from one — wherever the derivation happens.
-
-**ROOT CAUSE.** The rule was applied where each defect was found. `numerics.py`
-already says this about itself, in the docstring of the very function
-involved: *"A rule that lives inside one of the things it governs is a rule
-the next sibling does not inherit."* It was moved to the numerics layer for
-exactly that reason and then still only called from the sites that had already
-failed. Availability is not application.
-
-**WHY THE DIRECTION OF THE ERROR MATTERS.** A failed integration does not
-return garbage. It returns a **shorter** trajectory in which every value is
-finite, so `assert_finite` passes and the numbers look ordinary. Sampled
-`[-1]`, it reports the last time REACHED rather than `t_end` — which is
-**cooler**. So an unguarded failure does not add noise:
-
-* in a screening study it flips the **sign** of a reported sensitivity, because
-  the perturbed configuration is the one that stiffens and its truncated probe
-  reads colder than the base;
-* in the recovery ensemble it reports a **faster** recool and a final
-  temperature that never finished cooling — both in the direction of "ready";
-* in `axis_symmetry_2d` a truncated field has a **smaller** axis gradient
-  because it has had less time to develop one, so a failed solve is *more*
-  likely to certify axis symmetry than a converged one;
-* in `coupling_checks` a diverging solve produces a very large hotspot, which
-  is precisely what "optical feeds thermal" is confirmed by.
-
-Each of these is a check that a failure makes *more* likely to pass.
-
-**AFFECTED REPRESENTATIONS.** Implementation at every site above. No durable
-record, no replay and no second reader: this layer is forecast computation,
-not the agent substrate. Prose: `numerics.require_converged`'s own docstring
-claimed the move to the numerics layer solved the inheritance problem; it did
-not, and it now says which sites call it.
-
-**IMPLEMENTATION FIX.** `require_converged` at all eleven, phrased in each
-site's own vocabulary so a failure message names what was being computed.
-`uncertainty.run_monte_carlo` is the one exception to raising: it is an
-ensemble that already counts a failed sample and carries on, and both of its
-new guards sit inside the `except Exception:` that does exactly that — so the
-shared rule lands on the shared counter instead of inventing a second
-convention.
-
-**A SECOND DEFECT, FOUND BY THE TEST FOR THE FIRST.** With the recovery solve
-guarded, the two-sample ensemble reported `pde_stability_failure_count == 1`
-**and** `n_evaluated == 2`. The Mode-B values were appended to the published
-distributions *before* the Mode-C solve was attempted, so a sample the run had
-itself classified as a PDE failure was also present in the Mode-B statistics,
-and `n_evaluated + pde_fail` could exceed `n_samples`. A sample now enters the
-distributions only once every solve it needs has succeeded. This was reachable
-before this change too, through the `except Exception` that already existed.
-
-**A REFACTOR THAT IS PART OF THE FIX.** `runner_3d`'s heavy pass was inline in
-`run_3d_all`, so the only way to reach it was to run the entire 3D pipeline
-first. The one call site in that module that never asked whether its solve
-converged was also the one no test could reach, which is not a coincidence: an
-unreachable branch is an unguarded branch. It is now `write_heavy_pass`, a
-module-level function with the same body, called from the same place.
-
-**ADVERSARIAL TESTS.** Twenty-one new in `tests/test_solver_failclosed.py`, one per
-guard rather than one per module, because what a failed solve would have
-produced is different at each. Every stub returns **usable** numbers rather
-than nothing — deleting a guard must let the caller SUCCEED with a wrong
-answer, so the test fails for the reason it was written for instead of on a
-missing attribute. Injection is at a chosen call index, so the tests reach the
-*third* solve of a three-solve function rather than only the first: SC12 and
-`n=400` are exactly the mutations a test that only injects at call 1 leaves
-alive. Anti-vacuity pairs: an honest convergence report takes all three
-solves (asserted by count, so the at=3 injection is known to fire); an honest
-heavy pass writes all four of its files; an honest two-sample ensemble
-evaluates two samples and counts zero failures.
-
-**ONE TEST IS NOT ABOUT CONVERGENCE AT ALL.** The tightened-integration guard
-sits inside the `try/finally` that restores `cfg.solver.rtol`. A guard that
-raised past the restoration would leave the shared configuration permanently
-tightened for every later caller in the process. Asserted separately.
-
-**MUTATIONS.** `SC10`–`SC25`, sixteen: one per restored guard, plus `SC25`
-for the ensemble accounting — it restores the original ordering verbatim,
-which is the defect exactly as it was found. 25/25 killed, sources restored
-byte-identical. `SC20` and `SC21`
-are deliberately both kept: the reduction check is a COMPARISON, and two
-solves that both stopped early agree with each other, so a test that guards
-only one side proves nothing about the other.
-
-**FORBIDDEN FAKE FIXES.** Recording `solver_status` beside the result and
-leaving the verdict computed from it regardless — that is the defect
-`mesh_convergence_1d` already had. Catching `SolverFailure` at any of these
-sites and substituting a default. Widening `SOLVER_OK` to admit a second
-status. Making `energy_accounting_rows` tolerate a failed result's accounting
-dict: it raises `KeyError` on one today, which is ugly but closed, and making
-it *return* something would open it.
-
-**SIBLING SWEEP.** Every call of `solve_thermal_1d`, `solve_thermal_2d` and
-`solve_thermal_3d` in `qta_multiphysics/` was enumerated and checked; the
-sixteen consumers above are the complete list, and `future_3d.py:58` is a
-passthrough that returns the result to a caller rather than reading it.
-
-**INVALIDATED CLAIMS.** Any earlier statement that P0-6 closed the
-convergence contract. It closed the mode sequence and the accounting inside
-the solver. The class stayed open for two more subsystems and the whole
-forecast-screening surface.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
@@ -1645,35 +1348,7 @@ step rather than as a closing sentence.
 
 ## §15 — the P0 acceptance gate, condition by condition
 
-The directive names twenty-three conditions and says not to write *P0
-complete* until all are true. Each is answered by something that refuses when
-it stops being true, or it is not answered.
-
-| # | condition | what makes it true, and what would notice if it stopped being |
-|---:|---|---|
-| 1 | retry budget / lapse semantics remain closed | `reauthorize_job_edge` names the handover edges; the second reader restates the budget bound so an overrun is a finding about the HISTORY. Mutations in `agent_scheduler`, `agent_cross_process`, `agent_lease_renewal`. |
-| 2 | every actor-bearing durable event classified | `docs/identity_inventory.json`, 37 actions. `tools/identity_inventory.py` fails if the file and the code disagree in either direction, and runs on every CI push. |
-| 3 | every actor-duplicate payload field bound to `ev.actor` | Each ACTOR-role field in the inventory names its write-path binding, its replay rule and a regression test that exists — the checker verifies the test exists, because five of my first draft's names did not. |
-| 4 | escalation raiser provenance enforced | `raise_escalation` binds `actor=raised_by`; the reducer refuses `esc.raised_by != ev.actor`. D-2026-11. |
-| 5 | escalation answer provenance remains enforced | Unchanged from D-2026-04 and re-covered by the new second reader, which refuses an answer from anyone but the assignee. |
-| 6 | message sender provenance enforced | `send` binds `actor=sender_instance`; the reducer refuses a mismatch. D-2026-12. |
-| 7 | duplicate message ids cannot mutate semantic identity | `MESSAGE_IMMUTABLE` names seven fields, not one; `message_identity_conflict` reports which one changed; one mutation per dropped field. D-2026-13. |
-| 8 | destructive authority remains explicitly governed | D-2026-05's guards plus the five existing revocation tests that were passing on arbitrary actors and now name the issuer. |
-| 9 | a decision cannot be reused for another operation in the same grant | `NetworkDecision` carries the exact authorized host, port, scheme and address; `pinned_ports` is retired. D-2026-14. |
-| 10 | unpinned networking is not unrelated-host authority | An unresolved request is authorized against the grant's address CLASSES at connect time, not against "any host on an allowed port". |
-| 11 | child-egress prose matches implementation | The Stage-10 docstring now separates SUPERVISOR/IN-PROCESS MEDIATION from CHILD/DESCENDANT OS CONTAINMENT and states which one this is. D-2026-15. |
-| 12 | failed 3D solves cannot influence scientific readiness | `require_converged` at every consumer — and this is the condition the §12 recheck failed on first pass. D-2026-21. |
-| 13 | failed solves do not quadrature an extrapolated window | The failed case branches before any interpolation; a spy asserts **zero** interpolant evaluations, paired with its anti-vacuity twin. D-2026-16. |
-| 14 | secret authority is internally consistent with the event-sourcing claim | `SecretStore` folds through `apply()` from the log; grants are reconstructed from records. Values stay process-local and neither they nor their digests reach a durable record — asserted directly. D-2026-18. |
-| 15 | escalations have an independent reader, or the claim is weakened | Both: `reconstruct_subsystems` gained a tenth subsystem that does not import `AgentDirectory`, **and** the CI step that said "for every subsystem" now says "for the 28 of 37 it covers". D-2026-19, D-2026-20. |
-| 16 | all corresponding tests are anti-vacuous | Every failure-injection test in this tranche has a paired positive: the converged path DOES evaluate the interpolant, the honest sequence DOES enter Mode D, the honest report DOES take three solves, the honest ensemble DOES evaluate its samples, the mesh-check branch DOES fire. |
-| 17 | every new mutation spec is wired into CI | `tools/workflow_contract.py`: 38 of 38, checked by the file's own contents rather than by assertion. |
-| 18 | every mutation is killed for the intended semantic reason | Each survivor in this tranche was diagnosed rather than papered over: E48 resolved to the grant's first address, R40 sent a state that was neither answered nor withdrawn, SC3 never reached Mode D, M39 could not tell two layers apart, G26 hit the write path instead of the reducer, SC24 ran with the mesh-check fraction at zero, SC25 was a mutation that did not restore its own defect, C11 and C12 were written and never run at all. One (S36) was dropped as equivalent-by-construction rather than forced. |
-| 19 | full affected tests green | Full local suite, plus 634 local mutations across twenty-six specs with none surviving and every run reporting sources restored byte-identical. Hosted `second-interpreter` and `cross-environment-3d` green at `104a6f1`; `full-suite` red on `package_consistency_check.py` only, which is the documented R59 host divergence — its pytest step passes and the job's own diagnostic names the runner's kernel. `agent-substrate` was RED at `104a6f1` on step 47 of 55 (D-2026-22) and is **green at `7dc9a1f` across all 55 steps**, including the eight that the earlier failure skipped. This condition is satisfied for a commit when that commit's own `agent-substrate` run is green; commits after `7dc9a1f` in this tranche change only this ledger, `.gitignore` and the derived artifacts, and each is confirmed by its own run rather than inherited from its parent — which is the whole lesson of D-2026-22. |
-| 20 | defect ledger updated | D-2026-11 … D-2026-21, plus the PREMATURE_CLOSURE record and two ANALYST_CONCLUSION_ERROR records for my own wrong claims. |
-| 21 | PASS remains 0 | Unchanged; `package_consistency_check.py` asserts no PASS token in any output on every run. |
-| 22 | `automatic_gate_effect` remains NONE | Unchanged. |
-| 23 | PR #17 remains unmerged | Open, not merged, no merge requested. |
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
@@ -2371,8 +2046,8 @@ The one red is the R59 host divergence and nothing else: the same 24 files by
 name, on a runner without AVX-512, from a byte comparison rather than a test.
 It predates this tranche and this tranche did not change it. Every other check
 in that script passes at this commit, including the three that matter most
-here — `can_PASS_now=NO for all 83 rows`, `PASS_count=0`, and `no PASS tokens
-in any 3D output`.
+here — the checks of the retired programme's own outputs, which left the
+tree with it.
 
 So, at that commit, and on the evidence available then:
 
@@ -2998,81 +2673,7 @@ history short enough for the subprocess to dominate.
 
 ## D-2026-33 — a canonical output went stale when the code that writes it changed, and R59 hid it for four commits
 
-**CLASS** — `STALE_DERIVED_ARTEFACT`, `MISCLASSIFIED_FAILURE`.
-
-**AFFECTED COMMIT** — since the P0-R6 / D-2026-21 convergence work landed on
-this branch; surfaced at `577572d`.
-
-**DISCOVERED BY.** Hosted CI, on a runner that happened to have the same
-arithmetic as the canonical set — so the one real divergence was not buried
-among two dozen host-dependent ones.
-
-**DEFECT.** `thermal_3d_verification_report.json`, the committed canonical
-copy, was stale. The branch's own P0-R6 work added a `converged` flag to the
-3D solver's energy accounting (`thermal_3d_transient.py`, so that a failed
-solve cannot be read as a successful one), that flag flows through
-`verification_3d.py` into the report, and **the committed artefact was never
-regenerated.** It carried `"converged": null` where a regeneration produces
-`"converged": true`.
-
-One added line. No numeric value changed at all.
-
-**WHY IT TOOK FOUR COMMITS TO SEE, AND WHY THAT IS THE INTERESTING PART.**
-`package_consistency_check.py` reports the files whose committed copy differs
-from a fresh regeneration. On the non-AVX-512 runners this branch kept drawing,
-that list was **24 files long** — R59, the host-CPU-dependent divergence — and
-the stale one sat inside it, indistinguishable by name from twenty-three files
-that differ for a reason nobody can fix.
-
-At `577572d` the job drew a runner reporting
-
-```
-openblas runtime kernel: SkylakeX
-numpy SIMD found: ['X86_V3', 'X86_V4', 'AVX512_ICL']
-```
-
-— the canonical configuration. `results_gate_table.csv` matched byte for byte,
-62 of 63 root outputs matched, and the list came back with **exactly one
-name**. A real defect is visible only when the noise it hides in goes quiet.
-
-**THE MISCLASSIFICATION THIS ALMOST BECAME.** I had just posted a comment on
-PR #17 explaining that `full-suite` was red for R59 and that there was nothing
-to fix. That comment was correct about `3d809f0`, where both the count (24)
-and the diagnostic line (Haswell / `X86_V3`) supported it. Applying it to
-`577572d` without re-reading the log would have filed a stale artefact under
-a known-unfixable heading and left it there.
-
-The §15 rule for classifying a failure as R59 — *pytest passed AND
-package-consistency actually ran* — is necessary and **not sufficient**. Both
-conditions held at `577572d` and the failure was still this PR's. The rule
-that was missing: **R59 is a statement about host arithmetic, so it is only
-available when the host's arithmetic actually differs.** The diagnostic step
-prints exactly that, and on this run it said the host matched.
-
-**IMPLEMENTATION FIX.** The canonical copy is regenerated. Verified before
-committing it, on this container:
-
-* a full 3D regeneration produces **36 of 37 outputs byte-identical** to the
-  committed copies, so this host reproduces the canonical set and refreshing
-  one file cannot smuggle in local arithmetic;
-* the only file differing is this one, and its only difference is the
-  `converged` field;
-* `package_consistency_check.py` then returns `RESULT: PASS (all consistency
-  checks passed)` locally.
-
-**WHY THIS IS NOT THE FORBIDDEN "REWRITE A CANONICAL OUTPUT".** That
-prohibition is about R59: rewriting an output so a host-arithmetic divergence
-stops being reported, which destroys the comparison. This is the opposite
-case. The code that writes the artefact changed deliberately and under review,
-the artefact is derived, and leaving it stale is what makes the byte gate
-report a difference nobody can act on. The distinguishing test is whether the
-numbers moved: here nothing numeric changed, one structural field was added,
-and 36 of 37 siblings were untouched.
-
-**INVALIDATED CLAIMS.** Any reading of this branch's earlier `full-suite`
-failures as *entirely* R59. The 24-file list at `3d809f0` contained 23
-host-divergent files and one stale artefact, and nothing then distinguished
-them.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
@@ -3217,89 +2818,9 @@ question with a size comparison, which no amount of margin would have fixed.
 
 ## D-2026-35 — the fix for a stale artefact left four artefacts pinning the old one
 
-**CLASS** — `STALE_DERIVED_ARTEFACT`, `SIBLING_SWEEP_OMISSION`. Mine, again,
-in the commit that closed the previous one.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**AFFECTED COMMIT** — `a956dea`, which is HEAD of this branch as this is
-written. Hosted `full-suite` is RED there, and this is why.
-
-**DISCOVERED BY.** The hosted `full-suite` job at `a956dea`, failing
-`tests/test_stage8_data_provenance.py::test_mapping_registry_valid_and_complete`
-— reproduced locally before any of the repair below.
-
-**DEFECT.** D-2026-33 regenerated `thermal_3d_verification_report.json`, a
-governed output. `MANIFEST_BOUNDARY.md` documents a regeneration order for
-exactly that situation, because several generators hash artefacts that
-earlier generators rewrite. `a956dea` ran the manifest half of that order and
-none of the HDF5 half, so three tracked artefacts kept pinning the digest the
-regeneration had just invalidated:
-
-| artefact | what it held |
-|---|---|
-| `hdf5_output_mapping.json` | `sha256` for that output: `c482faf5…`, one line |
-| `hdf5_schema.json` | the same digest, one line |
-| `qta_scientific_results.h5` | the output's **bytes**, under `/native_json` — a stale COPY of a governed output inside the artifact that is supposed to be equivalent to it |
-
-`validate_hdf5_equivalence.py` said so as soon as it was asked:
-`RESULT: FAIL`, 1 problem, 469 datasets where the tree records 470.
-
-A fourth file, `verification/snakemake/canonical_outputs.done.json`, also
-pins the old digest and is **not** a defect: `verification/` is gitignored,
-so that file is a local workspace marker, not part of the repository. Checked
-rather than assumed, because "four files matched the grep" was the first
-reading.
-
-**WHY THE COMMIT'S OWN CHECKS DID NOT SAY SO.** `generate_manifest.py --check`
-printed `manifest in sync (559 files; 2 detached by policy)` and that was
-true. The manifest is LAST in the regeneration chain and hashes whatever it
-finds, including a stale link earlier in the chain; "in sync" means every
-tracked file is listed and every listed hash matches the bytes on disk, and
-says nothing about whether two derived artefacts agree with each other. I
-read the stronger claim off the weaker check — the same shape as D-2026-34,
-committed the same day.
-
-`package_consistency_check.py`, the byte gate that compares committed copies
-against fresh regenerations, could not have separated this from the
-twenty-three R59 host-arithmetic differences it reports on a non-AVX-512
-runner. The suite could, and did, one commit later.
-
-**REPAIR.** The documented order, from the point the change actually entered
-the chain — `qta_full_sim.py` deliberately NOT re-run, since regenerating the
-canonical outputs on this host would rewrite them with this host's
-arithmetic:
-
-```
-build_hdf5_mapping.py     -> one digest in each of mapping and schema
-build_hdf5.py             -> qta_scientific_results.h5 rebuilt
-validate_hdf5_equivalence.py -> RESULT: EQUIVALENT, 470 datasets, 0 problems
-ro_crate_tools.py / validate -> 30 entities, 24 files, VALID
-tools/corpus_allowlist.py --write
-generate_manifest.py
-```
-
-And `generate_manifest.py --check` now prints what it does **not** check,
-beneath the line that misled me:
-
-> (coverage and hashes only — it does not check that derived artifacts agree
-> with their sources; after changing a governed output run the regeneration
-> order in MANIFEST_BOUNDARY.md and then the test suite)
-
-**AND THE GUARD THAT CAUGHT THE MATRIX MOVING WAS HALF WRONG ITSELF.**
-Downgrading R41 fired `test_the_matrix_is_not_completed_silently`, which is
-exactly its job: the complete count is written down so that moving it is a
-decision somebody makes on purpose. Its second assertion was
-`len(rows) == EXPECTED_COMPLETE` — true only while every row is complete, an
-equality that held by circumstance and was written down as a rule. It
-reported "one of the two numbers is wrong" about two numbers that were both
-right. The row count is now its own constant, `EXPECTED_ROWS`, and the
-comment says which mistake that fixes. The same shape, one more time: an
-identity that happened to hold, stated as an invariant.
-
-**WHAT I GOT WRONG, PLAINLY.** I regenerated a governed output, ran the
-manifest, saw "in sync", and committed without running the suite that gates
-derived artefacts. The documented order exists precisely because this is easy
-to get wrong, and I did not open it. Two sibling-sweep omissions in one
-session — this one and D-2026-34's — is the pattern, not the accident.
+**CARRIED FORWARD.** A derived artefact is regenerated in dependency order, and the manifest generator refuses a chain with a stale link anywhere in it (`generate_manifest.py`).
 
 ---
 
@@ -3856,210 +3377,11 @@ because that reading was available and wrong.
 
 ---
 
-## D-2026-42 — the hardware gate's HUMAN authority was a self-declaration
+## D-2026-42 — a gate's HUMAN authority was a self-declaration
 
-**CLASS** — `TRUE_DEFECT` (an authority claim enforced by asking the
-attacker to confess), plus `WRONG_TEST`: the test that held the rule closed
-the example and not the class.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**AFFECTED COMMIT** — since the hardware-governance layer was written.
-
-**DISCOVERED BY.** Working the P1 item recorded as "hardware HUMAN
-authority".
-
-**WHAT THE REPOSITORY SAID.** In three places. The module docstring: "No
-tool authors a review record or promotes evidence automatically."
-`governance_summary()`: `"review_authoring": "human-only; tools may verify,
-never author or promote"`. `authorities.json`: "human-only review
-authoring".
-
-**WHAT THE CODE DID.**
-
-```python
-if rev.get("authored_by_tool"):
-    reasons.append("review records authored by tools are invalid by "
-                   "governance rule")
-```
-
-and `reviewer_id` checked only for being a non-empty string. So the rule was:
-a tool that admits to being a tool is refused. Reproduced against the code as
-it stood:
-
-```
-validate_review_record(tool-authored) -> True []
-dossier n_entries: 1  n_excluded: 0
-ADMITTED, reviewer recorded as: {'reviewer_id': 'automated-evidence-promoter-v3', ...}
-TOOL-AUTHORED REVIEW ADMITTED TO GATE-EVIDENCE DOSSIER: True
-```
-
-A reviewer whose id is literally the name of a program, accepted as the human
-review that admits a hardware record into a gate-evidence dossier.
-
-**AND THE TEST THAT WAS SUPPOSED TO HOLD IT.**
-
-```python
-def test_review_completeness_and_human_only():
-    ...
-    ok, why = validate_review_record({**REVIEW, "authored_by_tool": True})
-    assert not ok and any("human" in w or "tools" in w for w in why)
-```
-
-It is named `human_only`, and what it proves is that an *honest* tool is
-refused. Mutation `H6_a_review_authored_by_a_tool_is_accepted` was killed by
-it, and the matrix read 11/11. Both were true. Neither was about the rule.
-
-**THE SAME SHAPE ON THE REQUEST PATH, TWICE.**
-`validate_matrix_update_request` enforced separation of duties as
-`doc["requester"] in doc["review_ids"]` — two strings nobody had resolved —
-and never looked up `review_ids` at all:
-
-```
-invented review_ids                     -> True []
-requester as reviewer, different case   -> True []
-```
-
-A request citing two reviews that do not exist validated; so did one whose
-requester was the reviewer under a change of case. Respelling turned one
-subject into two and the separation agreed.
-
-**REPAIR.** A reviewer identity must now RESOLVE. `hardware_reviewers.json`
-declares the roster; `resolve_reviewer()` requires an entry of kind `HUMAN`,
-not retired at the date claimed, whose `registered_by` chain reaches
-`OUT_OF_BAND_BOOTSTRAP` — refusing self-registration, cycles, and
-registration by a `TOOL`. That is the standard `agent_substrate/agents.py` already
-holds `PrincipalKind.HUMAN` to, and the reason this repository has two
-authority systems and only one of them was enforcing.
-
-`validate_review_record`, `build_evidence_dossier` and
-`validate_matrix_update_request` all decide through it. The dossier loads
-the roster ONCE and threads it down, so one dossier is decided against one
-authority rather than against whatever the file said at each record.
-`authored_by_tool` is still refused and is no longer load-bearing; the
-comment above the new check says which one is holding the rule up.
-
-**WHAT THIS IS NOT, AND THE MODULE SAYS SO IN ITS OWN VOICE.** It is not
-authentication. `agents.py` already put this plainly — "It cannot
-authenticate a human… an installation that lets an agent perform the
-bootstrap has given the agent human authority, and nothing in this file can
-prevent that" — and the same holds here: whoever can write
-`hardware_reviewers.json` holds hardware-review authority. What changes is
-that the authority is a named file that can be read and diffed, that refuses
-to vouch for itself, and that refuses every review when it is absent or
-empty instead of accepting every one.
-
-**THE ROSTER SHIPS EMPTY, AND THAT IS THE TRUE STATE.** No hardware data
-exists, no review has been performed, nobody has been registered out of
-band. So today no review record can be valid and no gate-evidence dossier
-can have entries — the same shape as "this repository has no human
-decisions", which is what `agents.py` says about escalations. It follows
-that `matrix_update_examples/valid_example.json` is no longer *valid*
-outright, and the test that asserted `ok` now asserts the two-sided thing:
-every refusal it draws is a reviewer-authority refusal (so it really is the
-structurally complete example it is for), and there is at least one (so
-"valid example" is not read as "acceptable request").
-
-**ANTI-VACUITY.** A dossier with no entries has two causes — nobody
-registered, every record deficient — and they are not the same state.
-`reviewer_authority` in the dossier and `review_authority` in
-`governance_summary()` (and so in `thermal_3d_readiness.json`) report which
-roster decided, whether it was present, how many reviewers it held, and what
-the basis is. `test_the_roster_this_repository_ships_registers_nobody`
-asserts the shipped count is zero, so a future registration has to be
-acknowledged where a reader will see it.
-
-**THE TESTS HAD TO MOVE, AND THAT IS THE POINT.** Ten existing tests failed
-after the change, all for one reason: their reviewer was nobody. They were
-repaired at the fixture — `tests/hw_reviewer_fixtures.py` registers the
-reviewer those fixtures are authored by — and every call site in the
-hardware suites now names the roster it decides under. That the positive
-tests previously passed with an unregistered reviewer is the finding
-restated: they were testing record completeness and hash binding and getting
-the authority check for free, because there wasn't one.
-
-**AND A GREP WAS STANDING IN FOR THE RULE.**
-`stage6_preservation_check.py` verified requester/reviewer separation with
-
-```python
-check("requester/reviewer separation enforced by governance",
-      "requester may not be a reviewer" in
-      Path("qta_multiphysics/hardware_governance_3d.py").read_text())
-```
-
-A sentence in a source file survives the rule being deleted around it. It now
-builds a document that must be refused for exactly that reason and asks the
-validator. `qta_multiphysics/stage7_boundary_models.py` keeps its own copy of
-the separation rule as a fast shape check, and
-`test_constructing_the_model_is_not_the_authority` holds a document the model
-admits and governance refuses, so the weaker copy cannot be mistaken for the
-authority.
-
-**MUTATIONS.** `tools/mutations/hardware_governance.json` goes 11 → 21.
-H12–H21 attack the resolution itself: the kind, the chain of trust, the
-bootstrap, retirement, exact naming, the two request-side identities, the
-malformed-roster refusal, and the reviewer count the dossier reports about
-its own authority.
-
-**H17, H18 AND H19 SURVIVED THE FIRST RUN, AND THE HARNESS SAID WHY BEFORE I
-DID.** Its note on a survivor: *"confirm no suite OUTSIDE this list already
-covers it — a mis-scoped spec and a missing test look identical from here."*
-They were covered, by `tests/test_stage6_roadmap.py` and
-`tests/test_stage7_boundary.py`, which the spec did not name. The spec listed
-the module's intake and dossier suites while mutating its request path too.
-Recorded rather than fixed quietly, because SURVIVED was the correct output
-and the wrong conclusion; the suites are now named and the run reads 21/21.
-
-**WHAT VERIFYING THIS COST, AND THE TWO THINGS THE CHECKERS CAUGHT ME DOING.**
-The full suite came back with seven failures, none of them in the code above.
-
-*One: I left the derived chain half-regenerated, which is D-2026-35's class,
-and I did it three weeks after writing that entry.* This change edits hashed
-SOURCE files (`stage6_preservation_check.py` among them) and one governed
-OUTPUT (`thermal_3d_readiness.json`, via `governance_summary()`). I
-regenerated `final_manifest.json` and the corpus allowlist and stopped, as
-though the manifest were the only hash authority. It is not. The RO-Crate
-carries its own checksums, and the HDF5 mapping, schema and artifact carry
-theirs. So `test_ro_crate_cli_validate_subcommand_works` ran the CLI, which
-correctly recomputed
-
-```
-"problems": ["checksum mismatch: stage6_preservation_check.py"],
-"result": "FAIL"
-```
-
-and wrote it over the tracked `VALID` report — moving a manifest-hashed file
-mid-run, which took `test_manifest_completeness` (3), `test_manifest_policy`
-(2) and `test_stage8_data_provenance` down with it. One omission, six
-failures.
-
-`MANIFEST_BOUNDARY.md` describes my exact mistake in its own words:
-"`ro_crate_tools.py` run before a later source edit (leaving a stale
-`qta_full_sim.py` checksum in the crate)". The document recording the lesson
-was in the repository the whole time.
-
-Run properly, the chain propagates by exactly the amount the change warrants,
-and the diff sizes are the evidence rather than the claim: the readiness file
-hashes to `76db15a1…`, which appears once in `hdf5_output_mapping.json` and
-once in `hdf5_schema.json`; the rebuilt artifact hashes to `a5a9dfe4…`, which
-appears once in the equivalence report; the crate rebuilds to `VALID`; the
-manifest goes last. Four files, one line each.
-
-*And my first diagnosis was wrong in a way worth keeping.* I said the manifest
-cluster was an artifact of my having regenerated the manifest while the suite
-was running. I had done that, and it was not the cause. The cause was a stale
-crate, and the difference matters: one is a scheduling accident, the other is
-a tree that was internally inconsistent and would have stayed that way.
-
-*Two: the isolation scan caught my comments.*
-`test_no_gate_computing_module_references_the_substrate` failed on
-`qta_multiphysics/hardware_governance_3d.py`, because three comments named
-the agent substrate's module while pointing at it as the precedent for this
-repair. No import, no dependency — and the scan is right anyway. It is
-textual, with no exception for gate modules and none for comments, and the
-cheapest guarantee that no gate depends on the substrate is that the string
-never appears in one. The rule predates the prose. The names are gone, a
-comment says why the sibling is described and not named, and
-`authorities.json` carries the cross-reference where it costs nothing.
-Widening the scan to admit a comment was the one repair not available.
+**CARRIED FORWARD.** A reviewer must resolve to a registered principal of kind HUMAN; a self-declared kind is not authority (`agent_substrate/agents.py`).
 
 ---
 
@@ -4322,96 +3644,11 @@ Writing one does not confer immunity; running the mutation does.
 
 ---
 
-## D-2026-45 — `PASS = 0` was enforced by a statement Python deletes on request
+## D-2026-45 — an invariant was enforced by a statement Python deletes on request
 
-**CLASS** — `TRUE_DEFECT`, fail-OPEN, on the package's central scientific
-claim.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**AFFECTED COMMIT** — since the gate writer was written.
-
-**DISCOVERED BY.** The P2 item recorded as "production assertions under
-`python -O`".
-
-**THE DEFECT.** `_write_gate_csv` is the function that emits the canonical
-gate table. It held the three claims this repository exists to make:
-
-```python
-for r in rows:
-    assert r["status"] in _ALLOWED_STATES, f"illegal gate state {r['status']}"
-    assert r["can_PASS_now"] == "NO"
-    assert r["measured_in_this_system"] == "false"
-```
-
-`assert` is a debugging construct whose documented contract is that it MAY
-VANISH. Under `python -O` it does. Reproduced:
-
-```
-=== normal python ===
-refused: illegal gate state PASS
-file written? False
-
-=== python -O ===
-WROTE THE FILE. Does it contain a PASS row? True
-    FORGED,,,,,,,PASS,,,true,,YES,,,
-```
-
-A row claiming `status=PASS`, `can_PASS_now=YES` and
-`measured_in_this_system=true` written into the canonical gate table, with
-no error and exit 0.
-
-**AND THE INTAKE BOUNDARY, THE SAME WAY.** `ingest_and_compare` refuses a
-measurement file whose `schema_version` is not this one — with an `assert`,
-inside the `try` whose `except` produces `REJECTED_FILE`:
-
-```
-normal:  ingestion_status: REJECTED_FILE
--O:      ingestion_status: OK
-```
-
-Both fail OPEN, which is the wrong direction twice over: the invariant is
-that no PASS row exists and that foreign schemas do not enter, so losing
-each check produces exactly the artifact the invariant forbids.
-
-**TWO MORE, DIFFERENT IN KIND.** `coupling_ledger_3d._c` let an arbitrary
-status string into the ledger whose whole job is a closed honesty
-vocabulary. And `species_transport_3d` asserted `T is not None` before
-computing a mean free path: under `-O` that becomes a `TypeError` somewhere
-inside the arithmetic, which the directive is explicit about — a refusal
-must be an intentional governed refusal, not an accidental runtime type
-failure. The two are told apart by whoever reads the traceback and by
-nothing else.
-
-**THE SUBSTRATE WAS ALREADY CLEAN, WHICH IS WHY THIS IS P2 AND NOT WORSE.**
-`agent_substrate` and `tools/` carry ZERO asserts. Every authority decision in
-this repository is already a real refusal. The defect is confined to the
-scientific tree, and the worst of it sits in the one function that writes
-the number the whole package is judged by.
-
-**REPAIR.** Four sites converted to explicit raises. The intake's raise
-stays INSIDE its own `try`, so the function still answers with a report
-rather than an exception: the caller's contract is unchanged, only the
-flag-dependence is gone. The remaining three asserts are self-checks on
-values the same function just constructed, or on module constants, and are
-enumerated by site.
-
-**THE TEST HAS TO START A SECOND INTERPRETER.** `-O` is decided at compile
-time; there is no way to un-strip an assert inside a running process.
-Anything patched in-process would be testing something else and reporting it
-as this. `tests/test_optimized_mode_invariants.py` runs each probe under
-both builds as a subprocess, and carries an anti-vacuity case asserting the
-two builds really differ (`0 True` vs `1 False`) — without it, both
-parametrised cases would run the same build twice and pass while measuring
-half of what they claim.
-
-Verified against the original code: `[python -O]` fails on both invariants
-while `[python]` PASSES. That asymmetry is the finding — an ordinary test
-run cannot see this defect at all.
-
-**AND A SCAN, SO THE NEXT ONE CANNOT ARRIVE QUIETLY.**
-`test_no_new_assert_has_taken_over_an_enforcing_path` refuses any assert in
-`agent_substrate` or `tools/`, and pins the scientific tree's remaining sites by
-file. A new one has to be classified by a person -- self-check or
-enforcement -- rather than absorbed into a count nobody reads.
+**CARRIED FORWARD.** Production code enforces nothing with `assert`, because `python -O` deletes it; `tests/test_no_enforcing_asserts.py` scans every tracked production file and runs one real refusal under `-O`.
 
 ---
 
@@ -4606,196 +3843,7 @@ are the ones that get believed.
 
 ## Hosted evidence, per commit
 
-A gate condition is satisfied **for a commit** when that commit's own hosted
-run is green. It is never inherited from a parent: `de7f0e6` passed locally
-and its own hosted run then failed with
-
-```
-TypeError: AF_INET address must be a pair (host, port)
-```
-
-which is what made D-2026-25 a `HOSTED_INTEGRATION_DEFECT` rather than a
-finished repair. That failure is recorded as a **failed R11 closure attempt**,
-not as R59: R59 is host-CPU-dependent byte divergence, and it is only
-available as a classification when pytest passed *and* package-consistency
-actually ran. Neither was true at `de7f0e6`.
-
-**AND THOSE TWO CONDITIONS ARE NECESSARY WITHOUT BEING SUFFICIENT.** Both held
-at `577572d` and the failure was still not R59: it was a stale canonical
-artefact (D-2026-33), visible only because that runner's arithmetic matched
-the canonical set, so the drift list came back one name long instead of
-twenty-four. The missing condition is the obvious one once it has cost
-something: **R59 is a claim about host arithmetic, so it is available only
-when the diagnostic step says the host's arithmetic differs.** That step
-prints the OpenBLAS kernel and numpy's SIMD set immediately before the check,
-and reading it is not optional.
-
-**AND THERE IS A CHECK STRONGER THAN ALL THREE, WHICH WAS AVAILABLE ALL
-ALONG.** The three conditions are things you read off the failing run. The
-decisive one is a POSITIVE CONTROL: run `package_consistency_check.py` on a
-host whose arithmetic MATCHES the canonical set, and see whether the drift
-list is empty. If it is, the names on the failing runner are host arithmetic
-and nothing genuinely stale is hiding among them. If it is not, the names
-that survive are the defect — which is exactly how D-2026-33 was found, by
-accident, because one runner happened to match.
-
-Run at `ed1f569`, in this container:
-
-```
-openblas runtime kernel: SkylakeX
-numpy SIMD found: ['X86_V3', 'X86_V4']
-...
-RESULT: PASS (all consistency checks passed)
-```
-
-`X86_V4` is the AVX-512 generation, so this container IS the canonical
-configuration. Every one of the 24 files the hosted runner called stale
-regenerates byte-identically here, and `results_gate_table.csv` matches too.
-So the hosted `full-suite` failure at `ed1f569` is R59 **established**, not
-R59 inferred from a matching pattern — and the count of genuinely stale files
-among the twenty-four is zero, measured rather than assumed.
-
-The rule is therefore: the three conditions make R59 *available*; a green
-byte gate on a canonical-arithmetic host makes it *established*. Reach for the
-second whenever a host that can run it is to hand, because the first is what
-let D-2026-33 sit inside the list for four commits.
-
-### What `ed1f569`'s own run said
-
-| job | result |
-|---|---|
-| `stack-verify` (core and full) | green |
-| `full-suite` | the **complete pytest suite green** — including `test_mapping_registry_valid_and_complete` and `test_repository_manifest_is_in_sync`, which is D-2026-35's named evidence — then `package_consistency_check.py` red on its two byte comparisons, established above as R59 |
-| `agent-substrate`, `second-interpreter`, `cross-environment-3d` | superseded by `423e51f` before reporting; not treated as passed |
-
-The pytest half of that run is the hosted evidence D-2026-35 named, and it is
-green. The row moves on that basis; the byte-gate half of the same job does
-not bear on it.
-
-| defect | evidence required | commit | state |
-|---|---|---|---|
-| D-2026-24, D-2026-25 (P0-R11) | agent suites, second interpreter, full pytest, network-authority mutation matrix — all on the same commit | `b2787a0` | **`CURRENTLY_CLOSED`** — all four green on that commit's own run; the mutation matrix ran rather than being skipped |
-| D-2026-26 | the cross-process `read-decide-write` mutation matrix | `423e51f` | **`CURRENTLY_OPEN_FINDING`**, and for the first time for a REASON rather than a skip: step 43 ran at `423e51f` and **failed**, 10/11, survivor `X4_a_record_the_reducer_will_reject_is_written_anyway`. Every earlier run skipped this step because the job died at 26. Opened as D-2026-43 |
-| D-2026-27 (P0-R12) | `agent_second_reader` mutation matrix, and the agent suites | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding |
-| D-2026-28 (P0-R13) | `identity_inventory` mutation matrix, and the inventory step | `ed1f569` | **`CURRENTLY_CLOSED`** — `agent-substrate` steps 24 ("identity inventory agrees with the code") and 25 (the inventory's own matrix) both `conclusion: success` on that commit's run. The job as a whole is red at step 26, which is a different finding's evidence and not this one's |
-| D-2026-29 (P0-R14) | `agent_second_reader` mutation matrix, and the inventory step | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding; step 24, the inventory, is success on the same run |
-| D-2026-30 (P1) | `agent_checkpoint` and `agent_second_reader` mutation matrices | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding; step 12, checkpointing, is success on the same run |
-| D-2026-31 (P1) | `agent_substrate` and `agent_second_reader` mutation matrices, and the property suite | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding; steps 9 and 10, the agent suites and the substrate matrix, are success on the same run |
-| D-2026-34 (P1) | `agent_checkpoint` mutation matrix, the agent suites, and `second-interpreter` — the job that found it | `ed1f569` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 12 (checkpointing) and step 9 (agent suites) `success`, `second-interpreter (3.13)` green as a job, and **no `POST-RUN BASELINE RED`**: at `9d7d3c2` that same matrix ended with it, and the fixture that produced it no longer depends on record length |
-| D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | `ed1f569` | **`CURRENTLY_CLOSED`** — the complete pytest suite is green on that commit's own hosted run, `test_mapping_registry_valid_and_complete` included. The same job's byte-gate step is red and is R59, established by a positive control on a canonical-arithmetic host |
-| D-2026-36 (P1) | `agent-substrate` — specifically the `agent_second_reader` matrix | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding. `ed1f569`'s run had this same step red with exactly R92, R98, R99 and R100; the step that named the finding is the step that now passes |
-| D-2026-37 (P1) | `full-suite`'s pytest step — the step that found it — green on this commit's own run | `e081c38` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite, not only the agent suites", `conclusion: success` at `e081c38`, on a hosted runner of the same kind that failed the timed guard at `423e51f`. The job as a whole is red on step 7, the byte gate, which is R59 and does not bear on this |
-| D-2026-38 (P1) | `agent-substrate` — the `agent_second_reader` matrix, now 103 mutations | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding, on the commit that carries all 103 |
-| D-2026-39 (P1) | `full-suite`'s pytest step, which carries `tests/test_stage8_data_provenance.py` | `d425d47` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run. Step 7, the byte gate, is red and is R59 |
-| D-2026-40 (P1) | `full-suite`'s pytest step, and the manifest-completeness suite inside it | `d425d47` | **`CURRENTLY_CLOSED`** — step 5 `success`, and `agent-substrate` step 8 ("derived artifacts are in step with their sources") `success` on the same commit: the step that was red at `3f26b27` for this exact file |
-| D-2026-41 (P1) | `full-suite`'s pytest step, and `agent-substrate`'s `governed_tasks_authority` and `agent_substrate` matrices | this commit | pending its own hosted run; locally the forged record is refused, the projection makes one pass, and G_R1 and M51 were applied by hand and killed |
-| D-2026-42 (P1) | `full-suite`'s pytest step, which carries the four hardware suites, plus `package_consistency_check.py` for the regenerated readiness artifact | `5c7002f` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run, and inside step 7 the line `[PASS] multiphysics: hardware governance (read-only, no hardware data, human-only review, automatic_gate_effect=NONE, ...)` on the regenerated artifact. Step 7 as a whole is red on exactly two byte comparisons, and that runner printed `openblas runtime kernel: Haswell` / `numpy SIMD found: ['X86_V3']` — no AVX-512, which is R59's signature and not this change |
-| D-2026-43 | `agent-substrate` step 43, the `agent_cross_process` matrix, which must read 11/11 | this commit | pending its own hosted run; locally X4 is killed by the new regression, the unreplayable log is reproduced, and the shadowed-definition scan is verified against a reintroduced duplicate |
-| D-2026-44 | `agent-substrate` step 7 ("completion matrix is self-consistent") and step 46, the `completion_matrix` mutation spec, now 18 | this commit | pending its own hosted run; locally 18/18 with C15 killed by the delimiter test it exposed, and the summary prints both axes |
-| D-2026-45 | `full-suite`'s pytest step, which now carries `tests/test_optimized_mode_invariants.py` | this commit | pending its own hosted run; locally both invariants hold under `python -O` in a subprocess, and the three tests fail against the assert-based code |
-
-### What `3d809f0`'s own run said
-
-| job | result |
-|---|---|
-| `stack-verify` (core and full) | green |
-| `second-interpreter (3.13)` | green |
-| `cross-environment-3d` | green |
-| `full-suite` | the **complete pytest suite green**, then `package_consistency_check.py` red on its two byte comparisons |
-| `agent-substrate` | still running when this was written; it carries the mutation matrices and the agent suites that D-2026-27, D-2026-28 and D-2026-29 name as their evidence, so those rows stay `CURRENTLY_OPEN_FINDING` |
-
-**The `full-suite` failure is R59, and it meets the classification rule.** §15
-allows R59 only when pytest passed **and** package-consistency actually ran.
-Both are true here: the suite finished at `[100%]` with six skips and no
-failures, and the package check then ran to completion and reported
-
-```
-[FAIL] generated vs packaged results_gate_table.csv byte-identical
-[FAIL] root canonical outputs byte-match the canonical regeneration
-       24 stale root copies (first 8 shown): [...]
-```
-
-The diagnostic step immediately before it printed the reason, in advance:
-
-```
-openblas runtime kernel: Haswell
-numpy SIMD found: ['X86_V3']
-```
-
-`X86_V3` is the AVX2 generation. The committed canonical outputs were
-produced with the SkylakeX kernel and numpy's AVX-512 loops, and
-`tools/blas_kernel_sensitivity.py` reproduces this host's answer on demand.
-The step's own text says what the failure below it would mean, and it meant
-that.
-
-Two details worth not glossing. The count here is **24 root canonical
-outputs**, while the sensitivity table records 23 of 63 **3D outputs** for
-Haswell with AVX2-only numpy — different file sets, not conflicting numbers.
-And the count is printed with its total at all, which is the repair to the
-slice-width defect R59 was partly made of, visibly working.
-
-`de7f0e6` is retained in this table's history rather than deleted: a commit
-whose closure attempt failed is evidence about how the class was actually
-closed, and removing it would make the repair look like it worked the first
-time.
-
-### What `ed1f569`'s `agent-substrate` job actually said, step by step
-
-The job is red, and reading that as "no evidence" would be as wrong as
-reading it as "the matrices failed". Steps **1 through 25 are
-`conclusion: success`**; step 26, the second-reader matrix, is `failure`;
-steps 27-57 are `skipped` because the job stopped there.
-
-```
-killed:   96/100
-SURVIVED: ['R92_a_checkpoint_claim_need_not_name_a_head_hash',
-           'R98_the_replay_ignores_the_foundations_of_a_canonical_record',
-           'R99_the_replay_checks_only_the_immediate_foundations',
-           'R100_a_cycle_reads_as_sound_in_the_replay']
-all sources restored byte-identical (verified by re-hashing)
-```
-
-Those are **exactly** the four survivors D-2026-36 was opened for and fixed
-at `423e51f`. So this run is the hosted confirmation of the FINDING, at the
-last commit before the repair — not a new one.
-
-And what is NOT in that output matters as much: **no `POST-RUN BASELINE
-RED`.** At `9d7d3c2` the same job ended with it, naming
-`test_pruning_refuses_when_nothing_verifies_against_the_log`. The fixture no
-longer depends on a record-length coincidence, and the line is gone.
-
-**WHICH ROWS THIS MOVES, AND WHICH IT DOES NOT.** The rule is per finding and
-per NAMED evidence, so a job that is red overall still settles the rows whose
-evidence is a step that ran green — and settles nothing for the rest:
-
-| finding | its named evidence | step | verdict |
-|---|---|---|---|
-| D-2026-28 | the inventory step and the `identity_inventory` matrix | 24, 25 | both green → **closed** |
-| D-2026-34 | the `agent_checkpoint` matrix, the agent suites, `second-interpreter` | 12, 9, and its own job | all green → **closed** |
-| D-2026-27, D-2026-29 | the `agent_second_reader` matrix | 26 | red → stays open |
-| D-2026-30, D-2026-31 | `agent_checkpoint`/`agent_substrate` **and** `agent_second_reader` | 12/10 green, 26 red | the second half is red → stays open |
-| D-2026-26 | the cross-process `read-decide-write` matrix | 43 | skipped → stays open, and a skipped step is not a passed one |
-
-### What `423e51f`'s own run said
-
-The run the check-ins had been waiting for since D-2026-36 was opened.
-
-| step | name | conclusion |
-|---|---|---|
-| 1–25 | lint, contract, matrix, derived artifacts, agent suites, and fifteen mutation matrices | success |
-| **26** | **the second reader** | **success** |
-| 27–42 | scope, recovery, idempotency, ownership, delegation, job graphs, separate verify, compensation, service authority, lease renewal, model check, hardware gate, convergence, fuzz harness, incremental | success |
-| **43** | **read-decide-write across processes** | **failure — 10/11, survivor X4** |
-| 44–57 | everything after it | skipped |
-
-Six rows close on step 26. Step 43 is a new finding: it had been skipped in
-every previous run, so this is the first time it has reported anything at all.
-
-Five rows stay open on a run in which twenty-five steps passed. That is the
-rule doing its job rather than an accident of bookkeeping: the second-reader
-matrix is the evidence those five name, and it was red for a reason now
-repaired but not yet re-run.
-
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
@@ -4837,7 +3885,7 @@ container.
 | P1 / D-2026-42 | the hardware gate's HUMAN authority was a self-declaration | `CURRENTLY_CLOSED` | a reviewer must resolve to a roster entry of kind HUMAN whose registration chain reaches the out-of-band bootstrap; the roster ships empty, so nothing is admitted and the reports say so; the preservation check asks the validator instead of grepping for it; mutations 11 → 21; the pytest step AND the hardware-governance assertion are green at `5c7002f` |
 | D-2026-43 | a guard that was correct, documented and untested, and 38 lines the interpreter never reached | `CURRENTLY_OPEN_FINDING` | X4 killed by a regression that reproduces the unreplayable log; the anti-vacuity partner keeps the lapsed-lease requeue working; the dead copy removed with a substrate-wide AST scan behind it; the harness no longer reports an inference as a finding; hosted evidence pending |
 | D-2026-44 | "must cite a run id" was satisfied by a sentence saying there was no run | `CURRENTLY_OPEN_FINDING` | the evidence axis is derived by recomputing each row's implementation digest, not stored; 14 rows' prose no longer names a run while denying one; the summary prints 0/39 covered beside 37/39 complete; mutations 12 → 18; hosted evidence pending |
-| D-2026-45 | `PASS = 0` was enforced by a statement `python -O` deletes | `CURRENTLY_OPEN_FINDING` | four sites converted from `assert` to intentional governed refusals; the gate table and the measurement intake both failed OPEN under `-O` and now refuse identically in both builds; a subprocess suite tests both builds with an anti-vacuity case proving they differ; a scan keeps the substrate at zero asserts; hosted evidence pending |
+| D-2026-45 | an invariant was enforced by a statement `python -O` deletes | `CURRENTLY_OPEN_FINDING` | four sites converted from `assert` to intentional refusals in code since retired; see the D-2026-45 tombstone below |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and
@@ -4918,235 +3966,11 @@ claimed complete.
 
 ## D-2026-48 — the only cross-environment instrument counted files
 
-**CLASS** — `WRONG_SPECIFICATION`: a check whose unit cannot express the
-property anyone actually cares about, so its output licenses no statement
-either way.
-
-**DISCOVERED BY.** Reading the `full-suite` failure at `8c268ab`, where step
-5 — the full pytest suite — passed for the first time and left the byte gate
-as the only red. A red that is the only red is worth reading properly.
-
-**DEFECT.** R59 was thoroughly investigated and never answered. Two
-instruments existed: `package_consistency_check.py`, which reports "24 stale
-root copies", and `tools/blas_kernel_sensitivity.py`, which attributes those
-copies to the BLAS kernel and numpy's SIMD dispatch and reproduces a GitHub
-runner exactly — 40 of 63 files, the same 23 by name. That attribution is
-correct and this entry does not disturb it.
-
-Both count FILES. Byte-identity emits the same output whether a residual's
-last digit moved or a gate flipped from CONDITIONAL to PASS, so neither
-instrument could distinguish the two, and "expected red, see R59" was as far
-as the evidence could reach. The package could not say whether its own
-forecasts were host-independent — not because nobody looked, but because
-nothing in the repository measured in a unit that could answer.
-
-**WHAT THE MEASUREMENT FOUND.** Reproduced locally by forcing
-`OPENBLAS_CORETYPE=Haswell` with numpy's AVX-512 loops disabled, which
-regenerates `results_gate_table.csv` at SHA `f6e09148410108d7` — the exact
-value the hosted runner reported at `8c268ab`.
-
-Two scopes were measured and they agree, which is why both are named here
-rather than one being quoted as "the" result. Over the 3D collector's set:
-62 files, 23 differing, 4871 leaves. Over the full canonical regeneration
-that CI compares — the set `package_consistency_check.py` reports on: 87
-files, **24 differing, which is the same 24 the hosted runner called stale
-root copies**, 6215 leaves. The classification below is the first figure's;
-the second adds one further zero-crossing and no decisions. In both:
-
-- **0 of 83 gate decisions change.** Every `status`, `can_PASS_now`,
-  `threshold` and `reason` is identical. But the invariance is STRUCTURAL,
-  not earned: most thresholds in this package read `REQUIRES_MEASUREMENT`,
-  and a gate cannot flip on a number that is not yet compared to anything.
-  That reason stops holding the day hardware supplies a threshold, so it is
-  recorded as a fact about today rather than a property of the model.
-- **27 exact-zero → nonzero transitions.** `n_CH4_modeC_1m3` is
-  `0.000000000e+00` in all 120 rows of the committed
-  `gas_transport_profile.csv` and nonzero in 18 of 120 on AVX2 hardware, up
-  to `1.56e-02 m^-3`. `RESIDUAL_SPECIES_MODE_D_CHECK` publishes
-  `CH4=0.00e+00` and computes `CH4=4.00e-09` there. Both readings are the
-  same physics — 0.016 molecules per cubic metre is some twenty orders below
-  one molecule in the chamber — but only one of them is a claim of
-  EXACTNESS, and the package makes it about the mode whose whole job is
-  clearing methane before Mode D.
-- **9 apparent sign flips in `thermal_3d_hotspots.csv` are not sign flips.**
-  `T_peak_K` is identical to every digit; the coordinates permute. The peaks
-  are symmetry-degenerate, and the rank order among them is not a physical
-  quantity. Repaired in D-2026-49, which also corrects what this paragraph
-  first said about the mechanism: it called the cause a missing stable
-  tie-break, and measuring it showed there are no ties to break.
-- **180 ordinary precision divergences**, largest relative difference 0.68.
-  That figure looks alarming and is not: it sits on
-  `energy_ledger_cumulative_3d.csv`'s `phase_residual_J`, which is
-  `3.70e-23 J` against source terms of `1.26e-17 J`. The residual IS the
-  accumulated rounding error, so a different accumulation order is expected
-  to move it and the relative difference is 33% of the noise floor. Naming
-  it by its relative difference alone would have been the error this ledger
-  keeps recording: classifying by a proxy instead of by the quantity.
-
-**HOSTED EVIDENCE.** `full-suite` at `c8ce388`
-(job 103449077811), step 8. The runner reproduced the local forced-dispatch
-prediction to every figure: 87 files compared, **24 differing — the same 24
-its own byte gate calls stale root copies**, 6215 leaves, DECISION 0,
-ZERO_CROSSING 28, SIGN_FLIP 9, PRECISION 180 with a largest relative
-difference of 6.822e-01, and the same zero-crossing list by name and value.
-Step 7 refused in the same job, on the same two file sets, for the reason it
-always did. That pairing is the whole claim: the bytes differ and no
-decision does.
-
-**REPAIR.** `tools/cross_env_semantics.py` asks the question in the unit
-that can answer it. It strips numeric tokens from both sides and compares
-what is LEFT: if the residue differs, a status, boolean, unit or label
-changed, and that is a changed claim whatever the numbers did. Only then are
-the numbers classified, into `ZERO_CROSSING` (a published exactness the
-other environment contradicts), `SIGN_FLIP`, and `PRECISION`.
-
-It refuses on exactly one thing — a decision-bearing token that is not
-identical — because that is the only class here that is unambiguous. The
-others are measured and reported and never refused. A gate that goes red for
-benign reasons is how R59 became background noise for months, and rebuilding
-that in a new file would have been a poor trade.
-
-The byte gate is NOT weakened, exempted or replaced, and CI is no greener
-for this commit: `package_consistency_check.py` still refuses on a runner
-whose dispatch differs, for the reason it always did. The new step runs with
-`if: always()` precisely because the old one is expected to fail first, and
-compares that runner's own regeneration — already sitting in `outputs/` by
-the time the byte gate refuses — against the committed copies. Same two file
-sets, two different questions: "do these differ" and "is any difference a
-decision".
-
-`check_scope` refuses a verdict drawn from an empty comparison, because "no
-decision changed" is trivially true of nothing and a renamed output
-directory produces exactly that. The scope numbers — 62 files, 4871 leaves —
-travel in the report rather than being left implied.
-
-Verified by positive control: flipping one token of
-`thermal_3d_readiness.json` from `FORECAST_ONLY_IMPLEMENTED` to
-`VALIDATED_ON_HARDWARE` — the precise claim this package exists to prevent —
-is refused, while `cmp` reports it identically to a moved digit. Every
-refusal test in `tests/test_cross_env_semantics.py` is paired with the
-control that proves the rule names a real condition.
-
-**ONE ERROR WORTH RECORDING, because it is this ledger's recurring one.**
-The first wiring compared every file in `outputs/` against the root copy of
-the same NAME, and was immediately refused on
-`deep_surrogate_readiness.json`: `TRAINED_NOT_TRUSTED` at the root,
-`NOT_IMPLEMENTED` in `outputs/`. That is not an environment difference at
-all. `MANIFEST_BOUNDARY.md` states that `outputs/` is not a mirror of the
-root, and those two files are different artifacts from different stages —
-the root copy is the deep layer's authoritative record, the other a stub the
-direct expdesign engine emits into its own run directory.
-`package_consistency_check.py` already carried `_REGEN_EXEMPT` for exactly
-this, with the reason in a comment above it.
-
-So the scope had been chosen by name match — a proxy — rather than by
-membership in the declared canonical set, which is the same substitution
-recorded against a helper name in D-2026-46 and a path spelling before it.
-Had it not refused on the first run it would have shipped a gate that goes
-red on every host for a reason that has nothing to do with the environment:
-precisely the unreadable red this entry exists to end. `REGEN_EXEMPT` now
-mirrors the byte gate's set and
-`test_the_exemption_matches_the_one_the_byte_gate_already_uses` reads the
-literal out of `package_consistency_check.py` by AST and requires the two to
-be equal, so neither can drift alone.
-
-**MUTATION COVERAGE.** A new gate with no mutation spec is a gate nothing
-has tried to defeat, so `cross_environment.json` — R59's instrument spec —
-gained four, and its suites gained this tool's tests.
-`E12_a_changed_word_is_classified_as_a_number` removes the residue check,
-which is the whole instrument: without it a status flipping to PASS is never
-a DECISION and the gate reports that nothing changed.
-`E13_a_published_exact_zero_is_demoted_to_a_precision_event` folds a zero
-crossing back into PRECISION at a relative difference of 1.0.
-`E14_a_verdict_drawn_from_an_empty_comparison_is_accepted` and
-`E15_the_exemption_swallows_every_file` both attack the scope check from
-opposite ends — nothing lined up, and everything exempted. All four are
-killed, 15/15 for the spec. E15 is killed by
-`test_the_scope_check_accepts_a_comparison_that_did_look_at_something`,
-which is the CONTROL for the refusal test next to it: the pairing that
-exists to stop a rule being vacuous is also what catches an exemption
-growing to cover the tree.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## D-2026-49 — a rank decided by the digits the file does not print
 
-**CLASS** — `WRONG_SPECIFICATION`: an ordering derived from a quantity the
-model does not determine to that precision, so the output carried a fact
-about one accumulation order as though it were a fact about the system.
-
-**DISCOVERED BY.** D-2026-48's semantic comparison, as the class it could
-not classify: nine divergences in `thermal_3d_hotspots.csv` that the tool
-called `SIGN_FLIP` and that are not sign flips. `T_peak_K` was identical to
-every printed digit on both hosts; the coordinates permuted.
-
-**DEFECT.** `hotspot_rows` ranked cells by
-
-```python
-order = np.argsort(Tpk)[::-1][:top_n]
-```
-
-A symmetric beam heats four cells to the same peak by construction. The
-model does not compute them to be equal: measured on the committed
-configuration, the top quartet is
-
-```
-flat=528  0x1.b75d6826d70f5p+3
-flat=540  0x1.b75d6826d70c5p+3
-flat=648  0x1.b75d6826d70bdp+3
-flat=660  0x1.b75d6826d708cp+3
-```
-
-— four distinct float64 values, agreeing to about 1e-14 relative and
-printing identically at the `.9e` the file reports. Each cell accumulates
-its reduction in a different order, so the ranking among them WAS the
-rounding error. On a host whose BLAS kernel accumulates differently the
-order changed while every reported temperature stayed the same, which is
-what the byte gate had been reporting as three stale files without being
-able to say that much.
-
-**The first diagnosis in D-2026-48 was wrong and is corrected there.** It
-called this a ranked output with no stable tie-break. There are no ties:
-`np.argsort` is deterministic, no two peaks are exactly equal, and neither a
-stable sort nor a tie-break on the cell index would have changed one row.
-Checking it cost one query — print the candidates as hex — and the plausible
-story would otherwise have produced a fix that changed nothing and a ledger
-entry claiming it had.
-
-**REPAIR.** The key stops carrying digits the model does not determine.
-`PEAK_FMT` is now one constant used both to serialise `T_peak_K` and to
-build the sort key, so a rank can never be decided by a digit the file does
-not print; cells whose peak is identical as reported are ordered by cell
-index, which is a fact about the grid.
-
-```python
-rank_key = np.array([float(f"{v:{PEAK_FMT}}") for v in Tpk])
-order = np.lexsort((np.arange(Tpk.size), -rank_key))[:top_n]
-```
-
-Verified by running the solver under the committed dispatch and under
-`OPENBLAS_CORETYPE=Haswell` with numpy's AVX-512 loops disabled: the ten
-ranked rows are now the same cells in the same order on both, where before
-the coordinates permuted. Measured end to end by the instrument that found
-it, over the same 87-file comparison: **SIGN_FLIP falls from 9 to 0**, and
-PRECISION from 180 to 179 with its largest relative difference dropping
-6.822e-01 -> 3.279e-01, because that outlier WAS a permuted coordinate
-rather than a quantity. What is left at 3.279e-01 is the energy-ledger
-residual, which is the rounding floor and belongs there. The table also now reads as what it is — each
-peak's four symmetric copies consecutive, in coordinate order — instead of
-interleaved by noise.
-
-**WHAT THIS DOES NOT FIX, stated because the same run shows it.** Across
-those two dispatches the ranked rows still differ, now in the reported value
-rather than the ordering: `1.373015220e+01` against `1.373015221e+01`, the
-tenth significant digit. That difference was always present and the
-reshuffling hid it, so the repair makes the file MORE divergent to `cmp` and
-more honest to read. It also leaves a residual: if a peak's printed value
-itself differs between hosts, two cells can still rank differently. The rank
-now depends only on what the file shows, which is the property worth having;
-it is not host-independence, and nothing here claims it is.
-
-The byte gate is no greener for this either. The 27 zero-crossings and 180
-precision divergences are untouched, so `package_consistency_check.py` still
-refuses on a foreign runner exactly as before.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## D-2026-50 — a crashed log and a corrupt log got the same answer
 
@@ -5382,215 +4206,13 @@ away.
 
 ## D-2026-52 — the linter had been reporting it the whole time
 
-**CLASS** — `TRUE_DEFECT` (176 lines of dead code) sitting behind a
-`WRONG_SPECIFICATION` in the checking apparatus: a rule enforced over a
-named list of paths rather than over the property it protects.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**DISCOVERED BY.** The P2 item recorded as "duplicate residue", by running
-D-2026-43's shadowed-definition scan over the whole repository instead of
-over `agent_substrate/`, which is all it was ever pointed at.
-
-**DEFECT.** `qta_multiphysics/deep_expdesign/runner.py` defined
-`run_deep_expdesign_full` **twice**, at lines 120 and 298. Python keeps the
-last, so the first was dead.
-
-Worse than the scheduler case that started this class. There the two copies
-were byte-identical; here they had **diverged** — 176 lines against 213,
-`Optional[DeepConfig]` against `DeepConfig | None`, and materially different
-bodies: the live one records readiness through `readiness_record` and
-`ReadinessState`, fits OOD against a validation context as well as the
-training set, and imports `transforms` and `eig_surrogate`. The dead one did
-none of that. Someone had maintained an earlier draft in place and it stayed
-there, 176 lines that read as the implementation and were not.
-
-`_trust_decision` existed only to serve the dead copy and died with it.
-`_dependency_ok` did NOT: it is also called from `run_deep_expdesign` at
-line 58, which a name-set comparison of the two `_full` bodies missed and a
-grep caught. Deleting it would have broken a live function to tidy up a dead
-one.
-
-**THE PART THAT MATTERS.** Ruff had been reporting this for as long as the
-second copy existed:
-
-```
-F811 Redefinition of unused `run_deep_expdesign_full` from line 120
-```
-
-The tool that finds this defect was installed, was correct, and was running.
-CI's lint step names its paths —
-
-```
-ruff check agent_substrate qta_multiphysics/stack tests/test_agent_*.py ...
-```
-
-— and `qta_multiphysics/deep_expdesign/` is not among them, so nothing ever
-read the finding. The bespoke AST scan written after D-2026-43 is a narrower
-re-implementation of F811 pointed at one package; it guarded the substrate
-faithfully while the same defect sat in the scientific tree.
-
-That is the defect class, and it is not about duplicate functions: **a rule
-scoped to a list of paths protects those paths, not the property.** The list
-is a proxy for "the code that matters", and proxies drift.
-
-**REPAIR.** The dead definition and its orphaned helper are gone — 186
-lines. Proven a no-op rather than assumed: the live function's source
-sha256, its signature and the package's `__all__` are unchanged, and the
-only differences in the module surface are its first line number (298 ->
-112) and `_trust_decision` leaving the namespace.
-
-`ruff check --select F811 .` now runs over the WHOLE tree, in CI and as a
-test. One rule everywhere, because the rest of ruff cannot be turned on
-here: the legacy scientific tree carries some 1400 findings, overwhelmingly
-E501, and pretending otherwise would produce a gate nobody can keep green.
-F811 is exactly "a name defined twice, the first is dead, and nothing says
-so", and the tree is now clean of it.
-
-Two further F811s surfaced in `deep_expdesign/likelihood_model.py` and are
-NOT the same defect: a function-local `from .simulator_adapter import
-_temp_factor, _coverage_factor, _N_OMEGA` re-importing two names already
-bound at module level, shadowing them with the same objects. Redundant, not
-dead — classified as such rather than counted as a second find. Only
-`_N_OMEGA` is unavailable above, so the local import now asks for that
-alone, and the sweep is clean.
-
-**AND THE FIRST REPAIR COMMITTED THE SAME DEFECT.** The test as first
-written shelled out to `ruff --select F811`. It went red on
-`second-interpreter (3.13)` within the hour:
-
-```
-FileNotFoundError: [Errno 2] No such file or directory: 'ruff'
-```
-
-That job builds a bare environment — numpy and scipy, nothing else — so the
-tool was absent and the rule simply stopped being enforced there. The
-obvious fix, skipping when `ruff` is missing, would have been this entry's
-own defect in different clothes: a check whose scope follows the environment
-instead of the property, silently covering less than it claims.
-
-So the sweep is stdlib-only, `ast` over the tree, and runs on every
-interpreter the suite runs on. Verified by running it with `ruff`
-unreachable on `PATH`, which is the failing condition reproduced rather than
-argued about. CI still runs `ruff check --select F811 .` as a separate step:
-two independent implementations, neither depending on the other, one of them
-broader and one of them always present.
-
-**AND THE SECOND REPAIR SCOPED BY A NAME LIST, WHICH IS THE THIRD TIME.**
-The stdlib rewrite skipped directories by name — `.venv`, `.git`, `attic`,
-`outputs`. The Python 3.13 job builds its environment at **`.venv-alt`**,
-which is on no list and is not in `.gitignore` either, so the sweep walked
-scipy's `site-packages` and reported things like
-
-```
-scipy/stats/_multivariate.py: random_state at lines 267 and 281
-```
-
-Two defects at once, both mine. The scope was a name list — this entry's own
-subject, written a third time. And the rule was wrong: those are
-`@property`/`@setter` pairs, ordinary Python that rebinds a name on purpose,
-which ruff's F811 knows about and a naive AST walk does not. It passed here
-because this sandbox's environment happens to be called `.venv`.
-
-**SCOPE IS NOW ASKED OF GIT.** `git ls-files '*.py'` is not a better list;
-it is the definition of what this repository ships, and it answers correctly
-for every environment, cache and quarantine directory that will ever exist,
-whatever it is called. The CI step resolves its scope the same way, so the
-two implementations agree about WHAT is checked and differ only in HOW —
-`ruff check .` would have walked `.venv-alt` for exactly the same reason.
-The tracked tree is 273 files and clean.
-
-**AND THE RULE IS DECORATOR-AWARE**, before it needs to be. No tracked file
-currently redefines a name under a decorator, so this fixes nothing today;
-it is written now because the first `@property` setter someone adds would
-make the gate cry wolf, and a gate that cries wolf is a gate that gets
-switched off. `test_a_decorated_redefinition_is_not_a_shadowed_definition`
-plants a property/setter pair and requires silence.
-
-`.venv-alt/` is also added to `.gitignore`, independently of all this: an
-untracked and unignored directory would trip `generate_manifest.py --check`,
-which refuses exactly that.
-
-**ANTI-VACUITY.** A sweep that quietly stopped covering the tree it was
-added for would pass forever.
-`test_the_F811_sweep_is_actually_looking_at_the_scientific_tree` plants a
-shadowed definition inside `qta_multiphysics/` and requires the same
-invocation to report it, then removes it — the scope is demonstrated rather
-than trusted to a path list, which is the failure this entry is about.
-
-The probe is staged with `git add -N` so that `git ls-files` reports it:
-planting an untracked file would prove nothing about the path the sweep
-actually takes.
-`test_the_sweep_is_not_reporting_on_an_empty_file_list` guards the other
-way, because a `git ls-files` returning nothing — no git, wrong directory, a
-pathspec typo — would report "nothing is shadowed" forever.
-
-The other half is checked too:
-`test_the_sweep_does_not_police_an_installed_environment` plants the probe
-at `.venv-alt/lib/site-packages/`, the exact path that caused the failure,
-and requires silence — without `.venv-alt` appearing in any list anywhere. A rule that
-policed code this repository did not write and cannot fix would be
-unkeepable, and would be turned off — which is how a rule stops protecting
-anything.
+**CARRIED FORWARD.** A linter's findings are only as wide as its scope: CI lints every tracked Python file (`git ls-files '*.py'`), not a list of directories (`.github/workflows/agent-substrate.yml`).
 
 ## P2 DISPOSITION — the locked release signer is not mine to lock
 
-**NOT A DEFECT.** Recorded so the P2 list is accounted for rather than left
-looking open, and so the reason is on the record rather than in a summary.
-
-**WHAT WAS ASKED.** "Locked release signer" — the last open P2 item.
-
-**WHAT IS THERE.** `QTA_stage9_release_verification/release_trust_policy.json`
-is `bootstrap_state: UNINITIALIZED` with every trust-bearing leaf carrying
-`PENDING:` — `authorized_ref`, `oidc_issuer`, `signer_identity`,
-`pinned_revision`, `reviewed_payload_sha256`, and the one entry of
-`trusted_builders`. Six unresolved leaves, zero wildcards. The release
-workflow signs keylessly through Sigstore and then verifies against those
-pins, failing closed on a missing signature, on a pin still PENDING, and on
-a wildcard anywhere.
-
-**WHY IT STAYS UNLOCKED.** The policy says so itself:
-
-> Resolution is an act of authorization performed by a human in a reviewed
-> commit; no automated step may perform it.
-
-Writing an exact `signer_identity` is a statement about who may sign
-releases for this repository. Deriving it mechanically from the owner, repo
-and workflow path would produce a plausible string and would still be an
-authorization nobody granted — the same shape as the hardware roster's
-"this is a DECLARATION, NOT AN AUTHENTICATION", and outside what this work
-is permitted to do. It stays PENDING, and the release path stays
-fail-closed, until the owner resolves it in a reviewed commit.
-
-**WHAT WAS ACTUALLY CHECKED, because "it fails closed" is a claim.** The
-policy's note asserts the PENDING rule is "enforced structurally over every
-leaf". After D-2026-52 — a rule that protected a list of paths rather than a
-property — that claim was probed rather than read:
-
-| probe | caught |
-|---|---|
-| a NEW top-level field carrying PENDING | yes |
-| PENDING nested two levels inside a new object | yes |
-| PENDING appended as a second `trusted_builders` entry | yes |
-| a nested object *named* `note` | yes — the exemption is the exact path `$.note` |
-| a field merely containing the substring `note` (`footnote`) | yes |
-| `" pending "` lower-case and padded, and `"PeNdInG"` | yes |
-| a wildcard inside `note` | yes — wildcards have no exemption at all |
-| a `?` wildcard in a new field | yes |
-
-`_leaves()` walks the document recursively and the one exemption is a
-frozenset of exact JSON paths, not a weakened matcher. The asymmetry is
-deliberate and correct: `note` is exempt from the PENDING scan because it
-must discuss the rule to state it, and is NOT exempt from the wildcard scan.
-
-**NOTHING WAS ADDED.** `tests/test_release_trust_enforcement.py` already
-covers all of it — 68 tests, including `test_pending_anywhere_fails`,
-`test_pending_inside_trusted_builders_fails`, a parametrized
-`test_pending_case_and_whitespace_tricks_fail`,
-`test_note_field_may_discuss_pending_without_tripping_the_scan`,
-`test_rejects_wildcard_in_any_leaf`, and `test_unknown_field_rejected`,
-which refuses an unrecognised field outright and is stricter than the probe
-assumed. 129 tests across the three release files pass. Writing duplicates
-of tests that already exist would have made the suite longer and the
-guarantee no stronger.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## HOSTED EVIDENCE — the first complete `agent-substrate` run
 
@@ -5690,608 +4312,55 @@ remains OPEN: no log in this run carries the traceback that would close it.
 
 ## D-2026-53 — the file states the number and not what the method could see
 
-**CLASS** — `TRUE_DEFECT` in the scientific outputs: a serialised value that
-claims more resolution than the method that produced it, in a column whose
-name makes it a contamination claim.
-
-**DISCOVERED BY.** The claim audit, following the exact-zero crossings that
-the D-2026-48 semantic comparator had reported and that were deliberately
-left open at the time as "a claims-audit decision".
-
-**THE MEASUREMENT.** `gas_transport_profile.csv` states
-
-```
-n_CH4_modeC_1m3 = 0.000000000e+00     x 120 cells
-```
-
-and `gas_transport_metrics.csv` states `residual_mode_D_density_m3 = 0.0`
-for CH4. That column is the residual methane density at Mode D entry — the
-number a reviewer would quote for "how much process gas is left when the
-10 mK sensing mode starts".
-
-The Mode-C solve did not produce zero. Instrumented, its final methane
-profile is **negative in all 120 cells**, between `-1.888e+01` and
-`-1.847e-10`. `solve_gas_transport_1d` runs with `atol=1e3` per cubic metre,
-so every one of those values is eight to eleven orders of magnitude inside
-the integrator's own absolute tolerance: noise. `np.clip(so.y, 0.0, None)`
-maps the lot to exactly `0.0`, and `write_profile_csv`'s `%.9e` states it to
-ten significant figures.
-
-On a runner whose BLAS dispatch differs the same noise lands positive, the
-clip leaves it alone, and the file states `1.6e-02` instead. Same model, same
-commit, two machines, two different claims about residual contamination —
-which is how this surfaced, as a ZERO_CROSSING in the cross-environment
-comparator.
-
-H2 is the same defect without the clip: 5 of its 120 cells sit below the same
-floor and are stated to ten figures.
-
-**THE DEFECT IS NOT THE ZERO.** He3 and He4 also read `0.000000000e+00` in
-that file, and their zero is exact: helium has no inlet source and no initial
-content in Mode C, so the solution is identically zero in floating point and
-the tolerance never enters. Three different statements — absent by design,
-present but unresolved, resolved and small — were written identically,
-because the file carried values and not the resolution of the method. The
-tolerance is not in the file, and no reader can reconstruct it.
-
-**WHY THE OBVIOUS REPAIRS ARE WRONG.**
-
-* *Round to the floor.* Maps `1.6e-02` to `0.0` and calls the divergence
-  resolved. It conceals the finding instead of reporting it, and the next
-  sub-tolerance value in the next output is equally unmarked.
-* *Tighten `atol`.* Moves the floor; does not declare it. The class survives
-  at the new floor, one order of magnitude down.
-* *Drop the clip.* Serialises negative densities. A worse claim.
-
-**REPAIR.** An output states the resolution of the method that produced it.
-
-`qta_multiphysics/numerics.py` gains `resolution_class` — in the numerics
-layer every solver already depends on, for the reason `require_converged`'s
-docstring gives about rules that live inside one of the things they govern.
-It classifies a **raw** value, before any clip, into one of four:
-
-| class | meaning |
-|---|---|
-| `EXACT_ZERO` | the model gives zero: no source, no initial content |
-| `RESOLVED` | `abs(raw) >= floor`, inside the physical range |
-| `BELOW_RESOLUTION` | `abs(raw) < floor`: not distinguishable from zero |
-| `OUT_OF_RANGE` | outside the range by more than the floor — a solver problem, not a precision footnote |
-
-`trivially_zero` is **not** "the value is small". It is the solver's record
-that no source and no initial content existed, computed where both halves of
-the reason are in hand. Deciding it by magnitude would file helium — absent
-by design — as merely unresolved, which is this project's recurring error
-written one more time: classifying by a proxy for the property instead of by
-the property.
-
-The gas and coverage solves now carry their raw solution, their floor and
-their trivially-zero set; `gas_transport_profile.csv`,
-`surface_coverage_profile.csv` and both metrics files state the class beside
-every value, with the floor and the below-resolution cell count.
-`package_consistency_check.py` **re-derives** the classification from the
-value and the declared floor rather than trusting the column, and refuses a
-run in which it compared nothing.
-
-**THE DECISION THAT RESTED ON IT.** `coupled_mode_solver.run_coupled`
-computed Mode-D readiness with
-
-```python
-"gas_residual_ok": (D_res_CH4 < 1e12 and D_res_H2 < 1e12),
-```
-
-on the clipped `0.0`. That comparison **is** sound — `1e12` is nine orders of
-magnitude above the floor, so whatever the digits were, the residual is below
-the threshold — but nothing established it, and a bare `<` would go on
-deciding a readiness term on noise if the threshold were ever tightened
-towards the floor. `decide_below` now makes the band explicit and raises
-`UndecidableComparison` when a threshold lies inside it. Readiness is
-unchanged: `FORECAST_NOT_READY`, as before.
-
-**THE BREADTH, MEASURED.** `tools/clip_provenance.py` instruments every
-`numpy.clip` in the scientific tree during a real canonical run — the same
-three entry points `qta_full_sim.py` drives — and reconciles the measurement
-against `docs/clip_provenance.json`. Reading the source would have found the
-two gas-transport sites; it would not have established that the others never
-fire, which is the half of "the defect is confined to gas transport" that
-makes it a measurement rather than an impression. A clip that starts moving
-values fails the check until somebody says what it does to the output.
-
-**WHAT THIS DOES NOT CLAIM.** Nothing here makes the methane residual known.
-It makes it *stated*: below `1e3` per cubic metre, which is what this solve
-establishes and all it establishes. `PASS = 0` is unchanged, no gate moved,
-and the forecast remains forecast.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
 ## D-2026-54 — the checker printed a count it had never compared
 
-**CLASS** — `WRONG_SPECIFICATION` in the checking apparatus, twice in four
-lines: a message naming a quantity other than the one measured, and a guard
-that reports agreement about a field it never read.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**DISCOVERED BY.** The claim audit, reconciling the package's countable
-claims against the data.
-
-**DEFECT.**
-
-```python
-if mc.get("total_gates") and int(mc["total_gates"]) != CANONICAL_EXPECTED["total_gates"]:
-    fail(...)
-else:
-    ok("MC summary total_gates matches canonical (63)")
-```
-
-`CANONICAL_EXPECTED["total_gates"]` is **83**, and 83 is what
-`monte_carlo_summary.csv` carries. Nothing in this package has ever had 63
-gates: 83 = 47 CONDITIONAL + 23 BLOCKED + 11 DERIVED_CHECK + 2 UNKNOWN + 0
-PASS. A reader reconciling the checker's own output against the artifact it
-checks would have found a contradiction that does not exist — the same shape
-as R59 spending days on a number that turned out to be a slice width.
-
-And `if mc.get(k) and ...` takes the **OK** branch when the field is missing
-or empty. An absent `total_gates` printed "matches canonical" beside the
-`fail` for the missing row — two messages about the same field, one of them
-false.
-
-**REPAIR.** The message interpolates the value it compared, so the two cannot
-drift again. A missing or empty field is `NOT CHECKED`, which is a failure:
-a field that is not there has not been checked, and silence there reads
-exactly like agreement. Same for `PASS_count`.
+**CARRIED FORWARD.** A checker prints only counts it compared, states the scope its verdict covers, and refuses an empty scope (`tools/workflow_contract.py`, `tools/test_isolation.py`).
 
 ---
 
 ## D-2026-55 — the strongest hardware claim was enforced by nothing
 
-**CLASS** — `MISSING_ENFORCEMENT`: a claim in the package's canonical claims
-file with no rule behind it, and three proxies that looked like one.
-
-**DISCOVERED BY.** The claim audit, taking `CLAIMS_BOUNDARY.md` clause by
-clause and asking what refuses each one.
-
-**THE CLAIM.**
-
-> No validated hardware. Every hardware item in BOM.csv is either
-> DESIGN_SPECIFIED, NOT_INSTALLED, INSTALLED_UNVERIFIED, or
-> MANUFACTURER_SPEC. **No item is in-system VERIFIED.**
-
-**DEFECT.** `package_consistency_check.py` audits BOM.csv in eight rules and
-none of them is that one. What is there:
-
-* Rules 4 and 5 forbid `MEASURED` and `INSTALLED` — **for `B081..B131` only**,
-  51 of 121 rows. The other seventy were unconstrained.
-* Rule 6 forbids `INSTALLED`/current for rows whose *name* contains
-  "dilution", "cryostat" or "refriger".
-* Rule 8 scans the whole row for `\b(validated|verified)\b`.
-
-Rule 8 is the one that looks like the enforcement, and it is not:
-
-```python
->>> re.search(r"\b(validated|verified)\b", "INSTALLED_VERIFIED", re.I)
-None
-```
-
-An underscore is a word character, so there is no boundary before the `V`.
-`INSTALLED_VERIFIED` and `IN_SYSTEM_VERIFIED` pass; a bare `verified` in prose
-is caught. The rule catches the sentence and misses the status.
-
-Put together: a status of `INSTALLED_VERIFIED` on any row outside
-`B081..B131` whose name does not mention a cryostat passed every check in the
-file. Nothing in the package would have said the claims boundary had been
-broken.
-
-**AND THE VOCABULARY DID NOT MATCH.** The claim names four statuses. The data
-uses three: `DESIGN_SPECIFIED` (117), `NOT_INSTALLED` (3) and
-`MANUFACTURER_SPEC_TARGET` (1) — a fifth name, not on the list.
-`INSTALLED_UNVERIFIED` is on the list and used by nothing. So a reviewer
-checking the claim against the file would find a status the claim does not
-permit, and a permitted status that does not occur.
-
-**REPAIR.** An allowlist, which is the property rather than a proxy for it:
-
-```python
-ALLOWED_BOM_STATUS = {
-    "DESIGN_SPECIFIED", "NOT_INSTALLED", "INSTALLED_UNVERIFIED",
-    "MANUFACTURER_SPEC", "MANUFACTURER_SPEC_TARGET",
-}
-```
-
-Enumerating the permitted set also removes the thing that made this hard to
-write as a pattern: `INSTALLED_UNVERIFIED` contains `VERIFIED` as a
-substring, so no substring rule separates the negation from the assertion.
-Membership does. Widening the set is a change to the claims boundary and now
-reads like one.
-
-`CLAIMS_BOUNDARY.md` states the same five, with the current counts, and says
-the list is the complete permitted vocabulary. An empty BOM is a refusal
-rather than a clean audit of nothing.
-
-`tests/test_bom_status_claim.py` drives the rule over a **constructed** BOM
-carrying `INSTALLED_VERIFIED` on a row outside `B081..B131` and requires a
-refusal, with the unmodified table as the control — so the test establishes
-what the checker would reject, not merely that today's data is clean. It
-reads the allowlist out of the checker rather than restating it, because a
-copy of the rule inside the test would keep passing while the checker's copy
-rotted. The word-boundary behaviour is pinned in its own test, so that
-reintroducing a `\bverified\b` scan as the enforcement fails with the reason
-attached.
-
-**WHAT DID NOT CHANGE.** No BOM row. The committed table was already clean;
-what was missing was anything that would have noticed if it were not.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
 ## D-2026-56 — the claims boundary was a fifth enforced, and nothing said which fifth
 
-**CLASS** — `MISSING_ENFORCEMENT` at scale, plus `UNMEASURED_COVERAGE`: the
-package's canonical claims file and the checker that is supposed to hold it up
-were never reconciled, in either direction.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**DISCOVERED BY.** The claim audit. D-2026-55 found one unenforced clause by
-reading. The obvious next question was how many others there were, and that is
-a measurement, not a reading.
-
-**THE MEASUREMENT.** Take every **Forbidden:** bullet in
-`CLAIMS_BOUNDARY.md`, and ask of each: if this exact sentence appeared in a
-live document, would `package_consistency_check.py` refuse it?
-
-**19 of 24 would have passed.**
-
-Uncovered, every one of them:
-
-```
-QTA has validated radiation shielding.
-QTA shielding proves 10 mK Mode D operation.
-Cryo-baffles prove contamination is solved.
-Mode B processing and Mode D sensing occur simultaneously.
-Monte Carlo validates the shielding stack.
-RF/IR shielding is sufficient without measurement.
-The radiation shutter stack has been experimentally proven.
-The cryopanels solve Mode B -> Mode D contamination without measurement.
-The magnetic shield is compatible with NV sensing without bias-field validation.
-QTA has selected RTB/JT cooling.
-QTA has installed RTB/JT cooling.
-QTA RTB/JT cooling is validated.
-RTB/JT replaces the dilution refrigerator.
-RTB/JT unlocks any PASS gate.
-...
-```
-
-The **entire** shielding list — the nine sentences the file itself calls "the
-canonical statements that bound what the package claims about shielding" —
-had no enforcement at all. Among them, `Mode B processing and Mode D sensing
-occur simultaneously`, which is the sentence the whole mode-exclusive
-architecture exists to deny, named in the not-authorized list, and enforced by
-nothing.
-
-The five that were covered were covered **incidentally**: `25 RTB`, `25 JT`,
-`25 reverse-turbo-Brayton`, `JT provides 10 mK`, `JT validates` — patterns
-written to catch stale module counts, which happened to fall across five
-claim sentences.
-
-`RTB/JT unlocks any PASS gate` is the near miss that shows how thin the
-coverage was. The checker had `RTB[/ ]?JT\s+unlocks\s+PASS`. The bullet says
-"unlocks **any** PASS gate". One word apart, and the rule did not fire.
-
-**WHY IT WAS INVISIBLE.** Nobody had claimed the list was enforced. Nothing
-had measured that it was not. A claims file whose entries are enforced and one
-whose entries are not look identical from the outside, and the checker's
-output — 90-odd green `[PASS]` lines — reads as though the claims are among
-the things being held up.
-
-**REPAIR.** `FORBIDDEN_CLAIM_PATTERNS` in the checker: one entry per forbidden
-bullet, each carrying the bullet **verbatim** as the thing it enforces, scanned
-over the five live documents with the negation handling the README check has
-always had (a line that denies the claim is not the claim) and the existing
-`Forbidden:`/superseded exemption, so that the claims file may quote its own
-forbidden sentences.
-
-`tools/claims_enforcement.py` reconciles the two lists **in both directions,
-by matching rather than by naming**:
-
-* every bullet must be matched by some pattern, or it is reported uncovered —
-  so a new forbidden claim arrives unenforced and fails, instead of joining
-  the silent 19;
-* every pattern must name a bullet that still exists, so the table cannot
-  drift into describing a claims file that has moved on;
-* every pattern must **match** the bullet it names. Naming a claim is not
-  enforcing it, and a table of regexes that matched nothing would otherwise
-  report full coverage.
-
-Now 22 of 22. The count moved from 24 because two entries were removed from
-the list and restated as prose above it: "a value of 0.000000000e+00 does not
-mean the species is absent" and "do not quote a serialised value without its
-resolution class" are rules of reading, not sentences anyone would write.
-Nothing can enforce them automatically, and a list that must be enforced entry
-by entry cannot carry entries that nothing can enforce without misreporting
-its own coverage.
-
-**WHAT THIS DOES NOT ESTABLISH — AND THE TOOL SAYS SO IN ITS OWN OUTPUT.**
-One bounded question: would this *exact sentence* be refused? A paraphrase is
-not caught. No string rule catches one, and a number that implied otherwise
-would be worth less than no number. What has changed is that the number is now
-measured, on every commit, and that the shielding claims are inside it.
+**CARRIED FORWARD.** Every boundary in the claims boundary names the code that enforces it and the tests that hold it, and `tools/claims_enforcement.py` checks that from the source (`docs/claims_boundary.json`).
 
 ---
 
 ## D-2026-57 — the unit was read off the spelling of the column name
 
-**CLASS** — `TRUE_DEFECT` in the archival artefact: a semantic dimension
-resolved by a proxy, losing the dimension on 91 of 162 columns and getting it
-**wrong** on three.
-
-**DISCOVERED BY.** The semantic-dimension audit. Identity, payload,
-destination, port, socket family/type/protocol and (as of D-2026-53)
-resolution each have a conservation rule and a test. Units did not, and
-`validate_hdf5_equivalence.py` had been printing the evidence in its own
-report the whole time:
-
-```json
-"unresolved_unit_columns": 91
-```
-
-— a number it counted and gated nothing with.
-
-**THE MEASUREMENT.** `build_hdf5_mapping.unit_of()` matched the **end of the
-column name** against a thirty-entry suffix table and returned `"unresolved"`
-otherwise. 162 numeric columns cross into the governed HDF5, where the unit
-becomes a dataset attribute a consumer reads as fact.
-
-*91 lost the dimension entirely* — including every column whose unit is
-written in its own name:
-
-```
-Q_laser_W_m3, Q_mw_W_m3      W/m^3   -> unresolved
-heat_flux_W_m2               W/m^2   -> unresolved
-n_CH4_modeC_1m3 (+3 species) 1/m^3   -> unresolved
-eig_nats, prior_entropy_nats nats    -> unresolved
-N_per_m2, admitted_per_m2    1/m^2   -> unresolved
-Ts_mK                        mK      -> unresolved
-eps_pct                      percent -> unresolved
-DeltaGamma_rads              rad/s   -> unresolved
-```
-
-*and three did not fall through — they came out wrong:*
-
-```
-gradient_K_per_m       ends "_m"  -> published as METRES   (it is K/m)
-dose_flux_open_m2_s    ends "_s"  -> published as SECONDS  (it is 1/(m^2 s))
-dose_flux_closed_m2_s  ends "_s"  -> published as SECONDS  (it is 1/(m^2 s))
-```
-
-A temperature gradient published as a length and a flux published as a time.
-That is worse than no unit, because a wrong one is credible: a consumer has no
-reason to doubt an explicit attribute.
-
-**AND A SECOND CONFLATION INSIDE THE WORD.** "unresolved" was doing two jobs.
-`cycle`, `step`, `rank` and `n_batches` are counts. `theta_CH4`,
-`attenuation_factor`, `SNR` and `Cc` are dimensionless ratios. `cost`,
-`duration` and `risk` are `{1,2,3}` difficulty scores — **not** currency and
-**not** time, which is exactly what a suffix rule would have been free to
-call `duration`. And `value` in a long-format metric/value table genuinely
-carries its unit in the row. Four different situations, one word, the same
-shape as D-2026-53's zero that was exact sitting beside a zero that was noise.
-
-**REPAIR.** `docs/unit_inventory.json` declares the dimension of all 162
-governed numeric columns, reviewed. There is no `unresolved` in the
-vocabulary: a column with no unit says **why** —
-
-| word | meaning |
-|---|---|
-| `DIMENSIONLESS` | a physical ratio: a fraction, a coverage, a contrast, an SNR |
-| `COUNT` | an integer count or index |
-| `ORDINAL` | a rank-scale score with no physical dimension |
-| `PER_ROW` | a long-format table; the entry names the column carrying the unit |
-
-`unit_of()` reads the declaration and **raises** on an undeclared column
-rather than defaulting. Any default there is a dimension nobody reviewed,
-written into an archive as fact.
-
-`tools/unit_inventory.py` reconciles both directions — every governed numeric
-column declared, no entry naming a column that no longer exists, no
-`unresolved`, and a `PER_ROW` entry must name a column that is **actually in
-that CSV's header**, so "the unit is in the row" is checked rather than
-asserted. One rule runs the other way: a column whose own name ends in an
-unambiguous unit token may not be declared dimensionless. That is the error
-direction that matters, and the suffix table survives only there — as a
-refusal, never as a resolver.
-
-`validate_hdf5_equivalence.py` turns the statistic into a gate and reports
-what is worth counting: **94 columns carry a physical unit, 68 declare why
-they carry none.**
-
-**THE MUTATION THAT SURVIVED, AND WHY IT MATTERED.** `UI8` disables the new
-refusal in the equivalence validator. It survived the first run: every other
-test of that report reads the **committed** report, which no source change can
-move, so the refusal had no test at all. The harness says a mis-scoped spec
-and a missing test look identical from there — this was the missing test. It
-is driven now against a constructed one-column fixture, with controls for
-each of the six legitimate dimensions, in the file that owns the validator.
-8/8.
-
-**WHAT DID NOT CHANGE.** No value. 483 datasets still compare exactly against
-their sources; the result is `EQUIVALENT` as before. What changed is that the
-numbers now arrive with the dimension they were always supposed to carry, and
-three of them are no longer labelled with the wrong one.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
 ## D-2026-53a — the test written to defend the finding committed the finding
 
-**CLASS** — `WRONG_SPECIFICATION` in a test: a host-dependent quantity
-asserted as a property, in the test defending the discovery that it is
-host-dependent.
-
-**DISCOVERED BY.** The hosted `full-suite` at `0358af0`, step 5. Not by me.
-
-**DEFECT.**
-
-```python
-assert np.all(raw < 0.0), "expected the Mode-C methane solve to be noise"
-...
-assert np.all(written == 0.0), "expected the clip to write exact zeros"
-```
-
-On a GitHub runner the same solve returns a **mixed-sign** profile — 18 of
-120 cells positive — so the clip leaves `+1.48e-03` and `+2.39e-04` in the
-file where this machine writes zeros, and both assertions fail.
-
-Which is D-2026-53, verbatim. The **sign of that noise is the
-host-dependent quantity**: it is the entire mechanism by which one machine's
-artefact says `0.0` and another's says `1.6e-02`. Two commits after writing
-that down, I pinned it in the test written to defend it.
-
-The finding survived. Everything that states the *property* passed on the
-runner untouched — `test_methane_in_mode_C_is_marked_below_what_the_solve_
-can_see` is not in the failure list, because the classification is
-`BELOW_RESOLUTION` in all 120 cells on both machines. Only the assertions
-that reached past the property to the digits broke, and they broke on the
-first machine that disagreed.
-
-**THE METHOD DEFECT UNDERNEATH.** This repository has a documented one-line
-way to reproduce a GitHub runner's arithmetic —
-
-```
-OPENBLAS_CORETYPE=Haswell NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
-```
-
-— written down during R59 for exactly this purpose. I did not run the new
-tests under it before pushing, having just written a defect report about
-host-dependent numerics. Run now, it reproduces the runner exactly: raw min
-`-1.062372e+02`, max `+9.899635e-01`, 18 positive cells, and
-`max displacement 1.062372e+02` — the same figure the runner's own
-clip-provenance step printed.
-
-**REPAIR.** The test asserts what holds on both machines, which is also what
-the finding actually claims:
-
-* the integrator's answer lies entirely inside its own absolute tolerance;
-* it is not zero, so the published zero is the clip's and not the model's;
-* every written value is non-negative and below the floor;
-* every cell classifies `BELOW_RESOLUTION` whatever the signs were.
-
-`test_the_class_is_stable_where_the_digits_are_not` is new and states the
-guarantee directly, checked against **both** hosts' extremes — this machine's
-min and max, and the runner's `-3.86e-01`, `+1.48e-03`, `+9.97e-09` — so it
-cannot quietly become a statement about one host's arithmetic. The committed-
-artefact test no longer pins `"0.000000000e+00"` either: a regeneration on a
-different runner writes `+1.48e-03` in some of those cells and is equally
-correct, and what must hold of the committed file wherever it was produced is
-that every value is inside the floor that same file declares.
-
-Verified under the runner dispatch, not assumed.
-
-**WHAT THE SAME RUN ALSO CONFIRMED.** With step 5 red, `set -e` skipped the
-byte gate, so `outputs/` was never regenerated — and step 8 printed
-
-```
-SCOPE REFUSED: compared 0 files: no output in the other tree has a committed
-counterpart by name. 'no decision changed' would be a statement about an
-empty set.
-```
-
-The anti-vacuity guard in `cross_env_semantics.py` firing on real hardware,
-in the one situation it was written for, rather than reporting "0 decisions
-changed" over nothing. It was never a consequence anybody had observed
-before.
-
-And step 9, `tools/clip_provenance.py`, passed on that runner on its first
-outing: 11 clip sites observed, the same 2 moving, `inventory agrees with the
-measurement` — with element counts of 210412 and 4344 against this machine's
-981668 and 6352. The inventory compares `moves`, a boolean, and not the
-counts, which is why a host-dependent measurement reconciles against a
-host-independent judgement.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
 ## D-2026-58 — which code runs was decided by the host's SIMD dispatch
 
-**CLASS** — `WRONG_SPECIFICATION`: a governed record stating a
-host-conditional measurement as a property of the thing measured, and a test
-pinning one host's answer.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**DISCOVERED BY.** Running the full suite under the runner-emulating dispatch
-after D-2026-53a — the sweep that the earlier failure said should have
-happened before pushing. One failure in it was not mine and not the manifest:
-
-```
-tests/test_stage10_stack.py::test_rust_open_item_matches_the_measured_verdict
-E  assert True == (True is False)
-```
-
-**THE MEASUREMENT.** `rust_kernel.kernel_parity()` adopts a Rust kernel only
-if it is **bit-for-bit identical** to the NumPy reference — a strict rule, and
-the right one. But the reference side of that comparison is NumPy, and
-NumPy's `**` loop moves with the CPU:
-
-| NumPy SIMD in force | `conductivity_power_law` | max ulp | `backend_in_force` |
-|---|---|---|---|
-| `X86_V3+X86_V4` (AVX-512) | REJECTED | 2 | numpy |
-| `X86_V3` only | **ADOPTED** | **0** | **rust** |
-
-Same kernel, same seed, same 4096 test values, same code on both sides.
-`face_conductance` — pure division and addition — is bit-identical either
-way; `powf` is not.
-
-So the adoption verdict is a fact about **(kernel, host)** and was recorded as
-a fact about the kernel. `STACK.md` printed `| 2 | REJECTED | numpy |`,
-`stack.json` listed the rejection as an open item, and the test asserted it.
-On a host without AVX-512 all three are wrong, and `dispatch()` would hand a
-solver the Rust kernel instead of NumPy.
-
-This is R59 one level up. R59 is about a printed digit differing between
-hosts; this is about **which implementation runs** differing between hosts,
-decided by the same underlying fact.
-
-**SEVERITY, STATED HONESTLY.** Nothing turns on it today. `rust_kernel.py`'s
-own record says "no solver imports these kernels yet", and a sweep confirms
-it: outside the module and its tests, nothing references `dispatch()`,
-`parity_ok()` or the kernels. The live consequence was a test that fails on
-hardware this repository has not happened to run on — a latent CI failure
-driven by runner silicon, on code nobody had touched.
-
-**REPAIR.** The verdict carries the conditions of its own measurement, which
-is D-2026-53's rule applied to a decision instead of a number.
-`numpy_dispatch()` reports the SIMD extensions in force, and every parity
-record — including the unavailable and shape-mismatch branches — now carries
-`numpy_dispatch` and `verdict_is_dispatch_conditional`. `status_report()`
-states the conditionality in prose beside the verdicts.
-
-`STACK.md` and `stack.json` state both measurements rather than one. The test
-asks for the relationship: the note must acknowledge the dependence, the
-verdict must have been measured under the dispatch the report names, and
-`REJECTED` is required only where AVX-512 is actually in force. It passes
-under both dispatches now, checked under both rather than reasoned about.
-
-**WHAT IS NOT CHANGED.** The parity rule. "Bit-identical or not adopted" is
-the standard, and 2 ulp is still a rejection. The defect was never the rule;
-it was a record that read as though the rule had reached a permanent verdict.
+**CARRIED FORWARD.** The Rust kernels whose results depended on the host's SIMD dispatch were rejected by a measured rule and later retired (`stack.json`).
 
 ---
 
 ## D-2026-53a, caught a second time — and the harness refused rather than scored
 
-`agent-substrate` at `463b4e8` ran **50 steps green over 3h 46m** and failed
-at step 51, the new `output_resolution.json` matrix, after seven seconds:
-
-```
-16 mutations over 3 suite(s)
-
-BASELINE RED -- mutation results would be meaningless.
-Every mutation would 'fail the suite' for this pre-existing
-reason and the report would read as a perfect score:
-['test_the_written_methane_zero_is_the_clip_not_the_model']
-```
-
-The same defect as D-2026-53a — the test that pinned the sign of the Mode-C
-methane noise — found by a second, independent instrument on the same
-hardware, in a different job.
-
-Worth recording for what the harness did rather than for what broke. A
-mutation runner that did not check its baseline would have run all sixteen
-mutations against an already-red suite, observed every one of them "fail the
-suite", and printed **16/16 killed** — a perfect score meaning nothing. It
-refused instead, named the test, and said why the number would have been
-worthless. Already fixed at `c1bd8ea`; nothing to repair here.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
@@ -6344,343 +4413,25 @@ tree as the control.
 
 ## HOSTED EVIDENCE — the resolution class is stable where the digits are not
 
-`full-suite` at `c1bd8ea`, step 8, on a GitHub runner, with the byte gate
-having regenerated the canonical tree first so the comparison was real:
-
-```
-DECISION          0
-ZERO_CROSSING    28
-SIGN_FLIP         0
-PRECISION       179   largest relative difference 3.279e-01
-
-  gas_transport_profile.csv [r102c1]: 0.000000000e+00 -> 1.561645593e-02
-  gas_transport_profile.csv [r116c1]: 0.000000000e+00 -> 1.483302101e-03
-  gas_transport_metrics.csv [r1c3]:   0.0 -> 3.999936115734321e-09
-  coupled_mode_state_summary.json
-      [.metrics.Mode_D_residual_CH4_density_m3]: 0.0 -> 3.999936115734321e-09
-
-No decision-bearing token differs between the two environments.
-```
-
-That `1.561645593e-02` is D-2026-53's `1.6e-02`, reproduced on hosted
-hardware at the commit that closed it. `Mode_D_residual_CH4_density_m3` is
-the contamination claim itself: `0.0` on the committed side, `4.0e-09` on the
-runner's.
-
-**And the resolution columns do not appear in the list.** They are
-non-numeric tokens; had a single cell classified differently between the two
-machines it would have been a DECISION and the gate would have refused.
-Twenty-eight numbers moved, some by sixteen orders of magnitude, and every
-statement about what the solve could see stayed put. That is the guarantee
-D-2026-53 was built to provide, measured rather than argued.
-
-Step 5 — the full pytest suite — was **green** on that runner, which is
-D-2026-53a confirmed repaired on the hardware that found it. Step 9,
-`clip_provenance.py`, passed in 4m22s with the same two moving clip sites and
-host-dependent counts (210412 and 4344 against this machine's 981668 and
-6352). Step 7 is the standing R59 byte gate, red as always and already
-reported.
-
-**THE COMPARATOR WAS OVERSTATING, AND THEN MY FIX FOR IT WAS A PROXY.** Its
-ZERO_CROSSING message said, of every crossing, that a published
-`0.000000000e+00` "states that the model determined the quantity to be
-exactly nothing". True when written; false since D-2026-53 for exactly the
-files this repository just fixed, which publish the zero beside
-`BELOW_RESOLUTION` — the opposite claim. An instrument that keeps asserting
-it overstates what the artefact says, which is the class it exists to find.
-
-`declares_resolution()` now reads the artefact and splits the report into
-DECLARED and BARE. The first version read **only the CSV header**, and
-immediately called `coupled_mode_recovery_metrics.csv` BARE while that file
-declares `Mode_D_residual_CH4_resolution, BELOW_RESOLUTION` on a row of its
-own. It is a metric/value table — the PER_ROW shape D-2026-57 had to give a
-name to because its meaning lives in the row — and a header-only check is a
-proxy that fails on precisely the shape this repository had already
-identified and named. Header *and* first column now, both read from the file.
-
-Reproduced locally under the runner dispatch after the repair: **24 of 24
-zero-crossings declared, 0 DECISION.** Before it, 22 of 24, with the two
-long-format rows wrongly filed as bare. E16 and E17 mutate both halves back;
-17/17 killed.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ---
 
-## D-2026-60 — the gate table published the unresolved residual as an exact zero
+## D-2026-60 — a published residual below resolution read as an exact zero
 
-**CLASS** — `TRUE_DEFECT` in the canonical gate table: D-2026-53's defect, one
-propagation step further than that repair traced.
-
-**DISCOVERED BY.** The DECLARED/BARE split, on its first hosted run —
-`full-suite` step 8 at `280cb3d`:
-
-```
-ZERO_CROSSING is not a precision event, and 26 of 28 are already declared
-as such by the file they are in.
-  ...
-  BARE -- the file states the number and nothing about what its method
-  could resolve.
-    energy_ledger_cumulative_3d.csv [r2c9]: 1.615587134e-27 -> 0.000000000e+00
-    results_gate_table.csv [r82c4]:         0.00e+00 -> 4.00e-09
-```
-
-The instrument was written one commit earlier to answer "is this crossing
-already declared?", and the first thing it did on real hardware was name a
-file I had not reached. `results_gate_table.csv` row 82 is
-
-```
-gate_id  RESIDUAL_SPECIES_MODE_D_CHECK
-name     Residual process species cleared for Mode D
-computed CH4=0.00e+00; H2=2.60e+11          unit 1/m^3
-status   BLOCKED     threshold REQUIRES_MEASUREMENT
-```
-
-— the **gate table**, publishing the residual methane at Mode D entry as an
-exact zero, in the column a reviewer reads as the gate's value. On a runner
-it reads `4.00e-09`.
-
-**WHAT DID NOT HAPPEN.** No gate moved. `status` stays `BLOCKED`, `threshold`
-stays `REQUIRES_MEASUREMENT`, `measured_in_this_system` stays `false`,
-`can_PASS_now` stays `NO`, and the comparator reports **0 DECISION** across
-both environments — those are non-numeric tokens and they are identical. The
-gate is blocked for an independent reason (Mode D sensing is itself not
-validated). What was wrong was the published value, not the verdict.
-
-**REPAIR.** `numerics.render_with_resolution()` publishes what the method
-establishes:
-
-```
-CH4<1.00e+03; H2=2.60e+11
-```
-
-An unresolved quantity becomes the **bound**, with the operator carried as
-part of the statement. The resolved one keeps its value. `OUT_OF_RANGE` is
-marked rather than rendered as an ordinary number.
-
-This is not the rounding D-2026-53 rejected. Rounding writes `0.0` and says
-nothing about why; an explicit inequality naming the floor states the
-finding. And it is strictly better than declaring the crossing, because the
-bound is the **same text on every host** — the cell stops diverging between
-environments instead of merely being marked as allowed to.
-
-`build_gate_specs` reads the resolution class and floor that the coupled
-metrics have carried since D-2026-53, so the fix is a change of rendering and
-not of physics. 483 datasets still compare exactly; the equivalence result is
-unchanged at `EQUIVALENT`, 94 columns with a physical unit and 68 declaring
-why they have none.
-
-**STILL OPEN, AND NAMED SO IT STAYS NAMED.**
-`energy_ledger_cumulative_3d.csv`'s `cumulative_dU_J` crosses
-`1.615587134e-27` -> `0.0` between hosts. It is the difference of two
-~`1.5e-09` J sums, so it is float cancellation, not a species density with a
-declared solver tolerance — its floor is a property of the summation, roughly
-`|source| * eps * n_terms`, and declaring it honestly is real numerical work
-rather than a rendering change. Left open deliberately. The instrument will
-keep printing it under BARE until somebody does it, which is the point of
-having the split.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## D-2026-61 — the release gate compared the outputs that turned up
 
-**CLASS** — `TRUE_DEFECT` in `package_consistency_check.py`, the instrument
-every commit message in this branch quotes. The rule that would have caught it
-was already written, in the mode the file itself documents as *not* the
-release gate.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**DISCOVERED BY.** A stray concurrent process, and then by looking at what it
-did. Two regenerations overlapped on `outputs/`; one was killed part-way. The
-surviving run completed and printed
-
-```
-RESULT: PASS (all consistency checks passed)
-```
-
-over a directory holding **84** files. A clean regeneration produces **89**.
-The five that were absent:
-
-```
-coupled_mode_recovery_metrics.csv
-coupled_mode_state_summary.json
-mesh_convergence_summary.csv
-multiphysics_verification_summary.csv
-numerical_stability_summary.csv
-```
-
-`coupled_mode_state_summary.json` carries `Mode_D_residual_CH4_density_m3`.
-That is the contamination claim — the quantity D-2026-53 and D-2026-60 were
-both about. Its committed root copy was compared against nothing, and the run
-reported that the root canonical outputs byte-match the canonical
-regeneration.
-
-**THE MECHANISM.** `regen_root_byte_drift()` iterates the **generated**
-directory and, for each file, compares the root copy of the same name:
-
-```python
-for p in sorted(gen_dir.iterdir()):
-    rootp = root_dir / p.name
-    if not rootp.exists():
-        continue
-```
-
-That is the right rule for what it does. It also means the comparison's scope
-is whatever the pipeline happened to produce, and nothing established that the
-pipeline produced everything it is supposed to. An output that stops being
-emitted does not drift and does not error: it leaves the comparison, no step
-mentions it, and the headline is reported of a set that no longer contains it.
-
-**THIS WAS KNOWN, IN THE OTHER MODE.** `--verify-existing` refused any set
-that was not exactly 89 files, and its comment said why in as many words:
-
-```
-# the canonical complete-set size is exactly 89 files ...
-# (missing files would otherwise escape Step 2b, which iterates
-#  only files that exist).
-```
-
-The escape was identified, written down, and closed for the mode whose own
-banner reads `NOT the release gate`. The authoritative mode — full
-regeneration, which is what CI runs — never consulted it. `_OUTPUTS_STATE` is
-assigned only inside `if VERIFY_EXISTING:`; in the release path it is
-unconditionally `"USABLE"`. Every test in
-`tests/test_checker_missing_outputs.py`, a file written specifically for this
-defect class and containing a test called
-`test_missing_outputs_yields_no_vacuous_byte_match_pass`, passes
-`--verify-existing`.
-
-Closing the example and not the class, in the file that measures whether the
-package is consistent.
-
-**AND THE RULE ITSELF WAS A COUNT.** `_n != 89` is satisfied by the right 89
-files and equally by 89 files with five of them renamed — the canonical output
-gone, its stale root copy never compared, the gate green. A count is a proxy
-for set membership in exactly the way a name suffix was a proxy for a unit
-(D-2026-57) and a file's whole text was a proxy for what it runs (D-2026-59).
-The fixtures had the same shape: the test for a truncated set supplied
-eighty-eight files called `f0.json`, none of them a canonical output, and
-asserted on the string `"88 files present"`.
-
-**REPAIR.** `CANONICAL_EXPECTED["canonical_outputs"]` names the 89, and
-`canonical_set_problems()` reconciles the produced directory against it — by
-name, in both directions, in **both modes**:
-
-- `INCOMPLETE_{EXISTING,REGENERATED}_OUTPUTS` — declared, not produced. Named,
-  not counted.
-- `FOREIGN_{EXISTING,REGENERATED}_OUTPUTS` — produced, not declared.
-- `UNROOTED_CANONICAL_OUTPUT` — declared and produced, with no root copy, so
-  Step 2b would skip it and the byte gate would report agreement over it.
-- `EMPTY_CANONICAL_DECLARATION` / `DUPLICATE_CANONICAL_DECLARATION` — the
-  anti-vacuity guard on the declaration itself. It is the scope of all three
-  reconciliations above; empty, they all agree.
-
-The PASS line now states its scope: *the produced output set is exactly the 89
-declared canonical outputs — 88 of them compared byte-for-byte in Step 2b, 1
-exempt by design.*
-
-**A SECOND DEFECT, FOUND BY THE NEW FIXTURE.** The old fixtures used names
-that are not canonical outputs, so the checker refused early and never read
-them. Supplying the **real** names — present, empty — takes the run to Step 4:
-
-```
-File "package_consistency_check.py", line 595, in <module>
-  if "tau_c_canonical_threshold_us" not in tcs[0]:
-IndexError: list index out of range
-```
-
-A present-but-empty canonical output — a truncated write, a disk-full, a
-generator emitting a header and no rows — crashed the release gate with a
-traceback at Step 4 and lost every later diagnostic. §47: an accidental
-runtime failure is not a governed refusal. Now `EMPTY_CANONICAL_OUTPUT` and
-`MALFORMED_CANONICAL_OUTPUT`, classified and read past.
-
-**WHAT THIS DOES NOT ESTABLISH.** That the 89 are the right 89. The
-declaration records what the default profile currently produces; it makes a
-change to that set visible and reviewable, which is all a declaration can do.
-Nor that no other verifier has the same shape — the sibling sweep below is
-what was actually checked, not an argument that nothing else could.
-
-**SIBLING SWEEP — can a verifier here report success having examined
-nothing?** Driven against each tool's real entry point, not grepped for:
-
-| verifier | on an empty scope |
-|---|---|
-| `tools/cross_env_semantics.py` | refuses; reports files and leaves compared |
-| `tools/unit_inventory.py` | `ScopeError` — "a reconciliation over an empty set would report full coverage" |
-| `tools/claims_enforcement.py` | `ScopeError`, exit 2, verified by driving it |
-| `tools/corpus_allowlist.py` | `build()` refuses to write an empty allowlist |
-| `tools/workflow_contract.py` | refuses when no `run:` command is found; reports 323 scanned |
-| `tools/identity_inventory.py` | reconciles both directions, so an extraction that matches nothing shows up as entries naming actions that do not exist |
-| `tools/mutation_matrix.py` | refuses on a red baseline rather than scoring against it |
-| `package_consistency_check.py` | **this defect** |
-
-The one that had the weakest guard is the one at the top of the tree.
-
-**MUTATION MATRIX.** `tools/mutations/canonical_output_set.json`, 8 operators:
-the rule back in one mode, the set back to a count, each direction of the
-comparison dropped on its own, the declaration emptied and duplicated, the
-Step-4 traceback restored, and the scope number removed from the headline.
+**CARRIED FORWARD.** A comparison declares the set it must compare and refuses when a member is missing, rather than comparing whatever turned up.
 
 ## D-2026-62 — the comparator's conclusion did not say what it was drawn from
 
-**CLASS** — `TRUE_DEFECT` in `tools/cross_env_semantics.py`: a tautology and a
-measurement printed in the same words. The instrument written to tell a
-changed verdict from a changed digit could not tell its own two cases apart.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**DISCOVERED BY.** Reading the hosted evidence at `f118e6a`. `full-suite`
-finished **green end to end** — including step 7, the byte gate, which has
-been the standing R59 red. That runner's dispatch matched the committed tree,
-so every canonical output regenerated byte-identically. Which means step 8,
-the cross-environment comparison, ran over a tree with nothing in it to
-compare, and printed:
-
-```
-compared 87 file(s); 0 differ byte-for-byte; 0 leaves put side by side
-  DECISION          0
-  ZERO_CROSSING     0
-  SIGN_FLIP         0
-  PRECISION         0   same sign, largest relative difference 0.000e+00
-
-No decision-bearing token differs between the two environments.
-```
-
-Reproduced locally, verbatim, on the default dispatch. That closing sentence
-is the tool's headline. It is the same sentence it prints after putting 5404
-leaves side by side and finding every status, verdict, boolean and label
-identical. Here it was asserted having classified nothing.
-
-**WHY THE SCOPE GUARD DID NOT CATCH IT.** `check_scope()` refuses two things:
-zero FILES compared, and zero leaves *while files differ* (a shape mismatch).
-Neither fires. 87 files were compared — the scope looks healthy — and no file
-differed, so the second guard is out of scope by construction.
-
-The count that was healthy is files. The claim is carried by leaves. Counting
-one unit and making a claim in another is what R59 was: eight names from a
-`[:8]` slice read for months as an eight-file divergence. The same substitution,
-in the instrument built to stop it.
-
-**THIS IS NOT AN ERROR, AND MUST NOT BE REFUSED.** Two byte-identical trees
-are the outcome this project wants — it means the regeneration reproduced the
-committed bytes on that host. Refusing it would turn a good result into a red
-gate. What is not allowed is publishing a reproduction and an invariance in
-the same words, because only one of them measured anything.
-
-**REPAIR.** The report carries `basis`, `IDENTICAL_TREES` or
-`MEASURED_ACROSS_DISPATCHES`, and the two print different conclusions:
-
-```
-IDENTICAL_TREES: all 87 compared file(s) are byte-identical, so 0 leaves were
-put side by side and no token was classified. This run establishes that the
-regeneration REPRODUCED the committed tree on this host. It establishes
-nothing about invariance across dispatches -- there was no difference to be
-invariant under, and the PRECISION line above reads 0.000e+00 for the same
-reason.
-```
-
-and, where something was actually compared, the sentence now carries its
-scope: *(5404 leaves compared, 23 file(s) differing)*.
-
-**WHAT THIS DOES NOT CHANGE.** Both bases still exit 0. A `DECISION` still
-refuses. The measurement that matters — 27 zero crossings, 26 of them
-declared, 0 DECISION, reproduced under the runner dispatch at `f118e6a` — is
-unaffected; what changed is that a log can no longer be read as that
-measurement when it is not.
+**CARRIED FORWARD.** A comparator's conclusion states what it was drawn from.
 
 ## D-2026-63 — three test modules imported only because something else ran first
 
@@ -6734,66 +4485,7 @@ defect, and this tool does not look for it.
 
 ## Hosted evidence, `c1bd8ea` and `f118e6a`
 
-Recorded because both answer questions left open in earlier entries, and
-because a gate condition is satisfied for a commit when THAT commit's own
-hosted run is green — never inherited from a parent.
-
-**`agent-substrate` at `c1bd8ea` completed SUCCESS: 62 of 62 steps, 4h05m**
-(22:20:33 → 02:25:29). This is the first run to get past the refusal recorded
-in D-2026-59:
-
-```
-step 51  mutation matrix -- the cross-environment measurement   SUCCESS
-step 52  mutation matrix -- the dimension of every published number   SUCCESS
-step 53  mutation matrix -- what a serialised number is allowed to mean   SUCCESS
-```
-
-At `463b4e8` step 51 ran 50 steps green over 3h46m and then refused in seven
-seconds with `BASELINE RED`, naming
-`test_the_written_methane_zero_is_the_clip_not_the_model` — D-2026-53a, found
-a second time by a second instrument. It was repaired at `c1bd8ea`, and these
-are the first hosted scores of the two matrices added for D-2026-57 and
-D-2026-53..56. Steps 55–62 are green too: the corpus allowlist, the long
-horizon, the fuzz harness, the governed production path, the read-only
-auditor, Stage-10 write authority, sources unchanged after mutation testing,
-and the canonical tree untouched.
-
-Not inherited: `dispatch-sensitivity` FAILED at that commit, in one second, on
-the `--group stack` line — that is D-2026-59, fixed at `d0b85d2`. `full-suite`
-failed at step 7 only, the standing R59 byte gate.
-
-**`full-suite` at `f118e6a` completed SUCCESS, every step, step 7 included.**
-That runner's dispatch matched the committed tree, so every canonical output
-regenerated byte-identically and the byte gate passed for the first time on
-hosted hardware in this branch.
-
-It is one runner, not a closure of R59. GitHub's runners are not one machine,
-and the local reproduction under `OPENBLAS_CORETYPE=Haswell
-NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"` still produces 23
-differing files. What that green run did do is surface D-2026-62: with
-nothing differing, step 8 compared zero leaves and printed the sentence it
-prints after comparing five thousand.
-
-**The measurement that is not vacuous**, reproduced locally under the runner
-dispatch at `f118e6a`, and the sharp test of D-2026-60:
-
-```
-compared 87 file(s); 23 differ byte-for-byte; 5404 leaves put side by side
-  DECISION          0
-  ZERO_CROSSING    27
-  PRECISION       179   largest relative difference 3.279e-01
-
-ZERO_CROSSING is not a precision event, and 26 of 27 are already declared
-as such by the file they are in.
-  BARE -- ...
-    energy_ledger_cumulative_3d.csv [r2c9]: 1.615587134e-27 -> 0.000000000e+00
-```
-
-`results_gate_table.csv` is **gone from the crossing list entirely** — not
-moved to DECLARED, gone, because `CH4<1.00e+03` is the same text on every
-host. That was the test stated in advance for whether D-2026-60's repair
-took. 28 crossings became 27; the one BARE entry is the summation-cancellation
-floor left open and named there.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## D-2026-64 — a green baseline does not make a kill mean anything
 
@@ -6863,7 +4555,7 @@ incremental survived. Worse, stopping it did not stop it: killing the wrapper
 shell orphaned the script, which kept walking the specifications for another
 hour, concurrently with a verification run — producing test errors and a
 checker failure that were artifacts of two processes writing one tree, and
-leaving `qta_multiphysics/verification.py` carrying an injected null-control
+leaving a module of the since-retired solver package carrying an injected null-control
 line that a manifest regeneration then hashed.
 
 Twice in that sequence a clean `git status` was read as evidence that the
@@ -6939,207 +4631,21 @@ with its tag recorded, enforced by `tools/workflow_contract.py`.
 
 ## Scientific sweep — where the resolution discipline has actually reached
 
-Not a defect. A measurement, recorded because the alternative is that the
-number stays unstated.
-
-D-2026-53 established that a serialised number must carry the resolution of
-the method that produced it. The instrument that reports on it is the
-DECLARED/BARE split in `tools/cross_env_semantics.py`, and it only ever
-examines a column that happens to CROSS ZERO between two hosts. A column that
-is tiny but nonzero on both machines is never looked at. The discipline's
-apparent coverage is therefore defined by an accident of which machines ran.
-
-Measured directly against `docs/unit_inventory.json`, over every governed
-numeric column rather than the ones a divergence exposed:
-
-```
-41 governed source artefacts, 162 columns
-  declare a resolution class:  4 artefacts,  19 columns
-  declare none:               37 artefacts, 143 columns
-```
-
-The four are `gas_transport_metrics.csv`, `gas_transport_profile.csv`,
-`surface_coverage_metrics.csv` and `surface_coverage_profile.csv` — the two
-solvers a floor was defined for. 143 governed columns publish a number with no
-statement of what their method could resolve.
-
-That is the honest scope, and it is not closed here. Closing it means a
-defensible floor per solver, which is numerical work and not a rendering
-change — the same reason `energy_ledger_cumulative_3d.csv`'s `cumulative_dU_J`
-is still open. What is recorded now is the ratio, so it is a tracked number
-rather than an impression.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## Hosted evidence, `d0b85d2` and `f118e6a` (the sibling jobs)
 
-Same-commit, step by step, never by job conclusion.
-
-d0b85d2 (run 35032370201): dispatch-sensitivity ALL SIX STEPS GREEN on its
-first successful outing -- sync passed, the guard asserting X86_V4 absent
-passed, full suite on that dispatch green in 15m27s. second-interpreter
-(3.13) green, cross-environment-3d green. full-suite step 5 green, step 7 the
-standing byte gate, steps 8-9 green.
-
-f118e6a (run 35042991811): full-suite SUCCESS end to end (step 7 included);
-dispatch-sensitivity SUCCESS, all six steps, full suite on the AVX-512-
-disabled dispatch green in 10m06s; second-interpreter (3.13) SUCCESS, fifth
-consecutive.
-
-c1bd8ea (run 35030465947): agent-substrate SUCCESS, 62/62, 4h05m, steps 51,
-52 and 53 scored for the first time.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## Hosted evidence, `9de2281` — the three repairs on a runner
 
-`full-suite` (run 35050738592), step by step. Runner dispatch, from step 6:
-
-```
-openblas runtime kernel: Haswell
-numpy SIMD found: ['X86_V3']
-```
-
-No AVX-512 — the side of the dispatch the committed outputs were NOT produced
-on, and the one `OPENBLAS_CORETYPE=Haswell NPY_DISABLE_CPU_FEATURES=...`
-reproduces locally. So this run is the informative case, not the identical-tree
-one that `f118e6a` happened to land on.
-
-**Step 5, the full pytest suite: SUCCESS**, 15m09s. `conftest.py` and every
-test added for D-2026-61..63 pass on a runner.
-
-**Step 7, package consistency: one failure, and it is R59.**
-
-```
-[PASS] the produced output set is exactly the 89 declared canonical outputs
-       88 of them are compared byte-for-byte in Step 2b; 1 exempt by design
-...
-RESULT: FAIL (1 checks failed)
-  [FAIL] root canonical outputs byte-match the canonical regeneration
-         23 stale root copies
-```
-
-D-2026-61's repair, first hosted run, on hardware whose regeneration differs
-byte-for-byte in 23 files: the SET is exactly right while the BYTES are not.
-That is the distinction the check was built to make, measured rather than
-argued. The byte gate's refusal is the standing R59 condition and is neither
-silenced nor exempted.
-
-**Step 8, the cross-environment comparison: the measured basis, with its
-scope in the sentence.**
-
-```
-compared 87 file(s); 23 differ byte-for-byte; 5404 leaves put side by side
-  DECISION          0
-  ZERO_CROSSING    27
-  SIGN_FLIP         0
-  PRECISION       179   largest relative difference 3.279e-01
-
-ZERO_CROSSING is not a precision event, and 26 of 27 are already declared
-as such by the file they are in.
-  BARE -- ...
-    energy_ledger_cumulative_3d.csv [r2c9]: 1.615587134e-27 -> 0.000000000e+00
-
-No decision-bearing token differs between the two environments
-(5404 leaves compared, 23 file(s) differing).
-```
-
-Three things at once. D-2026-62's repair: the closing sentence carries the
-leaf count and the differing-file count, so it can no longer be read as the
-identical-tree case. D-2026-60's sharp test, now on hosted hardware:
-`results_gate_table.csv` is **gone from the crossing list entirely** — 28
-became 27, 26 declared, and the single BARE entry is the summation-
-cancellation floor left open and named. And 179 numbers moved, by up to a
-third in relative terms, while **zero** decision-bearing tokens differed.
-
-**Step 9, clip provenance: green**, with this runner's own counts —
-210412/1596240 and 4344/115200 elements moved, max displacement 1.533143e+03
-and 1.062372e+02. Host-dependent counts, reconciled as booleans, exactly as
-D-2026-53 requires.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## D-2026-66 — the resolution discipline's coverage was an accident of which machines ran
 
-**CLASS** — `GAP`, closed where a floor exists and named where none does.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**HOW IT LOOKED.** D-2026-53 requires a serialised number to carry the
-resolution of the method that produced it. The only instrument reporting on
-that requirement is the DECLARED/BARE split in
-`tools/cross_env_semantics.py`, and it examines a column **only when the
-column happens to cross zero between two environments**. A quantity that is
-tiny but nonzero on both machines is never looked at.
-
-So every "26 of 27 declared" in this ledger is a statement about the columns a
-dispatch difference exposed, not about the package. Measured instead over
-every governed numeric column in `docs/unit_inventory.json`:
-
-```
-41 governed source artefacts, 162 columns
-  declare a resolution class:  4 artefacts,  19 columns
-  declare none:               37 artefacts, 143 columns
-```
-
-**THE PART THAT WAS A DEFECT, NOT A GAP.** Of the four artefacts the
-mechanism had reached, it had reached them *partially*.
-`gas_transport_metrics.csv` publishes, in one row, out of one solve, against
-one floor:
-
-```
-max_density_m3                   2.82e+17     (bare)
-sample_region_density_modeB_m3   5.66e+16     (bare)
-residual_mode_D_density_m3       0.0          BELOW_RESOLUTION
-```
-
-The residual carried its class because D-2026-53 was about the residual. The
-maximum and the region mean beside it did not, and `max_theta_modeB` in
-`surface_coverage_metrics.csv` did not either — while
-`resolution_of_region_mean` already existed and `resolution_final` already
-existed. A quantity left bare beside one that is explicitly not claiming
-exactness reads as the exact quantity the other is declining to claim.
-
-Closing the example, in the file where the example was closed.
-
-**REPAIR.** `GasTransport1DResult.resolution_of_max()` (classified on the RAW
-maximum, because a peak the clip lifted out of negative noise is not a
-resolved peak and after the clip the two are the same number), and three new
-columns: `max_density_resolution`, `sample_region_density_modeB_resolution`,
-`max_theta_modeB_resolution`. 486 datasets now compare exactly, still
-`EQUIVALENT`, 94 columns with a physical unit and 68 declaring why they have
-none.
-
-**AND THE INSTRUMENT THAT STOPS IT RECURRING.**
-`docs/resolution_inventory.json` gives every governed numeric column a basis,
-and `tools/resolution_inventory.py` reconciles both directions and refuses on:
-
-- a governed column with no basis, or a basis for a column that no longer
-  exists;
-- a `CARRIER` naming a column absent from the artefact;
-- a `CARRIER` whose values are not all resolution classes — naming a column
-  is not carrying a class, the same anti-proxy rule `claims_enforcement.py`
-  applies to a pattern that names a claim without matching it;
-- an exemption that states no reason;
-- **within-artefact incompleteness**: where at least one column of an artefact
-  declares a carrier, no column of it may be `NO_FLOOR_DEFINED`. That is the
-  rule that makes closing-the-example impossible here. It is what refused the
-  three columns above, before they were written.
-
-Current state, reported rather than gated:
-
-```
-162 governed numeric columns in 41 artefacts: 13 carry a resolution class
-(4 artefacts), 25 are exact by construction, 2 are coordinates, 2 are floors,
-and 119 have no floor defined
-```
-
-**WHAT IT DELIBERATELY DOES NOT REFUSE.** The 119. Refusing them would force a
-floor to be invented for every solver in the package, and a fabricated floor
-is worse than an absent one: the artefact would then state a resolution
-nobody derived. They are counted, named under `--verbose`, and left open, in
-the same way `energy_ledger_cumulative_3d.csv`'s `cumulative_dU_J` is.
-
-**KNOWN LIMITATION, STATED RATHER THAN ROUNDED AWAY.** A metric/value table
-declares per ROW — the PER_ROW shape D-2026-57 had to name.
-`coupled_mode_recovery_metrics.csv` carries `Mode_D_residual_CH4_resolution`
-on a row of its own, and this inventory cannot say "some rows of this column
-carry a class". Those columns are counted as `NO_FLOOR_DEFINED`, which
-UNDERSTATES them. Counting them as declared without checking which rows would
-overstate, and of the two errors the understatement is the one that leaves the
-gap visible.
+**CARRIED FORWARD.** A resolution is declared by the method that produced the value; nothing fabricates a floor to make a comparison possible (`scientific/quantity.py`, `scientific/ranking.py`).
 
 ## D-2026-67 — a knob nobody turns is a comment, and nothing checked that it was turned
 
@@ -7277,45 +4783,13 @@ pointed at it. V1 mutates the wiring away and dies.
 
 ## Architecture convergence, tranche 1 — Phase 0 and Phase 1
 
-The directive of this tranche: turn the repository into a governed
-scientific-agent framework with replaceable scientific models, retire the QTA
-hardware ontology as an authority, and begin with Phase 0 (baseline, file
-dispositions, dependency cutover) and Phase 1 (trust-boundary defects) only.
-Nothing was deleted or moved. `ARCHITECTURE_CONVERGENCE_PLAN.md`,
-`FILE_DISPOSITION.csv` and `DEPENDENCY_CUTOVER.md` are the Phase 0 record;
-the CSV is generated by `tools/file_disposition.py` from an explicit rule
-table with no catch-all, and `tests/test_file_disposition.py` fails when a
-file has no disposition. The entries below are Phase 1 and the two defects
-the baseline surfaced.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## D-2026-69 — a running sum published without the resolution of its method (OPEN)
 
-**CLASS** — `GAP` in `qta_multiphysics/campaign_state_3d.py`
-(`attach_energy_ledger`) and `tools/resolution_inventory.py`. Found during
-the D-2026-66 sweep; recorded here rather than carried in memory.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-`energy_ledger_cumulative_3d.csv` publishes cumulative energy as running sums.
-The forward error bound of a running sum is `n·eps·Σ|tᵢ|`, which at row 2 is
-8.1e-27 J; the hosted comparison at `71b58cb` reports that row's
-`1.615587134e-27 -> 0.000000000e+00` as the one BARE zero crossing -- both
-values below the method's resolution, and the file says nothing about it.
-`resolution_inventory.py`'s within-artefact rule keys on the artefact as a
-proxy for the method, which is why it did not ask. **Deferred**: the repair
-(a resolution basis for passthrough and accumulated columns, naming its
-source) changes a byte-gated output, which is Phase 4-6 work on this file's
-disposition (`campaign_state_3d.py` is `REWRITE_GENERIC`).
-
-**STATUS UPDATE (Phase 2)** -- the generic requirement is MET; this entry
-stays **OPEN**. `scientific.quantity.Quantity` carries value, unit,
-resolution, resolution class and basis, reporting digits and uncertainty
-class, and tells an exact zero from a value below resolution. The original
-quantity is representable: `1.615587134e-27` J and `0.0` J, each with the
-running sum's 8.1e-27 J `ACCUMULATED_BOUND`, both classify
-`BELOW_RESOLUTION`, compare as indistinguishable, and neither prints as a
-result (`test_the_d_2026_69_crossing_is_one_result_not_two`). What is still
-wrong is the artefact: `energy_ledger_cumulative_3d.csv` publishes the digits
-without the basis, and moving it onto the mechanism is the Phase 4-6 work on
-`campaign_state_3d.py` this entry names.
+**CARRIED FORWARD.** A published number carries its unit, its resolution and what zero means; a computed value inside its resolution is BELOW_RESOLUTION, never an exact zero (`scientific/quantity.py`). The record was OPEN against an output that no longer exists; the generic mechanism is in force.
 
 ## D-2026-70 — seventeen reducers verified one read of the log and folded another
 
@@ -7482,48 +4956,11 @@ among them all fail against the old code; X5 re-anchored (its loop only ever fir
 X14-X21 added, X21 being the wiring: the check exists and `build()` stops
 calling it. `agent_memory_context.json` **48/48 killed**.
 
-## D-2026-73 — ten interlocks that `python -O` deleted, and the guard that could not see them
+## D-2026-73 — ten enforcement checks that `python -O` deleted, and the guard that could not see them
 
-**CLASS** — `DEFECT`, `qta_full_sim.py`; `GAP`, `tests/test_optimized_mode_invariants.py`.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-`SystemState.validate()` enforced IL-01..IL-10 with `assert`. Measured:
-
-```
-python     -c '...SystemState("X", LCVD_on=True, sensing_on=True).validate()'  -> refused IL-01
-python -O  -c '...same...'                                                      -> IL-01 NOT enforced
-```
-
-and the self-test built for exactly this prints `correctly blocked: {caught==1}`,
-which under -O is `False` followed by a check mark.
-
-D-2026-45 converted the gate-table asserts and added a guard: no assert in
-`agent_substrate/` or `tools/`, and the scientific tree's self-checks "pinned". The
-guard scanned three directories, and `qta_full_sim.py` is at the root. And the
-pin compared the SET OF FILES holding asserts while its docstring said "the
-count is pinned", so a second assert in a classified file joined the first
-unseen.
-
-**REPAIR.** The interlocks raise `InterlockViolation` explicitly. It
-subclasses `AssertionError` only so callers written against the old `assert`
-keep catching it -- the machine FSM retires in Phase 5 and churning its
-callers first buys nothing; what matters is that `-O` cannot remove it. The
-four mode preconditions and the multiphysics status check raise `ValueError`.
-`qta_full_sim.py` now has no assert. The guard scans every tracked production
-file through `tools/repo_scope`, allows asserts only in the scientific tree,
-and pins them per file by count; a `-O` subprocess probe proves IL-01 holds
-under both builds.
-
-**NOT CHANGED, AND WHY.** The multiphysics status check sits inside
-`except Exception: print(WARNING)`, so a forbidden status drops the whole
-layer from the gate table rather than failing the run -- the same as before,
-explicit or not. `package_consistency_check.py`'s gate count catches it
-downstream. It retires with the orchestrator (Phase 6), and is recorded
-rather than fixed so this tranche does not change what `qta_full_sim.py`
-emits.
-
-**MUTATIONS.** `tools/mutations/enforcement_asserts.json` (new): an interlock
-back to an assert, the guard back to a directory list, the pin back to a set.
-**3/3 killed.**
+**CARRIED FORWARD.** The assert guard's scope is the repository's own file list, not three directories, which is what once missed a module at the root (`tests/test_no_enforcing_asserts.py`, `tools/mutations/enforcement_asserts.json`).
 
 ## D-2026-74 — a trust test depends on a package nothing declares (OPEN)
 
@@ -7677,7 +5114,7 @@ It stayed hidden because every governed tool started slowly.
 `test_a_timed_out_run_never_reaches_completed_or_verified` gives the Stage-10
 tool a 1 ms bound and says "no Python interpreter starts in a millisecond, on
 any runner", which is true -- but what made the run TIME OUT was not the
-interpreter: importing `qta_multiphysics` loaded the whole orchestrator, about
+interpreter: importing the since-retired solver package loaded its orchestrator, about
 a second of imports, so the tool was always still running at the first deadline
 check. C1 made the package import nothing; the tool now exits in tens of
 milliseconds, inside the first slice, and the execution came back
@@ -7831,7 +5268,7 @@ manifest regenerated over it, or a `git add -A`, commits it.
 
 The same stop killed the suite's pytest mid-test, and a probe file a test
 in `tests/test_agent_substrate_isolation.py` plants and intent-adds was left
-behind (`qta_multiphysics/_shadow_sweep_probe.py`); its cleanup is a
+behind (`_shadow_sweep_probe.py`, in a since-retired package); its cleanup is a
 `finally` in the test, which a killed process does not run either. That is
 a property of stopping any test run, not of the harness, and the digest
 comparison is what found both.
@@ -8751,152 +6188,17 @@ what executed.
 
 ## D-2026-98 — three quantities crossed zero between backends with nothing in the file saying what their method resolves, and one of them was called declared
 
-**CLASS** — `RESOLUTION_UNDECLARED` (D-2026-53's class), three producers;
-`INSTRUMENT_PROXY` in `tools/cross_env_semantics.py`. Found by the
-directive-7 remeasurement of R59; part of R59-B's evidence, not of R59-C.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-**MEASURED.** The full canonical corpus (88 compared, 1 exempt) regenerated
-on this host under seven dispatch configurations (OpenBLAS Haswell or
-Nehalem kernel, NumPy with AVX-512 or with every dispatch target disabled,
-one thread or the default), each probed in the regenerating process, and
-every differing leaf classified. The existing comparator counted 27 zero
-crossings in the Haswell + AVX2 configuration, 26 "declared by the file they
-are in" and 1 bare. Asked quantity by quantity, the 27 are:
+## D-2026-99 — which sixteen cells a coverage table lists is chosen by roundoff
 
-* 25 bound to a class of their own -- 18 in `gas_transport_profile.csv`,
-  1 in `gas_transport_metrics.csv`, and the Mode C/D methane residuals, 2
-  each in `coupled_mode_recovery_metrics.csv`, `multiphysics_summary.json`
-  and `coupled_mode_state_summary.json` `.metrics` -- all BELOW_RESOLUTION
-  on both sides;
-* `coupled_mode_state_summary.json` `.state.gasC_sample.CH4`, 0.0 against
-  4.0e-09: **bare**. The same physical number as `.metrics.Mode_C_cleanup_
-  residual_CH4_m3`, which the file does classify; the comparator called the
-  state copy declared because the FILE contains `_resolution` somewhere
-  (`declares_resolution` read the text);
-* `energy_ledger_cumulative_3d.csv` `cumulative_dU_J` after cycle 1 MODE_C,
-  1.615587134e-27 against 0.0: **bare**. +9.114286125e-12 J stored in MODE B
-  and released in MODE C, cancelling to one ulp on one backend and to
-  nothing on another -- to two ulp (3.23e-27) with the Haswell kernel
-  alone, which is why no rounding bound on the sum can be the floor: the
-  inputs themselves differ.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
-The configuration with no NumPy dispatch at all added a third:
-`convergence_report_3d.json` `.time_integration_check.rel_change`, 0.0
-against 1.29e-16 -- one ulp of a 13.73 K probe, between two solves
-integrated to 1e-6 and 1e-7.
-
-**REPAIR, in the producers.** None rounds, clips or edits an artefact; each
-class is computed by the code that produced the number, against a floor
-that code establishes, and the canonical copies are that code's output on
-the witness backend.
-
-* The energy ledger publishes `phase_resolution_floor_J` and
-  `cumulative_resolution_floor_J` -- the energy its own balance leaves
-  unexplained (`|source - sink - dU|`, summed in magnitude across phases)
-  plus the first-order rounding bound of the sums -- and a class beside
-  every energy term, per phase and cumulatively (`campaign_state_3d.
-  ledger_floor`). After a full B->C cycle the stored energy is
-  BELOW_RESOLUTION against ~2e-13 J; so is the end-of-campaign dU in
-  `campaign_state_3d.json`. MODE_C's 2.8e-25 J laser source is
-  BELOW_RESOLUTION against its phase's 1.9e-13 J closure.
-* The coupled-mode state publishes `gasB_sample_resolution`,
-  `gasC_sample_resolution`, `thetaB_resolution` and `thetaC_resolution`,
-  species by species, from the solves that produced them.
-* The 3D convergence report publishes the class of each relative change
-  against the tightest tolerance of the solves compared
-  (`convergence_3d.rel_change_resolution`).
-
-**REPAIR, in the binding.** `docs/resolution_inventory.json` binds classes
-to quantities one at a time: `floor_from` on a wide column, `row_bindings`
-for a long-format table, `json_bindings` (with `.*` for a parallel
-resolution object) for JSON. `tools/resolution_inventory.py` reconciles
-every binding against the committed artefact -- the path exists, the value
-is a number, the carrier holds a class, parallel objects have the same
-members, `floor_from` names a declared FLOOR. The ledger's twelve
-formerly-bare columns are now CARRIER or FLOOR; rule 4 (no bare column in an
-artefact that classifies another) holds for it. `package_consistency_check
-.py` re-derives every row-floor class from the value and the floor in the
-same row.
-
-**EVIDENCE.** `tests/test_quantity_resolution.py`; mutations QR1-QR16. The
-regenerated corpus differs from the committed one in exactly the four
-files the producers write (and the by-design-exempt readiness stub).
-
-**NOT CLAIMED.** The floors bound what each method RESOLVES; they are not
-error bars, and a BELOW_RESOLUTION class is not a statement that the
-quantity is zero. Nothing here establishes scientific equivalence between
-backends (R59-C).
-
-## D-2026-99 — which sixteen cells the NV-plane coverage table lists is chosen by roundoff
-
-**CLASS** — `SELECTION_BELOW_RESOLUTION`, `qta_multiphysics/
-surface_coverage_3d.nv_plane_coverage_rows`. Found by the directive-7
-remeasurement; OPEN.
-
-**MEASURED.** With the OpenBLAS Nehalem kernel and every NumPy dispatch
-target disabled, `surface_coverage_3d_summary.csv` lists a DIFFERENT SET of
-cells: the table is "the 16 hottest cells of the NV plane at Mode-D entry
-plus the beam-axis cell", chosen by `argsort` of a plane whose temperatures
-agree to ten significant digits (1.000000000e-02 K), so the order is decided
-in the last bits and moves with the backend. The old comparator reported 17
-SIGN_FLIPs in the x/y coordinates and passed; the rows describe different
-cells.
-
-**WHY NOT REPAIRED HERE.** A defensible tie-break needs the resolution of
-the 3D thermal solve's temperatures, and that method declares no floor
-(its columns are NO_FLOOR_DEFINED). Inventing one to make the selection
-stable is the fabricated floor D-2026-66 refuses. Until a floor exists the
-portable comparison refuses this artefact wherever the selection moves --
-as STRUCTURAL, because the rows no longer name the same cells. Observed only
-in the configuration with no SIMD dispatch at all. The native AVX-512
-configuration and Haswell + AVX2 -- the one that reproduced the non-AVX-512
-hosted runner's divergence file for file -- select the committed cells.
+**CARRIED FORWARD.** A selection or ranking is made only as far as declared resolution resolves it; the tier straddling a selection boundary is reported whole (`scientific/ranking.py`).
 
 ## D-2026-100 — the cross-environment comparator stripped digits from text, printed structure changes it should refuse, and asked files what their quantities resolve
 
-**CLASS** — `INSTRUMENT_PROXY`, `tools/cross_env_semantics.py`. Found by the
-directive-7 review of the instrument R59 was to fall back on; not R59 itself.
-
-**WHAT WAS THERE.** A differing leaf was classified by deleting every digit
-from both sides with a regex and comparing what was left: the residue
-matched, so every number was a number. `model_v2` -> `model_v3` was a
-precision event; so was any count that moved by one. A key present on one
-side only was printed and not refused. A zero crossing or a sign flip was
-never refused at all -- counted, and split DECLARED/BARE by whether the FILE
-mentioned a resolution anywhere, which called `.state.gasC_sample.CH4`
-declared (D-2026-98). Its scope was "every file in the other tree with a
-committed counterpart", so a differing artefact it did not parse -- the
-`.mmd` diagram -- was silently skipped, and a missing one never noticed.
-The only refusal was a changed non-numeric residue.
-
-**REPAIR.** Rewritten type-aware. JSON is parsed (duplicate keys refused)
-and walked; CSV headers, row counts and row lengths must agree; a cell that
-is a whole numeric token is a number, a cell that parses as a JSON or Python
-literal container is recursed, anything else is text compared whole. Refused:
-STRUCTURAL (keys, lengths, headers, rows, types, missing or foreign
-artefacts), DECISION (any text, boolean, null, label, unit, class), DISCRETE
-(an integer that moved; any change in a COORDINATE, EXACT_BY_CONSTRUCTION or
-INPUT_CONSTANT column), NONFINITE, UNCLASSIFIED (an unparsed or unparseable
-differing artefact, an equal value in changed text), and a zero crossing or
-sign flip that is not bound -- through `docs/resolution_inventory.json`, per
-quantity -- to BELOW_RESOLUTION on BOTH sides and, where a floor is bound,
-inside it. Permitted and reported: PRECISION and bound crossings. The scope
-is the declared canonical set minus exact exemptions, both passed in by the
-caller (the CLI parses them from `package_consistency_check.py`). Every
-report carries `CROSS_ENV_STATUS` and `scientific_equivalence:
-NOT_ESTABLISHED`.
-
-**MEASURED WITH IT.** On the seven pre-repair regenerations it finds exactly
-the bare crossings D-2026-98 names, the 17 coordinate sign flips of
-D-2026-99 in the no-SIMD configuration, and no structural, decision,
-discrete, non-finite or unclassified difference in any.
-
-**EVIDENCE.** `tests/test_cross_env_semantics.py` (hostile fixtures:
-version labels, mode labels, text carrying a number, integer counts,
-coordinates, NaN/Inf, header/row/key/type changes, unparsed artefacts,
-duplicate keys, wide/long/JSON bindings, CASES 18-20, precedence, scope).
-Mutations X1-X28 in `tools/mutations/cross_environment.json`, replacing
-E12-E20, which anchored the code this replaces.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## D-2026-101 — a required job was red by design, and a different machine's digits were reported as stale outputs
 
@@ -8976,142 +6278,7 @@ the strict question: strict hosted reproduction is EXTERNALLY_BLOCKED
 
 ## D-2026-102 — the physical CPU chose the arithmetic that defines the canonical bytes, and nothing existed that it could not choose
 
-**CLASS** — `REFERENCE_ENVIRONMENT_ABSENT`, R59-E. `reference_backend/`,
-`tools/reference_backend.py`, `.github/workflows/reference-backend.yml`.
-
-**WHAT WAS THERE.** The canonical corpus is reproduced by one numerical
-backend: the locked wheels on a host whose CPU has AVX-512, where OpenBLAS's
-DYNAMIC_ARCH picks the SkylakeX kernel and NumPy's dispatcher picks its
-AVX-512 loops (the witness, D-2026-101). Both choices are made at load time
-from the CPU's flags, and glibc's libm makes a third the same way (IFUNCs:
-FMA variants of exp, log, pow, sin where the CPU has FMA). So the host CPU
-selects the arithmetic path, a runner without AVX-512 cannot produce the
-canonical bytes, and forcing the SkylakeX kernel there dies on an illegal
-instruction. No environment existed in which the arithmetic was fixed
-independently of the machine running it.
-
-**REPAIR — STAGED, not a migration.** A canonical reference backend, declared
-in `reference_backend/spec.json` and checked by `tools/reference_backend.py
-recipe` in the required agent-substrate job:
-
-* OpenBLAS 0.3.31 built for ONE target (`TARGET=NEHALEM`, `DYNAMIC_ARCH=0`),
-  `USE_THREAD=0`, `NUM_THREADS=1`: one set of kernels, chosen at build time.
-  One pinned patch (`reference_backend/patches/`, sha256 in the spec):
-  0.3.31 exports `openblas_set_threads_callback_function` from every build
-  but compiles it only for threaded ones, so a serial shared library fails
-  its own link test; the patch compiles the setter -- a store nothing in a
-  serial library reads -- into the serial build. No arithmetic changes.
-* NumPy 2.4.4 built with `cpu-baseline=X86_V2`, `cpu-dispatch=none`: no
-  function has a second implementation for a dispatcher to prefer. SciPy
-  1.17.1 on the same OpenBLAS. Wheels repaired by auditwheel, so the
-  OpenBLAS and Fortran runtime they run on travel inside them, by bytes.
-* `-O2 -fno-fast-math -ffp-contract=off` everywhere; no `-march=native`.
-* A pinned interpreter (cpython 3.12.11 standalone, binary sha256), a
-  pinned root filesystem (ubuntu-base 24.04.3, sha256) supplying libc,
-  libm and the loader, one thread in every runtime.
-* RUN on a pinned SOFTWARE CPU: `reference_backend/run.sh` executes under
-  qemu-user 8.2.2 with `-cpu Nehalem-v1` and `-L rootfs`, environment
-  emptied. qemu-user translates every instruction, so the CPUID the
-  dispatchers and libm's IFUNCs see is the declared model's, whatever the
-  physical CPU is.
-
-`tools/reference_backend.py verify`, run INSIDE the reference runtime,
-refuses anything that is not the declaration: NumPy dispatching outside its
-baseline or built with dispatch targets, a baseline other than X86_V2, a CPU
-offering AVX/AVX2/FMA/AVX-512, an OpenBLAS kernel other than Nehalem or with
-more than one thread or built with DYNAMIC_ARCH, a thread variable that is
-not 1 (or not recorded), another interpreter, a libc/libm/loader that is not
-the root filesystem's by bytes (or no build record to compare against),
-flushed subnormals, a rounding mode other than ties-to-even. The reference
-identity it prints keeps what the dispatchers saw (NumPy's features and
-dispatch, the BLAS, the libraries by bytes, the interpreter, the native
-builds, the spec) and leaves out /proc/cpuinfo, which under qemu-user is the
-physical host's.
-
-**MEASURED.** On one host (GenuineIntel family 6 model 207: AVX-512, AMX), with
-the runtime built from the recipe:
-
-* `verify` under qemu-user 8.2.2 (binary sha256 90e3ce3f...) `-cpu
-  Nehalem-v1`: conformance clean. NumPy sees CX16, LAHF, MMX, POPCNT and
-  SSE through SSE4.2, and nothing else; all 477 of its dispatchable
-  functions run their `baseline(X86_V2)` loop; NumPy and SciPy bundle the
-  same OpenBLAS, which reports kernel `NEHALEM`, one thread,
-  `SINGLE_THREADED`; libc, libm and the loader are the root filesystem's by
-  bytes; the interpreter is the pinned binary. Reference identity
-  `d2907025758c88d7...`.
-* The same `verify` on the same userspace run NATIVELY is refused: the CPU
-  offers AVX, AVX2, FMA3 and AVX512F. (A first `verify` was refused for a
-  declaration error of this entry's own: the spec expected the kernel name
-  a DYNAMIC_ARCH build reports, "Nehalem"; a TARGET=NEHALEM build reports
-  "NEHALEM". The check stays exact; the declaration was corrected.)
-* The full canonical generator on the reference: 3866 s under the
-  software CPU (194 s natively), 89 outputs.
-* THE HIDDEN INPUT THE SOFTWARE CPU REMOVES, measured, not assumed: the
-  same userspace -- OpenBLAS fixed, NumPy without dispatch, the root
-  filesystem's libm -- run natively differs from the software-CPU run in
-  19 of 88 files. Run natively again with `GLIBC_TUNABLES=glibc.cpu.hwcaps=
-  -AVX,-AVX2,-FMA,-FMA4,-AVX512F,...` it differs in 0 of 88. With the BLAS
-  and NumPy paths fixed at build time, the arithmetic the physical CPU
-  still chose was glibc libm's IFUNC selection -- which only a CPU the host
-  cannot supply, or a mask the host could forget, takes away. The run also
-  shows qemu's emulated SSE arithmetic agreeing bit for bit with this
-  physical CPU's on these paths; that is one host, not the two-host proof.
-* Against the committed corpus (s.35 step 4; nothing migrated): 24 of 88
-  files differ; 5598 leaves compared; 0 structural, decision, discrete,
-  non-finite or unclassified differences, 0 bare zero crossings, 3 bound
-  zero crossings, 198 precision differences -- and 17 bare sign flips, all
-  in `surface_coverage_3d_summary.csv`: the sixteen cells the NV-plane
-  coverage table lists are chosen by roundoff (D-2026-99), so the reference
-  lists different cells. The comparator refuses it
-  (`RESOLUTION_AMBIGUITY`). A migration of the corpus to this backend
-  would therefore change which cells that table names; D-2026-99 must be
-  resolved, and the owner must authorize the migration, before any
-  canonical byte moves.
-
-**THE TWO-HOST TEST.** `docs/reference_backend_host_a.json` records host A: its physical
-CPU class, the emulator's bytes, the recipe and generator digests, the
-reference identity and the sha256 of all 89 outputs.
-`.github/workflows/reference-backend.yml` is host B: it runs when the
-recipe changes, builds the same recipe on a GitHub-hosted runner, runs the
-same generator on the same software CPU, and asks `two-host`, which passes
-only as `TWO_HOST_BYTE_IDENTICAL` -- different physical CPU classes, equal
-reference identities, every non-exempt output byte-equal; one CPU class
-twice is `NOT_TWO_HOSTS`, and a differing byte is `BYTES_DIFFER`, never
-normalised. Its result is reported with the tranche; until a hosted run on
-a materially different CPU class returns TWO_HOST_BYTE_IDENTICAL, R59-E
-stays open, and if the hosted runner cannot build or run it, the proof is
-EXTERNALLY_BLOCKED.
-
-**EVIDENCE.** `tests/test_reference_backend.py`; mutations RB1-RB46,
-RBS1-RBS16 (the recipe itself: DYNAMIC_ARCH enabled, a host target, NumPy
-dispatch, a native baseline, threads raised, a passthrough CPU, an
-unresolved FP policy, FMA contraction, build.sh ignoring the spec or
-trusting what it fetches or patches, run.sh on the host CPU, host
-userspace or inherited environment), RBT1-RBT13 (the two-host verdict, the generator it compares).
-
-**NOT CLAIMED.** The reference is reproducible, not correct: it is not
-physically validated, not experimentally verified, not ground truth. It
-does NOT define the canonical corpus: migrating the corpus to it needs
-separate owner authorization (directive 7 s.35), and the corpus is
-untouched. A generator that started processes would run them on the
-physical CPU (qemu-user emulates only the process it starts); the current
-closure starts none, and a test keeps it so.
-
-**THE TWO-HOST RESULT** (recorded with the tranche report, section 16 of
-the plan). `reference-backend` run 36513496040, job 109230591297, at
-`f6b24ab`: host B, a GitHub-hosted ubuntu-24.04 runner on an AMD EPYC 9V45
-(AuthenticAMD, 4 vCPUs), installed the pinned toolchain, built the recipe
-in 10 minutes with every source, patch and the interpreter verified, and
-`verify` printed reference identity `d2907025758c88d7...` -- host A's,
-exactly, so the reference builds were byte-reproducible across the hosts.
-It regenerated the corpus in 2079 s on the software CPU. `two-host`
-against host A (GenuineIntel family 6 model 207, AVX-512/AMX):
-**`TWO_HOST_BYTE_IDENTICAL`** -- all 88 non-exempt canonical outputs
-byte-equal, on two CPU classes that differ in vendor and feature set.
-R59-E closes for the STAGED reference. Both hosts are virtual machines,
-so "physical CPU" is the class each guest sees; it is one pair of hosts;
-it proves reproducibility across them, not that any number is right; and
-the canonical corpus is still the witnessed native backend's.
+**RETIRED WITH ITS SUBJECT.** The code or outputs this record concerned belonged to the retired hardware-theory programme and left the tree with it (`docs/repository_inventory.json` classifies every removed file). The full record is at `b8aac891`, `docs/DEFECT_LEDGER.md`.
 
 ## D-2026-103 — a learned record could take every generic authority edge, and nothing existed that could state what a learned model is, trained on, or may claim
 
@@ -9123,8 +6290,8 @@ the canonical corpus is still the witnessed native backend's.
 **WHAT WAS THERE** (`docs/neural/nf1t_inventory.json`, recorded at
 `f303a73` before any change). No generic neural, training, checkpoint or
 distributed code; no framework installed; the one learned layer in the
-repository (`qta_multiphysics/deep_expdesign/`) is legacy, bound to the
-apparatus's design space, and stays unimported. The authority store had
+repository (an experimental-design package since retired) was bound to the
+apparatus's design space and unimported. The authority store had
 content rules for scientific results and none for anything learned: a
 record of any kind could take PROPOSED -> UNDER_REVIEW -> VERIFIED ->
 PROMOTED, so a learned prediction registered as a record could have been
@@ -9255,8 +6422,8 @@ and the current-harness text named below.
 **WHAT WAS THERE** (`eb716ad`, the NF-1T report commit, every hosted job
 green). Four reporting defects, none in a computed number:
 
-* **The legacy gate count stood in for the current status.** The QTA
-  hardware-forecast gate table's `PASS_count = 0` is a fact about that
+* **The legacy gate count stood in for the current status.** The retired
+  hardware forecast's gate count of zero passes is a fact about that
   forecast -- no gate could pass because nothing was measured. Nine
   statements in seven files of the current harness (the agent-substrate
   workflow's header, the gates authority in `authorities.json`,
@@ -9288,15 +6455,15 @@ green). Four reporting defects, none in a computed number:
 **REPAIR.**
 
 * **Whose PASS it is, checked.** `tools/pass_semantics_audit.py` finds
-  every occurrence of the legacy gate-table vocabulary (nine patterns) in
+  every occurrence of the legacy gate vocabulary (nine patterns) in
   every tracked or untracked-unignored file and classes each file by an
-  ordered rule table: LEGACY_QTA_CANONICAL, LEGACY_COMPATIBILITY_GUARD,
+  ordered rule table: LEGACY_CANONICAL, LEGACY_COMPATIBILITY_GUARD,
   DOCUMENTATION_HISTORY, TOOLING_REFERENCE, FALSE_POSITIVE. In the current
   harness every occurrence is judged on its own: within two lines it must
   say whose gates these are (legacy, historical, hardware-era, hardware
-  forecast, QTA), and `automatic_gate_effect` must be NONE; anything else
+  forecast), and the gate's automatic effect must be NONE; anything else
   is a CURRENT_AI_SEMANTIC_LEAK, and a file no rule covers is UNCLASSIFIED.
-  The nine statements now say that the count belongs to the legacy QTA
+  The nine statements now say that the count belongs to the legacy
   hardware forecast and is not a measure of the code they describe. The
   check (`--check`) is a CI step and requires zero of each; the report is
   committed.
@@ -9305,7 +6472,7 @@ green). Four reporting defects, none in a computed number:
   and `SCIENTIFIC_AI_STATUS.md` from the committed learned-model evidence,
   the claims, the distributed report and the stored witness; the legacy
   gate statuses are a separate argument that only the section labelled
-  LEGACY_QTA_ONLY reads (a test changes them and requires every other
+  legacy-only section reads (a test changes them and requires every other
   section to stay the same). The programme verdict is printed as DECLARED by
   the closure report, not derived. `tools/neural.py status` writes both;
   `verify` and a test recompute them.
@@ -9331,8 +6498,8 @@ green). Four reporting defects, none in a computed number:
   88/88 byte-identity line in the current documents to name the witnessed
   backend, and no decision-stability line to claim identity or
   equivalence.
-* **Boundaries.** EB15-EB17 in the claims boundary: the legacy QTA
-  gate-table PASS count is not a status of the current harness; simulated
+* **Boundaries.** EB15-EB17 in the claims boundary: the legacy
+  gate count is not a status of the current harness; simulated
   distributed execution is not distributed hardware validation; decision
   stability under numeric drift is not byte identity.
 
@@ -9346,7 +6513,7 @@ and PROMOTED for every learned kind); `tests/test_mutation_harness.py`
 CH1-CH20 (`tools/mutations/claim_hygiene.json`) and NU23-NU25.
 
 **NOT CLAIMED.** Nothing here changes a model, a weight, a dataset, a
-canonical output, the legacy gate table or any historical result; the
+canonical output, the legacy gate count or any historical result; the
 stored witness profile is unchanged and keeps the wording it was written
 with. No large configuration was allocated or trained; no learned output
 was admitted. The broader semantic clean-up of the hardware-era vocabulary
@@ -10348,3 +7515,155 @@ operation whose first call is delayed to 150 ms must measure under 100 ms)
 and its control `test_a_uniformly_slow_operation_is_not_hidden`. Mutation
 spec `performance_measurement`: PM1 (back to one batch) is killed by the
 first, 1/1.
+
+## D-2026-133 — a removal was pushed in two halves, and the first half named files it had deleted
+
+**CLASS** — `PROCESS`, found by hosted CI. `36b4fd1` and `134b4cc`, pushed
+together.
+
+**DEMONSTRATION.** At `134b4cc` six workflow jobs were red on both the push
+and the pull_request runs (38457332390, 38457345619): `full-suite`,
+`agent-substrate` and `dispatch-sensitivity` on
+`test_every_committed_spec_passes_the_harness_own_validation` and
+`test_every_spec_names_suites_and_paths_that_exist`
+(`'scientific/models/thermal_1d.py' does not exist`, in `backend_probe.json`
+and `governed_model_reuse.json`); `full-suite` also on CI steps whose
+inputs the commit had removed (no reproduction verdict was written, and the
+cross-environment comparison refused a scope of zero files); mutation shards 3 and 4 and their summary
+(`completion_matrix.json` and `governed_model_reuse.json` refused with
+exit 2, anchors gone); and `container-verify` at its in-container
+verification step.
+
+**ROOT CAUSE.** `36b4fd1` deleted the retired models and their tools; the
+specifications, workflow steps and container entrypoint that named them were
+retargeted only in the next, uncommitted half of the change. The harness
+already refuses a specification whose anchor file does not exist -- the
+check that went red -- and the push was not gated on running it.
+
+**REPAIR.** The second half (this commit) retargets every specification,
+step and script, and the push waits on the full local suite, the content
+audit and the inventory check passing on the tree being pushed. No check
+was relaxed: the red tests are the ones that now pass.
+
+**NOT CLAIMED.** `134b4cc` stays red in history; a later green run proves
+only its own commit.
+
+## D-2026-134 — moving the workspace guard into the substrate made the scientific tree import the substrate
+
+**CLASS** — `LAYERING`, found by the suite before commit.
+`scientific/workspace.py`, `scientific/_governed_*.py`.
+
+**DEMONSTRATION.** With the retired package gone, the workspace guard needed
+a new home, and the first one tried was `agent_substrate/workspace.py`.
+`scientific/_governed_check.py`, `_governed_fmu.py`, `_governed_identity.py`
+and `_governed_run.py` write through that guard, so each then imported
+`agent_substrate`; `tests/test_agent_substrate_isolation.py` failed on every
+one of them (no scientific module may import the substrate).
+
+**ROOT CAUSE.** The guard is a property of where scientific code may write,
+not of authority. Placing it by who called it most inverted the one
+dependency the architecture forbids: a result would have depended on the
+package that decides results.
+
+**REPAIR.** The guard is `scientific/workspace.py`. The substrate reaches it
+from exactly three named bridge modules (`_artifact_tool`, `_index_tool`,
+`rag_index`), and the isolation test pins both the bridges and their single
+target (`BRIDGE_MODULES`, `BRIDGE_TARGET`).
+
+**EVIDENCE.** `tests/test_agent_substrate_isolation.py`; `ARCHITECTURE.md`
+states the direction.
+
+## D-2026-135 — removing the retired specifications removed mutations of code that stayed
+
+**CLASS** — `COVERAGE_LOSS`, found before commit by the full suite and by
+reading every removed specification against the tree.
+
+**DEMONSTRATION.** The suite failed to collect two retained modules that
+still imported removed tools (`tests/test_external_models.py`,
+`tests/test_reproduction_verdict.py`). Following that, every specification
+removed since `b8aac891` was read mutation by mutation against the current
+tree: 18 of the 29 in `reproduction_policy.json` targeted
+`scientific/reproduction.py`, which stays; four of
+`scientific_thermal_1d.json` and two of `scientific_thermal_2d.json`
+targeted the governed model path (`scientific/_governed_check.py`,
+`agent_substrate/governed_model.py`), which stays; three of
+`cross_environment.json` targeted the container script's step record, which
+stays and whose tests had left with a diagnostic module; and the DOE's
+refusal of a failed response had neither a mutation nor a test. Two
+specifications written in this tranche (`container.json` CV4,
+`manifest.json` MF1, MF2, MF5) had an empty `replace`, which the harness
+refuses, so their shard would have failed; and CV5 (the container never
+runs the suite) survived, because the check for the suite's command also
+matched the collect-only guard. The content audit's own specification then
+reported two survivors: RC8 deleted a hard-coded set of retired package
+roots that the inventory's `__init__.py` rows already supplied (an
+equivalent mutant over dead code), and RI1 passed pending dispositions,
+which the real tree -- with nothing pending -- could no longer show.
+
+**ROOT CAUSE.** A specification was removed when its NAME was about a
+retired model, and the inventory's rule recorded the file, not the targets
+of its mutations.
+
+**REPAIR.** `reproduction_policy.json` retained with RP1-RP18 (its retired
+targets dropped; 18/18 killed); `governed_model.json` new with GM1-GM6
+(6/6); `container.json` CV8-CV10 for the step record, with the three
+container-script tests ported to `tests/test_container_workflow_contract.py`,
+and a test that the suite is run and not only collected (10/10);
+`scientific_integrations.json` SX10 with a test that a failed response is
+refused (10/10); the empty replacements made real. The content audit also
+reads `__import__` with a constant name (RC12, RC13 with lazy and built-in
+import controls). The dead root set is gone and RC8 now mutates what does
+the work -- an import matched by its retired package, not only by an
+inventoried module -- killed by a planted import of a submodule no row
+names; RI1 is held by a planted pending disposition with its non-applied
+control. The inventory now classes `reproduction_policy.json` PRESERVE.
+
+**NOT CLAIMED.** The sweep compared removed specifications' targets with the
+tree; it does not show that every retained enforcement point has a mutation.
+
+## D-2026-136 — live tools still pointed into the retired tree: a report in a removed directory, skips for a removed corpus, a test of a removed inventory
+
+**CLASS** — `STALE_REFERENCE`, found before commit by a sweep of every
+string literal in live code and tests that names a file the baseline had and
+the tree does not.
+
+**DEMONSTRATION.**
+* `tools/dependency_declarations.py` -- a CI step -- read and wrote
+  `stage7_reports/dependency_inventory.json`; the directory left with the
+  retired reports, so the step would have failed on its first read. Its
+  recorded reasons described retired uses, and two ENVIRONMENTAL reasons
+  named a removed module and a removed release workflow.
+* `tools/repo_scope.py`, `tools/verified_read_guard.py` and the dependency
+  scan each skipped `attic/`. With the retired corpus gone, those skips
+  could only hide its return from every guard built on them.
+* `tests/test_neural_features.py` parsed every unit in
+  `docs/unit_inventory.json`, which was removed with the outputs it
+  described; `tests/test_dependency_declarations.py` expected yaml to be
+  imported by two removed tests; `tests/test_repo_contract.py` expected a
+  removed tool among the unwired verifiers.
+
+**ROOT CAUSE.** The inventory classified files; nothing checked that the
+files it removed were no longer NAMED by the files it kept.
+
+**REPAIR.** The dependency inventory is regenerated at
+`docs/dependency_inventory.json` from `pyproject.toml` and `uv.lock` (no
+retired annotation carried; the forensic inventory records it REIMPLEMENTED);
+ENVIRONMENTAL names only what the isolated FEniCSx and FMI runtimes supply.
+No helper skips a tracked prefix: `test_the_scope_helper_skips_nothing_git_lists`
+requires the scope to equal what git lists, and repo_contract W3 re-adds a
+tracked skip to prove it is refused; DD5 and VG8 re-anchored. The units test
+reads the units the admitted models and the development dataset declare, and
+checks each recorded dimension against the parser. The shard cost table no
+longer lists removed specifications.
+
+Two more surfaced in the full suite. The retrieval allowlist's "wrong root"
+floor (more than 20 documents) was calibrated to the old corpus, which
+shrank to 20 when the retired documents left; the test now requires the
+documents a correct root must hold (README, ARCHITECTURE, the substrate
+documents, the claims boundary, STACK) and keeps a smaller count floor.
+And renaming a retired stack element in the harness-status fixture to
+`extra` collided with the id a test appends to probe an element the
+contract does not mention -- my error; the fixture element is `resolved`.
+
+**NOT CLAIMED.** The sweep reads string literals naming files; a path
+assembled at run time would not be seen by it.

@@ -12,13 +12,13 @@ scientific equivalence -- and decides between two policies:
   the cross-environment comparison finds every decision stable; an
   unresolved backend fails.
 
-The CASE numbers are directive 7's (section 38). Cases 18-20 are the
-comparator's and are in ``tests/test_cross_env_semantics.py``.
+The CASE numbers are directive 7's (section 38). Cases 18-20 belonged to a
+cross-environment comparator of the retired programme's corpus and left with
+it; the witness tool's own tests left with the tool.
 """
 from __future__ import annotations
 
 import copy
-import json
 import sys
 from pathlib import Path
 
@@ -26,11 +26,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "tools"))
 
 from scientific import reproduction as R  # noqa: E402
-
-import reproduction_witness as W  # noqa: E402
 
 DECLARED = ["a.json", "b.csv", "stub.json"]
 EXEMPT = ["stub.json"]
@@ -384,66 +381,6 @@ def test_the_cpu_model_alone_is_not_a_different_backend():
 def test_an_unresolved_part_is_no_identity(change):
     assert R.backend_identity(_env(**change)) is None
     assert R.unresolved_parts(_env(**change))
-
-
-# ---- the witness tool against this tree ------------------------------------------------
-def test_the_committed_witness_profile_applies_to_this_tree():
-    """The profile is a derived record of the corpus, the generator's
-    closure and the lock: a commit that changes any of them without
-    re-establishing it (tools/reproduction_witness.py establish) fails here,
-    rather than as an inexplicable refusal on the next runner that differs."""
-    declared, exempt = W.declared_scope(ROOT)
-    doc, problems, inapplicable = W.profile_for_tree(ROOT, declared, exempt)
-    assert doc is not None and problems == [], problems
-    assert inapplicable == [], inapplicable
-    assert doc["witnesses"], "a profile witnessed by nobody"
-
-
-def test_a_generation_record_binds_only_the_outputs_it_names(tmp_path):
-    out = tmp_path / "outputs"
-    out.mkdir()
-    (out / "a.json").write_text("{}")
-    rec = {"schema": W.RECORD_SCHEMA, "environment": _env(),
-           "outputs": {"a.json": R.sha256_file(out / "a.json")}}
-    p = tmp_path / "rec.json"
-    p.write_text(json.dumps(rec))
-    assert W.generation_record_for(str(p), out) == rec
-    (out / "a.json").write_text("{\"changed\": 1}")
-    assert W.generation_record_for(str(p), out) is None, (
-        "a supplied tree does not inherit a record of other bytes")
-    assert W.generation_record_for(None, out) is None
-    p.write_text(json.dumps(dict(rec, schema="other")))
-    assert W.generation_record_for(str(p), out) is None
-
-
-def test_the_early_strict_check_refuses_an_unwitnessed_backend(monkeypatch):
-    monkeypatch.setattr(W, "probe_environment",
-                        lambda root, dists: _other_backend())
-    r = W.reference_environment(ROOT)
-    assert not r["ok"] and r["backend_status"] == R.RESOLVED
-    assert any("not one the profile witnessed" in x for x in r["reasons"])
-
-
-def test_the_early_strict_check_refuses_a_tree_the_profile_does_not_fit(
-        monkeypatch):
-    """Even on the witnessed backend itself: the witness saw a different
-    corpus."""
-    real = W.profile_for_tree
-
-    def stale(root, declared, exempt, closure=None):
-        doc, problems, _ = real(root, declared, exempt, closure=closure)
-        return doc, problems, ["CORPUS_CHANGED (1: ['x.csv'])"]
-    monkeypatch.setattr(W, "profile_for_tree", stale)
-    monkeypatch.setattr(W, "probe_environment", lambda root, dists: (
-        pytest.fail("a tree the profile does not fit needs no probe")))
-    r = W.reference_environment(ROOT)
-    assert not r["ok"] and any("CORPUS_CHANGED" in x for x in r["reasons"])
-
-
-def test_the_early_strict_check_refuses_an_unresolved_backend(monkeypatch):
-    monkeypatch.setattr(W, "probe_environment", lambda root, dists: None)
-    r = W.reference_environment(ROOT)
-    assert not r["ok"] and r["backend_status"] == R.UNRESOLVED
 
 
 def test_the_verdict_line_names_every_status():

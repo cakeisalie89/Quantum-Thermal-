@@ -41,10 +41,8 @@ on a simulated profile its reason says SOFTWARE-PATH VALIDATION ONLY and
 names what never ran (tensor and pipeline parallelism: PLAN_ONLY).
 
 The current status, every number derived from the committed evidence, is
-`SCIENTIFIC_AI_STATUS.md` (`tools/neural.py status`). The legacy QTA
-hardware forecast's gate table and its historical PASS_count of 0 appear
-there in their own LEGACY_QTA_ONLY section: a fact about that forecast, not
-a measure of this substrate.
+`SCIENTIFIC_AI_STATUS.md` (`tools/neural.py status`), computed from the
+learned-model evidence and nothing else.
 
 ## Where it sits
 
@@ -75,9 +73,10 @@ exactly, as the optional extra `neural` (`uv sync --extra neural`). Why:
 * PyTorch was not available: `download.pytorch.org` is refused by this
   environment's network policy, and the x86-64 PyPI wheel is the
   multi-gigabyte CUDA build;
-* an EXTRA, not a dependency group, because `reference_backend/build.sh`
-  exports `--all-groups`: a group would have changed the reference runtime.
-  The reference export was compared byte for byte before and after.
+* an EXTRA, not a dependency group, so the core environment
+  (`uv sync --all-groups`) carries no framework; there the learned-model
+  tests skip, unless `HARNESS_NEURAL_REQUIRED=1` turns the skip into a
+  failure, as CI and the container do.
 
 Four packages entered `uv.lock` (jax, jaxlib, ml-dtypes, opt-einsum); no
 existing version moved. The parameter engine, solver, estimators, manifests,
@@ -100,10 +99,12 @@ linear or log10, standardised with TRAINING-split statistics), `sign`,
 `log_mag = log10(|v|)/32` and `is_zero`: magnitude and sign stay separable
 at any scale and an exact zero is not a small number.
 
-**Units.** `docs/unit_inventory.json` decides which unit a quantity has;
-`units.py` only reads the repository's spellings into SI exponents and a
-factor, and refuses anything else. Every unit in the inventory parses
-(`PER_ROW`, whose unit belongs to the row, is refused by rule). 0.01 K and
+**Units.** A model's parameter schema and a dataset's feature schema decide
+which unit a quantity has; `units.py` only reads the repository's spellings
+into SI exponents and a factor, and refuses anything else. Every unit an
+admitted model or the development dataset declares parses, to the dimension
+the dataset recorded (`PER_ROW`, whose unit belongs to the row, is refused
+by rule). 0.01 K and
 0.01 Pa produce the same value channels and different identity and
 dimension embeddings; a value given in mK is converted, one given in Pa for a
 kelvin feature is refused.
@@ -314,20 +315,20 @@ agree with their single-device originals
 (`docs/neural/distributed_readiness.json`). None of this is a hardware
 measurement.
 
-## The hardware-era boundary
+## The boundary
 
-The former apparatus design's machine modes, mode sequence and gas-species
-routing are not concepts of this substrate.
-`tools/neural_legacy_audit.py` classifies every occurrence in the tracked
-tree (the report is `docs/neural/legacy_semantic_audit.json`): zero in the
-substrate, its tools, tests and evidence; the active generic modules that
-still name them are reported, not changed -- their clean-up is the semantic
-tranche E, which is not authorised. `tests/test_neural_boundary.py` fails
-if one is introduced, by name or by import.
+The substrate imports neither the agent substrate (only
+`tools/neural_ledger.py` records its documents in an authority history, in
+its own process) nor any module the repository retired, and carries none of
+the retired hardware programme's vocabulary. `tools/neural.py audit` runs the
+repository content audit (`tools/repo_content_audit.py`) over the
+substrate's own files and `verify` requires it clean;
+`tests/test_neural_boundary.py` fails if a retired import or term is
+introduced.
 
 ## Commands
 
     uv sync --frozen --all-groups --extra neural
     python tools/neural.py verify        # the CI step: re-derive and compare
     python tools/neural.py all           # regenerate every piece of evidence
-    python tools/neural_legacy_audit.py --check
+    python tools/neural.py audit         # the content audit over the substrate

@@ -25,12 +25,12 @@ from agent_substrate.context import (  # noqa: E402
 from agent_substrate.events import EventLog  # noqa: E402
 from agent_substrate.secrets import SecretStore  # noqa: E402
 
-OWNER = "produce the Stage-10 artifact and do not touch any gate"
+OWNER = "produce the governed artifact and do not touch any gate"
 POLICY = "policy scheduler.default@2: dispatch allowed, escalation denied"
 
 
 def _builder(**over):
-    kw = dict(task_id="task-1", purpose="propose a Stage-10 run",
+    kw = dict(task_id="task-1", purpose="propose a governed run",
               policy_identity="scheduler.default@2",
               policy_digest="a" * 64, at_seq=42)
     kw.update(over)

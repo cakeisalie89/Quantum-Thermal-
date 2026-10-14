@@ -13,7 +13,7 @@ both, ranks each only as far as its own resolution distinguishes
   ordered oppositely;
 * ``METHODS_DISAGREE`` -- some pair both methods resolve, ordered
   oppositely; the pairs are named. Nothing chooses between them: the
-  report says ``REQUIRES_HUMAN_INTERPRETATION`` and has no gate effect.
+  report says ``REQUIRES_HUMAN_INTERPRETATION`` and has no authority effect.
 
 Every report carries the method identities, the parameter domain and base
 point, the sample configuration, the response definition (model, version,
@@ -202,7 +202,7 @@ def cross_check(resp: Response, base: dict, *, fraction: float = 0.1,
                           "the base point, Sobol ST global over the domain; "
                           "a disagreement is a finding and neither ranking "
                           "is preferred here",
-        "authority": "NON_AUTHORITATIVE", "automatic_gate_effect": "NONE"}
+        "authority": "NON_AUTHORITATIVE", "authority_effect": "NONE"}
     if glob["tiers"] is None:
         report.update(status="GLOBAL_UNAVAILABLE", comparison=None)
         return report

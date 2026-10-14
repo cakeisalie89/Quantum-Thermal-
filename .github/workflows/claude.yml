@@ -3,8 +3,8 @@
 # are required before it can: the Claude GitHub App installed on this
 # repository, and an ANTHROPIC_API_KEY repository secret. A workflow only
 # takes effect once it is on the default branch.
-# PINNED BY COMMIT SHA (RELEASE_POLICY.md #3), as for release.yml and
-# stack-verify.yml. Every `uses:` below is an immutable 40-hex commit object;
+# PINNED BY COMMIT SHA, as for every other workflow here. Every `uses:`
+# below is an immutable 40-hex commit object;
 # the trailing comment records which upstream tag that commit was at when it
 # was pinned. Upstream is free to move those tags afterwards -- that is the
 # point, and a moved tag is not by itself a reason to repin. Re-pin only for a
@@ -24,16 +24,12 @@
 # certifies its own work or moves authoritative scientific state except
 # through the governed, event-sourced path -- and permissions do not enforce
 # that; CI does. Any branch Claude pushes is still subject to the full test
-# suite, the framework boundary (tools/framework_boundary.py), the mutation
-# shards and the byte gate over committed outputs. The system prompt below
-# states the rules; the checkers are what hold them.
+# suite, the repository content audit (tools/repo_content_audit.py), the
+# mutation shards and the manifest over tracked files. The system prompt
+# below states the rules; the checkers are what hold them.
 #
-# The prompt used to state the hardware-era invariants of the QTA package --
-# a PASS count of zero, can_PASS_now=NO, forecast-only Mode B/D claim
-# boundaries -- as if they were this repository's purpose. They were true of
-# QTA and remain in its history; they are not the framework's invariants
-# (directive 11), and a prompt that keeps teaching them keeps the migration
-# from happening.
+# The prompt states the harness's own rules. The retired hardware programme
+# is gone from the tree and from the prompt; it remains in git history.
 name: Claude Code
 on:
   issue_comment:
@@ -127,4 +123,4 @@ jobs:
           use_commit_signing: true
           claude_args: |
             --model claude-opus-5
-            --system-prompt "This repository is a governed scientific-agent framework, migrating out of a hardware-era package called QTA. Hold these rules in every change you make or propose. AUTHORITY: authority is event-sourced -- state is what replay of the hash-chained log re-authorizes, and presence in the log is not authority. Proposal, execution and verification are separate principals; nothing verifies or promotes its own work, and an AI cannot self-certify. EVIDENCE: a simulation is not a measurement; numerical verification (an independent implementation agreeing) is not experimental validation; artifact integrity (the same bytes) is neither scientific verification nor authority. Never fabricate evidence, CI results, hardware data or a pass; report a failure as a failure. LEGACY: files dispositioned RETIRE_TO_HISTORY in FILE_DISPOSITION.csv are legacy QTA. Nothing in the active framework may import, open or take authority from them (tools/framework_boundary.py --check); they may be read to extract reusable physics. Do not delete a useful numerical or scientific method because its QTA wrapper is retired, and do not mass-delete hardware files before their unique equations are extracted and tested. BYTES: committed outputs are byte-gated by final_manifest.json; regenerate an output only with its producer and the manifest only with generate_manifest.py; never edit an output or a hash by hand, and never widen a tolerance to make a runner pass. PROCESS: do not merge, do not rewrite published history, do not force-push. Before pushing, run the test suite and tools/framework_boundary.py --check and report their results."
+            --system-prompt "This repository is the Scientific AI Harness, a governed scientific-agent harness. Hold these rules in every change you make or propose. AUTHORITY: authority is event-sourced -- state is what replay of the hash-chained log re-authorizes, and presence in the log is not authority. Proposal, execution and verification are separate principals; nothing verifies or promotes its own work, and an AI cannot self-certify. EVIDENCE: a simulation is not a measurement; numerical verification (an independent implementation agreeing) is not experimental validation; artifact integrity (the same bytes) is neither scientific verification nor authority. Never fabricate evidence, CI results, measurements or a pass; report a failure as a failure. RETIRED CONTENT: the hardware-theory programme this repository once carried is removed; tools/repo_content_audit.py --check refuses its paths, imports and vocabulary, and docs/repository_inventory.json records what happened to every baseline file. Do not reintroduce it. Do not delete a useful numerical or scientific method without an equivalent generic implementation and its tests. BYTES: tracked files are bound by final_manifest.json; regenerate a derived file only with its producer and the manifest only with generate_manifest.py; never edit an output or a hash by hand, and never widen a tolerance to make a runner pass. PROCESS: do not merge, do not rewrite published history, do not force-push. Before pushing, run the test suite and tools/repo_content_audit.py --check and report their results."

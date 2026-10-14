@@ -283,7 +283,7 @@ def test_the_reconstruction_refuses_a_tampered_log(gov):
 def test_the_differential_is_part_of_the_production_path():
     """A second reader nobody runs is a second reader of nothing."""
     rule = (ROOT / "Snakefile").read_text(encoding="utf-8") \
-        .split("rule s10_governed:", 1)[1].split("\nrule ", 1)[0]
+        .split("rule governed_tasks:", 1)[1].split("\nrule ", 1)[0]
     assert "reconstruct_tasks" in rule
     assert "compare_tasks" in rule
     assert "assert not divergences" in rule

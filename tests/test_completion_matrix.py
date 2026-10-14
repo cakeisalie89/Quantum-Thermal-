@@ -30,12 +30,47 @@ def test_the_matrix_is_self_consistent():
         problems)
 
 
-def test_every_requirement_row_is_present():
-    """R21-R70, no gaps. A missing row is a requirement quietly dropped."""
-    ids = {r["id"] for r in CM.load()["rows"]}
-    expected = {f"R{n}" for n in range(21, 71)}
-    assert ids == expected, f"missing {sorted(expected - ids)}, " \
-                            f"unexpected {sorted(ids - expected)}"
+#: Rows retired with the hardware programme, each recorded with its reason.
+RETIRED = {"R57", "R59", "R67"}
+
+
+def test_every_requirement_row_is_present_or_recorded_as_retired():
+    """R21-R72, no gaps. A missing row is a requirement quietly dropped;
+    a retired one is recorded with the requirement it retires and why."""
+    doc = CM.load()
+    ids = {r["id"] for r in doc["rows"]}
+    retired = {r["id"] for r in doc["retired_rows"]}
+    expected = {f"R{n}" for n in range(21, 73)}
+    assert retired == RETIRED, retired
+    assert ids | retired == expected and not ids & retired, (
+        f"missing {sorted(expected - ids - retired)}, "
+        f"unexpected {sorted((ids | retired) - expected)}")
+
+
+@pytest.mark.parametrize("edit, needle", [
+    (lambda d: d["retired_rows"].pop(), "R21-R72"),
+    (lambda d: d["retired_rows"][0].update(why="gone"), "no reason"),
+    (lambda d: d["retired_rows"][0].update(last_present_at="HEAD"),
+     "not a commit"),
+    (lambda d: d["retired_rows"].append(dict(d["retired_rows"][0])),
+     "listed twice"),
+    (lambda d: d["retired_rows"].append({"id": "R21", "requirement": "x",
+                                         "last_present_at": "134b4cc",
+                                         "why": "a live row retired at "
+                                                "the same time, said "
+                                                "twice"}), "also a live row"),
+])
+def test_a_retirement_must_be_recorded_whole(edit, needle):
+    import copy
+    doc = copy.deepcopy(CM.load())
+    edit(doc)
+    problems = CM.retired_problems(doc)
+    if needle == "R21-R72":
+        ids = {r["id"] for r in doc["rows"]} | {
+            r["id"] for r in doc["retired_rows"]}
+        assert ids != {f"R{n}" for n in range(21, 73)}
+    else:
+        assert any(needle in p for p in problems), problems
 
 
 def test_no_row_claims_completion_without_mutation_coverage():
@@ -65,8 +100,8 @@ def test_the_matrix_does_not_claim_scientific_authority():
     doc = CM.load()
     blob = " ".join(str(v) for v in (doc["label"], doc["does_not_mean"],
                                      doc["rule"])).lower()
-    assert "pass remains 0" in blob or "pass" in blob
-    assert "model_only" in blob or "model-only" in blob
+    assert "says nothing about scientific validity" in blob
+    assert "software_completion_only" in blob and "model_only" in blob
 
 
 #: Rows that must be COMPLETE for this file to pass, and the count that must
@@ -111,7 +146,12 @@ def test_the_matrix_does_not_claim_scientific_authority():
 #: last item was that no CI job published the guards' numbers;
 #: performance-telemetry does, and the one guard timed by design is a
 #: stated boundary.
-EXPECTED_COMPLETE = 50
+#:
+#: 50 -> 49 with the removal of the hardware programme: R57, R59 and R67
+#: described only that programme and are recorded under retired_rows; R71
+#: (the content audit and the applied inventory) and R72 (the generic
+#: integrations) are added complete.
+EXPECTED_COMPLETE = 49
 
 #: And how many rows there ARE, which is a different number and was not
 #: treated as one. The assertion below used to read
@@ -130,7 +170,10 @@ EXPECTED_COMPLETE = 50
 #: its HDF5, FEniCSx, FMI, the container, release provenance, proposal
 #: ingress, selective Rust, equivalence and ranking, the generic workflow,
 #: the active type scope.
-EXPECTED_ROWS = 50
+#:
+#: 50 -> 49 with the removal of the hardware programme: three rows retired
+#: with their reasons, two added.
+EXPECTED_ROWS = 49
 
 
 def test_the_matrix_is_not_completed_silently():
@@ -166,34 +209,6 @@ def test_the_matrix_is_not_completed_silently():
             "states no limit")
         assert not row["residual_gaps"], f"{row['id']}: complete with gaps"
         assert row["mutation_tests"], f"{row['id']}: complete, no mutations"
-
-
-def test_the_last_row_was_closed_by_evidence_not_by_decision():
-    """R59 was the last open row, and it is the easiest kind to close wrongly.
-
-    Its three gaps were all about EVIDENCE rather than code, and evidence
-    gaps close by somebody deciding they are fine. What actually closed it
-    was reproducing another machine's exact result on this one -- the same
-    twenty-three files by name, not two counts that were close -- so this
-    asserts the row still carries the things that reproduction required.
-
-    It has no production_caller and should not: the row is an analysis, not
-    a subsystem, and its callers are the two workflows that run its
-    instruments.
-    """
-    row = next(r for r in CM.load()["rows"] if r["id"] == "R59")
-    assert row["classification"] == CM.COMPLETE
-    assert row["mutation_tests"], "R59: complete with no mutation coverage"
-    assert row["boundaries"] and not row["residual_gaps"]
-    # A hosted claim with a run id somebody can open, not a mood.
-    assert re.search(r"\b\d{8,}\b", row["hosted_ci"]), row["hosted_ci"]
-    # The reproduction, not a resemblance.
-    blob = " ".join(str(row[f]) for f in ("evidence", "differential")).lower()
-    assert "reproduc" in blob, (
-        "R59 no longer claims the other host's result was reproduced, which "
-        "is the difference between an explanation and an observation")
-    assert "63" in blob and "40" in blob, (
-        "R59 no longer carries the numbers the attribution rests on")
 
 
 @pytest.mark.parametrize("row_id", ["R21", "R55"])
@@ -739,7 +754,8 @@ def test_the_fuzz_staleness_guard_names_the_target_it_found():
 
 def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
     assert not _problems(residual_gaps=[
-        "no fuzzing of the LCVD solver, which lives outside this package"])
+        "no fuzzing of the FEniCSx solver, which lives outside this "
+        "package"])
 
 
 # --- what the SHIPPED matrix says on the evidence axis ---------------------
@@ -774,7 +790,7 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: cites runs at this one.
 #:
 #: 0 -> 50 with the commit after d59c3c6. Every row cites the
-#: qta-agent-substrate runs at 5ab44a7 (push and pull_request, every job
+#: agent-substrate workflow's runs at 5ab44a7 (push and pull_request, every job
 #: green, all 95 mutation specs); the integration rows also cite the
 #: harness-integrations, supply-chain, container-verify and stack-verify
 #: runs at that commit. d59c3c6 and this commit change no row's
@@ -793,17 +809,22 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: runs at this one.
 #:
 #: 43 -> 50 with the commit after 0788d17. Every row cites the hosted runs at
-#: efaf08a -- qta-agent-substrate push and pull_request on every row, and
+#: efaf08a -- the agent-substrate workflow's push and pull_request on every row, and
 #: harness-integrations, stack-verify, container-verify and supply-chain on
 #: the rows whose evidence they are -- every job green. Neither 0788d17
 #: (tests and the ledger) nor the commit that attaches them changes a path
 #: any row's implementation digest covers, so the digests at efaf08a are
 #: the digests now.
 #:
-#: 50 -> 3 with the namespace rename (qta_agent -> agent_substrate): every
+#: 50 -> 3 with the namespace rename (to agent_substrate): every
 #: implementation path a row names moved or had its imports rewritten, so
 #: 47 rows derive PREDATES until a later commit cites runs on the new tree.
-EXPECTED_EVIDENCE_COVERS = 3
+#:
+#: 3 -> 0 with the removal of the hardware programme: the commit that
+#: removes it changes every remaining row's implementation or the rows'
+#: hosted-evidence prose is restated, and the two new rows have never run,
+#: so nothing covers until a later commit cites runs on this tree.
+EXPECTED_EVIDENCE_COVERS = 0
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

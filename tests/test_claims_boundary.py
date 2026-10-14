@@ -33,8 +33,9 @@ def test_the_repository_holds_its_claims_boundary():
 def test_every_required_boundary_is_registered():
     # 11 from directive 14; 14 since NF-1T (EB12-EB14: what a learned
     # prediction and a counted, abstractly validated architecture are not);
-    # 17 since the NF-1T closure (EB15-EB17: the legacy PASS count, simulated
-    # distribution and decision stability, each not what it is mistaken for).
+    # 17 since the NF-1T closure (EB15-EB17: a software completion status,
+    # simulated distribution and decision stability, each not what it is
+    # mistaken for).
     assert len(REG["boundaries"]) >= len(CE.REQUIRED) == 17
 
 
@@ -135,10 +136,12 @@ def test_a_symbol_is_defined_only_at_module_level(tmp_path, source,
     assert CE._defined(mod, "SYM") is defined
 
 
-def test_the_hardware_era_claims_are_kept_as_legacy():
-    """Directive 13 and 14: the QTA statements are not erased; they are the
-    legacy verifier's, in a document that says it is history."""
-    legacy = ROOT / "docs" / "legacy" / "qta" / "CLAIMS_BOUNDARY.md"
-    assert legacy.is_file()
-    assert "Mode B" in legacy.read_text(encoding="utf-8")
-    assert "Mode B" not in DOC.split("## What is out of scope")[0]
+def test_the_document_carries_none_of_the_retired_vocabulary():
+    """The boundary page states the harness's boundaries and nothing of the
+    retired programme, read with the content audit's own patterns."""
+    import sys
+    sys.path.insert(0, str(ROOT / "tools"))
+    import repo_content_audit as RCA
+    hits = [m.group(0) for _, rx in RCA._TERMS for m in rx.finditer(DOC)]
+    assert hits == [], hits
+    assert not (ROOT / "docs" / "legacy").exists()

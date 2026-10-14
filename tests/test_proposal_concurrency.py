@@ -69,7 +69,7 @@ def _open(base: Path):
     import harness_demo as HD
     from agent_substrate import proposals as PR
     from agent_substrate.governed_model import GovernedModelRuns
-    from qta_multiphysics.stack.rag_index import retrieve
+    from agent_substrate.rag_index import retrieve
     HD.WS = PCR.WS
     log = EventLog(base / "log.jsonl")
     ev = EvidenceStore(base / "evidence")

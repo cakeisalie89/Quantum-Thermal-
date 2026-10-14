@@ -1,6 +1,6 @@
 {
-  "title": "Langmuir capture extracted from the cryopanel: equations, invariants and the independent check",
-  "note": "scientific/models/surface_adsorption.py holds the physics directive 22 extracted from the cryopanel component model, and scientific/checks/langmuir_rk4.py checks it independently. Each mutation is a generic scientific or trust error (wrong flux, wrong volume factor, dropped thermal dependence, accepted NaN, self-certification); tests/test_surface_adsorption.py must notice.",
+  "title": "Langmuir capture: equations, invariants and the independent check",
+  "note": "scientific/models/surface_adsorption.py holds the Langmuir capture physics, and scientific/checks/langmuir_rk4.py checks it independently. Each mutation is a generic scientific or trust error (wrong flux, wrong volume factor, dropped thermal dependence, accepted NaN, self-certification); tests/test_surface_adsorption.py must notice.",
   "suites": [
     "tests/test_surface_adsorption.py"
   ],

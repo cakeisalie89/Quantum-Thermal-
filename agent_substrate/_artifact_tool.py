@@ -1,11 +1,11 @@
-"""The subprocess entry point for governed Stage-10 artifact emission.
+"""The subprocess entry point for governed artifact emission.
 
 A separate module, and a separate PROCESS, on purpose. The governor applies
 kernel limits to a process it does not share, so the tool cannot exhaust the
 supervisor's memory, spin without being interruptible, or exit the supervisor
 by exiting itself. Running this in-process would give up all three.
 
-It writes through the Stage-10 workspace guard rather than around it, so a
+It writes through the governed workspace guard rather than around it, so a
 governed run is subject to exactly the same write allowlist as an ungoverned
 one -- the substrate adds authority, it does not replace the guard that was
 already there.
@@ -26,7 +26,7 @@ def main(argv: list) -> int:
         print(f"inputs are not JSON: {exc}", file=sys.stderr)
         return 2
 
-    from qta_multiphysics.stack import workspace as WS
+    from scientific import workspace as WS
 
     # The governed-writer scope is opened HERE, in the subprocess the
     # executor launched, and nowhere in the ungoverned tree. That is what

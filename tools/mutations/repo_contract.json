@@ -22,11 +22,11 @@
    "rationale": "a quarantined mutation copy or a build artifact fails guards about code that is not in the repository, which is how a structural check becomes noise people disable"
   },
   {
-   "name": "W3_the_scope_stops_skipping_the_retired_corpus",
+   "name": "W3_the_scope_skips_a_tracked_directory",
    "path": "tools/repo_scope.py",
-   "find": "        if not rel or rel.startswith(_SKIP):",
-   "replace": "        if not rel:",
-   "rationale": "attic/ is TRACKED -- the retired corpus, kept for history -- so removing the skip sweeps every retired module into guards about live code"
+   "find": "_SKIP = (\".venv/\", \"build/\", \"dist/\", \"node_modules/\")",
+   "replace": "_SKIP = (\".venv/\", \"build/\", \"dist/\", \"node_modules/\", \"docs/\")",
+   "rationale": "a skipped prefix that git tracks is a hole every structural guard inherits: whatever is under it is never examined"
   },
   {
    "name": "W4_non_test_references_counts_tests_as_production",

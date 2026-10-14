@@ -404,7 +404,7 @@ def assemble_context(query: str, *, retrieve: Callable, k: int = 5) -> dict:
     """Governed read-only retrieval over reviewed documents, as a proposal
     context: cited spans, each stamped NOT_EVIDENCE, and their digest.
 
-    ``retrieve`` is injected (``qta_multiphysics.stack.rag_index.retrieve``
+    ``retrieve`` is injected (``agent_substrate.rag_index.retrieve``
     in production): deterministic BM25 over an allowlisted corpus, no
     network, no model client, no embedding service."""
     res = retrieve(query, k=k)

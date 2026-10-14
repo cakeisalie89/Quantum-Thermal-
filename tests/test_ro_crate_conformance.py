@@ -17,20 +17,30 @@ import ro_crate_conformance as RCC  # noqa: E402
 
 import pytest  # noqa: E402
 
-COMMITTED_REPORT = ROOT / "stage8_reports" / "ro_crate_validation_report.json"
+import ro_crate_tools as RC  # noqa: E402
+
+#: Where ``ro_crate_tools.py validate`` writes its verdict: the governed
+#: workspace, untracked.
+DEFAULT_REPORT = ROOT / RC.DEFAULT_VALIDATION_REPORT
+
+
+def _snapshot(path: Path):
+    return path.read_bytes() if path.is_file() else None
 
 
 @pytest.fixture(autouse=True)
-def _the_committed_report_is_left_as_found():
+def _the_default_report_is_left_as_found():
     """Under a mutant that lets judging write its report (RC5), every test
-    here that judges from the repository root would overwrite the committed
-    one, and the mutation harness rightly refuses a run that leaves a
-    tracked file changed. Restored afterwards, not ignored: the test that
+    here that judges from the repository root would overwrite the
+    validator's own report. Restored afterwards, not ignored: the test that
     looks for the write still sees it while it runs."""
-    before = COMMITTED_REPORT.read_bytes()
+    before = _snapshot(DEFAULT_REPORT)
     yield
-    if COMMITTED_REPORT.read_bytes() != before:
-        COMMITTED_REPORT.write_bytes(before)
+    if _snapshot(DEFAULT_REPORT) != before:
+        if before is None:
+            DEFAULT_REPORT.unlink()
+        else:
+            DEFAULT_REPORT.write_bytes(before)
 
 
 def _meta():
@@ -56,15 +66,14 @@ def test_the_internal_validator_writes_nothing_while_judging(
     """ro_crate_tools.validate writes its report as a side effect, to a
     path relative to the working directory; judging a packaged or broken
     crate must write nothing, wherever the process stands -- and above all
-    not over the committed report."""
-    committed = ROOT / "stage8_reports" / "ro_crate_validation_report.json"
-    before = committed.read_bytes()
+    not over the validator's own report."""
+    before = _snapshot(DEFAULT_REPORT)
     monkeypatch.chdir(tmp_path)
     RCC.internal(_meta())
     for broken in RCC._broken(_meta()).values():
         RCC.internal(broken)
     assert list(tmp_path.rglob("*")) == []
-    assert committed.read_bytes() == before
+    assert _snapshot(DEFAULT_REPORT) == before
 
 
 def test_without_the_external_validator_nothing_is_called_agreement():

@@ -2,7 +2,7 @@
 
 This is the suite that distinguishes a control plane from a library. Every
 other agent-substrate test exercises a mechanism in isolation; these run a real
-Stage-10 workflow through the whole chain and then try to get a result out of
+governed workflow through the whole chain and then try to get a result out of
 it that the chain should have refused.
 """
 from __future__ import annotations
@@ -38,10 +38,10 @@ WS = "verification/stage10/_pytest_governed"
 
 @pytest.fixture()
 def gov(request):
-    """A governed runner writing into its own Stage-10 subdirectory.
+    """A governed runner writing into its own workspace subdirectory.
 
     Inside the real workspace, not tmp_path: the tool writes through the
-    Stage-10 write guard, which allows exactly one subtree. Running the
+    workspace write guard, which allows exactly one subtree. Running the
     production path anywhere else would be running a different path.
     """
     name = request.node.name.replace("/", "_")[:60]
@@ -209,7 +209,7 @@ def test_contract_violating_inputs_are_rejected_and_recorded(gov):
 def test_a_write_outside_the_workspace_is_refused_by_the_guard(gov):
     """The substrate adds authority; it does not replace the existing guard.
 
-    The capability scope and the Stage-10 write allowlist agree, so a governed
+    The capability scope and the workspace write allowlist agree, so a governed
     run cannot reach a path an ungoverned one could not.
     """
     run = _run(gov, inputs=_inputs(gov, out_dir="outputs"))
@@ -481,21 +481,18 @@ def test_the_replay_reads_src_from_itself_not_from_the_record(gov):
 
 # --- the production wiring itself -------------------------------------------
 
-def test_the_governed_rule_is_part_of_the_ordinary_stage10_workflow():
+def test_the_governed_rule_is_part_of_the_ordinary_workflow():
     """A governed path nobody runs is not a production path.
 
     The directive's own bar: a test-only caller does not count, a demo script
     does not count, an unused CLI does not count. What makes this real is that
     the workflow's DEFAULT target, ``scientific_generic``, depends on the
-    governed runs' outputs -- and so does the legacy aggregate ``s10_full``
-    the Stage-10 CI job invokes. Removing that dependency would turn the
-    control plane back into a library, so it is pinned here rather than left
-    to a reviewer noticing.
+    governed runs' outputs. Removing that dependency would turn the control
+    plane back into a library, so it is pinned here rather than left to a
+    reviewer noticing.
     """
     snakefile = (ROOT / "Snakefile").read_text(encoding="utf-8")
-    legacy = (ROOT / "workflow" / "legacy_qta.smk").read_text(
-        encoding="utf-8")
-    assert "rule s10_governed:" in snakefile
+    assert "rule governed_tasks:" in snakefile
 
     default = snakefile.split("\nrule ", 1)[1].split("\nrule ", 1)[0]
     assert default.startswith("scientific_generic:"), default[:80]
@@ -505,10 +502,6 @@ def test_the_governed_rule_is_part_of_the_ordinary_stage10_workflow():
         assert out in default, (
             f"the default workflow no longer depends on {out}; the production "
             "path would stop being exercised by the ordinary workflow")
-
-    after = legacy.split("rule s10_full:", 1)[1].split("\nrule ", 1)[0]
-    assert "governed/governed_run.json" in after, (
-        "s10_full no longer depends on the governed run")
 
 
 def test_the_governed_rule_fails_the_build_on_an_unverified_run():
@@ -520,17 +513,17 @@ def test_the_governed_rule_fails_the_build_on_an_unverified_run():
     verification.
     """
     snakefile = (ROOT / "Snakefile").read_text(encoding="utf-8")
-    rule = snakefile.split("rule s10_governed:", 1)[1].split("\nrule ", 1)[0]
+    rule = snakefile.split("rule governed_tasks:", 1)[1].split("\nrule ", 1)[0]
     assert "TaskState.VERIFIED" in rule
     assert "assert run.state is TaskState.VERIFIED" in rule
     assert "assert gov.log.verify().ok" in rule
 
 
-def test_the_bridge_writes_through_the_stage10_guard_not_around_it():
+def test_the_bridge_writes_through_the_workspace_guard_not_around_it():
     """The substrate adds authority; it does not replace the existing guard."""
     tool = (ROOT / "agent_substrate" / "_artifact_tool.py").read_text(encoding="utf-8")
     assert "guard_output_dir" in tool, (
-        "the governed tool must use the Stage-10 write guard, so a governed "
+        "the governed tool must use the workspace write guard, so a governed "
         "run is subject to the same allowlist as an ungoverned one")
     assert "write_json_deterministic" in tool
 

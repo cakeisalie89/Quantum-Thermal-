@@ -1,9 +1,9 @@
 """Adversarial checks for proposal/workspace and retrieval authority.
 
 These are security tests, not scientific validation.  They prove that the
-Stage-10 proposal adapters cannot write canonical state and that a serialized
-retrieval index cannot grant authority to paths or bytes the repository did
-not govern.
+workspace writers cannot write tracked state and that a serialized retrieval
+index cannot grant authority to paths or bytes the repository did not
+govern.
 """
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from qta_multiphysics.stack import AUTOMATIC_GATE_EFFECT, LABEL
-from qta_multiphysics.stack import rag_index as RAG
-from qta_multiphysics.stack import workspace as WS
+from agent_substrate import rag_index as RAG
+from agent_substrate.rag_index import AUTHORITY_EFFECT, LABEL
+from scientific import workspace as WS
 
 ROOT = WS.repo_root()
 
@@ -55,10 +55,10 @@ def _small_index(tmp_path: Path) -> tuple[Path, Path, dict]:
 
 @pytest.mark.parametrize(
     "target",
-    [".", ".git/objects", "docs/recovery", "outputs", "stage8_reports",
-     "qta_multiphysics", "Snakefile"],
+    [".", ".git/objects", "docs/recovery", "outputs", "agent_substrate",
+     "tests", "Snakefile"],
 )
-def test_stage10_write_allowlist_rejects_all_nonworkspace_targets(target):
+def test_workspace_write_allowlist_rejects_all_nonworkspace_targets(target):
     with pytest.raises(ValueError, match="verification/stage10"):
         WS.guard_output_dir(target)
 
@@ -87,9 +87,9 @@ def test_direct_writer_cannot_bypass_directory_guard():
             readme.write_bytes(before)
 
 
-def test_json_writer_cannot_overwrite_canonical_output():
-    """The canonical gate table, restored on the mutation path -- see above."""
-    target = ROOT / "results_gate_table.csv"
+def test_json_writer_cannot_overwrite_a_tracked_registry():
+    """A tracked registry, restored on the mutation path -- see above."""
+    target = ROOT / "stack.json"
     before = target.read_bytes()
     try:
         with pytest.raises(ValueError, match="verification/stage10"):
@@ -254,7 +254,7 @@ def test_prompt_injection_is_returned_only_as_verbatim_non_evidence(tmp_path):
     assert hit["text"] == payload
     assert hit["evidence_status"] == "RETRIEVED_TEXT_NOT_EVIDENCE"
     assert hit["label"] == LABEL
-    assert AUTOMATIC_GATE_EFFECT == "NONE"
+    assert AUTHORITY_EFFECT == "NONE"
 
 
 # ---------------------------------------------------------------------------
@@ -483,7 +483,14 @@ def test_the_repositorys_own_allowlist_is_current():
     regenerating fails here, in the suite, rather than at some later read.
     """
     allowed = RAG.assert_corpus_is_allowlisted(ROOT)
-    assert len(allowed) > 20, (
+    # A wrong root is caught by what it lacks, not only by its size: the
+    # corpus shrank to about twenty documents when the retired programme
+    # left, so a bare count calibrated to the old corpus no longer separated
+    # a wrong root from the real one.
+    anchors = {"README.md", "ARCHITECTURE.md", "AGENT_SUBSTRATE.md",
+               "CLAIMS_BOUNDARY.md", "NEURAL_SUBSTRATE.md", "STACK.md"}
+    assert anchors <= set(allowed), sorted(anchors - set(allowed))
+    assert len(allowed) >= 15, (
         f"only {len(allowed)} documents allowlisted; a corpus this small is "
         "far more likely to be a wrong root than a real one")
 
@@ -492,10 +499,10 @@ def test_the_library_cannot_write_the_allowlist_itself():
     """Approving your own corpus is the property this mechanism holds.
 
     ``allowlist_document`` returns the document. Writing it is a tool whose
-    output lands in a commit somebody reviews, and no code path in
-    qta_multiphysics may do it.
+    output lands in a commit somebody reviews, and no production code path
+    may do it.
     """
-    src = (ROOT / "qta_multiphysics" / "stack" / "rag_index.py").read_text(
+    src = (ROOT / "agent_substrate" / "rag_index.py").read_text(
         encoding="utf-8")
     body = src.partition("def allowlist_document")[2].partition("\ndef ")[0]
     for forbidden in ("write_text", "write_bytes", "open("):

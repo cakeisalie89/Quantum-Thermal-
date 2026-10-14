@@ -3,8 +3,7 @@
   "note": "ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity (the generic D-2026-69 mechanism), run identity, implementation identity, and cut C1. Each mutation removes one refusal.",
   "suites": [
     "tests/test_scientific_interfaces.py",
-    "tests/test_scientific_identity.py",
-    "tests/test_scientific_import_isolation.py"
+    "tests/test_scientific_identity.py"
   ],
   "mutations": [
     {
@@ -134,13 +133,6 @@
       "rationale": "a digest over bytes another reader cannot parse"
     },
     {
-      "name": "SI19_the_package_init_loads_the_orchestrator_again",
-      "path": "qta_multiphysics/__init__.py",
-      "find": "__all__: list = []\n",
-      "replace": "__all__: list = []\nfrom .runner import run_all as _eager  # noqa: E402,F401\n",
-      "rationale": "C1 undone: every scientific module loads the gate-spec assembly again"
-    },
-    {
       "name": "SI20_artefact_bytes_need_not_match",
       "path": "scientific/model.py",
       "find": "        if digest_bytes(data) != ref.digest or len(data) != ref.size_bytes:\n",
@@ -153,13 +145,6 @@
       "find": "        if unknown:\n",
       "replace": "        if False:\n",
       "rationale": "a mistyped parameter silently runs the default"
-    },
-    {
-      "name": "SI20_the_lazy_orchestrator_entry_comes_back",
-      "path": "qta_multiphysics/__init__.py",
-      "find": "__all__: list = []\n",
-      "replace": "__all__ = [\"run_all\"]\n\n\ndef run_all(*args, **kwargs):\n    from .runner import run_all as _run_all\n    return _run_all(*args, **kwargs)\n",
-      "rationale": "the package offers the legacy orchestrator again, and every submodule statically reaches it (tranche 4)"
     },
     {
       "name": "SI22_a_naive_time_is_accepted",

@@ -57,7 +57,7 @@ sys.path[:0] = [{str(ROOT)!r}, {str(ROOT / "tools")!r}]
 import harness_demo as HD
 from pathlib import Path
 from agent_substrate import proposals as PR
-from qta_multiphysics.stack.rag_index import retrieve
+from agent_substrate.rag_index import retrieve
 HD.WS = {WS!r}
 log, ev, g = HD._world(Path({str(ROOT / WS)!r}))
 ctx = PR.assemble_context(HD.QUERY, retrieve=retrieve, k=3)
@@ -86,7 +86,7 @@ def _path(log, g, ctx):
 
 @pytest.fixture(scope="module")
 def reference():
-    from qta_multiphysics.stack.rag_index import retrieve
+    from agent_substrate.rag_index import retrieve
     HD.WS = WS
     out = subprocess.run([sys.executable, "-c", _REFERENCE], cwd=ROOT,
                          capture_output=True, text=True, timeout=900)

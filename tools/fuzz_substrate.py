@@ -410,7 +410,7 @@ def _canonical(data: bytes):
 
 
 def _rag_index(data: bytes):
-    from qta_multiphysics.stack import rag_index
+    from agent_substrate import rag_index
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "index.json"
         path.write_bytes(data)
@@ -1025,7 +1025,7 @@ class Coverage:
             self.reason = "sys.monitoring is not available on this build"
             return
         try:
-            self._mon.use_tool_id(_TOOL_ID, "qta-fuzz")
+            self._mon.use_tool_id(_TOOL_ID, "harness-fuzz")
         except ValueError as exc:                 # pragma: no cover
             self.reason = f"tool id {_TOOL_ID} is in use: {exc}"
             return

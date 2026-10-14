@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and render the §21-§59 completion matrix.
+"""Validate and render the completion matrix.
 
 WHY THIS IS EXECUTABLE
 
@@ -294,11 +294,37 @@ def _outside_items() -> dict:
         return {}
 
 
-def validate(doc: dict) -> list:
+def retired_problems(doc: dict) -> list:
+    """A retired row is a decision, recorded: it names the requirement it
+    retires, the last commit that carried it and why, and it is not also a
+    live row. Dropping a row without this record is a requirement quietly
+    lost."""
     problems: list = []
+    live = {r.get("id") for r in doc.get("rows") or []}
+    seen: set = set()
+    for r in doc.get("retired_rows") or []:
+        rid = r.get("id", "<no id>")
+        if set(r) != {"id", "requirement", "last_present_at", "why"}:
+            problems.append(f"retired {rid}: fields are not id, requirement, "
+                            "last_present_at and why")
+            continue
+        if rid in live:
+            problems.append(f"retired {rid}: also a live row")
+        if rid in seen:
+            problems.append(f"retired {rid}: listed twice")
+        seen.add(rid)
+        if not re.fullmatch(r"[0-9a-f]{7,40}", str(r["last_present_at"])):
+            problems.append(f"retired {rid}: last_present_at is not a commit")
+        if len(str(r["why"]).split()) < 8:
+            problems.append(f"retired {rid}: no reason worth the name")
+    return problems
+
+
+def validate(doc: dict) -> list:
+    problems: list = retired_problems(doc)
     rows = doc.get("rows")
     if not isinstance(rows, list) or not rows:
-        return ["matrix has no rows"]
+        return problems + ["matrix has no rows"]
 
     seen = set()
     for row in rows:
@@ -369,7 +395,7 @@ def validate(doc: dict) -> list:
                 for m in mods:
                     # "import <stem>" covers every import spelling that
                     # actually pulls the module in, including
-                    # "from qta_multiphysics.stack import rag_index as R",
+                    # "from agent_substrate import rag_index as R",
                     # while still being false of ordinary prose.
                     forms.update({f"agent_substrate.{m}",
                                   f"agent_substrate/{m}",

@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""Deterministic RO-Crate 1.1 builder + validator (Stage 8).
+"""Deterministic RO-Crate 1.1 builder + validator for the Scientific AI
+Harness.
 
-Specification: RO-Crate 1.1 (https://w3id.org/ro/crate/1.1) — implemented
+Specification: RO-Crate 1.1 (https://w3id.org/ro/crate/1.1) -- implemented
 as hand-built deterministic JSON-LD with an in-repo structural validator;
-no third-party crate library is used (recorded limitation: no external
-conformance validator was executable in this sandbox).
+the community validator (roc-validator) is run beside it on a hosted runner
+by tools/ro_crate_conformance.py.
 
-MODEL-ONLY / FORECAST-ONLY. The crate is PROVENANCE METADATA connecting
-existing artifacts. It asserts no experiment performed, no hardware
-validation, no isotope-contrast demonstration, no completed growth, no
-digital-twin validation, no COMSOL equivalence; gate PASS stays zero;
-Campaign-1 stays PROPOSED_NOT_PERFORMED; experiments stay at their
-Stage-7.5 statuses; outputs are simulation/forecast artifacts; the HDF5
-file is a structured representation of existing outputs, not evidence.
+The crate is PROVENANCE METADATA connecting the harness's own files: the
+workflow, its locked environment, its registries and derived status, the
+forensic inventory and content audit, and the learned-model evidence
+manifests. It asserts no experiment performed and no physical validation;
+a checksum here attests bytes, never that anything in them is correct.
 
 Determinism: sorted entity/key ordering; relative POSIX paths only; no
 UUIDs; no wall-clock timestamps; stable checksum ordering; fail-closed
@@ -24,6 +23,7 @@ import hashlib
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 CRATE_DIR = Path("ro-crate")
@@ -57,54 +57,70 @@ CONTEXT_TERMS = frozenset({
 })
 
 FILES = [
-    ("../qta_full_sim.py", ["File", "SoftwareSourceCode"],
-     "canonical simulation runner (authoritative release path)"),
-    ("../qta_sim_stages.py", ["File", "SoftwareSourceCode"],
-     "checkpointed staged driver (Stage 7.5; identical calls)"),
-    ("../qta_multiphysics/runner_3d.py", ["File", "SoftwareSourceCode"],
-     "3-D reduced-CI layer runner"),
     ("../Snakefile", ["File", "SoftwareSourceCode"],
-     "Snakemake workflow wrapping authoritative commands"),
-    ("../pyproject.toml", "File", "project/tooling authority"),
-    ("../uv.lock", "File", "locked dependency resolution (71+ pkgs)"),
-    ("../stage7_reports/environment_provenance.json", "File",
-     "environment provenance record"),
-    ("../hdf5_output_mapping.json", "File",
-     "88-output -> HDF5 mapping registry (schema 1.0.0)"),
-    ("../hdf5_schema.json", "File", "HDF5 dataset schema (1.0.0)"),
-    ("../qta_scientific_results.h5", "File",
-     "HDF5 representation of existing simulation outputs "
-     "(NOT new scientific evidence)"),
-    ("../results_gate_table.csv", "File",
-     "canonical gate table (83 gates; scientific PASS count = 0)"),
-    ("../validation_matrix.csv", "File", "validation matrix (43 open "
-     "items dispositioned; nonlinear_threshold unresolved)"),
-    ("../experiment_registry.json", "File",
-     "Stage-6 experiment registry (11 designed experiments; EXP-V1 "
-     "PLAYBOOK_READY; Campaign-1 PROPOSED_NOT_PERFORMED)"),
-    ("../experiment_gate_coverage.json", "File", "25/25 gate coverage"),
-    ("../experiment_matrix_coverage.json", "File",
-     "43/43 matrix dispositions"),
-    ("../campaign_registry.json", "File",
-     "campaign registry (Campaign-1 PROPOSED_NOT_PERFORMED)"),
-    ("../package_consistency_check.py", ["File", "SoftwareSourceCode"],
-     "package checker (default full-regeneration release gate + "
-     "fail-closed --verify-existing)"),
-    ("../manuscript_consistency_check.py", ["File", "SoftwareSourceCode"],
-     "manuscript checker"),
-    ("../stage6_preservation_check.py", ["File", "SoftwareSourceCode"],
-     "Stage-6 preservation checker"),
-    ("../stage8_reports/hdf5_equivalence_report.json", "File",
-     "HDF5<->source exact-equivalence report"),
+     "the governed scientific workflow (Snakemake); its default target runs "
+     "the harness end to end"),
+    ("../tools/harness_demo.py", ["File", "SoftwareSourceCode"],
+     "the end-to-end demonstration, proposal to decision, with its negative "
+     "twin"),
+    ("../scientific/catalog.py", ["File", "SoftwareSourceCode"],
+     "the admitted scientific models and their independent checks"),
+    ("../pyproject.toml", "File", "project and tooling authority"),
+    ("../uv.lock", "File", "locked dependency resolution"),
+    ("../stack.json", "File", "software stack registry: what is in use and "
+                              "how it is checked"),
+    ("../authorities.json", "File", "which module owns which concept"),
+    ("../docs/harness_contract.json", "File",
+     "the software completion contract (definition of done)"),
+    ("../docs/harness_status.json", "File",
+     "the completion status derived from the contract's inputs"),
+    ("../docs/completion_matrix.json", "File", "the completion matrix"),
+    ("../docs/repository_inventory.json", "File",
+     "forensic inventory: every baseline file classified, with its "
+     "disposition"),
+    ("../docs/repo_content_audit.json", "File",
+     "the repository content audit of the current tree"),
+    ("../docs/equivalence_contracts.json", "File",
+     "scientific equivalence contracts by model output"),
+    ("../docs/neural/dev/dataset_manifest.json", "File",
+     "NF-1T development dataset manifest (generator identity and digest)"),
+    ("../docs/neural/claims.json", "File",
+     "NF-1T claims, recorded through the authority substrate"),
     ("../final_manifest.json", "File", "deterministic manifest"),
     ("../manifest_hash.txt", "File", "detached manifest hash"),
-    ("../RUNTIME_RESILIENCE.md", "File", "Stage-7.5 documentation"),
-    ("../HDF5_DATA_MODEL.md", "File", "HDF5 data-model documentation"),
+    ("../HDF5_DATA_MODEL.md", "File", "HDF5 result-bundle data model"),
+    ("../README.md", "File", "what the harness is and how to run it"),
 ]
+
+#: The locked packages the environment entity names, read from uv.lock so
+#: the crate cannot state a version the lock does not resolve.
+ENVIRONMENT_PACKAGES = ("numpy", "scipy", "h5py", "snakemake", "pydantic",
+                        "pytest", "hypothesis", "ruff", "mypy")
+
+
+def locked_versions(lock: Path = Path("uv.lock")) -> str:
+    doc = tomllib.loads(lock.read_text(encoding="utf-8"))
+    have = {p["name"]: p["version"] for p in doc["package"]
+            if "version" in p}
+    missing = [n for n in ENVIRONMENT_PACKAGES if n not in have]
+    if missing:
+        raise KeyError(f"uv.lock resolves no {missing}")
+    return "python 3.12; " + "; ".join(
+        f"{n} {have[n]}" for n in ENVIRONMENT_PACKAGES) + "; uv 0.11.7"
 
 
 def sha_file(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+#: What the root description must say, checked by :func:`validate`: the
+#: crate is software provenance and nothing more.
+ROOT_DISCLAIMERS = (
+    "No experiment has been performed",
+    "not experimental validation",
+    "NON_AUTHORITATIVE",
+    "attests bytes, not correctness",
+)
 
 
 def build(dest_dir: Path = CRATE_DIR) -> None:
@@ -115,56 +131,43 @@ def build(dest_dir: Path = CRATE_DIR) -> None:
          "about": {"@id": "./"},
          "conformsTo": {"@id": SPEC}},
         {"@id": "./", "@type": "Dataset",
-         "name": "Quantum Thermal Architecture -- Stage 8 scientific "
-                 "package (forecast-only, pre-hardware)",
+         "name": "Scientific AI Harness -- governed scientific-agent "
+                 "software and its provenance",
          "description":
-             "Theoretical, forecast-only, pre-hardware, validation-gated "
-             "multiphysics model. No experiment has been performed; no "
-             "hardware validation, isotope-contrast demonstration, "
-             "completed growth, digital-twin validation, or COMSOL "
-             "equivalence is claimed. Scientific gate PASS count is "
-             "zero; can_PASS_now=NO; measured_in_this_system=false; "
-             "automatic_gate_effect=NONE; automatic_application=false. "
-             "Campaign-1 is PROPOSED_NOT_PERFORMED; experiments are "
-             "DESIGNED (EXP-V1 PLAYBOOK_READY). Outputs are simulation/"
-             "forecast artifacts; the HDF5 file is a structured "
-             "representation of existing outputs, not new evidence.",
+             "A governed scientific-agent harness: an event-sourced "
+             "authority substrate, replaceable scientific models checked "
+             "by independent implementations, a learned-model substrate "
+             "and its evidence, and the software assurance that holds "
+             "them. No experiment has been performed; a simulation result "
+             "here is not experimental validation; learned outputs are "
+             "NON_AUTHORITATIVE. Every checksum in this crate attests "
+             "bytes, not correctness.",
          "license": {"@id": "#license-unspecified"},
          "datePublished": DATE_PUBLISHED,
          "hasPart": [{"@id": rel.replace("../", "")} for rel, _, _
                      in FILES],
-         "mainEntity": {"@id": "qta_full_sim.py"},
-         "mentions": [{"@id": "#stage7-input-zip"},
-                      {"@id": "#simulation-action"},
+         "mainEntity": {"@id": "Snakefile"},
+         "mentions": [{"@id": "#workflow-action"},
                       {"@id": "#environment"}]},
         {"@id": "#license-unspecified", "@type": "CreativeWork",
          "name": "license: no authoritative project license record "
                  "exists; none invented",
          "description": "the repository carries no license record; this "
                         "entity says so rather than naming one"},
-        {"@id": "#stage7-input-zip", "@type": "Dataset",
-         "name": "authoritative Stage-7.5 input archive",
-         "identifier": "QTA_stage7_5_runtime_resilience_source.zip",
-         "sha256": "c29cbc84c6155c2204ce7fb8c72d4499246cb4fdaeecd987"
-                    "d9cf29448c10ac82",
-         "contentSize": "20380753"},
         {"@id": "#environment", "@type": "SoftwareApplication",
          "name": "locked execution environment (uv --frozen)",
-         "softwareRequirements":
-             "python 3.12.3; numpy 2.4.4; scipy 1.17.1; qutip 5.2.1; "
-             "h5py 3.16.0 (libhdf5 2.0.0); snakemake 9.23.1; "
-             "pydantic 2.13.4; pytest 9.1.1; hypothesis 6.158.1; "
-             "ruff 0.15.22; mypy 2.3.0; uv 0.11.7"},
-        {"@id": "#simulation-action", "@type": "CreateAction",
-         "name": "canonical simulation regeneration (forecast-only)",
-         "instrument": {"@id": "qta_full_sim.py"},
+         "softwareRequirements": locked_versions()},
+        {"@id": "#workflow-action", "@type": "CreateAction",
+         "name": "the governed workflow's default target",
+         "instrument": {"@id": "Snakefile"},
          "object": {"@id": "pyproject.toml"},
-         "result": [{"@id": "qta_scientific_results.h5"},
-                    {"@id": "results_gate_table.csv"}],
-         "description": "monolithic release verification: exit 0, "
-                        "complete 89-file set, 88/88 governed outputs "
-                        "byte-identical; staged checkpointed path proven "
-                        "equivalent (Stage 7.5)"},
+         "result": [{"@id": "docs/harness_status.json"}],
+         "description": "snakemake --cores 1 runs the demonstration, the "
+                        "governed model, artifact and index paths, the "
+                        "representations and the tree check, writing only "
+                        "under verification/; the completion status is "
+                        "derived from the registries and evidence by "
+                        "tools/harness_status.py"},
     ]
     NO_EMBED = {"final_manifest.json", "manifest_hash.txt"}
     for rel, typ, desc in FILES:
@@ -200,7 +203,7 @@ def build(dest_dir: Path = CRATE_DIR) -> None:
 #: that form. Found immediately, by the manifest completeness suite, in the
 #: same session as the ledger item about tests that damage tracked files.
 DEFAULT_VALIDATION_REPORT = Path(
-    "stage8_reports/ro_crate_validation_report.json")
+    "verification/ro_crate/validation_report.json")
 
 
 def validate(meta_path: Path = META,
@@ -261,7 +264,7 @@ def validate(meta_path: Path = META,
                         str(root_.get("datePublished", ""))):
         problems.append("root dataset has no ISO 8601 datePublished "
                         "(RO-Crate 1.1, REQUIRED)")
-    if "./" not in by or "#simulation-action" not in by:
+    if "./" not in by or "#workflow-action" not in by:
         # Without these the checks below index a dict that has no such key,
         # and the validator dies with a KeyError traceback instead of
         # returning a verdict. A crash is not a refusal.
@@ -284,9 +287,8 @@ def validate(meta_path: Path = META,
     # The second half is scope COMPLETENESS rather than mere non-emptiness:
     # an entity that carries a checksum and sits outside `hasPart` is one
     # this loop never reaches. Contextual entities -- the `#`-prefixed ones,
-    # which describe things that are not files in this tree -- are excluded,
-    # because `#stage7-input-zip` is legitimately one of those and a rule
-    # that flagged it would be a rule about the wrong thing.
+    # which describe things that are not files in this tree -- are excluded:
+    # a rule that flagged them would be a rule about the wrong thing.
     parts = {p["@id"] for p in by["./"]["hasPart"]}
     if not parts:
         problems.append(
@@ -333,19 +335,17 @@ def validate(meta_path: Path = META,
     for bad in ("/home/", "/tmp/", "C:\\\\"):
         if bad in blob_paths:
             problems.append(f"forbidden path fragment '{bad}'")
-    for claim in ("hardware-validated", "experiment performed",
-                  "isotope contrast demonstrated", "completed growth",
-                  "validated digital twin", "COMSOL-equivalent"):
+    for claim in ("experimentally validated", "experiment performed",
+                  "validated digital twin", "certified", "proves "
+                  "correctness"):
         if claim in blob:
             problems.append(f"claim-boundary violation: '{claim}'")
     root = by["./"]["description"]
-    for must in ("PASS count is zero", "PROPOSED_NOT_PERFORMED",
-                 "measured_in_this_system=false",
-                 "not new evidence"):
+    for must in ROOT_DISCLAIMERS:
         if must not in root:
             problems.append(f"root description missing '{must}'")
-    if by["#simulation-action"]["@type"] != "CreateAction":
-        problems.append("simulation CreateAction missing")
+    if by["#workflow-action"]["@type"] != "CreateAction":
+        problems.append("workflow CreateAction missing")
     print(f"RO-Crate validation: {len(g)} entities | "
           f"{len(by['./']['hasPart'])} referenced files | "
           f"problems {len(problems)} {problems[:3]}")

@@ -251,7 +251,7 @@ def test_retrieved_text_is_stamped_not_evidence_and_cited():
 
 
 def test_governed_retrieval_over_the_real_corpus():
-    from qta_multiphysics.stack.rag_index import retrieve
+    from agent_substrate.rag_index import retrieve
     ctx = PR.assemble_context("finite element slab verification",
                               retrieve=retrieve, k=3)
     assert ctx["hits"] and all(h["source_sha256"] for h in ctx["hits"])

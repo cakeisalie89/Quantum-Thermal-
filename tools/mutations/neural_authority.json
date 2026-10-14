@@ -1,6 +1,6 @@
 {
  "title": "Meta validation, claims, checkpoints, lineage and the learned-record authority boundary (NF-1T)",
- "note": "NU1-NU25: a meta validation that allocates, a development run credited to the flagship or a large model, an interrupted run counted as trained, a tampered report accepted, a learned record made authority live or on replay or by the second reader, a broken lineage link accepted, a checkpoint's bytes or tensors unchecked, resume semantics conflated, the learned-prediction semantics dropped, a legacy import or machine-mode name planted in the substrate; a trained subject described as unallocated (NU23-NU24); PROMOTED left open to a learned record (NU25).",
+ "note": "NU1-NU25: a meta validation that allocates, a development run credited to the flagship or a large model, an interrupted run counted as trained, a tampered report accepted, a learned record made authority live or on replay or by the second reader, a broken lineage link accepted, a checkpoint's bytes or tensors unchecked, resume semantics conflated, the learned-prediction semantics dropped (NU20 and NU21, which planted retired content in the substrate, moved to repository_content.json with the audit that refuses it); a trained subject described as unallocated (NU23-NU24); PROMOTED left open to a learned record (NU25).",
  "suites": [
   "tests/test_neural_meta.py",
   "tests/test_neural_provenance.py",
@@ -139,20 +139,6 @@
    "find": "        if doc[\"semantics\"] != list(PREDICTION_SEMANTICS):\n",
    "replace": "        if False:\n",
    "rationale": "an evaluation without LEARNED_PREDICTION / NON_AUTHORITATIVE accepted"
-  },
-  {
-   "name": "NU20_legacy_import_planted",
-   "path": "scientific_ai/neural/units.py",
-   "find": "import re\nfrom dataclasses import dataclass\n",
-   "replace": "import re\nfrom dataclasses import dataclass\n\nimport qta_multiphysics.thermal_1d  # noqa: F401,E402\n",
-   "rationale": "the substrate imports a hardware-era module"
-  },
-  {
-   "name": "NU21_machine_mode_planted",
-   "path": "scientific_ai/neural/tokens.py",
-   "find": "CONTEXTS = (\"INPUT\", \"CONDITION\", \"RESERVED_2\", \"RESERVED_3\")\n",
-   "replace": "CONTEXTS = (\"INPUT\", \"CONDITION\", \"MODE_B\", \"RESERVED_3\")\n",
-   "rationale": "a machine mode becomes a token context"
   },
   {
    "name": "NU22_member_not_named_in_plain_language",

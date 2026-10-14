@@ -97,7 +97,9 @@ _AGENT_RENAMES = {
 
 DESTINATIONS = {
     **_AGENT_RENAMES,
-    "qta_multiphysics/stack/workspace.py": "agent_substrate/workspace.py",
+    "qta_multiphysics/stack/workspace.py": "scientific/workspace.py",
+    "stage7_reports/dependency_inventory.json":
+        "docs/dependency_inventory.json",
     "qta_multiphysics/stack/rag_index.py": "agent_substrate/rag_index.py",
     "qta_multiphysics/stack/registry.py": "tools/stack_registry.py",
     "qta_multiphysics/stack/vtk_export.py":
@@ -124,7 +126,7 @@ DESTINATIONS = {
         "tests/test_container_workflow_contract.py",
     "ARCHITECTURE_CONVERGENCE_PLAN.md": "ARCHITECTURE.md",
     "tools/mutations/framework_boundary.json":
-        "tools/mutations/repo_content_audit.json",
+        "tools/mutations/repository_content.json",
     "tests/test_optimized_mode_invariants.py":
         "tests/test_no_enforcing_asserts.py",
     "tests/test_agent_governed_stage10.py":
@@ -153,6 +155,11 @@ G = "REGENERATE"
 D = "REVIEW_DATA_PROVENANCE"
 
 EXPLICIT: dict = {
+    # ---- a generic report that lived in a retired report directory ----
+    "stage7_reports/dependency_inventory.json": (
+        I, "the generated dependency inventory; its recorded reasons "
+           "described the retired programme's uses",
+        "regenerated from pyproject.toml and uv.lock under docs/"),
     # ---- the generic layer's own files bound to the retired programme ----
     "scientific/models/thermal_1d.py": (
         R, "a QTA apparatus model -- diamond k(T)/Cp(T), a Beer-Lambert "
@@ -207,8 +214,10 @@ EXPLICIT: dict = {
         R, "mutation spec of the unit inventory of retired outputs",
         "remove"),
     "tools/mutations/reproduction_policy.json": (
-        R, "mutation spec of the legacy package checker's reproduction "
-           "policy", "remove"),
+        P, "mutations of the byte-reproduction verdict in "
+           "scientific/reproduction.py; eleven of its twenty-nine targeted "
+           "the retired witness tool, wrapper and package checker",
+        "retain, those eleven dropped"),
     "tools/mutations/framework_boundary.json": (
         I, "mutation spec of the active/legacy boundary, which no longer has "
            "a legacy side", "replaced by the content audit's spec"),
@@ -237,7 +246,7 @@ EXPLICIT: dict = {
     "qta_multiphysics/stack/workspace.py": (
         X, "the governed-writer workspace guard: generic filesystem "
            "confinement used by the agent's tools and the scientific "
-           "runners", "move to agent_substrate/workspace.py"),
+           "runners", "move to scientific/workspace.py"),
     "qta_multiphysics/stack/rag_index.py": (
         X, "governed read-only retrieval over reviewed documents: generic",
         "move to agent_substrate/rag_index.py; its corpus loses the retired "
@@ -372,7 +381,10 @@ EXPLICIT: dict = {
     "docs/typing_scope.json": (G, "the active type-check scope",
                                "regenerate over the new tree"),
     "docs/performance_baseline.json": (
-        G, "critical-path performance baseline", "re-measure"),
+        P, "critical-path performance baseline: an append-only series of "
+           "shape measurements of the substrate's guards, each keyed by the "
+           "commit it was taken at, none of a retired workload",
+        "retain; the next recording appends against its own commit"),
     "docs/completion_matrix.json": (
         P, "the software completion matrix; rows bound to retired evidence "
            "are retired, the rest retargeted", "retain, rebuilt"),

@@ -2,7 +2,7 @@
  "title": "The generic Snakemake path and the demonstration it runs",
  "note": "Section 28: the default target is the generic harness, it runs the end-to-end demonstration, and the demonstration's exit status is its judge's verdict.",
  "suites": [
-  "tests/test_workflow_split.py",
+  "tests/test_workflow_generic.py",
   "tests/test_harness_demo.py"
  ],
  "mutations": [

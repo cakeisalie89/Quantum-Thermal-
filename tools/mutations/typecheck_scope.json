@@ -10,7 +10,7 @@
    "path": "tools/typecheck_scope.py",
    "find": "        key = (\"active\" if _in(f, ACTIVE) else\n",
    "replace": "        key = (\"active\" if True else\n",
-   "rationale": "the legacy QTA tree would be held to the active scope, or (inverted) silently counted as checked"
+   "rationale": "every file would be counted as active, including one no scope names, or (inverted) silently counted as checked"
   },
   {
    "name": "TS2_a_sibling_prefix_is_inside",

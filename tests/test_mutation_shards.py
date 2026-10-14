@@ -226,22 +226,14 @@ def test_the_shard_job_checks_the_tree_with_git_even_when_it_failed():
         assert check in step, check
 
 
-def test_legacy_specs_are_kept_and_scheduled_by_no_shard():
-    """Directive 21: the hardware-governance spec retired with its subject,
-    and the cryopanel's operating-point spec with the component model
-    (directive 22). Each is kept, as historical evidence, and no active
-    shard runs it."""
-    import csv
-    legacy = sorted((ROOT / "tools" / "mutations" / "legacy").glob("*.json"))
-    assert [p.name for p in legacy] == ["cryopanel_operating_point.json",
-                                        "hardware_governance.json"]
+def test_no_specification_hides_where_no_shard_looks():
+    """A spec in a subdirectory of tools/mutations is one no shard runs --
+    the place retired specs once lived. Every spec is a direct child, and
+    every direct child is scheduled."""
+    specs = ROOT / "tools" / "mutations"
+    nested = sorted(p.relative_to(specs).as_posix()
+                    for p in specs.rglob("*.json") if p.parent != specs)
+    assert nested == [], nested
     scheduled = {s for shard in MS.plan() for s in shard}
-    disp = {r["path"]: r["disposition"] for r in csv.DictReader(
-        (ROOT / "FILE_DISPOSITION.csv").open(encoding="utf-8"))}
-    for p in legacy:
-        rel = p.relative_to(ROOT).as_posix()
-        assert p.name not in scheduled
-        assert disp[rel] == "RETIRE_TO_HISTORY", rel
-        assert f"tools/mutations/legacy/{p.name}" not in (
-            ROOT / ".github" / "workflows" / "agent-substrate.yml"
-        ).read_text(encoding="utf-8")
+    on_disk = {p.name for p in specs.glob("*.json")}
+    assert on_disk and on_disk <= {Path(s).name for s in scheduled}

@@ -57,8 +57,8 @@
   {
    "name": "VG8_tools_are_not_scanned",
    "path": "tools/verified_read_guard.py",
-   "find": "                  if p and not p.startswith((\"tests/\", \"attic/\")))",
-   "replace": "                  if p and not p.startswith((\"tests/\", \"attic/\", \"tools/\")))",
+   "find": "                  if p and not p.startswith(\"tests/\"))",
+   "replace": "                  if p and not p.startswith((\"tests/\", \"tools/\")))",
    "rationale": "the scope narrows to where violations are not expected to be"
   },
   {

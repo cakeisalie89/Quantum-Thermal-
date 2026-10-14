@@ -1,9 +1,5 @@
 {
  "derived_from": {
-  "legacy_qta_gate_table": {
-   "path": "results_gate_table.csv",
-   "sha256": "d61067875068f399487d4f2eebdc597080e31e7a3be6d39dd7760ee1917fda2f"
-  },
   "neural_evidence": {
    "docs/neural/architecture_family.json": "92861e3d71b0d61005bd451f7a5dbb1f35daf699a0572e7aed066344641e8918",
    "docs/neural/claims.json": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b",
@@ -15,10 +11,6 @@
    "docs/neural/distributed_readiness.json": "89186c3477f467fb8d906ad2fd437e94e8439ae459c7e5d2f4e3481603ce3a72",
    "docs/neural/flagship_meta_validation.json": "47643c0a0f988a2aeb1b627f8c786f62665914356bb195bd9f4410a6fd7c5218",
    "docs/neural/flagship_model_manifest.json": "f880ef5412a9e3a311e8678963fd8893d76bdbf9963ff0505b42430c929bd60e"
-  },
-  "reproduction_witness": {
-   "path": "docs/byte_reproduction_profile.json",
-   "sha256": "a6487675551ffe9d99a536304794116feea0f7f0f6908d6583d7b4a0e2eeb5f1"
   }
  },
  "development": {
@@ -272,44 +264,13 @@
    "REQUIRES_EXTERNAL_VERIFICATION"
   ]
  },
- "legacy_qta_hardware_forecast": {
-  "PASS_count": 0,
-  "classification": "LEGACY_QTA_ONLY",
-  "gates": 83,
-  "hardware_era_mode_audit": {
-   "active_neural_semantic_leaks": 0,
-   "unclassified": 0
-  },
-  "meaning": "a historical fact about the legacy hardware forecast: no gate could pass because nothing was measured. It is not a success metric of the Scientific-AI harness, the learned-model substrate or the agent substrate, and no other section of this status reads it",
-  "pass_semantics_audit": {
-   "current_ai_semantic_leaks": 0,
-   "unclassified": 0
-  },
-  "statuses": {
-   "BLOCKED": 23,
-   "CONDITIONAL": 47,
-   "DERIVED_CHECK": 11,
-   "UNKNOWN": 2
-  },
-  "what": "the legacy QTA hardware-forecast gate table (results_gate_table.csv)"
- },
  "programme": {
   "NF-1T": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-  "basis": "DECLARED by the NF-1T closure report (ARCHITECTURE_CONVERGENCE_PLAN.md, section 18) for the scope authorised and executed; not derived here"
+  "basis": "DECLARED by the NF-1T closure report for the scope authorised and executed (NEURAL_SUBSTRATE.md states that scope); not derived here"
  },
  "reproduction": {
-  "generic_hosted_runner": "may resolve a DIFFERENT numerical backend; such a run reports REPRODUCTION_STATUS=DIFFERENT_RESOLVED_BACKEND and at best CROSS_ENV_STATUS=DECISION_STABLE_WITH_NUMERIC_DRIFT -- decision stability, not byte identity; each run's result belongs to its own commit",
-  "scientific_equivalence": "NOT_ESTABLISHED",
-  "stored_witness": [
-   {
-    "backend_digest": "97b7772c0dbfe43fb69790d00d515240a5bb0e4d2a6de95788b99d047ff9d138",
-    "byte_identical": 88,
-    "compared": 88,
-    "context": "the witnessed numerical backend, by digest: the byte-reproduction witness profile, not a hosted runner",
-    "observed_at": "f303a73d991c2eef75a4ac8b66c88ad64fe717a6",
-    "on": "2026-10-06"
-   }
-  ]
+  "byte_reproduction": "per run: a regeneration's result belongs to the commit and the resolved numerical backend it ran on; no stored witness stands in for a run",
+  "scientific_equivalence": "NOT_ESTABLISHED"
  },
  "scale_ladder": [
   {
@@ -369,5 +330,5 @@
    "trained": false
   }
  ],
- "schema": "scientific-ai-current-status/1"
+ "schema": "scientific-ai-current-status/2"
 }

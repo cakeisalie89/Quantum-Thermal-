@@ -231,7 +231,7 @@ def test_an_observation_record_reads_back_exactly():
         json.loads(json.dumps(o.to_record()))) == o
     rec = o.to_record()
     with pytest.raises(ObservationError, match="exactly the keys"):
-        Observation.from_record({**rec, "gate_effect": "NONE"})
+        Observation.from_record({**rec, "authority_effect": "NONE"})
     rec.pop("sequence")
     with pytest.raises(ObservationError, match="exactly the keys"):
         Observation.from_record(rec)

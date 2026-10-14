@@ -1,7 +1,7 @@
 """A governed scientific-model run, end to end: the Phase-2 proving path.
 
     AI proposes               a submitter (PROPOSER) asks for a model run
-    -> governed execution     the Stage-10 control plane, unchanged: policy,
+    -> governed execution     the governed control plane, unchanged: policy,
                               queue, lease, capability, bounded subprocess,
                               evidence capture, integrity verification and
                               byte-identical re-execution by a separate actor
@@ -19,7 +19,7 @@
 
 This module knows no numerics. It names the tools by module string, reads
 the JSON records the tools wrote from the evidence store, and compares
-digests; it imports nothing from ``scientific`` or ``qta_multiphysics``. The
+digests; it imports nothing from ``scientific``. The
 model knows nothing of this module: its ``run`` has no handle on the log.
 
 WHERE THE CONTENT RULE LIVES

@@ -36,7 +36,7 @@ def main(argv: list) -> int:
         print(f"inputs are not JSON: {exc}", file=sys.stderr)
         return 2
 
-    from qta_multiphysics.stack import workspace as WS
+    from scientific import workspace as WS
 
     from .checks.fmu_rc2 import fmu_bundle
 

@@ -41,7 +41,7 @@ rather than a web:
 | `actions.py` | every durable action name, and which reducer owns it |
 | `result_rules.py` | what a `scientific_result` must show before its record is VERIFIED or PROMOTED -- the named, versioned admission policy `scientific_result.admission/1`: a PASS from independent code about that exact bundle, every invariant holding, and ORIGIN: both documents captured by governed tasks before their verdicts, the check run by none of the proposer, the decider and the run's executor. Decided by the store on the live edge, again on replay and on snapshot restore (unreadable evidence: UNVERIFIABLE, never silently VERIFIED), and again by `reconstruct.py` in its own code |
 | `learned_rules.py` | no `learned_*` record becomes VERIFIED or PROMOTED (NF-1T): no admission policy for learned models exists, and every learned output is `LEARNED_PREDICTION`, `NON_AUTHORITATIVE`, `REQUIRES_EXTERNAL_VERIFICATION`. Refused by the store on the live edge before the append and again on replay; restated, not imported, by `reconstruct.py` |
-| `governed_model.py` | a scientific-model result from proposal to authority: the model run and its independent check as two governed tasks by different executors, and the authority decision by a reviewer who did neither (Phase 2); a proposal reuses a VERIFIED or PROMOTED result with the same run identity only when that result's evidence re-derives intact. Each model runs under its own governed tool (thermal 1D and 2D today). Its production caller is the Snakemake rule `s10_governed_model` |
+| `governed_model.py` | a scientific-model result from proposal to authority: the model run and its independent check as two governed tasks by different executors, and the authority decision by a reviewer who did neither (Phase 2); a proposal reuses a VERIFIED or PROMOTED result with the same run identity only when that result's evidence re-derives intact. Each model runs under its own governed tool (thermal 1D and 2D today). Its production caller is the Snakemake rule `governed_model` |
 | `events.py` | append-only hash-chained log; the authority history. State is folded only from `read_verified()` / `read_verified_from()`: the raw `read()` refuses any other `agent_substrate` module, and `tools/verified_read_guard.py` refuses it tree-wide (D-2026-76) |
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |
@@ -73,6 +73,7 @@ rather than a web:
 | `_artifact_tool.py` | the subprocess entry point a governed run executes |
 | `_index_tool.py` | the second tool: it hashes declared workspace files, so its result depends on the workspace rather than on its request — and it needs a READ guard a write allowlist cannot supply |
 | `governed_tasks.py` | **the production caller** — a real workflow, mediated end to end: policy, queue, identities, capability, context, network guard, evidence, independent verification, note |
+| `rag_index.py` | read-only retrieval over the reviewed corpus: an offline BM25 index over the documents a reviewed commit allowlisted, returning verbatim cited spans stamped `RETRIEVED_TEXT_NOT_EVIDENCE`; it generates nothing, reaches no network and decides nothing, and its one crossing is the workspace guard's read side |
 
 **The log is the truth and everything else is derived from it.** A lost
 projection costs time, never authority.
@@ -150,7 +151,7 @@ in turn, and the suite must fail:
 | Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 35 | re-run here |
 | Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 27 | re-run here |
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
-| Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/governed_tasks_authority.json` | 15 | CI |
+| workspace write authority and retrieval trust (recovered defects) | `tools/mutations/governed_tasks_authority.json` | 15 | CI |
 
 **429 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
 single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
@@ -320,8 +321,8 @@ useful than a check that reads like one.
 The write side learned this the expensive way: a guard that validated an
 output directory and then let the caller call `write_bytes` on whatever it
 liked was advisory, and a recovered adversarial test proved it by overwriting
-`README.md` and writing `{"status": "PASS"}` into the canonical gate table
-during an ordinary test run. The fix was to move the allowlist to the point of
+`README.md` and writing `{"status": "PASS"}` into a tracked output during
+an ordinary test run. The fix was to move the allowlist to the point of
 the write.
 
 Reads had exactly the same shape and had not been fixed. Every governed read
@@ -625,17 +626,14 @@ Hypothesis with the invariants asserted on every reachable state.
 
 ## 6. What this layer does **not** mean
 
-`automatic_gate_effect = NONE`.
+`authority_effect = NONE`.
 
 **Agent execution cannot directly mutate authoritative scientific state,
 evidence, or acceptance state except through the governed interfaces and
 event-derived authority machinery.** No solver or scientific model imports
 `agent_substrate/`; evidence is content-addressed and append-only; a scientific
 result becomes authority only through an admission the store decides live
-and re-decides on replay. (The hardware-era form of this sentence -- "it
-cannot read or write any of the 83 gates, and PASS = 0 is unaffected" -- was
-true of the QTA package and is kept in its history; the gates were never the
-invariant, only its first example.)
+and re-decides on replay.
 
 A record reaching `PROMOTED` here means a claim was proposed, independently
 verified, and promoted under a recorded policy. It does **not** mean:
@@ -877,8 +875,8 @@ intent → task record → validation → capability grant → lease
 all of it appended to the hash-chained log, so "what was this task doing when
 the machine died" is answered by **replay rather than by inference**.
 
-The workflow is Stage-10 artifact generation: real (the Snakefile runs it, it
-writes files somebody reads), safe (`automatic_gate_effect` is NONE, and it
+The workflow is governed artifact generation: real (the Snakefile runs it, it
+writes files somebody reads), safe (`authority_effect` is NONE, and it
 writes only inside `verification/stage10`), and touching no scientific
 authority.
 
@@ -898,17 +896,17 @@ What keeps it from being cosmetic:
 
 ### The boundary this crosses, and the one it does not
 
-The bridge imports `qta_multiphysics.stack.workspace`. That direction is
+The bridge imports `scientific.workspace`. That direction is
 required — governing a workflow means calling it — and it is allowed only for
-two named modules reaching one named thing, enforced by
+three named modules reaching one named thing, enforced by
 `tests/test_agent_substrate_isolation.py`.
 
 The other direction stays absolutely forbidden. Nothing in the scientific tree
-imports `agent_substrate`, and no module here may reach a solver, a scientific
-model or legacy orchestration — because that is the direction in which an
+imports `agent_substrate`, and no module here may reach a scientific model or
+anything that computes — because that is the direction in which an
 authority verdict could change a computed result.
 
-The bridge writes **through** the Stage-10 write guard rather than around it, so
+The bridge writes **through** the workspace write guard rather than around it, so
 a governed run is subject to exactly the same allowlist as an ungoverned one.
 The substrate adds authority; it does not replace the guard already there.
 
@@ -951,7 +949,7 @@ tests — no existing scientific claim, gate, document or canonical output has
 been re-derived under it.
 
 What HAS changed is that `agent_substrate` is no longer consumer-less: a real
-Stage-10 run now goes through task lifecycle, capability, bounded execution,
+governed run now goes through task lifecycle, capability, bounded execution,
 evidence and independent verification, and its state survives the process that
 produced it.
 

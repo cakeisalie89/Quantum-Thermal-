@@ -168,3 +168,22 @@ def test_applied_refuses_anything_pending(doc, tree):
     found = RI.problems(doc, tree, applied=True)
     pending = [f for f in doc["files"] if f["final_disposition"] == "PENDING"]
     assert len([p for p in found if "not yet applied" in p]) == len(pending)
+
+
+def test_applied_names_a_disposition_still_waiting(doc, tree, tmp_path):
+    """With nothing pending in the real tree the test above compares zero
+    with zero, so a planted case carries the property: a removed file put
+    back, its record saying PENDING -- consistent, and not yet applied."""
+    f = next(x for x in doc["files"] if x["final_disposition"] == "REMOVED")
+    (tmp_path / f["path"]).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / f["path"]).write_text("back\n")
+    bad = copy.deepcopy(doc)
+    rec = next(x for x in bad["files"] if x["path"] == f["path"])
+    rec["final_disposition"] = "PENDING"
+    tree2 = set(tree) | {f["path"]}
+    want = f"{f['path']}: {f['class']} not yet applied"
+    assert any(p.startswith(want)
+               for p in RI.problems(bad, tree2, tmp_path, applied=True))
+    # the control: without --applied a consistent PENDING is not a finding
+    assert not any(p.startswith(want)
+                   for p in RI.problems(bad, tree2, tmp_path))

@@ -218,10 +218,10 @@ def test_the_ring_cannot_cite_evidence_that_does_not_exist(world):
 def test_nothing_the_ring_did_moved_a_gate(world, ring_run):
     """The bound on the blast radius, asserted rather than assumed.
 
-    The isolation suite is what enforces automatic_gate_effect = NONE
+    The isolation suite is what enforces authority_effect = NONE
     structurally; this asserts the other half, which is that the ring's
     reach is bounded by it -- everything it wrote lives under the governed
-    workspace and no gate-computing module can see any of it.
+    workspace and no scientific model can see any of it.
     """
     written = {a for a in ring_run.artifacts}
     assert written, "the run produced nothing, so this asserts nothing"

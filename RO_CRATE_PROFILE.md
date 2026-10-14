@@ -1,26 +1,26 @@
-# RO-Crate Profile (Stage 8)
+# RO-Crate profile
 
 Specification: **RO-Crate 1.1** (`https://w3id.org/ro/crate/1.1`),
-hand-built as deterministic JSON-LD by `ro_crate_tools.py` — no crate
-library dependency (recorded limitation: structural in-repo validator
-only; no external conformance tool executable in this sandbox).
+hand-built as deterministic JSON-LD by `ro_crate_tools.py` with an in-repo
+structural validator; the RO-Crate community's validator (roc-validator,
+profile ro-crate-1.1, from a hash-pinned lock) runs beside it on a hosted
+runner (`tools/ro_crate_conformance.py`), and a disagreement fails.
 
-Crate root `ro-crate/ro-crate-metadata.json` (30 entities, 24 referenced
-files with SHA-256 + sizes): the QTA project root dataset; the
-authoritative Stage-7.5 input ZIP (identifier + sha256 + size); the
-canonical runner, staged driver, 3-D runner, workflow, checkers, and
-preservation checker; pyproject/uv.lock and the environment entity
-(exact locked versions); the HDF5 mapping/schema/artifact; gate table,
-validation matrix, all four Stage-6 registries; equivalence report;
-manifest + detached hash; documentation; a `CreateAction` binding the
-monolithic release verification (exit 0, 88/88) with instrument/object/
-result relations. License: no authoritative record exists — stated,
-none invented.
+Crate root `ro-crate/ro-crate-metadata.json`: the Scientific AI Harness as
+the root dataset; the governed workflow (`Snakefile`) as its main entity;
+the end-to-end demonstration and the model catalog; `pyproject.toml`,
+`uv.lock` and an environment entity whose versions are read from the lock;
+the stack and authority registries, the completion contract and its
+derived status, the completion matrix, the forensic inventory and the
+content audit, the equivalence contracts, the learned-model dataset manifest
+and claims; the manifest and its detached hash; and a `CreateAction`
+binding the workflow to the status it feeds. Every data entity carries its
+size and SHA-256. License: no authoritative record exists — stated, none
+invented.
 
-Claim boundaries embedded verbatim in the root description (PASS=0,
-can_PASS_now=NO, measured_in_this_system=false, Campaign-1
-PROPOSED_NOT_PERFORMED, HDF5 = representation not evidence) and
-enforced by the validator (which excludes only that sanctioned
-disclaimer from its forbidden-claim scan). Determinism: sorted
-entities/keys, relative POSIX paths, no UUIDs, no timestamps —
-twice-built byte-identical (sha 51247255…).
+The root description says what the crate is not -- no experiment
+performed, a simulation is not experimental validation, learned outputs are
+NON_AUTHORITATIVE, a checksum attests bytes and not correctness -- and the
+validator requires those statements and refuses a forbidden claim anywhere
+else. Determinism: sorted entities and keys, relative POSIX paths, no UUIDs,
+no timestamps.

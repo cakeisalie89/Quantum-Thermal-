@@ -1,43 +1,25 @@
-# Stage-10 scientific-stack verification.
-# STATUS: EXECUTED ON A HOSTED RUNNER. Actions run 32575190696 (both matrix
-# legs, core and full) completed green on PR #14 head d26e70e. The previous
-# "PENDING FIRST HOSTED RUN -- nothing below has executed" header is retired
-# because it is no longer true; this is an evidence upgrade backed by that run,
-# not a widening of what the job checks.
-# PINNED BY COMMIT SHA (RELEASE_POLICY.md #3): every `uses:` below is an
-# immutable 40-hex commit object. The earlier "replace every @vN tag"
-# instruction was already satisfied and has been removed.
+# Scientific-stack verification: the optional integrations, with and without
+# their packages.
 #
-# SCOPE, so the green badge is not over-read: this job lints and type-checks
-# qta_multiphysics/stack, runs tests/test_stage10_stack.py and the generic
-# sensitivity cross-check (SALib required on the full leg), runs the
-# generic workflow -- the Snakefile's default target, 13 jobs, three of them
-# governed -- and then the legacy s10_full on top of it (one more job, the
-# gate-table report), and asserts the canonical tree is untouched with
-# scientific_PASS_count == 0. It does NOT run the full pytest suite and
-# does NOT run package_consistency_check.py; those remain local-only evidence.
+# PINNED BY COMMIT SHA: every `uses:` below is an immutable 40-hex commit
+# object.
 #
-# What this proves: the Stage-10 adapters are deterministic, fail closed
-# without their optional packages, and leave the canonical tree untouched.
-# It proves nothing scientific -- the gate PASS count is zero and the final
-# rule asserts it.
-name: qta-stack-verify
+# SCOPE, so the green badge is not over-read: two legs. The `core` leg has
+# none of the optional packages and must still pass, with every integration
+# reporting UNAVAILABLE rather than substituting a result. The `full` leg
+# installs usd-core, SALib and OpenMDAO and REQUIRES them: there a skipped
+# path is a failure, so a disagreement cannot be passed by not computing it.
+# Both legs run the generic scientific workflow -- the Snakefile's default
+# target -- and assert the tracked tree is untouched.
+#
+# What this proves: the VTK, OpenUSD, OpenMDAO and SALib integrations are
+# deterministic, fail closed without their packages, and leave the tracked
+# tree untouched. It proves nothing scientific: a representation or an
+# exploration is not evidence.
+name: stack-verify
 on:
   push:
     branches: ["**"]
-    paths:
-      - "qta_multiphysics/stack/**"
-      - "tests/test_stage10_stack.py"
-      - "scientific/sensitivity.py"
-      - "scientific/ranking.py"
-      - "tests/test_sensitivity_cross_check.py"
-      - "rust/**"
-      - "STACK.md"
-      - "stack.json"
-      - "Snakefile"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/stack-verify.yml"
   pull_request:
   workflow_dispatch:
 permissions: {}            # default-deny
@@ -49,10 +31,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The fail-closed paths are as load-bearing as the happy path: the
-        # 'core' leg has none of the optional packages installed and must
-        # still pass, with every adapter reporting UNAVAILABLE rather than
-        # substituting a result.
         extras: ["core", "full"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
@@ -65,31 +43,31 @@ jobs:
           else
             uv sync --frozen --all-groups
           fi
-      - name: lint and type-check the Stage-10 modules
-        run: |
-          uv run ruff check qta_multiphysics/stack tests/test_stage10_stack.py
-          uv run mypy qta_multiphysics/stack
-      - name: Stage-10 test suite, and the generic sensitivity cross-check
-        # the full leg REQUIRES SALib: there a skipped global path is a
+      - name: the integration suites, and the generic sensitivity cross-check
+        # the full leg REQUIRES its packages: there a skipped path is a
         # failure, so METHODS_DISAGREE cannot be passed by not computing it
         run: |
-          if [ "${{ matrix.extras }}" = "full" ]; then export HARNESS_UQ_REQUIRED=1; fi
-          uv run python -m pytest tests/test_stage10_stack.py tests/test_sensitivity_cross_check.py -q
+          if [ "${{ matrix.extras }}" = "full" ]; then
+            export HARNESS_UQ_REQUIRED=1 HARNESS_VIZ_REQUIRED=1
+          fi
+          uv run python -m pytest tests/test_scientific_integrations.py \
+            tests/test_sensitivity_cross_check.py \
+            tests/test_harness_integrations.py -q
       - name: the generic scientific workflow (the default target)
         run: uv run snakemake --cores 1
-      - name: LEGACY s10_full -- the gate-table report on top of it
-        run: uv run snakemake --cores 1 s10_full
-      - name: canonical tree untouched
+      - name: the opt-in explorations, where their packages are installed
+        if: matrix.extras == 'full'
+        run: |
+          uv run snakemake --cores 1 uq_sobol
+          uv run snakemake --cores 1 mdao_doe
+      - name: tracked tree untouched
         run: |
           uv run python - <<'PY'
           import json, sys
           from pathlib import Path
           report = json.loads(
-              Path("verification/stage10/canonical_untouched.json").read_text())
-          assert report["mismatches"] == 0, report
-          assert report["detached_hash_ok"], report
-          summary = json.loads(
-              Path("verification/stage10/stage10_stack_report.json").read_text())
-          assert summary["scientific_PASS_count"] == 0, summary
-          print("canonical tree untouched; scientific PASS count = 0")
+              Path("verification/stage10/tree_untouched.json").read_text())
+          if report["mismatches"] or not report["detached_hash_ok"]:
+              sys.exit(f"the workflow touched the tracked tree: {report}")
+          print(f"tracked tree untouched ({report['entries']} entries)")
           PY

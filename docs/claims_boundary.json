@@ -123,12 +123,12 @@
       "statement": "Retrieved RAG text is not evidence authority.",
       "enforced_in": [
         {
-          "module": "qta_multiphysics/stack/rag_index.py",
+          "module": "agent_substrate/rag_index.py",
           "symbol": "retrieve"
         }
       ],
       "tests": [
-        "tests/test_stage10_stack.py::test_retrieve_states_the_boundary"
+        "tests/test_agent_retrieval.py::test_retrieve_states_the_boundary"
       ],
       "note": "Retrieval is read-only, generates nothing and states that a retrieved passage is not evidence."
     },
@@ -141,23 +141,27 @@
           "symbol": "SIMULATED"
         },
         {
-          "module": "qta_multiphysics/deep_expdesign/ood.py",
-          "symbol": "fit_ood"
+          "module": "agent_substrate/learned_rules.py",
+          "symbol": "refusal"
         }
       ],
       "tests": [
         "tests/test_scientific_interfaces.py::test_derived_kinds_need_lineage_and_a_transformation",
-        "tests/test_deep_authority.py::test_a_degenerate_fit_can_never_become_a_trusted_surrogate"
+        "tests/test_neural_provenance.py::test_the_store_refuses_to_make_a_learned_record_authority"
       ],
-      "note": "A prediction derived from simulated data stays simulated by lineage; a surrogate fitted on degenerate input is refused at the fit."
+      "note": "A prediction derived from simulated data stays simulated by lineage, and a learned record -- a surrogate's prediction -- cannot become VERIFIED or PROMOTED."
     },
     {
       "id": "EB10",
       "statement": "An optimization result is not a physical optimum.",
       "enforced_in": [
         {
-          "module": "qta_multiphysics/stack/mdao_openmdao.py",
-          "symbol": "assert_design_variables"
+          "module": "scientific/integrations/openmdao_doe.py",
+          "symbol": "LABEL"
+        },
+        {
+          "module": "scientific/integrations/openmdao_doe.py",
+          "symbol": "_admit"
         },
         {
           "module": "scientific/observation.py",
@@ -165,10 +169,11 @@
         }
       ],
       "tests": [
-        "tests/test_stage10_stack.py::test_only_design_provenance_parameters_may_be_optimised",
+        "tests/test_scientific_integrations.py::test_an_inadmissible_design_is_refused_before_anything_runs",
+        "tests/test_scientific_integrations.py::test_every_case_through_openmdao_is_the_models_own_output",
         "tests/test_scientific_interfaces.py::test_derived_kinds_need_lineage_and_a_transformation"
       ],
-      "note": "An optimiser may move design variables only, never an uncertain physical parameter; its result is a design choice under a model, and derived from simulation it stays simulated."
+      "note": "A design-space exploration may vary only the model's declared, numeric, in-bounds parameters; every case is the model's own output, and the report is EXPLORATION_ONLY NOT_A_RECOMMENDATION. Derived from simulation, it stays simulated."
     },
     {
       "id": "EB11",
@@ -252,22 +257,21 @@
     },
     {
       "id": "EB15",
-      "statement": "A legacy QTA gate-table PASS count is not a status of the current harness.",
+      "statement": "A software completion status is not scientific validity.",
       "enforced_in": [
         {
-          "module": "tools/pass_semantics_audit.py",
-          "symbol": "judge"
+          "module": "tools/harness_status.py",
+          "symbol": "derive"
         },
         {
-          "module": "scientific_ai/neural/status.py",
-          "symbol": "build"
+          "module": "tools/harness_status.py",
+          "symbol": "render"
         }
       ],
       "tests": [
-        "tests/test_claim_hygiene.py::test_no_current_section_of_the_status_reads_the_legacy_gate_table",
-        "tests/test_claim_hygiene.py::test_an_unlabelled_pass_statement_in_current_material_is_a_leak"
+        "tests/test_harness_status.py::test_complete_is_a_software_outcome_that_states_what_lies_outside"
       ],
-      "note": "The legacy hardware forecast's PASS_count = 0 is a fact about that forecast (nothing was measured); it is reported only in the LEGACY_QTA_ONLY section of the status, and a current document that states it without saying whose it is fails the audit."
+      "note": "The completion status is derived from a software contract; even COMPLETE carries, and renders, what lies outside it -- experimental validation first among them."
     },
     {
       "id": "EB16",
@@ -301,7 +305,7 @@
         "tests/test_reproduction_verdict.py::test_case_3_numeric_drift_on_another_backend_is_consistent_not_reproduced",
         "tests/test_claim_hygiene.py::test_decision_stability_is_never_written_as_identity_or_equivalence"
       ],
-      "note": "A different resolved backend is DIFFERENT_RESOLVED_BACKEND at best with DECISION_STABLE_WITH_NUMERIC_DRIFT, never BYTE_IDENTICAL, and scientific equivalence stays NOT_ESTABLISHED; a stored witness's 88/88 is scoped to its witnessed backend."
+      "note": "A different resolved backend is DIFFERENT_RESOLVED_BACKEND at best with DECISION_STABLE_WITH_NUMERIC_DRIFT, never BYTE_IDENTICAL, and scientific equivalence stays NOT_ESTABLISHED."
     }
   ]
 }

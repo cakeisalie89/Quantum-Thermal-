@@ -871,87 +871,6 @@ wheels = [
 ]
 
 [[package]]
-name = "qta-multiphysics"
-version = "0.7.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "h5py" },
-    { name = "numpy" },
-    { name = "qutip" },
-    { name = "scipy" },
-]
-
-[package.optional-dependencies]
-neural = [
-    { name = "jax" },
-    { name = "jaxlib" },
-    { name = "ml-dtypes" },
-]
-uq = [
-    { name = "openmdao" },
-    { name = "salib" },
-]
-viz = [
-    { name = "usd-core" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "hypothesis" },
-    { name = "mypy" },
-    { name = "pydantic" },
-    { name = "pytest" },
-    { name = "pyyaml" },
-    { name = "ruff" },
-]
-workflow = [
-    { name = "snakemake" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "h5py", specifier = ">=3.11" },
-    { name = "jax", marker = "extra == 'neural'", specifier = "==0.11.2" },
-    { name = "jaxlib", marker = "extra == 'neural'", specifier = "==0.11.2" },
-    { name = "ml-dtypes", marker = "extra == 'neural'", specifier = "==0.6.0" },
-    { name = "numpy", specifier = "==2.4.4" },
-    { name = "openmdao", marker = "extra == 'uq'", specifier = ">=3.35" },
-    { name = "qutip", specifier = "==5.2.1" },
-    { name = "salib", marker = "extra == 'uq'", specifier = ">=1.5" },
-    { name = "scipy", specifier = "==1.17.1" },
-    { name = "usd-core", marker = "extra == 'viz'", specifier = ">=25.2" },
-]
-provides-extras = ["viz", "uq", "neural"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "hypothesis", specifier = ">=6.112" },
-    { name = "mypy", specifier = ">=1.11" },
-    { name = "pydantic", specifier = ">=2.9" },
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "ruff", specifier = ">=0.6" },
-]
-workflow = [{ name = "snakemake", specifier = ">=8.20" }]
-
-[[package]]
-name = "qutip"
-version = "5.2.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "scipy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0a/dc/d728d8bac25055940ed178569b5d5947ae5987f59146a9de42db00d4988f/qutip-5.2.1.tar.gz", hash = "sha256:9fd02d52ddbc1611c6a6dcc92b69f09cabdd9c3252772619fb6208d2dbbcbba0", size = 7204873, upload-time = "2025-08-27T13:53:20.567Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4f/35/dc33816c96e7c8b0f3d5f503a1e63c0e7749201a28a1c76bf87bb22d857d/qutip-5.2.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c930efe6a6586a7d5b1a66e0840283b266127b575c35fca17426292e869c4b48", size = 10991194, upload-time = "2025-08-27T13:53:03.556Z" },
-    { url = "https://files.pythonhosted.org/packages/c6/ea/fb916a6ebce79d518f30e210f673dd3991b7600b7cc5fd764bbd3d1d05d9/qutip-5.2.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:ba9348f01349dac1c5505a4caac2a5bbf45447ed030203eaf9a6c51efde8619b", size = 10673382, upload-time = "2025-08-27T13:53:05.194Z" },
-    { url = "https://files.pythonhosted.org/packages/b1/a8/d93a3ed174a17407904ba9c9930a82b02f928b6fed53a10d0f05797b2f38/qutip-5.2.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3dacb4af2148880d5b46962d024b26919849884481e4809f970052fffe2197d4", size = 31821473, upload-time = "2025-08-27T13:53:07.16Z" },
-    { url = "https://files.pythonhosted.org/packages/9b/2f/2f97416f3485824a50e88388fb1ae3b77370063c2946090cc10f3629813b/qutip-5.2.1-cp312-cp312-win_amd64.whl", hash = "sha256:4c9044f7b49244a2de6a00e42a33771cb6c680fe053eb32ae9611ba8941c01fb", size = 10486690, upload-time = "2025-08-27T13:53:09.654Z" },
-]
-
-[[package]]
 name = "referencing"
 version = "0.37.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1043,6 +962,68 @@ sdist = { url = "https://files.pythonhosted.org/packages/16/63/bdde6c303e95e2c81
 wheels = [
     { url = "https://files.pythonhosted.org/packages/13/e2/9fbf2d571c0d5360f9cf6656de6c94b273d08ede1b628f23f319fa1a910d/salib-1.5.2-py3-none-any.whl", hash = "sha256:6f4b6bebc1eeed1d081c8f951fa8c2ad7b0cd8a7159d206af48ef137cc806c43", size = 780059, upload-time = "2025-10-12T02:38:48.878Z" },
 ]
+
+[[package]]
+name = "scientific-ai-harness"
+version = "0.8.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "h5py" },
+    { name = "numpy" },
+    { name = "scipy" },
+]
+
+[package.optional-dependencies]
+neural = [
+    { name = "jax" },
+    { name = "jaxlib" },
+    { name = "ml-dtypes" },
+]
+uq = [
+    { name = "openmdao" },
+    { name = "salib" },
+]
+viz = [
+    { name = "usd-core" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "hypothesis" },
+    { name = "mypy" },
+    { name = "pydantic" },
+    { name = "pytest" },
+    { name = "pyyaml" },
+    { name = "ruff" },
+]
+workflow = [
+    { name = "snakemake" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "h5py", specifier = ">=3.11" },
+    { name = "jax", marker = "extra == 'neural'", specifier = "==0.11.2" },
+    { name = "jaxlib", marker = "extra == 'neural'", specifier = "==0.11.2" },
+    { name = "ml-dtypes", marker = "extra == 'neural'", specifier = "==0.6.0" },
+    { name = "numpy", specifier = "==2.4.4" },
+    { name = "openmdao", marker = "extra == 'uq'", specifier = ">=3.35" },
+    { name = "salib", marker = "extra == 'uq'", specifier = ">=1.5" },
+    { name = "scipy", specifier = "==1.17.1" },
+    { name = "usd-core", marker = "extra == 'viz'", specifier = ">=25.2" },
+]
+provides-extras = ["viz", "uq", "neural"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "hypothesis", specifier = ">=6.112" },
+    { name = "mypy", specifier = ">=1.11" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pytest", specifier = ">=8.3" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "ruff", specifier = ">=0.6" },
+]
+workflow = [{ name = "snakemake", specifier = ">=8.20" }]
 
 [[package]]
 name = "scipy"

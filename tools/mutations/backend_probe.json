@@ -154,7 +154,7 @@
     },
     {
       "name": "BK22_the_bundle_describes_another_environment",
-      "path": "scientific/models/thermal_1d.py",
+      "path": "scientific/models/slab_transient.py",
       "find": "        env = run_environment()\n",
       "replace": "        env = __import__(\"scientific.run_identity\", fromlist=[\"_\"]).environment_record()\n",
       "rationale": "the bundle's environment and the identity's are computed differently and disagree"

@@ -1,5 +1,5 @@
 # Independent numerical verifiers and the FMI boundary, executed on a hosted
-# runner (Scientific-AI harness completion programme).
+# runner.
 #
 # WHAT EACH JOB ANSWERS
 #   fenicsx -- does the finite-element path run, in an environment created
@@ -27,49 +27,17 @@
 #              all of it published with the runner's identity as an
 #              artifact. Linux /proc is assumed and recorded, not implied
 #              portable (tools/performance_baseline.py --telemetry).
-#   rust-kernels -- does the selective-Rust decision re-derive on this
-#              runner? The crate is built twice with a pinned toolchain (the
-#              shared objects must be byte-identical), every kernel is
-#              measured in three NumPy dispatch configurations, timed, and
-#              its call sites counted; each committed decision must be what
-#              this measurement decides (tools/rust_kernel_decision.py).
 #
-# NON-AUTHORITATIVE. Neither job can move a gate, a threshold or an authority
+# NON-AUTHORITATIVE. No job can move a result, a threshold or an authority
 # state: contents: read and nothing else. Their products are evidence --
 # acceptance reports uploaded as artifacts, recorded per commit.
 #
-# PINNED BY COMMIT SHA (RELEASE_POLICY.md #3): every `uses:` below is an
-# immutable commit object, the same ones the repository's other workflows
-# pin.
+# PINNED BY COMMIT SHA: every `uses:` below is an immutable commit object,
+# the same ones the repository's other workflows pin.
 name: harness-integrations
 on:
   push:
     branches: ["**"]
-    paths:
-      - "integrations/**"
-      - "scientific/**"
-      - "tools/fenicsx_env.py"
-      - "tools/fenicsx_acceptance.py"
-      - "tools/fmi_build.py"
-      - "tools/isolated_runtime.py"
-      - "tools/fmi_acceptance.py"
-      - "tests/test_harness_integrations.py"
-      - "tools/harness_demo.py"
-      - "tests/test_harness_demo.py"
-      - "Snakefile"
-      - "rust/**"
-      - "ro_crate_tools.py"
-      - "ro-crate/**"
-      - "tools/ro_crate_conformance.py"
-      - "qta_multiphysics/stack/rust_kernel.py"
-      - "tools/rust_kernel_decision.py"
-      - "tools/performance_baseline.py"
-      - "tests/test_agent_performance.py"
-      - "agent_substrate/**"
-      - "docs/rust_kernel_decisions.json"
-      - ".github/workflows/harness-integrations.yml"
-      - "pyproject.toml"
-      - "uv.lock"
   pull_request:
   workflow_dispatch:
 permissions: {}            # default-deny
@@ -249,53 +217,4 @@ jobs:
         with:
           name: performance-telemetry
           path: performance_telemetry.json
-          if-no-files-found: error
-
-  rust-kernels:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      contents: read
-    env:
-      RUSTUP_TOOLCHAIN: "1.94.1"
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
-        with: {persist-credentials: false}
-      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
-      - run: uv sync --frozen --all-groups
-      - name: the pinned Rust toolchain
-        run: |
-          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
-          rustc --version
-      - name: build the extension twice; the shared objects must be byte-identical
-        run: |
-          set -euo pipefail
-          for i in 1 2; do
-            CARGO_TARGET_DIR="$RUNNER_TEMP/target$i" uvx --from maturin==1.9.4 \
-              maturin build --release --manifest-path rust/qta_kernels/Cargo.toml \
-              -i .venv/bin/python --out "$RUNNER_TEMP/wheels$i"
-            unzip -p "$RUNNER_TEMP"/wheels$i/*.whl 'qta_kernels/*.so' \
-              | sha256sum | tee "so$i.sha256"
-          done
-          cmp so1.sha256 so2.sha256
-      - name: install the build into this job's environment only
-        run: uv pip install --python .venv/bin/python "$RUNNER_TEMP"/wheels1/*.whl
-      - name: measure on this runner; every committed decision must re-derive
-        run: |
-          set -euo pipefail
-          uv run --no-sync python tools/rust_kernel_decision.py measure \
-            --python .venv/bin/python --out rust_measurement.json
-          uv run --no-sync python tools/rust_kernel_decision.py check rust_measurement.json
-      - name: the Rust tests, with the extension REQUIRED (a skip is a failure)
-        run: |
-          QTA_RUST_REQUIRED=1 .venv/bin/python -m pytest -q tests/test_stage10_stack.py \
-            -k "rust or Rust or parity or dispatch or kernel"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
-        if: always()
-        with:
-          name: rust-kernel-measurement
-          path: |
-            rust_measurement.json
-            so1.sha256
-            so2.sha256
           if-no-files-found: error

@@ -1,8 +1,8 @@
 """The generic consistency verifier (directive 17), on a real governed history.
 
-``tools/generic_consistency.py`` checks what the framework produces -- the
+``tools/generic_consistency.py`` checks what the harness produces -- the
 event history, the evidence it cites, the scientific results decided from
-them -- and nothing of QTA. Here: a genuine governed model run is consistent
+them -- and nothing else. Here: a genuine governed model run is consistent
 on every check, and each check is shown finding the thing it exists for -- a
 broken chain, a tampered or lost evidence object, a forged admission, a live
 store that disagrees with the independent reader, a document that does not
@@ -233,15 +233,16 @@ def test_an_unadmitted_model_or_check_is_a_finding(world):
         f"{CHECK} is not an admitted check"]
 
 
-def test_it_asks_nothing_of_qta():
-    """Directive 15/17: no gate table, no PASS count, no machine FSM, no BOM,
-    no mode letters -- in what it reads or what it says."""
+def test_it_reads_and_says_nothing_of_the_retired_programme():
+    """Read with the repository content audit's own patterns, docstring
+    included: the verifier names none of the retired programme's
+    vocabulary, in what it reads or what it says."""
+    import sys
+    sys.path.insert(0, str(ROOT / "tools"))
+    import repo_content_audit as RCA
     src = (ROOT / "tools/generic_consistency.py").read_text(encoding="utf-8")
-    code = src.split('"""', 2)[2]          # past the module docstring
-    for token in ("results_gate_table", "gate_table", "PASS_count",
-                  "can_PASS_now", "machine_fsm", "BOM", "MODE_",
-                  "qta_full_sim", "hardware"):
-        assert token not in code, token
+    hits = [m.group(0) for _, rx in RCA._TERMS for m in rx.finditer(src)]
+    assert hits == [], hits
 
 
 def test_the_cli_cannot_ask_without_a_log(tmp_path):

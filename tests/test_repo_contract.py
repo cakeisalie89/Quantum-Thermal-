@@ -97,25 +97,20 @@ def test_expired_leases_now_has_a_production_caller():
     assert "agent_substrate/governed_tasks.py" in prod
 
 
-def test_the_scope_helper_skips_the_retired_corpus():
-    """attic/ is TRACKED, so git lists it and only _SKIP drops it.
+def test_the_scope_helper_skips_nothing_git_lists():
+    """Every skipped prefix is a hole every structural guard inherits.
 
-    Picking .venv for this would have proved nothing: git already ignores
-    it, so --exclude-standard drops it before _SKIP is consulted, and a
-    mutation deleting _SKIP entirely still passed. attic/ is the entry that
-    does the work.
+    The helper once skipped a TRACKED retired corpus; that corpus left the
+    tree, and a skip for it would now only hide its return. So the property
+    is exact: the helper's scope is what git lists, tracked and untracked
+    but not ignored, with nothing dropped.
     """
-    tracked_attic = subprocess.run(
-        ["git", "-C", str(ROOT), "ls-files", "--", "attic/*"],
-        capture_output=True, text=True).stdout.split()
-    assert tracked_attic, "premise: attic/ holds tracked files"
-    # At the "*.py" pattern attic happens to contribute nothing, so the skip
-    # does no work there and a mutation deleting it would survive. The
-    # pattern where it bites is the general one.
-    scanned = RS.repository_files("*")
-    assert not [f for f in scanned if f.startswith("attic/")], (
-        "the retired corpus is being scanned as if it were live code")
-    assert not [f for f in scanned if f.startswith(".venv/")]
+    listed = set(subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "--cached", "--others",
+         "--exclude-standard"],
+        capture_output=True, text=True).stdout.split("\n")) - {""}
+    assert len(listed) > 300, "premise: git lists the tree"
+    assert set(RS.repository_files("*")) == listed
 
 
 def test_a_symbol_with_regex_metacharacters_is_searched_literally():
@@ -301,7 +296,7 @@ def test_a_workflow_that_never_runs_a_verifier_is_refused():
 """
     problems = WC.unwired_verifiers(body)
     assert any("tools/test_isolation.py" in p for p in problems), problems
-    assert any("tools/resolution_inventory.py" in p for p in problems)
+    assert any("tools/repo_content_audit.py" in p for p in problems)
 
 
 def test_mentioning_a_verifier_is_not_running_it():

@@ -18,5 +18,5 @@ are independent checks under :mod:`scientific.checks`; HDF5 is
 
 These functions return text, bytes and reports. Writing them anywhere is the
 caller's business, and in this repository the caller writes through the
-governed workspace guard (``agent_substrate.workspace``).
+governed workspace guard (``scientific.workspace``).
 """

@@ -29,8 +29,16 @@ import completion_matrix as CM  # noqa: E402
 import harness_status as HS  # noqa: E402
 
 CLEAN = {name: {"ok": True} for name in (
-    "pass_semantics", "neural_legacy_semantics", "framework_boundary",
-    "claims_boundary", "workflow_contract")}
+    "repository_content", "repository_inventory", "claims_boundary",
+    "workflow_contract")}
+
+#: The flagship architecture the synthetic contract declares, and the
+#: status reports.
+ARCH = {"trainable_parameters": 996509217800, "layers": 64,
+        "experts_per_moe_layer": 64,
+        "experts_selected_per_token_per_moe_layer": 12,
+        "expert_modules_total": 4096,
+        "active_parameters_per_token_standard": 200832889864}
 
 
 def _digest(root: Path, paths):
@@ -57,10 +65,8 @@ def _write(root: Path, *, contract, stack, rows):
     (root / HS.STACK).write_text(json.dumps(stack))
     (root / HS.MATRIX).write_text(json.dumps({"rows": rows}))
     (root / HS.NEURAL_STATUS).write_text(json.dumps({
-        "legacy_qta_hardware_forecast": {"classification": "LEGACY_QTA_ONLY",
-                                         "PASS_count": 0},
         "flagship": {"real_weights_allocated": False,
-                     "large_model_trained": False}}))
+                     "large_model_trained": False, **ARCH}}))
     (root / HS.NEURAL_CLAIMS).write_text(json.dumps({
         "learned_refused_states": ["PROMOTED", "VERIFIED"],
         "acceptance_attempt": {"refused": True}}))
@@ -70,16 +76,18 @@ def _write(root: Path, *, contract, stack, rows):
 def repo(tmp_path):
     contract = {
         "required_stack": {"core": {"accept": ["ADOPTED"], "rows": ["R1"]},
-                           "rust": {"accept": ["RESOLVED"], "rows": ["R2"]}},
+                           "resolved": {"accept": ["RESOLVED"],
+                                        "rows": ["R2"]}},
         "required_rows": "ALL",
         "required_audits": sorted(CLEAN),
-        "required_facts": {"legacy_qta_pass_count_is_legacy_only": "",
-                           "learned_outputs_refused": "",
-                           "flagship_not_allocated_or_trained": ""},
+        "required_facts": {"learned_outputs_refused": "",
+                           "flagship_not_allocated_or_trained": "",
+                           "flagship_architecture_as_declared": ""},
+        "declared_flagship_architecture": dict(ARCH),
         "outside_this_software_completion": [
             {"id": "x", "class": "EPISTEMIC", "statement": "s"}]}
     stack = {"elements": [{"id": "core", "status": "ADOPTED"},
-                          {"id": "rust", "status": "RESOLVED"}]}
+                          {"id": "resolved", "status": "RESOLVED"}]}
     rows = [_row("R1", tmp_path), _row("R2", tmp_path)]
     state = {"contract": contract, "stack": stack, "rows": rows}
 
@@ -97,6 +105,19 @@ def test_everything_satisfied_derives_complete(repo):
     st = repo()
     assert st["outcome"] == HS.COMPLETE, st["unsatisfied"]
     assert st["unsatisfied"] == []
+
+
+def test_complete_is_a_software_outcome_that_states_what_lies_outside(repo):
+    """EB15: a software completion status is not scientific validity. Even
+    COMPLETE carries the contract's outside list, rendered, and the real
+    contract puts experimental validation there."""
+    st = repo()
+    assert st["outcome"] == HS.COMPLETE
+    assert st["outside_this_software_completion"]
+    assert "## Outside this software-completion claim" in HS.render(st)
+    real = json.loads((ROOT / HS.CONTRACT).read_text())
+    classes = {o["class"] for o in real["outside_this_software_completion"]}
+    assert "EXPERIMENTAL_SCIENCE" in classes
 
 
 @pytest.mark.parametrize("status", ["STAGED", "DEFERRED",
@@ -141,7 +162,7 @@ def test_a_row_never_run_is_incomplete(repo):
         s["rows"][1]["hosted_evidence"] = {}
     st = repo(m)
     assert st["outcome"] == HS.INCOMPLETE
-    assert st["stack"]["rust"]["rows"]["R2"]["evidence"] == CM.EV_NEVER_RUN
+    assert st["stack"]["resolved"]["rows"]["R2"]["evidence"] == CM.EV_NEVER_RUN
 
 
 def test_an_unrecorded_commit_is_not_evidence(repo):
@@ -176,10 +197,10 @@ def test_a_required_row_that_does_not_exist_is_absent(repo):
 
 def test_an_audit_finding_is_incomplete(repo):
     def m(s, _):
-        s["audits"] = dict(CLEAN, framework_boundary={"ok": False})
+        s["audits"] = dict(CLEAN, repository_content={"ok": False})
     st = repo(m)
     assert st["outcome"] == HS.INCOMPLETE
-    assert [u["id"] for u in st["unsatisfied"]] == ["framework_boundary"]
+    assert [u["id"] for u in st["unsatisfied"]] == ["repository_content"]
 
 
 def test_a_missing_audit_is_not_a_clean_one(repo):
@@ -190,9 +211,10 @@ def test_a_missing_audit_is_not_a_clean_one(repo):
 
 
 @pytest.mark.parametrize("path, key, value", [
-    (HS.NEURAL_STATUS, ("legacy_qta_hardware_forecast", "classification"),
-     "CURRENT"),
     (HS.NEURAL_STATUS, ("flagship", "large_model_trained"), True),
+    (HS.NEURAL_STATUS, ("flagship", "trainable_parameters"), 996509217801),
+    (HS.NEURAL_STATUS, ("flagship", "experts_selected_per_token_per_moe_"
+                                    "layer"), 14),
     (HS.NEURAL_CLAIMS, ("learned_refused_states",), ["PROMOTED"]),
     (HS.NEURAL_CLAIMS, ("acceptance_attempt", "refused"), False),
 ])

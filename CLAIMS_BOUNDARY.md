@@ -23,14 +23,14 @@ required boundaries is missing. A sentence nobody enforces is not listed here.
 | EB5 | A signed or content-addressed artifact is not a scientifically correct one. | `agent_substrate/result_rules.py` (admission_problems); `agent_substrate/evidence.py` (EvidenceStore) |
 | EB6 | An AI proposal is not a verified result. | `agent_substrate/authority.py` (check) |
 | EB7 | Tool completion is not an accepted scientific result. | `agent_substrate/governed_model.py` (GovernedModelRuns) |
-| EB8 | Retrieved RAG text is not evidence authority. | `qta_multiphysics/stack/rag_index.py` (retrieve) |
-| EB9 | A surrogate prediction is not ground truth. | `scientific/observation.py` (SIMULATED); `qta_multiphysics/deep_expdesign/ood.py` (fit_ood) |
-| EB10 | An optimization result is not a physical optimum. | `qta_multiphysics/stack/mdao_openmdao.py` (assert_design_variables); `scientific/observation.py` (SIMULATED) |
+| EB8 | Retrieved RAG text is not evidence authority. | `agent_substrate/rag_index.py` (retrieve) |
+| EB9 | A surrogate prediction is not ground truth. | `scientific/observation.py` (SIMULATED); `agent_substrate/learned_rules.py` (refusal) |
+| EB10 | An optimization result is not a physical optimum. | `scientific/integrations/openmdao_doe.py` (LABEL); `scientific/integrations/openmdao_doe.py` (_admit); `scientific/observation.py` (SIMULATED) |
 | EB11 | Model calibration is not model validation. | `scientific/verification.py` (Establishes); `scientific/observation.py` (MEASURED) |
 | EB12 | A learned prediction is not authority: no learned record can be VERIFIED or PROMOTED. | `agent_substrate/learned_rules.py` (refusal); `agent_substrate/store.py` (AuthorityStore); `agent_substrate/reconstruct.py` (_LEARNED_PREFIX) |
 | EB13 | A meta-validated architecture is not an allocated, trained or validated model. | `scientific_ai/neural/claims.py` (evaluate); `scientific_ai/neural/model/meta.py` (materialize) |
 | EB14 | A development model's training is not the flagship's. | `scientific_ai/neural/claims.py` (evaluate); `scientific_ai/neural/claims.py` (derive_status) |
-| EB15 | A legacy QTA gate-table PASS count is not a status of the current harness. | `tools/pass_semantics_audit.py` (judge); `scientific_ai/neural/status.py` (build) |
+| EB15 | A software completion status is not scientific validity. | `tools/harness_status.py` (derive); `tools/harness_status.py` (render) |
 | EB16 | Simulated distributed execution is not distributed hardware validation. | `scientific_ai/neural/claims.py` (SIMULATED_PROFILES); `scientific_ai/neural/model/parallel.py` (ExecutionProfile) |
 | EB17 | Decision stability under numeric drift is not byte identity. | `scientific/reproduction.py` (decide) |
 
@@ -48,8 +48,8 @@ None of them implies the next (EB5, EB7).
 
 ## What is out of scope
 
-No hardware exists in this repository and nothing here was measured in one.
-The hardware-era QTA package this framework grew out of made its own,
-narrower statements -- its gate counts, its Mode B / Mode D exclusivity, its
-BOM vocabulary; they are kept, unchanged and still checked by the legacy
-verifier, in `docs/legacy/qta/CLAIMS_BOUNDARY.md`.
+No physical hardware exists in this repository and nothing here was measured
+in one. The completion status (`HARNESS_STATUS.md`) is a statement about
+software, derived from a software contract, and says so (EB15); what lies
+outside it -- experimental validation first -- is listed in
+`docs/harness_contract.json` and rendered with every status.

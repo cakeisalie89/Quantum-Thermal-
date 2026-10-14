@@ -268,7 +268,7 @@ def crate(base: Path, report: dict) -> dict:
 
 def run(*, fenicsx: str | None, fmi: str | None, required: set) -> dict:
     from agent_substrate import proposals as PR
-    from qta_multiphysics.stack.rag_index import retrieve
+    from agent_substrate.rag_index import retrieve
     from scientific.backend_probe import run_environment
     if "fenicsx" in required and not fenicsx:
         raise DemoFailed("FEniCSx is required and no runtime was given")

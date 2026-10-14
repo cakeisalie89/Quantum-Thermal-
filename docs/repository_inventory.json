@@ -24,22 +24,23 @@
   "files": 874,
   "by_class": {
    "EXTRACT_GENERIC": 4,
-   "PRESERVE": 386,
-   "REGENERATE": 12,
-   "REIMPLEMENT": 18,
-   "REMOVE": 443,
+   "PRESERVE": 388,
+   "REGENERATE": 11,
+   "REIMPLEMENT": 19,
+   "REMOVE": 441,
    "REVIEW_DATA_PROVENANCE": 11
   },
   "by_final_disposition": {
-   "MOVED": 41,
-   "PENDING": 462,
+   "EXTRACTED": 4,
+   "MOVED": 42,
    "PROVENANCE_RESOLVED": 11,
-   "REGENERATED": 8,
-   "REMOVED": 8,
-   "RETAINED": 344
+   "REGENERATED": 11,
+   "REIMPLEMENTED": 19,
+   "REMOVED": 441,
+   "RETAINED": 346
   },
   "cut_imports": 25,
-  "cut_references": 1168
+  "cut_references": 1170
  },
  "dependency_cuts": [
   {
@@ -175,11 +176,6 @@
   {
    "from": ".github/workflows/agent-substrate.yml",
    "to": "tools/mutations/reference_backend.json",
-   "kind": "reference"
-  },
-  {
-   "from": ".github/workflows/agent-substrate.yml",
-   "to": "tools/mutations/reproduction_policy.json",
    "kind": "reference"
   },
   {
@@ -1930,11 +1926,6 @@
   {
    "from": "docs/completion_matrix.json",
    "to": "tools/mutations/reference_backend.json",
-   "kind": "reference"
-  },
-  {
-   "from": "docs/completion_matrix.json",
-   "to": "tools/mutations/reproduction_policy.json",
    "kind": "reference"
   },
   {
@@ -4959,11 +4950,6 @@
   },
   {
    "from": "final_manifest.json",
-   "to": "tools/mutations/reproduction_policy.json",
-   "kind": "reference"
-  },
-  {
-   "from": "final_manifest.json",
    "to": "tools/mutations/resolution_inventory.json",
    "kind": "reference"
   },
@@ -5923,6 +5909,31 @@
    "kind": "reference"
   },
   {
+   "from": "tools/mutations/reproduction_policy.json",
+   "to": "package_consistency_check.py",
+   "kind": "reference"
+  },
+  {
+   "from": "tools/mutations/reproduction_policy.json",
+   "to": "tests/test_checker_reproduction_policy.py",
+   "kind": "reference"
+  },
+  {
+   "from": "tools/mutations/reproduction_policy.json",
+   "to": "tests/test_regenerate_instrumented.py",
+   "kind": "reference"
+  },
+  {
+   "from": "tools/mutations/reproduction_policy.json",
+   "to": "tools/regenerate_instrumented.py",
+   "kind": "reference"
+  },
+  {
+   "from": "tools/mutations/reproduction_policy.json",
+   "to": "tools/reproduction_witness.py",
+   "kind": "reference"
+  },
+  {
    "from": "tools/mutations/scientific_interfaces.json",
    "to": "qta_multiphysics/__init__.py",
    "kind": "reference"
@@ -6351,7 +6362,7 @@
     "tests/test_release_trust_enforcement.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": ".github/workflows/reference-backend.yml",
@@ -6379,7 +6390,7 @@
     "tests/test_reference_backend.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": ".github/workflows/release.yml",
@@ -6432,7 +6443,7 @@
     "tools/file_disposition.py",
     "tools/supply_chain.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": ".github/workflows/stack-verify.yml",
@@ -6844,7 +6855,7 @@
     "tests/test_claim_hygiene.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "AUTHORITIES.md",
@@ -6938,7 +6949,7 @@
     "tests/test_record_parsers.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "CLAIMS_BOUNDARY.md",
@@ -7098,7 +7109,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "Dockerfile",
@@ -7171,7 +7182,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-N0.md",
@@ -7195,7 +7206,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-N1.md",
@@ -7219,7 +7230,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-N2.md",
@@ -7244,7 +7255,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-N3.md",
@@ -7268,7 +7279,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-N4.md",
@@ -7293,7 +7304,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-P1.md",
@@ -7317,7 +7328,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-S1.md",
@@ -7341,7 +7352,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-T1.md",
@@ -7366,7 +7377,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-T2.md",
@@ -7390,7 +7401,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-V1.md",
@@ -7415,7 +7426,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "EXPERIMENT_PLAYBOOKS/EXP-V2.md",
@@ -7440,7 +7451,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "FILE_DISPOSITION.csv",
@@ -8348,7 +8359,7 @@
     "tools/neural_legacy_audit.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "FIRST_VALIDATION_EXPERIMENTS.md",
@@ -8392,7 +8403,7 @@
     "source_gap_register.csv",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "GATE_TABLE_README.md",
@@ -8417,7 +8428,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "GLOSSARY.md",
@@ -8444,7 +8455,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "HARDWARE_GOVERNANCE.md",
@@ -8466,7 +8477,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "HARNESS_STATUS.md",
@@ -8594,7 +8605,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "MANIFEST_BOUNDARY.md",
@@ -8682,7 +8693,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "MANUSCRIPT_CONSISTENCY_REPORT.md",
@@ -8706,7 +8717,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "NEURAL_SUBSTRATE.md",
@@ -8777,7 +8788,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "PHYSICS_INVENTORY.md",
@@ -8848,7 +8859,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "QTA_full_history-6.bundle.txt",
@@ -8870,7 +8881,7 @@
     "tests/test_framework_boundary.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "QTA_stage9_release_verification/RELEASE_POLICY.md",
@@ -8890,7 +8901,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "QTA_stage9_release_verification/SHA256SUMS",
@@ -8920,7 +8931,7 @@
     "final_manifest.json",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "QTA_stage9_release_verification/VERIFY_INSTRUCTIONS.md",
@@ -8943,7 +8954,7 @@
     "final_manifest.json",
     "tests/test_digest_trust_root.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "QTA_stage9_release_verification/provenance.intoto.json",
@@ -8987,7 +8998,7 @@
     "tools/supply_chain.py",
     "verify_release.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "QTA_stage9_release_verification/release_index.json",
@@ -9030,7 +9041,7 @@
     "tests/test_stage9_release.py",
     "verify_release.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "QTA_stage9_release_verification/release_trust_policy.json",
@@ -9076,7 +9087,7 @@
     "tools/file_disposition.py",
     "verify_release.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "QTA_stage9_release_verification/sbom.cdx.json",
@@ -9107,7 +9118,7 @@
     "tools/supply_chain.py",
     "verify_release.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "README.md",
@@ -9216,7 +9227,7 @@
     "stage6_preservation_check.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "RELEASE_TRUST_ENFORCEMENT.md",
@@ -9257,7 +9268,7 @@
     "tools/file_disposition.py",
     "verify_release.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "RO_CRATE_PROFILE.md",
@@ -9311,7 +9322,7 @@
     "stage6_preservation_check.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "SCIENTIFIC_AI_STATUS.md",
@@ -9346,7 +9357,7 @@
     "tools/neural_legacy_audit.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REGENERATED"
   },
   {
    "path": "SIGNING_BOOTSTRAP.md",
@@ -9404,7 +9415,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "STACK.md",
@@ -9632,7 +9643,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "VALIDATION_PLAN.md",
@@ -9654,7 +9665,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "adaptive_experiment_policy.json",
@@ -9679,7 +9690,7 @@
     "tests/test_expdesign.py",
     "tests/test_integration.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "analysis/collect_container_3d.py",
@@ -9714,7 +9725,7 @@
     "tools/mutations/cross_environment.json",
     "tools/workflow_contract.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "assumed_parameters.json",
@@ -9744,7 +9755,7 @@
     "source_gap_register.csv",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "assumptions_3d.json",
@@ -9768,7 +9779,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/README.md",
@@ -9790,7 +9801,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_3d_layer.bundle",
@@ -9806,7 +9817,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_3d_layer_source.tar(1).gz",
@@ -9819,7 +9830,7 @@
    "references": [],
    "imported_by": [],
    "referenced_by": [],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_cleanup_remove_slop_log.patch",
@@ -9841,7 +9852,7 @@
     "docs/neural/legacy_semantic_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_coupled_3d.bundle",
@@ -9857,7 +9868,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_coupled_3d_source.tar.gz",
@@ -9873,7 +9884,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_deep_complete.bundle",
@@ -9889,7 +9900,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_full_history-6.bundle.txt",
@@ -9905,7 +9916,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_full_history.bundle",
@@ -9922,7 +9933,7 @@
     "attic/README.md",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_github_sync.bundle",
@@ -9938,7 +9949,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_hardened.bundle",
@@ -9954,7 +9965,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_hardened_source.tar.gz",
@@ -9970,7 +9981,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_machine_fsm (1).bundle",
@@ -9983,7 +9994,7 @@
    "references": [],
    "imported_by": [],
    "referenced_by": [],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_machine_fsm.bundle",
@@ -10000,7 +10011,7 @@
     "attic/README.md",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_machine_fsm_source.tar.gz",
@@ -10016,7 +10027,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_qta_multiphysics_repair.bundle",
@@ -10032,7 +10043,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch",
@@ -10113,7 +10124,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_repair_plus_cleanup.bundle",
@@ -10129,7 +10140,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "attic/delivery_artifacts/QTA_repaired_complete_1D_2D_repo.zip",
@@ -10147,7 +10158,7 @@
     "final_manifest.json",
     "stage6_preservation_check.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "authorities.json",
@@ -10361,7 +10372,7 @@
     "tests/test_expdesign.py",
     "tests/test_integration.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "best_forecast_operating_point.json",
@@ -10391,7 +10402,7 @@
     "superseded_best_operating_point_v3.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "bibliography_audit.csv",
@@ -10413,7 +10424,7 @@
     "source_audit_status.txt",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "build_hdf5.py",
@@ -10451,7 +10462,7 @@
     "validate_hdf5_equivalence.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "build_hdf5_mapping.py",
@@ -10485,7 +10496,7 @@
     "tools/mutations/unit_inventory.json",
     "tools/unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "build_release_artifacts.py",
@@ -10536,7 +10547,7 @@
     "tests/test_stage9_release.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "build_stage6_playbooks.py",
@@ -10560,7 +10571,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "build_stage6_registries.py",
@@ -10592,7 +10603,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "campaign_registry.json",
@@ -10623,7 +10634,7 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "campaign_state_3d.json",
@@ -10653,7 +10664,7 @@
     "qta_multiphysics/measurement_ingest_3d.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "campaign_uncertainty_3d.json",
@@ -10682,7 +10693,7 @@
     "qta_multiphysics/measurement_ingest_3d.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "campaign_uncertainty_quantiles.csv",
@@ -10709,7 +10720,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "conftest.py",
@@ -10851,7 +10862,7 @@
     "qta_multiphysics/runner_3d.py",
     "tests/test_quantity_resolution.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "coupled_mode_recovery_metrics.csv",
@@ -10883,7 +10894,7 @@
     "tests/test_quantity_resolution.py",
     "tools/resolution_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "coupled_mode_state_summary.json",
@@ -10916,7 +10927,7 @@
     "tests/test_cross_env_semantics.py",
     "tests/test_quantity_resolution.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "coupling_ledger_3d.json",
@@ -10943,7 +10954,7 @@
     "qta_multiphysics/provenance_3d.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "cryo_stack_3d_budget.csv",
@@ -10973,7 +10984,7 @@
     "tests/test_radiation_contract.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "cryopanel_loading_3d.csv",
@@ -11003,7 +11014,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "cryopanel_memory_model.csv",
@@ -11032,7 +11043,7 @@
     "tools/file_disposition.py",
     "validation_matrix.csv"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_adaptive_policy.json",
@@ -11051,7 +11062,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_dataset_hash.txt",
@@ -11070,7 +11081,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "qta_multiphysics/stack/rag_index.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_dataset_summary.json",
@@ -11088,7 +11099,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/deep_expdesign/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_design_schema.json",
@@ -11108,7 +11119,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/deep_expdesign/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_eig_validation.csv",
@@ -11127,7 +11138,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_expdesign_summary.json",
@@ -11146,7 +11157,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_model_manifest.json",
@@ -11165,7 +11176,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_ood_report.json",
@@ -11184,7 +11195,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_parameter_schema.json",
@@ -11204,7 +11215,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/deep_expdesign/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_posterior_calibration.csv",
@@ -11223,7 +11234,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_posterior_samples.csv",
@@ -11242,7 +11253,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_posterior_summary.json",
@@ -11261,7 +11272,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_ranking_comparison.csv",
@@ -11280,7 +11291,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_surrogate_readiness.json",
@@ -11322,7 +11333,7 @@
     "tests/test_integration.py",
     "tests/test_stage7_5_resilience.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_training_config.json",
@@ -11340,7 +11351,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/deep_expdesign/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "deep_training_history.csv",
@@ -11359,7 +11370,7 @@
     "qta_multiphysics/deep_expdesign/runner.py",
     "tests/test_deep_expdesign_stage2.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "design_component_registry.json",
@@ -11388,7 +11399,7 @@
     "tests/test_integration.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "design_decision_ledger.json",
@@ -11414,7 +11425,7 @@
     "tests/test_integration.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "design_interface_graph.json",
@@ -11441,7 +11452,7 @@
     "tests/test_integration.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "design_validation_report.csv",
@@ -11470,7 +11481,7 @@
     "tests/test_integration.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "distributed_thermal_2d_slices.csv",
@@ -11498,7 +11509,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "distributed_thermal_metrics.csv",
@@ -11525,7 +11536,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "distributed_thermal_profile.csv",
@@ -11554,7 +11565,7 @@
     "qta_multiphysics/runner.py",
     "tests/test_unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/CORPUS_RECOVERY_TRIAGE.md",
@@ -11578,7 +11589,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/DEFECT_LEDGER.md",
@@ -11914,7 +11925,7 @@
     "tests/test_container_diagnostic_fidelity.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/SESSION_REPORT.md",
@@ -11940,7 +11951,7 @@
     "tests/test_agent_execution.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/blas_kernel_sensitivity.json",
@@ -11985,7 +11996,7 @@
     "tests/test_container_diagnostic_fidelity.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/byte_reproduction_profile.json",
@@ -12202,7 +12213,7 @@
     "tools/reproduction_witness.py",
     "typecheck_active.ini"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/claims_boundary.json",
@@ -12299,7 +12310,7 @@
     "tests/test_output_resolution.py",
     "tools/clip_provenance.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/completion_matrix.json",
@@ -12826,7 +12837,7 @@
     "tools/file_disposition.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "docs/harness_contract.json",
@@ -12977,7 +12988,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/legacy/qta/CLAIMS_BOUNDARY.md",
@@ -13006,7 +13017,7 @@
     "package_consistency_check.py",
     "tools/claims_enforcement.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/legacy/qta/HDF5_DATA_MODEL.md",
@@ -13031,7 +13042,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/legacy/qta/README.md",
@@ -13114,7 +13125,7 @@
     "final_manifest.json",
     "package_consistency_check.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/legacy/qta/RELEASE_POLICY.md",
@@ -13135,7 +13146,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/neural/architecture_family.json",
@@ -13219,7 +13230,7 @@
     "tools/harness_status.py",
     "tools/neural.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REGENERATED"
   },
   {
    "path": "docs/neural/dev/checkpoint_final.safetensors",
@@ -13719,7 +13730,7 @@
     "tools/neural_legacy_audit.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "docs/neural/nf1t_inventory.json",
@@ -14052,14 +14063,14 @@
     "tools/file_disposition.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "docs/performance_baseline.json",
    "blob": "d5a4d692cf333dadc3baaa518a21696861acd71e",
-   "class": "REGENERATE",
-   "rationale": "critical-path performance baseline",
-   "action": "re-measure",
+   "class": "PRESERVE",
+   "rationale": "critical-path performance baseline: an append-only series of shape measurements of the substrate's guards, each keyed by the commit it was taken at, none of a retired workload",
+   "action": "retain; the next recording appends against its own commit",
    "destinations": [],
    "imports": [],
    "references": [],
@@ -14073,7 +14084,7 @@
     "tests/test_agent_performance.py",
     "tools/performance_baseline.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "RETAINED"
   },
   {
    "path": "docs/reference_backend_host_a.json",
@@ -14186,7 +14197,7 @@
     "tools/file_disposition.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/resolution_inventory.json",
@@ -14256,7 +14267,7 @@
     "tools/cross_env_semantics.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/rust_kernel_decisions.json",
@@ -14281,7 +14292,7 @@
     "tests/test_stage10_stack.py",
     "tools/rust_kernel_decision.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "docs/supply_chain_ci_policy.json",
@@ -14424,7 +14435,7 @@
     "tests/test_unit_inventory.py",
     "tools/unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "energy_ledger_cumulative_3d.csv",
@@ -14456,7 +14467,7 @@
     "qta_multiphysics/runner_3d.py",
     "tests/test_quantity_resolution.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "engineering_fixes.csv",
@@ -14482,7 +14493,7 @@
     "qta_full_sim.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "expected_information_gain.csv",
@@ -14510,7 +14521,7 @@
     "tests/test_integration.py",
     "tests/test_unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "experiment_falsification_map.csv",
@@ -14543,7 +14554,7 @@
     "tests/test_integration.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "experiment_gate_coverage.json",
@@ -14571,7 +14582,7 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "experiment_matrix_coverage.json",
@@ -14600,7 +14611,7 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "experiment_registry.json",
@@ -14642,7 +14653,7 @@
     "validation_matrix_update_request.schema.json",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "experimental_design_candidates.csv",
@@ -14671,7 +14682,7 @@
     "tests/test_integration.py",
     "tests/test_unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "failed_gate_samples.csv",
@@ -14703,7 +14714,7 @@
     "tests/test_failed_gate_schema.py",
     "tests/test_unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "falsification_report_3d.json",
@@ -14734,7 +14745,7 @@
     "tests/test_authority_promotion_barrier.py",
     "tests/test_thermal_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "fidelity_comparison.csv",
@@ -14761,7 +14772,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "final_manifest.json",
@@ -15733,7 +15744,7 @@
     "tools/file_disposition.py",
     "verify_release.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "gas_transport_2d_map.csv",
@@ -15760,7 +15771,7 @@
     "qta_multiphysics/runner.py",
     "tests/test_unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "gas_transport_metrics.csv",
@@ -15792,7 +15803,7 @@
     "tests/test_quantity_resolution.py",
     "tests/test_resolution_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "gas_transport_profile.csv",
@@ -15827,7 +15838,7 @@
     "tests/test_unit_inventory.py",
     "tools/clip_provenance.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "generate_manifest.py",
@@ -15907,7 +15918,7 @@
     "tests/test_framework_boundary.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "hardware_reviewers.json",
@@ -15938,7 +15949,7 @@
     "thermal_3d_readiness.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "hdf5_output_mapping.json",
@@ -16065,7 +16076,7 @@
     "validate_hdf5_equivalence.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "hdf5_schema.json",
@@ -16188,7 +16199,7 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "integrated_layers_summary.json",
@@ -16215,7 +16226,7 @@
     "tests/test_integration.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "integrations/fenicsx/environment.lock",
@@ -16574,7 +16585,7 @@
     "tests/test_record_parsers.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "interlock_table.csv",
@@ -16608,7 +16619,7 @@
     "tests/test_record_parsers.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "kill_gate_ranking.csv",
@@ -16631,7 +16642,7 @@
     "qta_multiphysics/expdesign/model.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "laser_3d_deposition_summary.json",
@@ -16657,7 +16668,7 @@
     "qta_multiphysics/provenance_3d.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "lumped_vs_nonlumped_comparison.csv",
@@ -16687,7 +16698,7 @@
     "qta_multiphysics/runner.py",
     "results_gate_table.csv"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "machine_fsm_campaign_trace.csv",
@@ -16715,7 +16726,7 @@
     "qta_multiphysics/runner_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "machine_fsm_diagram.mmd",
@@ -16742,7 +16753,7 @@
     "qta_multiphysics/runner_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "machine_fsm_interlocks.csv",
@@ -16769,7 +16780,7 @@
     "qta_multiphysics/runner_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "machine_fsm_lifecycle_trace.csv",
@@ -16798,7 +16809,7 @@
     "qta_multiphysics/runner_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "machine_fsm_states.csv",
@@ -16833,7 +16844,7 @@
     "qta_multiphysics/runner_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "machine_fsm_summary.json",
@@ -16862,7 +16873,7 @@
     "qta_multiphysics/runner_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "machine_fsm_transitions.csv",
@@ -16889,7 +16900,7 @@
     "qta_multiphysics/runner_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "manifest_hash.txt",
@@ -16978,7 +16989,7 @@
     "tools/mutations/cross_environment.json",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "matrix_update_examples/invalid_automatic_application.json",
@@ -16995,7 +17006,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "matrix_update_examples/invalid_missing_evidence.json",
@@ -17012,7 +17023,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "matrix_update_examples/invalid_missing_review.json",
@@ -17029,7 +17040,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "matrix_update_examples/invalid_unknown_experiment.json",
@@ -17046,7 +17057,7 @@
     "docs/pass_semantics_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "matrix_update_examples/valid_example.json",
@@ -17067,7 +17078,7 @@
     "tests/test_stage6_roadmap.py",
     "tests/test_stage7_boundary.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "measured_parameters.json",
@@ -17095,7 +17106,7 @@
     "tests/test_parameter_semantics.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "measurement_comparison_3d.json",
@@ -17126,7 +17137,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "measurement_comparison_rows.csv",
@@ -17155,7 +17166,7 @@
     "qta_multiphysics/runner_3d.py",
     "tests/test_unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "mesh_3d_summary.json",
@@ -17178,7 +17189,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "mesh_convergence_summary.csv",
@@ -17209,7 +17220,7 @@
     "qta_multiphysics/verification.py",
     "tests/test_unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "microwave_heating_3d_budget.csv",
@@ -17234,7 +17245,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "microwave_heating_metrics.csv",
@@ -17260,7 +17271,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "microwave_heating_profile.csv",
@@ -17286,7 +17297,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "mode_recovery_3d_timeline.csv",
@@ -17314,7 +17325,7 @@
     "qta_multiphysics/runner_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "mode_transition_acceptance_tests.csv",
@@ -17343,7 +17354,7 @@
     "tools/file_disposition.py",
     "validation_matrix.csv"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "monte_carlo_gate_failure_rates.csv",
@@ -17365,7 +17376,7 @@
     "package_consistency_check.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "monte_carlo_parameter_registry.csv",
@@ -17388,7 +17399,7 @@
     "package_consistency_check.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "monte_carlo_sensitivity_rankings.csv",
@@ -17410,7 +17421,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "monte_carlo_summary.csv",
@@ -17437,7 +17448,7 @@
     "package_consistency_check.py",
     "qta_full_sim.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "multiphysics_summary.json",
@@ -17471,7 +17482,7 @@
     "tests/test_container_diagnostic_fidelity.py",
     "tests/test_quantity_resolution.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "multiphysics_verification_summary.csv",
@@ -17499,7 +17510,7 @@
     "qta_multiphysics/runner.py",
     "qta_multiphysics/verification.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "numerical_stability_summary.csv",
@@ -17529,7 +17540,7 @@
     "qta_multiphysics/runner.py",
     "qta_multiphysics/verification.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "nv_coherence_curves.csv",
@@ -17555,7 +17566,7 @@
     "qta_multiphysics/nv_spin/runner.py",
     "tests/test_integration.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "nv_eligibility_3d.json",
@@ -17584,7 +17595,7 @@
     "qta_multiphysics/runner_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "nv_odmr_spectrum.csv",
@@ -17610,7 +17621,7 @@
     "qta_multiphysics/nv_spin/runner.py",
     "tests/test_integration.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "nv_sequence_contrast.csv",
@@ -17638,7 +17649,7 @@
     "qta_multiphysics/nv_spin/runner.py",
     "tests/test_integration.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "nv_spin_dynamics_summary.json",
@@ -17662,7 +17673,7 @@
     "qta_multiphysics/nv_spin/runner.py",
     "tests/test_integration.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "nv_spin_gate_records.csv",
@@ -17688,7 +17699,7 @@
     "tests/test_integration.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "nv_spin_parameter_provenance.json",
@@ -17713,7 +17724,7 @@
     "qta_multiphysics/nv_spin/runner.py",
     "tests/test_integration.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "optical_absorption_2d_slices.csv",
@@ -17739,7 +17750,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "optical_absorption_metrics.csv",
@@ -17763,7 +17774,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "optical_absorption_profile.csv",
@@ -17789,7 +17800,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "optical_line_of_sight_audit.csv",
@@ -17813,7 +17824,7 @@
     "tools/file_disposition.py",
     "validation_matrix.csv"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "package_consistency_check.py",
@@ -18025,7 +18036,7 @@
     "tools/workflow_contract.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "parameter_registry.csv",
@@ -18053,7 +18064,7 @@
     "tests/test_authority_promotion_barrier.py",
     "tests/test_parameter_semantics.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "provenance_3d.json",
@@ -18091,7 +18102,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "pyproject.toml",
@@ -20332,7 +20343,7 @@
     "validation_matrix.csv",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_manuscript_v4.pdf",
@@ -20353,7 +20364,7 @@
     "package_consistency_check.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_manuscript_v4.tex",
@@ -20383,7 +20394,7 @@
     "tools/file_disposition.py",
     "validation_matrix.csv"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/__init__.py",
@@ -20428,7 +20439,7 @@
     "tools/file_disposition.py",
     "tools/mutations/scientific_interfaces.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/boundaries_3d.py",
@@ -20452,7 +20463,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/campaign_state_3d.py",
@@ -20487,7 +20498,7 @@
     "tools/file_disposition.py",
     "tools/mutations/quantity_resolution.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/campaign_uncertainty_3d.py",
@@ -20521,7 +20532,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/config.py",
@@ -20595,7 +20606,7 @@
     "qta_multiphysics/nv_spin/spin_config.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/convergence_3d.py",
@@ -20628,7 +20639,7 @@
     "tools/mutations/quantity_resolution.json",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/coupled_mode_solver.py",
@@ -20668,7 +20679,7 @@
     "tools/file_disposition.py",
     "tools/mutations/quantity_resolution.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/coupling_ledger_3d.py",
@@ -20693,7 +20704,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/cryo_stack_3d.py",
@@ -20719,7 +20730,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
@@ -20758,7 +20769,7 @@
     "tools/file_disposition.py",
     "tools/mutations/legacy/cryopanel_operating_point.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/__init__.py",
@@ -20809,7 +20820,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/calibration.py",
@@ -20832,7 +20843,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/config.py",
@@ -20857,7 +20868,7 @@
     "docs/typing_scope.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/dataset.py",
@@ -20883,7 +20894,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/design_space.py",
@@ -20917,7 +20928,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/eig_surrogate.py",
@@ -20945,7 +20956,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/inference.py",
@@ -20974,7 +20985,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/io.py",
@@ -20992,7 +21003,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/likelihood_model.py",
@@ -21031,7 +21042,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/ood.py",
@@ -21055,7 +21066,7 @@
     "docs/typing_scope.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/parameter_space.py",
@@ -21085,7 +21096,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/policy.py",
@@ -21105,7 +21116,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/posterior_model.py",
@@ -21126,7 +21137,7 @@
     "docs/typing_scope.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/readiness.py",
@@ -21151,7 +21162,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/runner.py",
@@ -21208,7 +21219,7 @@
     "tests/test_agent_substrate_isolation.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/schemas.py",
@@ -21235,7 +21246,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/simulator_adapter.py",
@@ -21265,7 +21276,7 @@
     "tests/test_deep_authority.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/trainer.py",
@@ -21292,7 +21303,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/transforms.py",
@@ -21316,7 +21327,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/deep_expdesign/validation.py",
@@ -21342,7 +21353,7 @@
     "docs/typing_scope.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/design/__init__.py",
@@ -21372,7 +21383,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/design/registry.py",
@@ -21401,7 +21412,7 @@
     "final_manifest.json",
     "tests/test_scientific_import_isolation.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/design/validation.py",
@@ -21433,7 +21444,7 @@
     "docs/typing_scope.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/energy_accounting_3d.py",
@@ -21461,7 +21472,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/expdesign/__init__.py",
@@ -21492,7 +21503,7 @@
     "qta_multiphysics/deep_expdesign/readiness.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/expdesign/engine.py",
@@ -21516,7 +21527,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/expdesign/model.py",
@@ -21546,7 +21557,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/expdesign/runner.py",
@@ -21577,7 +21588,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/exports.py",
@@ -21605,7 +21616,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/falsification_3d.py",
@@ -21634,7 +21645,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/fields.py",
@@ -21659,7 +21670,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/future_3d.py",
@@ -21687,7 +21698,7 @@
     "qta_multiphysics/__init__.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/gas_transport_1d.py",
@@ -21721,7 +21732,7 @@
     "tools/file_disposition.py",
     "tools/mutations/output_resolution.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/gas_transport_2d.py",
@@ -21744,7 +21755,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/grids.py",
@@ -21778,7 +21789,7 @@
     "tests/test_scientific_import_isolation.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/hardware_governance_3d.py",
@@ -21822,7 +21833,7 @@
     "tools/file_disposition.py",
     "tools/mutations/legacy/hardware_governance.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/heat_switch_3d.py",
@@ -21846,7 +21857,7 @@
     "tests/test_framework_boundary.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/integrated_layers.py",
@@ -21884,7 +21895,7 @@
     "tests/test_optimized_mode_invariants.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/laser_source.py",
@@ -21912,7 +21923,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/laser_source_3d.py",
@@ -21937,7 +21948,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/machine_fsm.py",
@@ -21985,7 +21996,7 @@
     "tests/test_scientific_import_isolation.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/material_models.py",
@@ -22020,7 +22031,7 @@
     "tests/test_scientific_thermal_2d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/materials_3d.py",
@@ -22046,7 +22057,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/measurement_ingest_3d.py",
@@ -22084,7 +22095,7 @@
     "tests/test_single_source_of_truth.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/mesh_3d.py",
@@ -22127,7 +22138,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/metrics.py",
@@ -22166,7 +22177,7 @@
     "tests/test_single_source_of_truth.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/microwave_heating_1d.py",
@@ -22192,7 +22203,7 @@
     "docs/byte_reproduction_profile.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/microwave_heating_3d.py",
@@ -22213,7 +22224,7 @@
     "docs/byte_reproduction_profile.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/mode_sequence_3d.py",
@@ -22255,7 +22266,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/numerics.py",
@@ -22307,7 +22318,7 @@
     "tools/mutations/solver_failclosed.json",
     "tools/resolution_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/nv_eligibility_3d.py",
@@ -22332,7 +22343,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/nv_spin/__init__.py",
@@ -22361,7 +22372,7 @@
     "qta_multiphysics/deep_expdesign/simulator_adapter.py",
     "requirements.txt"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/nv_spin/model.py",
@@ -22389,7 +22400,7 @@
     "final_manifest.json",
     "tests/test_single_source_of_truth.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/nv_spin/noise.py",
@@ -22414,7 +22425,7 @@
     "final_manifest.json",
     "qta_multiphysics/nv_spin/model.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/nv_spin/runner.py",
@@ -22448,7 +22459,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/nv_spin/sequences.py",
@@ -22472,7 +22483,7 @@
     "docs/byte_reproduction_profile.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/nv_spin/spin_config.py",
@@ -22496,7 +22507,7 @@
     "docs/typing_scope.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/optical_absorption.py",
@@ -22523,7 +22534,7 @@
     "docs/byte_reproduction_profile.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/optical_absorption_1d.py",
@@ -22542,7 +22553,7 @@
     "attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/optical_absorption_2d.py",
@@ -22561,7 +22572,7 @@
     "attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/provenance_3d.py",
@@ -22599,7 +22610,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/radiation_paths.py",
@@ -22628,7 +22639,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/radiation_paths_3d.py",
@@ -22651,7 +22662,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/reduction_checks_3d.py",
@@ -22684,7 +22695,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/runner.py",
@@ -22757,7 +22768,7 @@
     "tests/test_typecheck_scope.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/runner_3d.py",
@@ -22863,7 +22874,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/sensitivity_3d.py",
@@ -22896,7 +22907,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/sources_3d.py",
@@ -22927,7 +22938,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/species_accounting_3d.py",
@@ -22964,7 +22975,7 @@
     "tools/file_disposition.py",
     "tools/mutations/legacy/cryopanel_operating_point.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/species_transport_3d.py",
@@ -22989,7 +23000,7 @@
     "tests/test_single_source_of_truth.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/stack/__init__.py",
@@ -23039,7 +23050,7 @@
     "tools/file_disposition.py",
     "tools/rust_kernel_decision.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/stack/fem_fenicsx.py",
@@ -23071,7 +23082,7 @@
     "tools/dependency_declarations.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/stack/fmi_contract.py",
@@ -23105,7 +23116,7 @@
     "stack.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/stack/mdao_openmdao.py",
@@ -23145,7 +23156,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "qta_multiphysics/stack/rag_index.py",
@@ -23197,7 +23208,7 @@
     "tools/mutations/corpus_allowlist.json",
     "tools/mutations/stage10_authority.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "EXTRACTED"
   },
   {
    "path": "qta_multiphysics/stack/registry.py",
@@ -23229,7 +23240,7 @@
     "stack.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "EXTRACTED"
   },
   {
    "path": "qta_multiphysics/stack/rust_kernel.py",
@@ -23268,7 +23279,7 @@
     "tools/file_disposition.py",
     "tools/mutations/rust_selection.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/stack/sensitivity_salib.py",
@@ -23303,7 +23314,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/stack/usd_export.py",
@@ -23332,7 +23343,7 @@
     "stage7_reports/dependency_inventory.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "qta_multiphysics/stack/vtk_export.py",
@@ -23364,16 +23375,16 @@
     "stack.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "qta_multiphysics/stack/workspace.py",
    "blob": "345c71a10caaf3b8835a8acb17446954d2256126",
    "class": "EXTRACT_GENERIC",
    "rationale": "the governed-writer workspace guard: generic filesystem confinement used by the agent's tools and the scientific runners",
-   "action": "move to agent_substrate/workspace.py",
+   "action": "move to scientific/workspace.py",
    "destinations": [
-    "agent_substrate/workspace.py"
+    "scientific/workspace.py"
    ],
    "imports": [],
    "references": [
@@ -23412,7 +23423,7 @@
     "tools/mutations/governed_breadth.json",
     "tools/mutations/stage10_authority.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "EXTRACTED"
   },
   {
    "path": "qta_multiphysics/stage7_boundary_models.py",
@@ -23453,7 +23464,7 @@
     "stage7_reports/dependency_inventory.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/state_machine_3d.py",
@@ -23488,7 +23499,7 @@
     "qta_full_sim.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/surface_coverage.py",
@@ -23525,7 +23536,7 @@
     "final_manifest.json",
     "tools/mutations/output_resolution.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/surface_coverage_1d.py",
@@ -23544,7 +23555,7 @@
     "attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/surface_coverage_2d.py",
@@ -23563,7 +23574,7 @@
     "attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/surface_coverage_3d.py",
@@ -23587,7 +23598,7 @@
     "docs/neural/legacy_semantic_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/thermal_1d.py",
@@ -23634,7 +23645,7 @@
     "tools/mutations/neural_authority.json",
     "tools/mutations/scientific_thermal_1d.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/thermal_2d_axisymmetric.py",
@@ -23674,7 +23685,7 @@
     "tools/file_disposition.py",
     "tools/mutations/scientific_thermal_1d.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/thermal_3d_transient.py",
@@ -23727,7 +23738,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/uncertainty.py",
@@ -23766,7 +23777,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/units.py",
@@ -23800,7 +23811,7 @@
     "qta_multiphysics/stack/fmi_contract.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/verification.py",
@@ -23839,7 +23850,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/verification_3d.py",
@@ -23869,7 +23880,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/vibration_paths_3d.py",
@@ -23891,7 +23902,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_multiphysics/vibration_transfer.py",
@@ -23926,7 +23937,7 @@
     "tests/test_authority_consistency.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_scientific_results.h5",
@@ -23959,7 +23970,7 @@
     "validate_hdf5_equivalence.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "qta_sim_stages.py",
@@ -23990,7 +24001,7 @@
     "stage6_preservation_check.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "radiation_leakage_metrics.csv",
@@ -24014,7 +24025,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "radiation_leakage_paths.csv",
@@ -24040,7 +24051,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "radiation_paths_3d_budget.csv",
@@ -24068,7 +24079,7 @@
     "tests/test_csv_schema_governance.py",
     "tests/test_radiation_contract.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "radiation_rf_leakage_budget.csv",
@@ -24090,7 +24101,7 @@
     "mode_transition_acceptance_tests.csv",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "raw_data_standard.md",
@@ -24124,7 +24135,7 @@
     "tests/test_stage6_roadmap.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "reference_backend/build.sh",
@@ -24155,7 +24166,7 @@
     "tools/mutations/reference_backend.json",
     "tools/reference_backend.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "reference_backend/patches/openblas-0.3.31-serial-callback.patch",
@@ -24172,7 +24183,7 @@
     "final_manifest.json",
     "reference_backend/spec.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "reference_backend/run.sh",
@@ -24199,7 +24210,7 @@
     "tools/mutations/reference_backend.json",
     "tools/reference_backend.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "reference_backend/spec.json",
@@ -24225,7 +24236,7 @@
     "tools/mutations/reference_backend.json",
     "tools/reference_backend.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "rejected_baseline_BOM.csv",
@@ -24248,7 +24259,7 @@
     "monte_carlo_parameter_registry.csv",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "release_revision_gate.py",
@@ -24278,7 +24289,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "release_trust.py",
@@ -24323,7 +24334,7 @@
     "tests/test_optimized_mode_invariants.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "representative_source_audit.csv",
@@ -24346,7 +24357,7 @@
     "tools/file_disposition.py",
     "validation_matrix.csv"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "requirements.txt",
@@ -24373,7 +24384,7 @@
     "stage7_reports/dependency_inventory.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "results_gate_table.csv",
@@ -24482,7 +24493,7 @@
     "verify_release.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "risk_register.csv",
@@ -24506,7 +24517,7 @@
     "package_consistency_check.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "ro-crate/ro-crate-metadata.json",
@@ -24659,7 +24670,7 @@
     "docs/completion_matrix.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "rust/qta_kernels/Cargo.toml",
@@ -24681,7 +24692,7 @@
     "qta_multiphysics/stack/rust_kernel.py",
     "rust/qta_kernels/pyproject.toml"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "rust/qta_kernels/pyproject.toml",
@@ -24700,7 +24711,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "rust/qta_kernels/src/lib.rs",
@@ -24718,7 +24729,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "scientific/__init__.py",
@@ -26836,7 +26847,7 @@
     "qta_multiphysics/provenance_3d.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "shielding_stack_register.csv",
@@ -26857,7 +26868,7 @@
     "tools/file_disposition.py",
     "validation_matrix.csv"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "snakemake_sim_entry.py",
@@ -26879,7 +26890,7 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "source_audit_status.txt",
@@ -26911,7 +26922,7 @@
     "tools/file_disposition.py",
     "validation_matrix.csv"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "source_gap_register.csv",
@@ -26940,7 +26951,7 @@
     "source_audit_status.txt",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "source_map.csv",
@@ -26962,7 +26973,7 @@
     "source_gap_register.csv",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "species_accounting_3d.csv",
@@ -26991,7 +27002,7 @@
     "qta_multiphysics/provenance_3d.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "species_transport_3d_summary.json",
@@ -27015,7 +27026,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "stack.json",
@@ -27157,15 +27168,17 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "stage7_reports/dependency_inventory.json",
    "blob": "c11a4b3c5f855db636ca4fe70982d4abcf0ff34f",
-   "class": "REMOVE",
-   "rationale": "generated reports of the retired pipeline",
-   "action": "remove",
-   "destinations": [],
+   "class": "REIMPLEMENT",
+   "rationale": "the generated dependency inventory; its recorded reasons described the retired programme's uses",
+   "action": "regenerated from pyproject.toml and uv.lock under docs/",
+   "destinations": [
+    "docs/dependency_inventory.json"
+   ],
    "imports": [],
    "references": [
     "Snakefile",
@@ -27199,7 +27212,7 @@
     "tools/dependency_declarations.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "stage7_reports/environment_provenance.json",
@@ -27222,7 +27235,7 @@
     "ro-crate/ro-crate-metadata.json",
     "ro_crate_tools.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "stage7_reports/mypy_report.md",
@@ -27241,7 +27254,7 @@
     "docs/corpus_allowlist.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "stage7_reports/reproducibility_comparison.json",
@@ -27262,7 +27275,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "stage7_reports/ruff_report.md",
@@ -27279,7 +27292,7 @@
     "docs/corpus_allowlist.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "stage8_reports/hdf5_equivalence_report.json",
@@ -27307,7 +27320,7 @@
     "validate_hdf5_equivalence.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "stage8_reports/ro_crate_validation_report.json",
@@ -27330,7 +27343,7 @@
     "tests/test_ro_crate_conformance.py",
     "tests/test_stage8_data_provenance.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "superseded_best_operating_point_v3.json",
@@ -27351,7 +27364,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "surface_coverage_2d_map.csv",
@@ -27379,7 +27392,7 @@
     "qta_multiphysics/runner.py",
     "tests/test_unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "surface_coverage_3d_summary.csv",
@@ -27408,7 +27421,7 @@
     "qta_multiphysics/machine_fsm.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "surface_coverage_metrics.csv",
@@ -27439,7 +27452,7 @@
     "qta_multiphysics/runner.py",
     "tests/test_output_resolution.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "surface_coverage_profile.csv",
@@ -27470,7 +27483,7 @@
     "qta_multiphysics/runner.py",
     "tests/test_output_resolution.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "synthetic_measurements_example.json",
@@ -27493,7 +27506,7 @@
     "qta_multiphysics/measurement_ingest_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tau_c_sweep.csv",
@@ -27521,7 +27534,7 @@
     "tests/test_unit_inventory.py",
     "tools/mutations/canonical_output_set.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/fuzz_corpus/README.md",
@@ -27773,7 +27786,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/neural_support.py",
@@ -29348,7 +29361,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_authority_invariants.py",
@@ -29377,7 +29390,7 @@
     "tools/file_disposition.py",
     "tools/mutations/enforcement_asserts.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_authority_promotion_barrier.py",
@@ -29408,7 +29421,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_backend_identity.py",
@@ -29458,7 +29471,7 @@
     "tools/file_disposition.py",
     "tools/mutations/output_resolution.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_bootstrap_workflow_contract.py",
@@ -29494,7 +29507,7 @@
     "tests/test_dependency_declarations.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "EXTRACTED"
   },
   {
    "path": "tests/test_campaign_3d.py",
@@ -29526,7 +29539,7 @@
     "tools/file_disposition.py",
     "tools/mutations/legacy/cryopanel_operating_point.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_campaign_uncertainty.py",
@@ -29557,7 +29570,7 @@
     "tools/mutations/legacy/cryopanel_operating_point.json",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_candidate_structure.py",
@@ -29586,7 +29599,7 @@
     "tools/file_disposition.py",
     "verify_release.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_checker_missing_outputs.py",
@@ -29613,7 +29626,7 @@
     "tools/file_disposition.py",
     "tools/mutations/canonical_output_set.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_checker_reproduction_policy.py",
@@ -29641,7 +29654,7 @@
     "tools/file_disposition.py",
     "tools/mutations/reproduction_policy.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_checker_runtime_contract.py",
@@ -29664,7 +29677,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_checkpoint_recovery.py",
@@ -29872,7 +29885,7 @@
     "tools/mutations/agent_job_graph.json",
     "tools/mutations/cross_environment.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_container_manifest_coverage.py",
@@ -29931,7 +29944,7 @@
     "qta_multiphysics/provenance_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_cross_env_semantics.py",
@@ -29960,7 +29973,7 @@
     "tools/file_disposition.py",
     "tools/mutations/cross_environment.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_csv_schema_governance.py",
@@ -29982,7 +29995,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_decided_appends.py",
@@ -30044,7 +30057,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_deep_expdesign.py",
@@ -30067,7 +30080,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_deep_expdesign_stage2.py",
@@ -30100,7 +30113,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_dependency_declarations.py",
@@ -30151,7 +30164,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_digest_trust_root.py",
@@ -30177,7 +30190,7 @@
     "tests/test_external_trust_root.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_expdesign.py",
@@ -30205,7 +30218,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_export_schema.py",
@@ -30226,7 +30239,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_external_models.py",
@@ -30281,7 +30294,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_failed_gate_schema.py",
@@ -30302,7 +30315,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_file_disposition.py",
@@ -30335,7 +30348,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tests/test_framework_boundary.py",
@@ -30378,7 +30391,7 @@
     "tools/mutations/framework_boundary.json",
     "tools/neural_legacy_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tests/test_generated_mutations.py",
@@ -30527,7 +30540,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_hardware_governance.py",
@@ -30558,7 +30571,7 @@
     "tools/mutations/legacy/hardware_governance.json",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_harness_demo.py",
@@ -30694,7 +30707,7 @@
     "tools/file_disposition.py",
     "verify_release.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_hostile_trust_policy.py",
@@ -30722,7 +30735,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_hotspot_ranking_determinism.py",
@@ -30744,7 +30757,7 @@
     "tests/test_test_isolation.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_identity_inventory.py",
@@ -30791,7 +30804,7 @@
     "tools/file_disposition.py",
     "tools/mutations/legacy/hardware_governance.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_integration.py",
@@ -30831,7 +30844,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_lateral_boundary.py",
@@ -30855,7 +30868,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_legacy_qta_claims.py",
@@ -30878,7 +30891,7 @@
     "tools/mutations/output_resolution.json",
     "tools/neural_legacy_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_machine_fsm.py",
@@ -30905,7 +30918,7 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_manifest_completeness.py",
@@ -30984,7 +30997,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_measurement_ingest.py",
@@ -31010,7 +31023,7 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_mode_species_3d.py",
@@ -31035,7 +31048,7 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_model_check.py",
@@ -31086,7 +31099,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_mutation_harness.py",
@@ -31519,7 +31532,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_online_success_path.py",
@@ -31548,7 +31561,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_optimized_mode_invariants.py",
@@ -31586,7 +31599,7 @@
     "tools/file_disposition.py",
     "tools/mutations/enforcement_asserts.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tests/test_output_resolution.py",
@@ -31616,7 +31629,7 @@
     "tools/file_disposition.py",
     "tools/mutations/output_resolution.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_parameter_semantics.py",
@@ -31643,7 +31656,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_performance_telemetry.py",
@@ -31808,7 +31821,7 @@
     "tools/file_disposition.py",
     "tools/mutations/quantity_resolution.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_radiation_contract.py",
@@ -31834,7 +31847,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_ranking_equivalence.py",
@@ -31886,7 +31899,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_reference_backend.py",
@@ -31917,7 +31930,7 @@
     "tools/file_disposition.py",
     "tools/mutations/reference_backend.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_regenerate_instrumented.py",
@@ -31938,7 +31951,7 @@
     "tools/file_disposition.py",
     "tools/mutations/reproduction_policy.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_release_trust_enforcement.py",
@@ -31968,7 +31981,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_release_workflow_contract.py",
@@ -31998,7 +32011,7 @@
     "tests/test_dependency_declarations.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_replay_origin_view.py",
@@ -32114,7 +32127,7 @@
     "tools/file_disposition.py",
     "tools/mutations/resolution_inventory.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_review_binding.py",
@@ -32136,7 +32149,7 @@
     "tools/file_disposition.py",
     "tools/mutations/legacy/hardware_governance.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_ro_crate_conformance.py",
@@ -32303,7 +32316,7 @@
     "tools/mutations/legacy/cryopanel_operating_point.json",
     "tools/mutations/scientific_interfaces.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tests/test_scientific_interfaces.py",
@@ -32551,7 +32564,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_single_source_of_truth.py",
@@ -32590,7 +32603,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_solver_failclosed.py",
@@ -32628,7 +32641,7 @@
     "tools/file_disposition.py",
     "tools/mutations/solver_failclosed.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_stage10_stack.py",
@@ -32692,7 +32705,7 @@
     "tools/mutations/rust_selection.json",
     "tools/mutations/stage10_authority.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tests/test_stage6_roadmap.py",
@@ -32730,7 +32743,7 @@
     "tools/mutations/legacy/hardware_governance.json",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_stage7_5_resilience.py",
@@ -32760,7 +32773,7 @@
     "tools/file_disposition.py",
     "tools/mutations/canonical_output_set.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_stage7_boundary.py",
@@ -32793,7 +32806,7 @@
     "tools/mutations/legacy/hardware_governance.json",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_stage8_data_provenance.py",
@@ -32828,7 +32841,7 @@
     "tools/file_disposition.py",
     "tools/mutations/unit_inventory.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_stage9_release.py",
@@ -32858,7 +32871,7 @@
     "final_manifest.json",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_supply_chain.py",
@@ -33014,7 +33027,7 @@
     "qta_multiphysics/provenance_3d.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_typecheck_scope.py",
@@ -33091,7 +33104,7 @@
     "tools/file_disposition.py",
     "tools/mutations/unit_inventory.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_verified_read_guard.py",
@@ -33149,7 +33162,7 @@
     "tools/mutations/workflow_generic.json",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "MOVED"
   },
   {
    "path": "thermal_3d_energy_accounting.csv",
@@ -33175,7 +33188,7 @@
     "qta_multiphysics/provenance_3d.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "thermal_3d_hotspots.csv",
@@ -33207,7 +33220,7 @@
     "tests/test_stage7_5_resilience.py",
     "tests/test_unit_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "thermal_3d_probe_timeseries.csv",
@@ -33235,7 +33248,7 @@
     "qta_multiphysics/provenance_3d.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "thermal_3d_readiness.json",
@@ -33266,7 +33279,7 @@
     "qta_multiphysics/machine_fsm.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "thermal_3d_reduction_check.json",
@@ -33291,7 +33304,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "thermal_3d_verification_report.json",
@@ -33316,7 +33329,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/attach_hosted_evidence.py",
@@ -33395,7 +33408,7 @@
     "tools/file_disposition.py",
     "tools/mutations/cross_environment.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/claims_enforcement.py",
@@ -33466,7 +33479,7 @@
     "tools/file_disposition.py",
     "tools/mutations/output_resolution.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/completion_matrix.py",
@@ -33563,7 +33576,7 @@
     "tools/mutations/cross_environment.json",
     "tools/resolution_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/dependency_declarations.py",
@@ -34148,7 +34161,7 @@
     "tools/neural_legacy_audit.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tools/fmi_acceptance.py",
@@ -34244,7 +34257,7 @@
     "tools/neural_legacy_audit.py",
     "tools/pass_semantics_audit.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tools/fuzz_substrate.py",
@@ -34620,7 +34633,7 @@
     "tools/neural_legacy_audit.py",
     "tools/resolution_inventory.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/model_check.py",
@@ -35647,7 +35660,7 @@
     "tools/file_disposition.py",
     "tools/mutation_shards.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/checkpoint_recovery.json",
@@ -35791,7 +35804,7 @@
     "final_manifest.json",
     "tools/mutation_shards.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/decided_appends.json",
@@ -35900,7 +35913,7 @@
    "rationale": "mutation spec of the active/legacy boundary, which no longer has a legacy side",
    "action": "replaced by the content audit's spec",
    "destinations": [
-    "tools/mutations/repo_content_audit.json"
+    "tools/mutations/repository_content.json"
    ],
    "imports": [],
    "references": [
@@ -35913,7 +35926,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tools/mutations/fuzz_harness.json",
@@ -36151,7 +36164,7 @@
     "final_manifest.json",
     "tests/test_mutation_shards.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/legacy/hardware_governance.json",
@@ -36181,7 +36194,7 @@
     "tests/test_mutation_shards.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/model_check.json",
@@ -36435,7 +36448,7 @@
     "tools/file_disposition.py",
     "tools/mutation_shards.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/performance_counters.json",
@@ -36555,7 +36568,7 @@
     "docs/neural/legacy_semantic_audit.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/ranking_equivalence.json",
@@ -36603,7 +36616,7 @@
     "docs/completion_matrix.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/replay_origin_view.json",
@@ -36658,9 +36671,9 @@
   {
    "path": "tools/mutations/reproduction_policy.json",
    "blob": "8dbb302a53de6a6fb71449c81982a00b16efa3b3",
-   "class": "REMOVE",
-   "rationale": "mutation spec of the legacy package checker's reproduction policy",
-   "action": "remove",
+   "class": "PRESERVE",
+   "rationale": "mutations of the byte-reproduction verdict in scientific/reproduction.py; eleven of its twenty-nine targeted the retired witness tool, wrapper and package checker",
+   "action": "retain, those eleven dropped",
    "destinations": [],
    "imports": [],
    "references": [
@@ -36679,7 +36692,7 @@
     "docs/completion_matrix.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "RETAINED"
   },
   {
    "path": "tools/mutations/resolution_inventory.json",
@@ -36699,7 +36712,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/ro_crate_conformance.json",
@@ -36768,7 +36781,7 @@
     "docs/completion_matrix.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/scientific_authority_replay.json",
@@ -36986,7 +36999,7 @@
     "tools/file_disposition.py",
     "tools/mutation_shards.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/stage10_authority.json",
@@ -37184,7 +37197,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/verified_read_guard.json",
@@ -37396,7 +37409,7 @@
     "tools/pass_semantics_audit.py",
     "tools/workflow_contract.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tools/pass_semantics_audit.py",
@@ -37470,7 +37483,7 @@
     "tools/mutations/claim_hygiene.json",
     "tools/workflow_contract.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REIMPLEMENTED"
   },
   {
    "path": "tools/performance_baseline.py",
@@ -37529,7 +37542,7 @@
     "tools/mutations/reference_backend.json",
     "tools/workflow_contract.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/regenerate_instrumented.py",
@@ -37559,7 +37572,7 @@
     "tools/reproduction_witness.py",
     "tools/workflow_contract.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/repo_scope.py",
@@ -37621,7 +37634,7 @@
     "tools/mutations/reproduction_policy.json",
     "tools/workflow_contract.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/resolution_inventory.py",
@@ -37655,7 +37668,7 @@
     "tools/mutations/quantity_resolution.json",
     "tools/mutations/resolution_inventory.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/ro_crate_conformance.py",
@@ -37711,7 +37724,7 @@
     "tools/file_disposition.py",
     "tools/mutations/rust_selection.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/supply_chain.py",
@@ -37839,7 +37852,7 @@
     "tools/file_disposition.py",
     "tools/mutations/unit_inventory.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/verified_read_guard.py",
@@ -38017,7 +38030,7 @@
     "tools/supply_chain.py",
     "verify_release.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REGENERATED"
   },
   {
    "path": "validate_hdf5_equivalence.py",
@@ -38055,7 +38068,7 @@
     "tools/unit_inventory.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "validation_experiment_ranking.csv",
@@ -38091,7 +38104,7 @@
     "tests/test_integration.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "validation_matrix.csv",
@@ -38145,7 +38158,7 @@
     "tests/test_stage6_roadmap.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "validation_matrix_update_request.schema.json",
@@ -38167,7 +38180,7 @@
     "tools/file_disposition.py",
     "workflow/legacy_qta.smk"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "verify_release.py",
@@ -38230,7 +38243,7 @@
     "tools/file_disposition.py",
     "tools/generic_consistency.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "vibration_paths_3d_budget.csv",
@@ -38257,7 +38270,7 @@
     "qta_multiphysics/measurement_ingest_3d.py",
     "qta_multiphysics/runner_3d.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "vibration_transfer_metrics.csv",
@@ -38282,7 +38295,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "vibration_transfer_profile.csv",
@@ -38308,7 +38321,7 @@
     "package_consistency_check.py",
     "qta_multiphysics/runner.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "workflow/legacy_qta.smk",
@@ -38363,7 +38376,7 @@
     "tests/test_workflow_split.py",
     "tools/file_disposition.py"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   }
  ]
 }

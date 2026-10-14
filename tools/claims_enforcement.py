@@ -20,10 +20,6 @@ from the source rather than from anyone's say-so:
 What it cannot establish: that the named test tests the boundary. That is
 what the mutation spec is for (``tools/mutations/claims_boundary.json``), and
 the claim here is exactly the one above.
-
-The hardware-era QTA claims -- gate counts, Mode B / Mode D exclusivity, BOM
-vocabulary -- are the legacy verifier's, reconciled by
-``tools/legacy_qta_claims.py`` against ``docs/legacy/qta/CLAIMS_BOUNDARY.md``.
 """
 from __future__ import annotations
 
@@ -57,9 +53,9 @@ REQUIRED = (
     ("learned prediction", "authority"),
     ("meta-validated architecture", "allocated, trained or validated model"),
     ("development model's training", "flagship's"),
-    # NF-1T closure: the legacy gate table is not the current status;
-    # simulated is not hardware; decision stability is not byte identity.
-    ("legacy qta gate-table pass count", "status of the current harness"),
+    # A software completion status is not scientific validity; simulated
+    # is not hardware; decision stability is not byte identity.
+    ("software completion status", "scientific validity"),
     ("simulated distributed execution", "distributed hardware validation"),
     ("decision stability under numeric drift", "byte identity"),
 )

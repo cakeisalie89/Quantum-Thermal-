@@ -2,15 +2,13 @@
 
 D-2026-63. `tests/` has no `__init__.py`, so pytest puts `tests/` on
 `sys.path` and not the repository root. Three of 106 modules imported
-`tools.*` or `agent_substrate` at top level without inserting the root themselves,
-and passed every full run because the alphabet put a module that does insert
-it first. Run alone, all three failed to collect.
+`tools.*` or the substrate at top level without inserting the root
+themselves, and passed every full run because the alphabet put a module that
+does insert it first. Run alone, all three failed to collect.
 
 Every refusal test here is paired with a positive control. A checker that
 refused every directory would pass the refusal tests and be worthless.
-
-MODEL-ONLY / FORECAST-ONLY. Nothing here changes a gate, a threshold or a
-canonical output. PASS remains 0.
+Software verification only.
 """
 from __future__ import annotations
 
@@ -37,11 +35,11 @@ def _module(d: pathlib.Path, name: str, body: str) -> pathlib.Path:
 def test_a_module_that_needs_the_repository_root_collects_alone():
     """The defect itself, against a real module that carries no path insert.
 
-    `tests/test_cross_env_semantics.py` does `from tools.cross_env_semantics
-    import ...` and nothing else. Before conftest.py this died at collection
-    with ModuleNotFoundError unless another module had run first.
+    `tests/test_ranking_equivalence.py` does `from scientific import ...`
+    and inserts no path of its own, so without conftest.py it would die at
+    collection with ModuleNotFoundError unless another module had run first.
     """
-    target = ROOT / "tests" / "test_cross_env_semantics.py"
+    target = ROOT / "tests" / "test_ranking_equivalence.py"
     assert "sys.path.insert" not in target.read_text(encoding="utf-8"), (
         "this test is only meaningful while the module relies on the "
         "conftest rather than inserting the path itself")
@@ -69,13 +67,13 @@ def test_the_conftest_puts_the_root_on_the_path_when_nothing_else_has():
         # The precondition is the control. If the root were reachable anyway,
         # the import below would prove nothing about the conftest.
         "try:",
-        "    import tools.cross_env_semantics",
+        "    import tools.repo_scope",
         "except ModuleNotFoundError:",
         "    pass",
         "else:",
         "    raise SystemExit('precondition failed: root already importable')",
         f"runpy.run_path({str(ROOT / 'conftest.py')!r})",
-        "import tools.cross_env_semantics",
+        "import tools.repo_scope",
         "print('ok')",
     ])
     r = subprocess.run([sys.executable, "-c", prog], cwd=str(ROOT),
@@ -165,10 +163,16 @@ def test_the_refusal_is_a_return_code_not_an_assert():
 
 @pytest.mark.parametrize("name", [
     "test_agent_authority_boundaries.py",
-    "test_cross_env_semantics.py",
-    "test_hotspot_ranking_determinism.py",
+    "test_ranking_equivalence.py",
+    "test_hdf5_bundle.py",
+    "test_sensitivity_cross_check.py",
 ])
-def test_the_three_that_were_found_collect_alone(name):
-    """Named, so a regression in any one of them is reported as itself."""
+def test_modules_that_rely_on_the_conftest_collect_alone(name):
+    """Named, so a regression in any one of them is reported as itself.
+
+    The first is the one of the original three still in the tree (the other
+    two left with the retired programme); the rest carry no path insert of
+    their own either.
+    """
     ok, tail = TI.collects_alone(ROOT / "tests" / name, timeout=300)
     assert ok, tail

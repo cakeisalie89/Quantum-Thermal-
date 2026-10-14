@@ -48,11 +48,11 @@
    "rationale": "an audit that was not run counts as clean"
   },
   {
-   "name": "HS7_legacy_label_not_required",
+   "name": "HS7_the_declared_architecture_is_not_compared",
    "path": "tools/harness_status.py",
-   "find": "            \"ok\": lg[\"classification\"] == \"LEGACY_QTA_ONLY\",\n",
+   "find": "            \"ok\": observed == declared,\n",
    "replace": "            \"ok\": True,\n",
-   "rationale": "the legacy PASS count may lose its LEGACY_QTA_ONLY label"
+   "rationale": "a flagship whose counts differ from the declared architecture still satisfies the contract"
   },
   {
    "name": "HS8_trained_flagship_accepted",

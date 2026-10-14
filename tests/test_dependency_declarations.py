@@ -38,19 +38,20 @@ def test_the_scan_sees_the_imports_that_broke(pyproject):
     an import-time import."""
     _, seen = dd.check(ROOT, pyproject)
     yaml_users = {p for p, name, eager in seen if name == "yaml" and eager}
-    assert yaml_users == {"tests/test_bootstrap_workflow_contract.py",
-                          "tests/test_release_workflow_contract.py"}
+    assert yaml_users == {"tests/test_container_workflow_contract.py"}
 
 
 def test_the_check_refuses_the_pyproject_before_the_repair(pyproject):
     """The anti-vacuity control: the same tree against a pyproject without
-    PyYAML reports exactly the two sites D-2026-74 found."""
+    PyYAML reports exactly the site that imports yaml at import time (two
+    when D-2026-74 was found; the other left with the retired release
+    workflow's tests)."""
     before = json.loads(json.dumps(pyproject))
     before["dependency-groups"]["dev"] = [
         r for r in before["dependency-groups"]["dev"]
         if not r.startswith("pyyaml")]
     problems, _ = dd.check(ROOT, before)
-    assert len(problems) == 2, problems
+    assert len(problems) == 1, problems
     assert all("imports yaml" in p and "minimal environment" in p
                for p in problems)
 
@@ -116,12 +117,14 @@ def test_a_lazy_import_from_an_extra_is_accepted(pyproject, tmp_path):
 
 
 def test_the_environmental_list_is_pinned_and_reasoned():
-    # Pinned: widening it is a decision. The harness programme added the
-    # FEniCSx runner's four (its own conda environment) and the FMI
-    # runner's fmpy (its own hash-locked runtime) -- each imported only by
-    # a runner that executes in that environment, never by the harness.
-    assert set(dd.ENVIRONMENTAL) == {"dolfinx", "sigstore", "mpi4py",
-                                     "petsc4py", "basix", "ufl", "fmpy"}
+    # Pinned: widening it is a decision. The FEniCSx runner's five (its
+    # own conda environment) and the FMI runner's fmpy (its own hash-locked
+    # runtime) -- each imported only by a runner that executes in that
+    # environment, never by the harness. sigstore left the list with the
+    # retired release verifier: tools/supply_chain.py runs it as a module in
+    # its own runtime and imports nothing from it.
+    assert set(dd.ENVIRONMENTAL) == {"dolfinx", "mpi4py", "petsc4py",
+                                     "basix", "ufl", "fmpy"}
     for name, why in dd.ENVIRONMENTAL.items():
         assert len(why) >= 40, f"{name}: say why"
 

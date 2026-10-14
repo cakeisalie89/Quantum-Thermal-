@@ -30,11 +30,10 @@ write primitive rather than in a kernel sandbox, and a subprocess that opens
 its own socket is not stopped. Those are stated in the module docstrings that
 own them, and they remain true after this file passes.
 
-Nothing here is a scientific claim. automatic_gate_effect is NONE.
+Nothing here is a scientific claim. authority_effect is NONE.
 """
 from __future__ import annotations
 
-import json
 import shutil
 import sys
 from pathlib import Path
@@ -631,8 +630,11 @@ def test_99_the_audit_and_the_enforcement_path_agree(world):
         world.projection()
 
 
-def test_99_nothing_here_moved_a_gate(world):
-    """The invariant the whole package exists to preserve."""
-    rec = json.dumps([ev.to_record() for ev in world.log.read()])
-    assert "scientific_PASS" not in rec
-    assert "automatic_gate_effect" not in rec
+def test_99_nothing_here_promoted_a_record(world):
+    """The invariant the whole package exists to preserve: whatever the
+    hostile agent did, no record became PROMOTED -- read from the log
+    itself, not from a projection that could have refused to show it."""
+    promoted = [ev for ev in world.log.read()
+                if ev.action == "record.transition"
+                and ev.payload.get("dst") == "PROMOTED"]
+    assert promoted == []

@@ -223,3 +223,22 @@ def test_an_inadmissible_design_is_refused_before_anything_runs(design,
 def test_no_response_is_refused():
     with pytest.raises(D.DOERefused, match="no response"):
         D.run_doe(SlabTransientModel(), PARAMS, DESIGN, ())
+
+
+def test_a_failed_response_is_refused_rather_than_explored():
+    """A response the model did not compute has no value to explore; the
+    exploration stops and says which response failed and why."""
+    from scientific.result import Output, OutputStatus
+
+    class _Bundle:
+        def output(self, name):
+            return Output(name, OutputStatus.FAILED,
+                          reason="integration did not converge")
+
+    class _Failing:
+        def run(self, params):
+            return _Bundle()
+
+    with pytest.raises(D.DOERefused, match="T_at_0 is FAILED: integration "
+                                           "did not converge"):
+        D._outputs(_Failing(), dict(PARAMS), ("T_at_0",))

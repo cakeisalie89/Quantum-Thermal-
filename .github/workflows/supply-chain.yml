@@ -1,5 +1,5 @@
 # Supply-chain path, executed: release candidate, SBOM, provenance, keyless
-# signature, verification, tamper refusal (Scientific-AI harness).
+# signature, verification, tamper refusal (Scientific AI Harness).
 #
 # WHAT IT ANSWERS. Does the harness's release candidate -- the commit's tree
 # packed deterministically, a CycloneDX SBOM of every locked environment, an
@@ -11,10 +11,9 @@
 #
 # CI_VALIDATION_ONLY. This signs a CI artifact to exercise the mechanism. It
 # creates no tag and no GitHub Release, and the policy it verifies against is
-# not a release trust root (that stays QTA_stage9_release_verification/
-# release_trust_policy.json, PENDING an owner's authorization). A valid
-# signature attests origin and integrity only, never scientific validity.
-# NO SLSA level is claimed.
+# not a release trust root: none exists, and creating one needs the owner's
+# authorization. A valid signature attests origin and integrity only, never
+# scientific validity. NO SLSA level is claimed.
 #
 # LEAST PRIVILEGE. contents: read for the checkout; id-token: write so the
 # job can obtain the ephemeral OIDC token Sigstore exchanges for a

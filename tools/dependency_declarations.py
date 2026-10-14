@@ -25,7 +25,7 @@ THE RULES, stated so the check cannot mean more than it does
 It does not prove a function-level import is reachable only where its group
 is installed; it proves nothing about imports by string (``importlib``).
 
-It also regenerates ``stage7_reports/dependency_inventory.json`` from
+It also regenerates ``docs/dependency_inventory.json`` from
 ``pyproject.toml`` and ``uv.lock`` (``--write``), and ``--check`` refuses a
 committed inventory that no longer matches them.
 """
@@ -44,7 +44,7 @@ from typing import Mapping
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-INVENTORY = "stage7_reports/dependency_inventory.json"
+INVENTORY = "docs/dependency_inventory.json"
 
 #: Import name -> distribution, for optional packages that are declared but
 #: not installed by ``--all-groups`` (extras), where metadata cannot say.
@@ -52,12 +52,10 @@ STATIC = {"SALib": "salib", "openmdao": "openmdao", "pxr": "usd-core"}
 
 #: Import name -> why the environment, not pyproject, supplies it.
 ENVIRONMENTAL = {
-    "dolfinx": "FEniCSx is not a plain wheel; it comes from conda-forge, "
-               "spack or the dolfinx container, and fem_fenicsx.py stays "
-               "STAGED when it is absent (pyproject says so)",
-    "sigstore": "installed by release.yml's verification step only; "
-                "verify_release.py fails closed with a named error when "
-                "it is absent",
+    "dolfinx": "FEniCSx is not a plain wheel; it lives in the isolated "
+               "environment built from "
+               "integrations/fenicsx/environment.lock, and only "
+               "integrations/fenicsx/runner.py, run there, imports it",
     "mpi4py": "part of the isolated FEniCSx environment "
               "(integrations/fenicsx/environment.lock); only "
               "integrations/fenicsx/runner.py, run there, imports it",
@@ -110,8 +108,7 @@ def tracked_py(root: Path = ROOT) -> list:
                        capture_output=True, text=True)
     if r.returncode != 0:
         raise SystemExit(f"git could not enumerate {root}: {r.stderr[:200]}")
-    return sorted(p for p in r.stdout.split("\0")
-                  if p and not p.startswith("attic/"))
+    return sorted(p for p in r.stdout.split("\0") if p)
 
 
 def local_names(paths: list) -> set:

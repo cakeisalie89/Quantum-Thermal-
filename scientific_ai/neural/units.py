@@ -1,8 +1,9 @@
 """The physical dimension of a unit, as this repository spells units.
 
-``docs/unit_inventory.json`` (and every ``Quantity``) is the authority on
-WHICH unit a quantity carries: a reviewed string such as ``K``, ``W/m^3``,
-``1/(m^2 s)`` or ``W m^-2 K^-4``, or one of the reviewed non-units
+A model's parameter schema, a dataset's feature schema and every
+``Quantity`` are the authority on WHICH unit a quantity carries: a reviewed
+string such as ``K``, ``W/m^3``, ``1/(m^2 s)`` or ``W m^-2 K^-4``, or one of
+the reviewed non-units
 ``DIMENSIONLESS``, ``COUNT``, ``ORDINAL``, ``PER_ROW``. Nothing here decides
 a unit. This module only reads one: it returns the SI base-dimension
 exponents and the factor to coherent SI, so that a model can tell 0.01 K
@@ -15,7 +16,8 @@ parenthesised; a factor is a symbol with an optional signed integer
 exponent (``m^-2``); ``1`` stands for an empty numerator. A symbol is matched
 exactly first (``Pa``, ``u``, ``m``), then as a decimal prefix on a unit
 (``mK``, ``us``). An unknown symbol is refused, never guessed:
-``tests/test_neural_units.py`` parses every unit in the inventory.
+``tests/test_neural_features.py`` parses every unit the admitted models and
+the development dataset declare.
 
 ``PER_ROW`` names a long-format column whose unit belongs to the row: it has
 no dimension of its own, so a feature cannot be built from it.
@@ -31,7 +33,7 @@ BASE = ("m", "kg", "s", "A", "K", "mol", "cd")
 
 #: Dimension classes the tokenizer embeds. PHYSICAL covers every unit with
 #: an SI form, including a genuine ratio written ``1``; the three non-units
-#: are the inventory's reviewed vocabulary.
+#: are the reviewed vocabulary.
 PHYSICAL = "PHYSICAL"
 DIMENSIONLESS = "DIMENSIONLESS"
 COUNT = "COUNT"
@@ -70,7 +72,7 @@ _UNITS = {
     "C": (_dim(A=1, s=1), 1.0),
     "V": (_dim(kg=1, m=2, s=-3, A=-1), 1.0),
     "eV": (_dim(kg=1, m=2, s=-2), 1.602176634e-19),
-    # the unified atomic mass unit (CODATA 2018), as the inventory writes it
+    # the unified atomic mass unit (CODATA 2018), as the repository writes it
     "u": (_dim(kg=1), 1.66053906660e-27),
     # plane angle and information: SI-dimensionless, kept by name in the
     # feature's identity rather than in its exponents

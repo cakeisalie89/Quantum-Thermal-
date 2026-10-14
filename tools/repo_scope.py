@@ -80,15 +80,12 @@ COMMITTED_RELEASE = "COMMITTED_RELEASE"
 #: what it claims to check.
 MIN_PLAUSIBLE_PY_FILES = 50
 
-#: Prefixes never worth scanning even when git would list them. Kept short
-#: on purpose: every entry is a hole, so each one has to earn its place.
-#:
-#: ``attic/`` is the one that does the work here, because it is TRACKED --
-#: it is the retired corpus, kept for history and excluded from linting for
-#: the same reason. The others are belt-and-braces: git already ignores
-#: .venv and build output, so ``--exclude-standard`` drops them before this
-#: list is consulted.
-_SKIP = (".venv/", "attic/", "build/", "dist/", "node_modules/")
+#: Prefixes never worth scanning even when git would list them. Every entry
+#: is a hole, so none names anything git tracks: these are belt-and-braces,
+#: git already ignores them and ``--exclude-standard`` drops them first. A
+#: retired corpus once lived here as a tracked skip; it left the tree, and a
+#: skip for it would now only hide its return from every guard.
+_SKIP = (".venv/", "build/", "dist/", "node_modules/")
 
 
 def _filter(names, pattern: str, include_tests: bool) -> tuple:

@@ -212,7 +212,7 @@ def horizon(tmp_path_factory):
 
     import harness_demo as HD
     from agent_substrate.governed_model import GovernedModelRuns
-    from qta_multiphysics.stack.rag_index import retrieve
+    from agent_substrate.rag_index import retrieve
     h.agents.register(identity(agent_id=HD.AGENT, instance_id=HD.AGENT,
                                kind=PrincipalKind.AGENT,
                                roles={AgentRole.PROPOSER}), by="system")

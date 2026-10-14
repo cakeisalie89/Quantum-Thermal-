@@ -1,286 +1,261 @@
 {
-  "schema_version": "1.0.0",
-  "stage": "stage10",
-  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
-  "automatic_gate_effect": "NONE",
-  "owner": "STACK.md (narrative) + this file (machine-readable); code is the authority and both mirror it",
-  "adoption_levels": {
-    "ADOPTED": "in use, exercised by CI or the workflow, and its behaviour is verified in this repository",
-    "STAGED": "interface and acceptance criteria are written and executable, but the tool is not installed, not exercised, and produces nothing authoritative",
-    "DEFERRED": "deliberately not built; the contract is recorded so later work is implementation rather than redesign",
-    "ADOPTED_ADMISSION_MECHANISM_ONLY": "the governing rule or gate is in use and verified, but the tool it governs is not consumed by any scientific path",
-    "RESOLVED": "decided by a measured rule: each candidate explicitly adopted or rejected, the decision committed and re-derived on a hosted runner; nothing is in force beyond what the decision says"
+ "schema_version": "2.0.0",
+ "label": "SOFTWARE_STACK_REGISTRY: what is in use and how it is checked; not evidence and not authority",
+ "authority_effect": "NONE",
+ "owner": "STACK.md (narrative) + this file (machine-readable); code is the authority and both mirror it",
+ "adoption_levels": {
+  "ADOPTED": "in use, exercised by CI or the workflow, and its behaviour is verified in this repository",
+  "STAGED": "interface and acceptance criteria are written and executable, but the tool is not installed, not exercised, and produces nothing authoritative",
+  "DEFERRED": "deliberately not built; the contract is recorded so later work is implementation rather than redesign",
+  "RESOLVED": "decided by a measured rule: each candidate explicitly adopted or rejected, the decision committed and re-derived on a hosted runner; nothing is in force beyond what the decision says"
+ },
+ "invariants": [
+  "additive: no scientific model imports an integration, and no integration's output is a model input",
+  "workspace-only: every writer refuses to write outside verification/ (scientific/workspace.py)",
+  "no authority effect: authority_effect = NONE for every element; none may admit or promote a result",
+  "fail-closed optionality: an absent optional dependency reports UNAVAILABLE and nothing is recorded as a pass",
+  "deterministic bytes: every governed artifact is reproducible byte-for-byte from the same inputs on the same backend"
+ ],
+ "elements": [
+  {
+   "id": "python-scientific-core",
+   "name": "Python scientific core (NumPy / SciPy)",
+   "doc_key": "Python scientific core (NumPy/SciPy)",
+   "status": "ADOPTED",
+   "authority": "scientific/models: each model's own numerics, identified by the digest of its source closure",
+   "owner_module": "scientific.models",
+   "optional_dependency": null,
+   "boundary": "the arithmetic the scientific models run on; a model's result is admitted only through an independent check and a distinct reviewer, never because NumPy or SciPy computed it",
+   "verification": "python -m pytest tests/test_scientific_interfaces.py tests/test_surface_adsorption.py",
+   "open_items": []
   },
-  "invariants": [
-    "additive: no Stage-10 module is imported by the solvers, the gate logic, or qta_full_sim.py",
-    "workspace-only: Stage-10 writers refuse to write into the repository root or any governed directory",
-    "no gate effect: automatic_gate_effect = NONE for every element; none may create or promote a gate",
-    "fail-closed optionality: an absent optional dependency reports UNAVAILABLE and defers to the in-repo authority",
-    "deterministic bytes: every Stage-10 artifact is reproducible byte-for-byte from the same inputs"
-  ],
-  "elements": [
-    {
-      "id": "python-scientific-core",
-      "name": "Python scientific core (NumPy / SciPy / QuTiP)",
-      "doc_key": "Python scientific core (NumPy/SciPy/QuTiP)",
-      "status": "ADOPTED",
-      "since_stage": "pre-stage7",
-      "authority": "qta_multiphysics/ solvers + qta_full_sim.py",
-      "owner_module": "qta_multiphysics",
-      "boundary": "the numerical authority of the project; every other stack element is additive to it",
-      "verification": "python qta_full_sim.py && python package_consistency_check.py",
-      "open_items": []
-    },
-    {
-      "id": "snakemake",
-      "name": "Snakemake workflow",
-      "doc_key": "Snakemake",
-      "status": "ADOPTED",
-      "since_stage": "stage7",
-      "authority": "Snakefile",
-      "owner_module": "Snakefile",
-      "boundary": "wraps the authoritative commands; rewrites no solver and never writes the canonical tree",
-      "verification": "snakemake --cores 1 full_verification",
-      "open_items": []
-    },
-    {
-      "id": "uv",
-      "name": "uv (resolution and environment)",
-      "doc_key": "uv",
-      "status": "ADOPTED",
-      "since_stage": "stage7",
-      "authority": "uv.lock (resolution) + pyproject.toml (declaration)",
-      "owner_module": "pyproject.toml",
-      "boundary": "Stage-10 optional packages are project extras, not dependency groups, so `uv sync --all-groups` stays lean",
-      "verification": "uv sync --frozen --all-groups",
-      "open_items": []
-    },
-    {
-      "id": "containers",
-      "name": "Reproducible container",
-      "doc_key": "Reproducible container",
-      "status": "ADOPTED",
-      "since_stage": "stage7",
-      "authority": "Dockerfile + container_verify.sh + .github/workflows/container-verify.yml",
-      "owner_module": "Dockerfile",
-      "boundary": "the image fixes the software environment, not the host CPU: numerical bytes may differ between runners and are compared under the equivalence policy, never required equal. Built and run on a hosted runner on every push to the branch (qta-container-verify run 37966478474 at 5ab44a7, green): digest-pinned base confirmed against the served manifest, non-root user, no host virtualenv, the current harness and the generic end-to-end demonstration run in the image and compared with the same demonstration run natively. It certifies the runs it hosts, never a scientific result. The Rust extension is not built into it. Local builds in the development sandbox remain blocked by blob egress; the evidence is hosted.",
-      "verification": "bash container_verify.sh (inside the image); .github/workflows/container-verify.yml builds, runs and compares it on a hosted runner",
-      "open_items": []
-    },
-    {
-      "id": "pytest-hypothesis",
-      "name": "pytest + Hypothesis",
-      "doc_key": "pytest + Hypothesis",
-      "status": "ADOPTED",
-      "since_stage": "stage7",
-      "authority": "tests/",
-      "owner_module": "tests",
-      "boundary": "software verification only; a passing suite never converts a forecast into a measurement",
-      "verification": "pytest tests/ -q",
-      "open_items": []
-    },
-    {
-      "id": "ruff-mypy-pydantic",
-      "name": "Ruff + mypy + Pydantic",
-      "doc_key": "Ruff + mypy + Pydantic",
-      "status": "ADOPTED",
-      "since_stage": "stage7",
-      "authority": "pyproject.toml [tool.ruff]/[tool.mypy] + qta_multiphysics/stage7_boundary_models.py + qta_multiphysics/stack/registry.py",
-      "owner_module": "qta_multiphysics.stage7_boundary_models",
-      "boundary": "trusted-boundary validation only; the Pydantic models validate hand-editable documents (matrix update requests, this registry) and never become a competing vocabulary authority",
-      "verification": "ruff check . && mypy qta_multiphysics/stack qta_multiphysics/stage7_boundary_models.py",
-      "open_items": []
-    },
-    {
-      "id": "hdf5",
-      "name": "HDF5 data layer",
-      "doc_key": "HDF5",
-      "status": "ADOPTED",
-      "since_stage": "stage8",
-      "authority": "hdf5_output_mapping.json + hdf5_schema.json + build_hdf5.py",
-      "owner_module": "build_hdf5.py",
-      "boundary": "representation only; equivalence with the canonical CSV/JSON outputs is checked, not assumed",
-      "verification": "snakemake --cores 1 s8_full",
-      "open_items": []
-    },
-    {
-      "id": "ro-crate",
-      "name": "RO-Crate packaging",
-      "doc_key": "RO-Crate",
-      "status": "ADOPTED",
-      "since_stage": "stage8",
-      "authority": "ro_crate_tools.py + ro-crate/ro-crate-metadata.json",
-      "owner_module": "ro_crate_tools.py",
-      "boundary": "metadata packaging only; the crate restates the claim boundary and adds no evidence",
-      "verification": "python3 ro_crate_tools.py validate",
-      "open_items": []
-    },
-    {
-      "id": "slsa-sigstore",
-      "name": "SLSA provenance + Sigstore signing",
-      "doc_key": "SLSA + Sigstore",
-      "status": "ADOPTED",
-      "since_stage": "stage9",
-      "authority": "tools/supply_chain.py + docs/supply_chain_ci_policy.json + .github/workflows/supply-chain.yml",
-      "owner_module": "tools/supply_chain.py",
-      "boundary": "a signature attests origin and integrity only, never scientific validity. What is adopted: the release candidate built deterministically for the commit (source archive, CycloneDX SBOM, SLSA-v1-layout provenance, index), signed with the workflow's GitHub OIDC identity, verified online and offline against the EXACT pinned identity and issuer, and a tamper suite run on a signed copy (supply-chain run 37966478453 at 5ab44a7, green). No SLSA build level is claimed: the provenance is produced by the workflow it describes, not by an isolated builder.",
-      "verification": "python tools/supply_chain.py verify --dir rc --mode online|offline|digests  # the hosted supply-chain job",
-      "open_items": [
-        "no release is published and no tag is created: publication needs the owner's separate authorization",
-        "no SLSA build level is claimed"
-      ]
-    },
-    {
-      "id": "rag-read-only",
-      "name": "Governed read-only retrieval over reviewed documents",
-      "doc_key": "Governed read-only retrieval",
-      "status": "ADOPTED",
-      "since_stage": "stage10",
-      "authority": "qta_multiphysics/stack/rag_index.py",
-      "owner_module": "qta_multiphysics.stack.rag_index",
-      "optional_dependency": null,
-      "boundary": "retrieval only \u2014 verbatim cited spans, no generation, no network, no model client; retrieved text is never evidence",
-      "verification": "snakemake --cores 1 verification/stage10/rag/rag_index.json",
-      "open_items": []
-    },
-    {
-      "id": "paraview-vtk",
-      "name": "ParaView / VTK field export",
-      "doc_key": "ParaView / VTK",
-      "status": "ADOPTED",
-      "since_stage": "stage10",
-      "authority": "qta_multiphysics/stack/vtk_export.py",
-      "owner_module": "qta_multiphysics.stack.vtk_export",
-      "optional_dependency": null,
-      "boundary": "serializes solved cell-centred fields unchanged; no resampling, no smoothing, no added physics",
-      "verification": "snakemake --cores 1 verification/stage10/viz_determinism.json",
-      "open_items": []
-    },
-    {
-      "id": "openusd",
-      "name": "OpenUSD scene export",
-      "doc_key": "OpenUSD",
-      "status": "ADOPTED",
-      "since_stage": "stage10",
-      "authority": "qta_multiphysics/stack/usd_export.py",
-      "owner_module": "qta_multiphysics.stack.usd_export",
-      "optional_dependency": "usd-core (extra: viz) \u2014 validation only; the .usda text is written directly",
-      "boundary": "geometric representation of the solved domain; no prim is a solver input",
-      "verification": "snakemake --cores 1 verification/stage10/viz/usd/qta_domain_usd_manifest.json",
-      "open_items": []
-    },
-    {
-      "id": "salib",
-      "name": "SALib global sensitivity cross-check",
-      "doc_key": "SALib",
-      "status": "ADOPTED",
-      "since_stage": "stage10",
-      "authority": "qta_multiphysics/sensitivity_3d.py remains the sensitivity authority; qta_multiphysics/stack/sensitivity_salib.py is a cross-check",
-      "owner_module": "qta_multiphysics.stack.sensitivity_salib",
-      "optional_dependency": "SALib (extra: uq)",
-      "boundary": "disagreement with the canonical OAT ranking is reported, never resolved automatically",
-      "verification": "snakemake --cores 1 s10_uq_sobol   # opt-in, ~96 solves",
-      "open_items": [
-        "first cross-check disagrees with the canonical ranking on the top parameter (Kendall tau-b 0.667) \u2014 an open finding for human review, recorded in STACK.md"
-      ]
-    },
-    {
-      "id": "openmdao",
-      "name": "OpenMDAO design-space exploration",
-      "doc_key": "OpenMDAO",
-      "status": "ADOPTED",
-      "since_stage": "stage10",
-      "authority": "qta_full_sim.py remains the operating-point authority; qta_multiphysics/stack/mdao_openmdao.py explores only",
-      "owner_module": "qta_multiphysics.stack.mdao_openmdao",
-      "optional_dependency": "openmdao (extra: uq)",
-      "boundary": "only DESIGN-provenance parameters may be design variables; ASSUMED and LITERATURE_BOUND quantities are uncertainty and are rejected as knobs. Every result is NOT_A_RECOMMENDATION",
-      "verification": "snakemake --cores 1 s10_mdao_doe   # opt-in, one solve per sample",
-      "open_items": []
-    },
-    {
-      "id": "fenicsx",
-      "name": "FEniCSx (dolfinx) independent verifier",
-      "doc_key": "FEniCSx",
-      "status": "ADOPTED",
-      "since_stage": "harness",
-      "authority": "the governed producers in scientific/models remain the producers; FEniCSx is an INDEPENDENT_IMPLEMENTATION check whose verdict reaches authority only through the check contract and a distinct reviewer",
-      "owner_module": "scientific.checks.fenicsx_slab",
-      "optional_dependency": "dolfinx -- from the hash-pinned conda-forge lock integrations/fenicsx/environment.lock, created by tools/fenicsx_env.py; deliberately not a wheel dependency",
-      "boundary": "a verifier, never a producer: it admits or refuses a slab result and nothing it computes is admitted as a result. One problem class, the transient slab. Run single-process with MPI offered only self and shared-memory transports (D-2026-124). Executed on a hosted runner with the runtime REQUIRED (harness-integrations run 37966478567 at 5ab44a7: fenicsx and end-to-end jobs green). qta_multiphysics/stack/fem_fenicsx.py, the Stage-10 adapter for the legacy finite-volume backends, stays STAGED for that scope.",
-      "verification": "python tools/fenicsx_acceptance.py --out fenicsx_acceptance.json  # with HARNESS_FENICSX_PYTHON set; the hosted fenicsx and end-to-end jobs",
-      "open_items": [
-        "one problem class only: no FEniCSx check exists for the 2D axisymmetric or the 3D thermal models, or for the legacy finite-volume backends"
-      ]
-    },
-    {
-      "id": "rust-selective",
-      "name": "Selective Rust kernels (PyO3)",
-      "doc_key": "Selective Rust",
-      "status": "RESOLVED",
-      "since_stage": "stage10",
-      "authority": "the NumPy references in qta_multiphysics/stack/rust_kernel.py; a Rust kernel is an accelerator, never a second source of truth",
-      "owner_module": "qta_multiphysics.stack.rust_kernel",
-      "optional_dependency": "qta_kernels \u2014 built on demand from rust/qta_kernels, never installed by default",
-      "boundary": "decided by measurement (docs/rust_kernel_decisions.json, re-derived by the hosted rust-kernels job, harness-integrations run 37966478567 at 5ab44a7): both kernels REJECTED -- face_conductance has no production call site; conductivity_power_law has parity that depends on the host's SIMD dispatch, no call site and a 0.61x workload speed. RUST_BACKEND_NOT_ACTIVE: NumPy is in force, and an explicit Rust selection is refused unless a committed decision is ADOPTED and its certificate applies to the process -- refused, never rerouted. The bit-parity admission mechanism stays in force for any later candidate. There is no active Rust scientific backend in this repository.",
-      "verification": "snakemake --cores 1 verification/stage10/rust/rust_kernel_status.json",
-      "open_items": [
-        "conductivity_power_law is REJECTED against a NumPy built with AVX-512 (2 ulp) and BIT-IDENTICAL against one without it: parity is conditional on the host's SIMD dispatch, which rust_kernel_status.json records beside every verdict. The decision does not depend on this host's verdict: it is REJECTED in every dispatch (no call site, 0.61x). D-2026-58",
-        "no scientific path consumes either kernel; a future candidate is decided by the same rule"
-      ]
-    },
-    {
-      "id": "fmi",
-      "name": "FMI 3.0 co-simulation (FMU runtime and boundary)",
-      "doc_key": "FMI 3.0",
-      "status": "ADOPTED",
-      "since_stage": "harness",
-      "authority": "an FMU result is a SIMULATION_RESULT, NON_AUTHORITATIVE, admitted only through the independent check scientific/checks/fmu_rc2.py and a distinct reviewer",
-      "owner_module": "scientific.fmi_boundary",
-      "optional_dependency": "fmpy -- from the hash-pinned integrations/fmi/runtime.lock, in its own runtime (tools/isolated_runtime.py)",
-      "boundary": "one generic FMU (integrations/fmi/thermal_rc2, a two-node thermal RC network) is built from C against hash-checked FMI 3.0 headers, loaded by fmpy, stepped, its state serialized, restored and replayed; P2-P5 hold for it; its fault twin is REJECTED by the independent check. Executed on a hosted runner (harness-integrations run 37966478567 at 5ab44a7: fmi and end-to-end jobs green). Its bytes are claimed identical between two builds on one host only. qta_multiphysics/stack/fmi_contract.py keeps its DEFERRED interface contract for exporting the legacy solvers, which is not done.",
-      "verification": "python tools/fmi_acceptance.py  # with HARNESS_FMI_PYTHON set; the hosted fmi and end-to-end jobs",
-      "open_items": [
-        "no FMU of the legacy finite-volume solvers is exported: fmi_contract.py's prerequisites for that export (FMI-P1 to FMI-P5) stay open for those solvers"
-      ]
-    },
-    {
-      "id": "authority-substrate",
-      "name": "Governed authority substrate",
-      "doc_key": "Authority substrate",
-      "status": "ADOPTED",
-      "since_stage": "harness",
-      "authority": "agent_substrate: the authenticated event log and the authority store's gate decide admission; agent_substrate/reconstruct.py is the independent second reader",
-      "owner_module": "agent_substrate",
-      "optional_dependency": null,
-      "boundary": "decides admission of results and computes none: no scientific module imports it (tests/test_agent_substrate_isolation.py), and nothing learned or proposed reaches VERIFIED except through a governed run, an independent check and a distinct reviewer",
-      "verification": "python -m pytest tests/test_agent_*.py  # and the qta-agent-substrate workflow's mutation shards",
-      "open_items": []
-    },
-    {
-      "id": "generic-scientific-layer",
-      "name": "Generic scientific layer",
-      "doc_key": "Generic scientific layer",
-      "status": "ADOPTED",
-      "since_stage": "harness",
-      "authority": "scientific: models produce ResultBundles, checks return VerificationResults, the authority store admits",
-      "owner_module": "scientific",
-      "optional_dependency": null,
-      "boundary": "imports no hardware ontology and no legacy QTA module (tests/test_scientific_import_isolation.py); an HDF5 bundle is a representation, never evidence of admission",
-      "verification": "python -m pytest tests/test_scientific_*.py",
-      "open_items": []
-    },
-    {
-      "id": "proposal-ingress",
-      "name": "AI proposal ingress",
-      "doc_key": "AI proposal ingress",
-      "status": "ADOPTED",
-      "since_stage": "harness",
-      "authority": "agent_substrate/authority.py: a proposal is NON_AUTHORITATIVE data; only a governed run, an independent check and a distinct reviewer reach a decision",
-      "owner_module": "agent_substrate.proposals",
-      "optional_dependency": null,
-      "boundary": "recorded-fixture and external-client adapters behind one envelope; no provider SDK and no network in the trusted core; a proposal is never authority, whoever or whatever made it",
-      "verification": "python -m pytest tests/test_proposal_ingress.py tests/test_harness_demo.py",
-      "open_items": []
-    }
-  ]
+  {
+   "id": "snakemake",
+   "name": "Snakemake workflow",
+   "doc_key": "Snakemake",
+   "status": "ADOPTED",
+   "authority": "Snakefile",
+   "owner_module": "Snakefile",
+   "optional_dependency": null,
+   "boundary": "orders the governed workflow and writes only under verification/; it decides nothing -- the authority store does",
+   "verification": "snakemake --cores 1 scientific_generic",
+   "open_items": []
+  },
+  {
+   "id": "uv",
+   "name": "uv (resolution and environment)",
+   "doc_key": "uv",
+   "status": "ADOPTED",
+   "authority": "uv.lock (resolution) + pyproject.toml (declaration)",
+   "owner_module": "pyproject.toml",
+   "optional_dependency": null,
+   "boundary": "optional integrations are project extras, not dependency groups, so `uv sync --all-groups` stays lean",
+   "verification": "uv sync --frozen --all-groups",
+   "open_items": []
+  },
+  {
+   "id": "containers",
+   "name": "Reproducible container",
+   "doc_key": "Reproducible container",
+   "status": "ADOPTED",
+   "authority": "Dockerfile + container_verify.sh + .github/workflows/container-verify.yml",
+   "owner_module": "Dockerfile",
+   "optional_dependency": null,
+   "boundary": "the image fixes the software environment, not the host CPU: numerical bytes may differ between runners and are compared under the equivalence policy, never required equal. Built and run on a hosted runner on every push to the branch: digest-pinned base confirmed against the served manifest, non-root user, no host virtualenv, the harness's audits and the generic end-to-end demonstration run in the image and compared with the same demonstration run natively. It certifies the runs it hosts, never a scientific result.",
+   "verification": "bash container_verify.sh (inside the image); .github/workflows/container-verify.yml builds, runs and compares it on a hosted runner",
+   "open_items": []
+  },
+  {
+   "id": "pytest-hypothesis",
+   "name": "pytest + Hypothesis",
+   "doc_key": "pytest + Hypothesis",
+   "status": "ADOPTED",
+   "authority": "tests/",
+   "owner_module": "tests",
+   "optional_dependency": null,
+   "boundary": "software verification only; a passing suite never converts a simulation into a measurement",
+   "verification": "pytest tests/ -q",
+   "open_items": []
+  },
+  {
+   "id": "ruff-mypy-pydantic",
+   "name": "Ruff + mypy + Pydantic",
+   "doc_key": "Ruff + mypy + Pydantic",
+   "status": "ADOPTED",
+   "authority": "pyproject.toml [tool.ruff] + typecheck_active.ini + tools/typecheck_scope.py + tools/stack_registry.py",
+   "owner_module": "tools/typecheck_scope.py",
+   "optional_dependency": null,
+   "boundary": "static discipline and trusted-boundary validation only; the Pydantic models validate hand-editable documents (this registry among them) and never become a competing vocabulary authority",
+   "verification": "python tools/typecheck_scope.py check  # and ruff over every tracked Python file; tests/test_typecheck_scope.py",
+   "open_items": []
+  },
+  {
+   "id": "hdf5",
+   "name": "HDF5 data layer",
+   "doc_key": "HDF5",
+   "status": "ADOPTED",
+   "authority": "scientific/hdf5_bundle.py: a ResultBundle written to HDF5 and read back exactly",
+   "owner_module": "scientific.hdf5_bundle",
+   "optional_dependency": null,
+   "boundary": "representation only; a bundle read back from HDF5 is checked against the one written, and is never evidence of admission",
+   "verification": "python -m pytest tests/test_hdf5_bundle.py",
+   "open_items": []
+  },
+  {
+   "id": "ro-crate",
+   "name": "RO-Crate packaging",
+   "doc_key": "RO-Crate",
+   "status": "ADOPTED",
+   "authority": "ro_crate_tools.py + ro-crate/ro-crate-metadata.json",
+   "owner_module": "ro_crate_tools.py",
+   "optional_dependency": null,
+   "boundary": "metadata packaging only; the crate restates what is not claimed and adds no evidence; the community validator runs beside the in-repo one on a hosted runner",
+   "verification": "python3 ro_crate_tools.py validate",
+   "open_items": []
+  },
+  {
+   "id": "slsa-sigstore",
+   "name": "SLSA provenance + Sigstore signing",
+   "doc_key": "SLSA + Sigstore",
+   "status": "ADOPTED",
+   "authority": "tools/supply_chain.py + docs/supply_chain_ci_policy.json + .github/workflows/supply-chain.yml",
+   "owner_module": "tools/supply_chain.py",
+   "boundary": "a signature attests origin and integrity only, never scientific validity. What is adopted: the release candidate built deterministically for the commit (source archive, CycloneDX SBOM, SLSA-v1-layout provenance, index), signed with the workflow's GitHub OIDC identity, verified online and offline against the EXACT pinned identity and issuer, and a tamper suite run on a signed copy, on a hosted runner on every push to the branch. No SLSA build level is claimed: the provenance is produced by the workflow it describes, not by an isolated builder.",
+   "verification": "python tools/supply_chain.py verify --dir rc --mode online|offline|digests  # the hosted supply-chain job",
+   "open_items": [
+    "no release is published and no tag is created: publication needs the owner's separate authorization",
+    "no SLSA build level is claimed"
+   ],
+   "optional_dependency": null
+  },
+  {
+   "id": "rag-read-only",
+   "name": "Governed read-only retrieval over reviewed documents",
+   "doc_key": "Governed read-only retrieval",
+   "status": "ADOPTED",
+   "authority": "agent_substrate/rag_index.py",
+   "owner_module": "agent_substrate.rag_index",
+   "optional_dependency": null,
+   "boundary": "retrieval only -- verbatim cited spans, no generation, no network, no model client; retrieved text is never evidence, and only documents a reviewed commit allowlisted are read",
+   "verification": "snakemake --cores 1 verification/stage10/rag/rag_index.json",
+   "open_items": []
+  },
+  {
+   "id": "paraview-vtk",
+   "name": "ParaView / VTK field export",
+   "doc_key": "ParaView / VTK",
+   "status": "ADOPTED",
+   "authority": "scientific/integrations/vtk_export.py",
+   "owner_module": "scientific.integrations.vtk_export",
+   "optional_dependency": null,
+   "boundary": "serializes a solved cell-centred field unchanged and reads it back at a stated tolerance; no resampling, no smoothing, not evidence",
+   "verification": "snakemake --cores 1 verification/stage10/viz/vtk/slab_vtk_report.json",
+   "open_items": []
+  },
+  {
+   "id": "openusd",
+   "name": "OpenUSD scene export",
+   "doc_key": "OpenUSD",
+   "status": "ADOPTED",
+   "authority": "scientific/integrations/usd_export.py",
+   "owner_module": "scientific.integrations.usd_export",
+   "optional_dependency": "usd-core (extra: viz) -- validation only; the .usda text is written directly",
+   "boundary": "geometric representation of a model's domain and its reported probes; no prim is a model input, and the stage is not evidence",
+   "verification": "snakemake --cores 1 verification/stage10/viz/usd/slab_usd_report.json",
+   "open_items": []
+  },
+  {
+   "id": "salib",
+   "name": "SALib global sensitivity cross-check",
+   "doc_key": "SALib",
+   "status": "ADOPTED",
+   "authority": "scientific/sensitivity.py: one-at-a-time and Sobol rankings of a model's response, compared at declared resolution",
+   "owner_module": "scientific.sensitivity",
+   "optional_dependency": "SALib (extra: uq)",
+   "boundary": "a disagreement between the local and the global ranking is reported as METHODS_DISAGREE and REQUIRES_HUMAN_INTERPRETATION, never resolved automatically; NON_AUTHORITATIVE",
+   "verification": "snakemake --cores 1 uq_sobol   # opt-in",
+   "open_items": []
+  },
+  {
+   "id": "openmdao",
+   "name": "OpenMDAO design-space exploration",
+   "doc_key": "OpenMDAO",
+   "status": "ADOPTED",
+   "authority": "scientific/integrations/openmdao_doe.py",
+   "owner_module": "scientific.integrations.openmdao_doe",
+   "optional_dependency": "openmdao (extra: uq)",
+   "boundary": "explores only a model's declared, numeric, in-bounds parameters; every case is cross-checked byte for byte against a direct run; the report is EXPLORATION_ONLY NOT_A_RECOMMENDATION and not evidence",
+   "verification": "snakemake --cores 1 mdao_doe   # opt-in",
+   "open_items": []
+  },
+  {
+   "id": "fenicsx",
+   "name": "FEniCSx (dolfinx) independent verifier",
+   "doc_key": "FEniCSx",
+   "status": "ADOPTED",
+   "authority": "the governed producers in scientific/models remain the producers; FEniCSx is an INDEPENDENT_IMPLEMENTATION check whose verdict reaches authority only through the check contract and a distinct reviewer",
+   "owner_module": "scientific.checks.fenicsx_slab",
+   "optional_dependency": "dolfinx -- from the hash-pinned conda-forge lock integrations/fenicsx/environment.lock, created by tools/fenicsx_env.py; deliberately not a wheel dependency",
+   "boundary": "a verifier, never a producer: it admits or refuses a slab result and nothing it computes is admitted as a result. One problem class, the transient slab. Run single-process with MPI offered only self and shared-memory transports (D-2026-124). Executed on a hosted runner with the runtime REQUIRED (the harness-integrations fenicsx and end-to-end jobs).",
+   "verification": "python tools/fenicsx_acceptance.py --out fenicsx_acceptance.json  # with HARNESS_FENICSX_PYTHON set; the hosted fenicsx and end-to-end jobs",
+   "open_items": [
+    "one problem class only: no FEniCSx check exists for the two-node RC network or the Langmuir capture model"
+   ]
+  },
+  {
+   "id": "fmi",
+   "name": "FMI 3.0 co-simulation (FMU runtime and boundary)",
+   "doc_key": "FMI 3.0",
+   "status": "ADOPTED",
+   "authority": "an FMU result is a SIMULATION_RESULT, NON_AUTHORITATIVE, admitted only through the independent check scientific/checks/fmu_rc2.py and a distinct reviewer",
+   "owner_module": "scientific.fmi_boundary",
+   "optional_dependency": "fmpy -- from the hash-pinned integrations/fmi/runtime.lock, in its own runtime (tools/isolated_runtime.py)",
+   "boundary": "one generic FMU (integrations/fmi/thermal_rc2, a two-node thermal RC network) is built from C against hash-checked FMI 3.0 headers, loaded by fmpy, stepped, its state serialized, restored and replayed; P2-P5 hold for it; its fault twin is REJECTED by the independent check. Executed on a hosted runner (the harness-integrations fmi and end-to-end jobs). Its bytes are claimed identical between two builds on one host only.",
+   "verification": "python tools/fmi_acceptance.py  # with HARNESS_FMI_PYTHON set; the hosted fmi and end-to-end jobs",
+   "open_items": []
+  },
+  {
+   "id": "authority-substrate",
+   "name": "Governed authority substrate",
+   "doc_key": "Authority substrate",
+   "status": "ADOPTED",
+   "authority": "agent_substrate: the authenticated event log and the authority store's gate decide admission; agent_substrate/reconstruct.py is the independent second reader",
+   "owner_module": "agent_substrate",
+   "optional_dependency": null,
+   "boundary": "decides admission of results and computes none: no scientific module imports it (tests/test_agent_substrate_isolation.py), and nothing learned or proposed reaches VERIFIED except through a governed run, an independent check and a distinct reviewer",
+   "verification": "python -m pytest tests/test_agent_*.py  # and the agent-substrate workflow's mutation shards",
+   "open_items": []
+  },
+  {
+   "id": "generic-scientific-layer",
+   "name": "Generic scientific layer",
+   "doc_key": "Generic scientific layer",
+   "status": "ADOPTED",
+   "authority": "scientific: models produce ResultBundles, checks return VerificationResults, the authority store admits",
+   "owner_module": "scientific",
+   "optional_dependency": null,
+   "boundary": "imports nothing of the agent substrate and nothing the repository retired (tests/test_agent_substrate_isolation.py, tools/repo_content_audit.py); an HDF5 bundle is a representation, never evidence of admission",
+   "verification": "python -m pytest tests/test_scientific_*.py",
+   "open_items": []
+  },
+  {
+   "id": "proposal-ingress",
+   "name": "AI proposal ingress",
+   "doc_key": "AI proposal ingress",
+   "status": "ADOPTED",
+   "authority": "agent_substrate/authority.py: a proposal is NON_AUTHORITATIVE data; only a governed run, an independent check and a distinct reviewer reach a decision",
+   "owner_module": "agent_substrate.proposals",
+   "optional_dependency": null,
+   "boundary": "recorded-fixture and external-client adapters behind one envelope; no provider SDK and no network in the trusted core; a proposal is never authority, whoever or whatever made it",
+   "verification": "python -m pytest tests/test_proposal_ingress.py tests/test_harness_demo.py",
+   "open_items": []
+  }
+ ],
+ "retired": [
+  {
+   "id": "rust-selective",
+   "retired_at": "b8aac891f3d767b2598acaf413c099afcefcba30",
+   "why": "both candidate kernels were REJECTED by measurement (no production call site; parity dependent on the host's SIMD dispatch; a 0.61x workload speed), and the kernels served only the retired hardware programme's solver, removed with it. No Rust scientific backend exists."
+  }
+ ]
 }

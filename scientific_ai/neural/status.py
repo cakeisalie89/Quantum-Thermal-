@@ -1,14 +1,9 @@
-"""The current status of the Scientific-AI harness, derived from evidence.
+"""The current status of the learned-model substrate, derived from evidence.
 
 A reader who opens this repository should not have to reconstruct what has
-been done from a gate table that belongs to something else. The legacy QTA
-hardware forecast's ``PASS_count = 0`` is a fact about that forecast -- no
-gate could pass because nothing was measured -- and it is reported here in
-its own section, labelled LEGACY_QTA_ONLY, and NOWHERE ELSE: every other
-section is computed from the learned-model substrate's own documents, and
-:func:`build` takes the legacy gate statuses as a separate argument that no
-other section reads (``tests/test_claim_hygiene.py`` changes it and requires
-everything else to stay the same).
+been done from prose. Every section here is computed from the learned-model
+substrate's own committed documents, which :func:`build` receives as
+arguments and which the status lists by digest.
 
 Pure: it reads nothing and imports no framework. ``tools/neural.py status``
 gathers the committed documents, calls :func:`build`, and writes the JSON
@@ -21,8 +16,7 @@ from __future__ import annotations
 
 from . import claims as C
 
-SCHEMA = "scientific-ai-current-status/1"
-LEGACY_LABEL = "LEGACY_QTA_ONLY"
+SCHEMA = "scientific-ai-current-status/2"
 
 
 def _held(table: dict, scope: str) -> list:
@@ -174,68 +168,29 @@ def _distributed(report: dict) -> dict:
     }
 
 
-def _reproduction(witness_profile: dict, equivalence: str) -> dict:
-    ws = witness_profile["witnesses"]
+def _reproduction(equivalence: str) -> dict:
     return {
-        "stored_witness": [{
-            "context": "the witnessed numerical backend, by digest: the "
-                       "byte-reproduction witness profile, not a hosted "
-                       "runner",
-            "backend_digest": w["backend_digest"],
-            "compared": w["observed"]["compared"],
-            "byte_identical": w["observed"]["byte_identical"],
-            "observed_at": w["observed"]["head"],
-            "on": w["observed"]["on"]} for w in ws],
-        "generic_hosted_runner": (
-            "may resolve a DIFFERENT numerical backend; such a run reports "
-            "REPRODUCTION_STATUS="
-            "DIFFERENT_RESOLVED_BACKEND and at best CROSS_ENV_STATUS="
-            "DECISION_STABLE_WITH_NUMERIC_DRIFT -- decision stability, not "
-            "byte identity; each run's result belongs to its own commit"),
+        "byte_reproduction": (
+            "per run: a regeneration's result belongs to the commit and the "
+            "resolved numerical backend it ran on; no stored witness stands "
+            "in for a run"),
         "scientific_equivalence": equivalence,
     }
 
 
-def _legacy(gate_statuses: dict, pass_audit: dict, mode_audit: dict) -> dict:
-    return {
-        "classification": LEGACY_LABEL,
-        "what": "the legacy QTA hardware-forecast gate table "
-                "(results_gate_table.csv)",
-        "gates": sum(gate_statuses.values()),
-        "statuses": dict(sorted(gate_statuses.items())),
-        "PASS_count": gate_statuses.get("PASS", 0),
-        "meaning": "a historical fact about the legacy hardware forecast: "
-                   "no gate could pass because nothing was measured. It is "
-                   "not a success metric of the Scientific-AI harness, the "
-                   "learned-model substrate or the agent substrate, and no "
-                   "other section of this status reads it",
-        "pass_semantics_audit": {
-            "current_ai_semantic_leaks":
-                pass_audit["current_ai_semantic_leaks"],
-            "unclassified": pass_audit["unclassified"]},
-        "hardware_era_mode_audit": {
-            "active_neural_semantic_leaks":
-                mode_audit["active_neural_semantic_leaks"],
-            "unclassified": mode_audit["unclassified"]},
-    }
-
-
 def build(*, flagship_manifest, flagship_meta, dev_manifest, claims_doc,
-          training, dataset,
-          evaluation, checkpoint, distributed, family, witness_profile,
-          equivalence, pass_audit, mode_audit, legacy_gate_statuses,
-          sources) -> dict:
-    """The status document. ``legacy_gate_statuses`` reaches ONLY the
-    legacy section."""
+          training, dataset, evaluation, checkpoint, distributed, family,
+          equivalence, sources) -> dict:
+    """The status document, every section from the documents passed in."""
     subj = claims_doc["subjects"]
     return {
         "schema": SCHEMA,
         "derived_from": sources,
         "programme": {
             "NF-1T": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-            "basis": "DECLARED by the NF-1T closure report "
-                     "(ARCHITECTURE_CONVERGENCE_PLAN.md, section 18) for "
-                     "the scope authorised and executed; not derived here",
+            "basis": "DECLARED by the NF-1T closure report for the scope "
+                     "authorised and executed (NEURAL_SUBSTRATE.md states "
+                     "that scope); not derived here",
         },
         "flagship": _flagship(flagship_manifest, subj["flagship"],
                               flagship_meta),
@@ -256,9 +211,7 @@ def build(*, flagship_manifest, flagship_meta, dev_manifest, claims_doc,
             "acceptance_attempted": claims_doc["acceptance_attempt"]["dst"],
             "acceptance_refused": claims_doc["acceptance_attempt"]["refused"],
         },
-        "reproduction": _reproduction(witness_profile, equivalence),
-        "legacy_qta_hardware_forecast": _legacy(
-            legacy_gate_statuses, pass_audit, mode_audit),
+        "reproduction": _reproduction(equivalence),
     }
 
 
@@ -277,10 +230,10 @@ def render(st: dict) -> str:
     """The status as Markdown, every number from ``st``."""
     f, d = st["flagship"], st["development"]
     di, la = st["distributed"], st["learned_output_authority"]
-    rp, lg = st["reproduction"], st["legacy_qta_hardware_forecast"]
+    rp = st["reproduction"]
     prof = f["routing_profiles"]
     lines = [
-        "# Scientific-AI harness: current status",
+        "# Learned-model substrate: current status",
         "",
         "Generated by `tools/neural.py status` from the committed evidence "
         "(`docs/neural/current_status.json`, which lists every source by "
@@ -317,9 +270,6 @@ def render(st: dict) -> str:
         f"| epistemic uncertainty | {d['epistemic_uncertainty']} |",
         f"| scientific equivalence across backends | "
         f"{rp['scientific_equivalence']} |",
-        f"| legacy QTA hardware forecast | historical PASS_count "
-        f"{lg['PASS_count']} of {lg['gates']} gates -- {lg['classification']}"
-        ", not a current Scientific-AI success metric |",
         "",
         "## The flagship (`" + f["variant"] + "`)",
         "",
@@ -424,28 +374,11 @@ def render(st: dict) -> str:
         + (", ".join(f"{a} parallelism" for a in di["plan_only"]) or "none")
         + f". Distributed hardware: {di['hardware']}.",
         "",
-        "## Byte reproduction",
+        "## Reproduction",
         "",
-    ] + [
-        f"* Stored witness ({w['context']}): {w['byte_identical']}/"
-        f"{w['compared']} canonical files byte-identical on backend "
-        f"`{w['backend_digest'][:16]}...`, observed {w['on']}."
-        for w in rp["stored_witness"]
-    ] + [
-        f"* Generic hosted runners: {rp['generic_hosted_runner']}.",
+        f"* Byte reproduction: {rp['byte_reproduction']}.",
         f"* Scientific equivalence across backends: "
         f"{rp['scientific_equivalence']}.",
-        "",
-        "## Legacy QTA hardware forecast (" + lg["classification"] + ")",
-        "",
-        f"The legacy gate table has {lg['gates']} gates ("
-        + ", ".join(f"{k} {v}" for k, v in lg["statuses"].items())
-        + f"); its historical PASS_count is {lg['PASS_count']}: "
-        + lg["meaning"] + ". Audits: PASS semantics "
-        f"{lg['pass_semantics_audit']['current_ai_semantic_leaks']} "
-        "current-AI leaks; hardware-era modes "
-        f"{lg['hardware_era_mode_audit']['active_neural_semantic_leaks']} "
-        "leaks into the learned-model substrate.",
         "",
     ]
     return "\n".join(lines)

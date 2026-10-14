@@ -40,7 +40,7 @@ WHAT IT DOES NOT ESTABLISH
 That the outcomes are CORRECT. Every answer here is about the history: what
 records exist, whether they connect, whether they would be authorized if
 replayed now, and whether an independent reader agrees. A complete chain over
-a well-formed lie is still complete. ``automatic_gate_effect`` is NONE and
+a well-formed lie is still complete. ``authority_effect`` is NONE and
 nothing this prints is a scientific claim.
 """
 from __future__ import annotations

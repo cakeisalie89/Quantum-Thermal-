@@ -1,36 +1,32 @@
 #!/usr/bin/env python3
-"""The current-active type-check scope: what mypy must pass, what is frozen
-and why, and what is recorded as legacy typing debt instead.
+"""The current-active type-check scope: what mypy must pass, and what is
+frozen and why.
 
-Three sets partition every tracked Python file:
+Two sets partition every tracked Python file:
 
-* ACTIVE -- the agent substrate, the generic scientific layer, the learned-
-  model substrate, the Stage-10 stack adapters, the FMI/FEniCSx runtimes,
-  every tool, and ``ro_crate_tools.py`` (the harness's RO-Crate).
-  ``check`` runs mypy over all of it with the repository's own
-  configuration -- no global
-  ``--ignore-missing-imports``: a package without type information is
-  listed by name in ``typecheck_active.ini``, each one -- and exits with mypy's
-  status. CI runs it.
+* ACTIVE -- the agent substrate, the generic scientific layer and its
+  integrations, the learned-model substrate, the FMI/FEniCSx runtimes,
+  every tool, ``generate_manifest.py`` and ``ro_crate_tools.py``. ``check``
+  runs mypy over all of it with the repository's own configuration
+  (``typecheck_active.ini``) -- no global ``--ignore-missing-imports``: a
+  package without type information is listed by name, each one -- and
+  exits with mypy's status. CI runs it.
 * TESTS -- typed by their assertions; outside mypy by policy.
-* LEGACY -- the hardware-era QTA numerical tree and its release tooling.
-  Their errors are typing DEBT, measured and recorded in
-  ``docs/typing_scope.json`` by ``legacy --write``, never silenced and never
-  counted as the active scope's.
+
+A tracked Python file in neither is UNSCOPED, and ``partition`` reports it:
+there is no third set where code goes to escape the check.
 
 Inside ACTIVE, three modules are FROZEN: they are the source closure whose
 digest identifies ``surface.langmuir_capture``, and the NF-1T development
 dataset pins that digest. Adding an annotation to one of them changes the
 model's implementation identity and orphans the dataset's provenance, so
 their typing-only diagnostics are disabled -- by error code, for those
-modules only -- in ``typecheck_active.ini``, which is its own file
-because ``pyproject.toml`` is in the witness's environment lock and may not
-change. ``tests/test_typecheck_scope.py``
+modules only -- in ``typecheck_active.ini``. ``tests/test_typecheck_scope.py``
 holds the override to exactly this list and the list to the real closure.
 
     python tools/typecheck_scope.py check
     python tools/typecheck_scope.py partition
-    python tools/typecheck_scope.py legacy [--write]
+    python tools/typecheck_scope.py write      # docs/typing_scope.json
 """
 from __future__ import annotations
 
@@ -46,9 +42,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DOC = ROOT / "docs" / "typing_scope.json"
 CONFIG = ROOT / "typecheck_active.ini"
 
-ACTIVE = ("agent_substrate", "scientific", "scientific_ai",
-          "qta_multiphysics/stack", "integrations", "tools",
-          "ro_crate_tools.py")
+ACTIVE = ("agent_substrate", "scientific", "scientific_ai", "integrations",
+          "tools", "generate_manifest.py", "ro_crate_tools.py")
 TESTS = ("tests", "conftest.py")
 
 #: module -> why it is not edited, not even for an annotation
@@ -78,11 +73,12 @@ def _in(path: str, scope: tuple) -> bool:
 
 
 def partition(files: list[str]) -> dict[str, list[str]]:
-    """Every file in exactly one of ACTIVE, TESTS, LEGACY."""
-    out: dict[str, list[str]] = {"active": [], "tests": [], "legacy": []}
+    """Every file in exactly one of ACTIVE, TESTS or UNSCOPED; a tracked
+    tree has nothing in UNSCOPED."""
+    out: dict[str, list[str]] = {"active": [], "tests": [], "unscoped": []}
     for f in files:
         key = ("active" if _in(f, ACTIVE) else
-               "tests" if _in(f, TESTS) else "legacy")
+               "tests" if _in(f, TESTS) else "unscoped")
         out[key].append(f)
     return out
 
@@ -137,33 +133,22 @@ def check() -> int:
     return 1 if errors or code else 0
 
 
-def legacy(write: bool) -> int:
-    files = partition(_tracked())["legacy"]
-    code, out = _mypy(files)
-    errors, nfiles = summary(out)
-    per: dict[str, int] = {}
-    for line in out.splitlines():
-        if ": error:" in line:
-            f = line.split(":", 1)[0]
-            per[f] = per.get(f, 0) + 1
-    record = {
-        "measured_files": len(files), "errors": errors,
-        "files_with_errors": nfiles,
-        "by_file": dict(sorted(per.items())),
-        "command": "python tools/typecheck_scope.py legacy --write",
-        "note": "typing debt of the hardware-era QTA tree and its release "
-                "tooling: recorded, not enforced, never counted as the "
-                "active scope's"}
-    print(f"legacy typing debt: {errors} error(s) in {nfiles} of "
-          f"{len(files)} file(s)")
-    if write:
-        doc = {"schema": "typing-scope/1", "active": list(ACTIVE),
-               "tests": list(TESTS),
-               "frozen": {m: FROZEN[m] for m in sorted(FROZEN)},
-               "legacy": record}
-        DOC.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
-        print(f"wrote {DOC.relative_to(ROOT)}")
-    return 0 if code in (0, 1) else code
+def document() -> dict:
+    """``docs/typing_scope.json``: the scope as declared, and its
+    partition of the tracked tree."""
+    parts = partition(_tracked())
+    return {"schema": "typing-scope/2", "active": list(ACTIVE),
+            "tests": list(TESTS),
+            "frozen": {m: FROZEN[m] for m in sorted(FROZEN)},
+            "files": {k: len(v) for k, v in parts.items()},
+            "unscoped": parts["unscoped"]}
+
+
+def write() -> int:
+    doc = document()
+    DOC.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {DOC.relative_to(ROOT)}: {doc['files']}")
+    return 1 if doc["unscoped"] else 0
 
 
 def main(argv=None) -> int:
@@ -171,16 +156,18 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("check")
     sub.add_parser("partition")
-    lg = sub.add_parser("legacy")
-    lg.add_argument("--write", action="store_true")
+    sub.add_parser("write")
     args = ap.parse_args(argv)
     if args.cmd == "check":
         return check()
     if args.cmd == "partition":
-        for k, v in partition(_tracked()).items():
+        parts = partition(_tracked())
+        for k, v in parts.items():
             print(f"{k}: {len(v)}")
-        return 0
-    return legacy(args.write)
+        for f in parts["unscoped"]:
+            print(f"UNSCOPED: {f}")
+        return 1 if parts["unscoped"] else 0
+    return write()
 
 
 if __name__ == "__main__":

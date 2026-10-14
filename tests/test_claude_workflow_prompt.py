@@ -1,17 +1,20 @@
-"""The Claude workflow teaches the framework's rules, not QTA's (directive 11).
+"""The Claude workflow teaches the harness's rules.
 
-``.github/workflows/claude.yml`` hands every @claude run a system prompt. It
-used to state the QTA package's hardware-era invariants -- a PASS count of
-zero, can_PASS_now=NO -- as the repository's purpose. This holds the prompt
-to the framework's rules and keeps the retired ones out.
+``.github/workflows/claude.yml`` hands every @claude run a system prompt.
+This holds the prompt to the harness's rules, and holds it -- and the
+workflow's header -- to the same content audit as the rest of the tree.
 """
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "claude.yml"
+sys.path.insert(0, str(ROOT / "tools"))
+
+import repo_content_audit as RCA  # noqa: E402
 
 
 def _prompt() -> str:
@@ -30,34 +33,42 @@ REQUIRED = {
     "verification is not validation":
         "numerical verification (an independent implementation agreeing) "
         "is not experimental validation",
-    "legacy boundary": "tools/framework_boundary.py --check",
+    "content audit": "tools/repo_content_audit.py --check",
+    "no reintroduction": "Do not reintroduce it",
     "keep useful methods": "Do not delete a useful numerical or scientific "
-                           "method because its QTA wrapper is retired",
-    "extract before deleting": "do not mass-delete hardware files before "
-                               "their unique equations are extracted",
+                           "method without an equivalent generic "
+                           "implementation and its tests",
     "no merge": "do not merge",
     "no history rewrite": "do not rewrite published history",
     "no fabrication": "Never fabricate evidence",
 }
 
-RETIRED = ("PASS count", "can_PASS_now", "forecast-only", "Mode B",
-           "Mode D", "stays zero")
+
+def _retired_terms(text: str) -> list:
+    scanned = RCA._strip_protocol(text)
+    return sorted({m.group(0).lower() for _, rx in RCA._TERMS
+                   for m in rx.finditer(scanned)})
 
 
-def test_the_prompt_states_the_framework_rules():
+def test_the_prompt_states_the_harness_rules():
     prompt = _prompt()
     missing = [k for k, phrase in REQUIRED.items() if phrase not in prompt]
     assert not missing, missing
 
 
-def test_the_prompt_no_longer_teaches_the_retired_invariants():
-    prompt = _prompt()
-    assert [t for t in RETIRED if t in prompt] == []
+def test_the_prompt_carries_none_of_the_retired_vocabulary():
+    assert _retired_terms(_prompt()) == []
 
 
-def test_the_header_note_does_not_restate_them_as_current():
+def test_the_scan_would_see_a_retired_term_in_a_prompt():
+    """CONTROL: the check above reads the prompt with the audit's own
+    patterns, so it is not vacuous."""
+    planted = _prompt() + " " + RCA.RETIRED_NAMES[0]
+    assert _retired_terms(planted)
+
+
+def test_the_header_note_states_the_separation():
     text = WORKFLOW.read_text(encoding="utf-8")
     note = text[text.index("# GOVERNANCE NOTE."):text.index("name: ")]
-    assert "measured_in_this_system=false, automatic_gate_effect=NONE" \
-        not in note
     assert "certifies its own work" in note
+    assert "tools/repo_content_audit.py" in note

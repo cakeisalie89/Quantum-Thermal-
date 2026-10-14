@@ -1,4 +1,4 @@
-"""The production caller: a real Stage-10 run, mediated end to end.
+"""The production caller: a real governed artifact run, mediated end to end.
 
 WHY THIS EXISTS
 
@@ -19,11 +19,11 @@ This module puts one through the whole chain:
            -> durable state -> a remembered note that is not authority,
            all of it in one hash-chained log
 
-The workflow chosen is Stage-10 artifact generation. It is real (the Snakefile
-runs it, it writes files somebody reads), it is safe (``automatic_gate_effect``
+The workflow chosen is governed artifact generation. It is real (the Snakefile
+runs it, it writes files somebody reads), it is safe (``authority_effect``
 is NONE, and it writes only inside ``verification/stage10``), and it touches no
 scientific authority. Governing it demonstrates the control plane without
-putting a single gate, threshold or canonical output at risk.
+putting a single result, threshold or tracked file at risk.
 
 WHAT MAKES THIS NOT COSMETIC
 
@@ -64,7 +64,7 @@ not inherit a Python monkeypatch. So:
   IN-PROCESS MEDIATION -- what this module has.
       A connection attempted by this supervisor, or by any library it
       imported, is checked against the live grants. No egress grant is
-      issued for a governed Stage-10 run, so every such connection is
+      issued for a governed artifact run, so every such connection is
       refused.
 
   CHILD / DESCENDANT OS CONTAINMENT -- what this module does NOT have.
@@ -144,8 +144,8 @@ from .tasks import (
 from .tools import (Determinism, Field_, OutputFile, Registry, SideEffect,
                     ToolError, ToolNotRegistered, ToolSpec)
 
-#: Where governed Stage-10 work is allowed to write. The same subtree the
-#: Stage-10 workspace guard permits, so the two agree by construction rather
+#: Where governed work is allowed to write. The same subtree the
+#: governed workspace guard permits, so the two agree by construction rather
 #: than by two lists that must be kept in step.
 WORKSPACE_PREFIX = "verification/stage10"
 
@@ -165,7 +165,7 @@ SUBMITTER_ID = "stage10-submitter"
 WORKER_ID = "stage10-worker"
 VERIFIER_ID = "stage10-verifier"
 
-#: How many sequence numbers a Stage-10 lease is good for. Generous, because
+#: How many sequence numbers a governed lease is good for. Generous, because
 #: the run is short and a lease that lapses mid-execution costs a retry.
 LEASE_SEQS = 400
 
@@ -207,7 +207,7 @@ OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
 
 
 def governed_policy(version: int = 1) -> PolicyDocument:
-    """The rules a governed Stage-10 run is subject to.
+    """The rules a governed artifact run is subject to.
 
     Written as an explicit document rather than a permissive default so that
     the decision recorded for each step names a rule somebody can read. The
@@ -216,9 +216,9 @@ def governed_policy(version: int = 1) -> PolicyDocument:
     """
     return document(
         policy_id=POLICY_ID, version=version,
-        description=("Governed Stage-10 artifact generation. Provenance only: "
-                     "no rule here can affect a gate of the legacy QTA "
-                     "hardware forecast, whose PASS_count stays 0."),
+        description=("Governed artifact generation. Provenance only: "
+                     "no rule here can admit a scientific result or "
+                     "change a tracked file."),
         rules=(
             rule(rule_id="deny-worker-priority-escalation",
                  effect=Effect.DENY, actions=("scheduler.raise_priority",),
@@ -235,7 +235,7 @@ def governed_policy(version: int = 1) -> PolicyDocument:
                  actions=("scheduler.enqueue", "scheduler.dispatch",
                           "scheduler.cancel", "stage10.execute"),
                  subjects=("*",), roles=("*",), resources=("*",),
-                 reason="governed Stage-10 work is permitted",
+                 reason="governed work is permitted",
                  # CONDITIONAL, not unconditional. This path may run a tool
                  # provided its declared outputs are all accounted for and
                  # what it produced is captured as content. Neither condition
@@ -347,7 +347,7 @@ def tool_argv(tool_id: str, inputs: dict, *, modules=None) -> list:
 
 
 def governed_registry() -> Registry:
-    """The tools a governed Stage-10 run may invoke. Default-deny by omission.
+    """The tools a governed artifact run may invoke. Default-deny by omission.
 
     Each entry runs a module in a subprocess. They are declared
     ``NONDETERMINISTIC`` rather than optimistically: these adapters embed
@@ -447,7 +447,8 @@ class GovernedRun:
 
 
 class GovernedTasks:
-    """Runs Stage-10 work through the substrate. The production entry point."""
+    """Runs governed artifact work through the substrate. The production
+    entry point."""
 
     def __init__(self, *, root: Path, log: EventLog, evidence: EvidenceStore,
                  registry: Registry | None = None, notifier=None):
@@ -483,7 +484,7 @@ class GovernedTasks:
                                    policy_id=POLICY_ID,
                                    capacity={"slots": 2}).load()
         self.memory = MemoryStore(self.log, evidence=self.evidence).load()
-        #: No egress grant is ever issued here. The Stage-10 tool needs none,
+        #: No egress grant is ever issued here. The governed tool needs none,
         #: and an authority with no grants denies everything -- which is what
         #: the socket guard enforces during execution.
         self.network = NetworkAuthority(self.log).load()
@@ -2007,7 +2008,7 @@ class GovernedTasks:
             # A DECISION A PERSON MUST MAKE, raised as one.
             #
             # The row used to say the governed path raises no escalation
-            # "because nothing in a Stage-10 artifact run is a decision a
+            # "because nothing in a governed artifact run is a decision a
             # human must make". That was true of the successful path and
             # false of this one. Right here the system knows something it
             # cannot resolve: an external effect may or may not have
@@ -2122,14 +2123,14 @@ class GovernedTasks:
         """
         spec = self.registry.get(tool_id)
         builder = ContextBuilder(
-            task_id=task_id, purpose=f"governed Stage-10 run of {tool_id}",
+            task_id=task_id, purpose=f"governed artifact run of {tool_id}",
             policy_identity=decision.identity,
             policy_digest=decision.policy_digest,
             at_seq=self._head_seq())
         builder.add(item_id="owner-instruction",
                     tier=Tier.OWNER_INSTRUCTION,
-                    text=("produce the declared Stage-10 artifact; touch no "
-                          "gate, no threshold and no canonical output"))
+                    text=("produce the declared governed artifact; touch no "
+                          "result, no threshold and no tracked file"))
         builder.add(item_id="policy", tier=Tier.SYSTEM_POLICY,
                     source=decision.identity,
                     text=json.dumps(decision.to_record(), sort_keys=True))

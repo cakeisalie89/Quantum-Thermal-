@@ -274,7 +274,7 @@ def test_the_audit_is_part_of_the_production_path():
     artifact rather than living only in a log somebody has to find.
     """
     rule = (ROOT / "Snakefile").read_text(encoding="utf-8") \
-        .split("rule s10_governed:", 1)[1].split("\nrule ", 1)[0]
+        .split("rule governed_tasks:", 1)[1].split("\nrule ", 1)[0]
     assert "AuditIndex" in rule
     assert "assert explanation.complete" in rule
     assert "explanation.to_record()" in rule

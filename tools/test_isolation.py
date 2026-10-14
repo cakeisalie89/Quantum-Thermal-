@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Can every test module be collected on its own?
 
-DIAGNOSTIC + GATE. Nothing here moves a threshold, authors a gate state or
-writes into the canonical tree; the legacy QTA gate table's historical
-PASS_count stays 0.
+DIAGNOSTIC + CI CHECK. Nothing here moves a threshold, authors a result or
+writes into the tracked tree.
 
 WHY THIS EXISTS
 

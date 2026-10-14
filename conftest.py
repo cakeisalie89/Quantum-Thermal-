@@ -1,4 +1,5 @@
-"""The repository root on `sys.path`, for every test module, whatever runs first.
+"""The repository root on `sys.path`, for every test module, whatever runs
+first.
 
 WHY THIS FILE EXISTS
 
@@ -35,9 +36,7 @@ here makes the guarantee structural instead of a convention 103 files happen
 to follow. The per-module inserts stay: they are harmless, and removing a
 hundred of them would be churn that buys nothing.
 
-Nothing here changes a gate of the legacy QTA hardware forecast, a threshold
-or a canonical output; that forecast's historical PASS_count stays 0, a fact
-about it and not a measure of this suite.
+Nothing here changes a threshold, a result or a tracked file.
 """
 import pathlib
 import sys

@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""The Scientific-AI harness's completion status, DERIVED -- never written.
+"""The Scientific AI Harness's completion status, DERIVED -- never written.
 
-``docs/harness_contract.json`` is the definition of done: which stack
-elements must be in which state and which matrix rows back each, that every
-matrix row must be complete with hosted evidence covering its current
-implementation, which audits must be clean, which facts about the learned
-substrate and the legacy gate table must hold, and what lies outside a
-software-completion claim. It states no status.
+``docs/harness_contract.json`` is the definition of done, and it is a
+SOFTWARE contract: which stack elements must be in which state and which
+matrix rows back each, that every matrix row must be complete with hosted
+evidence covering its current implementation, which audits must be clean
+(the repository content audit and the applied forensic inventory among
+them), which facts about the learned-model substrate must hold, and what
+lies outside a software-completion claim. It states no status, and no
+physical-apparatus output -- no gate, gate count or bill of materials --
+is an input to it.
 
 This tool derives the status from the authorities that hold the facts --
 ``stack.json``, ``docs/completion_matrix.json`` (its evidence state recomputed
@@ -21,8 +24,8 @@ prose), the audits RE-RUN here, ``docs/neural/current_status.json`` and
 * INCOMPLETE -- anything else. A STAGED, DEFERRED or unclassified element
   (one the contract requires that stack.json lacks, or one stack.json has
   that the contract does not mention), a row below complete, evidence that
-  was never run or predates its implementation, or an audit finding each
-  keep it here.
+  was never run or predates its implementation, an audit finding, or a
+  fact that does not hold each keep it here.
 
 Deterministic: the same inputs give the same bytes, and the JSON records the
 digest of every input it read, so ``verify`` recomputes and compares.
@@ -44,7 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import completion_matrix as CM  # noqa: E402
 
-SCHEMA = "harness-status/1"
+SCHEMA = "harness-status/2"
 CONTRACT = Path("docs") / "harness_contract.json"
 STACK = Path("stack.json")
 MATRIX = Path("docs") / "completion_matrix.json"
@@ -96,31 +99,24 @@ def _row_ok(st: dict) -> bool:
 def audits(root: Path) -> dict:
     """Each audit re-run, reduced to a verdict and the counts it rests on."""
     import claims_enforcement
-    import framework_boundary
-    import neural_legacy_audit
-    import pass_semantics_audit
+    import repo_content_audit
+    import repo_inventory
     import workflow_contract
     out = {}
-    pa = pass_semantics_audit.audit(root)
-    committed = json.loads((root / pass_semantics_audit.OUT).read_text(
-        encoding="utf-8"))
-    out["pass_semantics"] = {
-        "ok": pa["current_ai_semantic_leaks"] == 0 and pa["unclassified"] == 0
-        and committed == pa,
-        "current_ai_semantic_leaks": pa["current_ai_semantic_leaks"],
-        "unclassified": pa["unclassified"],
-        "committed_report_current": committed == pa}
-    na = neural_legacy_audit.audit()
-    out["neural_legacy_semantics"] = {
-        "ok": na["active_neural_semantic_leaks"] == 0
-        and na["active_generic_semantic_leaks"] == 0
-        and na["unclassified"] == 0,
-        "active_neural_semantic_leaks": na["active_neural_semantic_leaks"],
-        "active_generic_semantic_leaks":
-            na["active_generic_semantic_leaks"],
-        "unclassified": na["unclassified"]}
-    fb = framework_boundary.Boundary().problems()
-    out["framework_boundary"] = {"ok": not fb, "problems": len(fb)}
+    rc = repo_content_audit.audit(root)
+    report = root / repo_content_audit.OUT
+    current = report.is_file() and report.read_text(
+        encoding="utf-8") == repo_content_audit.render(rc)
+    out["repository_content"] = {
+        "ok": rc["ok"] and current, "files": rc["files"],
+        "findings": len(rc["findings"]),
+        "committed_report_current": current}
+    inv = json.loads((root / repo_inventory.OUT).read_text(encoding="utf-8"))
+    ip = repo_inventory.problems(inv, repo_inventory.current_tree(root), root,
+                                 applied=True)
+    out["repository_inventory"] = {
+        "ok": not ip, "problems": len(ip),
+        "baseline_files": inv["counts"]["files"]}
     cb = claims_enforcement.problems()
     out["claims_boundary"] = {"ok": not cb, "problems": len(cb)}
     wc = workflow_contract.problems()
@@ -128,16 +124,13 @@ def audits(root: Path) -> dict:
     return out
 
 
-def facts(root: Path) -> dict:
+def facts(root: Path, contract: dict) -> dict:
     st = _json(NEURAL_STATUS, root)
     cl = _json(NEURAL_CLAIMS, root)
-    lg = st["legacy_qta_hardware_forecast"]
     fl = st["flagship"]
+    declared = contract["declared_flagship_architecture"]
+    observed = {k: fl[k] for k in sorted(declared)}
     return {
-        "legacy_qta_pass_count_is_legacy_only": {
-            "ok": lg["classification"] == "LEGACY_QTA_ONLY",
-            "legacy_pass_count": lg["PASS_count"],
-            "classification": lg["classification"]},
         "learned_outputs_refused": {
             "ok": cl["learned_refused_states"] == ["PROMOTED", "VERIFIED"]
             and cl["acceptance_attempt"]["refused"] is True,
@@ -147,6 +140,10 @@ def facts(root: Path) -> dict:
             and fl["large_model_trained"] is False,
             "real_weights_allocated": fl["real_weights_allocated"],
             "large_model_trained": fl["large_model_trained"]},
+        "flagship_architecture_as_declared": {
+            "ok": observed == declared,
+            "differs": sorted(k for k in declared
+                              if observed[k] != declared[k])},
     }
 
 
@@ -195,7 +192,7 @@ def derive(root: Path = ROOT, *, audit_results: dict | None = None) -> dict:
         if not au.get(name, {}).get("ok"):
             unsatisfied.append({"kind": "audit", "id": name,
                                 "status": "finding", "external": False})
-    fa = facts(root)
+    fa = facts(root, contract)
     for name in contract["required_facts"]:
         if not fa.get(name, {}).get("ok"):
             unsatisfied.append({"kind": "fact", "id": name,
@@ -236,7 +233,7 @@ def derive(root: Path = ROOT, *, audit_results: dict | None = None) -> dict:
 
 
 def render(st: dict) -> str:
-    lines = ["# Scientific-AI harness: completion status", "",
+    lines = ["# Scientific AI Harness: completion status", "",
              "Derived by `tools/harness_status.py` from `stack.json`, the "
              "completion matrix (evidence recomputed from implementation "
              "digests), the audits re-run, and the learned-model status, "

@@ -46,15 +46,38 @@ def rec(**kw):
 
 # -- units ---------------------------------------------------------------
 
-def test_every_unit_in_the_unit_authority_is_read_or_refused_by_rule():
-    inv = json.loads((ROOT / "docs" / "unit_inventory.json").read_text())
-    for col, entry in inv["columns"].items():
-        u = entry["unit"]
-        if u in units.NOT_A_FEATURE_UNIT:
-            with pytest.raises(units.UnitError):
-                units.parse(u)
-        else:
-            units.parse(u)    # raises on anything unknown
+def _declared_units():
+    """Every unit something in this repository declares: each admitted
+    model's numeric parameters, and every feature and target of the
+    committed development dataset (with the dimension it recorded)."""
+    from scientific import catalog
+    reg = catalog.models()
+    seen = []
+    for model_id, version, _ in reg.entries():
+        for par in reg.lookup(model_id, version).parameter_schema.to_record():
+            if par["unit"]:
+                seen.append((f"{model_id}:{par['name']}", par["unit"], None))
+    man = json.loads((ROOT / "docs" / "neural" / "dev" /
+                      "dataset_manifest.json").read_text())
+    for f in (man["feature_schema"]["features"]
+              + man["target_schema"]["targets"]):
+        seen.append((f"dataset:{f['name']}", f["unit"], f["dimension"]))
+    return seen
+
+
+def test_every_declared_unit_is_read_and_agrees_with_its_record():
+    seen = _declared_units()
+    assert len(seen) > 10, "the scan found almost nothing to read"
+    for where, u, recorded in seen:
+        d = units.parse(u)    # raises on anything unknown
+        if recorded is not None:
+            assert d.to_dict() == recorded, (where, d.to_dict(), recorded)
+
+
+def test_a_unit_that_belongs_to_the_row_is_refused_by_rule():
+    for u in units.NOT_A_FEATURE_UNIT:
+        with pytest.raises(units.UnitError):
+            units.parse(u)
 
 
 @pytest.mark.parametrize("u,exps,factor", [

@@ -50,7 +50,7 @@ def ledger(log):
 
 @pytest.fixture()
 def gov(request):
-    """The real governed runner, in its own Stage-10 subtree."""
+    """The real governed runner, in its own workspace subtree."""
     name = request.node.name.replace("/", "_")[:60]
     base = ROOT / WS / name
     if base.exists():

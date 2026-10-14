@@ -82,9 +82,7 @@ WHAT_THIS_IS = (
 DOES_NOT_MEAN = (
     "Not the historical provenance of the corpus: the machine that first "
     "produced it is not claimed. Not evidence that any number is correct, "
-    "measured or validated. Not scientific equivalence between backends. "
-    "The corpus is the legacy QTA hardware forecast's: MODEL-ONLY / "
-    "FORECAST-ONLY, its historical PASS_count 0.")
+    "measured or validated. Not scientific equivalence between backends.")
 
 
 def sha256_file(path) -> str | None:

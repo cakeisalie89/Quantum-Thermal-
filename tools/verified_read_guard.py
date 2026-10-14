@@ -36,10 +36,10 @@ the count is pinned by the test, so widening it is a reviewed change rather
 than a quiet one.
 
 NOT SCANNED: the Snakefile. Snakemake's rule syntax is not Python the ``ast``
-module parses. Its four raw reads (in ``s10_governed`` and
-``s10_governed_index``) are assertions over the run's history -- which
+module parses. Its four raw reads (in ``governed_tasks`` and
+``governed_index``) are assertions over the run's history -- which
 actions appear, that no egress grant exists, that a re-execution was
-recorded -- and fold nothing into state; ``s10_governed_model`` reads only
+recorded -- and fold nothing into state; ``governed_model`` reads only
 through ``read_verified``. The runtime guard does not cover them either:
 rule bodies are not ``agent_substrate`` modules (D-2026-79).
 """
@@ -64,14 +64,14 @@ ALLOWED = {
 
 
 def production_files(root: Path = ROOT) -> list:
-    """Tracked + untracked-unignored .py outside tests/ and attic/."""
+    """Tracked + untracked-unignored .py outside tests/."""
     r = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--cached",
                         "--others", "--exclude-standard", "--", "*.py"],
                        capture_output=True, text=True)
     if r.returncode != 0:
         raise SystemExit(f"git could not enumerate {root}: {r.stderr[:200]}")
     return sorted(p for p in r.stdout.split("\0")
-                  if p and not p.startswith(("tests/", "attic/")))
+                  if p and not p.startswith("tests/"))
 
 
 def _chain(node) -> list:

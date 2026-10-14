@@ -1,6 +1,6 @@
 {
   "title": "The generic consistency verifier: every check it makes, removed",
-  "note": "tools/generic_consistency.py is the framework's successor to the legacy QTA verifier (directive 17): event history, evidence, independent reconstruction, scientific artifacts, model identity. Each check is removed here and tests/test_generic_consistency.py, on a real governed history damaged one way at a time, must notice.",
+  "note": "tools/generic_consistency.py checks a governed history by its bytes (directive 17): event history, evidence, independent reconstruction, scientific artifacts, model identity. Each check is removed here and tests/test_generic_consistency.py, on a real governed history damaged one way at a time, must notice.",
   "suites": [
     "tests/test_generic_consistency.py"
   ],

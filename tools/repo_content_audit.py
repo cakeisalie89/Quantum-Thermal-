@@ -95,11 +95,33 @@ ALLOWANCES = {
         "the inventory's tests assert edges between baseline paths",
     "tools/repo_content_audit.py":
         "this audit: its vocabulary is what it looks for",
+    "docs/repo_content_audit.json":
+        "this audit's committed report: it lists the retired roots and "
+        "names it refuses, and --check requires it to be exactly what the "
+        "tree produces",
     "tests/test_repo_content_audit.py":
         "this audit's controls reintroduce retired content on purpose",
+    "tools/mutations/repository_content.json":
+        "this audit's mutation specification: two of its mutations plant "
+        "retired content in the learned-model substrate on purpose, to "
+        "show the boundary tests refuse it",
     "tests/fuzz_corpus/*.json":
         "recorded fuzzing findings, kept verbatim: their tracebacks name "
         "the module path the finding was made in",
+    # TEMPORARY. These three are in the source closure whose digest the
+    # NF-1T development dataset pins, so a docstring edit is a change of
+    # dataset identity. Their retired wording leaves in the commit that
+    # re-identifies the dataset, and these entries leave with it -- the
+    # unused-allowance rule reports them the moment they stop matching.
+    "scientific/identity.py":
+        "frozen NF-1T closure: docstring wording leaves with the dataset "
+        "re-identification",
+    "scientific/observation.py":
+        "frozen NF-1T closure: docstring wording leaves with the dataset "
+        "re-identification",
+    "scientific/models/surface_adsorption.py":
+        "frozen NF-1T closure: docstring wording leaves with the dataset "
+        "re-identification",
 }
 
 #: Retired outputs by FILE NAME, refused anywhere in the tree: a copy at a
@@ -179,7 +201,9 @@ def retired_from_inventory(root: Path = ROOT) -> tuple:
                 m = f["path"][:-3].replace("/", ".")
                 modules.add(m[:-len(".__init__")]
                             if m.endswith(".__init__") else m)
-    modules |= {"qta_multiphysics", "qta_agent"}
+    # A retired package's root is here through its __init__.py row, and an
+    # import is matched by its longest retired prefix, so a submodule no row
+    # names is still a retired import.
     return gone, modules
 
 
@@ -203,7 +227,7 @@ def _imports(source: str) -> set:
             found.update(f"{n.module}.{a.name}" for a in n.names)
         elif (isinstance(n, ast.Call)
               and getattr(n.func, "attr", getattr(n.func, "id", ""))
-              == "import_module" and n.args
+              in ("import_module", "__import__") and n.args
               and isinstance(n.args[0], ast.Constant)
               and isinstance(n.args[0].value, str)):
             found.add(n.args[0].value)

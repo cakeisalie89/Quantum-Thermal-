@@ -1,11 +1,11 @@
 """Ordering quantities only as far as their resolution resolves them.
 
-D-2026-99, made a policy. A table that listed "the sixteen hottest cells"
-chose them by ``argsort`` of temperatures agreeing to ten significant
-digits; which cells it named was decided in the last bits and moved with the
-numerical backend. The defect class is general: any selection or ranking made
-from differences smaller than what the method resolves is a statement about
-roundoff presented as a statement about the science.
+D-2026-99, made a policy. A table once listed "the top sixteen" cells by
+``argsort`` of values agreeing to ten significant digits, so which cells it
+named was decided in the last bits and moved with the numerical backend. The
+defect class is general: any selection or ranking made from differences
+smaller than what the method resolves is a statement about roundoff
+presented as a statement about the science.
 
 THE SEMANTICS THIS POLICY APPLIES
 
@@ -34,10 +34,7 @@ the tiers are fixed:
 
 What this does NOT do: resolve the distinction. Sampling or refining until
 the tiers separate is the only way to do that, and it is the caller's
-choice. Nothing here moves a legacy QTA output; D-2026-99's own artefact
-stays as it is and stays refused by the cross-environment comparator
-wherever its selection moves, until its method declares a resolution and the
-owner authorizes a migration.
+choice.
 """
 from __future__ import annotations
 

@@ -40,10 +40,6 @@ within its declared bounds and every invariant holds on both), else
 differs), else ``NOT_ESTABLISHED`` (nothing differs demonstrably but
 something could not be decided). A comparison of different models or
 different parameters is refused: it is not a reproduction question.
-
-Nothing here touches a legacy QTA comparison: those keep their own
-``SCIENTIFIC_EQUIVALENCE_STATUS=NOT_ESTABLISHED`` until their methods declare
-resolutions and an owner decides a policy for them.
 """
 from __future__ import annotations
 

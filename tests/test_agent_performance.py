@@ -1099,7 +1099,7 @@ def test_the_recorder_refuses_to_record_nothing():
 #
 # test_one_governed_operation_does_not_get_slower_as_the_history_grows above
 # measures WALL TIME and passed at a ratio of ~1.1 against a ceiling of 4.0,
-# while one governed Stage-10 run was performing TWENTY-SIX full chain
+# while one governed artifact run was performing TWENTY-SIX full chain
 # verifications -- reading 391 records on the first run of a fresh log and
 # 3,544 on the sixth. A governed run is dominated by a subprocess, so hashing
 # three thousand records is microseconds against 1.2 seconds. The guard was
@@ -1154,7 +1154,7 @@ def _count_full_passes(fn):
     return seen["passes"], seen["records"]
 
 
-#: Whole-log PASSES one governed Stage-10 run may make. Every number here was
+#: Whole-log PASSES one governed artifact run may make. Every number here was
 #: measured, none chosen:
 #:
 #:     first run, brand-new caller and EMPTY log : 14   <-- the maximum

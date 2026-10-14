@@ -1,13 +1,12 @@
-"""Langmuir capture, extracted from the cryopanel (directive 22).
+"""Langmuir capture: the surface-adsorption model, its check, its laws.
 
 Three things are held here:
 
-* REGRESSION EQUIVALENCE. The generic functions are the equations the
-  cryopanel component model computed, bit for bit: the flux against the
-  kinetic-flux law it called, the capture step against its own body as it
-  stood before the extraction (restated below, verbatim), and the legacy
-  module -- which now calls the generic functions -- against that reference
-  over whole campaigns.
+* THE LAWS. The impingement flux is the Hertz-Knudsen law, written here a
+  second way (pressure over the root of 2 pi m k T) and compared to the
+  model's (n vbar / 4) within a few ulp; the capture step is the closed-form
+  solution of dN/dt = s F (1 - N / N_cap), restated here and compared bit
+  for bit over a grid that includes every guarded edge.
 * THE MODEL. Every declared invariant is computed and holds, and each is
   broken on purpose and seen to fail.
 * THE CHECK. It is independent in the way it claims, passes on agreement,
@@ -27,6 +26,9 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools"))
+
+import repo_content_audit as RCA  # noqa: E402
 
 from scientific.catalog import check, models  # noqa: E402
 from scientific.checks import langmuir_rk4 as RK  # noqa: E402
@@ -56,11 +58,13 @@ CASES = [
 ]
 
 
-# -- regression equivalence --------------------------------------------------
+# -- the laws ----------------------------------------------------------------
 
-def _capture_as_it_was(N, flux, s, Nc, dt):
-    """PanelInventory.capture_window's arithmetic before the extraction
-    (qta_multiphysics/cryopanel_dynamics_3d.py at 893f03a), verbatim."""
+def _capture_reference(N, flux, s, Nc, dt):
+    """The closed-form capture over one window of constant flux, restated:
+    N(dt) = Nc - (Nc - N) exp(-s F dt / Nc), refused for a negative window,
+    the identity for no sticking, no flux or no time, and never above
+    capacity."""
     if dt < 0:
         raise ValueError("dt_s must be >= 0")
     if s <= 0.0 or flux <= 0.0 or dt == 0.0:
@@ -74,121 +78,71 @@ GRID_T = (4.2, 77.0, 300.0, 1234.5)
 GRID_M = (2.016, 3.016, 17.035, 44.0)
 
 
-def test_the_flux_is_the_kinetic_flux_law_the_cryopanel_called():
-    from qta_multiphysics.surface_coverage import kinetic_flux
+def test_the_flux_is_the_hertz_knudsen_law():
+    """p / sqrt(2 pi m k T), a different arrangement of the same law, agrees
+    with n vbar / 4 to a few ulp at every grid point -- and is exactly zero
+    where the pressure is."""
     n = 0
     for p in GRID_P:
         for T in GRID_T:
             for m in GRID_M:
-                assert SA.impingement_flux(SA.number_density(p, T), T, m) \
-                    == kinetic_flux(p / (1.380649e-23 * T), T, m)
+                got = SA.impingement_flux(SA.number_density(p, T), T, m)
+                want = p / math.sqrt(2.0 * math.pi * m * SA.AMU * SA.K_B * T)
+                assert got == pytest.approx(want, rel=8 * 2.0 ** -52,
+                                            abs=0.0), (p, T, m)
                 n += 1
     assert n == len(GRID_P) * len(GRID_T) * len(GRID_M)
+
+
+def test_the_flux_check_would_see_a_wrong_mass_unit():
+    """CONTROL: the comparison above is tight enough to see the mass in
+    grams rather than kilograms."""
+    p, T, m = 1e-4, 300.0, 17.035
+    got = SA.impingement_flux(SA.number_density(p, T), T, m * 1e3)
+    want = p / math.sqrt(2.0 * math.pi * m * SA.AMU * SA.K_B * T)
+    assert got != pytest.approx(want, rel=1e-3)
 
 
 @pytest.mark.parametrize("N0", [0.0, 1e10, 5e18, 1e19])
 @pytest.mark.parametrize("dt", [0.0, 1e-3, 1.0, 1e4, 1e9])
 @pytest.mark.parametrize("s", [0.0, 0.01, 0.55, 1.0])
-def test_the_capture_step_is_the_cryopanel_body_bit_for_bit(N0, dt, s):
+def test_the_capture_step_is_the_closed_form_bit_for_bit(N0, dt, s):
     for flux in (0.0, 1.3e5, 2.9e17, 4.4e22):
         assert SA.langmuir_capture(N0, flux, s, 1e19, dt) == \
-            _capture_as_it_was(N0, flux, s, 1e19, dt)
+            _capture_reference(N0, flux, s, 1e19, dt)
 
 
 def test_capture_never_leaves_a_surface_above_capacity():
-    """An over-full inventory handed in is brought to capacity, not past it:
-    the guard the cryopanel carried, and it did the same."""
+    """An over-full inventory handed in is brought to capacity, not past
+    it."""
     for N in (1e19 * (1 + 1e-12), 1.5e19):
         got = SA.langmuir_capture(N, 1e17, 0.5, 1e19, 1.0)
-        assert got == 1e19 == _capture_as_it_was(N, 1e17, 0.5, 1e19, 1.0)
+        assert got == 1e19 == _capture_reference(N, 1e17, 0.5, 1e19, 1.0)
 
 
-def test_a_negative_window_is_refused_as_it_was():
+def test_a_negative_window_is_refused():
     with pytest.raises(ValueError, match="dt_s must be >= 0"):
         SA.langmuir_capture(0.0, 1e17, 0.5, 1e19, -1.0)
 
 
-def _campaign(C, op, cfg, cycles=4):
-    panels = C.new_panel_set()
-    rows = []
-    for cyc in range(cycles):
-        for phase, dt in C.phase_windows_s(cfg, op).items():
-            C.advance_phase(panels, phase, dt, op)
-            rows += [p.row(cyc, phase) for p in panels]
-    return rows
-
-
-def test_the_legacy_campaign_is_regenerated_through_the_extraction():
-    """The legacy module now calls the generic functions; its campaign rows
-    are the ones the pre-extraction arithmetic produces, string for string,
-    at the canonical operating point and at two others."""
-    import qta_multiphysics.cryopanel_dynamics_3d as C
-    from qta_multiphysics.config import default_config
-    from qta_multiphysics.species_accounting_3d import (
-        cryopanel_operating_point,
-    )
-    from qta_multiphysics.surface_coverage import kinetic_flux
-    cfg = default_config()
-
-    def fluxes_as_they_were(phase, op):
-        def f(p, sp):
-            return kinetic_flux(p / (1.380649e-23 * C.T_GAS_K), C.T_GAS_K,
-                                C.MASS_AMU[sp])
-        out = {"H2": f(C.P_H2_RESIDUAL_PA, "H2"), "C13_CH4": 0.0,
-               "He": 0.0}
-        if phase == "MODE_B":
-            out["C13_CH4"] = f(op.p_c13_work_Pa, "C13_CH4")
-        if phase == "MODE_D":
-            out["He"] = f(op.p_he_dose_Pa, "He")
-        return out
-
-    canonical = cryopanel_operating_point()
-    for op in (canonical,
-               dataclasses.replace(canonical, p_c13_work_Pa=3.3e-3,
-                                   dose_window_s=0.25),
-               dataclasses.replace(canonical, p_he_dose_Pa=1e-2,
-                                   dose_window_s=1e4)):
-        rows = _campaign(C, op, cfg)
-        panels = C.new_panel_set()
-        expected = []
-        for cyc in range(4):
-            for phase, dt in C.phase_windows_s(cfg, op).items():
-                fx = fluxes_as_they_were(phase, op)
-                assert C.phase_fluxes_per_m2_s(phase, op) == fx
-                for p in panels:
-                    p.admitted_per_m2 += fx[p.species] * dt
-                    p.N_per_m2 = _capture_as_it_was(
-                        p.N_per_m2, fx[p.species], p.sticking, p.N_cap, dt)
-                expected += [p.row(cyc, phase) for p in panels]
-        assert rows == expected
-
-
-def test_the_equations_live_once():
-    """The legacy module computes no flux and no capture of its own: no
-    exponential, no square root, no kinetic-flux call."""
-    src = (ROOT / "qta_multiphysics/cryopanel_dynamics_3d.py").read_text(
-        encoding="utf-8")
-    calls = {ast.unparse(n.func) for n in ast.walk(ast.parse(src))
-             if isinstance(n, ast.Call)}
-    assert not calls & {"math.exp", "math.sqrt", "kinetic_flux"}, calls
-    assert {"langmuir_capture", "impingement_flux",
-            "number_density"} <= calls
-
-
-def test_the_generic_model_knows_nothing_of_the_apparatus():
+def test_the_generic_model_carries_no_retired_vocabulary_in_its_code():
+    """Every identifier and every string constant of the model module --
+    its docstring aside -- read with the repository content audit's own
+    patterns; and it imports no retired module."""
     src = (ROOT / "scientific/models/surface_adsorption.py").read_text(
         encoding="utf-8")
     code = ast.parse(src)
-    names = {n.id for n in ast.walk(code) if isinstance(n, ast.Name)} | {
+    words = [n.id for n in ast.walk(code) if isinstance(n, ast.Name)] + [
         n.value for n in ast.walk(code)
         if isinstance(n, ast.Constant) and isinstance(n.value, str)
-        and n is not code.body[0].value}
-    for token in ("MODE_B", "MODE_D", "PANEL", "C13_CH4", "cryopanel_memory",
-                  "IL-12", "E03"):
-        assert not any(token in str(n) for n in names), token
-    assert "qta_multiphysics" not in {
-        m for n in ast.walk(code) if isinstance(n, ast.ImportFrom)
-        for m in [n.module or ""]}
+        and n is not code.body[0].value]
+    text = "\n".join(words)
+    assert [m.group(0) for _, rx in RCA._TERMS
+            for m in rx.finditer(text)] == []
+    retired = RCA.retired_from_inventory(ROOT)[1]
+    imported = {n.module or "" for n in ast.walk(code)
+                if isinstance(n, ast.ImportFrom) and n.level == 0}
+    assert not imported & retired
 
 
 # -- the model ---------------------------------------------------------------
@@ -236,8 +190,8 @@ def test_the_catalog_admits_the_model_and_its_check():
 def test_the_digest_covers_the_model_and_not_the_check(model):
     closure = source_closure(model.implementation_modules)
     assert "scientific.models.surface_adsorption" in closure
-    assert not any(".checks" in m or m.startswith("qta_multiphysics")
-                   for m in closure), sorted(closure)
+    assert not any(".checks" in m for m in closure), sorted(closure)
+    assert all(m.startswith("scientific.") for m in closure), sorted(closure)
     assert model.implementation_digest() != RK.check_digest()
 
 
