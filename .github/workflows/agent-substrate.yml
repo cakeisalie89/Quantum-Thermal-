@@ -454,12 +454,16 @@ jobs:
     permissions:
       contents: read
     steps:
+      # History is fetched so the NF-1T re-identification record's BEFORE
+      # side is checked against the commit it names, not skipped.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
-        with: {persist-credentials: false}
+        with: {persist-credentials: false, fetch-depth: 0}
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
       - name: sync environment
         run: uv sync --frozen --all-groups --extra neural
       - name: the FULL pytest suite, not only the agent suites
+        env:
+          HARNESS_HISTORY_REQUIRED: "1"
         run: uv run python -m pytest tests/ -q
 
   dispatch-sensitivity:

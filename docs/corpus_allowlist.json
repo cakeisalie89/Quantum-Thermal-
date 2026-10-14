@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "cde9305dda6fb995b940315dbdc51578bd68c2aca84cdbedcf0320500b1b986a",
+  "entries_digest": "646a7c993fa7eb87d658fce8cc77ea859a29bf7b3e14b71d17cd6d416e6a0c77",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -22,7 +22,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "b7c6b2d3b1419d51f5c76e91a90de3963b6cb09f5afac410d50f766fe432bbbb"
+      "sha256": "518596e081041cc334d4b3c13c9a4e3eb353109651f8a3fb532f1feaf2c00b37"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -38,7 +38,7 @@
     },
     {
       "path": "NEURAL_SUBSTRATE.md",
-      "sha256": "e401ab134ecbb9a0f40e6fbc02d0bab7dab2ef4ab278bd962b9e8a19e3598fef"
+      "sha256": "344d11c63502bc3182d8e68c60ee0cd87a6314a865ecdd8723af1c66646e34d1"
     },
     {
       "path": "README.md",
@@ -66,7 +66,7 @@
     },
     {
       "path": "TESTING.md",
-      "sha256": "5711a5feb9e74d6750cd000eee740c78e717c3406d94440524da15b951c230a7"
+      "sha256": "63f450aa9bba96e3b1f88fa9a16598646b76c2e518125d9038947676b3a2679c"
     },
     {
       "path": "container_verification.md",
@@ -74,7 +74,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "10357b868d42901a0a6b0aa4c4af073ba838b9e0cd7a1417c38ec4d5a2b047d0"
+      "sha256": "90aba2878d691fd33f646aa6880d44027e4738f99a146623b1214442425b2e32"
     },
     {
       "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",

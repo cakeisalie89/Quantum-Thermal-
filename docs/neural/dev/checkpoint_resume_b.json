@@ -34,10 +34,10 @@
    }
   }
  ],
- "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+ "source_commit": "b916f24e29080f8285beed1255c6f4c3937193d4",
  "tensor_count": 37,
  "tensor_index_digest": "95ee69bd41ab2f42323d18c41ff2d14b19947b08e617de419256a5c7d357790d",
- "training_manifest_digest": "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
+ "training_manifest_digest": "d21a846c2ba27a21699c3f1b5bb43e0b62922284036c02848cff72a17e375bbb",
  "training_run_id": "nf1t-dev-52e707b0a2dd-resume-b",
  "training_step": 4000
 }

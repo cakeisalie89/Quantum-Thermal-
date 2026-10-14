@@ -24,8 +24,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 28892,
-      "sha256": "a893fc1a156db9996f1e1d461f16eb08d7fd4970e41e634a73a200bc081822e2"
+      "size_bytes": 29101,
+      "sha256": "4447b8dfcb287bf4888880348b72f005ab9a7de60798c2f0530bfb3ac3509488"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -85,7 +85,7 @@
     {
       "filename": "HARNESS_STATUS.md",
       "size_bytes": 9046,
-      "sha256": "b7c6b2d3b1419d51f5c76e91a90de3963b6cb09f5afac410d50f766fe432bbbb"
+      "sha256": "518596e081041cc334d4b3c13c9a4e3eb353109651f8a3fb532f1feaf2c00b37"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -104,8 +104,8 @@
     },
     {
       "filename": "NEURAL_SUBSTRATE.md",
-      "size_bytes": 17994,
-      "sha256": "e401ab134ecbb9a0f40e6fbc02d0bab7dab2ef4ab278bd962b9e8a19e3598fef"
+      "size_bytes": 19027,
+      "sha256": "344d11c63502bc3182d8e68c60ee0cd87a6314a865ecdd8723af1c66646e34d1"
     },
     {
       "filename": "README.md",
@@ -144,8 +144,8 @@
     },
     {
       "filename": "TESTING.md",
-      "size_bytes": 2954,
-      "sha256": "5711a5feb9e74d6750cd000eee740c78e717c3406d94440524da15b951c230a7"
+      "size_bytes": 3094,
+      "sha256": "63f450aa9bba96e3b1f88fa9a16598646b76c2e518125d9038947676b3a2679c"
     },
     {
       "filename": "agent_substrate/__init__.py",
@@ -369,8 +369,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 430801,
-      "sha256": "10357b868d42901a0a6b0aa4c4af073ba838b9e0cd7a1417c38ec4d5a2b047d0"
+      "size_bytes": 431919,
+      "sha256": "90aba2878d691fd33f646aa6880d44027e4738f99a146623b1214442425b2e32"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -385,7 +385,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3233,
-      "sha256": "e8815e3549df02ac74e8636e05ca2a275a8c7e4df50f87096146e5c2ae9e67d9"
+      "sha256": "000df5aebe0e0dc7c57f2ca3df77c31cd3aa45b4040ad398cd91a89bb111f1c2"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -405,7 +405,7 @@
     {
       "filename": "docs/harness_status.json",
       "size_bytes": 20305,
-      "sha256": "0076805542cc2b62d6cb97b0d449c742247d9a8288a3142ffb4067bf0f1c733f"
+      "sha256": "9a56930e1589abeeaf2b5e86edbfcbebdc5c3999173dd7251bb21038659ae825"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -435,47 +435,47 @@
     {
       "filename": "docs/neural/dev/checkpoint_manifest.json",
       "size_bytes": 1382,
-      "sha256": "2875dd62cbcb0395b3a14bd52f3ca68606675f7c743b48faf0c5204a88d35f02"
+      "sha256": "0b95558c96c64e36151cc951a9bde2d09e0edff35cb6cd1c74712da33b12f3bf"
     },
     {
       "filename": "docs/neural/dev/checkpoint_resume_a.json",
       "size_bytes": 1440,
-      "sha256": "be488a9544cafd2f59426c5e13e97841f33540b148ab6737dbbe0d0dec0c56c0"
+      "sha256": "4c0815d85943f2cafbe6a16676b28b6b2c8acae0b9662661c302fc2f94b19e02"
     },
     {
       "filename": "docs/neural/dev/checkpoint_resume_b.json",
       "size_bytes": 1503,
-      "sha256": "7d15c5f1e451b7bf8ba884024ca2514258e9244d5fc6a61da5cea43ae5f883c3"
+      "sha256": "18ba528282a8948fb3baad713c74eb7228404b80094f989232c03437d914700c"
     },
     {
       "filename": "docs/neural/dev/dataset.jsonl",
       "size_bytes": 5510293,
-      "sha256": "92ac3b172c7013b8ea12310776859dc9b3521b7571db9f51a10eba17caf26b19"
+      "sha256": "15d4e805bc2190899aa6d39d08777ad6dd6b4b343c1f36e05f81b8037c72e169"
     },
     {
       "filename": "docs/neural/dev/dataset_manifest.json",
       "size_bytes": 13032,
-      "sha256": "e51cd1d15cc66e29b4989a5ebe60bbf9f2f3a7d757d1a7b49673523ef4c3036d"
+      "sha256": "6f09569e29c7950f8f66818e3442744559a0acf380582b8ac560c7481015c8d3"
     },
     {
       "filename": "docs/neural/dev/evaluation_report.json",
       "size_bytes": 27048,
-      "sha256": "265c4a87a857e1bdadda21efd60f0339226d84c37812840e4702325b43a5458c"
+      "sha256": "b6b1727ed6c81ba862514f4cc26e9bc9dda9f4ada72837c4b00a43a8b18765ea"
     },
     {
       "filename": "docs/neural/dev/training_manifest.json",
       "size_bytes": 19730,
-      "sha256": "3524ae7532798799f9fb48af3159c9477e50126816f541ac818b2a033337b97d"
+      "sha256": "5343184544ce320def9477ea8e17738f937fd1f67a179fd921301a95f3f536ca"
     },
     {
       "filename": "docs/neural/dev/training_resume_a.json",
       "size_bytes": 12352,
-      "sha256": "89a917fbcacad337c5f6f212737db81c0799d3b55d260ed446263ae2e7fcbbf8"
+      "sha256": "2a55e4601327cec79651427475d7e782bd54a1bd9af93d7e0136932634fca191"
     },
     {
       "filename": "docs/neural/dev/training_resume_b.json",
       "size_bytes": 12444,
-      "sha256": "3af59912a9dd801a0e3b146d7896808937dab7a2143127a2d6e8fe7b5bb9bf21"
+      "sha256": "492b6df5464bf3956b49059f3057019dc7b88fd21e7786a84e93a6a5ada21977"
     },
     {
       "filename": "docs/neural/development_meta_validation.json",
@@ -508,14 +508,19 @@
       "sha256": "7d62e7d2ab0722b49bf62dd6ab3c673b0a14d6b148085feb50d79bd41e2db941"
     },
     {
+      "filename": "docs/neural/reidentification_record.json",
+      "size_bytes": 1968,
+      "sha256": "cea4be1021f183e63a52f8a0e91d2f81f96292c3f5084430b42e2ec6cb59af67"
+    },
+    {
       "filename": "docs/performance_baseline.json",
       "size_bytes": 2319,
       "sha256": "dc3053e201cb21071c97210aa4045c48c47317280399674f52e5dfaf7a9bf0f7"
     },
     {
       "filename": "docs/repo_content_audit.json",
-      "size_bytes": 2588,
-      "sha256": "7de6c01bd89656fd603e40152b2a4d869b5b1915221c9ce6f80beae47a416625"
+      "size_bytes": 2589,
+      "sha256": "184a4c97aab1025339d14ee07b35ea0ac9de4faeb5e022a31de156f0ca116857"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -530,7 +535,7 @@
     {
       "filename": "docs/typing_scope.json",
       "size_bytes": 772,
-      "sha256": "01f82a6143e10677d31e510da6bafac0ecd0c10215288a9eb0249d0677d955ca"
+      "sha256": "6ed82da15c1ce2807b12b2e5eb5dbff6cf5f8e57a64a63baa91365144f0f5dcc"
     },
     {
       "filename": "generate_manifest.py",
@@ -620,7 +625,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "5e0524059284a806541156b6c749645314abd8a63c234ebfe88b1e36f02f4ddb"
+      "sha256": "97224046ef883894622f60ab590f59164bf77ef71df6e4e10b4c7a0039dc8098"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1416,6 +1421,11 @@
       "filename": "tests/test_neural_provenance.py",
       "size_bytes": 17636,
       "sha256": "94b39c3d19e221e262eec3c3475a641a80ff3661e90f36e59254c875ac5010d2"
+    },
+    {
+      "filename": "tests/test_neural_reidentification.py",
+      "size_bytes": 5675,
+      "sha256": "35fb083f5fb553b62aaeb29dafb9e3d3b1b86cb293bc7c9356f2a8593034fbb4"
     },
     {
       "filename": "tests/test_neural_training.py",

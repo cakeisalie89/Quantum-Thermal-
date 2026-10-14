@@ -46,7 +46,9 @@ variables that make the runtime REQUIRED where it is installed, so a job
 that synced the wrong environment cannot go green by skipping:
 `HARNESS_NEURAL_REQUIRED=1` (JAX), `HARNESS_UQ_REQUIRED=1` and
 `HARNESS_VIZ_REQUIRED=1` (SALib, OpenMDAO, usd-core),
-`HARNESS_INTEGRATIONS_REQUIRED=fenicsx|fmi`.
+`HARNESS_INTEGRATIONS_REQUIRED=fenicsx|fmi`, and `HARNESS_HISTORY_REQUIRED=1`
+(the full-suite job, which fetches history) for the tests that check a
+record against the commit it names.
 
 ## Mutation testing
 

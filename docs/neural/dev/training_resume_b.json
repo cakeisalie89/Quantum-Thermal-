@@ -19,7 +19,7 @@
   "kind": "single_process",
   "mesh": null
  },
- "end_time": "2026-10-07T03:34:41+00:00",
+ "end_time": "2026-10-14T17:34:31+00:00",
  "evaluation_configuration": {
   "metrics": [
    "mae",
@@ -526,8 +526,8 @@
   "warmup_steps": 200
  },
  "schema": "scientific-moe-training-manifest/1",
- "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
- "start_time": "2026-10-07T03:33:50+00:00",
+ "source_commit": "b916f24e29080f8285beed1255c6f4c3937193d4",
+ "start_time": "2026-10-14T17:33:57+00:00",
  "steps": {
   "planned": 4000,
   "start": 2000,

@@ -11,7 +11,7 @@
   ]
  },
  "checkpoint_digest": "74de574076efc6c227a057669b3512162fe14a64b7bcaff62621ae440ae387d2",
- "checkpoint_manifest_digest": "64cba94026d2a550594afb46be281f35e997e11d760362b66c0be01301465b08",
+ "checkpoint_manifest_digest": "49b3020ba8b4411840275b66de8df2dcf871c337ea9c5c0bc04cd23a4e49528e",
  "constraints": {
   "ood": {
    "constraints": {

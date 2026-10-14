@@ -34,10 +34,10 @@
    }
   }
  ],
- "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+ "source_commit": "b916f24e29080f8285beed1255c6f4c3937193d4",
  "tensor_count": 108,
  "tensor_index_digest": "20e8e72a11b9ec5dcab343f7067a315eebd4562bfa2a3399524aa48715cf372c",
- "training_manifest_digest": "51ed6c0a361179280dd4a2bdc119e92ffd5b0d53a977e09ae75050dd3bd70148",
+ "training_manifest_digest": "432cf76271c5f1b6d452d42343cfd411d9d0cd93723685af826638107eeeba67",
  "training_run_id": "nf1t-dev-52e707b0a2dd-resume-a",
  "training_step": 2000
 }

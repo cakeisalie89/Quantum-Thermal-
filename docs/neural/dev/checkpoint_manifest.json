@@ -32,10 +32,10 @@
    "stored_at": "docs/neural/dev/checkpoint_final.safetensors"
   }
  ],
- "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+ "source_commit": "b916f24e29080f8285beed1255c6f4c3937193d4",
  "tensor_count": 37,
  "tensor_index_digest": "95ee69bd41ab2f42323d18c41ff2d14b19947b08e617de419256a5c7d357790d",
- "training_manifest_digest": "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
+ "training_manifest_digest": "5ac3e90382fd70731ed4770c9900ddde673b6951bb4dc704033994467494e3c4",
  "training_run_id": "nf1t-dev-52e707b0a2dd-main",
  "training_step": 4000
 }
