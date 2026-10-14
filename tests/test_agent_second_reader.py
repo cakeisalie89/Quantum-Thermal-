@@ -1581,3 +1581,41 @@ def test_an_honest_create_is_folded_by_both_readers(tmp_path):
     assert recon.anomalies == [], recon.anomalies
     assert recon.records["r"]["state"] == "PROPOSED"
     assert recon.records["r"]["proposer"] == "mallory"
+
+
+def _depend_log(tmp_path, on):
+    log = EventLog(tmp_path / "ev.jsonl")
+    for rid in ("base", "r"):
+        log.append(actor="mallory", action="record.create", target=rid,
+                   payload={**_HONEST_CREATE, "record_id": rid})
+    log.append(actor="mallory", action="record.depend", target="r",
+               payload={"record_id": "r", "depends_on": [on]})
+    return log
+
+
+def test_a_dependency_on_nothing_recorded_is_refused_by_both_readers(
+        tmp_path):
+    """The third authority action, held to the same standard: the store
+    refuses a dependency nothing will ever resolve, and so does this reader,
+    which folded it until D-2026-140."""
+    from agent_substrate.reconstruct import reconstruct
+    from agent_substrate.store import AuthorityStore, StoreError
+    _depend_log(tmp_path, "ghost")
+    with pytest.raises(StoreError, match="nothing has recorded"):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+    recon = reconstruct(EventLog(tmp_path / "ev.jsonl"))
+    assert any("is made to depend on 'ghost'" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.records["r"]["depends_on"] == []
+
+
+def test_an_honest_dependency_is_folded_by_both_readers(tmp_path):
+    """CONTROL: the same record depending on one that exists."""
+    from agent_substrate.reconstruct import reconstruct
+    from agent_substrate.store import AuthorityStore
+    _depend_log(tmp_path, "base")
+    store = AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+    assert store.get("r").depends_on == ("base",)
+    recon = reconstruct(EventLog(tmp_path / "ev.jsonl"))
+    assert recon.anomalies == [], recon.anomalies
+    assert recon.records["r"]["depends_on"] == ["base"]

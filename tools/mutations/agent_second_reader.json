@@ -783,6 +783,13 @@
       "find": "    if src not in _AUTH_STATES:\n",
       "replace": "    if False:\n",
       "rationale": "D-2026-140: the restated gate decides a move out of a state it cannot name; until now no specification reached this branch"
+    },
+    {
+      "name": "R112_the_reader_lets_a_record_be_made_to_depend_on_nothing",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            if unrecorded:\n",
+      "replace": "            if False:\n",
+      "rationale": "D-2026-140: a record.depend on a record nobody created is folded by the second reader while the store refuses it"
     }
   ]
 }

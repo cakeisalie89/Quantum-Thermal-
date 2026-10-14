@@ -7757,7 +7757,9 @@ evidence is a digest, and a dependency is a record already held. None of the
 four reached `agent_substrate/reconstruct.py`. Measured at `725073b`, each
 of the four forged creates -- every other field honest -- was refused by
 `AuthorityStore.load()` and folded by `reconstruct()` with no anomaly; the
-first left `records["forged"]["state"] == "PROMOTED"`.
+first left `records["forged"]["state"] == "PROMOTED"`. Checking the third
+authority action the same way found a fifth: `record.depend` naming a
+record nobody created was refused by the store and folded by the reader.
 
 **WHY IT MATTERS.** A log the store refuses to load is read by the second
 reader alone, and so by the separate-process verifier built on it (D-2026-02:
@@ -7774,6 +7776,8 @@ A create is folded in the initial state, never in a state it names.
 `tests/test_agent_second_reader.py` forges each rule's violation with the
 other three honest and requires both readers to refuse it, with an honest
 control both fold; `agent_second_reader.json` R107-R110 delete each rule.
+A dependency on an unrecorded record is refused on `record.depend` as on
+the create, with its own test and control, and R112.
 Two rows of the differential matrix had reached transition-level rules -- a
 record with no proposer, a move out of a state nobody defined -- by forging
 the create, and now meet the create rule first. Their log-level scenarios
@@ -7781,7 +7785,7 @@ joined the create test with that expectation, and the two rules are asked of
 the restated gate as requests, each beside the neighbour it allows
 (`test_the_restated_gate_decides_requests_a_log_can_no_longer_make`); R111
 reaches the unknown-source branch, which no specification had reached.
-`agent_second_reader.json` 111/111 killed, each new mutation by its own
+`agent_second_reader.json` 112/112 killed, each new mutation by its own
 case; `agent_substrate.json`, which also mutates this reader, 52/52.
 The repair also exposed a fixture: the separate-process verifier's "clean
 log" created its records in `DRAFT` with no proposer -- a log the store

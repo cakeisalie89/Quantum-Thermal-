@@ -299,8 +299,8 @@
     },
     {
       "filename": "agent_substrate/reconstruct.py",
-      "size_bytes": 138596,
-      "sha256": "3693131d00163e46c28f99af215101ac9d53e2f405adf7dbd830983db343f02b"
+      "size_bytes": 139156,
+      "sha256": "4d271b65b3e86c9acd6866e0679450ba846c1f4f1085119296d0070990fb79da"
     },
     {
       "filename": "agent_substrate/result_rules.py",
@@ -369,8 +369,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 440998,
-      "sha256": "8c685e7ffd3a42ae0bf8e5b86dee47c4d2055fba952f3060bb9e546d430286d0"
+      "size_bytes": 441286,
+      "sha256": "451ff0b9bc5f5f97a9f23312e5d8e10a95c44310797a4595495c361b33f5b237"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -385,7 +385,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3233,
-      "sha256": "83d5f7f97f47f619276461f638f33fd4aa762374d3351eeb15d612809696cf33"
+      "sha256": "2e4d4dd3d334c058b2c87e0560e209a4569a78252af83b2ee216ac90656ecadf"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -1199,8 +1199,8 @@
     },
     {
       "filename": "tests/test_agent_second_reader.py",
-      "size_bytes": 69427,
-      "sha256": "e025a36a5c500a00d20e970690426835ee833e5f6f7688dedac9455c423a67a5"
+      "size_bytes": 71154,
+      "sha256": "749e8dd83cfc9c2671b52b71494f155a2b1c51eceb4730c7f7bea1858b8dec53"
     },
     {
       "filename": "tests/test_agent_secret_provider.py",
@@ -1789,8 +1789,8 @@
     },
     {
       "filename": "tools/mutations/agent_second_reader.json",
-      "size_bytes": 51082,
-      "sha256": "74db389054e3cf53a1d40a42626a79079f9fd58e6d71aeaad1fb8113a1b9137d"
+      "size_bytes": 51443,
+      "sha256": "e457fb2a4ea953357d26d556cf10419f2e81b1d382819352c78b1bb5131fff84"
     },
     {
       "filename": "tools/mutations/agent_secret_provider.json",

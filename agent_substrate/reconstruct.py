@@ -928,7 +928,18 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 out.anomalies.append(
                     f"seq {ev.seq}: dependency for unknown record {rid!r}")
                 continue
-            for dep in p.get("depends_on", []):
+            # The store refuses a dependency on a record nobody created: it
+            # is one nothing will ever resolve (D-2026-140, restated).
+            deps = p.get("depends_on", [])
+            unrecorded = ([d for d in deps if d not in recs]
+                          if isinstance(deps, list) else [deps])
+            if unrecorded:
+                out.anomalies.append(
+                    f"seq {ev.seq}: {rid!r} is made to depend on "
+                    f"{unrecorded[0]!r}, which nothing has recorded; not "
+                    "applied")
+                continue
+            for dep in deps:
                 if dep not in cur["depends_on"]:
                     cur["depends_on"].append(dep)
             cur["revision"] += 1
