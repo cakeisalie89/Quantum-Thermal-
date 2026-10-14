@@ -25,7 +25,7 @@
     {
       "filename": ".github/workflows/agent-substrate.yml",
       "size_bytes": 29101,
-      "sha256": "4447b8dfcb287bf4888880348b72f005ab9a7de60798c2f0530bfb3ac3509488"
+      "sha256": "99040c0471e5e58f37f20617a40d49f48cc40605032b589db9cf1c8cdcc0fed7"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -369,8 +369,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 432756,
-      "sha256": "98c1cf2257ab5a9b99301ac53e57ff4094dfb42bca278eee294c33d3617cadfa"
+      "size_bytes": 434068,
+      "sha256": "df61463c8cc4ef23daa302590ed87220c1b46ba4c95aa3fedb5f854ae5d295b0"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -385,7 +385,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3233,
-      "sha256": "37f28fbe834c496fdeedc29f8034e082daef706225c15071118b8d8c960b8374"
+      "sha256": "d444a841f74efb094220762e8a7524bc1a51fb07cc12e3c8b0518c42244be2db"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -625,12 +625,12 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "fa75bd1cc0b1f1752d870112da44ca46ff6b97315fb28b1803cbf284833c21f2"
+      "sha256": "da7a2c34e1297fc9cdd5ea6a666d26fd995a05ee2d0b1aec17cdda9f8e99f849"
     },
     {
       "filename": "ro_crate_tools.py",
-      "size_bytes": 20676,
-      "sha256": "4d64a5ce773200d5e3fe2868332cbf683585a65706baff5a610d0b454267e99e"
+      "size_bytes": 20625,
+      "sha256": "cac9d51edd5cf936ddcc2cbd4e9d77c2267e5106fa0cee4b3af61200e68252e0"
     },
     {
       "filename": "scientific/__init__.py",
@@ -1489,8 +1489,8 @@
     },
     {
       "filename": "tests/test_ro_crate_conformance.py",
-      "size_bytes": 8204,
-      "sha256": "dc8784506cf5f80d6b8a288b0cc99a3b8499ff8bf77b3c8a6fd99c0ad848b960"
+      "size_bytes": 10310,
+      "sha256": "0a7e9c6564f533d57f19cd35c162194b7387d391817cd3b3a9adcf1d63136704"
     },
     {
       "filename": "tests/test_run_identity_backend.py",
@@ -2049,8 +2049,8 @@
     },
     {
       "filename": "tools/mutations/ro_crate_conformance.json",
-      "size_bytes": 2850,
-      "sha256": "71c216854339804afd3146279a65a4456d8fc743f4fe9784b528314b3c52c96c"
+      "size_bytes": 3661,
+      "sha256": "433dba01a76b77af3736f43f9ece14605f77c1f8244d775c621b8e54cb3a8a0f"
     },
     {
       "filename": "tools/mutations/run_identity_backend.json",

@@ -7704,3 +7704,26 @@ the demonstration stayed in the default DAG.
 enters it at exactly one place, and WG1 deletes the demonstration there.
 4/4 killed locally, WG1 by `test_the_default_target_is_the_generic_workflow`.
 The dry-run DAG of the default target is unchanged.
+
+## D-2026-139 — a removed test module held the RO-Crate validator's scope checks
+
+**CLASS** — `COVERAGE_LOSS`, found by sweeping every removed test module for
+imports of code that stayed.
+
+**DEMONSTRATION.** Four removed test modules imported live modules. Three
+tested only retired models or the retired reference backend through them;
+their generic properties have current tests (`tests/test_governed_model.py`,
+`tests/test_harness_integrations.py`, `tests/test_agent_result_rules.py`,
+`tests/test_backend_identity.py`). The fourth held three properties of
+`ro_crate_tools.validate` no current test checked: a crate of nothing is not
+VALID, a checksum outside `hasPart` is reported, a crate without a root
+returns a verdict rather than crashing. The validator still had all three;
+nothing would have noticed if it lost them.
+
+**REPAIR.** The three tests run against copies of the committed crate in
+`tests/test_ro_crate_conformance.py`, with the committed crate as the
+positive control. `ro_crate_conformance.json` gains RC8 (empty scope) and
+RC9 (checksum outside hasPart); RC8 first survived because the copy with an
+empty `hasPart` also left the files' checksums outside it -- the test now
+keeps only the descriptor, the root and contextual entities, so the empty
+scope is the one finding. 9/9 killed.

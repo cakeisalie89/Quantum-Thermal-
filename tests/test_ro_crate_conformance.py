@@ -188,3 +188,54 @@ def test_a_disagreement_prints_both_validators_reasons(monkeypatch,
     assert "committed_crate: internal ACCEPTED, external REFUSED -> " \
         "DISAGREE" in out
     assert "external: " in out and "the reason" in out
+
+
+# --- the validator's scope: nothing, part, and no root -----------------------
+# Carried from the retired programme's provenance tests, which held these
+# properties of ro_crate_tools.validate and left with it.
+
+def _committed() -> dict:
+    return json.loads((ROOT / "ro-crate" / "ro-crate-metadata.json")
+                      .read_text(encoding="utf-8"))
+
+
+def _validate(doc: dict, tmp_path) -> int:
+    p = tmp_path / "ro-crate-metadata.json"
+    p.write_text(json.dumps(doc), encoding="utf-8")
+    return RC.validate(p, tmp_path / "report.json")
+
+
+def test_the_committed_crate_validates(tmp_path):
+    """The positive control for the three refusals below."""
+    assert _validate(_committed(), tmp_path) == 0
+
+
+def test_a_crate_validation_over_nothing_is_refused(tmp_path):
+    """Checksums are verified in a loop over hasPart; with hasPart empty the
+    loop runs zero times, and a VALID over nothing is not a verdict."""
+    doc = _committed()
+    # Only the descriptor, the root and contextual entities stay, so no
+    # other rule has anything to object to: the empty scope is the finding.
+    doc["@graph"] = [e for e in doc["@graph"]
+                     if e["@id"] in ("ro-crate-metadata.json", "./")
+                     or e["@id"].startswith("#")]
+    root = next(e for e in doc["@graph"] if e["@id"] == "./")
+    root["hasPart"] = []
+    assert _validate(doc, tmp_path) != 0
+
+
+def test_a_checksum_outside_hasPart_is_reported_as_unverified(tmp_path):
+    """Scope completeness, not only non-emptiness: an entity carrying a
+    checksum the hasPart loop never reaches is a hash nobody checked."""
+    doc = _committed()
+    doc["@graph"].append({"@id": "unreferenced.txt", "@type": "File",
+                          "sha256": "a" * 64})
+    assert _validate(doc, tmp_path) != 0
+
+
+def test_a_crate_missing_its_root_fails_rather_than_crashing(tmp_path):
+    """A crash is not a refusal: a crate with no root dataset returns a
+    verdict, not a KeyError."""
+    doc = _committed()
+    doc["@graph"] = [e for e in doc["@graph"] if e["@id"] != "./"]
+    assert _validate(doc, tmp_path) != 0

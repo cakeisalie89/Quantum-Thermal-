@@ -281,8 +281,7 @@ def validate(meta_path: Path = META,
     # checked, and this printed RESULT: VALID and exit 0 -- writing
     # `"result": "VALID"` into a report the manifest hashes. Reproduced
     # before this guard existed, in the same sweep that found the same shape
-    # in validate_hdf5_equivalence.py, which shares this step of the
-    # regeneration order.
+    # in a since-retired equivalence check.
     #
     # The second half is scope COMPLETENESS rather than mere non-emptiness:
     # an entity that carries a checksum and sits outside `hasPart` is one
