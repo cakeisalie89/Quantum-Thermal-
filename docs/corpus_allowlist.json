@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "646a7c993fa7eb87d658fce8cc77ea859a29bf7b3e14b71d17cd6d416e6a0c77",
+  "entries_digest": "236aa629aed3f71b333b94ac00f2b969d9aa72bfe0ab359613cf5a4a9f48185f",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -74,7 +74,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "90aba2878d691fd33f646aa6880d44027e4738f99a146623b1214442425b2e32"
+      "sha256": "98c1cf2257ab5a9b99301ac53e57ff4094dfb42bca278eee294c33d3617cadfa"
     },
     {
       "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",

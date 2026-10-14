@@ -139,8 +139,8 @@
     },
     {
       "filename": "Snakefile",
-      "size_bytes": 39820,
-      "sha256": "e69430b89a1a246cbf136e4433a895ea07475d2e7fc82508d9e389dee332a7c7"
+      "size_bytes": 39769,
+      "sha256": "4580490d25fc512f2ce4d43297c1f6ddd15994107934dbcfb6ce0e6fe5bcb9dd"
     },
     {
       "filename": "TESTING.md",
@@ -369,8 +369,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 431919,
-      "sha256": "90aba2878d691fd33f646aa6880d44027e4738f99a146623b1214442425b2e32"
+      "size_bytes": 432756,
+      "sha256": "98c1cf2257ab5a9b99301ac53e57ff4094dfb42bca278eee294c33d3617cadfa"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -385,7 +385,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3233,
-      "sha256": "000df5aebe0e0dc7c57f2ca3df77c31cd3aa45b4040ad398cd91a89bb111f1c2"
+      "sha256": "37f28fbe834c496fdeedc29f8034e082daef706225c15071118b8d8c960b8374"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -625,7 +625,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "b3d5d96af0099385547567a6990ddc4414f95bd214f71fdd3575493459bc2675"
+      "sha256": "fa75bd1cc0b1f1752d870112da44ca46ff6b97315fb28b1803cbf284833c21f2"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -2134,8 +2134,8 @@
     },
     {
       "filename": "tools/mutations/workflow_generic.json",
-      "size_bytes": 1790,
-      "sha256": "033aa2cc98578e0ef3088e92f40a6aae813e52ab45865d2de7f9a4c48c36a5a2"
+      "size_bytes": 1758,
+      "sha256": "26b028eed19a5f00d532b821f92a3d7c80fe4b8eda9b3fd2d0b638adb5387092"
     },
     {
       "filename": "tools/neural.py",

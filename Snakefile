@@ -43,12 +43,10 @@ def _sha(p):
     return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 rule scientific_generic:
-    # The default target. Every input is produced by a rule in this file.
+    # The default target. Its one input is the tree check, which names every
+    # output of the workflow and so runs last: each rule enters the default
+    # target at exactly one place, in tree_untouched's inputs.
     input:
-        f"{W10}/harness_demo_report.json",
-        f"{W10}/governed_model/governed_model_run.json",
-        f"{W10}/governed/governed_run.json",
-        f"{W10}/governed_index/index_run.json",
         f"{W10}/tree_untouched.json",
 
 rule harness_demo:

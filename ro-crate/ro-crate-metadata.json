@@ -137,10 +137,10 @@
     "File",
     "SoftwareSourceCode"
    ],
-   "contentSize": "39820",
+   "contentSize": "39769",
    "description": "the governed scientific workflow (Snakemake); its default target runs the harness end to end",
    "name": "Snakefile",
-   "sha256": "e69430b89a1a246cbf136e4433a895ea07475d2e7fc82508d9e389dee332a7c7"
+   "sha256": "4580490d25fc512f2ce4d43297c1f6ddd15994107934dbcfb6ce0e6fe5bcb9dd"
   },
   {
    "@id": "authorities.json",

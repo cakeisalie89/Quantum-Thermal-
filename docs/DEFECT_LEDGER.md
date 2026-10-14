@@ -7688,3 +7688,19 @@ cross-check varies three parameters about their base values. Run locally
 with the full extras: the default target, `uq_sobol` (both methods computed,
 CONSISTENT_AT_RESOLUTION, NON_AUTHORITATIVE) and `mdao_doe`, and the tracked
 tree untouched (0 mismatches over 438 entries).
+
+## D-2026-138 — the demonstration entered the default target twice, so removing it from the target changed nothing
+
+**CLASS** — `EQUIVALENT_MUTANT`, found by hosted CI. `Snakefile`,
+`tools/mutations/workflow_generic.json`.
+
+**DEMONSTRATION.** `mutation-shards (7)` at `f219139`: WG1 (delete the
+demonstration from the default target's inputs) SURVIVED. The tree check,
+which lists every output so that it runs last, also listed the
+demonstration's report, and the default target depended on the tree check;
+the demonstration stayed in the default DAG.
+
+**REPAIR.** The default target's one input is the tree check, so every rule
+enters it at exactly one place, and WG1 deletes the demonstration there.
+4/4 killed locally, WG1 by `test_the_default_target_is_the_generic_workflow`.
+The dry-run DAG of the default target is unchanged.

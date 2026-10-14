@@ -9,8 +9,8 @@
   {
    "name": "WG1_the_default_target_skips_the_demonstration",
    "path": "Snakefile",
-   "find": "        f\"{W10}/harness_demo_report.json\",\n        f\"{W10}/governed_model/governed_model_run.json\",\n",
-   "replace": "        f\"{W10}/governed_model/governed_model_run.json\",\n",
+   "find": "        f\"{W10}/harness_demo_report.json\",\n    output: f\"{W10}/tree_untouched.json\"\n",
+   "replace": "    output: f\"{W10}/tree_untouched.json\"\n",
    "rationale": "the generic workflow's default target runs no proposal-to-decision path"
   },
   {
