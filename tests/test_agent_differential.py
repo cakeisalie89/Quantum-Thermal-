@@ -841,12 +841,6 @@ _AUTH_MATRIX = [
     ("honest-verify", {}, [_REVIEW, _VERIFY], None),
     ("verified-by-its-own-proposer", {}, [_REVIEW, _SELF_VERIFY],
      "I4: 'alice' proposed r1"),
-    ("verified-with-no-proposer-on-record", {"proposer": None},
-     [_REVIEW, ("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
-                        "role": "VERIFIER",
-                        "evidence": {"verification_report": _DG}})],
-     "the record's proposer is unknown"),
-
     ("verified-with-no-evidence", {},
      [_REVIEW, ("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
                         "role": "VERIFIER"})],
@@ -891,9 +885,6 @@ _AUTH_MATRIX = [
     ("a-role-nobody-defined", {},
      [("bob", {"src": "PROPOSED", "dst": "UNDER_REVIEW", "role": "GOD"})],
      "'GOD' is not a role this reader knows"),
-    ("moving-out-of-a-state-nobody-defined", {"create": {"state": "LIMBO"}},
-     [("bob", {"src": "LIMBO", "dst": "UNDER_REVIEW", "role": "VERIFIER"})],
-     "'LIMBO' is not an authority state this reader knows"),
 ]
 
 
@@ -916,6 +907,44 @@ def test_the_restated_authority_rules_decide_each_case(
     else:
         assert any(expected in u for u in recon.unauthorized), (
             f"{case}: expected {expected!r}, got {recon.unauthorized}")
+
+
+# --- two restated rules a log can no longer reach ---------------------------
+#
+# D-2026-140. The second reader refuses a create the store refuses, so a
+# record can no longer be BORN without its proposer or in a state nobody
+# defined: the two matrix rows that reached these rules by forging the
+# create reach the create rule first, and are tested there
+# (tests/test_agent_second_reader.py). The rules stay -- the restated gate
+# decides any request the way the gate does -- and a request is where they
+# are asked now. Each is paired with the neighbour it allows.
+
+_REQUEST = {"record_id": "r1", "src": "UNDER_REVIEW", "dst": "VERIFIED",
+            "actor": "bob", "role": "VERIFIER",
+            "evidence": {"verification_report": _DG}, "proposer": "alice",
+            "policy_id": None}
+
+_GATE_ROWS = [
+    ("a-known-proposer", {}, None),
+    ("no-proposer-on-record", {"proposer": None},
+     "the record's proposer is unknown"),
+    ("a-state-it-knows", {"src": "PROPOSED", "dst": "UNDER_REVIEW"}, None),
+    ("moving-out-of-a-state-nobody-defined",
+     {"src": "LIMBO", "dst": "UNDER_REVIEW"},
+     "'LIMBO' is not an authority state this reader knows"),
+]
+
+
+@pytest.mark.parametrize("case,over,expected", _GATE_ROWS,
+                         ids=[c for c, _, _ in _GATE_ROWS])
+def test_the_restated_gate_decides_requests_a_log_can_no_longer_make(
+        case, over, expected):
+    from agent_substrate.reconstruct import _auth_refusal
+    got = _auth_refusal(**{**_REQUEST, **over})
+    if expected is None:
+        assert got is None, f"{case}: {got}"
+    else:
+        assert got is not None and expected in got, f"{case}: {got}"
 
 
 _TASK_MATRIX = [

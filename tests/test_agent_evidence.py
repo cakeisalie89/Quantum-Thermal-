@@ -677,3 +677,54 @@ def test_an_oversized_blob_is_diagnosed_before_it_is_read(tmp_path):
         s.get(dg)
     assert "is 200 bytes, over the 32-byte bound" in str(exc.value)
     assert "grew" not in str(exc.value)
+
+def test_a_file_that_grows_between_the_passes_is_read_within_the_bound(
+        tmp_path, monkeypatch):
+    """D-2026-142: the second read is bounded like the first.
+
+    The file is ordinary when it is hashed and grows past the bound before
+    it is read again. The call must refuse it on size, having read no more
+    than the bound plus the one byte that shows it was exceeded -- an
+    unbounded read refuses it too, on its digest, after allocating all of
+    it, which is the denial of service the bound exists for.
+    """
+    bound = 1024
+    st = EvidenceStore(tmp_path / "ev", max_blob_bytes=bound)
+    src = tmp_path / "src.bin"
+    src.write_bytes(b"a" * 100)
+    real_open = Path.open
+    opens: list = []
+    largest: list = [0]
+
+    class Counting:
+        def __init__(self, fh):
+            self._fh = fh
+
+        def read(self, *a):
+            got = self._fh.read(*a)
+            largest[0] = max(largest[0], len(got))
+            return got
+
+        def __enter__(self):
+            self._fh.__enter__()
+            return self
+
+        def __exit__(self, *exc):
+            return self._fh.__exit__(*exc)
+
+    def growing_open(self, *a, **k):
+        if self == src:
+            opens.append(1)
+            if len(opens) == 2:
+                with real_open(self, "ab") as fh:
+                    fh.write(b"b" * (50 * bound))
+                return Counting(real_open(self, *a, **k))
+        return real_open(self, *a, **k)
+
+    monkeypatch.setattr(Path, "open", growing_open)
+    with pytest.raises(EvidenceTooLarge, match="between hashing and storing"):
+        st.put_file(src)
+    assert len(opens) == 2, "the file was not read a second time"
+    assert largest[0] <= bound + 1, (
+        f"the second read took {largest[0]} bytes at once; the bound is "
+        f"{bound}")

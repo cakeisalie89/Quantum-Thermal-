@@ -1527,3 +1527,57 @@ def test_the_second_reader_refuses_an_anchor_with_no_position(gov):
     recon = _anchor(gov, through_seq="recently")
     assert any("no through_seq this reader can read" in a
                for a in recon.anomalies), recon.anomalies
+
+# --- a create introduces a claim: the store's rules, restated ---------------
+#
+# D-2026-140. The store refuses four kinds of create on load; this reader
+# folded every one of them, so a record born PROMOTED was canonical in the
+# second reader and nowhere else. Each case breaks ONE rule and keeps the
+# other three, so no rule's refusal can stand in for another's.
+
+_HONEST_CREATE = {"record_id": "r", "kind": "claim", "proposer": "mallory"}
+
+
+@pytest.mark.parametrize("forged, refusal", [
+    ({"state": "PROMOTED"}, "is created directly in 'PROMOTED'"),
+    ({"state": "VERIFIED"}, "is created directly in 'VERIFIED'"),
+    ({"proposer": "alice"}, "as its proposer but was appended by 'mallory'"),
+    ({"evidence": {"report": "not-a-digest"}}, "is not a sha256 digest"),
+    ({"depends_on": ["ghost"]}, "depends on 'ghost', which nothing has"),
+    ({"state": "LIMBO"}, "is created directly in 'LIMBO'"),
+    ({"proposer": None}, "names None as its proposer"),
+], ids=["born-promoted", "born-verified", "named-proposer", "evidence-form",
+        "unrecorded-dependency", "born-in-a-state-nobody-defined",
+        "no-proposer"])
+def test_a_create_the_store_refuses_is_refused_by_the_second_reader(
+        tmp_path, forged, refusal):
+    from agent_substrate.reconstruct import reconstruct
+    from agent_substrate.store import AuthorityStore, StoreError
+    log = EventLog(tmp_path / "ev.jsonl")
+    log.append(actor="mallory", action="record.create", target="r",
+               payload={**_HONEST_CREATE, **forged})
+    with pytest.raises(StoreError):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+    recon = reconstruct(EventLog(tmp_path / "ev.jsonl"))
+    assert any(refusal in a for a in recon.anomalies), recon.anomalies
+    assert "r" not in recon.records, "a refused create was folded"
+
+
+def test_an_honest_create_is_folded_by_both_readers(tmp_path):
+    """CONTROL for the cases above: the payload they start from is one the
+    store loads and this reader folds, with evidence and a dependency, so
+    each refusal above is caused by the one field it changes."""
+    from agent_substrate.reconstruct import reconstruct
+    from agent_substrate.store import AuthorityStore
+    log = EventLog(tmp_path / "ev.jsonl")
+    log.append(actor="mallory", action="record.create", target="base",
+               payload={**_HONEST_CREATE, "record_id": "base"})
+    log.append(actor="mallory", action="record.create", target="r",
+               payload={**_HONEST_CREATE, "evidence": {"report": "a" * 64},
+                        "depends_on": ["base"]})
+    store = AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+    assert store.get("r").state.value == "PROPOSED"
+    recon = reconstruct(EventLog(tmp_path / "ev.jsonl"))
+    assert recon.anomalies == [], recon.anomalies
+    assert recon.records["r"]["state"] == "PROPOSED"
+    assert recon.records["r"]["proposer"] == "mallory"

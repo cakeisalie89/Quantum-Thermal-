@@ -7742,3 +7742,109 @@ RC9 (checksum outside hasPart); RC8 first survived because the copy with an
 empty `hasPart` also left the files' checksums outside it -- the test now
 keeps only the descriptor, the root and contextual entities, so the empty
 scope is the one finding. 9/9 killed.
+
+## D-2026-140 — the second reader folded every create the store refuses, so a record born PROMOTED was canonical there
+
+**CLASS** — `TRUE_DEFECT` (the second reader admits forged records), found
+in this transformation's adversarial review by re-checking each automated
+review finding left on PR #17 against the current tree.
+
+**DEMONSTRATION.** A review of `ef25cca` reported that `record.create` took
+its state from the payload, so one appended line produced a record born in
+PROMOTED. `e7e3885` made the store refuse it on load, together with three
+other rules for a create: the proposer is whoever appended it, cited
+evidence is a digest, and a dependency is a record already held. None of the
+four reached `agent_substrate/reconstruct.py`. Measured at `725073b`, each
+of the four forged creates -- every other field honest -- was refused by
+`AuthorityStore.load()` and folded by `reconstruct()` with no anomaly; the
+first left `records["forged"]["state"] == "PROMOTED"`.
+
+**WHY IT MATTERS.** A log the store refuses to load is read by the second
+reader alone, and so by the separate-process verifier built on it (D-2026-02:
+the second reader is then the only reader, and it was the permissive one).
+The named proposer is also the party separation of duties is measured from,
+so a forged one chose who its verifier had to differ from.
+
+**ROOT CAUSE.** The store was hardened on the finding; nothing required the
+second reader to restate a rule the store had gained.
+
+**REPAIR.** `reconstruct._create_refusal` restates the four rules; a refused
+create is an anomaly and is not folded, like a job enqueued past its start.
+A create is folded in the initial state, never in a state it names.
+`tests/test_agent_second_reader.py` forges each rule's violation with the
+other three honest and requires both readers to refuse it, with an honest
+control both fold; `agent_second_reader.json` R107-R110 delete each rule.
+Two rows of the differential matrix had reached transition-level rules -- a
+record with no proposer, a move out of a state nobody defined -- by forging
+the create, and now meet the create rule first. Their log-level scenarios
+joined the create test with that expectation, and the two rules are asked of
+the restated gate as requests, each beside the neighbour it allows
+(`test_the_restated_gate_decides_requests_a_log_can_no_longer_make`); R111
+reaches the unknown-source branch, which no specification had reached.
+`agent_second_reader.json` 111/111 killed, each new mutation by its own
+case; `agent_substrate.json`, which also mutates this reader, 52/52.
+The repair also exposed a fixture: the separate-process verifier's "clean
+log" created its records in `DRAFT` with no proposer -- a log the store
+refuses -- and verified clean only because of this defect. It now writes
+creates the store loads, and loads them, so its cleanliness is measured.
+
+**NOT CLAIMED.** This restates the store's rules for a create. It does not
+show that every rule the store has gained since the second reader was
+written has been restated.
+
+## D-2026-141 — retrieval read an excluded tree through a directory link inside the corpus root
+
+**CLASS** — `TRUE_DEFECT`, from the same review of `ef25cca`, still live at
+`725073b`.
+
+**DEMONSTRATION.** `build_index(paths=[...])` checks a named path's parts
+against the excluded directories as written, refuses a link only at the
+named file, and refuses a path that resolves outside the root. With
+`alias -> outputs` (or `.git`, or `verification`) inside the root,
+`alias/doc.md` passed all three: no excluded name, no link at the file, and
+a target inside the root. Measured at `725073b`, `_validate_corpus_paths`
+accepted it for each of the three.
+
+**ROOT CAUSE.** Each rule judged one view of the path -- its names, its last
+component, its resolved root -- and none judged where it lands.
+
+**REPAIR.** A path that lands somewhere other than its name is also judged
+where it lands: under an excluded directory, it is refused. Applied only
+when the two differ, so the name rule (R3), the link rule (R5) and the root
+rule (R7) each keep the case only they can refuse. Held by
+`test_a_directory_link_into_an_excluded_tree_is_refused` for three excluded
+trees, with a control that a link landing in governed text is still read;
+`governed_tasks_authority.json` R12. 20/20 killed, R3, R5 and R7 each still
+by its own isolated test.
+
+**NOT CLAIMED.** Directory links inside the corpus root that land in
+governed text are still followed, as before.
+
+## D-2026-142 — the evidence store's second read of a file was unbounded
+
+**CLASS** — `TRUE_DEFECT` (denial of service), from the same review, still
+live at `725073b`.
+
+**DEMONSTRATION.** `EvidenceStore.put_file` hashes a file in chunks under
+`max_blob_bytes`, then reads it again to write. The second read was
+`read_bytes()`: a file that grew between the passes was allocated in full
+before its changed digest refused it -- the allocation the bound exists to
+prevent.
+
+**REPAIR.** The second read takes at most the bound plus one byte and is
+refused on size when it exceeds the bound. Held by
+`test_a_file_that_grows_between_the_passes_is_read_within_the_bound`, which
+grows the file between the passes and measures the largest single read;
+`agent_evidence.json` E22 (an unbounded read) and E23 (no refusal on size);
+23/23 killed.
+
+**NOT CLAIMED.** A file that changes between the passes without growing
+past the bound is still refused by its digest, as before; nothing here makes
+a changing file storable.
+
+**THE OTHER THREE FINDINGS OF THAT REVIEW** were re-checked against the
+current tree and are fixed: the store authorizes and appends under one lock
+and re-decides source, revision, edge and evidence there (`_append_decided`,
+`2f9a977`); invalidation stores the evidence it cites (`_origin_evidence`,
+`87eb794`); and the mutation harness fails a run with a timed-out mutation
+(`f3b6e81`).

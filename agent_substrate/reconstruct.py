@@ -197,6 +197,41 @@ def _is_digest(value: object) -> TypeGuard[str]:
             and all(c in _HEX for c in value))
 
 
+def _create_refusal(p: dict, actor: str, recs: dict) -> str | None:
+    """Why the store would refuse this create, restated (D-2026-140).
+
+    A create introduces a CLAIM: it is born in the initial state, proposed
+    by whoever appended it, citing evidence by digest, depending only on
+    records already held. The store refused every other create on load; this
+    reader folded each of them, so a record born PROMOTED was canonical here
+    and nowhere else -- and the second reader is the only reader of a log the
+    store will not load.
+    """
+    state = p.get("state", _AUTH_INITIAL)
+    if state != _AUTH_INITIAL:
+        return (f"is created directly in {state!r}; every state after "
+                f"{_AUTH_INITIAL} is reached by a transition authorized on "
+                "its own terms")
+    if p.get("proposer") != actor:
+        return (f"names {p.get('proposer')!r} as its proposer but was "
+                f"appended by {actor!r}; separation of duties is measured "
+                "from who proposed it")
+    evidence = p.get("evidence", {})
+    if not isinstance(evidence, dict):
+        return "carries evidence that is not a mapping"
+    for k, v in evidence.items():
+        if not _is_digest(v):
+            return (f"cites evidence {k!r} that is not a sha256 digest, so "
+                    "what was cited could be altered after the fact")
+    deps = p.get("depends_on", [])
+    if not isinstance(deps, list):
+        return "carries dependencies that are not a list"
+    for dep in deps:
+        if dep not in recs:
+            return (f"depends on {dep!r}, which nothing has recorded")
+    return None
+
+
 def _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,
                   policy_id):
     """Why this authority transition would be refused, or None if it stands.
@@ -784,11 +819,17 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 out.anomalies.append(
                     f"seq {ev.seq}: duplicate create for {rid!r}")
                 continue
+            refused = _create_refusal(p, ev.actor, recs)
+            if refused is not None:
+                # Not folded, like a job enqueued past its start: a create
+                # the store refuses is not a record.
+                out.anomalies.append(f"seq {ev.seq}: {rid!r} {refused}")
+                continue
             recs[rid] = {
                 "record_id": rid,
                 "kind": p.get("kind"),
                 "proposer": p.get("proposer"),
-                "state": p.get("state", _AUTH_INITIAL),
+                "state": _AUTH_INITIAL,
                 "revision": 1,
                 "evidence": dict(p.get("evidence", {})),
                 "depends_on": list(p.get("depends_on", [])),
@@ -797,7 +838,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 "updated_seq": ev.seq,
                 "stale_reason": None,
                 "admission": None,
-                "history": [(ev.seq, p.get("state", _AUTH_INITIAL))],
+                "history": [(ev.seq, _AUTH_INITIAL)],
             }
 
         elif action == "record.transition":

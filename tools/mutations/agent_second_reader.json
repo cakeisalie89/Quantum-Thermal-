@@ -748,6 +748,41 @@
       "find": "from . import actions\nfrom .events import EventLog",
       "replace": "from . import actions\nfrom .events import EventLog\nfrom .result_rules import record_problems  # noqa: F401",
       "rationale": "D-2026-126: a first reader the deny-list never named. result_rules is restated in the reader so a weakened rule is not reproduced there; an import of it passes a list that names ten layers out of some thirty-five, and only the allow-list refuses it"
+    },
+    {
+      "name": "R107_the_reader_lets_a_record_be_born_in_any_state",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if state != _AUTH_INITIAL:\n",
+      "replace": "    if False:\n",
+      "rationale": "D-2026-140: a record created directly in PROMOTED is canonical in the second reader"
+    },
+    {
+      "name": "R108_the_reader_takes_the_proposer_from_the_payload",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if p.get(\"proposer\") != actor:\n",
+      "replace": "    if False:\n",
+      "rationale": "D-2026-140: a create names the party separation of duties is measured from"
+    },
+    {
+      "name": "R109_the_reader_takes_any_string_as_created_evidence",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if not _is_digest(v):\n            return (f\"cites evidence",
+      "replace": "        if False:\n            return (f\"cites evidence",
+      "rationale": "D-2026-140: evidence cited at creation by something other than a digest can be altered after the fact"
+    },
+    {
+      "name": "R110_the_reader_lets_a_record_depend_on_nothing_recorded",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if dep not in recs:\n",
+      "replace": "        if False:\n",
+      "rationale": "D-2026-140: a dependency on a record that does not exist is folded"
+    },
+    {
+      "name": "R111_the_restated_gate_reads_a_state_nobody_defined",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if src not in _AUTH_STATES:\n",
+      "replace": "    if False:\n",
+      "rationale": "D-2026-140: the restated gate decides a move out of a state it cannot name; until now no specification reached this branch"
     }
   ]
 }

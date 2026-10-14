@@ -664,3 +664,37 @@ def test_naming_an_excluded_file_explicitly_does_not_admit_it():
     with pytest.raises(ValueError) as exc:
         RAG.build_index(root=ROOT, paths=["manifest_hash.txt"])
     assert "excluded from retrieval" in str(exc.value)
+
+@pytest.mark.parametrize("excluded", ["outputs", ".git", "verification"])
+def test_a_directory_link_into_an_excluded_tree_is_refused(tmp_path,
+                                                           excluded):
+    """D-2026-141: the excluded-directory rule, applied where a path lands.
+
+    ``alias`` links to an excluded directory INSIDE the root and the file
+    under it is ordinary: the name rule sees no excluded part, the symlink
+    rule sees no link at the file, and the root-escape rule sees a path that
+    stays inside the root. Only where it lands can refuse it.
+    """
+    root = tmp_path / "corpus"
+    root.mkdir()
+    (root / "doc.md").write_text("alpha\n", encoding="utf-8")
+    (root / excluded).mkdir()
+    (root / excluded / "doc.md").write_text("generated\n", encoding="utf-8")
+    (root / "alias").symlink_to(excluded, target_is_directory=True)
+    assert not (root / "alias" / "doc.md").is_symlink(), (
+        "the FILE must not be a link, or the symlink rule would catch it first")
+    _declare_corpus(root)
+    with pytest.raises(ValueError, match="lands under an excluded directory"):
+        RAG.build_index(root=root, paths=["alias/doc.md"])
+
+
+def test_a_directory_link_that_lands_in_the_corpus_is_still_read(tmp_path):
+    """CONTROL: a link that lands in governed text is not refused by the
+    rule above, so that rule refuses the excluded tree and not every link."""
+    root = tmp_path / "corpus"
+    (root / "docs").mkdir(parents=True)
+    (root / "docs" / "doc.md").write_text("alpha\n", encoding="utf-8")
+    (root / "alias").symlink_to("docs", target_is_directory=True)
+    _declare_corpus(root)
+    idx = RAG.build_index(root=root, paths=["alias/doc.md"])
+    assert list(idx.file_digests) == ["alias/doc.md"]

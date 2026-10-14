@@ -222,7 +222,18 @@ class EvidenceStore:
         # pass and this one, so the written blob is verified against dg before
         # it is published; a mismatch means the source was not stable and the
         # call fails rather than storing bytes under the wrong name.
-        content = p.read_bytes()
+        #
+        # Bounded like the first pass (D-2026-142). An unbounded read here
+        # allocated a file that grew between the passes in full before its
+        # changed digest could refuse it -- the allocation the bound exists
+        # to prevent.
+        with p.open("rb") as fh:
+            again = fh.read(self.max_blob_bytes + 1)
+        if len(again) > self.max_blob_bytes:
+            raise EvidenceTooLarge(
+                f"{p} grew past the {self.max_blob_bytes}-byte bound "
+                "between hashing and storing")
+        content = again
         if digest_bytes(content) != dg:
             raise CorruptEvidence(
                 f"{p} changed while being stored; its digest was {dg[:12]} "

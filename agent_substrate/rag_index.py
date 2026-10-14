@@ -393,6 +393,17 @@ def _validate_corpus_paths(root: Path, rels: list) -> list:
             raise ValueError(
                 f"unsafe corpus path {rel!r}: resolves outside the corpus "
                 "root")
+        # WHERE IT LANDS, when that is not where it is named (D-2026-141).
+        # The excluded-directory rule above reads the names as given and the
+        # symlink rule reads only the last one, so a directory link inside
+        # the root -- `alias -> .git` -- passed both, stayed inside the root,
+        # and `alias/<file>` was read out of an excluded tree.
+        landed = resolved.relative_to(root_resolved).parts
+        if landed != parts and any(part in EXCLUDED_DIRS for part in landed):
+            raise ValueError(
+                f"corpus path {rel!r} lands under an excluded directory "
+                f"({'/'.join(landed)!r}) through a link; naming it by another "
+                "path does not make it a governed document")
         if not p.is_file():
             raise ValueError(f"corpus path {rel!r} is not a regular file")
         if resolved in seen:

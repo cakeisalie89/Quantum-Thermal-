@@ -84,7 +84,7 @@ jobs:
         # Directive 14. CLAIMS_BOUNDARY.md states the framework's generic
         # epistemic boundaries -- a simulation result is not a measurement,
         # independent numerical agreement is not experimental validation, and
-        # nine more -- and docs/claims_boundary.json names, for each, the code
+        # fifteen more -- and docs/claims_boundary.json names, for each, the code
         # that enforces it and the tests that hold it. This fails on a
         # required boundary missing, a module that does not define the named
         # symbol, a test that does not exist, or a boundary the page omits.

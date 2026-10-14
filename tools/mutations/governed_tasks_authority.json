@@ -139,6 +139,13 @@
       "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()",
       "replace": "        self.log.verify().raise_if_bad()\n        events = self.log.read()",
       "rationale": "D-2026-41: a record landing between the verification and the read is folded without its chain link ever being checked, and the run costs eight extra whole-log passes"
+    },
+    {
+      "name": "R12_a_directory_link_into_an_excluded_tree_is_followed",
+      "path": "agent_substrate/rag_index.py",
+      "find": "        if landed != parts and any(part in EXCLUDED_DIRS for part in landed):\n",
+      "replace": "        if False:\n",
+      "rationale": "D-2026-141: `alias -> .git` inside the root reads an excluded tree under a name that is not"
     }
   ]
 }

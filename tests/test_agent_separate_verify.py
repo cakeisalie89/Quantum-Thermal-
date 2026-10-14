@@ -44,11 +44,19 @@ VERIFIER = ROOT / "tools" / "independent_verify.py"
 
 @pytest.fixture()
 def log(tmp_path):
+    """A clean log, MEASURED clean: the store loads it.
+
+    It used to create its records in 'DRAFT' with no proposer -- a log the
+    store refuses -- and read clean only because the second reader did not
+    check a create (D-2026-140).
+    """
+    from agent_substrate.store import AuthorityStore
     lg = EventLog(tmp_path / "log.jsonl")
     for i in range(3):
         lg.append(actor="a", action="record.create", target=f"r{i}",
-                  payload={"record_id": f"r{i}", "state": "DRAFT",
+                  payload={"record_id": f"r{i}", "proposer": "a",
                            "title": "x", "kind": "note"})
+    AuthorityStore(EventLog(lg.path)).load()
     return lg
 
 

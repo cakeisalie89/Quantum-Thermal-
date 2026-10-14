@@ -156,6 +156,20 @@
    "find": "        fd, tmp_name = tempfile.mkstemp(dir=str(meta.parent),\n                                        prefix=\".meta-\", suffix=\".tmp\")",
    "replace": "        tmp_name = str(meta.with_suffix(\".tmp\"))\n        fd = os.open(tmp_name, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)",
    "rationale": "two writers storing identical bytes collide on one temporary file and the second's rename fails, turning a race with no losing side into a crash"
+  },
+  {
+   "name": "E22_the_second_read_is_unbounded",
+   "path": "agent_substrate/evidence.py",
+   "find": "            again = fh.read(self.max_blob_bytes + 1)\n",
+   "replace": "            again = fh.read()\n",
+   "rationale": "D-2026-142: a file that grew between the passes is allocated in full before its digest refuses it"
+  },
+  {
+   "name": "E23_growth_between_the_passes_is_not_refused_on_size",
+   "path": "agent_substrate/evidence.py",
+   "find": "        if len(again) > self.max_blob_bytes:\n",
+   "replace": "        if False:\n",
+   "rationale": "D-2026-142: the bound is read past and the refusal is left to the digest"
   }
  ]
 }
