@@ -1,8 +1,8 @@
 {
  "acceptance_attempt": {
   "dst": "VERIFIED",
-  "reason": "learned_evaluation:dba7c660c2934066: a learned_evaluation record cannot become VERIFIED: no admission policy for learned models exists, and a learned output is LEARNED_PREDICTION, NON_AUTHORITATIVE, REQUIRES_EXTERNAL_VERIFICATION",
-  "record": "learned_evaluation:dba7c660c2934066",
+  "reason": "learned_evaluation:0b2906ad6f8ddf28: a learned_evaluation record cannot become VERIFIED: no admission policy for learned models exists, and a learned output is LEARNED_PREDICTION, NON_AUTHORITATIVE, REQUIRES_EXTERNAL_VERIFICATION",
+  "record": "learned_evaluation:0b2906ad6f8ddf28",
   "refused": true
  },
  "learned_refused_states": [
@@ -10,19 +10,19 @@
   "VERIFIED"
  ],
  "records": [
-  "learned_architecture:452f9c9d978260b0",
-  "learned_architecture:da7c5bea9cbad7dc",
-  "learned_checkpoint:2f2faaf95e975ca3",
-  "learned_checkpoint:3a536ce7e5c6dc84",
-  "learned_checkpoint:64cba94026d2a550",
-  "learned_dataset:2ccd97740518c8af",
+  "learned_architecture:45765736a9cf2816",
+  "learned_architecture:581032ca3f2d4ea8",
+  "learned_checkpoint:49b3020ba8b44118",
+  "learned_checkpoint:c68c4d5b65d8bc49",
+  "learned_checkpoint:edff8d5633145ffb",
+  "learned_dataset:1f6b6597db19e91b",
   "learned_distributed:80af626ce7843818",
-  "learned_evaluation:dba7c660c2934066",
-  "learned_meta_validation:2d8ec64b55921a32",
-  "learned_meta_validation:780a0f3028ac94e7",
-  "learned_training_run:51ed6c0a36117928",
-  "learned_training_run:5e7e900c72218d64",
-  "learned_training_run:7969408954b4fe96"
+  "learned_evaluation:0b2906ad6f8ddf28",
+  "learned_meta_validation:2a1edcf6b314418b",
+  "learned_meta_validation:9a7dd32a399d997b",
+  "learned_training_run:432cf76271c5f1b6",
+  "learned_training_run:5ac3e90382fd7073",
+  "learned_training_run:d21a846c2ba27a21"
  ],
  "schema": "scientific-moe-claims/1",
  "semantics": [
@@ -35,7 +35,7 @@
    "claims": {
     "ARCHITECTURE_DEFINED": {
      "evidence": [
-      "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d"
+      "6d67e2cf5acd843f15f8c0de0923576b33a43c168ccca78abf87b5adcdcfdc9f"
      ],
      "holds": true,
      "reason": "the manifest's configuration re-derives the subject digest",
@@ -43,7 +43,7 @@
     },
     "ARCHITECTURE_META_VALIDATED": {
      "evidence": [
-      "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+      "2a1edcf6b314418b4ff1a43ed54f00045bf234ecddcc3248b06740a4846c49c4"
      ],
      "holds": true,
      "reason": "resolved by abstract evaluation with no allocation; a real allocation was refused",
@@ -51,8 +51,8 @@
     },
     "ARCHITECTURE_PARAMETER_VERIFIED": {
      "evidence": [
-      "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d",
-      "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+      "6d67e2cf5acd843f15f8c0de0923576b33a43c168ccca78abf87b5adcdcfdc9f",
+      "2a1edcf6b314418b4ff1a43ed54f00045bf234ecddcc3248b06740a4846c49c4"
      ],
      "holds": true,
      "reason": "manifest, recomputed count and abstract tensors agree category by category",
@@ -60,7 +60,7 @@
     },
     "CHECKPOINT_RELOAD_VALIDATED": {
      "evidence": [
-      "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+      "0b2906ad6f8ddf284f7f00d30d3eb6242ead61f03c115eb2fbcdecd7e4ee6188"
      ],
      "holds": true,
      "reason": "a checkpoint of this configuration reloaded to identical outputs",
@@ -68,8 +68,8 @@
     },
     "DEVELOPMENT_MODEL_TRAINED": {
      "evidence": [
-      "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
-      "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154"
+      "5ac3e90382fd70731ed4770c9900ddde673b6951bb4dc704033994467494e3c4",
+      "d21a846c2ba27a21699c3f1b5bb43e0b62922284036c02848cff72a17e375bbb"
      ],
      "holds": true,
      "reason": "a completed training run of this configuration",
@@ -107,29 +107,29 @@
    "status_history": [
     {
      "evidence": [
-      "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d"
+      "6d67e2cf5acd843f15f8c0de0923576b33a43c168ccca78abf87b5adcdcfdc9f"
      ],
      "from": null,
      "to": "ARCHITECTURE_DEFINED"
     },
     {
      "evidence": [
-      "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+      "2a1edcf6b314418b4ff1a43ed54f00045bf234ecddcc3248b06740a4846c49c4"
      ],
      "from": "ARCHITECTURE_DEFINED",
      "to": "META_VALIDATED"
     },
     {
      "evidence": [
-      "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
-      "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154"
+      "5ac3e90382fd70731ed4770c9900ddde673b6951bb4dc704033994467494e3c4",
+      "d21a846c2ba27a21699c3f1b5bb43e0b62922284036c02848cff72a17e375bbb"
      ],
      "from": "META_VALIDATED",
      "to": "TRAINED"
     },
     {
      "evidence": [
-      "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+      "0b2906ad6f8ddf284f7f00d30d3eb6242ead61f03c115eb2fbcdecd7e4ee6188"
      ],
      "from": "TRAINED",
      "to": "EVALUATED"
@@ -140,7 +140,7 @@
    "claims": {
     "ARCHITECTURE_DEFINED": {
      "evidence": [
-      "00631bfb342682e59a410d2e6118433d30fc6dce583ae7d5b928546632f72f18"
+      "de4078abe0280694e23592269b09e271bca2f292bdeb1aafa049954aa241945e"
      ],
      "holds": true,
      "reason": "the manifest's configuration re-derives the subject digest",
@@ -148,7 +148,7 @@
     },
     "ARCHITECTURE_META_VALIDATED": {
      "evidence": [
-      "2d8ec64b55921a320630362efa90d99c39203b90de529c101a4ff0ec40e0289d"
+      "9a7dd32a399d997b17fcd3b5407f97ea5c21d5d46b9bd2722302263c06cd1656"
      ],
      "holds": true,
      "reason": "resolved by abstract evaluation with no allocation; a real allocation was refused",
@@ -156,8 +156,8 @@
     },
     "ARCHITECTURE_PARAMETER_VERIFIED": {
      "evidence": [
-      "00631bfb342682e59a410d2e6118433d30fc6dce583ae7d5b928546632f72f18",
-      "2d8ec64b55921a320630362efa90d99c39203b90de529c101a4ff0ec40e0289d"
+      "de4078abe0280694e23592269b09e271bca2f292bdeb1aafa049954aa241945e",
+      "9a7dd32a399d997b17fcd3b5407f97ea5c21d5d46b9bd2722302263c06cd1656"
      ],
      "holds": true,
      "reason": "manifest, recomputed count and abstract tensors agree category by category",
@@ -165,7 +165,7 @@
     },
     "CHECKPOINT_RELOAD_VALIDATED": {
      "evidence": [
-      "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+      "0b2906ad6f8ddf284f7f00d30d3eb6242ead61f03c115eb2fbcdecd7e4ee6188"
      ],
      "holds": true,
      "member": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
@@ -174,8 +174,8 @@
     },
     "DEVELOPMENT_MODEL_TRAINED": {
      "evidence": [
-      "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
-      "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154"
+      "5ac3e90382fd70731ed4770c9900ddde673b6951bb4dc704033994467494e3c4",
+      "d21a846c2ba27a21699c3f1b5bb43e0b62922284036c02848cff72a17e375bbb"
      ],
      "holds": true,
      "member": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
@@ -214,23 +214,23 @@
    "status_history": [
     {
      "evidence": [
-      "00631bfb342682e59a410d2e6118433d30fc6dce583ae7d5b928546632f72f18"
+      "de4078abe0280694e23592269b09e271bca2f292bdeb1aafa049954aa241945e"
      ],
      "from": null,
      "to": "ARCHITECTURE_DEFINED"
     },
     {
      "evidence": [
-      "2d8ec64b55921a320630362efa90d99c39203b90de529c101a4ff0ec40e0289d"
+      "9a7dd32a399d997b17fcd3b5407f97ea5c21d5d46b9bd2722302263c06cd1656"
      ],
      "from": "ARCHITECTURE_DEFINED",
      "to": "META_VALIDATED"
     },
     {
      "evidence": [
-      "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
-      "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
-      "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+      "5ac3e90382fd70731ed4770c9900ddde673b6951bb4dc704033994467494e3c4",
+      "d21a846c2ba27a21699c3f1b5bb43e0b62922284036c02848cff72a17e375bbb",
+      "0b2906ad6f8ddf284f7f00d30d3eb6242ead61f03c115eb2fbcdecd7e4ee6188"
      ],
      "from": "META_VALIDATED",
      "to": "DEVELOPMENT_PIPELINE_VALIDATED"

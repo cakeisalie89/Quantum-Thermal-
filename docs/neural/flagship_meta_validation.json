@@ -27,7 +27,7 @@
   "live_bytes_after": 0,
   "live_bytes_before": 0,
   "passed": true,
-  "peak_rss_growth_bytes": 0,
+  "peak_rss_growth_bytes": 16646144,
   "peak_rss_limit_bytes": 1073741824,
   "real_allocation_limit_bytes": 2147483648,
   "would_be_parameter_bytes": 1993018468400

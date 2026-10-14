@@ -180,7 +180,7 @@
    "contentSize": "20305",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "9a56930e1589abeeaf2b5e86edbfcbebdc5c3999173dd7251bb21038659ae825"
+   "sha256": "6fd62abc804c2245e6679e74b4a10e28216b38af3e486698ddb33c5ba8fa149f"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -188,7 +188,7 @@
    "contentSize": "8223",
    "description": "NF-1T claims, recorded through the authority substrate",
    "name": "claims.json",
-   "sha256": "dfce97f6f6c4312b57ec54cb674813214e56a5e4534d690debbc21849b0d631b"
+   "sha256": "2a68b01a96751124897e37a65ae0fb7b2ab2c9c480f85a764685dc99216ada87"
   },
   {
    "@id": "docs/neural/dev/dataset_manifest.json",
@@ -217,7 +217,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "78178",
+   "contentSize": "78543",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"

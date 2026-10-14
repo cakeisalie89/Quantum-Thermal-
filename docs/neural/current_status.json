@@ -2,15 +2,15 @@
  "derived_from": {
   "neural_evidence": {
    "docs/neural/architecture_family.json": "92861e3d71b0d61005bd451f7a5dbb1f35daf699a0572e7aed066344641e8918",
-   "docs/neural/claims.json": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b",
-   "docs/neural/dev/checkpoint_manifest.json": "2875dd62cbcb0395b3a14bd52f3ca68606675f7c743b48faf0c5204a88d35f02",
-   "docs/neural/dev/dataset_manifest.json": "e51cd1d15cc66e29b4989a5ebe60bbf9f2f3a7d757d1a7b49673523ef4c3036d",
-   "docs/neural/dev/evaluation_report.json": "265c4a87a857e1bdadda21efd60f0339226d84c37812840e4702325b43a5458c",
-   "docs/neural/dev/training_manifest.json": "3524ae7532798799f9fb48af3159c9477e50126816f541ac818b2a033337b97d",
-   "docs/neural/development_model_manifest.json": "d904a3ac8e258de563bdeb258c47c8bc9a08f9742428572ee57bf3d5a7257db2",
+   "docs/neural/claims.json": "2a68b01a96751124897e37a65ae0fb7b2ab2c9c480f85a764685dc99216ada87",
+   "docs/neural/dev/checkpoint_manifest.json": "0b95558c96c64e36151cc951a9bde2d09e0edff35cb6cd1c74712da33b12f3bf",
+   "docs/neural/dev/dataset_manifest.json": "6f09569e29c7950f8f66818e3442744559a0acf380582b8ac560c7481015c8d3",
+   "docs/neural/dev/evaluation_report.json": "b6b1727ed6c81ba862514f4cc26e9bc9dda9f4ada72837c4b00a43a8b18765ea",
+   "docs/neural/dev/training_manifest.json": "5343184544ce320def9477ea8e17738f937fd1f67a179fd921301a95f3f536ca",
+   "docs/neural/development_model_manifest.json": "177433e48cf61c48961c63aaf068a7e06ab1056dff7c3b8efe59732c6daf61ca",
    "docs/neural/distributed_readiness.json": "89186c3477f467fb8d906ad2fd437e94e8439ae459c7e5d2f4e3481603ce3a72",
-   "docs/neural/flagship_meta_validation.json": "47643c0a0f988a2aeb1b627f8c786f62665914356bb195bd9f4410a6fd7c5218",
-   "docs/neural/flagship_model_manifest.json": "f880ef5412a9e3a311e8678963fd8893d76bdbf9963ff0505b42430c929bd60e"
+   "docs/neural/flagship_meta_validation.json": "4d209ddd11d1303c43a753779654cdff9e53baf65eb3d760aad4110b3c2ba1b9",
+   "docs/neural/flagship_model_manifest.json": "d9695f9c1cf2ac56de768e5c012f05a2bcb07b0978302f5a78ead123272ed5f1"
   }
  },
  "development": {
@@ -118,7 +118,7 @@
     "CHECKPOINT_REPRODUCIBLE"
    ],
    "reproducibility_scope": "this backend (the hardware_identity and framework_versions recorded here), one process, CPU",
-   "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+   "source_commit": "b916f24e29080f8285beed1255c6f4c3937193d4",
    "steps": 4000,
    "world_size": 1
   },

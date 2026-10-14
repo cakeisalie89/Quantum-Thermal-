@@ -405,7 +405,7 @@
     {
       "filename": "docs/harness_status.json",
       "size_bytes": 20305,
-      "sha256": "9a56930e1589abeeaf2b5e86edbfcbebdc5c3999173dd7251bb21038659ae825"
+      "sha256": "6fd62abc804c2245e6679e74b4a10e28216b38af3e486698ddb33c5ba8fa149f"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -420,12 +420,12 @@
     {
       "filename": "docs/neural/claims.json",
       "size_bytes": 8223,
-      "sha256": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b"
+      "sha256": "2a68b01a96751124897e37a65ae0fb7b2ab2c9c480f85a764685dc99216ada87"
     },
     {
       "filename": "docs/neural/current_status.json",
       "size_bytes": 9499,
-      "sha256": "0d50d375e38b0e058c8ae7229e56d81da79c3ae568b6c60ab811771e5cf17938"
+      "sha256": "a8916cc24d9b1d05fd8a9222a29e8c27321230e84d6063c7039f4df13526ae68"
     },
     {
       "filename": "docs/neural/dev/checkpoint_final.safetensors",
@@ -479,13 +479,13 @@
     },
     {
       "filename": "docs/neural/development_meta_validation.json",
-      "size_bytes": 2085,
-      "sha256": "32343eb25ecec94a6f1b87393d430061693d7125fe8066769850fd672ede51a5"
+      "size_bytes": 2091,
+      "sha256": "cd34bae3ebac6a686afe1add5b63f0f9d1812bca129a5ff02be49856e52c3890"
     },
     {
       "filename": "docs/neural/development_model_manifest.json",
       "size_bytes": 10713,
-      "sha256": "d904a3ac8e258de563bdeb258c47c8bc9a08f9742428572ee57bf3d5a7257db2"
+      "sha256": "177433e48cf61c48961c63aaf068a7e06ab1056dff7c3b8efe59732c6daf61ca"
     },
     {
       "filename": "docs/neural/distributed_readiness.json",
@@ -494,13 +494,13 @@
     },
     {
       "filename": "docs/neural/flagship_meta_validation.json",
-      "size_bytes": 2185,
-      "sha256": "47643c0a0f988a2aeb1b627f8c786f62665914356bb195bd9f4410a6fd7c5218"
+      "size_bytes": 2192,
+      "sha256": "4d209ddd11d1303c43a753779654cdff9e53baf65eb3d760aad4110b3c2ba1b9"
     },
     {
       "filename": "docs/neural/flagship_model_manifest.json",
       "size_bytes": 13458,
-      "sha256": "f880ef5412a9e3a311e8678963fd8893d76bdbf9963ff0505b42430c929bd60e"
+      "sha256": "d9695f9c1cf2ac56de768e5c012f05a2bcb07b0978302f5a78ead123272ed5f1"
     },
     {
       "filename": "docs/neural/nf1t_inventory.json",
@@ -625,7 +625,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "97224046ef883894622f60ab590f59164bf77ef71df6e4e10b4c7a0039dc8098"
+      "sha256": "b3d5d96af0099385547567a6990ddc4414f95bd214f71fdd3575493459bc2675"
     },
     {
       "filename": "ro_crate_tools.py",

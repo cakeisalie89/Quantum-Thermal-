@@ -7,7 +7,7 @@
   "claims": {
    "ARCHITECTURE_DEFINED": {
     "evidence": [
-     "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d"
+     "6d67e2cf5acd843f15f8c0de0923576b33a43c168ccca78abf87b5adcdcfdc9f"
     ],
     "holds": true,
     "reason": "the manifest's configuration re-derives the subject digest",
@@ -15,7 +15,7 @@
    },
    "ARCHITECTURE_META_VALIDATED": {
     "evidence": [
-     "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+     "2a1edcf6b314418b4ff1a43ed54f00045bf234ecddcc3248b06740a4846c49c4"
     ],
     "holds": true,
     "reason": "resolved by abstract evaluation with no allocation; a real allocation was refused",
@@ -23,8 +23,8 @@
    },
    "ARCHITECTURE_PARAMETER_VERIFIED": {
     "evidence": [
-     "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d",
-     "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+     "6d67e2cf5acd843f15f8c0de0923576b33a43c168ccca78abf87b5adcdcfdc9f",
+     "2a1edcf6b314418b4ff1a43ed54f00045bf234ecddcc3248b06740a4846c49c4"
     ],
     "holds": true,
     "reason": "manifest, recomputed count and abstract tensors agree category by category",
@@ -32,7 +32,7 @@
    },
    "CHECKPOINT_RELOAD_VALIDATED": {
     "evidence": [
-     "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+     "0b2906ad6f8ddf284f7f00d30d3eb6242ead61f03c115eb2fbcdecd7e4ee6188"
     ],
     "holds": true,
     "reason": "a checkpoint of this configuration reloaded to identical outputs",
@@ -40,8 +40,8 @@
    },
    "DEVELOPMENT_MODEL_TRAINED": {
     "evidence": [
-     "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
-     "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e"
+     "5ac3e90382fd70731ed4770c9900ddde673b6951bb4dc704033994467494e3c4",
+     "d21a846c2ba27a21699c3f1b5bb43e0b62922284036c02848cff72a17e375bbb"
     ],
     "holds": true,
     "reason": "a completed training run of this configuration",
@@ -79,29 +79,29 @@
   "status_history": [
    {
     "evidence": [
-     "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d"
+     "6d67e2cf5acd843f15f8c0de0923576b33a43c168ccca78abf87b5adcdcfdc9f"
     ],
     "from": null,
     "to": "ARCHITECTURE_DEFINED"
    },
    {
     "evidence": [
-     "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+     "2a1edcf6b314418b4ff1a43ed54f00045bf234ecddcc3248b06740a4846c49c4"
     ],
     "from": "ARCHITECTURE_DEFINED",
     "to": "META_VALIDATED"
    },
    {
     "evidence": [
-     "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
-     "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e"
+     "5ac3e90382fd70731ed4770c9900ddde673b6951bb4dc704033994467494e3c4",
+     "d21a846c2ba27a21699c3f1b5bb43e0b62922284036c02848cff72a17e375bbb"
     ],
     "from": "META_VALIDATED",
     "to": "TRAINED"
    },
    {
     "evidence": [
-     "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+     "0b2906ad6f8ddf284f7f00d30d3eb6242ead61f03c115eb2fbcdecd7e4ee6188"
     ],
     "from": "TRAINED",
     "to": "EVALUATED"
@@ -333,7 +333,7 @@
  "shared_active_parameters": 37608,
  "shared_parameters": 38568,
  "solve": null,
- "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+ "source_commit": "9d2b14e52d63ea817a21e693e90cad12a47a23d5",
  "total_parameters": 431808,
  "trainable_parameters": 431784,
  "uncertainty_head_parameters": 260
