@@ -514,8 +514,8 @@
     },
     {
       "filename": "docs/performance_baseline.json",
-      "size_bytes": 2319,
-      "sha256": "dc3053e201cb21071c97210aa4045c48c47317280399674f52e5dfaf7a9bf0f7"
+      "size_bytes": 2947,
+      "sha256": "4599040748bc662a38931505b23b6519a8ccfb9897a0a00a99bd0beee35fc056"
     },
     {
       "filename": "docs/repo_content_audit.json",

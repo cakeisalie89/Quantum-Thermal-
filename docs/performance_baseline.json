@@ -7,6 +7,11 @@
           "commit": "b7807bb5ac415174ebbd8112db7cf4781678667e",
           "recorded": "2026-10-08T22:21:51Z",
           "value": 0.9956
+        },
+        {
+          "commit": "46063c87dbcb504b0c046655d162de05a2c78fc2",
+          "recorded": "2026-10-14T18:22:32Z",
+          "value": 0.9323
         }
       ]
     },
@@ -22,6 +27,11 @@
           "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
           "recorded": "2026-09-08T07:43:47Z",
           "value": 0.9997
+        },
+        {
+          "commit": "46063c87dbcb504b0c046655d162de05a2c78fc2",
+          "recorded": "2026-10-14T18:22:32Z",
+          "value": 1.0307
         }
       ]
     },
@@ -37,6 +47,11 @@
           "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
           "recorded": "2026-09-08T07:43:47Z",
           "value": 0.9535
+        },
+        {
+          "commit": "46063c87dbcb504b0c046655d162de05a2c78fc2",
+          "recorded": "2026-10-14T18:22:32Z",
+          "value": 1.2337
         }
       ]
     },
@@ -52,6 +67,11 @@
           "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
           "recorded": "2026-09-08T07:43:47Z",
           "value": 0.997
+        },
+        {
+          "commit": "46063c87dbcb504b0c046655d162de05a2c78fc2",
+          "recorded": "2026-10-14T18:22:32Z",
+          "value": 0.8971
         }
       ]
     }
