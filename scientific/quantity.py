@@ -1,11 +1,11 @@
 """A published number with its unit, its resolution, and what zero means.
 
-D-2026-69, made generic. The cumulative energy ledger published
-``1.615587134e-27`` J on one machine and ``0.000000000e+00`` on another, and
-the running sum's forward error bound at that row is 8.1e-27 J: both values
-are below what the method resolves, so they are the SAME result, and the file
-said nothing that would let a reader know. A comparison of the digits then
-reported a zero crossing -- a finding about noise.
+D-2026-69, made generic. A running sum once published ``1.6e-27`` on one
+machine and ``0.0`` on another while its forward error bound at that row
+was ``8.1e-27``: both values were below what the method resolves, so they
+were the SAME result, and the file said nothing that would let a reader
+know. A comparison of the digits then reported a zero crossing -- a finding
+about noise.
 
 So a Quantity keeps apart what a bare float merges:
 

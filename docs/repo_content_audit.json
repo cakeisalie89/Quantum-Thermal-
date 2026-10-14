@@ -8,18 +8,6 @@
    "files_using": 2,
    "why": "the forensic inventory: it records every baseline file by its baseline path, which is what makes the removal reviewable"
   },
-  "scientific/identity.py": {
-   "files_using": 1,
-   "why": "frozen NF-1T closure: docstring wording leaves with the dataset re-identification"
-  },
-  "scientific/models/surface_adsorption.py": {
-   "files_using": 1,
-   "why": "frozen NF-1T closure: docstring wording leaves with the dataset re-identification"
-  },
-  "scientific/observation.py": {
-   "files_using": 1,
-   "why": "frozen NF-1T closure: docstring wording leaves with the dataset re-identification"
-  },
   "tests/fuzz_corpus/*.json": {
    "files_using": 6,
    "why": "recorded fuzzing findings, kept verbatim: their tracebacks name the module path the finding was made in"

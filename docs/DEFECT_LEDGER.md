@@ -7667,3 +7667,24 @@ contract does not mention -- my error; the fixture element is `resolved`.
 
 **NOT CLAIMED.** The sweep reads string literals naming files; a path
 assembled at run time would not be seen by it.
+
+## D-2026-137 — the opt-in sensitivity rule evaluated the model without the parameters it varies
+
+**CLASS** — `DEFECT`, found by hosted CI. `Snakefile` rule `uq_sobol`.
+
+**DEMONSTRATION.** `stack-verify (full)` at `f219139`, both runs:
+`snakemake --cores 1 uq_sobol` raised `ModelError: missing parameter
+k_W_m_K` from `scientific/sensitivity.py`'s base-point probe.
+
+**ROOT CAUSE.** When the rule was retargeted to the transient slab it split
+the base point into the varied parameters and the rest and handed the model
+only the rest. `model_response` evaluates the response at the full base
+point before anything is varied, as its tests do (`FIXED` holds every
+parameter). The rule runs only in the full-extras leg, which the local
+checks of that commit did not run.
+
+**REPAIR.** The response is built around the full base point and the
+cross-check varies three parameters about their base values. Run locally
+with the full extras: the default target, `uq_sobol` (both methods computed,
+CONSISTENT_AT_RESOLUTION, NON_AUTHORITATIVE) and `mdao_doe`, and the tracked
+tree untouched (0 mismatches over 438 entries).

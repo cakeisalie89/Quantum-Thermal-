@@ -1,9 +1,10 @@
 """Canonical digests, and the digest of the code that computed something.
 
-CANONICAL FORM. The same rules as ``qta_agent.canonical``, restated rather
-than imported because this package must not depend on the agent substrate:
-sorted keys, ASCII, no whitespace, and no NaN or infinity -- a value that is
-not JSON is refused, not written in a form another reader cannot parse.
+CANONICAL FORM. The same rules as ``agent_substrate.canonical``, restated
+rather than imported because this package must not depend on the agent
+substrate: sorted keys, ASCII, no whitespace, and no NaN or infinity -- a
+value that is not JSON is refused, not written in a form another reader
+cannot parse.
 ``tests/test_scientific_identity.py`` holds the two implementations to the
 same bytes, so the restatement cannot drift silently.
 
@@ -11,7 +12,7 @@ IMPLEMENTATION DIGEST. A model's semantics are not computable; its source is.
 ``implementation_digest(modules)`` is taken over the source bytes of each
 named module and of every module of the same top-level package it imports,
 transitively, imports inside functions included -- the algorithm
-``qta_agent.projection`` uses for reducer identity, restated here for the
+``agent_substrate.projection`` uses for reducer identity, restated here for the
 same reason as above and held to it by the same test.
 
 Its limits, stated because a digest is a proxy:
@@ -21,8 +22,8 @@ Its limits, stated because a digest is a proxy:
 * it UNDER-approximates code outside the named packages -- numpy, scipy, the
   interpreter. Those are covered by the environment digest in
   ``run_identity``, not here, and a model must name every package of its
-  own it runs (a model adapter in ``scientific`` wrapping a solver in
-  ``qta_multiphysics`` names a module in each);
+  own it runs (a model adapter in one package wrapping a solver in
+  another names a module in each);
 * a module whose source cannot be read (a zip import, bytecode only) yields
   no digest, and then there is no identity: ``implementation_digest``
   raises rather than returning something that identifies nothing.

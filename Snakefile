@@ -772,11 +772,12 @@ rule uq_sobol:
         from scientific import workspace as WS
         from scientific import sensitivity as S
         from scientific.models.slab_transient import SlabTransientModel
-        varied = {k: SLAB[k] for k in ("k_W_m_K", "h_W_m2_K", "q_W_m3")}
-        fixed = {k: v for k, v in SLAB.items() if k not in varied}
+        # The response is evaluated around the full base point; the
+        # cross-check varies three parameters about their base values.
+        base = {k: SLAB[k] for k in ("k_W_m_K", "h_W_m2_K", "q_W_m3")}
         resp = S.model_response(SlabTransientModel(), "T_at_0",
-                                {**fixed, "n_cells": 40, "n_steps": 120})
-        rep = S.cross_check(resp, varied, n_base=16)
+                                {**SLAB, "n_cells": 40, "n_steps": 120})
+        rep = S.cross_check(resp, base, n_base=16)
         assert rep["authority"] == "NON_AUTHORITATIVE"
         WS.guard_output_dir(f"{W10}/uq")
         WS.write_json_deterministic(output[0], rep)

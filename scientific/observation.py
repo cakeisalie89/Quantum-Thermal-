@@ -25,10 +25,9 @@ claimed lineage permits the claimed kind.
 
 WHEN, IN WHAT ORDER, AND WHICH BYTES
 
-This is the framework's generic measurement boundary: what the hardware-era
-ingestion layer (``qta_multiphysics/measurement_ingest_3d.py``, retired)
-did for one apparatus's quantities, without its mode alignment, gate
-vocabulary or hard-coded refusals. An observation carries its unit and
+This is the framework's generic measurement boundary, for any quantity and
+any instrument, with no apparatus vocabulary and no hard-coded refusals of
+its own. An observation carries its unit and
 resolution (the Quantity), its source, its transformation, its uncertainty
 and calibration provenance, and:
 

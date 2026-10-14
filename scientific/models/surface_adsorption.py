@@ -1,9 +1,6 @@
 """Langmuir capture of an impinging gas onto a surface, as a ScientificModel.
 
-EXTRACTED in tranche 4 (directive 22) from
-``qta_multiphysics.cryopanel_dynamics_3d``, which forecast the adsorbed
-inventory of the QTA apparatus's cryopanels. What was general in it is here,
-and nothing else:
+The law, and nothing about any particular surface or machine:
 
     n  = p / (k_B T)                               ideal-gas number density
     F  = n vbar / 4,  vbar = sqrt(8 k_B T / (pi m))  impingement flux
@@ -11,13 +8,10 @@ and nothing else:
     N(t0 + dt) = N_cap - (N_cap - N(t0)) exp(-s F dt / N_cap)
 
 the last being the exact solution for a constant flux, used directly: no
-integrator, so nothing to converge. What was the apparatus's is not here --
-which gas reaches the surface in which machine phase, the panels' names, the
-sticking coefficients read from its memory table, its phase windows. Those
-stay in the legacy module, which now calls these functions for its
-arithmetic, so the legacy campaign outputs are regenerated through them
-byte for byte: the regression equivalence the directive asks for, held by the
-byte gate and by ``tests/test_surface_adsorption.py``.
+integrator, so nothing to converge. Which gas reaches which surface, when,
+and with what sticking coefficient are the caller's declared inputs, never
+this module's knowledge; ``tests/test_surface_adsorption.py`` holds the law
+and its invariants.
 
 WHAT IS INVARIANT, AND WHY EACH IS A REAL CHECK
 
@@ -34,8 +28,8 @@ WHAT IS INVARIANT, AND WHY EACH IS A REAL CHECK
   this law does not.
 
 NOT modelled, and so outside the applicability: desorption (thermal or
-stimulated) -- the source model was capture-only and never had a desorption
-term; coverage dependence of sticking beyond the (1 - N/N_cap) factor;
+stimulated) -- the law is capture-only and has no desorption term;
+coverage dependence of sticking beyond the (1 - N/N_cap) factor;
 multilayer growth; pressure or temperature varying inside a run.
 
 The independent check (``scientific.checks.langmuir_rk4``) takes the flux in

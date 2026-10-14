@@ -137,10 +137,10 @@
     "File",
     "SoftwareSourceCode"
    ],
-   "contentSize": "39753",
+   "contentSize": "39820",
    "description": "the governed scientific workflow (Snakemake); its default target runs the harness end to end",
    "name": "Snakefile",
-   "sha256": "854d363987cb6a6b227d392f793da84f43a881d76a7c89d679e7f19dbf61d654"
+   "sha256": "e69430b89a1a246cbf136e4433a895ea07475d2e7fc82508d9e389dee332a7c7"
   },
   {
    "@id": "authorities.json",
@@ -201,10 +201,10 @@
   {
    "@id": "docs/repo_content_audit.json",
    "@type": "File",
-   "contentSize": "3058",
+   "contentSize": "2588",
    "description": "the repository content audit of the current tree",
    "name": "repo_content_audit.json",
-   "sha256": "0a891bf5f64ecb99275e45b1b7acf72a241ce82fdf58f9d68c5d6dd4205a6b74"
+   "sha256": "7de6c01bd89656fd603e40152b2a4d869b5b1915221c9ce6f80beae47a416625"
   },
   {
    "@id": "docs/repository_inventory.json",

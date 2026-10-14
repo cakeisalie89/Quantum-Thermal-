@@ -139,8 +139,8 @@
     },
     {
       "filename": "Snakefile",
-      "size_bytes": 39753,
-      "sha256": "854d363987cb6a6b227d392f793da84f43a881d76a7c89d679e7f19dbf61d654"
+      "size_bytes": 39820,
+      "sha256": "e69430b89a1a246cbf136e4433a895ea07475d2e7fc82508d9e389dee332a7c7"
     },
     {
       "filename": "TESTING.md",
@@ -514,8 +514,8 @@
     },
     {
       "filename": "docs/repo_content_audit.json",
-      "size_bytes": 3058,
-      "sha256": "0a891bf5f64ecb99275e45b1b7acf72a241ce82fdf58f9d68c5d6dd4205a6b74"
+      "size_bytes": 2588,
+      "sha256": "7de6c01bd89656fd603e40152b2a4d869b5b1915221c9ce6f80beae47a416625"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -620,7 +620,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "fe1d379dca6783e35c5527c21372a6fdb2352b26626d220acf0a1b4a842e67a6"
+      "sha256": "5e0524059284a806541156b6c749645314abd8a63c234ebfe88b1e36f02f4ddb"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -709,8 +709,8 @@
     },
     {
       "filename": "scientific/identity.py",
-      "size_bytes": 6801,
-      "sha256": "648caa3e3f198425c64fc317cc8fc4c90fd2998e4de292122ace9f4d6bc4f1ef"
+      "size_bytes": 6797,
+      "sha256": "0c1e5c030e40cf5a03246d1667b06beb4c09efcdd41ca4ec8e007c04c97a9f3b"
     },
     {
       "filename": "scientific/integrations/__init__.py",
@@ -749,8 +749,8 @@
     },
     {
       "filename": "scientific/models/surface_adsorption.py",
-      "size_bytes": 13697,
-      "sha256": "b67197ec96b2837ab956441396d611c828dc0999e687c9873174f028b87b2c49"
+      "size_bytes": 13280,
+      "sha256": "31624004bdd895f471a1bbe00ead1b0ba6aa838ce61f7719781103f83ae6c5d3"
     },
     {
       "filename": "scientific/models/thermal_rc2.py",
@@ -759,13 +759,13 @@
     },
     {
       "filename": "scientific/observation.py",
-      "size_bytes": 9688,
-      "sha256": "7da832b15970a77feaf4177bbeea18572ba5b40dbc84fe2c4e37aba396b9d9f5"
+      "size_bytes": 9594,
+      "sha256": "c963ed2669f6d868365e73436208ff22d5d984c7ac900b6b6ced57bce52a63ac"
     },
     {
       "filename": "scientific/quantity.py",
-      "size_bytes": 8347,
-      "sha256": "17f583ad8e3ca56764cbf808b1f25cdb785b30a6890ef1d8b4c46a945c675039"
+      "size_bytes": 8307,
+      "sha256": "8e7a4947daf46431fe52d8aa6bf18428853dac13d96893c0dfec1df39e18fc52"
     },
     {
       "filename": "scientific/ranking.py",
@@ -2144,8 +2144,8 @@
     },
     {
       "filename": "tools/repo_content_audit.py",
-      "size_bytes": 14574,
-      "sha256": "78da1dd5a3d0af0e1e9c6c0ca418edff12fd770cd38aefa3810f0b81387b8156"
+      "size_bytes": 13791,
+      "sha256": "7fff33ec69fd70648534616debc5baba80cf88c3ade1e290572c461b68ed6f2e"
     },
     {
       "filename": "tools/repo_inventory.py",

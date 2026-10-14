@@ -108,20 +108,6 @@ ALLOWANCES = {
     "tests/fuzz_corpus/*.json":
         "recorded fuzzing findings, kept verbatim: their tracebacks name "
         "the module path the finding was made in",
-    # TEMPORARY. These three are in the source closure whose digest the
-    # NF-1T development dataset pins, so a docstring edit is a change of
-    # dataset identity. Their retired wording leaves in the commit that
-    # re-identifies the dataset, and these entries leave with it -- the
-    # unused-allowance rule reports them the moment they stop matching.
-    "scientific/identity.py":
-        "frozen NF-1T closure: docstring wording leaves with the dataset "
-        "re-identification",
-    "scientific/observation.py":
-        "frozen NF-1T closure: docstring wording leaves with the dataset "
-        "re-identification",
-    "scientific/models/surface_adsorption.py":
-        "frozen NF-1T closure: docstring wording leaves with the dataset "
-        "re-identification",
 }
 
 #: Retired outputs by FILE NAME, refused anywhere in the tree: a copy at a
