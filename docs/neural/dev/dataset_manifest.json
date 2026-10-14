@@ -258,7 +258,7 @@
   "n_in_distribution": 3072,
   "n_ood": 384,
   "ood_rule": "T_gas_K > 300 K",
-  "provenance_digest": "bfb58fa53ae4139989a1a278cd30a2aad248664fb49be1489391b568234d826c",
+  "provenance_digest": "cc64afe5784e3ac53b43e801ae30059ff2a1c65b0993910712be5d37bdc81f74",
   "regions": {
    "in_distribution": {
     "T_gas_K": [
@@ -355,7 +355,7 @@
     ]
    }
   },
-  "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+  "source_commit": "77a993a38f7277850cbbdb82e11fa1da37f2c897",
   "source_model": "surface.langmuir_capture@1.0.0",
   "split_fractions": {
    "test": 0.15,
@@ -504,7 +504,7 @@
  "schema": "scientific-dataset-manifest/1",
  "schema_version": "scientific-dataset/1",
  "source_identifiers": [
-  "surface.langmuir_capture@1.0.0#b5f98b060b0ea55ac655b34c37b5f7a81ce14a7796e54552730b8abe2dbff09b"
+  "surface.langmuir_capture@1.0.0#97132a9163068cb07684fc6cf835fbea27e0daf6f2b9072c4a17860283e70ba0"
  ],
  "split_digests": {
   "ood": "7b05d145912913efc91ca4dd18cbdcaaba90200dc6452e3f8c0ee7ec57096038",
@@ -522,7 +522,7 @@
   "bytes": 5510293,
   "format": "jsonl, one canonical sample per line, sample_id order",
   "path": "docs/neural/dev/dataset.jsonl",
-  "sha256": "92ac3b172c7013b8ea12310776859dc9b3521b7571db9f51a10eba17caf26b19"
+  "sha256": "15d4e805bc2190899aa6d39d08777ad6dd6b4b343c1f36e05f81b8037c72e169"
  },
  "target_schema": {
   "name": "surface_adsorption_v1",
