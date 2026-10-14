@@ -369,8 +369,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 434068,
-      "sha256": "df61463c8cc4ef23daa302590ed87220c1b46ba4c95aa3fedb5f854ae5d295b0"
+      "size_bytes": 434595,
+      "sha256": "d4429446020bf99a39389cc0f2599268421bf0ee5d89083d56a8d53c20bab9f8"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -385,7 +385,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3233,
-      "sha256": "d444a841f74efb094220762e8a7524bc1a51fb07cc12e3c8b0518c42244be2db"
+      "sha256": "fc270311e535094c26ce3c5e8874764023520bd2a5ec8f8849d369d437f1ac84"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -1124,8 +1124,8 @@
     },
     {
       "filename": "tests/test_agent_governed_tasks.py",
-      "size_bytes": 78876,
-      "sha256": "bc44eba44cbf47d4d9015e5b27a68a3649fdcd28c9d9975bd165f85578ef5815"
+      "size_bytes": 79344,
+      "sha256": "42168e1b48153fed3553dbb71b2bb6854064ab1f3c23b9a289c5d73f66f8727f"
     },
     {
       "filename": "tests/test_agent_hostile_campaign.py",

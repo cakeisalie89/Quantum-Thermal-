@@ -7705,6 +7705,14 @@ enters it at exactly one place, and WG1 deletes the demonstration there.
 4/4 killed locally, WG1 by `test_the_default_target_is_the_generic_workflow`.
 The dry-run DAG of the default target is unchanged.
 
+**THE REPAIR'S OWN REGRESSION.** `agent-substrate` and `second-interpreter`
+went red at `46063c8`: `test_the_governed_rule_is_part_of_the_ordinary_workflow`
+read the default target's text for the governed outputs, and they had moved
+to the tree check. The repair was pushed after the workflow's own tests and
+its mutation specification, not after the full suite -- the step D-2026-133
+already named. The test now follows the single entry point (the default
+target depends on the tree check, which names each governed output).
+
 ## D-2026-139 — a removed test module held the RO-Crate validator's scope checks
 
 **CLASS** — `COVERAGE_LOSS`, found by sweeping every removed test module for

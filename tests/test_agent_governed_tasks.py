@@ -490,16 +490,25 @@ def test_the_governed_rule_is_part_of_the_ordinary_workflow():
     governed runs' outputs. Removing that dependency would turn the control
     plane back into a library, so it is pinned here rather than left to a
     reviewer noticing.
+
+    The default target reaches every output through one place: it depends
+    on the tree check, and the tree check names every output so that it
+    runs last (D-2026-138). So the dependency is that chain.
     """
     snakefile = (ROOT / "Snakefile").read_text(encoding="utf-8")
     assert "rule governed_tasks:" in snakefile
+    blocks = {b.split(":", 1)[0]: b
+              for b in snakefile.split("\nrule ")[1:]}
 
     default = snakefile.split("\nrule ", 1)[1].split("\nrule ", 1)[0]
     assert default.startswith("scientific_generic:"), default[:80]
+    assert "tree_untouched.json" in default, (
+        "the default target no longer depends on the tree check")
+    tree = blocks["tree_untouched"].split("output:", 1)[0]
     for out in ("governed/governed_run.json",
                 "governed_model/governed_model_run.json",
                 "governed_index/index_run.json"):
-        assert out in default, (
+        assert out in tree, (
             f"the default workflow no longer depends on {out}; the production "
             "path would stop being exercised by the ordinary workflow")
 
