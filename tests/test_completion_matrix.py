@@ -824,7 +824,15 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: removes it changes every remaining row's implementation or the rows'
 #: hosted-evidence prose is restated, and the two new rows have never run,
 #: so nothing covers until a later commit cites runs on this tree.
-EXPECTED_EVIDENCE_COVERS = 0
+#:
+#: 0 -> 49 with hosted evidence at 0756314 attached to every row, in the
+#: commit that attaches it: the agent-substrate workflow's push and
+#: pull_request on every row, and harness-integrations, stack-verify,
+#: container-verify and supply-chain on the rows whose evidence they are --
+#: 42 check runs, every one green. That commit changes no path any row's
+#: implementation digest covers (the matrix, this test, the ledger and
+#: derived documents only), so the digests at 0756314 are the digests now.
+EXPECTED_EVIDENCE_COVERS = 49
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

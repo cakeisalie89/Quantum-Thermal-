@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "2fb8620ae1f3890edd8bb4964db5bc6cd1c814c73ef5eb14ce98bd5988072ce7",
+  "entries_digest": "1582f5330f0a2db489b11bc627e672e5bb16d1fdf84a4a0c6361e7d199b4ace3",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -22,7 +22,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "518596e081041cc334d4b3c13c9a4e3eb353109651f8a3fb532f1feaf2c00b37"
+      "sha256": "0b8716373e52eb7dec4b3229b5f9bff24ab621dfc28c6aede2727313ee3dff2a"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -74,7 +74,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "451ff0b9bc5f5f97a9f23312e5d8e10a95c44310797a4595495c361b33f5b237"
+      "sha256": "ce531565360b8563bff693629a075420108612516be37f787f72e4c688c2f8e5"
     },
     {
       "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",

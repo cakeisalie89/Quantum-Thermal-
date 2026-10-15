@@ -7758,8 +7758,9 @@ four reached `agent_substrate/reconstruct.py`. Measured at `725073b`, each
 of the four forged creates -- every other field honest -- was refused by
 `AuthorityStore.load()` and folded by `reconstruct()` with no anomaly; the
 first left `records["forged"]["state"] == "PROMOTED"`. Checking the third
-authority action the same way found a fifth: `record.depend` naming a
-record nobody created was refused by the store and folded by the reader.
+authority action the same way (at `1e63ab8`) found a fifth: `record.depend`
+naming a record nobody created was refused by the store and folded by the
+reader.
 
 **WHY IT MATTERS.** A log the store refuses to load is read by the second
 reader alone, and so by the separate-process verifier built on it (D-2026-02:
@@ -7792,9 +7793,11 @@ log" created its records in `DRAFT` with no proposer -- a log the store
 refuses -- and verified clean only because of this defect. It now writes
 creates the store loads, and loads them, so its cleanliness is measured.
 
-**NOT CLAIMED.** This restates the store's rules for a create. It does not
-show that every rule the store has gained since the second reader was
-written has been restated.
+**NOT CLAIMED.** Every rule the store applies on replay to its three
+authority actions -- create, transition, depend -- was compared with the
+reader at `0756314` and has a counterpart that refuses or flags the same
+log. The other subsystems' primaries are held to their readers by their own
+specifications; this record does not re-audit them.
 
 ## D-2026-141 — retrieval read an excluded tree through a directory link inside the corpus root
 

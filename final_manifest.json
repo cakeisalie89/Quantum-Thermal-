@@ -84,8 +84,8 @@
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 9046,
-      "sha256": "518596e081041cc334d4b3c13c9a4e3eb353109651f8a3fb532f1feaf2c00b37"
+      "size_bytes": 3500,
+      "sha256": "0b8716373e52eb7dec4b3229b5f9bff24ab621dfc28c6aede2727313ee3dff2a"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -369,8 +369,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 441286,
-      "sha256": "451ff0b9bc5f5f97a9f23312e5d8e10a95c44310797a4595495c361b33f5b237"
+      "size_bytes": 441472,
+      "sha256": "ce531565360b8563bff693629a075420108612516be37f787f72e4c688c2f8e5"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -379,13 +379,13 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 247825,
-      "sha256": "9af5a43a9ec707a6239a72f7c0c38826aed11787c4401b527f751f27def7b367"
+      "size_bytes": 252869,
+      "sha256": "f60e8fd7086060dcde0e297ea5e58e755020a7e61f7f3c70c810891ab4092f9b"
     },
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3233,
-      "sha256": "2e4d4dd3d334c058b2c87e0560e209a4569a78252af83b2ee216ac90656ecadf"
+      "sha256": "5e719249b8923876d621491c89ae42a3435294d746866775467ffa9f361a482a"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -404,8 +404,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 20305,
-      "sha256": "6fd62abc804c2245e6679e74b4a10e28216b38af3e486698ddb33c5ba8fa149f"
+      "size_bytes": 10092,
+      "sha256": "aac74e28b7f15a2ab417b902045b8780d406116e42394072e5d1c2537264e0e1"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -625,7 +625,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "da7a2c34e1297fc9cdd5ea6a666d26fd995a05ee2d0b1aec17cdda9f8e99f849"
+      "sha256": "8ebf39167dafe5e1198f5658003bacdfa18439640fe3428bfbfdc65f37443b4e"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1269,8 +1269,8 @@
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 43390,
-      "sha256": "19979980be315b8af1befce4c68efd49c039cf8d66df713a61338ecf12a428b8"
+      "size_bytes": 43900,
+      "sha256": "d5c750d5c6d6dee09e8ca1fc382bdc3139d41f2a8c7aa8fa801dd8943d43a7a7"
     },
     {
       "filename": "tests/test_container_manifest_coverage.py",
