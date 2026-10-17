@@ -379,8 +379,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 474532,
-      "sha256": "1a31335f99e9434d348d28b9f361b965cf6ee97f82194f27933fd38136627a26"
+      "size_bytes": 476559,
+      "sha256": "4cac410caa4fc7df6c4af5890521724386c0eab490d85a99f571e0801a589f22"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -395,7 +395,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3651,
-      "sha256": "30d0d5eabb156a3ff61b337fe80d48c8f2143a42ee6ce46124d47331e104932c"
+      "sha256": "1e440164ec58756bf7a52b2404bebba2a5537495b908e9f9545fd9d8695a4a56"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -549,8 +549,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 205288,
-      "sha256": "c89cff7cf92679cffd291cb3b4364674c84bbec51ddbc6f9f00692ce75cf798e"
+      "size_bytes": 205330,
+      "sha256": "8537b3accded83ce7720a27ae6b29d9d11d5faa3eadaa7edfb74cdd6826f038f"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -1144,8 +1144,8 @@
     },
     {
       "filename": "tests/test_agent_execution.py",
-      "size_bytes": 59532,
-      "sha256": "b2eceeedf828fa1a5a867b19ccc77e3353e62903b056894c8978a7fcc5653fad"
+      "size_bytes": 60202,
+      "sha256": "cff7e75e411679314108ed6c62ee1d354ac92d1a6e160600849e8748601749d8"
     },
     {
       "filename": "tests/test_agent_fault_injection.py",

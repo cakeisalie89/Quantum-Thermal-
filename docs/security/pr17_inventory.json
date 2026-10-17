@@ -250,7 +250,9 @@
    "verification": {
     "findings": [],
     "mutation_specs": [],
-    "tests": []
+    "tests": [
+     "tests/test_agent_execution.py"
+    ]
    }
   },
   {

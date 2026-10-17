@@ -27,7 +27,7 @@ from agent_substrate.capability import (  # noqa: E402
 )
 from agent_substrate.execution import (  # noqa: E402
     RETRYABLE, SUCCESSFUL, CancellationToken, ExecutionResult, Executor,
-    Limits, Outcome, run_bounded,
+    Limits, Outcome, namespace_isolation, run_bounded,
 )
 from agent_substrate.tools import (  # noqa: E402
     Determinism, Field_, OutputFile, Registry, SideEffect,
@@ -504,13 +504,23 @@ def test_run_bounded_leaves_no_temporary_files_behind(env, tmp_path):
     assert after == before, f"left behind: {sorted(after - before)}"
 
 
-def test_a_signalled_process_records_the_signal_not_an_exit_status(env):
+@pytest.mark.parametrize("isolate", [True, False])
+def test_a_signalled_process_records_the_signal_not_an_exit_status(env,
+                                                                   isolate):
+    """Both paths a death reaches the record by. In namespaces the init
+    reports it; without them -- a host that refuses unprivileged
+    namespaces, which a deployment may be (DEPLOYMENT.md section 5) -- the
+    process's own wait status does. D-2026-149 moved the default onto the
+    first path, and the second was left with no test here (X12 survived
+    hosted shard 6 at 1c5df5c; D-2026-153)."""
     r = _run(env, [PY, "-c",
                    f"import os,signal; os.kill(os.getpid(), {signal.SIGUSR1})"],
-             limits=Limits(wall_seconds=10.0))
+             limits=Limits(wall_seconds=10.0, isolate=isolate))
     assert r.outcome is Outcome.FAILED
     assert r.signal_number == signal.SIGUSR1
     assert r.exit_status is None, "a signalled death is not an exit status"
+    assert bool(r.isolation["namespaces"]) is (
+        isolate and bool(namespace_isolation()[0]))
 
 
 # ---------------------------------------------------------------------------

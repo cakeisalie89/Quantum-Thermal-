@@ -8526,3 +8526,40 @@ it leaves the `-e` that the runner set in place.
   fail to test what it says it tests.
 * That the repair is hosted-verified at the commit that makes it. That
   needs its own hosted run.
+
+## D-2026-153 — D-2026-149 moved signal reporting into the namespace init, and the process's own path was left untested
+
+**CLASS** — `COVERAGE_LOSS`: Tranche F, Section 11 (F5), the first hosted run
+of the mutation shards after D-2026-149 (`7992356`).
+
+**DEMONSTRATION.** On hosted shard 6 of the `agent-substrate` push run at
+`1c5df5c` (39076919581, job 117525872663), `agent_execution` killed 62 of 63
+mutations. X12 (`if rc is not None and rc < 0:` → `if False:`) survived:
+
+> a signalled death is reported as a negative exit status
+
+Since D-2026-149, every run is isolated by default where the host allows
+it. In that case the tool's death reaches the record through the namespace
+init's status pipe, and the process's own wait status is overwritten. The
+only test in the spec's suites that kills a tool by signal went down that
+path. The other path, the process's own negative return code, is the one
+used on a host that refuses unprivileged namespaces, which a deployment may
+be (`DEPLOYMENT.md` §5). No test in this spec covered it. Locally,
+`agent_execution` was not among the specifications run after D-2026-149,
+so only the hosted shard found the gap.
+
+**ROOT CAUSE.** The per-commit mutation runs for D-2026-149 covered
+`execution_containment`, the new specification. They did not cover the
+existing specifications whose mutations live in the same function and
+whose tests changed path without changing their text.
+
+**REPAIR.** `tests/test_agent_execution.py::
+test_a_signalled_process_records_the_signal_not_an_exit_status` runs both
+with and without isolation. Both runs require SIGUSR1 as the signal and no
+exit status. Each also requires the run's recorded isolation to be the one
+it asked for and the host gave. `agent_execution` ran in full here:
+63/63 killed, and X12 is killed by the case without isolation.
+
+**NOT CLAIMED.** That no other existing specification lost a path in the
+same way. Hosted shards 2 and 3 at `1c5df5c` were still running when this
+was recorded. The other five shards passed.
