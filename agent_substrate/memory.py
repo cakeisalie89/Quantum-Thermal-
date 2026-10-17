@@ -67,6 +67,7 @@ from dataclasses import dataclass, replace
 from enum import Enum
 
 from .canonical import digest, is_digest
+from .events import EventLogError
 
 ACT_MEMORY_WRITE = "memory.write"
 ACT_MEMORY_STATUS = "memory.status"
@@ -237,6 +238,8 @@ class MemoryStore:
         #: source digest -> memory_ids derived from it.
         self._by_source: dict = {}
         self._invalidated: set = set()
+        self._folded_through = -1
+        self._anchor = None
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "MemoryStore":
@@ -245,11 +248,52 @@ class MemoryStore:
         self._entries = {}
         self._by_source = {}
         self._invalidated = set()
+        self._folded_through = -1
         for ev in events:
             self.apply(ev)
+        self._anchor = (self.log.anchor_at(self._folded_through)
+                        if self._folded_through >= 0 else None)
         return self
 
+    def _fold_new(self) -> None:
+        """Fold what other writers appended since this store last read:
+        O(new) from the anchor, a whole verified read without one."""
+        if self._anchor is not None:
+            try:
+                events, self._anchor = self.log.advance(self._anchor)
+            except EventLogError:
+                self._anchor = None
+            else:
+                for ev in events:
+                    if ev.seq > self._folded_through:
+                        self.apply(ev)
+                return
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
+        for ev in events:
+            if ev.seq > self._folded_through:
+                self.apply(ev)
+        self._anchor = (self.log.anchor_at(self._folded_through)
+                        if self._folded_through >= 0 else None)
+
+    def _append_decided(self, decide):
+        """Re-read, re-check and write under the writer lock (D-2026-147).
+
+        Two writers of one memory id each found the id free in the store
+        they had loaded, both writes were appended, and every later load()
+        refused the history ("written twice"). The rules the replay applies
+        are decided here against the history the record is appended onto,
+        so the loser is refused before anything is written."""
+        def under_lock(head_seq):
+            self._fold_new()
+            return decide()
+
+        ev = self.log.append_decided(under_lock)
+        self.apply(ev)
+        return ev
+
     def apply(self, ev) -> bool:
+        self._folded_through = max(self._folded_through, ev.seq)
         p = ev.payload
         if ev.action == ACT_MEMORY_WRITE:
             if not isinstance(p, dict) or "entry" not in p:
@@ -442,9 +486,6 @@ class MemoryStore:
         if len(text.encode("utf-8")) > MAX_ENTRY_BYTES:
             raise MemoryError_(
                 f"memory entry is over the {MAX_ENTRY_BYTES}-byte bound")
-        self._check_total(memory_id, text)
-        if memory_id in self._entries:
-            raise MemoryError_(f"memory {memory_id!r} already exists")
         derived_from = tuple(dict.fromkeys(derived_from))
         for src in derived_from:
             if is_digest(src) and self.evidence is not None:
@@ -454,18 +495,24 @@ class MemoryStore:
                         f"{src[:12]}, which does not resolve; an entry citing "
                         "evidence that does not exist would read to a later "
                         "auditor exactly like one that does")
-        for other in summarizes:
-            if other not in self._entries:
-                raise MemoryError_(
-                    f"memory {memory_id!r} summarizes {other!r}, which does "
-                    "not exist")
         entry = MemoryEntry(memory_id=memory_id, text=text, author=author,
                             derived_from=derived_from, confidence=confidence,
                             summarizes=tuple(summarizes))
-        ev = self.log.append(actor=author, action=ACT_MEMORY_WRITE,
-                             target=memory_id,
-                             payload={"entry": entry.to_record()})
-        self.apply(ev)
+
+        def decide():
+            self._check_total(memory_id, text)
+            if memory_id in self._entries:
+                raise MemoryError_(f"memory {memory_id!r} already exists")
+            for other in summarizes:
+                if other not in self._entries:
+                    raise MemoryError_(
+                        f"memory {memory_id!r} summarizes {other!r}, which "
+                        "does not exist")
+            return {"actor": author, "action": ACT_MEMORY_WRITE,
+                    "target": memory_id,
+                    "payload": {"entry": entry.to_record()}}
+
+        self._append_decided(decide)
         return self.get(memory_id)
 
     def summarize(self, *, memory_id: str, text: str, author: str,
@@ -487,17 +534,39 @@ class MemoryStore:
 
     def _set_status(self, memory_id: str, status: MemoryStatus, *,
                     actor: str, reason: str, superseded_by: str | None = None,
-                    invalidated_source: str | None = None) -> MemoryEntry:
-        self.get(memory_id)
+                    invalidated_source: str | None = None,
+                    only_if_current: bool = False) -> MemoryEntry:
+        """Move ``memory_id`` to ``status``, decided under the writer lock
+        by the replay's own rules: the edge, and authorship of a
+        withdrawal. ``only_if_current`` is the cascade's: an entry that
+        stopped being current meanwhile raises :class:`_NoLongerCurrent`
+        and is left alone."""
         payload = {"memory_id": memory_id, "status": status.value,
                    "reason": reason}
         if superseded_by is not None:
             payload["superseded_by"] = superseded_by
         if invalidated_source is not None:
             payload["invalidated_source"] = invalidated_source
-        ev = self.log.append(actor=actor, action=ACT_MEMORY_STATUS,
-                             target=memory_id, payload=payload)
-        self.apply(ev)
+
+        def decide():
+            cur = self.get(memory_id)
+            if only_if_current and cur.status in NOT_CURRENT:
+                raise _NoLongerCurrent()
+            allowed = STATUS_EDGES.get(cur.status, frozenset())
+            if status is not cur.status and status not in allowed:
+                raise MemoryError_(
+                    f"{memory_id!r} is {cur.status.value} and may not move "
+                    f"to {status.value}")
+            if status in _AUTHORS_OWN and actor != cur.author:
+                raise MemoryError_(
+                    f"memory {memory_id!r} was written by {cur.author!r}; "
+                    f"{actor!r} may not withdraw it")
+            if superseded_by is not None:
+                self.get(superseded_by)
+            return {"actor": actor, "action": ACT_MEMORY_STATUS,
+                    "target": memory_id, "payload": payload}
+
+        self._append_decided(decide)
         return self.get(memory_id)
 
     def retract(self, memory_id: str, *, actor: str,
@@ -551,11 +620,15 @@ class MemoryStore:
             entry = self._entries.get(mid)
             if entry is None or entry.status in NOT_CURRENT:
                 continue
-            moved.append(self._set_status(
-                mid, MemoryStatus.STALE, actor=actor,
-                reason=(f"derived from {source[:12]}, which was invalidated: "
-                        f"{reason}"),
-                invalidated_source=source if first else None))
+            try:
+                moved.append(self._set_status(
+                    mid, MemoryStatus.STALE, actor=actor,
+                    reason=(f"derived from {source[:12]}, which was "
+                            f"invalidated: {reason}"),
+                    invalidated_source=source if first else None,
+                    only_if_current=True))
+            except _NoLongerCurrent:
+                continue
             first = False
             frontier.extend(
                 e.memory_id for e in self._entries.values()
@@ -565,6 +638,10 @@ class MemoryStore:
             # cites this source is born stale rather than briefly current.
             self._invalidated.add(source)
         return tuple(moved)
+
+
+class _NoLongerCurrent(Exception):
+    """A cascade found an entry no longer current under the lock."""
 
 
 # ---- the boundary, as a callable refusal --------------------------------

@@ -51,6 +51,7 @@ from enum import Enum
 from typing import FrozenSet
 
 from .canonical import digest, is_digest
+from .events import EventLogError
 
 ACT_AGENT_REGISTER = "agent.register"
 ACT_AGENT_RETIRE = "agent.retire"
@@ -505,6 +506,11 @@ class AgentDirectory:
         #: ``(escalation_id, error)`` for notifications the sink refused.
         self._undelivered: list = []
         self._at_seq = -1
+        #: The last sequence folded, whatever its action -- what a catch-up
+        #: starts after. ``_at_seq`` is the last record THIS projection
+        #: recognised, which is what its gates read.
+        self._folded_through = -1
+        self._anchor = None
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "AgentDirectory":
@@ -515,11 +521,59 @@ class AgentDirectory:
         self._claims = {}
         self._escalations = {}
         self._at_seq = -1
+        self._folded_through = -1
         for ev in events:
             self.apply(ev)
+        self._anchor = (self.log.anchor_at(self._folded_through)
+                        if self._folded_through >= 0 else None)
         return self
 
+    def _fold_new(self) -> None:
+        """Fold what other writers appended since this directory last read.
+
+        O(new) from the anchor, as the proposal ingress and the scheduler
+        do; a whole verified read when there is no anchor or it no longer
+        describes the bytes at its offset."""
+        if self._anchor is not None:
+            try:
+                events, self._anchor = self.log.advance(self._anchor)
+            except EventLogError:
+                self._anchor = None
+            else:
+                for ev in events:
+                    if ev.seq > self._folded_through:
+                        self.apply(ev)
+                return
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
+        for ev in events:
+            if ev.seq > self._folded_through:
+                self.apply(ev)
+        self._anchor = (self.log.anchor_at(self._folded_through)
+                        if self._folded_through >= 0 else None)
+
+    def _append_decided(self, decide):
+        """Re-read, re-check and write under the writer lock (D-2026-147).
+
+        Every writer here checked its rules against the projection it had
+        loaded and then appended. Two people answering one escalation each
+        passed the "still OPEN" check against their own view, both answers
+        were written, each was told its decision stood -- and every later
+        load() refused the history, because the second answer rewrites a
+        decision already recorded. ``decide`` runs after the fold, with the
+        lock held, so the loser of a race is refused before anything is
+        written. It returns the append keywords, or raises.
+        """
+        def under_lock(head_seq):
+            self._fold_new()
+            return decide()
+
+        ev = self.log.append_decided(under_lock)
+        self.apply(ev)
+        return ev
+
     def apply(self, ev) -> bool:
+        self._folded_through = max(self._folded_through, ev.seq)
         p = ev.payload
         if ev.action == ACT_AGENT_REGISTER:
             ident = identity_from_record(p["identity"])
@@ -853,22 +907,32 @@ class AgentDirectory:
 
     def register(self, ident: AgentIdentity, *, by: str) -> AgentIdentity:
         """Record a participating instance. See :meth:`_check_may_register`."""
-        self._check_may_register(ident, by=by)
         ident = replace(ident, registered_by=by)
-        ev = self.log.append(actor=by, action=ACT_AGENT_REGISTER,
-                             target=ident.instance_id,
-                             payload={"identity": ident.to_record()})
-        self.apply(ev)
+
+        def decide():
+            if ident.instance_id in self._identities:
+                raise IdentityError(
+                    f"instance {ident.instance_id!r} is already registered; "
+                    "a second registration could quietly widen the roles "
+                    "the first one was given")
+            self._check_may_register(ident, by=by)
+            return {"actor": by, "action": ACT_AGENT_REGISTER,
+                    "target": ident.instance_id,
+                    "payload": {"identity": ident.to_record()}}
+
+        self._append_decided(decide)
         return self.get(ident.instance_id)
 
     def retire(self, instance_id: str, *, by: str, reason: str) -> None:
-        self.get(instance_id)
-        self._check_may_retire(instance_id, by=by)
-        ev = self.log.append(actor=by, action=ACT_AGENT_RETIRE,
-                             target=instance_id,
-                             payload={"instance_id": instance_id,
-                                      "reason": reason})
-        self.apply(ev)
+        def decide():
+            self.get(instance_id)
+            self._check_may_retire(instance_id, by=by)
+            return {"actor": by, "action": ACT_AGENT_RETIRE,
+                    "target": instance_id,
+                    "payload": {"instance_id": instance_id,
+                                "reason": reason}}
+
+        self._append_decided(decide)
 
     def get(self, instance_id: str) -> AgentIdentity:
         try:
@@ -904,7 +968,6 @@ class AgentDirectory:
              recipient_agent: str, task_id: str, subject: str,
              body_digest: str, in_reply_to: str | None = None) -> Message:
         """Send a message. Duplicates are no-ops; rewrites are refused."""
-        self.get(sender_instance)
         if not is_digest(body_digest):
             raise MessageError(
                 "a message body is carried by digest; a bus that stored "
@@ -913,31 +976,41 @@ class AgentDirectory:
             raise MessageError(
                 f"subject is {len(subject)} chars, above "
                 f"{MAX_MESSAGE_SUBJECT}")
-        if in_reply_to is not None and in_reply_to not in self._messages:
-            raise MessageError(
-                f"message {message_id!r} replies to {in_reply_to!r}, which "
-                "was never sent")
         msg = Message(message_id=message_id, sender_instance=sender_instance,
                       recipient_agent=recipient_agent, task_id=task_id,
                       subject=subject, body_digest=body_digest,
                       in_reply_to=in_reply_to)
-        existing = self._messages.get(message_id)
-        if existing is not None:
-            # Compared across every dimension the id names, for the same
-            # reason the reducer is: a resend that keeps the bytes and
-            # changes the recipient is not a resend.
-            why = message_identity_conflict(existing, msg)
-            if why:
+
+        class _AlreadySent(Exception):
+            pass
+
+        def decide():
+            self.get(sender_instance)
+            if in_reply_to is not None and in_reply_to not in self._messages:
                 raise MessageError(
-                    f"message {message_id!r} was already sent and this "
-                    f"differs: {why}. A resend repeats a message; reusing an "
-                    "id to say something else is a rewrite, and the bus is "
-                    "append-only")
-            return existing
-        ev = self.log.append(actor=sender_instance, action=ACT_MESSAGE,
-                             target=recipient_agent,
-                             payload={"message": msg.to_record()})
-        self.apply(ev)
+                    f"message {message_id!r} replies to {in_reply_to!r}, "
+                    "which was never sent")
+            existing = self._messages.get(message_id)
+            if existing is not None:
+                # Compared across every dimension the id names, for the same
+                # reason the reducer is: a resend that keeps the bytes and
+                # changes the recipient is not a resend.
+                why = message_identity_conflict(existing, msg)
+                if why:
+                    raise MessageError(
+                        f"message {message_id!r} was already sent and this "
+                        f"differs: {why}. A resend repeats a message; "
+                        "reusing an id to say something else is a rewrite, "
+                        "and the bus is append-only")
+                raise _AlreadySent()
+            return {"actor": sender_instance, "action": ACT_MESSAGE,
+                    "target": recipient_agent,
+                    "payload": {"message": msg.to_record()}}
+
+        try:
+            self._append_decided(decide)
+        except _AlreadySent:
+            pass
         return self._messages[message_id]
 
     def inbox(self, agent_id: str, *, task_id: str | None = None) -> tuple:
@@ -981,17 +1054,24 @@ class AgentDirectory:
     # ---- claims and conflict -------------------------------------------
     def claim(self, *, claim_id: str, task_id: str, subject: str,
               value_digest: str, by_instance: str, role: AgentRole) -> Claim:
-        self.require(by_instance, role)
         if not is_digest(value_digest):
             raise ConflictError(
                 "a claim names its value by digest, so two claims can be "
                 "compared without comparing prose")
-        ev = self.log.append(
-            actor=by_instance, action=ACT_CLAIM, target=task_id,
-            payload={"claim_id": claim_id, "task_id": task_id,
-                     "subject": subject, "value_digest": value_digest,
-                     "by_instance": by_instance, "role": role.value})
-        self.apply(ev)
+
+        def decide():
+            self.require(by_instance, role)
+            if claim_id in self._claims:
+                raise ConflictError(f"claim {claim_id!r} is already recorded")
+            return {"actor": by_instance, "action": ACT_CLAIM,
+                    "target": task_id,
+                    "payload": {"claim_id": claim_id, "task_id": task_id,
+                                "subject": subject,
+                                "value_digest": value_digest,
+                                "by_instance": by_instance,
+                                "role": role.value}}
+
+        self._append_decided(decide)
         return self._claims[claim_id]
 
     def claims_about(self, task_id: str, subject: str) -> tuple:
@@ -1091,7 +1171,6 @@ class AgentDirectory:
         reported by :meth:`undelivered`, so "nobody was told" is a question
         with an answer.
         """
-        self.get(raised_by)
         if not question.strip():
             raise EscalationError("an escalation must ask something")
         opts = tuple(dict.fromkeys(options))
@@ -1103,10 +1182,17 @@ class AgentDirectory:
         esc = Escalation(escalation_id=escalation_id, task_id=task_id,
                          question=question, raised_by=raised_by,
                          options=opts)
-        ev = self.log.append(actor=raised_by, action=ACT_ESCALATION,
-                             target=task_id,
-                             payload={"escalation": esc.to_record()})
-        self.apply(ev)
+
+        def decide():
+            self.get(raised_by)
+            if escalation_id in self._escalations:
+                raise EscalationError(
+                    f"escalation {escalation_id!r} is already raised")
+            return {"actor": raised_by, "action": ACT_ESCALATION,
+                    "target": task_id,
+                    "payload": {"escalation": esc.to_record()}}
+
+        self._append_decided(decide)
         raised = self._escalations[escalation_id]
         # DURABLE FIRST, DELIVERED SECOND, and never the other way round.
         self._notify(raised)
@@ -1144,58 +1230,72 @@ class AgentDirectory:
         not the agent's to make -- so no arrangement of roles substitutes for
         a person.
         """
-        esc = self.escalation(escalation_id)
-        if esc.state is not EscalationState.OPEN:
-            raise EscalationError(
-                f"escalation {escalation_id!r} is {esc.state.value}; "
-                "answering it again would rewrite a decision that was already "
-                "recorded")
-        ident = self.get(answered_by)
-        if ident.kind is not PrincipalKind.HUMAN:
-            raise EscalationError(
-                f"{answered_by!r} is a {ident.kind.value} principal and may "
-                "not answer an escalation. An escalation exists because the "
-                "decision was not the agent's to make; holding REVIEWER does "
-                "not change what kind of thing is deciding.")
-        if answered_by == esc.raised_by:
-            raise EscalationError(
-                f"{answered_by!r} raised this escalation and may not also "
-                "answer it")
-        if answer not in esc.options:
-            raise EscalationError(
-                f"answer {answer!r} is not one of {list(esc.options)}; an "
-                "answer that cannot be checked against what was asked is a "
-                "conversation, not a decision")
         if not reason.strip():
             raise EscalationError(
                 "an answered escalation must carry a reason; the reason is "
                 "what a later reader needs and the answer alone never gives")
-        ev = self.log.append(
-            actor=answered_by, action=ACT_ESCALATION_ANSWER,
-            target=esc.task_id,
-            payload={"escalation_id": escalation_id,
-                     "state": EscalationState.ANSWERED.value,
-                     "answer": answer, "answered_by": answered_by,
-                     "reason": reason})
-        self.apply(ev)
+
+        def decide():
+            # Against the history this answer is appended onto: a second
+            # person answering at the same moment finds it ANSWERED here,
+            # not in a log nobody can load afterwards (D-2026-147).
+            esc = self.escalation(escalation_id)
+            if esc.state is not EscalationState.OPEN:
+                raise EscalationError(
+                    f"escalation {escalation_id!r} is {esc.state.value}; "
+                    "answering it again would rewrite a decision that was "
+                    "already recorded")
+            ident = self.get(answered_by)
+            # The replay judges the answer at the sequence it is written
+            # at, and refuses a retired principal's; so must the write.
+            if not ident.is_active(self._folded_through + 1):
+                raise EscalationError(
+                    f"{answered_by!r} was retired after seq "
+                    f"{ident.retired_seq} and may not answer an escalation")
+            if ident.kind is not PrincipalKind.HUMAN:
+                raise EscalationError(
+                    f"{answered_by!r} is a {ident.kind.value} principal and "
+                    "may not answer an escalation. An escalation exists "
+                    "because the decision was not the agent's to make; "
+                    "holding REVIEWER does not change what kind of thing is "
+                    "deciding.")
+            if answered_by == esc.raised_by:
+                raise EscalationError(
+                    f"{answered_by!r} raised this escalation and may not "
+                    "also answer it")
+            if answer not in esc.options:
+                raise EscalationError(
+                    f"answer {answer!r} is not one of {list(esc.options)}; "
+                    "an answer that cannot be checked against what was asked "
+                    "is a conversation, not a decision")
+            return {"actor": answered_by, "action": ACT_ESCALATION_ANSWER,
+                    "target": esc.task_id,
+                    "payload": {"escalation_id": escalation_id,
+                                "state": EscalationState.ANSWERED.value,
+                                "answer": answer, "answered_by": answered_by,
+                                "reason": reason}}
+
+        self._append_decided(decide)
         return self._escalations[escalation_id]
 
     def withdraw(self, *, escalation_id: str, by: str,
                  reason: str) -> Escalation:
-        esc = self.escalation(escalation_id)
-        if esc.raised_by != by:
-            raise EscalationError(
-                f"escalation {escalation_id!r} was raised by "
-                f"{esc.raised_by!r}; {by!r} may not withdraw it")
-        if esc.state is not EscalationState.OPEN:
-            raise EscalationError(
-                f"escalation {escalation_id!r} is {esc.state.value}")
-        ev = self.log.append(
-            actor=by, action=ACT_ESCALATION_ANSWER, target=esc.task_id,
-            payload={"escalation_id": escalation_id,
-                     "state": EscalationState.WITHDRAWN.value,
-                     "reason": reason})
-        self.apply(ev)
+        def decide():
+            esc = self.escalation(escalation_id)
+            if esc.raised_by != by:
+                raise EscalationError(
+                    f"escalation {escalation_id!r} was raised by "
+                    f"{esc.raised_by!r}; {by!r} may not withdraw it")
+            if esc.state is not EscalationState.OPEN:
+                raise EscalationError(
+                    f"escalation {escalation_id!r} is {esc.state.value}")
+            return {"actor": by, "action": ACT_ESCALATION_ANSWER,
+                    "target": esc.task_id,
+                    "payload": {"escalation_id": escalation_id,
+                                "state": EscalationState.WITHDRAWN.value,
+                                "reason": reason}}
+
+        self._append_decided(decide)
         return self._escalations[escalation_id]
 
     def escalation(self, escalation_id: str) -> Escalation:

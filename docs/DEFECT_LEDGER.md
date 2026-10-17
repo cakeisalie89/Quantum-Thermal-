@@ -7855,3 +7855,58 @@ and re-decides source, revision, edge and evidence there (`_append_decided`,
 `2f9a977`); invalidation stores the evidence it cites (`_origin_evidence`,
 `87eb794`); and the mutation harness fails a run with a timed-out mutation
 (`f3b6e81`).
+
+## D-2026-147 — the agent directory and the memory store decided against the view they had loaded, so an honest race wrote a history nobody could load
+
+**CLASS** — `TRUE_DEFECT` (availability of the authority record), found in
+Tranche F's audit (finding T-1, `docs/security/findings.json`).
+
+**DEMONSTRATION.** Two directories loaded from one log, one escalation
+OPEN in both. The first answered it; the second, whose view was now stale,
+answered it too. Both appends succeeded and each caller was told its
+decision stood. Every later `AgentDirectory.load()` raised `EscalationError`
+at the second answer ("answering it again would rewrite a decision that was
+already recorded"). Measured at `89e9da0` with
+`tests/test_agent_toctou.py`: eleven of its twelve cases failed (answer,
+withdrawal, an answer by a principal retired meanwhile, a second
+registration, escalation, message and claim with one id, two writers of one
+memory id, a supersede racing a retraction, a cascade over an entry
+withdrawn meanwhile, and two processes racing on a barrier); the twelfth is
+the control.
+
+**WHY IT MATTERS.** Nothing wrong became authoritative -- the reducer
+refused -- but an ordinary race between two people made the whole log
+unloadable, which stops every reader of that log, the governed path
+included. `EventLog.append_decided` was written for exactly this and these
+writers did not use it.
+
+**ROOT CAUSE.** The rules were checked against the in-memory projection and
+the record appended afterwards, outside the writer lock. Two write-path
+checks the replay makes were also missing: that the answering principal is
+not retired at the sequence the answer is written at, and that an
+escalation or claim id is not already taken.
+
+**REPAIR.** `AgentDirectory` and `MemoryStore` gain `_fold_new` (O(new) from
+an anchor, a verified full read without one) and `_append_decided`, which
+folds what other writers appended and then decides, with the lock held.
+Every writer -- register, retire, send, claim, escalate, answer, withdraw,
+remember, and the status moves -- decides there, and the status move
+restates the replay's edge and authorship rules. The invalidation cascade
+leaves an entry that stopped being current meanwhile alone instead of
+moving it. `tools/mutations/agent_toctou.json` T1-T9 (9/9 killed) puts each
+decision back outside the lock or deletes one restated rule;
+`agent_agents.json` A9, A13, A18, A28, A29 and N3 were re-anchored where
+the checks moved (61/61 killed).
+
+**NOT CLAIMED.** The other plain appends in the substrate were examined
+and not converted here. Records of something that happened -- a file read,
+a network request or result, a secret access, a context build, an
+execution, evidence, a re-execution or separate check -- carry no decision
+a stale view could get wrong. Writers that DO decide against a projection
+first and are still outside the lock: `PolicyStore.publish` and
+`decide_and_record`, `CapabilityLedger`'s revocation,
+`NetworkAuthority`'s service registration and grant revocation,
+`SecretStore`'s provisioning and grant revocation, and the governed
+path's task creation and compensation. They are finding T-2
+(`docs/security/findings.json`), OPEN; none is claimed safe by this
+record.

@@ -24,8 +24,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 29104,
-      "sha256": "245f548a4b023107f40b4ab5afd803117a4dc2216755900f644f5fabf82f4489"
+      "size_bytes": 29152,
+      "sha256": "ea5b1dd0b0ca9aba6122b55014fbe22d9ebd2340c335bd02c14482e3a99a75f6"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -84,8 +84,8 @@
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 3733,
-      "sha256": "19d77e291feee78e214a5defd828c7cf299f3ddaed15610d5ae13cd483d2eb26"
+      "size_bytes": 4491,
+      "sha256": "8b4a3466a863377ba349cc64ae5bf446ffccf5d4073fdfb6c7604d83b2abed41"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -169,8 +169,8 @@
     },
     {
       "filename": "agent_substrate/agents.py",
-      "size_bytes": 58982,
-      "sha256": "7f1b9301011ec3f637ed99574ad4c936f1b7f025bc6b01da50f8290c67bd1d9b"
+      "size_bytes": 63288,
+      "sha256": "ebb789bc06fd7f2aa99e3d28170bf53f01d6f361249ebc50628b1974c2947ef7"
     },
     {
       "filename": "agent_substrate/audit.py",
@@ -259,8 +259,8 @@
     },
     {
       "filename": "agent_substrate/memory.py",
-      "size_bytes": 29572,
-      "sha256": "1f8bc65f73636cf15acf3a9361d7b9598f0b0a2671eaf29ecf4f5b963a108416"
+      "size_bytes": 32815,
+      "sha256": "c5cd0ff330ac34eb79c5c3243c3fc908bac4749c637804990ffb98463886d2fb"
     },
     {
       "filename": "agent_substrate/netauth.py",
@@ -369,8 +369,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 441472,
-      "sha256": "ce531565360b8563bff693629a075420108612516be37f787f72e4c688c2f8e5"
+      "size_bytes": 444702,
+      "sha256": "789566cd448f1de138a999281c5741239d8d4d4e60aeae50504c4214635b4b9c"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -380,12 +380,12 @@
     {
       "filename": "docs/completion_matrix.json",
       "size_bytes": 252869,
-      "sha256": "f60e8fd7086060dcde0e297ea5e58e755020a7e61f7f3c70c810891ab4092f9b"
+      "sha256": "14785d1f586ba2869540636f76f72a0cdd4baa13cdd62c81e07bef459c5f9d25"
     },
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3233,
-      "sha256": "d061cd613dfc89c337ab8f985b51b3d3c87638779943379fcd91d73b85677fd5"
+      "sha256": "9fb2074fbca735124485d6a4b7cc5f37c00268723c9dc16ce2ae77a5fb50d6aa"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -404,8 +404,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 10548,
-      "sha256": "2682c7a9d5646c8b52c4ffc2370ec778e6d89de5f39dfa93a3d7aa605953b1f0"
+      "size_bytes": 11859,
+      "sha256": "0068aed91fae41396efcefade5bb9e9044248651d0df5ef7ef874f6fa2e927d6"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -520,7 +520,7 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2589,
-      "sha256": "7a3f1051d4aa09333071c5f571efee32fa6d87e4622b50e4eb43cb372dd04c17"
+      "sha256": "7c700078ff2b6b43a320f86fef1cf244905e003f08f37bf9c43333f1db954579"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -529,13 +529,13 @@
     },
     {
       "filename": "docs/security/findings.json",
-      "size_bytes": 13210,
-      "sha256": "ca5a41f8bfadc24ccd68dac4f7b662809f74255633030327437a2a7a623fd654"
+      "size_bytes": 15680,
+      "sha256": "6fa6981cf9a63255f8b927d7bbe2e94808c17bb88e1b5876ba368801b118e4e4"
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 195684,
-      "sha256": "e8279ee99f3cc6ba13c52698c36a968e22ac258d6d5939cfd2253090418973bc"
+      "size_bytes": 196573,
+      "sha256": "c5c2a9aed6855e4e5b497db02b8122b1e542161a1428019faa04c44b2be1c6cf"
     },
     {
       "filename": "docs/supply_chain_ci_policy.json",
@@ -545,7 +545,7 @@
     {
       "filename": "docs/typing_scope.json",
       "size_bytes": 772,
-      "sha256": "e794144831b781e95934a37668227df458ac6ce4eff9d7fef5c15a1ebd14c49f"
+      "sha256": "e887cb3d215bf88bb95deda0d0bc25b560facd3c93c1c7b334afa6bcad3b36bb"
     },
     {
       "filename": "generate_manifest.py",
@@ -635,7 +635,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "3c9eab8b24cde7dff7eaeed297018269150cc89c77cb27c6b4dfc7084f28d2ce"
+      "sha256": "74140604d2527a5492ccf86e8f29970eece73e495ca152dff79ea27a068ea0c9"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1248,6 +1248,11 @@
       "sha256": "1efca5cd1e56c51af63c2f3e61f03748749e7fe47bba5f9c2cd72a593bcdaccc"
     },
     {
+      "filename": "tests/test_agent_toctou.py",
+      "size_bytes": 9714,
+      "sha256": "5c2836556d8686b86963047bb009fe7b3385a529b53c268ca21318cb34595d04"
+    },
+    {
       "filename": "tests/test_authenticated_history.py",
       "size_bytes": 24759,
       "sha256": "2b62b062e9cd7dea27e409a2a84879c1cc6c17e43655f5e9bf06be5452e2c006"
@@ -1279,8 +1284,8 @@
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 43900,
-      "sha256": "d5c750d5c6d6dee09e8ca1fc382bdc3139d41f2a8c7aa8fa801dd8943d43a7a7"
+      "size_bytes": 44272,
+      "sha256": "24a14c6c25804da31f3e991c88ebe00edb7bea85a35c067485b60bdab6966dd6"
     },
     {
       "filename": "tests/test_container_manifest_coverage.py",
@@ -1709,8 +1714,8 @@
     },
     {
       "filename": "tools/mutations/agent_agents.json",
-      "size_bytes": 27865,
-      "sha256": "02a74bca11d99809b9fcf671057a1eae54ab10bc183690bfa7f392a4ba0ed9cd"
+      "size_bytes": 27362,
+      "sha256": "46f414dde957f2527e3700df29a421759f37b41ae60a31b95fb7c00db7f055ed"
     },
     {
       "filename": "tools/mutations/agent_audit.json",
@@ -1841,6 +1846,11 @@
       "filename": "tools/mutations/agent_tasks.json",
       "size_bytes": 13712,
       "sha256": "2bb213df132c2431e0769ed987e69c458cb43203e603140de2d9a78e42e67050"
+    },
+    {
+      "filename": "tools/mutations/agent_toctou.json",
+      "size_bytes": 4335,
+      "sha256": "6e754cdd86601894ff255171bb8ccb7f06342e9f7cfeaea39c9bd55e9ff58921"
     },
     {
       "filename": "tools/mutations/authenticated_history.json",

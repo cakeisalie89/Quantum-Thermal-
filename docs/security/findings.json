@@ -15,10 +15,23 @@
    "priority": "P0",
    "area": "supply chain: release verification authority",
    "title": "a digest-only verification reports accepted=True with no signature checked",
-   "files": [{"path": "tools/supply_chain.py", "symbols": ["verify", "verify_signature", "main"]}],
+   "files": [
+    {
+     "path": "tools/supply_chain.py",
+     "symbols": [
+      "verify",
+      "verify_signature",
+      "main"
+     ]
+    }
+   ],
    "precondition": "Any caller that reads the verify() report, or the CLI exit status, of a --mode digests run. Nothing authenticates the candidate in that mode: SHA256SUMS, the provenance and the index can all be rewritten consistently by whoever controls the directory.",
    "impact": "verify(mode='digests') returns {'accepted': True, 'signature': 'NOT_CHECKED (digests mode)'} and the CLI exits 0, so the one boolean a consumer is most likely to read says a forged, unsigned candidate was accepted. No outcome distinguishes integrity, provenance structure, a cryptographic signature, a trusted signer and an authorized release; the last does not exist at all.",
-   "reproduction": {"kind": "test", "ref": "tests/test_release_admission.py::test_a_digest_only_report_never_admits_a_release", "observed_at_baseline": "verify(rc, policy, mode='digests')['accepted'] is True for an unsigned candidate"},
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_release_admission.py::test_a_digest_only_report_never_admits_a_release",
+    "observed_at_baseline": "verify(rc, policy, mode='digests')['accepted'] is True for an unsigned candidate"
+   },
    "status": "OPEN"
   },
   {
@@ -27,10 +40,24 @@
    "priority": "P0",
    "area": "supply chain: portable verification",
    "title": "verification depends on the verifier's checkout, lockfile and implicit trust root",
-   "files": [{"path": "tools/supply_chain.py", "symbols": ["verify", "sbom_problems", "verify_signature", "archive_against_manifest"]}],
+   "files": [
+    {
+     "path": "tools/supply_chain.py",
+     "symbols": [
+      "verify",
+      "sbom_problems",
+      "verify_signature",
+      "archive_against_manifest"
+     ]
+    }
+   ],
    "precondition": "A verifier that is not the build machine, or a build machine whose uv.lock or environment locks were edited after the release was built.",
    "impact": "The SBOM is compared with the VERIFIER's uv.lock and environment locks (sbom_problems(doc, root)), not with the declarations inside the signed source archive, so a correct release fails on another checkout and a consistently edited local lockfile changes the verdict. The signature is checked against whatever Sigstore trust root the verifier's sigstore package or TUF cache holds; the policy defaults to a path inside the checkout. Archive members are read whole with no size, count or ratio bound, and in digests mode that happens before anything is authenticated. SHA256SUMS lines are parsed leniently: a name listed twice keeps the last digest.",
-   "reproduction": {"kind": "test", "ref": "tests/test_offline_verify.py", "observed_at_baseline": "sbom_problems compares against ROOT/uv.lock; verify_signature passes no --trust-config"},
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_offline_verify.py",
+    "observed_at_baseline": "sbom_problems compares against ROOT/uv.lock; verify_signature passes no --trust-config"
+   },
    "status": "OPEN"
   },
   {
@@ -39,10 +66,23 @@
    "priority": "P0",
    "area": "supply chain: reproducibility",
    "title": "no contract says which release bytes must be identical across builds",
-   "files": [{"path": "tools/supply_chain.py", "symbols": ["build", "source_zip", "provenance"]}],
+   "files": [
+    {
+     "path": "tools/supply_chain.py",
+     "symbols": [
+      "build",
+      "source_zip",
+      "provenance"
+     ]
+    }
+   ],
    "precondition": "Any claim that a release candidate is reproducible.",
    "impact": "The module states 'the same commit always packs to the same bytes', tested only by two builds in one process and one environment. The provenance carries the run id, so SHA256SUMS and index.json differ between hosted runs, and nothing separates the deterministic payload from run-specific attestation.",
-   "reproduction": {"kind": "test", "ref": "tests/test_release_reproducibility.py", "observed_at_baseline": "tests/test_supply_chain.py::test_the_archive_is_deterministic builds twice in the same environment"},
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_release_reproducibility.py",
+    "observed_at_baseline": "tests/test_supply_chain.py::test_the_archive_is_deterministic builds twice in the same environment"
+   },
    "status": "OPEN"
   },
   {
@@ -51,10 +91,23 @@
    "priority": "P0",
    "area": "AI and CI authority",
    "title": "the default branch's AI workflow has no trust gate, and a third-party bot's comment started it",
-   "files": [{"path": ".github/workflows/claude.yml", "ref": "main", "symbols": ["jobs.claude.if", "jobs.claude.permissions"]}],
+   "files": [
+    {
+     "path": ".github/workflows/claude.yml",
+     "ref": "main",
+     "symbols": [
+      "jobs.claude.if",
+      "jobs.claude.permissions"
+     ]
+    }
+   ],
    "precondition": "Comment- and issue-triggered workflows run from the DEFAULT branch's file. On main, the job's condition is the '@claude' mention alone; the repository is public.",
    "impact": "Any GitHub account, including any integration bot, can start a job holding contents: write, pull-requests: write, issues: write, id-token: write and the ANTHROPIC_API_KEY secret. Observed: run 32391406642, started by chatgpt-codex-connector[bot] on 2026-08-20, logged 'No trigger was met for @claude', entered agent mode, obtained a GitHub OIDC token and attempted the app-token exchange, which failed only because the PR's workflow file differed from the default branch's. The author_association gate on this branch does nothing until it reaches the default branch.",
-   "reproduction": {"kind": "hosted_evidence", "ref": "actions run 32391406642, job 96498146722", "observed_at_baseline": "Requesting OIDC token... OIDC token successfully obtained... Exchanging OIDC token for app token"},
+   "reproduction": {
+    "kind": "hosted_evidence",
+    "ref": "actions run 32391406642, job 96498146722",
+    "observed_at_baseline": "Requesting OIDC token... OIDC token successfully obtained... Exchanging OIDC token for app token"
+   },
    "status": "EXTERNALLY_BLOCKED"
   },
   {
@@ -63,10 +116,21 @@
    "priority": "P0",
    "area": "AI and CI authority",
    "title": "the default branch is unprotected: no rulesets, no required checks, no required review",
-   "files": [{"path": ".github/workflows/agent-substrate.yml", "symbols": ["on"]}],
+   "files": [
+    {
+     "path": ".github/workflows/agent-substrate.yml",
+     "symbols": [
+      "on"
+     ]
+    }
+   ],
    "precondition": "Any principal with write access, including an automation token with contents: write.",
    "impact": "GET /repos/.../branches/main reports protected: false and required status checks enforcement_level 'off'; GET /rulesets returns []. Nothing outside the AI prevents a direct push to main or a merge without review, and no CI result is required for a merge. Separation between proposing, approving, signing and releasing is not enforced by the platform.",
-   "reproduction": {"kind": "api", "ref": "GET repos/cakeisalie89/Quantum-Thermal-/branches/main; GET .../rulesets", "observed_at_baseline": "protected: false; rulesets []"},
+   "reproduction": {
+    "kind": "api",
+    "ref": "GET repos/cakeisalie89/Quantum-Thermal-/branches/main; GET .../rulesets",
+    "observed_at_baseline": "protected: false; rulesets []"
+   },
    "status": "EXTERNALLY_BLOCKED"
   },
   {
@@ -75,10 +139,23 @@
    "priority": "P1",
    "area": "AI and CI authority",
    "title": "workflows retired on this branch are still active on the default branch",
-   "files": [{"path": ".github/workflows/release.yml", "ref": "main", "symbols": ["on.push.tags", "jobs.*.permissions.id-token"]}],
+   "files": [
+    {
+     "path": ".github/workflows/release.yml",
+     "ref": "main",
+     "symbols": [
+      "on.push.tags",
+      "jobs.*.permissions.id-token"
+     ]
+    }
+   ],
    "precondition": "A tag push matching the retired programme's stage-tag pattern, or a manual dispatch.",
    "impact": "The Actions workflow list reports release.yml, identity-discovery.yml, reference-backend.yml and source-snapshot.yml as active. release.yml signs with id-token: write on a tag push; any principal that can push a tag can obtain a signature under that workflow identity.",
-   "reproduction": {"kind": "api", "ref": "GET repos/cakeisalie89/Quantum-Thermal-/actions/workflows", "observed_at_baseline": "state: active for each"},
+   "reproduction": {
+    "kind": "api",
+    "ref": "GET repos/cakeisalie89/Quantum-Thermal-/actions/workflows",
+    "observed_at_baseline": "state: active for each"
+   },
    "status": "EXTERNALLY_BLOCKED"
   },
   {
@@ -87,10 +164,28 @@
    "priority": "P1",
    "area": "AI and CI authority",
    "title": "the AI workflow's gate covers who triggers it, not what it reads; nothing in the repository held the gate or the signing separation",
-   "files": [{"path": ".github/workflows/claude.yml", "symbols": ["jobs.claude.if", "jobs.claude.permissions"]}, {"path": "tools/workflow_contract.py", "symbols": ["main"]}],
+   "files": [
+    {
+     "path": ".github/workflows/claude.yml",
+     "symbols": [
+      "jobs.claude.if",
+      "jobs.claude.permissions"
+     ]
+    },
+    {
+     "path": "tools/workflow_contract.py",
+     "symbols": [
+      "main"
+     ]
+    }
+   ],
    "precondition": "A trusted author invokes the agent on a thread or diff that also contains untrusted text (another account's comment, a fork's diff, a retrieved file).",
    "impact": "Untrusted instructions reach an agent holding contents: write. A push it makes to the branch triggers supply-chain.yml, which signs whatever was pushed under the CI identity. The system prompt is not a security boundary. The workflow contract checked action pinning but not the trust gate, the permission set, the absence of a PR-head checkout or that the signing identity is not a release identity.",
-   "reproduction": {"kind": "test", "ref": "tests/test_ci_authority.py", "observed_at_baseline": "workflow_contract.py has no rule over claude.yml's condition or permissions"},
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_ci_authority.py",
+    "observed_at_baseline": "workflow_contract.py has no rule over claude.yml's condition or permissions"
+   },
    "status": "OPEN"
   },
   {
@@ -99,11 +194,34 @@
    "priority": "P1",
    "area": "event-sourced substrate: concurrency",
    "title": "writers decide from an in-memory view and append outside the writer lock, so an honest race writes a history the reducer refuses forever",
-   "files": [{"path": "agent_substrate/agents.py", "symbols": ["AgentDirectory.answer", "AgentDirectory.withdraw", "AgentDirectory.escalate", "AgentDirectory.claim", "AgentDirectory.register", "AgentDirectory.retire"]}, {"path": "agent_substrate/memory.py", "symbols": ["remember", "_set_status"]}],
+   "files": [
+    {
+     "path": "agent_substrate/agents.py",
+     "symbols": [
+      "AgentDirectory.answer",
+      "AgentDirectory.withdraw",
+      "AgentDirectory.escalate",
+      "AgentDirectory.claim",
+      "AgentDirectory.register",
+      "AgentDirectory.retire"
+     ]
+    },
+    {
+     "path": "agent_substrate/memory.py",
+     "symbols": [
+      "remember",
+      "_set_status"
+     ]
+    }
+   ],
    "precondition": "Two processes each holding a projection loaded before the other's append: two people answering one escalation, two writers of one memory id.",
    "impact": "Both appends succeed and each caller is told its decision stands; afterwards AgentDirectory.load() raises on every replay ('escalation e1 is ANSWERED; answering it again would rewrite a decision that was already recorded'). It fails closed -- no wrong decision is ever authoritative -- but an ordinary race makes the history unloadable, which is the defect EventLog.append_decided was written to close and these writers do not use.",
-   "reproduction": {"kind": "test", "ref": "tests/test_agent_toctou.py", "observed_at_baseline": "second answer accepted at write time; RELOAD FAILS: EscalationError seq 5"},
-   "status": "OPEN"
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_agent_toctou.py::test_a_second_answer_from_a_stale_view_is_refused_and_the_log_loads",
+    "observed_at_baseline": "second answer accepted at write time; RELOAD FAILS: EscalationError seq 5"
+   },
+   "status": "FIXED"
   },
   {
    "id": "D-1",
@@ -111,10 +229,33 @@
    "priority": "P1",
    "area": "authority composition: policy",
    "title": "a promotion names a policy id that nothing checks was published, or is still in force",
-   "files": [{"path": "agent_substrate/authority.py", "symbols": ["check"]}, {"path": "agent_substrate/policy.py", "symbols": ["PolicyStore"]}, {"path": "agent_substrate/store.py", "symbols": ["AuthorityStore.transition"]}],
+   "files": [
+    {
+     "path": "agent_substrate/authority.py",
+     "symbols": [
+      "check"
+     ]
+    },
+    {
+     "path": "agent_substrate/policy.py",
+     "symbols": [
+      "PolicyStore"
+     ]
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "symbols": [
+      "AuthorityStore.transition"
+     ]
+    }
+   ],
    "precondition": "A PROMOTER who cites any non-empty policy id.",
    "impact": "I5 requires only that policy_id is present. The authority store holds no view of the policy subsystem, so a promotion under a policy that was never published, or that its owner has withdrawn, is admitted and canonical. Policies can be published and versioned but not withdrawn or expired, so 'the policy was revoked' cannot even be recorded.",
-   "reproduction": {"kind": "test", "ref": "tests/test_hostile_composition.py::test_case_d_a_withdrawn_policy_does_not_promote", "observed_at_baseline": "transition(dst=PROMOTED, policy_id='never-published') succeeds"},
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_hostile_composition.py::test_case_d_a_withdrawn_policy_does_not_promote",
+    "observed_at_baseline": "transition(dst=PROMOTED, policy_id='never-published') succeeds"
+   },
    "status": "OPEN"
   },
   {
@@ -123,10 +264,23 @@
    "priority": "P1",
    "area": "runtime isolation",
    "title": "a tool process that starts its own session survives the timeout",
-   "files": [{"path": "agent_substrate/execution.py", "symbols": ["run_bounded", "_apply_limits", "_kill_group"]}],
+   "files": [
+    {
+     "path": "agent_substrate/execution.py",
+     "symbols": [
+      "run_bounded",
+      "_apply_limits",
+      "_kill_group"
+     ]
+    }
+   ],
    "precondition": "Any tool whose code forks a child that calls setsid() (or double-forks).",
    "impact": "_kill_group signals the tool's process group; a descendant in a new session is outside it, is reparented to init and runs on after run_bounded returns TIMED_OUT, with the tool's credentials and its inherited rlimits but no wall-clock bound.",
-   "reproduction": {"kind": "test", "ref": "tests/test_execution_containment.py", "observed_at_baseline": "GRANDCHILD 2966 STILL ALIVE after timeout kill"},
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_execution_containment.py",
+    "observed_at_baseline": "GRANDCHILD 2966 STILL ALIVE after timeout kill"
+   },
    "status": "OPEN"
   },
   {
@@ -135,10 +289,73 @@
    "priority": "P1",
    "area": "runtime isolation",
    "title": "no kernel-enforced network, filesystem or descriptor bound on tool processes",
-   "files": [{"path": "agent_substrate/execution.py", "symbols": ["run_bounded", "_apply_limits"]}],
+   "files": [
+    {
+     "path": "agent_substrate/execution.py",
+     "symbols": [
+      "run_bounded",
+      "_apply_limits"
+     ]
+    }
+   ],
    "precondition": "A tool whose code ignores the harness's interfaces.",
    "impact": "The child opened 5000 descriptors (RLIMIT_NOFILE is inherited, 20000 here), attempted an outbound TCP connection (it failed only because this host has no direct egress), and read /etc/passwd. run_bounded's docstring states the network limit honestly; the descriptor bound was missing; filesystem reads are confined by nothing but the process's own credentials.",
-   "reproduction": {"kind": "test", "ref": "tests/test_execution_containment.py", "observed_at_baseline": "FDS_OPENED 5000 NOFILE (20000, 20000); READ_PASSWD True"},
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_execution_containment.py",
+    "observed_at_baseline": "FDS_OPENED 5000 NOFILE (20000, 20000); READ_PASSWD True"
+   },
+   "status": "OPEN"
+  },
+  {
+   "id": "T-2",
+   "ledger": "D-2026-147",
+   "priority": "P2",
+   "area": "event history and concurrency",
+   "title": "writers outside the agent directory and memory still decide against a loaded view and append outside the writer lock",
+   "files": [
+    {
+     "path": "agent_substrate/policy.py",
+     "symbols": [
+      "PolicyStore.publish",
+      "PolicyStore.decide_and_record"
+     ]
+    },
+    {
+     "path": "agent_substrate/capability.py",
+     "symbols": [
+      "revoke"
+     ]
+    },
+    {
+     "path": "agent_substrate/netauth.py",
+     "symbols": [
+      "register_service",
+      "revoke"
+     ]
+    },
+    {
+     "path": "agent_substrate/secrets.py",
+     "symbols": [
+      "provision",
+      "revoke"
+     ]
+    },
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "symbols": [
+      "ACT_TASK_CREATE",
+      "ACT_COMPENSATION"
+     ]
+    }
+   ],
+   "precondition": "Two processes, each with a projection loaded before the other's append, making the same decision (two revocations of one grant, two publications of one policy version).",
+   "impact": "The same class as T-1: both appends can succeed, and whether a later load then refuses the history depends on each reducer's tolerance of the duplicate. Not measured per writer in this tranche.",
+   "reproduction": {
+    "kind": "analysis",
+    "ref": "docs/DEFECT_LEDGER.md D-2026-147 NOT CLAIMED",
+    "observed_at_baseline": "each named writer checks its projection and then calls log.append outside append_decided"
+   },
    "status": "OPEN"
   }
  ]

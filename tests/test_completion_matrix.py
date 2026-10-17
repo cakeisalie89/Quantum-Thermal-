@@ -832,7 +832,13 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 42 check runs, every one green. That commit changes no path any row's
 #: implementation digest covers (the matrix, this test, the ledger and
 #: derived documents only), so the digests at 0756314 are the digests now.
-EXPECTED_EVIDENCE_COVERS = 49
+#:
+#: 49 -> 40 with D-2026-147, in the same commit as it: the agent directory
+#: and the memory store now decide under the writer lock, so R27, R28, R36,
+#: R37 and R48 (agents.py or memory.py in their implementation) and R51 and
+#: R58 (a new mutation specification and the shard matrix) derive PREDATES
+#: beside R70 and R71 until a later commit cites runs at this one.
+EXPECTED_EVIDENCE_COVERS = 40
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
