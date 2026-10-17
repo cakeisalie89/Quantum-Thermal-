@@ -22,7 +22,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -95,14 +94,12 @@ def test_control_the_forms_that_do_see_the_status_are_left_alone(run, step):
 def test_the_step_as_it_was_is_refused_and_as_it_is_holds():
     """Differential: the rule finds the shipped defect where it was, in
     the step that failed hosted, and nothing in the tree now."""
-    old = subprocess.run(
-        ["git", "show", f"{BROKEN_AT}:.github/workflows/supply-chain.yml"],
-        cwd=ROOT, capture_output=True, text=True)
-    if old.returncode != 0:
+    have = subprocess.run(["git", "cat-file", "-e", f"{BROKEN_AT}^{{commit}}"],
+                          cwd=ROOT, capture_output=True)
+    if have.returncode != 0:
         pytest.skip(f"{BROKEN_AT[:7]} is not in this clone")
-    found = WC.vacuous_exit_captures(
-        {"supply-chain.yml": yaml.safe_load(old.stdout)})
-    assert [f for f in found if GATE_STEP in f] and len(found) == 1, found
+    found = WC.vacuous_exit_captures(WC._load_workflows(BROKEN_AT))
+    assert len(found) == 1 and GATE_STEP in found[0], found
     now = WC._load_workflows()
     assert "supply-chain.yml" in now, "the scan would be vacuous"
     assert WC.vacuous_exit_captures(now) == ()

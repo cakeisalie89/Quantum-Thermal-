@@ -157,8 +157,7 @@
     "tests": [
      "tests/test_ci_authority.py",
      "tests/test_release_admission.py",
-     "tests/test_supply_chain.py",
-     "tests/test_workflow_exit_checks.py"
+     "tests/test_supply_chain.py"
     ]
    }
   },
@@ -6295,8 +6294,7 @@
    "path": "tests/test_workflow_exit_checks.py",
    "risk": "LOW",
    "runtime_dependencies": [
-    "pytest",
-    "yaml"
+    "pytest"
    ],
    "subsystem": "tests",
    "trust_boundary": "verification only",

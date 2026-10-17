@@ -549,8 +549,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 205343,
-      "sha256": "4f8131265582dc2ae5ad09b28c682b51ad3b515558d928f5560e3367bfb8b0f9"
+      "size_bytes": 205288,
+      "sha256": "c89cff7cf92679cffd291cb3b4364674c84bbec51ddbc6f9f00692ce75cf798e"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -665,7 +665,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "dd9ecc38bfeaae2c9bfc8102e7ec03e352bf8ff8fb6fc4c3446606c143c23bab"
+      "sha256": "8ac7efb7f4f61903ef707ee04a2dcb83f4d59eccab6ded62d7aa3a567207ac60"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1664,8 +1664,8 @@
     },
     {
       "filename": "tests/test_workflow_exit_checks.py",
-      "size_bytes": 5103,
-      "sha256": "72cc6d60c4bee29382bd850cdef14bf2b101d9b9eaec8c76bc92327c2611c5d1"
+      "size_bytes": 5034,
+      "sha256": "102ad41abd9b6638290be69bdfcdc0fff1d619856a9c83fa42de5e5c0c9cabd5"
     },
     {
       "filename": "tests/test_workflow_generic.py",
