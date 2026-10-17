@@ -1,0 +1,30 @@
+{
+ "title": "Enforcement that python -O cannot delete",
+ "note": "D-2026-73. EA1 turns one real enforcement -- I4, the proposer may not verify its own record -- into an assert: the -O probe must see it allowed, and the repository-wide scan must see the assert. EA2 narrows the scan to a list of directories, the scope that once missed a root module. EA3 lets the scan count a file's asserts and pass regardless.",
+ "suites": [
+  "tests/test_no_enforcing_asserts.py"
+ ],
+ "mutations": [
+  {
+   "name": "EA1_a_refusal_is_an_assert_again",
+   "path": "agent_substrate/authority.py",
+   "find": "        if req.actor == req.proposer:\n            raise TransitionError(\n                f\"I4: {req.actor!r} proposed {req.record_id} and may not also \"\n                f\"perform {req.src.value} -> {req.dst.value}\")\n",
+   "replace": "        assert req.actor != req.proposer, (\n                f\"I4: {req.actor!r} proposed {req.record_id} and may not also \"\n                f\"perform {req.src.value} -> {req.dst.value}\")\n",
+   "rationale": "I4 holds only while asserts run: under python -O the proposer verifies its own record, and the repository-wide scan must see the assert"
+  },
+  {
+   "name": "EA2_the_scan_is_a_list_of_directories",
+   "path": "tests/test_no_enforcing_asserts.py",
+   "find": "    files = repository_files(\"*.py\", include_tests=False)\n",
+   "replace": "    files = [f for f in repository_files(\"*.py\", include_tests=False)\n             if f.startswith((\"scientific/\", \"scientific_ai/\", \"tools/\"))]\n",
+   "rationale": "the scope that once missed a root module: the substrate and the root scripts are never scanned"
+  },
+  {
+   "name": "EA3_found_asserts_are_counted_and_ignored",
+   "path": "tests/test_no_enforcing_asserts.py",
+   "find": "    assert found == {}, (\n",
+   "replace": "    assert isinstance(found, dict), (\n",
+   "rationale": "the scan finds the asserts and the rule never refuses them"
+  }
+ ]
+}

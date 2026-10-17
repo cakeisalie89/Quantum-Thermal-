@@ -1,0 +1,33 @@
+{
+ "checkpoint_sha256": {
+  "after": "74de574076efc6c227a057669b3512162fe14a64b7bcaff62621ae440ae387d2",
+  "before": "74de574076efc6c227a057669b3512162fe14a64b7bcaff62621ae440ae387d2"
+ },
+ "dataset_commit": "b916f24e29080f8285beed1255c6f4c3937193d4",
+ "dataset_digest": {
+  "after": "5b7332a5377abe4986c3aef905ec25bc6a9c730eb4eda4752f02a91a1db8a137",
+  "before": "5b7332a5377abe4986c3aef905ec25bc6a9c730eb4eda4752f02a91a1db8a137"
+ },
+ "dataset_storage_sha256": {
+  "after": "15d4e805bc2190899aa6d39d08777ad6dd6b4b343c1f36e05f81b8037c72e169",
+  "before": "92ac3b172c7013b8ea12310776859dc9b3521b7571db9f51a10eba17caf26b19"
+ },
+ "does_not_mean": "identical bytes show that removing the wording changed nothing the model computes or learns from; they say nothing about whether the model is accurate, and the learned outputs stay LEARNED_PREDICTION, NON_AUTHORITATIVE",
+ "fields_that_differ_in_any_sample_otherwise": [],
+ "fields_that_differ_in_every_sample": [
+  "provenance/generation_timestamp",
+  "provenance/generator_version/implementation_digest",
+  "provenance/source_artifact/digest",
+  "provenance/source_commit"
+ ],
+ "generator": {
+  "after": "surface.langmuir_capture@1.0.0#97132a9163068cb07684fc6cf835fbea27e0daf6f2b9072c4a17860283e70ba0",
+  "before": "surface.langmuir_capture@1.0.0#b5f98b060b0ea55ac655b34c37b5f7a81ce14a7796e54552730b8abe2dbff09b"
+ },
+ "label": "PROVENANCE_RECORD NOT_EVIDENCE_OF_CORRECTNESS",
+ "previous_evidence_commit": "f219139",
+ "samples_compared": 3456,
+ "schema": "nf1t-reidentification/1",
+ "source_change_commit": "77a993a38f7277850cbbdb82e11fa1da37f2c897",
+ "why": "the source closure the development dataset pins carried wording of the retired hardware programme in its docstrings; the wording was removed (no statement of code changed), which changes the closure's source digest, so the dataset was regenerated from the new source and the development member retrained from it rather than the old evidence being reinterpreted"
+}

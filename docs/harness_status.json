@@ -1,0 +1,667 @@
+{
+ "audits": {
+  "claims_boundary": {
+   "ok": true,
+   "problems": 0
+  },
+  "repository_content": {
+   "committed_report_current": true,
+   "files": 467,
+   "findings": 0,
+   "ok": true
+  },
+  "repository_inventory": {
+   "baseline_files": 874,
+   "ok": true,
+   "problems": 0
+  },
+  "workflow_contract": {
+   "ok": true,
+   "problems": 0
+  }
+ },
+ "derived_from": {
+  "docs/completion_matrix.json": "ebcef627f5019ec9115e5a730d1d98d42ae8293dd21c70896bb1604fc218f043",
+  "docs/harness_contract.json": "18e7d4ceecbd82facfe3ca711fe3298fe722afd49a4791fedb267830f523a94f",
+  "docs/neural/claims.json": "2a68b01a96751124897e37a65ae0fb7b2ab2c9c480f85a764685dc99216ada87",
+  "docs/neural/current_status.json": "a8916cc24d9b1d05fd8a9222a29e8c27321230e84d6063c7039f4df13526ae68",
+  "stack.json": "56082b0fa9eaf03890c3f5eeed4e0738982d25d5dd70572ee75b349aa68578e0"
+ },
+ "facts": {
+  "flagship_architecture_as_declared": {
+   "differs": [],
+   "ok": true
+  },
+  "flagship_not_allocated_or_trained": {
+   "large_model_trained": false,
+   "ok": true,
+   "real_weights_allocated": false
+  },
+  "learned_outputs_refused": {
+   "ok": true,
+   "refused_states": [
+    "PROMOTED",
+    "VERIFIED"
+   ]
+  }
+ },
+ "matrix": {
+  "by_classification": {
+   "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
+  },
+  "by_evidence": {
+   "COVERS_CURRENT_IMPLEMENTATION": 18,
+   "PREDATES_CURRENT_IMPLEMENTATION": 31
+  },
+  "rows": 49
+ },
+ "outcome": "INCOMPLETE",
+ "outside_this_software_completion": [
+  {
+   "class": "EXPERIMENTAL_SCIENCE",
+   "id": "physical-experiment",
+   "statement": "no physical experiment has been performed; nothing here is experimentally validated, and a software completion status is not scientific validity"
+  },
+  {
+   "class": "PAID_COMPUTE",
+   "id": "flagship-allocation-and-training",
+   "statement": "the ~1T flagship is parameterised and meta-validated, never allocated or trained"
+  },
+  {
+   "class": "MODEL_RESEARCH",
+   "id": "development-model-science",
+   "statement": "the development model's scientific performance is unestablished and its epistemic uncertainty not assessed"
+  },
+  {
+   "class": "HARDWARE",
+   "id": "distributed-accelerators",
+   "statement": "no distributed accelerator hardware validation; tensor and pipeline parallelism are plans"
+  },
+  {
+   "class": "EPISTEMIC",
+   "id": "arbitrary-host-byte-identity",
+   "statement": "byte identity of floating-point results on an arbitrary host is not guaranteed and not claimed"
+  },
+  {
+   "class": "OWNER_DECISION",
+   "id": "learned-model-admission",
+   "statement": "no admission policy for learned models exists; learned outputs stay NON_AUTHORITATIVE"
+  },
+  {
+   "class": "EPISTEMIC",
+   "id": "signature-is-not-truth",
+   "statement": "a valid signature attests origin and integrity, never scientific validity"
+  },
+  {
+   "class": "EPISTEMIC",
+   "id": "one-benchmark-is-not-all-models",
+   "statement": "one FEniCSx benchmark does not verify every scientific model"
+  }
+ ],
+ "research_frontier": {
+  "arbitrary-host-byte-identity": [],
+  "development-model-science": [
+   "R60"
+  ],
+  "distributed-accelerators": [
+   "R60"
+  ],
+  "flagship-allocation-and-training": [
+   "R60"
+  ],
+  "learned-model-admission": [
+   "R60"
+  ],
+  "one-benchmark-is-not-all-models": [],
+  "physical-experiment": [],
+  "signature-is-not-truth": []
+ },
+ "schema": "harness-status/2",
+ "stack": {
+  "authority-substrate": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R40": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    },
+    "R42": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": false,
+   "status": "ADOPTED"
+  },
+  "containers": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R64": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "fenicsx": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R62": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "fmi": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R63": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "generic-scientific-layer": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R61": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": false,
+   "status": "ADOPTED"
+  },
+  "hdf5": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R61": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": false,
+   "status": "ADOPTED"
+  },
+  "openmdao": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R72": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "openusd": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R72": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "paraview-vtk": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R72": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "proposal-ingress": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R66": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": false,
+   "status": "ADOPTED"
+  },
+  "pytest-hypothesis": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R50": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    },
+    "R51": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": false,
+   "status": "ADOPTED"
+  },
+  "python-scientific-core": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R56": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "rag-read-only": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R35": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "ro-crate": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R65": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": false,
+   "status": "ADOPTED"
+  },
+  "ruff-mypy-pydantic": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R70": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": false,
+   "status": "ADOPTED"
+  },
+  "salib": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R72": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "slsa-sigstore": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R65": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": false,
+   "status": "ADOPTED"
+  },
+  "snakemake": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R55": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    },
+    "R69": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": false,
+   "status": "ADOPTED"
+  },
+  "uv": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R56": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  }
+ },
+ "unsatisfied": [
+  {
+   "external": false,
+   "id": "authority-substrate",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "generic-scientific-layer",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "hdf5",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "proposal-ingress",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "pytest-hypothesis",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "ro-crate",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "ruff-mypy-pydantic",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "slsa-sigstore",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "snakemake",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "R21",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R23",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R24",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R26",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R27",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R28",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R29",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R30",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R36",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R37",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R38",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R39",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R42",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R43",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R44",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R45",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R46",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R47",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R48",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R49",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R51",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R53",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R54",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R55",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R58",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R61",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R65",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R66",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R69",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R70",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R71",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  }
+ ]
+}

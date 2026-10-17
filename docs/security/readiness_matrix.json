@@ -1,0 +1,239 @@
+{
+ "schema": "harness-readiness/1",
+ "label": "PRODUCTION_READINESS -- states what is built, what hosted CI has run, what a deployment must provide, and what the owner must do; no compliance or production claim",
+ "statuses": {
+  "IMPLEMENTED": "built and tested locally at this commit; hosted CI at this tranche's head has not yet run it",
+  "HOSTED_TESTED": "IMPLEMENTED, and a hosted run at a commit whose implementation is this one passed (runs cited)",
+  "DEPLOYMENT_REQUIRED": "this code cannot provide it alone; the deployment must, and DEPLOYMENT.md says how to check",
+  "EXTERNALLY_BLOCKED": "needs an owner action, credentials or settings outside this repository",
+  "UNVERIFIED": "not established either way"
+ },
+ "production_ready_when": "every row is HOSTED_TESTED, or DEPLOYMENT_REQUIRED with its deployment check passing at the deployment; no row EXTERNALLY_BLOCKED or UNVERIFIED",
+ "rows": [
+  {
+   "id": "REL-1",
+   "capability": "release verification reports five non-interchangeable levels; admit is the only gate and refuses digest-only runs",
+   "status": "IMPLEMENTED",
+   "tests": [
+    "tests/test_release_admission.py",
+    "tests/test_supply_chain.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/supply_chain.json"
+   ],
+   "ledger": "D-2026-143",
+   "note": "hosted: supply-chain sign-and-verify requires admit to refuse a CI signature (exit 3) -- not yet run at this tranche's head"
+  },
+  {
+   "id": "REL-2",
+   "capability": "portable offline verifier: stdlib only, no checkout, provisioned trust root, hostile inputs refused",
+   "status": "IMPLEMENTED",
+   "tests": [
+    "tests/test_offline_verify.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/supply_chain.json"
+   ],
+   "ledger": "D-2026-144",
+   "note": "hosted: supply-chain offline-verify (sparse kit, no network, hostile suite with a real Sigstore bundle) -- not yet run at this tranche's head"
+  },
+  {
+   "id": "REL-3",
+   "capability": "reproducibility contract: which release bytes are identical across builds",
+   "status": "IMPLEMENTED",
+   "tests": [
+    "tests/test_release_reproducibility.py"
+   ],
+   "mutation_specs": [],
+   "ledger": "D-2026-145",
+   "note": "hosted: supply-chain rebuild-elsewhere (ubuntu-22.04, Python 3.11) -- not yet run at this tranche's head"
+  },
+  {
+   "id": "REL-4",
+   "capability": "a release trust root (harness-release-policy/1) and a release workflow signing in a protected environment",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner action O-8; no release policy exists and none is created here"
+  },
+  {
+   "id": "REL-5",
+   "capability": "release revocation channel",
+   "status": "UNVERIFIED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "not designed: there is no release yet (DEPLOYMENT.md section 8)"
+  },
+  {
+   "id": "CI-1",
+   "capability": "the deployed AI agent is started only by owners, members and collaborators",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner actions O-1, O-2: the default branch's claude.yml has no author gate"
+  },
+  {
+   "id": "CI-2",
+   "capability": "the default branch is protected: required review by someone other than the last pusher, required checks, no bypass",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner actions O-4, O-5"
+  },
+  {
+   "id": "CI-3",
+   "capability": "no workflow on the default branch mints OIDC tokens except the stated signer",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner action O-6: release.yml and identity-discovery.yml are active there"
+  },
+  {
+   "id": "CI-4",
+   "capability": "every workflow on this branch holds no more than its stated authority; the agent's and the CI signer's identities cannot sign a release",
+   "status": "IMPLEMENTED",
+   "tests": [
+    "tests/test_ci_authority.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/ci_authority.json"
+   ],
+   "ledger": "D-2026-146",
+   "note": "enforced on this branch's files by CI; governs the deployed agent only once on the default branch"
+  },
+  {
+   "id": "CI-5",
+   "capability": "repository Actions defaults (read-only token, no PR approval by Actions, allowed-actions list)",
+   "status": "UNVERIFIED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner action O-7; the settings API is not readable from this session"
+  },
+  {
+   "id": "SUB-1",
+   "capability": "authority-bearing writers decide under the writer lock against the history they append onto",
+   "status": "IMPLEMENTED",
+   "tests": [
+    "tests/test_agent_toctou.py",
+    "tests/test_decided_appends.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/agent_toctou.json",
+    "tools/mutations/agent_agents.json"
+   ],
+   "ledger": "D-2026-147",
+   "note": "the agent directory, memory and policy stores; finding T-2 lists writers not yet converted"
+  },
+  {
+   "id": "SUB-2",
+   "capability": "writers outside the agent directory, memory and policy stores (capability revoke, network and secret grants, governed task creation)",
+   "status": "UNVERIFIED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-147",
+   "note": "finding T-2, OPEN: not measured per writer"
+  },
+  {
+   "id": "SUB-3",
+   "capability": "promotions bound to a policy published by a named authority, not withdrawn, not expired; restated by the second reader",
+   "status": "IMPLEMENTED",
+   "tests": [
+    "tests/test_policy_binding.py",
+    "tests/test_scientific_authority_replay.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/policy_binding.json"
+   ],
+   "ledger": "D-2026-148",
+   "note": "the governed path declares the binding; an unbound history does not have it; the governed path refuses a history whose binding names any other authority (D-2026-151)"
+  },
+  {
+   "id": "SUB-4",
+   "capability": "hostile Cases A-H refused end to end",
+   "status": "IMPLEMENTED",
+   "tests": [
+    "tests/test_hostile_composition.py"
+   ],
+   "mutation_specs": [],
+   "ledger": "D-2026-150",
+   "note": "each case through the real components with a control"
+  },
+  {
+   "id": "SUB-5",
+   "capability": "actor authentication with production keys and a VETTED signature provider",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [
+    "tests/test_actor_authentication.py"
+   ],
+   "mutation_specs": [],
+   "ledger": "D-2026-150",
+   "note": "production_registry() refuses; no provider is configured (DEPLOYMENT.md section 3)"
+  },
+  {
+   "id": "RUN-1",
+   "capability": "tool resource bounds: wall, CPU, address space, output, tasks, descriptors, environment",
+   "status": "IMPLEMENTED",
+   "tests": [
+    "tests/test_agent_execution.py",
+    "tests/test_execution_containment.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/execution_containment.json"
+   ],
+   "ledger": "D-2026-149",
+   "note": "rlimits apply on every host"
+  },
+  {
+   "id": "RUN-2",
+   "capability": "kernel containment of a tool's process tree and network (user, PID, net namespaces)",
+   "status": "DEPLOYMENT_REQUIRED",
+   "tests": [
+    "tests/test_execution_containment.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/execution_containment.json"
+   ],
+   "ledger": "D-2026-149",
+   "note": "implemented and measured where unprivileged namespaces exist; a deployment must check namespace_isolation() or supply container isolation (DEPLOYMENT.md section 5)"
+  },
+  {
+   "id": "RUN-3",
+   "capability": "confinement of a tool's filesystem reads",
+   "status": "DEPLOYMENT_REQUIRED",
+   "tests": [
+    "tests/test_execution_containment.py"
+   ],
+   "mutation_specs": [],
+   "ledger": "D-2026-149",
+   "note": "finding R-3: a read-only root, a workspace-only mount namespace, or an LSM profile (DEPLOYMENT.md section 5)"
+  },
+  {
+   "id": "RUN-4",
+   "capability": "GPU, disk-space and bandwidth quotas for tools",
+   "status": "DEPLOYMENT_REQUIRED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-149",
+   "note": "cgroups or the container runtime"
+  },
+  {
+   "id": "DEMO-1",
+   "capability": "end-to-end demonstration: proposal, policy and capability, model run, independent check, HDF5 and provenance, authority decision, reconstruction, a release candidate built and verified, hostile inputs refused",
+   "status": "IMPLEMENTED",
+   "tests": [
+    "tests/test_harness_demo.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/harness_demo.json"
+   ],
+   "ledger": "D-2026-150",
+   "note": "the live signing provider is UNTESTED in the demonstration (the hosted supply-chain job carries it)"
+  }
+ ]
+}

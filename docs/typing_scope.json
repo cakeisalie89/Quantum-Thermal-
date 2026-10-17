@@ -1,0 +1,27 @@
+{
+  "schema": "typing-scope/2",
+  "active": [
+    "agent_substrate",
+    "scientific",
+    "scientific_ai",
+    "integrations",
+    "tools",
+    "generate_manifest.py",
+    "ro_crate_tools.py"
+  ],
+  "tests": [
+    "tests",
+    "conftest.py"
+  ],
+  "frozen": {
+    "scientific.backend_probe": "in the source closure of surface.langmuir_capture, whose digest the NF-1T development dataset pins",
+    "scientific.identity": "in the source closure of surface.langmuir_capture, whose digest the NF-1T development dataset pins",
+    "scientific.models.surface_adsorption": "the surface.langmuir_capture model itself; its closure digest is pinned by the NF-1T development dataset"
+  },
+  "files": {
+    "active": 145,
+    "tests": 125,
+    "unscoped": 0
+  },
+  "unscoped": []
+}

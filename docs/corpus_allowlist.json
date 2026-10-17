@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "label": "corpus membership for read-only retrieval",
+  "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
+  "entries_digest": "32a8ac11af2e4ef2861cc8f3fa166b5f93c4cb9cc00f9cb9ba79e915683547a3",
+  "entries": [
+    {
+      "path": "AGENT_SUBSTRATE.md",
+      "sha256": "7ec20b7fab7b5bb2ab30ba3a5b9f1ffad38cf92d7315909a84bf8a92afe6ba8e"
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "sha256": "144c733ebe86a7468e34fd997a9410fb522c780bcb169c442e7cbfb381c7a941"
+    },
+    {
+      "path": "AUTHORITIES.md",
+      "sha256": "740f8d9a3b001d317189630590bd74eecf2caf7ec03b982df5684e9ffd19ede8"
+    },
+    {
+      "path": "CLAIMS_BOUNDARY.md",
+      "sha256": "377efaeddb37f140413c905f505c809d1c94dc7ab7bc47c7e7aa824e276e398e"
+    },
+    {
+      "path": "DEPLOYMENT.md",
+      "sha256": "725cbbb816b807f06b6d1de267ec927fef0e6f9483998eb06fb84065e227c3bd"
+    },
+    {
+      "path": "HARNESS_STATUS.md",
+      "sha256": "78480954e3ca6fb121ace770acf4bb71536c7a203b644ddda81c17dc3e570fe2"
+    },
+    {
+      "path": "HDF5_DATA_MODEL.md",
+      "sha256": "f8c40c1cb99ef6e6130d5641abfb2e1fb01e559af4da5e58f7061f34c70650f3"
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "7d374db358c5ffbdc22d1dcbb0ce1166284867944c9121769dfb2449f5bbc75e"
+    },
+    {
+      "path": "MANIFEST_BOUNDARY.md",
+      "sha256": "45a2014b46b923a61d9e3dcae86db617e922dff17555bcc5f76aa9a2ab818e82"
+    },
+    {
+      "path": "NEURAL_SUBSTRATE.md",
+      "sha256": "344d11c63502bc3182d8e68c60ee0cd87a6314a865ecdd8723af1c66646e34d1"
+    },
+    {
+      "path": "README.md",
+      "sha256": "e5f50da344c78c3578b7bb161221f21de48aee9bc185661ce0e8b7b418e25d67"
+    },
+    {
+      "path": "RO_CRATE_PROFILE.md",
+      "sha256": "3f6c34f590874b3fe26cafd89d09b1be401fff567c5a311992542ed99eacd845"
+    },
+    {
+      "path": "SCIENTIFIC_AI_STATUS.md",
+      "sha256": "9c9e2b6ebb191dbbdd6e11c7e7e1d3c4e0a7ac01f7f494e6778f1daf74baa692"
+    },
+    {
+      "path": "SIGNING_BOOTSTRAP.md",
+      "sha256": "afbf4f7831b595bdc288755433bda84220ea6abc36bd337457ec60bbf5edf7ac"
+    },
+    {
+      "path": "STACK.md",
+      "sha256": "b001c4198deb82ac3a962c3573e1dc63c16dc26c91e0549182c7d76349efccfc"
+    },
+    {
+      "path": "SUPPLY_CHAIN_THREAT_MODEL.md",
+      "sha256": "ecbabf4a465d54d8211b40531f00c8e14256e2586a0b91097cf5dc69f4222291"
+    },
+    {
+      "path": "TESTING.md",
+      "sha256": "63f450aa9bba96e3b1f88fa9a16598646b76c2e518125d9038947676b3a2679c"
+    },
+    {
+      "path": "container_verification.md",
+      "sha256": "ba4aa6850d30b184d2ad8a93d89ccf2c9a0a9d0862cf6df321eba5a5c71ac295"
+    },
+    {
+      "path": "docs/DEFECT_LEDGER.md",
+      "sha256": "c6c4a0c748e0f25358959eea363b10ef2892e79c3ddc709855b1ffab2ab73eb1"
+    },
+    {
+      "path": "docs/security/owner_actions.md",
+      "sha256": "bbe50a542dfc8702340c703b8e6a000a17b2a93d7e47ca8cbf3de68e2591544d"
+    },
+    {
+      "path": "docs/security/standards_matrix.md",
+      "sha256": "682c8dbc508ce5c56930ad0173e66b2d461df8e1d84adf790426a45d1f659ee4"
+    },
+    {
+      "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",
+      "sha256": "87d654ef1602042c46d240872f142c401291ac3da65ef1a9345717208c060939"
+    },
+    {
+      "path": "tests/fuzz_corpus/README.md",
+      "sha256": "65b755fa5995ab85c021d11c0ac163de3ee1e80aea312c3dd622298b79695be7"
+    }
+  ]
+}

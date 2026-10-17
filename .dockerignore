@@ -1,17 +1,16 @@
-.git
+# .git IS shipped. Installing git without it would be worse than neither:
+# the binary exists, `git ls-files` exits 128 in a directory that is not a
+# repository, and a scan built on it returns an EMPTY set -- so every
+# structural guard passes having examined nothing.
 .venv
 .snakemake
 .pytest_cache
 .mypy_cache
 .ruff_cache
 verification/
-# attic/delivery_artifacts/ is NOT excluded. Those 18 files are git-tracked and
-# therefore covered by final_manifest.json, and container_verify.sh runs the
-# manifest check -- so excluding them made the in-container check fail with 18
-# "missing file" mismatches (hosted run 32618887858). The alternative, dropping
-# them from the manifest, would weaken governance to make a container pass.
-# 19 MB in the image is the correct cost. test_container_manifest_coverage
-# fails if any .dockerignore pattern starts hiding governed files again.
+# Nothing tracked is excluded: container_verify.sh runs the manifest check
+# in the image, and a governed file missing from it would fail that check
+# (hosted run 32618887858). tests/test_container_manifest_coverage.py fails
+# if a pattern here starts hiding a governed file.
 __pycache__
 *.pyc
-rust/**/target/
