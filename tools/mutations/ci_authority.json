@@ -1,0 +1,101 @@
+{
+ "title": "AI and CI authority: who may start the agent, what each job holds, who may sign",
+ "note": "D-2026-146 (CI-4). Each mutation deletes one rule of tools/workflow_contract.py ai_authority_problems; tests/test_ci_authority.py breaks that rule in a parsed copy of the real workflows and requires it reported. These rules govern the files on this branch; the deployed agent runs the default branch's file, which is an owner action (docs/security/owner_actions.md).",
+ "suites": [
+  "tests/test_ci_authority.py",
+  "tests/test_repo_contract.py"
+ ],
+ "mutations": [
+  {
+   "name": "CA1_any_author_may_start_the_agent",
+   "path": "tools/workflow_contract.py",
+   "find": "        if gate not in cond or not all(f in cond for f in fields):",
+   "replace": "        if False:",
+   "rationale": "CI-1: the agent's job condition need not name who may start it"
+  },
+  {
+   "name": "CA2_the_gate_may_be_a_disjunct",
+   "path": "tools/workflow_contract.py",
+   "find": "        elif not cond.rstrip().endswith(\")\") or \") && (\" not in cond:",
+   "replace": "        elif False:",
+   "rationale": "the author gate is accepted although the condition is an OR around it"
+  },
+  {
+   "name": "CA3_the_agent_may_admit_bots",
+   "path": "tools/workflow_contract.py",
+   "find": "                    for opt in AGENT_OPTIONS_FORBIDDEN:\n                        if opt in w:",
+   "replace": "                    for opt in AGENT_OPTIONS_FORBIDDEN:\n                        if False:",
+   "rationale": "allowed_bots / allowed_non_write_users reopen the job to anyone"
+  },
+  {
+   "name": "CA4_the_agent_may_check_out_a_pr_head",
+   "path": "tools/workflow_contract.py",
+   "find": "                    if name == AGENT_WORKFLOW and \"ref\" in w:",
+   "replace": "                    if False:",
+   "rationale": "a PR head checked out at the root runs untrusted code beside the key"
+  },
+  {
+   "name": "CA5_a_job_may_hold_more_than_it_states",
+   "path": "tools/workflow_contract.py",
+   "find": "            if perms != want:",
+   "replace": "            if False:",
+   "rationale": "any job may widen its token; only the default-deny top level is checked"
+  },
+  {
+   "name": "CA6_the_top_level_may_grant",
+   "path": "tools/workflow_contract.py",
+   "find": "        if doc.get(\"permissions\") != {}:",
+   "replace": "        if False:",
+   "rationale": "a workflow without default-deny hands every job the repository's default token"
+  },
+  {
+   "name": "CA7_pull_request_target_is_allowed",
+   "path": "tools/workflow_contract.py",
+   "find": "            if t in _triggers(doc):",
+   "replace": "            if False:",
+   "rationale": "a fork's input runs with this repository's secrets"
+  },
+  {
+   "name": "CA8_checkouts_may_keep_their_token",
+   "path": "tools/workflow_contract.py",
+   "find": "                    if w.get(\"persist-credentials\") is not False:",
+   "replace": "                    if False:",
+   "rationale": "the job's token is left in .git/config for every later step to read"
+  },
+  {
+   "name": "CA9_event_text_may_become_shell",
+   "path": "tools/workflow_contract.py",
+   "find": "                if isinstance(run, str) and re.search(\n                        r\"\\$\\{\\{\\s*github\\.event\\.\", run):",
+   "replace": "                if False and re.search(\n                        r\"\\$\\{\\{\\s*github\\.event\\.\", run):",
+   "rationale": "a comment body interpolated into a run: block is script injection"
+  },
+  {
+   "name": "CA10_any_workflow_may_name_a_secret",
+   "path": "tools/workflow_contract.py",
+   "find": "                    if not (name == AGENT_WORKFLOW and ref == AGENT_SECRET):",
+   "replace": "                    if False:",
+   "rationale": "a secret reaches a job that has no reason to hold it"
+  },
+  {
+   "name": "CA11_the_ci_signer_may_run_on_tags",
+   "path": "tools/workflow_contract.py",
+   "find": "            if isinstance(push, dict) and \"tags\" in push:",
+   "replace": "            if False:",
+   "rationale": "the CI signer signs on the trigger a release uses"
+  },
+  {
+   "name": "CA12_the_agent_may_be_a_release_signer",
+   "path": "tools/workflow_contract.py",
+   "find": "        if wf not in OV.NON_RELEASE_WORKFLOWS:",
+   "replace": "        if False:",
+   "rationale": "nothing holds the release-policy loader to refusing the agent's and the CI signer's identities"
+  },
+  {
+   "name": "CA13_the_contract_skips_the_authority_rules",
+   "path": "tools/workflow_contract.py",
+   "find": "    out += [f\"AI/CI authority -- {x}\" for x in ai_authority_problems()]\n",
+   "replace": "    pass\n",
+   "rationale": "problems() -- what CI runs -- no longer asks the authority rules"
+  }
+ ]
+}

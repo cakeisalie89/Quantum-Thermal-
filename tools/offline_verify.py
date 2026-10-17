@@ -113,6 +113,12 @@ RELEASE_SCHEMA = "harness-release-policy/1"
 GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
 #: Workflows whose signatures exercise the mechanism and authorize nothing.
 CI_VALIDATION_WORKFLOWS = frozenset({".github/workflows/supply-chain.yml"})
+#: The workflow that runs an AI agent with write access. Its OIDC identity
+#: is the agent's, and the agent proposes: it never signs a release
+#: (D-2026-146).
+AGENT_WORKFLOWS = frozenset({".github/workflows/claude.yml"})
+#: No release policy may name any of these as its signer.
+NON_RELEASE_WORKFLOWS = CI_VALIDATION_WORKFLOWS | AGENT_WORKFLOWS
 
 #: Bounds on untrusted input, checked BEFORE the bytes are trusted.
 MAX_SMALL = 1 << 20              # policy, trust config, SHA256SUMS
@@ -227,10 +233,11 @@ def load_policy(path: Path, *, bundle_dir: Path | None = None,
         if not p["ref"].startswith("refs/tags/"):
             raise Refused("a release policy names a tag ref; a branch any "
                           "pusher can advance authorizes nothing")
-        if p["workflow_path"] in CI_VALIDATION_WORKFLOWS:
+        if p["workflow_path"] in NON_RELEASE_WORKFLOWS:
             raise Refused("a release policy may not name a CI validation "
-                          "workflow; its signatures exercise the mechanism "
-                          "and authorize no release")
+                          "workflow or an AI agent's workflow; the first "
+                          "exercises the mechanism, the second proposes, "
+                          "and neither authorizes a release")
         if not _HEX64.match(str(p.get("trust_config_sha256", ""))):
             raise Refused("a release policy pins its trusted root: "
                           "trust_config_sha256")

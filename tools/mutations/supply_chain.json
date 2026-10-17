@@ -213,7 +213,7 @@
   {
    "name": "SC30_a_release_policy_names_the_ci_workflow",
    "path": "tools/offline_verify.py",
-   "find": "        if p[\"workflow_path\"] in CI_VALIDATION_WORKFLOWS:",
+   "find": "        if p[\"workflow_path\"] in NON_RELEASE_WORKFLOWS:",
    "replace": "        if False:",
    "rationale": "D-2026-143: the CI validation workflow's identity becomes a release identity"
   },
@@ -342,6 +342,13 @@
    "find": "    if stat.S_ISLNK(st.st_mode):",
    "replace": "    if False:",
    "rationale": "D-2026-144: an artifact that is a symbolic link is read through it"
+  },
+  {
+   "name": "SC49_the_agents_identity_may_sign_a_release",
+   "path": "tools/offline_verify.py",
+   "find": "NON_RELEASE_WORKFLOWS = CI_VALIDATION_WORKFLOWS | AGENT_WORKFLOWS",
+   "replace": "NON_RELEASE_WORKFLOWS = CI_VALIDATION_WORKFLOWS",
+   "rationale": "D-2026-146: a release policy may name the AI agent's workflow, so the identity that proposes can also release"
   }
  ]
 }

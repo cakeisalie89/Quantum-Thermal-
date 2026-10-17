@@ -43,17 +43,20 @@ def test_the_scan_sees_the_imports_that_broke(pyproject):
 
 def test_the_check_refuses_the_pyproject_before_the_repair(pyproject):
     """The anti-vacuity control: the same tree against a pyproject without
-    PyYAML reports exactly the site that imports yaml at import time (two
-    when D-2026-74 was found; the other left with the retired release
-    workflow's tests)."""
+    PyYAML reports exactly the sites that import yaml (two when D-2026-74
+    was found; one left with the retired release workflow's tests; and,
+    since D-2026-146, the workflow contract's authority rules, which parse
+    the workflows rather than pattern-match them)."""
     before = json.loads(json.dumps(pyproject))
     before["dependency-groups"]["dev"] = [
         r for r in before["dependency-groups"]["dev"]
         if not r.startswith("pyyaml")]
     problems, _ = dd.check(ROOT, before)
-    assert len(problems) == 1, problems
-    assert all("imports yaml" in p and "minimal environment" in p
-               for p in problems)
+    assert len(problems) == 2, problems
+    assert all("imports yaml" in p for p in problems)
+    assert any("tests/test_container_workflow_contract.py" in p
+               and "minimal environment" in p for p in problems)
+    assert any("tools/workflow_contract.py" in p for p in problems)
 
 
 def test_pyyaml_is_dev_and_not_runtime(pyproject):

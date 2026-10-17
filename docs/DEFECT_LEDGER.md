@@ -8081,3 +8081,90 @@ result with the signed candidate.
 * Reproducibility of the environments the SBOM describes; only their
   declarations are bound.
 * Numerical equivalence of anything.
+
+## D-2026-146 — the AI agent's trust gate, its permissions and the signing separation were held by nothing in the repository, and the default branch runs an ungated agent
+
+**CLASS** — `TRUE_DEFECT` (CI-4, repaired here) and `EXTERNALLY_BLOCKED`
+(CI-1, CI-2, CI-3: owner actions). Tranche F findings CI-1 to CI-4.
+
+**DEMONSTRATION.**
+
+* **CI-1.** Run 32391406642 (job 96498146722) was started by an
+  integration bot's comment. It logged "No trigger was met for @claude",
+  entered agent mode, obtained a GitHub OIDC token and attempted the
+  app-token exchange. It failed only because the pull request's workflow
+  file differed from the default branch's. A comment-triggered workflow runs
+  from the DEFAULT branch's file, and that file has no author gate.
+* **CI-2.** The default branch is unprotected: `protected: false`, required
+  checks `enforcement_level: off`, rulesets `[]`.
+* **CI-3.** Four workflows retired on this branch are `active` on the
+  default branch. `release.yml` signs with `id-token: write` on a tag push.
+* **CI-4.** On this branch, `tools/workflow_contract.py` checked action pins
+  and nothing else about authority: not the agent's author gate, its
+  permission set, the absence of a PR-head checkout, other jobs'
+  permissions, dangerous triggers, script injection, or that the identities
+  able to sign (the agent's and the CI signer's) can never be release
+  identities. The release-policy loader refused the CI signer's workflow
+  but not the agent's.
+
+**REPAIR (CI-4).** `ai_authority_problems` in `tools/workflow_contract.py`
+is part of `problems()`, which CI runs. It holds every workflow to:
+
+* default-deny top-level permissions;
+* exactly the stated permissions per job: the agent's five, the CI
+  signer's `contents: read` plus `id-token: write`, and `contents: read`
+  for everything else;
+* no `pull_request_target` or `workflow_run` triggers;
+* checkouts that do not persist credentials;
+* no `github.event.*` expanded inside a `run:` block;
+* no secret named outside the agent workflow;
+* the CI signer never running on a tag push.
+
+For the agent's job it requires all of the following:
+
+* the OWNER/MEMBER/COLLABORATOR author gate, as a conjunct;
+* no checkout `ref:`;
+* no `allowed_bots` or `allowed_non_write_users`.
+
+`tools/offline_verify.py` refuses a release policy that names either
+`supply-chain.yml` or `claude.yml`. `workflow_contract.py --ref REF` judges
+another ref's workflows. Two rules were adjusted along the way:
+
+* The execution pattern now skips interpreter flags, so the portable
+  verifier, run as `python3 -I`, counts as run.
+* `yaml` joins the named untyped imports in `typecheck_active.ini`.
+
+**HELD BY.** `tests/test_ci_authority.py` (23 tests). For each rule, a parsed
+copy of the real workflows is broken in exactly that way and the violation
+must be reported. A differential check compares the rule's verdict on the
+default branch's agent workflow with a crude independent reading of the raw
+file. `tools/mutations/ci_authority.json` (CA1–CA13, 13/13 killed) and
+`supply_chain.json` SC49 delete each rule.
+
+**OBSERVED, NOT REPAIRED.** `workflow_contract.py --ref origin/main`
+reports three problems on the default branch: the ungated agent, and
+`identity-discovery.yml` and `release.yml` holding `id-token: write`.
+`docs/security/owner_actions.md` lists the owner actions (O-1 to O-9), each
+with the observed state and how to confirm it. They include:
+
+* disabling or gating the default branch's agent;
+* withdrawing its API key until then;
+* reviewing the app installation;
+* a branch ruleset with required review, the most recent push approved by
+  someone else, required checks named job by job, and no bypass actors;
+* code owners for the trust surface;
+* disabling the retired signing workflows and adding a tag ruleset;
+* Actions defaults;
+* the release trust root, which is the owner's to create.
+
+Three settings are recorded UNVERIFIED because this session's proxy
+refuses them: Actions permissions, environments, and the app's
+installation permissions.
+
+**NOT CLAIMED.**
+
+* None of CI-1, CI-2 or CI-3 is closed. They stay EXTERNALLY_BLOCKED until
+  the owner acts.
+* The rules govern files on this branch. They govern the deployed agent
+  only once the default branch carries them.
+* The agent's system prompt is not a control and is not counted as one.

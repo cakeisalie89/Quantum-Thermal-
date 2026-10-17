@@ -389,6 +389,153 @@ def unwired_verifiers(text: str | None = None) -> tuple:
     return tuple(out)
 
 
+# ---- who may act, and with what (CI-4, D-2026-146) -------------------------
+#
+# The checks above say what the workflows RUN. These say what each of them
+# may DO: which job holds which token, who can start the one that runs an AI
+# agent with write access, and that nothing the agent can reach signs a
+# release. They are checked here, in the repository, because a system
+# prompt is not a security boundary -- but a check in the repository is not
+# one either until the platform enforces it: a workflow triggered by a
+# comment runs from the DEFAULT branch's file, so none of this governs the
+# deployed agent until the default branch carries it (owner action;
+# docs/security/owner_actions.md).
+
+#: The one workflow that runs an AI agent holding write access.
+AGENT_WORKFLOW = "claude.yml"
+#: Exactly what that job holds. Widening it is a decision, made here.
+AGENT_PERMISSIONS = {"contents": "write", "pull-requests": "write",
+                     "issues": "write", "id-token": "write",
+                     "actions": "read"}
+#: The author associations GitHub computes for people who already have
+#: write access. Not settable by the commenter.
+AGENT_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
+#: The only other job that may mint an OIDC token: the CI signer, whose
+#: identity no release policy may name (tools/offline_verify.py).
+SIGNING_JOBS = {("supply-chain.yml", "sign-and-verify"):
+                {"contents": "read", "id-token": "write"}}
+#: Triggers that run with this repository's secrets on input from elsewhere.
+FORBIDDEN_TRIGGERS = ("pull_request_target", "workflow_run")
+#: Options of the agent action that admit untrusted principals.
+AGENT_OPTIONS_FORBIDDEN = ("allowed_non_write_users", "allowed_bots")
+#: The one secret any workflow may name, and the workflow that may.
+AGENT_SECRET = "secrets.ANTHROPIC_API_KEY"
+
+
+def _load_workflows(ref: str | None = None) -> dict:
+    """name -> parsed workflow, from the tree or from ``ref``'s objects."""
+    import subprocess
+
+    import yaml
+    if ref is None:
+        return {p.name: yaml.safe_load(p.read_text(encoding="utf-8"))
+                for p in sorted(WORKFLOWS.glob("*.yml"))}
+    names = subprocess.run(
+        ["git", "ls-tree", "--name-only", f"{ref}:.github/workflows"],
+        cwd=ROOT, check=True, capture_output=True, text=True).stdout.split()
+    return {n: yaml.safe_load(subprocess.run(
+        ["git", "show", f"{ref}:.github/workflows/{n}"], cwd=ROOT,
+        check=True, capture_output=True, text=True).stdout)
+            for n in sorted(names) if n.endswith(".yml")}
+
+
+def _triggers(doc: dict) -> set:
+    on = doc.get(True, doc.get("on"))      # PyYAML reads a bare `on:` as True
+    if isinstance(on, dict):
+        return set(on)
+    if isinstance(on, str):
+        return {on}
+    return set(on or ())
+
+
+def ai_authority_problems(workflows: dict | None = None) -> tuple:
+    """Every way a workflow holds more than its job needs, lets an untrusted
+    principal start the agent, or lets the agent's identity sign a release.
+    """
+    docs = _load_workflows() if workflows is None else workflows
+    out: list = []
+    if AGENT_WORKFLOW not in docs:
+        out.append(f"{AGENT_WORKFLOW}: absent; nothing here says who may "
+                   "invoke the agent")
+    for name, doc in sorted(docs.items()):
+        if not isinstance(doc, dict):
+            out.append(f"{name}: not a workflow mapping")
+            continue
+        for t in FORBIDDEN_TRIGGERS:
+            if t in _triggers(doc):
+                out.append(f"{name}: triggered by {t}, which runs with this "
+                           "repository's secrets on input from elsewhere")
+        if doc.get("permissions") != {}:
+            out.append(f"{name}: top-level permissions are "
+                       f"{doc.get('permissions')!r}, not default-deny {{}}")
+        if name == "supply-chain.yml":
+            push = (doc.get(True, doc.get("on")) or {}).get("push") or {}
+            if isinstance(push, dict) and "tags" in push:
+                out.append("supply-chain.yml: runs on a tag push; the CI "
+                           "signer must never sign on the trigger a release "
+                           "uses")
+        for jname, job in sorted((doc.get("jobs") or {}).items()):
+            where = f"{name}/{jname}"
+            perms = job.get("permissions")
+            if name == AGENT_WORKFLOW:
+                want = AGENT_PERMISSIONS
+            else:
+                want = SIGNING_JOBS.get((name, jname), {"contents": "read"})
+            if perms != want:
+                out.append(f"{where}: permissions {perms!r}, not {want!r}")
+            for step in job.get("steps") or []:
+                uses = str(step.get("uses", ""))
+                w = step.get("with") or {}
+                text = json.dumps(step, sort_keys=True, default=str)
+                if uses.startswith("actions/checkout@"):
+                    if w.get("persist-credentials") is not False:
+                        out.append(f"{where}: a checkout leaves its token in "
+                                   "the workspace (persist-credentials)")
+                    if name == AGENT_WORKFLOW and "ref" in w:
+                        out.append(f"{where}: the checkout names a ref; a PR "
+                                   "head at the workspace root runs untrusted "
+                                   "code beside the secret")
+                if name == AGENT_WORKFLOW and \
+                        uses.startswith("anthropics/claude-code-action@"):
+                    for opt in AGENT_OPTIONS_FORBIDDEN:
+                        if opt in w:
+                            out.append(f"{where}: sets {opt}, which admits "
+                                       "principals without write access")
+                run = step.get("run")
+                if isinstance(run, str) and re.search(
+                        r"\$\{\{\s*github\.event\.", run):
+                    out.append(f"{where}: a run: block expands "
+                               "github.event.*; untrusted text becomes shell")
+                for ref in re.findall(r"secrets\.[A-Za-z0-9_]+", text):
+                    if not (name == AGENT_WORKFLOW and ref == AGENT_SECRET):
+                        out.append(f"{where}: names {ref}")
+    agent = docs.get(AGENT_WORKFLOW)
+    if isinstance(agent, dict):
+        job = (agent.get("jobs") or {}).get("claude") or {}
+        cond = " ".join(str(job.get("if", "")).split())
+        gate = ("contains(fromJSON('" + json.dumps(list(AGENT_ASSOCIATIONS))
+                + "'),")
+        fields = ("github.event.comment.author_association",
+                  "github.event.review.author_association",
+                  "github.event.issue.author_association")
+        if gate not in cond or not all(f in cond for f in fields):
+            out.append(f"{AGENT_WORKFLOW}: the job's condition does not "
+                       "require the author to be OWNER, MEMBER or "
+                       "COLLABORATOR; any account can start a job holding "
+                       "write access and the API key")
+        elif not cond.rstrip().endswith(")") or ") && (" not in cond:
+            out.append(f"{AGENT_WORKFLOW}: the author gate is not a "
+                       "conjunct of the condition")
+    import offline_verify as OV
+    for wf in (f".github/workflows/{AGENT_WORKFLOW}",
+               ".github/workflows/supply-chain.yml"):
+        if wf not in OV.NON_RELEASE_WORKFLOWS:
+            out.append(f"{wf}: a release policy may name it; the agent's "
+                       "and the CI signer's identities must never sign a "
+                       "release")
+    return tuple(out)
+
+
 def problems() -> tuple:
     body = _text()
     out = []
@@ -411,10 +558,21 @@ def problems() -> tuple:
     out += [f"verifier is never run -- {x}"
             for x in unwired_verifiers(everywhere)]
     out += [f"mutation shards -- {x}" for x in MS.check_workflow(body)]
+    out += [f"AI/CI authority -- {x}" for x in ai_authority_problems()]
     return tuple(out)
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if args[:1] == ["--ref"] and len(args) == 2:
+        # The authority rules over ANOTHER ref's workflows -- the default
+        # branch's, which are the ones a comment-triggered job runs.
+        found = ai_authority_problems(_load_workflows(args[1]))
+        print(f"AI/CI authority at {args[1]}: "
+              + ("holds" if not found else f"{len(found)} problem(s)"))
+        for f in found:
+            print(f"  - {f}")
+        return 1 if found else 0
     found = problems()
     if not found:
         specs = len(list(MUTATIONS.glob("*.json")))
@@ -426,7 +584,8 @@ def main() -> int:
               f"{len(REQUIRED_COMMANDS)} commands, {specs} mutation specs "
               "all wired in, every action pinned, the long-horizon knob "
               "turned above its default, every verifier with a matrix also "
-              "run against the real tree")
+              "run against the real tree, and every job holding no more "
+              "than its stated authority")
         return 0
     print(f"WORKFLOW CONTRACT BROKEN ({len(found)} problem(s)):")
     for f in found:

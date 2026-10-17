@@ -123,7 +123,8 @@
     "ref": "actions run 32391406642, job 96498146722",
     "observed_at_baseline": "Requesting OIDC token... OIDC token successfully obtained... Exchanging OIDC token for app token"
    },
-   "status": "EXTERNALLY_BLOCKED"
+   "status": "EXTERNALLY_BLOCKED",
+   "owner_action": "docs/security/owner_actions.md O-1, O-2, O-3"
   },
   {
    "id": "CI-2",
@@ -146,7 +147,8 @@
     "ref": "GET repos/cakeisalie89/Quantum-Thermal-/branches/main; GET .../rulesets",
     "observed_at_baseline": "protected: false; rulesets []"
    },
-   "status": "EXTERNALLY_BLOCKED"
+   "status": "EXTERNALLY_BLOCKED",
+   "owner_action": "docs/security/owner_actions.md O-4, O-5"
   },
   {
    "id": "CI-3",
@@ -171,7 +173,8 @@
     "ref": "GET repos/cakeisalie89/Quantum-Thermal-/actions/workflows",
     "observed_at_baseline": "state: active for each"
    },
-   "status": "EXTERNALLY_BLOCKED"
+   "status": "EXTERNALLY_BLOCKED",
+   "owner_action": "docs/security/owner_actions.md O-6"
   },
   {
    "id": "CI-4",
@@ -198,10 +201,10 @@
    "impact": "Untrusted instructions reach an agent holding contents: write. A push it makes to the branch triggers supply-chain.yml, which signs whatever was pushed under the CI identity. The system prompt is not a security boundary. The workflow contract checked action pinning but not the trust gate, the permission set, the absence of a PR-head checkout or that the signing identity is not a release identity.",
    "reproduction": {
     "kind": "test",
-    "ref": "tests/test_ci_authority.py",
+    "ref": "tests/test_ci_authority.py::test_each_rule_reports_its_own_violation",
     "observed_at_baseline": "workflow_contract.py has no rule over claude.yml's condition or permissions"
    },
-   "status": "OPEN"
+   "status": "FIXED"
   },
   {
    "id": "T-1",

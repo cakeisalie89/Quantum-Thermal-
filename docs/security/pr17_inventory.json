@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 421,
+   "ADDED": 424,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 43,
-   "LOW": 153,
-   "MEDIUM": 232
+   "LOW": 154,
+   "MEDIUM": 234
   },
   "by_subsystem": {
    "agent-substrate": 18,
    "ai-ingress": 3,
-   "assurance": 92,
+   "assurance": 93,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 23,
-   "evidence": 18,
+   "evidence": 19,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 130,
+   "tests": 131,
    "tooling": 31,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 453
+  "files": 456
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -93,8 +93,10 @@
     ],
     "mutation_specs": [],
     "tests": [
+     "tests/test_ci_authority.py",
      "tests/test_claude_workflow_prompt.py",
      "tests/test_offline_verify.py",
+     "tests/test_release_admission.py",
      "tests/test_security_findings.py"
     ]
    }
@@ -151,6 +153,7 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
+     "tests/test_ci_authority.py",
      "tests/test_release_admission.py",
      "tests/test_supply_chain.py"
     ]
@@ -2309,6 +2312,21 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_security_findings.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/security/owner_actions.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "security audit records",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_ci_authority.py"
     ]
    }
   },
@@ -5023,6 +5041,21 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_ci_authority.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_claim_hygiene.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -6939,6 +6972,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/ci_authority.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/claim_hygiene.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -7755,6 +7801,7 @@
      "tools/mutations/supply_chain.json"
     ],
     "tests": [
+     "tests/test_ci_authority.py",
      "tests/test_completion_matrix.py",
      "tests/test_offline_verify.py",
      "tests/test_release_admission.py"
@@ -7992,7 +8039,9 @@
    "change": "ADDED",
    "path": "tools/workflow_contract.py",
    "risk": "MEDIUM",
-   "runtime_dependencies": [],
+   "runtime_dependencies": [
+    "yaml"
+   ],
    "subsystem": "tooling",
    "trust_boundary": "repository tooling",
    "verification": {
@@ -8000,10 +8049,13 @@
      "CI-4"
     ],
     "mutation_specs": [
+     "tools/mutations/ci_authority.json",
      "tools/mutations/mutation_shards.json",
      "tools/mutations/repo_contract.json"
     ],
     "tests": [
+     "tests/test_ci_authority.py",
+     "tests/test_dependency_declarations.py",
      "tests/test_mutation_shards.py",
      "tests/test_repo_contract.py"
     ]
