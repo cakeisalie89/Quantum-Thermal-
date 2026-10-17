@@ -1774,8 +1774,8 @@
     },
     {
       "filename": "tools/mutations/actor_authentication.json",
-      "size_bytes": 6875,
-      "sha256": "7108e12eb7960ea4550b492b28a2ad37818b5a53f16d3e2e235f94b5787b9f0e"
+      "size_bytes": 6909,
+      "sha256": "a23937acf8bc940c98f6b7fc27489909300066f79fa11ca354aafd64c0321ad0"
     },
     {
       "filename": "tools/mutations/agent_actions.json",
@@ -1784,8 +1784,8 @@
     },
     {
       "filename": "tools/mutations/agent_agents.json",
-      "size_bytes": 27362,
-      "sha256": "46f414dde957f2527e3700df29a421759f37b41ae60a31b95fb7c00db7f055ed"
+      "size_bytes": 28531,
+      "sha256": "f72bbbfe173a1952b715c2f8ce917c035d9b374d67fea0a8245c00bea8861b55"
     },
     {
       "filename": "tools/mutations/agent_audit.json",
@@ -1859,8 +1859,8 @@
     },
     {
       "filename": "tools/mutations/agent_policy.json",
-      "size_bytes": 13942,
-      "sha256": "676d2ffb4be7b220f5140b4e1f7602d0f9e1ab35f6aecd7aec59d7bba70a282f"
+      "size_bytes": 14060,
+      "sha256": "c97b51ca405a8f42aeeccc1e314ad134e4bc30ef492a26f644a5cd236e8a8ca1"
     },
     {
       "filename": "tools/mutations/agent_readpath.json",
@@ -1879,8 +1879,8 @@
     },
     {
       "filename": "tools/mutations/agent_second_reader.json",
-      "size_bytes": 51443,
-      "sha256": "e457fb2a4ea953357d26d556cf10419f2e81b1d382819352c78b1bb5131fff84"
+      "size_bytes": 51613,
+      "sha256": "64a245c2d72a55d3fc886d4f69c2291dd5138e8b90f68ef57a3bafe4f8e996d2"
     },
     {
       "filename": "tools/mutations/agent_secret_provider.json",

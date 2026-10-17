@@ -381,9 +381,9 @@
     {
       "name": "R54_an_unauthorized_authority_record_is_applied_anyway",
       "path": "agent_substrate/reconstruct.py",
-      "find": "                if refusal is not None:\n                    out.unauthorized.append(",
-      "replace": "                if False:\n                    out.unauthorized.append(",
-      "rationale": "every rule above is still stated and none of them stop anything; presence in the log becomes authority"
+      "find": "                if refusal is not None:\n                    out.unauthorized.append(\n                        f\"seq {ev.seq}: {rid} {cur['state']} -> \"\n",
+      "replace": "                if False:\n                    out.unauthorized.append(\n                        f\"seq {ev.seq}: {rid} {cur['state']} -> \"\n",
+      "rationale": "every rule above is still stated and none of them stop anything; presence in the log becomes authority; anchor moved by D-2026-148"
     },
     {
       "name": "R55_the_authority_replay_folds_in_a_state_nobody_defined",
