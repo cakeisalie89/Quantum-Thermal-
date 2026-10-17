@@ -25,7 +25,7 @@
     {
       "filename": ".github/workflows/agent-substrate.yml",
       "size_bytes": 32902,
-      "sha256": "4c43deae5b2727fdb93def0ed066f75a27a2c56f36f37618f20ee86cdd121ed8"
+      "sha256": "68928eef28cee224df998c304f53bf4ccafd842cc20c1507b781e0bc6da3d846"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -49,8 +49,8 @@
     },
     {
       "filename": ".github/workflows/supply-chain.yml",
-      "size_bytes": 13353,
-      "sha256": "78a0a9b4c7ba0dba8f2ed85de3a01370bf790df6f1460ca2b3cc252924fdba56"
+      "size_bytes": 13515,
+      "sha256": "a7c585d3fd98ec9ab6269859a27cd81b40a2f8077123d142e56e69d9ba05bd4a"
     },
     {
       "filename": ".gitignore",
@@ -90,7 +90,7 @@
     {
       "filename": "HARNESS_STATUS.md",
       "size_bytes": 6986,
-      "sha256": "78480954e3ca6fb121ace770acf4bb71536c7a203b644ddda81c17dc3e570fe2"
+      "sha256": "8908d8e4eb6f0a4d992bbfcb53104167b779b451816e80cfdcdb4733a3503987"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -379,8 +379,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 472090,
-      "sha256": "c6c4a0c748e0f25358959eea363b10ef2892e79c3ddc709855b1ffab2ab73eb1"
+      "size_bytes": 474532,
+      "sha256": "1a31335f99e9434d348d28b9f361b965cf6ee97f82194f27933fd38136627a26"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -395,7 +395,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3651,
-      "sha256": "35349ad9599ed7b5638e9b7c04d80596ccda028a1255e67730f52442998ca899"
+      "sha256": "30d0d5eabb156a3ff61b337fe80d48c8f2143a42ee6ce46124d47331e104932c"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -415,7 +415,7 @@
     {
       "filename": "docs/harness_status.json",
       "size_bytes": 16369,
-      "sha256": "92b210753bd0eb53fa57b10d27346d190b0a8975b8e6b17b76da5ea196eeed2f"
+      "sha256": "2a3e0f63169f3da7a3571515ebe32885e9a9a80c74564f7c600e45d495fd07c4"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -530,7 +530,7 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2589,
-      "sha256": "82f4bac29005d1bb691380202b784d682a814a0f800a8c561b3cd4020216c7dc"
+      "sha256": "68952324ee67b7e73cedd7f8f5fe9ea2ae528b67a4e10b98f0f1548d2633efb0"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -549,8 +549,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 204944,
-      "sha256": "89d492d590f36ba7179310a31d132314fc878dc14d8e0290219d585424c90ce3"
+      "size_bytes": 205343,
+      "sha256": "4f8131265582dc2ae5ad09b28c682b51ad3b515558d928f5560e3367bfb8b0f9"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -575,7 +575,7 @@
     {
       "filename": "docs/typing_scope.json",
       "size_bytes": 772,
-      "sha256": "4452c455b757d301f786201907819028991fb4a22b5f655fa681e4194a5716f2"
+      "sha256": "f5f1a25db266e009c0d8787579a1755cc830faf7ac39db57edef4ce33a2604ff"
     },
     {
       "filename": "generate_manifest.py",
@@ -665,7 +665,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "afda90097d5c2bd9663635a97c8f3cfc7d6dcb9008a7a576993b1f944e5f0e25"
+      "sha256": "dd9ecc38bfeaae2c9bfc8102e7ec03e352bf8ff8fb6fc4c3446606c143c23bab"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1663,6 +1663,11 @@
       "sha256": "26db5ba3ded11f364f506173dea407ae3921f87f2e1dda3c5975e0589f020d7b"
     },
     {
+      "filename": "tests/test_workflow_exit_checks.py",
+      "size_bytes": 5103,
+      "sha256": "72cc6d60c4bee29382bd850cdef14bf2b101d9b9eaec8c76bc92327c2611c5d1"
+    },
+    {
       "filename": "tests/test_workflow_generic.py",
       "size_bytes": 6420,
       "sha256": "ee0d31e6d9a7a02c2b507996f36858bce132775d88abf8fc9551d45cc9f4b16f"
@@ -1944,8 +1949,8 @@
     },
     {
       "filename": "tools/mutations/ci_authority.json",
-      "size_bytes": 4664,
-      "sha256": "59d340621d53d4d2549212de8ccbf592fbf2ee42ef06194d5b293ba947f23c72"
+      "size_bytes": 6501,
+      "sha256": "279d41338aa2dc82d920a89a4c2fda8cbefffd19ac8297b0ccf578894ffcf981"
     },
     {
       "filename": "tools/mutations/claim_hygiene.json",
@@ -2329,8 +2334,8 @@
     },
     {
       "filename": "tools/workflow_contract.py",
-      "size_bytes": 28076,
-      "sha256": "4607dba64e280be963208f57511c2697c6ef569b1628b46177d7ee9dedbb5e22"
+      "size_bytes": 30734,
+      "sha256": "82ee71e6028b86d3bdca5d66137961b36932673f2efcd8aecd1c0af0fd547d34"
     },
     {
       "filename": "typecheck_active.ini",

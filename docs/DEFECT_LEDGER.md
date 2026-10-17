@@ -8478,3 +8478,51 @@ The second is a process miss, caught before any push.
   next to them. The first full run since `89e9da0` was at `15690d9`, and
   it failed as described. None of those commits had been pushed. The full
   suite gates the push, and it ran on the tree that was pushed.
+
+## D-2026-152 — the release gate's hosted step could not observe the refusal it required
+
+**CLASS** — `VACUOUS_VERIFIER`: Tranche F, Section 11 (F5), the first
+hosted run of the release-verification steps added by D-2026-143.
+
+**DEMONSTRATION.** The `supply-chain` run at `1c5df5c` (39076919585, job
+`sign-and-verify`) failed at "the release gate must refuse a CI signature
+(exit 3)". `admit` behaved correctly: it took the candidate to
+SIGNER_TRUSTED, refused RELEASE_AUTHORIZED under the CI_VALIDATION_ONLY
+policy, and exited 3. The step then read the status with `code=$?`, but
+GitHub runs a step's script with `bash -e`, so exit 3 ended the step before
+`code` was set. A wrong admission (exit 0) would also have failed the step,
+at its check rather than on the refusal, so the step could not tell a
+correct gate from a broken one. The jobs that depend on it (`offline-verify`)
+did not run.
+
+**ROOT CAUSE.** The step was written and reviewed as an ordinary shell
+script, and nothing local runs a workflow step under the runner's shell.
+`set -uo pipefail` at its top reads as if it chose the shell's options, but
+it leaves the `-e` that the runner set in place.
+
+**REPAIR.**
+
+* The step captures the refusal as `code=0; admit ... || code=$?`.
+* `tools/workflow_contract.py` gains `vacuous_exit_captures`, run by
+  `problems()`, which is the contract step CI runs. It refuses any `$?` that
+  a step reads in a shell GitHub runs with `-e`: no shell named, `bash` or
+  `sh`, from the step or from a job or workflow default. A `$?` in the form
+  `cmd || code=$?`, after `set +e`, or inside a heredoc the step hands to
+  another shell is allowed. The `offline-verify` job's checks live in such
+  a heredoc, run by plain `bash`, where `; a=$?` does see the status.
+* `tests/test_workflow_exit_checks.py`:
+  * runs both forms under real `bash -e`, as the control;
+  * hostile and allowed workflows, including job defaults and named shells;
+  * the step as it was at `1c5df5c`, which the rule refuses, and the tree,
+    which holds;
+  * the offline verifier's lines moved out of their heredoc, which are
+    refused.
+* Mutations CA14 to CA18 in `tools/mutations/ci_authority.json` delete each
+  part of the rule.
+
+**NOT CLAIMED.**
+
+* That every workflow step is correct. The rule covers one way a step can
+  fail to test what it says it tests.
+* That the repair is hosted-verified at the commit that makes it. That
+  needs its own hosted run.

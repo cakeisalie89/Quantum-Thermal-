@@ -112,12 +112,14 @@ jobs:
           set -uo pipefail
           mkdir -p "$RUNNER_TEMP/policy"
           cp docs/supply_chain_ci_policy.json "$RUNNER_TEMP/policy/ci.json"
+          # The runner's shell is bash -e: the refusal is captured with ||,
+          # or exit 3 would end the step before it is checked (D-2026-152).
+          code=0
           HARNESS_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
             uv run python tools/supply_chain.py admit --dir rc \
             --release-policy "$RUNNER_TEMP/policy/ci.json" \
             --trust-config "$RUNNER_TEMP/trust/trust_config.json" \
-            --mode offline --report admit_refused.json
-          code=$?
+            --mode offline --report admit_refused.json || code=$?
           if [ "$code" -ne 3 ]; then
             echo "admit exited $code; a CI signature must be verified and NOT admitted (3)"
             exit 1

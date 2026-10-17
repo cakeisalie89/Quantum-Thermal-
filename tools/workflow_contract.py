@@ -536,6 +536,66 @@ def ai_authority_problems(workflows: dict | None = None) -> tuple:
     return tuple(out)
 
 
+#: The shells GitHub runs a ``run:`` block with when it names none, or names
+#: ``bash`` or ``sh``: each stops at the first command that exits non-zero.
+_ERREXIT_SHELLS = (None, "bash", "sh")
+_HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+
+
+def _outside_heredocs(script: str) -> list:
+    """The script's own lines: a heredoc's body is text written to a file,
+    run (if at all) by whatever the script hands it to."""
+    out, end = [], None
+    for line in script.splitlines():
+        if end is not None:
+            if line.strip() == end:
+                end = None
+            continue
+        out.append(line)
+        m = _HEREDOC.search(line)
+        if m:
+            end = m.group(2)
+    return out
+
+
+def vacuous_exit_captures(workflows: dict | None = None) -> tuple:
+    """Every ``$?`` a step reads after a command that would already have
+    ended the step.
+
+    D-2026-152. GitHub runs an unnamed or ``bash`` shell with ``-e``, so in
+    ``cmd; code=$?`` a non-zero exit stops the step before ``code`` is
+    set, and a zero one makes the check that follows test nothing. A step
+    that must observe a failure writes ``code=0; cmd || code=$?``, sets
+    ``+e``, or names another shell.
+    """
+    docs = _load_workflows() if workflows is None else workflows
+    out: list = []
+    for name, doc in sorted(docs.items()):
+        if not isinstance(doc, dict):
+            continue
+        top = ((doc.get("defaults") or {}).get("run") or {}).get("shell")
+        for jname, job in sorted((doc.get("jobs") or {}).items()):
+            jshell = ((job.get("defaults") or {}).get("run") or {}).get(
+                "shell", top)
+            for i, step in enumerate(job.get("steps") or []):
+                run = step.get("run")
+                if not isinstance(run, str) or step.get(
+                        "shell", jshell) not in _ERREXIT_SHELLS:
+                    continue
+                lines = _outside_heredocs(run)
+                if any(re.match(r"\s*set\s+\+e\b", x) for x in lines):
+                    continue
+                for line in lines:
+                    for m in re.finditer(r"(\|\|\s*)?(?:\w+=)?\$\?", line):
+                        if not m.group(1):
+                            label = step.get("name") or f"step {i + 1}"
+                            out.append(f"{name}/{jname}/{label}: reads $? "
+                                       f"under bash -e ({line.strip()!r}); "
+                                       "a failing command ends the step "
+                                       "first")
+    return tuple(out)
+
+
 def problems() -> tuple:
     body = _text()
     out = []
@@ -559,6 +619,7 @@ def problems() -> tuple:
             for x in unwired_verifiers(everywhere)]
     out += [f"mutation shards -- {x}" for x in MS.check_workflow(body)]
     out += [f"AI/CI authority -- {x}" for x in ai_authority_problems()]
+    out += [f"vacuous exit check -- {x}" for x in vacuous_exit_captures()]
     return tuple(out)
 
 

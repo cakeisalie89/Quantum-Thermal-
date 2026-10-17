@@ -1,13 +1,13 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 435,
+   "ADDED": 436,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 45,
-   "LOW": 159,
+   "LOW": 160,
    "MEDIUM": 238
   },
   "by_subsystem": {
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 135,
+   "tests": 136,
    "tooling": 31,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 467
+  "files": 468
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -157,7 +157,8 @@
     "tests": [
      "tests/test_ci_authority.py",
      "tests/test_release_admission.py",
-     "tests/test_supply_chain.py"
+     "tests/test_supply_chain.py",
+     "tests/test_workflow_exit_checks.py"
     ]
    }
   },
@@ -6291,6 +6292,22 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_workflow_exit_checks.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest",
+    "yaml"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_workflow_generic.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8256,7 +8273,8 @@
      "tests/test_ci_authority.py",
      "tests/test_dependency_declarations.py",
      "tests/test_mutation_shards.py",
-     "tests/test_repo_contract.py"
+     "tests/test_repo_contract.py",
+     "tests/test_workflow_exit_checks.py"
     ]
    }
   },
