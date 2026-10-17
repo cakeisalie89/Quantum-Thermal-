@@ -151,7 +151,7 @@
     "tools/mutations/policy_binding.json"
    ],
    "ledger": "D-2026-148",
-   "note": "the governed path declares the binding; an unbound history does not have it"
+   "note": "the governed path declares the binding; an unbound history does not have it; the governed path refuses a history whose binding names any other authority (D-2026-151)"
   },
   {
    "id": "SUB-4",

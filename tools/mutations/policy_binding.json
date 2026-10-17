@@ -1,6 +1,6 @@
 {
  "title": "Promotions bound to a published policy in force: withdrawal, expiry, the binding, both readers",
- "note": "D-2026-148. Each mutation deletes one rule of the binding (store write and replay), of policy withdrawal and expiry (policy store), of the second readers' restatements, of the governed path's declaration, or of the auditor's report. tests/test_policy_binding.py pairs every refusal with a control differing only in the reason; tests/test_scientific_authority_replay.py holds the governed path.",
+ "note": "D-2026-148. Each mutation deletes one rule of the binding (store write and replay), of policy withdrawal and expiry (policy store), of the second readers' restatements, of the governed path's declaration or its refusal of a binding it did not declare, or of the auditor's report. tests/test_policy_binding.py pairs every refusal with a control differing only in the reason; tests/test_scientific_authority_replay.py holds the governed path.",
  "suites": [
   "tests/test_policy_binding.py",
   "tests/test_agent_policy.py",
@@ -73,9 +73,9 @@
   {
    "name": "PB10_the_governed_path_does_not_bind",
    "path": "agent_substrate/governed_model.py",
-   "find": "        if self.authority.policy_binding is None:\n            # A governed history",
-   "replace": "        if False:\n            # A governed history",
-   "rationale": "D-2026-148: the production path never declares the binding, so none of it applies there"
+   "find": "            self.authority.bind_policies(actor=\"owner\", publishers=(\"owner\",))\n",
+   "replace": "            pass\n",
+   "rationale": "D-2026-148: the production path never declares the binding, so none of it applies there; anchor moved by D-2026-151 (the declaration itself is deleted, so the refusal of a foreign binding beside it is untouched)"
   },
   {
    "name": "PB11_a_withdrawn_policy_is_in_force",
@@ -167,6 +167,13 @@
    "find": "        if withdrawn is not None:\n            gaps.append(",
    "replace": "        if False:\n            gaps.append(",
    "rationale": "D-2026-148: an audit explains a decision made after its policy was withdrawn without saying so"
+  },
+  {
+   "name": "PB24_the_governed_path_adopts_a_foreign_binding",
+   "path": "agent_substrate/governed_model.py",
+   "find": "        elif binding[\"publishers\"] != [\"owner\"]:\n",
+   "replace": "        elif False:\n",
+   "rationale": "D-2026-148, adversarial review: a binding declared before the governed path opened the history, naming another policy authority, is adopted, and that authority's policies promote on the governed history"
   }
  ]
 }

@@ -25,7 +25,7 @@
     {
       "filename": ".github/workflows/agent-substrate.yml",
       "size_bytes": 32902,
-      "sha256": "767c157f34ead5297e13388b44cc2652d15efcacd2349c7d924e640f042cbf14"
+      "sha256": "4c43deae5b2727fdb93def0ed066f75a27a2c56f36f37618f20ee86cdd121ed8"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -234,8 +234,8 @@
     },
     {
       "filename": "agent_substrate/governed_model.py",
-      "size_bytes": 43426,
-      "sha256": "929b5dd2513346df7662baf87771de0e5fffb9c94d3efc2e1189c70b452e8c0d"
+      "size_bytes": 43980,
+      "sha256": "39868142fdc7873eb0179c872a604ff5fd287845c32be062863e6499f6827232"
     },
     {
       "filename": "agent_substrate/governed_tasks.py",
@@ -309,8 +309,8 @@
     },
     {
       "filename": "agent_substrate/reconstruct.py",
-      "size_bytes": 144364,
-      "sha256": "dbaa960bed502b932be16334854ffb0ba98934e818fb5fd24cd668db7a7dd3e3"
+      "size_bytes": 144569,
+      "sha256": "f21c2ba61b48823c0401d18dd15b4ea9a0de2a5fee27cda6b669e95e7aa65240"
     },
     {
       "filename": "agent_substrate/result_rules.py",
@@ -379,8 +379,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 468353,
-      "sha256": "c8d940500cb8e4fb8ef185846e4a16350fb54ac122a41a191ec565daf6c94ef4"
+      "size_bytes": 472090,
+      "sha256": "c6c4a0c748e0f25358959eea363b10ef2892e79c3ddc709855b1ffab2ab73eb1"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -395,7 +395,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3651,
-      "sha256": "66f56be1d76b354aea40d1e0515fd0a9ed759ed39d87e9d8c17962258e822b58"
+      "sha256": "35349ad9599ed7b5638e9b7c04d80596ccda028a1255e67730f52442998ca899"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -419,8 +419,8 @@
     },
     {
       "filename": "docs/identity_inventory.json",
-      "size_bytes": 29261,
-      "sha256": "aba0b2ba9d3d1915a7bf627d8f74d70b01594859b9f4e4d3deb4fc700f4de4d5"
+      "size_bytes": 31181,
+      "sha256": "d19e8165a1b5c60f18f95df66d4568e2dd574f1bf5af3d9c6eca3e5aa9605664"
     },
     {
       "filename": "docs/neural/architecture_family.json",
@@ -554,8 +554,8 @@
     },
     {
       "filename": "docs/security/readiness_matrix.json",
-      "size_bytes": 8626,
-      "sha256": "196faab922c1fbf6979519197b2dd678c8f8805000715a9e21bd13c0fb67fb99"
+      "size_bytes": 8716,
+      "sha256": "1924aa018f4102c86d2e416dd5be4683e6ade0fa2855e69037cdb5acae95f2cb"
     },
     {
       "filename": "docs/security/reproducibility_contract.json",
@@ -1584,8 +1584,8 @@
     },
     {
       "filename": "tests/test_scientific_authority_replay.py",
-      "size_bytes": 27574,
-      "sha256": "d7461c74229d653c6054fed0bd72a0101fb0aed00531b0c691adac21c9184458"
+      "size_bytes": 29176,
+      "sha256": "162d732811b7f4615252cdd201e479989c0d605b42fd2b8346e4dd1867fe40fc"
     },
     {
       "filename": "tests/test_scientific_identity.py",
@@ -1880,7 +1880,7 @@
     {
       "filename": "tools/mutations/agent_second_reader.json",
       "size_bytes": 51613,
-      "sha256": "64a245c2d72a55d3fc886d4f69c2291dd5138e8b90f68ef57a3bafe4f8e996d2"
+      "sha256": "bb3f11e6313921aad9ee0417e0e0982ce4ab2853c1a82f3c94964b64742929d2"
     },
     {
       "filename": "tools/mutations/agent_secret_provider.json",
@@ -2119,8 +2119,8 @@
     },
     {
       "filename": "tools/mutations/policy_binding.json",
-      "size_bytes": 9180,
-      "sha256": "0ef892744f21e26f534aad631c0d24fc2af285b67d91649258b800b5e8e55d5d"
+      "size_bytes": 9767,
+      "sha256": "a9db36e5e0d228435303d6b0421a20b155f6315f11dda7579adc97a59bdf89e5"
     },
     {
       "filename": "tools/mutations/proposal_crash_recovery.json",

@@ -451,11 +451,20 @@ class GovernedModelRuns:
         else:
             self.authority = AuthorityStore(log, evidence=evidence,
                                             origins=self.origins).load()
-        if self.authority.policy_binding is None:
+        binding = self.authority.policy_binding
+        if binding is None:
             # A governed history binds its promotions to the policy its
             # owner published on it: not a name any promoter may write, and
             # not one withdrawn or expired since (D-2026-148).
             self.authority.bind_policies(actor="owner", publishers=("owner",))
+        elif binding["publishers"] != ["owner"]:
+            # Declared before this path opened the history. Adopting it
+            # would let the policies of whoever it names promote here; it
+            # is declared once, so it cannot be corrected, only refused.
+            raise ModelRunRefused(
+                f"this history's policy binding (seq {binding['seq']}) names "
+                f"{binding['publishers']} as its policy authorities; a "
+                "governed history's only policy authority is its owner")
         for iid, role in ((CHECK_WORKER_ID, AgentRole.EXECUTOR),
                           (REVIEWER_ID, AgentRole.VERIFIER)):
             try:

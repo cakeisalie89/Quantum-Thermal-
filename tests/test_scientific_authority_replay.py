@@ -36,7 +36,7 @@ from agent_substrate.events import EventLog  # noqa: E402
 from agent_substrate.evidence import EvidenceStore  # noqa: E402
 from agent_substrate.governed_model import (  # noqa: E402
     CHECK_WORKER_ID, MODEL_RUN_TOOLS, REVIEWER_ID, VERIFIER_TOOLS,
-    GovernedModelRuns, GovernedOrigins,
+    GovernedModelRuns, GovernedOrigins, ModelRunRefused,
 )
 from agent_substrate.governed_tasks import SUBMITTER_ID  # noqa: E402
 from agent_substrate.store import AuthorityStore, StoreError  # noqa: E402
@@ -362,6 +362,39 @@ def test_the_governed_path_declares_the_binding(world):
     recon = _second_reader(base)
     assert any(rid in u and "withdrawn" in u for u in recon.unauthorized)
     assert recon.records[rid]["state"] == "VERIFIED"
+
+
+def _prebound(tmp_path: Path, publishers) -> EventLog:
+    """A history whose binding was declared before the governed path ever
+    opened it."""
+    log = EventLog(tmp_path / "log.jsonl")
+    AuthorityStore(log).load().bind_policies(actor="mallory",
+                                             publishers=publishers)
+    return log
+
+
+@pytest.mark.parametrize("publishers", [("mallory",), ("owner", "mallory")])
+def test_the_governed_path_refuses_a_binding_naming_another_authority(
+        tmp_path, publishers):
+    """D-2026-148, adversarial review. The binding is declared once, so a
+    writer who declares it first chooses the policy authorities for good.
+    Adopted, it would let a policy that writer published promote on the
+    governed history. The governed path refuses the history instead."""
+    log = _prebound(tmp_path, publishers)
+    with pytest.raises(ModelRunRefused, match="only policy authority"):
+        GovernedModelRuns(root=ROOT, log=log,
+                          evidence=EvidenceStore(tmp_path / "evidence"))
+    assert AuthorityStore(log).load().policy_binding["publishers"] == \
+        sorted(publishers)
+
+
+def test_control_a_prior_binding_naming_only_the_owner_is_adopted(tmp_path):
+    """Who declared it does not matter: a binding to the owner alone is
+    the one the governed path would have declared."""
+    log = _prebound(tmp_path, ("owner",))
+    g = GovernedModelRuns(root=ROOT, log=log,
+                          evidence=EvidenceStore(tmp_path / "evidence"))
+    assert g.authority.policy_binding == {"seq": 0, "publishers": ["owner"]}
 
 
 def test_lost_evidence_is_unverifiable_to_both_readers(world):

@@ -8248,7 +8248,8 @@ promoted under `"p"` on the governed path, and now uses the published policy.
 
 * A history that declares no binding promotes under any named policy, as
   before. Unit-level stores do not declare one; the governed path always
-  does.
+  does, and refuses a history whose binding names any other authority
+  (D-2026-151).
 * Expiry is judged against the wall time a record carries. Verification
   holds that time non-decreasing along the chain, but the record's writer
   asserts it.
@@ -8409,3 +8410,71 @@ how the engineering relates to SLSA, NIST SP 800-218 or FedRAMP.
   still outside the lock.
 * Any SLSA build level, SSDF conformance or FedRAMP status.
 * That the demonstration exercised a live signing provider.
+
+## D-2026-151 — D-2026-148 added two durable actions the identity inventory did not classify, and the governed path adopted a policy binding it had not declared
+
+**CLASS** — `GAP`: Tranche F, Section 11 (F4). An authority rule that
+D-2026-148 (`881a16a`) did not cover, and a classification it did not add.
+The second is a process miss, caught before any push.
+
+**DEMONSTRATION.**
+
+* **The inventory.** The full suite at `15690d9`, the first full run after
+  `881a16a`, failed seven tests in `tests/test_identity_inventory.py`.
+  `authority.policy_binding` and `policy.withdraw` are durable actions
+  that `docs/identity_inventory.json` did not classify. `reconstruct.py`
+  dispatched on `policy.withdraw`, and the inventory did not record that.
+  It dispatched on the binding through a named constant
+  (`_BINDING_ACTION`). The parse-tree measurement reads only literals at
+  comparisons, so it counted the binding as MENTIONED, not DISPATCHED. The
+  coverage labels in `agent-substrate.yml` and in the second reader's
+  mutation specification still said 40 of 40.
+* **The governed path.** A history's policy binding is declared once, and
+  the first declaration stands. `GovernedModelRuns` declared the binding
+  only when none existed, and adopted any binding it found. Any writer who
+  declared one first, naming itself (or naming the owner and itself), could
+  then promote on the governed history under a policy it had published.
+  `tests/test_scientific_authority_replay.py::
+  test_the_governed_path_refuses_a_binding_naming_another_authority` fails
+  on `15690d9` for both forms.
+
+**ROOT CAUSE.**
+
+* `881a16a` was committed after its own suites and the substrate suites,
+  not after the full suite. The guard that requires every new action to be
+  classified lives in a module those runs did not include. Nothing had been
+  pushed, so no hosted run saw the gap. It was caught by the full run that
+  is required before every push.
+* The binding's adversarial review covered forged promotions, withdrawals
+  and second declarations. It did not cover a first declaration made by
+  someone other than the path that relies on it.
+
+**REPAIR.**
+
+* `docs/identity_inventory.json` classifies both actions as
+  authority-changing, with an independent reader:
+  * `publishers` is a SUBJECT, never read as who acted;
+  * the withdrawer is `ev.actor`, and must be the policy's owner.
+* `reconstruct.py` dispatches on the literal `"authority.policy_binding"`,
+  as it does for every other action, so the measurement sees the
+  dispatch. Coverage is 42 of 42 durable actions, and both labels say so.
+* `GovernedModelRuns` refuses a history whose binding names any policy
+  authority other than its owner (`ModelRunRefused`). A binding to the
+  owner alone is adopted, whoever declared it.
+* Tests:
+  * the refusal, for a binding to another authority and for one to the
+    owner and another;
+  * a control, in which a prior binding to the owner alone is adopted.
+* Mutation `PB24` deletes the refusal and is killed.
+
+**NOT CLAIMED.**
+
+* That the binding authenticates its declarer. Under the unauthenticated
+  profile, actor names are names. A writer who can append can also write
+  a publication as `owner`; that is SUB-5, EXTERNALLY_BLOCKED.
+* That every commit in this tranche ran the full suite before it was
+  made. `fa2346e`, `b6c3f89`, `f622b45`, `881a16a`, `7992356` and
+  `276fdac` were each committed after their own suites and the suites
+  next to them. The first full run since `89e9da0` was at `15690d9`, and
+  it failed as described. None of those commits had been pushed. The full
+  suite gates the push, and it ran on the tree that was pushed.

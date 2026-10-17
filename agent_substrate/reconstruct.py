@@ -759,8 +759,10 @@ _PROFILES = frozenset({"UNAUTHENTICATED_LEGACY", _PROFILE_REQUIRED})
 #: names, not withdrawn and not expired at the promotion. Folded here from
 #: the policy records themselves and judged by this module's own rule, not
 #: by asking the store: a second reader that asked the store would agree
-#: with a broken store.
-_BINDING_ACTION = "authority.policy_binding"
+#: with a broken store. The action is dispatched on by its literal below,
+#: as every other action here is: tools/identity_inventory.py measures
+#: coverage from comparisons against literals, and a named constant would
+#: read there as mentioned, not dispatched.
 
 
 def _bound_promotion_refusal(binding: dict, policies: dict, policy_ids,
@@ -847,7 +849,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                     "a history's first event, and must be a known one")
             continue
 
-        if action == _BINDING_ACTION:
+        if action == "authority.policy_binding":
             named = p.get("publishers")
             if binding is not None:
                 out.unauthorized.append(

@@ -131,6 +131,21 @@
       "authority_note": "Removes a principal. Admission and removal are the same authority reached from two directions."
     },
     {
+      "action": "authority.policy_binding",
+      "module": "store.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "publishers",
+          "role": "SUBJECT",
+          "note": "the principals whose published policies may govern a promotion on this history; the declarer is ev.actor, and a name here is never read as who acted"
+        }
+      ],
+      "note": "Declared once per history: a second declaration is refused by the store on write and on replay, and noted by the second reader. Restated in reconstruct.py, which folds the policy records itself and judges each bound promotion by _bound_promotion_refusal rather than asking the store.",
+      "authority_changing": true,
+      "authority_note": "Decides what may promote from this seq on: a promotion must name a policy published on the history by a named authority, not withdrawn and not expired (D-2026-148). A forged, suppressed or substituted declaration changes which promotions are admitted."
+    },
+    {
       "action": "capability.issue",
       "module": "capability.py",
       "independent_reader": "YES",
@@ -370,6 +385,26 @@
       "note": "",
       "authority_changing": true,
       "authority_note": "Changes the rules in force from this seq on."
+    },
+    {
+      "action": "policy.withdraw",
+      "module": "policy.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "policy_id",
+          "role": "NONE",
+          "note": "which policy is withdrawn; names no one"
+        },
+        {
+          "name": "reason",
+          "role": "NONE",
+          "note": "free text, never read as authority"
+        }
+      ],
+      "note": "The withdrawer is ev.actor and must be the policy's owner, the publisher of its first version: refused otherwise on write and on replay (PolicyStore._recheck_withdrawal), and restated by reconstruct.py's _sub_policy_withdraw.",
+      "authority_changing": true,
+      "authority_note": "Ends the policy's authority at every version from this seq on: under a policy binding, promotions naming it stop on the next write and on every replay (D-2026-148). Terminal; earlier promotions stand."
     },
     {
       "action": "record.create",
