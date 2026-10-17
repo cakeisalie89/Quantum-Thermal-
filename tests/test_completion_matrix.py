@@ -838,7 +838,11 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: R37 and R48 (agents.py or memory.py in their implementation) and R51 and
 #: R58 (a new mutation specification and the shard matrix) derive PREDATES
 #: beside R70 and R71 until a later commit cites runs at this one.
-EXPECTED_EVIDENCE_COVERS = 40
+#:
+#: 40 -> 39 with D-2026-143/144/145, in the same commit as them: R65's
+#: verifier moved into tools/offline_verify.py, so its hosted evidence
+#: predates its implementation until a later commit cites runs at this one.
+EXPECTED_EVIDENCE_COVERS = 39
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

@@ -373,7 +373,11 @@ def unwired_verifiers(text: str | None = None) -> tuple:
     executed = set()
     cmds = _run_commands(text if text is not None else _everywhere())
     for cmd in cmds:
-        for m in re.finditer(r"(?:^|\s)(?:uv run )?python3?\s+(\S+)", cmd):
+        # Interpreter flags (``python3 -I``) come before the script and are
+        # not it: an isolated run is still a run.
+        for m in re.finditer(
+                r"(?:^|\s)(?:uv run )?python3?(?:\s+-[A-Za-z]+)*\s+(\S+)",
+                cmd):
             executed.add(m.group(1))
     out = []
     for path in sorted(runnable - set(VERIFIER_EXEMPT)):

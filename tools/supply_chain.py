@@ -5,8 +5,13 @@ refused when any of it is tampered with.
 ``build`` writes, into one directory, for the commit checked out:
 
 * ``source.zip``        -- every tracked file at that commit, members in
-                           sorted order with a fixed timestamp and mode, so
-                           the same commit always packs to the same bytes;
+                           sorted order with a fixed timestamp and mode, and
+                           STORED, not compressed: a deflate stream depends
+                           on the zlib build that wrote it, so a compressed
+                           archive's bytes would be a property of the
+                           builder's machine as well as of the commit
+                           (D-2026-145, docs/security/
+                           reproducibility_contract.json);
 * ``sbom.cdx.json``     -- CycloneDX 1.5: every package in ``uv.lock``, and
                            -- as separate, labelled environments -- the
                            FEniCSx conda lock, the FMI runtime lock and the
@@ -23,16 +28,26 @@ refused when any of it is tampered with.
 * ``SHA256SUMS``        -- one line per artifact above. THIS is the file that
                            is signed: one signature binds all of them.
 
-``verify`` checks, failing closed at the first refusal: the signature on
-``SHA256SUMS`` against the EXACT signer identity and issuer of a policy
-(``docs/supply_chain_ci_policy.json`` for a CI-validation run) -- online, or
-offline from the bundle's own transparency-log inclusion proof; every
-artifact's digest against ``SHA256SUMS``; the provenance's subjects against
-the same digests; the index's commit against the provenance's resolved
-dependency; the SBOM against ``uv.lock``; ``source.zip`` against the
-manifest it carries (every listed file present with its size and sha256,
-nothing unlisted, the detached hash); and, when a git checkout is at hand,
-``source.zip`` against the tree of the commit it names, in both directions.
+``verify`` is ``tools/offline_verify.py`` -- the portable verifier, which
+needs no checkout -- plus, when a git checkout is at hand, ``source.zip``
+against the tree of the commit it names, in both directions. It reports
+five levels that are NOT interchangeable (D-2026-143): ARTIFACT_INTEGRITY,
+PROVENANCE_STRUCTURE, SIGNATURE_VERIFIED, SIGNER_TRUSTED and
+RELEASE_AUTHORIZED. A ``--mode digests`` run establishes the first two and
+nothing else; no report carries a single "accepted" flag.
+
+``admit`` is the release-admission gate: it verifies against a RELEASE
+policy (``harness-release-policy/1``) provisioned outside both the bundle
+and this checkout, and succeeds only when RELEASE_AUTHORIZED is
+established. No release policy exists; the CI validation policy can never
+satisfy it, and the hosted job proves that by requiring the refusal.
+
+``compare`` holds two builds of one commit to
+``docs/security/reproducibility_contract.json``: the files it names
+byte-identical must be, the files it names identical-except must differ in
+no field outside the ones it names, and the run-specific files are not
+compared. The hosted job rebuilds on another runner image and compares
+with the signed candidate.
 
 ``tamper`` copies a built-and-signed directory once per case, changes one
 thing -- a payload byte, the manifest digest, an SBOM component, the
@@ -44,9 +59,12 @@ mean that any number in them is correct.
 
     python tools/supply_chain.py build --out DIR [--allow-dirty]
     python tools/supply_chain.py verify --dir DIR --policy P \
-        --mode online|offline|digests
+        --mode online|offline|digests [--trust-config T]
+    python tools/supply_chain.py admit --dir DIR --release-policy P \
+        --trust-config T --mode online|offline
     python tools/supply_chain.py tamper --dir DIR --policy P \
-        --mode online|offline
+        --mode online|offline [--trust-config T]
+    python tools/supply_chain.py compare --a DIR --b DIR [--report OUT]
 """
 from __future__ import annotations
 
@@ -54,35 +72,34 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import shutil
 import subprocess
 import sys
 import tempfile
-import tomllib
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-ARTIFACTS = ("source.zip", "sbom.cdx.json", "provenance.intoto.json",
-             "index.json")
-SIGNED = "SHA256SUMS"
-BUNDLE = "SHA256SUMS.sigstore.json"
+sys.path.insert(0, str(ROOT / "tools"))
+import offline_verify as OV  # noqa: E402
+
+# One definition of each, in the portable verifier.
+ARTIFACTS = OV.ARTIFACTS
+SIGNED = OV.SIGNED
+BUNDLE = OV.BUNDLE
+ENVIRONMENT_LOCKS = OV.ENVIRONMENT_LOCKS
+MANIFEST_DETACHED = OV.MANIFEST_DETACHED
+LEVELS = OV.LEVELS
+Refused = OV.Refused
 ZIP_TIME = (1980, 1, 1, 0, 0, 0)
-ENVIRONMENT_LOCKS = {
-    "fenicsx-conda": "integrations/fenicsx/environment.sha256.json",
-    "fmi-runtime": "integrations/fmi/runtime.lock",
-    "sigstore-runtime": "integrations/supply_chain/sigstore.lock",
-}
 ATTESTS = ("origin: the bytes were signed by the exact workflow identity the "
            "policy names", "integrity: no byte listed in SHA256SUMS changed "
            "after signing")
+CONTRACT = ROOT / "docs" / "security" / "reproducibility_contract.json"
 DOES_NOT_ATTEST = ("scientific validity of any result",
                    "that any computation is correct",
                    "an SLSA build level: none is claimed")
-
-
-class Refused(RuntimeError):
-    pass
 
 
 def _sha(b: bytes) -> str:
@@ -107,7 +124,7 @@ def source_zip(dest: Path, commit: str, cwd: Path = ROOT) -> list:
         meta, _, path = line.partition("\t")
         modes[path] = meta.split()[0]
     packed = []
-    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_STORED) as zf:
         for n in names:
             if modes.get(n) == "120000":
                 continue            # links are not packaged
@@ -118,7 +135,7 @@ def source_zip(dest: Path, commit: str, cwd: Path = ROOT) -> list:
             info = zipfile.ZipInfo(n, date_time=ZIP_TIME)
             info.external_attr = (0o755 if modes.get(n) == "100755"
                                   else 0o644) << 16
-            info.compress_type = zipfile.ZIP_DEFLATED
+            info.compress_type = zipfile.ZIP_STORED
             zf.writestr(info, data)
     return packed
 
@@ -135,63 +152,15 @@ def commit_files(commit: str, cwd: Path = ROOT) -> set:
 
 
 def sbom(root: Path = ROOT) -> dict:
-    lock = tomllib.loads((root / "uv.lock").read_text(encoding="utf-8"))
-    comps = []
-    for pkg in sorted(lock.get("package", []), key=lambda p: p["name"]):
-        src = pkg.get("source", {})
-        if "editable" in src or "virtual" in src:
-            continue
-        comps.append({"type": "library", "name": pkg["name"],
-                      "version": pkg["version"],
-                      "purl": f"pkg:pypi/{pkg['name']}@{pkg['version']}",
-                      "properties": [{"name": "harness:environment",
-                                      "value": "project (uv.lock)"}]})
-    for env, rel in ENVIRONMENT_LOCKS.items():
-        text = (root / rel).read_text(encoding="utf-8")
-        if rel.endswith(".json"):
-            for p in json.loads(text)["packages"]:
-                comps.append({"type": "library", "name": p["name"],
-                              "version": p["version"],
-                              "purl": f"pkg:conda/conda-forge/{p['name']}@"
-                                      f"{p['version']}",
-                              "hashes": [{"alg": "SHA-256",
-                                          "content": p["sha256"]}],
-                              "properties": [{"name": "harness:environment",
-                                              "value": env}]})
-        else:
-            for line in text.splitlines():
-                if "==" in line and not line.startswith((" ", "#")):
-                    name, _, ver = line.split()[0].partition("==")
-                    comps.append({"type": "library", "name": name,
-                                  "version": ver,
-                                  "purl": f"pkg:pypi/{name}@{ver}",
-                                  "properties": [{"name":
-                                                  "harness:environment",
-                                                  "value": env}]})
-    return {"bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,
-            "metadata": {"component": {
-                "type": "application", "name": "scientific-ai-harness"}},
-            "components": comps}
+    """The SBOM a checkout's declarations name -- the same derivation the
+    verifier applies to the declarations inside the signed archive."""
+    return OV.sbom_from(lambda rel: (root / rel).read_bytes())
 
 
 def sbom_problems(doc: dict, root: Path = ROOT) -> list:
-    """The SBOM must name exactly what the locks name, no more, no less."""
-    want = sbom(root)
-    have = {(c["name"], c["version"], json.dumps(c.get("properties"),
-                                                 sort_keys=True))
-            for c in doc.get("components", [])}
-    need = {(c["name"], c["version"], json.dumps(c.get("properties"),
-                                                 sort_keys=True))
-            for c in want["components"]}
-    out = []
-    if doc.get("bomFormat") != "CycloneDX" or doc.get("specVersion") != "1.5":
-        out.append("not a CycloneDX 1.5 document")
-    if have - need:
-        out.append(f"components the locks do not name: "
-                   f"{sorted(have - need)[:3]}")
-    if need - have:
-        out.append(f"locked components missing: {sorted(need - have)[:3]}")
-    return out
+    """The SBOM against a CHECKOUT's declarations. Verification does not
+    use this: it compares against the release's own (D-2026-144)."""
+    return OV.sbom_problems(doc, sbom(root))
 
 
 def provenance(subjects: dict, commit: str, policy: dict) -> dict:
@@ -265,173 +234,121 @@ def build(out: Path, *, allow_dirty: bool = False,
                    for n in ARTIFACTS)
     (out / SIGNED).write_text(sums, encoding="utf-8")
     return {"out": str(out), "commit": commit, "dirty": dirty,
+            "deterministic_payload": {
+                n: _sha((out / n).read_bytes())
+                for n in ("source.zip", "sbom.cdx.json")},
             "sha256sums_sha256": _sha(sums.encode())}
 
 
 # ---- verify --------------------------------------------------------------
 
-def load_policy(path: Path) -> dict:
-    p = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(p, dict):
-        raise Refused("a policy is a JSON object")
-    for k in ("signer_identity", "oidc_issuer", "source_repository",
-              "workflow_path", "ref"):
-        v = p.get(k, "")
-        if not isinstance(v, str) or not v or "*" in v or "PENDING" in v:
-            raise Refused(f"policy {k} is not an exact value: {v!r}")
-    want = (f"{p['source_repository']}/{p['workflow_path']}@{p['ref']}")
-    if p["signer_identity"] != want:
-        raise Refused(f"policy signer_identity is not derived from its "
-                      f"repository, workflow and ref ({want})")
-    if p["oidc_issuer"] != "https://token.actions.githubusercontent.com":
-        raise Refused("policy issuer is not GitHub Actions' OIDC issuer")
-    return p
-
-
-def verify_signature(d: Path, policy: dict, *, mode: str,
-                     sigstore_python: str | None) -> str:
-    if mode == "digests":
-        return "NOT_CHECKED (digests mode)"
-    bundle = d / BUNDLE
-    if not bundle.is_file():
-        raise Refused("no signature bundle: a required signature is absent")
-    exe = sigstore_python or os.environ.get("HARNESS_SIGSTORE_PYTHON", "")
-    if not exe:
-        raise Refused("no sigstore runtime (HARNESS_SIGSTORE_PYTHON) to "
-                      "verify with; an unverifiable signature is not a "
-                      "verified one")
-    cmd = [exe, "-I", "-m", "sigstore", "verify", "identity",
-           "--bundle", str(bundle), "--cert-identity",
-           policy["signer_identity"], "--cert-oidc-issuer",
-           policy["oidc_issuer"]]
-    if mode == "offline":
-        cmd.append("--offline")
-    cmd.append(str(d / SIGNED))
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-    if proc.returncode != 0:
-        raise Refused(f"signature verification failed ({mode}): "
-                      f"{(proc.stderr or proc.stdout).strip()[-400:]}")
-    return f"VERIFIED ({mode})"
+def load_policy(path: Path, *, bundle_dir: Path | None = None) -> dict:
+    return OV.load_policy(path, bundle_dir=bundle_dir)
 
 
 def verify(d: Path, policy: dict, *, mode: str,
            sigstore_python: str | None = None, repo: Path | None = ROOT,
-           root: Path = ROOT) -> dict:
+           trust_config: Path | None = None,
+           signature_checker=None) -> dict:
+    """The portable verification, then -- when a checkout is at hand --
+    source.zip against the tree of the commit it names."""
     d = Path(d)
-    sig = verify_signature(d, policy, mode=mode,
-                           sigstore_python=sigstore_python)
-    lines = (d / SIGNED).read_text(encoding="utf-8").splitlines()
-    listed = {}
-    for ln in lines:
-        digest, _, name = ln.partition("  ")
-        listed[name] = digest
-    if set(listed) != set(ARTIFACTS):
-        raise Refused(f"SHA256SUMS lists {sorted(listed)}, not "
-                      f"{sorted(ARTIFACTS)}")
-    for n, digest in listed.items():
-        if _sha((d / n).read_bytes()) != digest:
-            raise Refused(f"{n}: its bytes are not the signed digest")
-    prov = json.loads((d / "provenance.intoto.json").read_text())
-    subjects = {s["name"]: s["digest"]["sha256"] for s in prov["subject"]}
-    for n in ("source.zip", "sbom.cdx.json"):
-        if subjects.get(n) != listed[n]:
-            raise Refused(f"provenance subject {n} is not the signed digest")
-    index = json.loads((d / "index.json").read_text())
-    deps = prov["predicate"]["buildDefinition"]["resolvedDependencies"]
-    if deps[0]["digest"]["gitCommit"] != index["source_commit"]:
-        raise Refused("the provenance's source commit is not the index's")
-    for n, digest in index["artifacts"].items():
-        if listed.get(n) != digest:
-            raise Refused(f"index digest of {n} is not the signed digest")
-    probs = sbom_problems(json.loads((d / "sbom.cdx.json").read_text()), root)
-    if probs:
-        raise Refused(f"SBOM: {probs}")
-    manifest = archive_against_manifest(d / "source.zip", index)
+    rep = OV.verify_bundle(
+        d, policy, mode=mode, trust_config=trust_config,
+        sigstore_python=(sigstore_python
+                         or os.environ.get("HARNESS_SIGSTORE_PYTHON", "")),
+        signature_checker=signature_checker)
+    members = rep.pop("_members")
     tree = "NOT_CHECKED (no checkout)"
     if repo is not None:
-        commit = index["source_commit"]
-        with zipfile.ZipFile(d / "source.zip") as zf:
-            # BOTH DIRECTIONS. Each member is compared with the commit's blob
-            # below; that alone accepts an archive that LOST files, and said
-            # "MATCHES" over it (D-2026-127).
-            packed = {i.filename for i in zf.infolist()}
-            tracked = commit_files(commit, cwd=repo)
-            if packed != tracked:
-                raise Refused(
-                    f"source.zip is not the commit's tree: missing "
-                    f"{sorted(tracked - packed)[:5]}, not in the commit "
-                    f"{sorted(packed - tracked)[:5]}")
-            for info in zf.infolist():
-                want = subprocess.run(["git", "cat-file", "blob",
-                                       f"{commit}:{info.filename}"],
-                                      cwd=repo, capture_output=True)
-                if want.returncode != 0 or \
-                        _sha(want.stdout) != _sha(zf.read(info)):
-                    raise Refused(f"source.zip member {info.filename} is not "
-                                  f"the commit's")
-            for rel, key in (("final_manifest.json", "final_manifest_sha256"),
-                             ("ro-crate/ro-crate-metadata.json",
-                              "ro_crate_sha256")):
-                if _sha(zf.read(rel)) != index[key]:
-                    raise Refused(f"index {key} is not the digest of {rel} in "
-                                  "the source archive")
+        commit = rep["source_commit"]
+        # BOTH DIRECTIONS. Each member is compared with the commit's blob
+        # below; that alone accepts an archive that LOST files, and said
+        # "MATCHES" over it (D-2026-127).
+        packed = set(members)
+        tracked = commit_files(commit, cwd=repo)
+        if packed != tracked:
+            raise Refused(
+                f"source.zip is not the commit's tree: missing "
+                f"{sorted(tracked - packed)[:5]}, not in the commit "
+                f"{sorted(packed - tracked)[:5]}")
+        for name, data in members.items():
+            want = subprocess.run(["git", "cat-file", "blob",
+                                   f"{commit}:{name}"],
+                                  cwd=repo, capture_output=True)
+            if want.returncode != 0 or _sha(want.stdout) != _sha(data):
+                raise Refused(f"source.zip member {name} is not the "
+                              f"commit's")
         tree = f"MATCHES {commit}"
-    return {"signature": sig, "artifacts": "MATCH SHA256SUMS",
-            "provenance": "SUBJECTS MATCH", "sbom": "MATCHES THE LOCKS",
-            "manifest": manifest, "source_tree": tree, "accepted": True}
+    rep["source_tree"] = tree
+    rep["highest_established"] = OV.highest(rep)
+    return rep
 
 
-#: Tracked files the manifest does not list, by its own policy: it cannot
-#: hash itself, and manifest_hash.txt is that hash, written after it.
-MANIFEST_DETACHED = frozenset({"final_manifest.json", "manifest_hash.txt"})
+def admit(d: Path, release_policy: Path, *, mode: str,
+          trust_config: Path | None, sigstore_python: str | None = None,
+          checkout: Path = ROOT, signature_checker=None) -> dict:
+    """The release-admission gate. Admits only what RELEASE_AUTHORIZED
+    establishes, against a release policy that neither the bundle nor this
+    checkout supplies: a policy anyone who can push here can edit
+    authorizes nothing (D-2026-143)."""
+    if mode == "digests":
+        raise Refused("a digest-only verification never admits a release: "
+                      "nothing in it is authenticated")
+    if not OV._outside(release_policy, checkout):
+        raise Refused("the release policy lies inside the repository "
+                      "checkout; anyone who can push here could edit it")
+    policy = load_policy(release_policy, bundle_dir=d)
+    rep = verify(d, policy, mode=mode, sigstore_python=sigstore_python,
+                 repo=None, trust_config=trust_config,
+                 signature_checker=signature_checker)
+    rep["admitted"] = rep["release_authorized"]
+    return rep
 
 
-def archive_against_manifest(src: Path, index: dict) -> str:
-    """The signed archive, compared with the manifest it carries.
+# ---- reproducibility ----------------------------------------------------
 
-    The signature binds source.zip's bytes. The manifest inside it says what
-    the release IS: every file, its size, its sha256. Unless the two are
-    compared, a signed archive can carry a manifest that describes other
-    bytes, or lack files the manifest lists, and still verify (D-2026-127).
-    Needs no checkout: it is the archive against itself.
-    """
-    with zipfile.ZipFile(src) as zf:
-        infos = zf.infolist()
-        names = [i.filename for i in infos]
-        if len(names) != len(set(names)):
-            raise Refused("source.zip names a member more than once; which "
-                          "copy is the release is not decided by the bytes")
-        if len(names) != index.get("files_in_source_zip"):
-            raise Refused(f"source.zip has {len(names)} members; the index "
-                          f"says {index.get('files_in_source_zip')}")
-        try:
-            doc = json.loads(zf.read("final_manifest.json"))
-            hash_txt = zf.read("manifest_hash.txt").decode("utf-8")
-        except (KeyError, ValueError) as exc:
-            raise Refused(f"source.zip carries no readable manifest: "
-                          f"{exc}") from exc
-        detached = hash_txt.splitlines()[0] if hash_txt else ""
-        if detached != f"sha256: {_sha(zf.read('final_manifest.json'))}":
-            raise Refused("manifest_hash.txt in source.zip is not the hash of "
-                          "the final_manifest.json beside it")
-        entries = {e["filename"]: e for e in doc["files"]}
-        if not entries:
-            raise Refused("the archived manifest lists no files; a manifest "
-                          "of nothing agrees with any archive")
-        absent = sorted(set(entries) - set(names))
-        unlisted = sorted(set(names) - set(entries) - MANIFEST_DETACHED)
-        if absent:
-            raise Refused(f"the manifest lists {absent[:5]}, which source.zip "
-                          f"does not contain")
-        if unlisted:
-            raise Refused(f"source.zip contains {unlisted[:5]}, which its "
-                          f"manifest does not list")
-        for name, e in entries.items():
-            data = zf.read(name)
-            if _sha(data) != e["sha256"] or len(data) != e["size_bytes"]:
-                raise Refused(f"{name}: the archive's bytes are not the ones "
-                              f"its manifest lists")
-    return f"DESCRIBES THE ARCHIVE ({len(entries)} files)"
+def _pop_field(doc: dict, dotted: str) -> None:
+    """Remove ``dotted`` from ``doc``. A key may itself contain dots (the
+    index's artifact names do), so each step takes the longest run of
+    parts that is a key. A field the contract names but the document lacks
+    is refused: the contract would be describing some other build."""
+    parts, cur, i = dotted.split("."), doc, 0
+    while True:
+        for j in range(len(parts), i, -1):
+            key = ".".join(parts[i:j])
+            if isinstance(cur, dict) and key in cur:
+                break
+        else:
+            raise Refused(f"the contract names {dotted!r}, which the "
+                          "build does not have")
+        if j == len(parts):
+            cur.pop(key)
+            return
+        cur, i = cur[key], j
+
+
+def compare_builds(a: Path, b: Path, contract: dict) -> dict:
+    """Two builds of one commit, held to the reproducibility contract. Byte
+    identity of files only; nothing here is a numerical comparison."""
+    files: dict[str, dict] = {}
+    for name in contract["byte_identical"]:
+        ra, rb = (Path(a) / name).read_bytes(), (Path(b) / name).read_bytes()
+        files[name] = {"class": "byte_identical", "holds": ra == rb,
+                       "sha256": sorted({_sha(ra), _sha(rb)})}
+    for name, spec in contract["identical_except"].items():
+        ra, rb = (Path(a) / name).read_bytes(), (Path(b) / name).read_bytes()
+        da, db = json.loads(ra), json.loads(rb)
+        for f in spec["fields"]:
+            _pop_field(da, f)
+            _pop_field(db, f)
+        files[name] = {"class": "identical_except", "fields": spec["fields"],
+                       "holds": da == db, "byte_identical": ra == rb}
+    for name in contract["run_specific"]:
+        files[name] = {"class": "run_specific", "compared": False}
+    return {"schema": "harness-release-reproduction/1",
+            "contract": contract["schema"], "files": files,
+            "holds": all(f.get("holds", True) for f in files.values())}
 
 
 # ---- tamper suite --------------------------------------------------------
@@ -443,7 +360,8 @@ def _flip(p: Path, offset: int = 64):
 
 
 def tamper(d: Path, policy: dict, *, mode: str,
-           sigstore_python: str | None = None) -> dict:
+           sigstore_python: str | None = None,
+           trust_config: Path | None = None) -> dict:
     def edit_json(p: Path, fn):
         doc = json.loads(p.read_text())
         fn(doc)
@@ -476,7 +394,8 @@ def tamper(d: Path, policy: dict, *, mode: str,
             pol = dict(policy)
             mutate(c, pol)
             try:
-                verify(c, pol, mode=mode, sigstore_python=sigstore_python)
+                verify(c, pol, mode=mode, sigstore_python=sigstore_python,
+                       trust_config=trust_config)
                 out[name] = {"refused": False}
             except Refused as exc:
                 out[name] = {"refused": True, "reason": str(exc)[:300]}
@@ -496,15 +415,38 @@ def main(argv=None) -> int:
                        default=ROOT / "docs" / "supply_chain_ci_policy.json")
         v.add_argument("--mode", required=True,
                        choices=("online", "offline", "digests"))
+        v.add_argument("--trust-config", type=Path)
         v.add_argument("--report", type=Path)
+    a = sub.add_parser("admit")
+    a.add_argument("--dir", required=True, type=Path)
+    a.add_argument("--release-policy", required=True, type=Path)
+    a.add_argument("--trust-config", type=Path)
+    a.add_argument("--mode", required=True, choices=("online", "offline"))
+    a.add_argument("--report", type=Path)
+    c = sub.add_parser("compare")
+    c.add_argument("--a", required=True, type=Path)
+    c.add_argument("--b", required=True, type=Path)
+    c.add_argument("--contract", type=Path, default=CONTRACT)
+    c.add_argument("--report", type=Path)
     args = ap.parse_args(argv)
     try:
         if args.cmd == "build":
             res = build(args.out, allow_dirty=args.allow_dirty)
         elif args.cmd == "verify":
-            res = verify(args.dir, load_policy(args.policy), mode=args.mode)
+            res = verify(args.dir,
+                         load_policy(args.policy, bundle_dir=args.dir),
+                         mode=args.mode, trust_config=args.trust_config)
+        elif args.cmd == "admit":
+            res = admit(args.dir, args.release_policy, mode=args.mode,
+                        trust_config=args.trust_config)
+        elif args.cmd == "compare":
+            res = compare_builds(args.a, args.b, json.loads(
+                args.contract.read_text(encoding="utf-8")))
+            res["builder"] = {"python": sys.version.split()[0],
+                              "platform": platform.platform()}
         else:
-            res = tamper(args.dir, load_policy(args.policy), mode=args.mode)
+            res = tamper(args.dir, load_policy(args.policy), mode=args.mode,
+                         trust_config=args.trust_config)
             res = {"cases": res,
                    "all_refused": all(c["refused"] for c in res.values())}
     except (Refused, subprocess.CalledProcessError, OSError,
@@ -518,6 +460,15 @@ def main(argv=None) -> int:
     if args.cmd == "tamper" and not res["all_refused"]:
         print("SUPPLY CHAIN TAMPER SUITE: a tampered copy was ACCEPTED")
         return 1
+    if args.cmd == "compare" and not res["holds"]:
+        broken = sorted(n for n, f in res["files"].items()
+                        if f.get("holds") is False)
+        print(f"REPRODUCIBILITY CONTRACT BROKEN: {broken}")
+        return 1
+    if args.cmd == "admit" and not res["admitted"]:
+        print("RELEASE NOT ADMITTED: "
+              f"{res['levels']['RELEASE_AUTHORIZED']['detail']}")
+        return 3
     return 0
 
 

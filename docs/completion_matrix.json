@@ -2849,7 +2849,9 @@
         "tools/supply_chain.py",
         "docs/supply_chain_ci_policy.json",
         "integrations/supply_chain/sigstore.lock",
-        ".github/workflows/supply-chain.yml"
+        ".github/workflows/supply-chain.yml",
+        "tools/offline_verify.py",
+        "docs/security/reproducibility_contract.json"
       ],
       "callers": [
         ".github/workflows/supply-chain.yml",
@@ -2858,18 +2860,21 @@
       "production_caller": null,
       "persistent_state": "the candidate directory (source.zip, sbom.cdx.json, provenance.intoto.json, index.json, SHA256SUMS and its sigstore bundle) and the verification and tamper reports, uploaded per run",
       "authority_owner": "none: a signature attests origin and integrity of bytes, never scientific validity; the policy file is labelled CI_VALIDATION_ONLY and is not a release trust root",
-      "evidence": "ro_crate_tools.py writes and validates the repository's RO-Crate 1.1; tools/ro_crate_conformance.py runs the community's roc-validator (profile ro-crate-1.1, from a hash-pinned lock) beside it on the real crate and on six broken ones, and a disagreement fails (that comparison found D-2026-106, D-2026-111 and D-2026-122: a data entity typed neither File nor Dataset, and a key no JSON-LD context defines). One control is recorded INTERNAL_STRICTER, measured: the community validator's REQUIRED profile accepts a data entity typed SoftwareSourceCode alone, which RO-Crate 1.1 and the internal validator do not (D-2026-125); that verdict holds in one direction only. tools/supply_chain.py builds the candidate deterministically for the checked-out commit: source.zip with fixed member order, timestamps and modes; a CycloneDX 1.5 SBOM of every locked environment; an in-toto statement in the SLSA provenance v1 layout with NO SLSA level claimed; an index binding the commit, the manifest's and the crate's digests. verify checks the signature on SHA256SUMS against the EXACT signer identity and issuer of the policy (online, or offline from the bundle's own transparency-log proof), then every layer beneath it -- each with a forgery consistent everywhere else, so no deleted check hides behind the one above it -- down to source.zip against the manifest it carries (every listed file present with its size and sha256, nothing unlisted, the detached hash, no member twice) and against the commit's tree in both directions. Until D-2026-127 each member was compared with the commit and not the commit with the members, so an archive that had lost a tracked file verified as MATCHES. tamper changes one thing per copy and requires every copy refused.",
+      "evidence": "ro_crate_tools.py writes and validates the repository's RO-Crate 1.1; tools/ro_crate_conformance.py runs the community's roc-validator (profile ro-crate-1.1, from a hash-pinned lock) beside it on the real crate and on six broken ones, and a disagreement fails (that comparison found D-2026-106, D-2026-111 and D-2026-122: a data entity typed neither File nor Dataset, and a key no JSON-LD context defines). One control is recorded INTERNAL_STRICTER, measured: the community validator's REQUIRED profile accepts a data entity typed SoftwareSourceCode alone, which RO-Crate 1.1 and the internal validator do not (D-2026-125); that verdict holds in one direction only. tools/supply_chain.py builds the candidate deterministically for the checked-out commit: source.zip with fixed member order, timestamps and modes; a CycloneDX 1.5 SBOM of every locked environment; an in-toto statement in the SLSA provenance v1 layout with NO SLSA level claimed; an index binding the commit, the manifest's and the crate's digests. verify checks the signature on SHA256SUMS against the EXACT signer identity and issuer of the policy (online, or offline from the bundle's own transparency-log proof), then every layer beneath it -- each with a forgery consistent everywhere else, so no deleted check hides behind the one above it -- down to source.zip against the manifest it carries (every listed file present with its size and sha256, nothing unlisted, the detached hash, no member twice) and against the commit's tree in both directions. Until D-2026-127 each member was compared with the commit and not the commit with the members, so an archive that had lost a tracked file verified as MATCHES. tamper changes one thing per copy and requires every copy refused. Since D-2026-143/144/145: verification is tools/offline_verify.py, standard library only, run from a directory holding nothing but itself with an empty environment and no network; it reports five ordered levels -- ARTIFACT_INTEGRITY, PROVENANCE_STRUCTURE, SIGNATURE_VERIFIED, SIGNER_TRUSTED, RELEASE_AUTHORIZED -- and no single accepted flag; a digest-only run establishes the first two. The SBOM is judged against the declarations inside the signed archive, Sigstore is given an explicitly provisioned trust configuration (refused if the bundle supplies it) and private copies of the bytes that were parsed. admit is the release gate and admits only against an external harness-release-policy/1; the CI policy can never satisfy it. docs/security/reproducibility_contract.json says which bytes are reproducible (source.zip, now STORED, and the SBOM), which differ only in named fields, and which belong to one run; the hosted rebuild-elsewhere job holds a second build on another image to it.",
       "provenance": "the source commit, every artifact's sha256, the signer identity and OIDC issuer, the Rekor inclusion proof in the bundle",
-      "failure_semantics": "fails closed at the first refusal: a missing signature is refused as absent, a missing runtime as unverifiable, a wildcard or non-GitHub policy as not exact",
+      "failure_semantics": "fails closed at the first refusal: a missing signature is refused as absent, a missing runtime as unverifiable, a wildcard or non-GitHub policy as not exact; a digest-only run is reported as such, never as accepted, and admit exits 3 when verification holds but RELEASE_AUTHORIZED does not",
       "recovery": "n/a",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "n/a",
-      "security_boundary": "the signing job alone holds id-token: write; verification uses the exact identity in the policy, never a pattern",
+      "security_boundary": "the signing job alone holds id-token: write; verification uses the exact identity in the policy, never a pattern; the policy and the trusted root are provisioned outside the bundle and refused from inside it, and a release policy must also lie outside the checkout",
       "tests": [
         "tests/test_supply_chain.py",
-        "tests/test_ro_crate_conformance.py"
+        "tests/test_ro_crate_conformance.py",
+        "tests/test_offline_verify.py",
+        "tests/test_release_admission.py",
+        "tests/test_release_reproducibility.py"
       ],
       "property_tests": [],
       "mutation_tests": [

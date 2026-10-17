@@ -1,14 +1,14 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 416,
+   "ADDED": 421,
    "MODIFIED": 32
   },
   "by_risk": {
-   "CRITICAL": 24,
+   "CRITICAL": 25,
    "HIGH": 43,
-   "LOW": 150,
-   "MEDIUM": 231
+   "LOW": 153,
+   "MEDIUM": 232
   },
   "by_subsystem": {
    "agent-substrate": 18,
@@ -20,7 +20,7 @@
    "container": 2,
    "dependencies": 2,
    "documentation": 23,
-   "evidence": 17,
+   "evidence": 18,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -30,14 +30,14 @@
    "scientific-authority": 2,
    "scientific-core": 29,
    "scientific-verification": 6,
-   "supply-chain": 4,
-   "tests": 127,
+   "supply-chain": 5,
+   "tests": 130,
    "tooling": 31,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 448
+  "files": 453
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -94,6 +94,7 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_claude_workflow_prompt.py",
+     "tests/test_offline_verify.py",
      "tests/test_security_findings.py"
     ]
    }
@@ -150,6 +151,7 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
+     "tests/test_release_admission.py",
      "tests/test_supply_chain.py"
     ]
    }
@@ -2327,6 +2329,21 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/security/reproducibility_contract.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "security audit records",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_release_reproducibility.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/supply_chain_ci_policy.json",
    "risk": "CRITICAL",
    "runtime_dependencies": [],
@@ -2368,6 +2385,7 @@
      "tests/test_container_manifest_coverage.py",
      "tests/test_manifest_completeness.py",
      "tests/test_manifest_policy.py",
+     "tests/test_offline_verify.py",
      "tests/test_supply_chain.py"
     ]
    }
@@ -2417,7 +2435,9 @@
    "verification": {
     "findings": [],
     "mutation_specs": [],
-    "tests": []
+    "tests": [
+     "tests/test_offline_verify.py"
+    ]
    }
   },
   {
@@ -2616,6 +2636,7 @@
      "tests/test_agent_authority_boundaries.py",
      "tests/test_manifest_completeness.py",
      "tests/test_manifest_policy.py",
+     "tests/test_offline_verify.py",
      "tests/test_supply_chain.py"
     ]
    }
@@ -5585,6 +5606,21 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_offline_verify.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_performance_telemetry.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -5664,6 +5700,36 @@
     "tests": [
      "tests/test_test_isolation.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_release_admission.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_release_reproducibility.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {
@@ -7675,6 +7741,28 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/offline_verify.py",
+   "risk": "CRITICAL",
+   "runtime_dependencies": [],
+   "subsystem": "supply-chain",
+   "trust_boundary": "release integrity and admission",
+   "verification": {
+    "findings": [
+     "F-01",
+     "F-02"
+    ],
+    "mutation_specs": [
+     "tools/mutations/supply_chain.json"
+    ],
+    "tests": [
+     "tests/test_completion_matrix.py",
+     "tests/test_offline_verify.py",
+     "tests/test_release_admission.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/performance_baseline.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -7826,6 +7914,9 @@
     "tests": [
      "tests/test_completion_matrix.py",
      "tests/test_dependency_declarations.py",
+     "tests/test_offline_verify.py",
+     "tests/test_release_admission.py",
+     "tests/test_release_reproducibility.py",
      "tests/test_security_findings.py",
      "tests/test_supply_chain.py"
     ]
@@ -7945,6 +8036,7 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_dependency_declarations.py",
+     "tests/test_offline_verify.py",
      "tests/test_reproduction_verdict.py",
      "tests/test_supply_chain.py"
     ]

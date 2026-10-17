@@ -33,8 +33,19 @@ def rc(tmp_path_factory):
 
 
 def test_the_candidate_verifies_by_digest_against_the_commit(rc):
+    """A digest-only run establishes integrity and provenance structure,
+    and SAYS that it checked no signature. It used to report
+    ``accepted: True`` -- the one flag a consumer reads (D-2026-143)."""
     rep = SC.verify(rc, SC.load_policy(POLICY), mode="digests")
-    assert rep["accepted"]
+    assert "accepted" not in rep
+    lv = rep["levels"]
+    assert lv["ARTIFACT_INTEGRITY"]["status"] == "ESTABLISHED"
+    assert lv["PROVENANCE_STRUCTURE"]["status"] == "ESTABLISHED"
+    assert lv["SIGNATURE_VERIFIED"]["status"] == "NOT_CHECKED"
+    assert lv["SIGNER_TRUSTED"]["status"] == "NOT_CHECKED"
+    assert lv["RELEASE_AUTHORIZED"]["status"] == "NOT_ESTABLISHED"
+    assert rep["release_authorized"] is False
+    assert rep["highest_established"] == "PROVENANCE_STRUCTURE"
     assert rep["source_tree"].startswith("MATCHES ")
     idx = json.loads((rc / "index.json").read_text())
     assert idx["slsa_level_claimed"] is None

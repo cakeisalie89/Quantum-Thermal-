@@ -20,8 +20,16 @@
      "path": "tools/supply_chain.py",
      "symbols": [
       "verify",
-      "verify_signature",
+      "admit",
       "main"
+     ]
+    },
+    {
+     "path": "tools/offline_verify.py",
+     "symbols": [
+      "verify_bundle",
+      "highest",
+      "meets"
      ]
     }
    ],
@@ -32,7 +40,7 @@
     "ref": "tests/test_release_admission.py::test_a_digest_only_report_never_admits_a_release",
     "observed_at_baseline": "verify(rc, policy, mode='digests')['accepted'] is True for an unsigned candidate"
    },
-   "status": "OPEN"
+   "status": "FIXED"
   },
   {
    "id": "F-02",
@@ -42,12 +50,19 @@
    "title": "verification depends on the verifier's checkout, lockfile and implicit trust root",
    "files": [
     {
+     "path": "tools/offline_verify.py",
+     "symbols": [
+      "verify_bundle",
+      "sbom_problems",
+      "sigstore_check",
+      "read_archive",
+      "parse_sums"
+     ]
+    },
+    {
      "path": "tools/supply_chain.py",
      "symbols": [
-      "verify",
-      "sbom_problems",
-      "verify_signature",
-      "archive_against_manifest"
+      "verify"
      ]
     }
    ],
@@ -55,10 +70,10 @@
    "impact": "The SBOM is compared with the VERIFIER's uv.lock and environment locks (sbom_problems(doc, root)), not with the declarations inside the signed source archive, so a correct release fails on another checkout and a consistently edited local lockfile changes the verdict. The signature is checked against whatever Sigstore trust root the verifier's sigstore package or TUF cache holds; the policy defaults to a path inside the checkout. Archive members are read whole with no size, count or ratio bound, and in digests mode that happens before anything is authenticated. SHA256SUMS lines are parsed leniently: a name listed twice keeps the last digest.",
    "reproduction": {
     "kind": "test",
-    "ref": "tests/test_offline_verify.py",
-    "observed_at_baseline": "sbom_problems compares against ROOT/uv.lock; verify_signature passes no --trust-config"
+    "ref": "tests/test_offline_verify.py::test_the_sbom_is_judged_against_the_releases_own_declarations",
+    "observed_at_baseline": "tools/supply_chain.py at 89e9da0: sbom_problems compared against ROOT/uv.lock; verify_signature passed no --trust-config"
    },
-   "status": "OPEN"
+   "status": "FIXED"
   },
   {
    "id": "F-03",
@@ -80,10 +95,10 @@
    "impact": "The module states 'the same commit always packs to the same bytes', tested only by two builds in one process and one environment. The provenance carries the run id, so SHA256SUMS and index.json differ between hosted runs, and nothing separates the deterministic payload from run-specific attestation.",
    "reproduction": {
     "kind": "test",
-    "ref": "tests/test_release_reproducibility.py",
+    "ref": "tests/test_release_reproducibility.py::test_the_byte_identical_files_are_byte_identical",
     "observed_at_baseline": "tests/test_supply_chain.py::test_the_archive_is_deterministic builds twice in the same environment"
    },
-   "status": "OPEN"
+   "status": "FIXED"
   },
   {
    "id": "CI-1",

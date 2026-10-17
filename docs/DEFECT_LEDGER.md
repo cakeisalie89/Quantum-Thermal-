@@ -7910,3 +7910,174 @@ first and are still outside the lock: `PolicyStore.publish` and
 path's task creation and compensation. They are finding T-2
 (`docs/security/findings.json`), OPEN; none is claimed safe by this
 record.
+
+## D-2026-143 — a digest-only verification said `accepted: True`, and no outcome separated integrity from authorization
+
+**CLASS** — `TRUE_DEFECT` (release admission), Tranche F finding F-01.
+
+**DEMONSTRATION.** At `89e9da0`, `verify(rc, policy, mode="digests")` over a
+candidate nobody had signed returned `{"accepted": True, "signature":
+"NOT_CHECKED (digests mode)"}` and the CLI exited 0. SHA256SUMS, the
+provenance and the index can all be rewritten consistently by whoever
+controls the directory, so the boolean a consumer is most likely to read
+said that a forged, unsigned candidate was accepted. Nothing distinguished
+bytes being consistent from a release being authorized. The second did not
+exist at all.
+
+**REPAIR.** Verification reports five ordered levels, each requiring the
+one before it, and no report carries an `accepted` flag:
+
+1. ARTIFACT_INTEGRITY
+2. PROVENANCE_STRUCTURE
+3. SIGNATURE_VERIFIED
+4. SIGNER_TRUSTED
+5. RELEASE_AUTHORIZED
+
+A digest-only run establishes the first two and reports the signature
+levels as NOT_CHECKED. `supply_chain.py admit` is the release gate:
+
+* it refuses a digest-only run outright;
+* it refuses a release policy found inside the bundle or inside this
+  checkout;
+* it admits only when RELEASE_AUTHORIZED is established.
+
+That level requires a `harness-release-policy/1` document with:
+
+* a tag ref, and a workflow other than the CI signer's;
+* `issued_by`;
+* a `not_after` date that has not passed;
+* a pinned trust-configuration digest.
+
+The CI policy can never satisfy the gate, and the hosted job requires the
+gate to refuse it (exit 3).
+
+**HELD BY.** `tests/test_release_admission.py` (20 tests). The positive
+control admits a release against an external policy through an injected
+signature checker; the checker is labelled in every level it touches, and
+the CLI cannot reach it, which an AST test holds. Each refusal has a twin
+that differs only in the reason under test. Mutations SC21–SC34 attack the
+levels and the gate.
+
+**NOT CLAIMED.** No release policy exists and none is created here: that
+trust root is the owner's to create. A valid signature attests the origin
+and integrity of these bytes, never that any number in them is correct.
+
+## D-2026-144 — verification depended on the verifier's own checkout, lockfile and implicit trust root
+
+**CLASS** — `TRUE_DEFECT` (verification portability and trust anchoring),
+Tranche F finding F-02.
+
+**DEMONSTRATION.** At `89e9da0`:
+
+* `sbom_problems(doc, root)` compared the SBOM with the VERIFYING machine's
+  `uv.lock` and environment locks. A candidate whose own archived `uv.lock`
+  was changed, with the SBOM left as the checkout's, therefore verified on
+  any machine whose lockfile matched the SBOM.
+* The Sigstore call passed no `--trust-config`, so the trust root was
+  whatever the verifier's sigstore package or TUF cache held.
+* Archive members were read whole, with no bound on size, count or ratio.
+* A name listed twice in SHA256SUMS kept its last digest.
+
+Two more defects surfaced during the repair:
+
+* SHA256SUMS was parsed, and then Sigstore was handed the bundle
+  directory's file to check. Whoever controls that directory could swap in
+  a genuinely signed list after the forged one was parsed, so the signature
+  would verify one list while the digests were checked against another.
+* Mutation SC1 (deleting the digest comparison) survived. Every forgery the
+  suites made was also caught deeper down, so no test could tell the two
+  builds apart.
+
+**REPAIR.** `tools/offline_verify.py` is the verifier. It imports only the
+standard library and reads only:
+
+* the bundle, with every input size-bounded and shape-checked before it is
+  trusted, and links refused;
+* a policy and a trust configuration that must lie outside the bundle;
+* a Sigstore runtime built from the hash-pinned lock, run with an empty
+  environment.
+
+The SBOM is derived from the declarations INSIDE the signed archive. In
+offline mode the verifier passes `--trust-config` and `--offline`, and
+offline verification without a provisioned trust configuration is refused.
+Sigstore judges private copies of the exact bytes that were parsed.
+`tools/supply_chain.py verify` is this verifier, plus the check of
+source.zip against the commit's tree when a checkout is at hand.
+
+**HELD BY.** `tests/test_offline_verify.py` (35 tests). Among them, the
+verifier runs from a directory holding nothing but itself, with an empty
+environment, inside a network namespace with no interfaces. Mutations:
+
+* SC1–SC20 were re-anchored where their checks moved, with names and
+  rationales unchanged;
+* SC35–SC48 attack the verifier's own inputs.
+
+Two hosted jobs carry the rest. The signing job runs the verifier by itself
+on the signed candidate, and signs a decoy for the substitution case. The
+`offline-verify` job keeps exactly three files from a sparse checkout
+(verifier, lock, CI policy) and deletes everything else. It then:
+
+* installs the lock with pip and the system Python;
+* provisions its own trusted root through TUF;
+* removes the network;
+* verifies the candidate, requires RELEASE_AUTHORIZED to be refused
+  (exit 3), and runs the hostile suite.
+
+The hostile suite covers these cases:
+
+* a byte flipped;
+* SHA256SUMS forged consistently;
+* an inconsistent commit;
+* the signature bundle missing, corrupted, or substituted by the decoy;
+* the trust configuration missing, emptied of authorities or of logs, or
+  supplied by the bundle;
+* the policy supplied by the bundle, or naming the wrong identity or
+  issuer;
+* a release policy that names the CI workflow, has expired, is checked
+  against a CI signature, or names a branch.
+
+**NOT CLAIMED.** The hosted results exist only for the commit they ran at;
+none is cited here. The verifier provisions its trusted root from the
+Sigstore public-good TUF repository rooted in the wheel's embedded
+`root.json`; who an organization trusts beyond that is a policy choice this
+tool does not make.
+
+## D-2026-145 — no contract said which release bytes must be identical across builds
+
+**CLASS** — `CLAIM_WITHOUT_CONTRACT`, Tranche F finding F-03.
+
+**DEMONSTRATION.** The module said "the same commit always packs to the
+same bytes", and only two builds in one process and one environment
+checked it. Two facts went unstated:
+
+* source.zip was DEFLATE-compressed, so its bytes depended on the zlib that
+  wrote it;
+* the provenance carries the run id, so SHA256SUMS and `index.json` differ
+  on every hosted run.
+
+**REPAIR.**
+
+* `docs/security/reproducibility_contract.json` classifies every artifact:
+  * byte-identical: source.zip and the SBOM;
+  * identical except for named fields: the provenance (its invocation id)
+    and the index (the provenance's digest);
+  * run-specific: SHA256SUMS, the signature bundle and the transparency-log
+    entry.
+* source.zip is now STORED (15.2 MiB, against 4.7 MiB deflated), so its
+  bytes are a function of the commit and the zip format alone.
+* `supply_chain.py compare` holds two builds to the contract.
+
+**HELD BY.** `tests/test_release_reproducibility.py` (7 tests): two builds
+in separate fresh clones, with different paths, time zones, locales, umasks
+and invocation ids, plus a comparator that must catch one flipped byte and
+one drifted field. Locally, Python 3.11 and 3.12 builds of one commit were
+compared and held. The hosted `rebuild-elsewhere` job rebuilds on
+ubuntu-22.04 with Python 3.11 and no project environment, and compares the
+result with the signed candidate.
+
+**NOT CLAIMED.**
+
+* Byte identity of a build from a dirty tree.
+* Reproducibility of the environments the SBOM describes; only their
+  declarations are bound.
+* Numerical equivalence of anything.
