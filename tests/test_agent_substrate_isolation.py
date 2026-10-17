@@ -128,6 +128,8 @@ ALLOWED_IMPORTERS = {
     # bound to a policy in force (D-2026-148): they drive the stores.
     "tests/test_agent_toctou.py",
     "tests/test_policy_binding.py",
+    # D-2026-149: an uncooperative tool against the executor's containment.
+    "tests/test_execution_containment.py",
     # NF-1T. The learned-record boundary's own tests: the store's live and
     # replayed refusal, the second reader's, and the lifecycle's links.
     "tests/test_neural_provenance.py",
@@ -183,7 +185,11 @@ ALLOWED_IMPORTERS = {
 # `projection` sits directly after `canonical` and imports nothing internal:
 # it digests SOURCE, and a reducer-identity module that imported the reducers
 # it identifies would be a cycle waiting for its first caller.
-LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
+LAYERS = ("canonical", "projection", "hostid",
+          # PID 1 of a tool's namespaces: a standalone script run by path,
+          # importing nothing of the package (D-2026-149).
+          "_ns_init",
+          "safeio", "actions", "events",
           "evidence",
           # Actor authentication: the signature primitive, the provider
           # seam that says what may stand behind it, then the attestations

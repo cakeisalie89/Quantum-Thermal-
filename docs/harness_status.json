@@ -6,7 +6,7 @@
   },
   "repository_content": {
    "committed_report_current": true,
-   "files": 458,
+   "files": 461,
    "findings": 0,
    "ok": true
   },
@@ -21,7 +21,7 @@
   }
  },
  "derived_from": {
-  "docs/completion_matrix.json": "293eba65aee8fd040e14c25e5d91dbd5a8ece03b529cc76c5fb44c688cf513a8",
+  "docs/completion_matrix.json": "ebcef627f5019ec9115e5a730d1d98d42ae8293dd21c70896bb1604fc218f043",
   "docs/harness_contract.json": "18e7d4ceecbd82facfe3ca711fe3298fe722afd49a4791fedb267830f523a94f",
   "docs/neural/claims.json": "2a68b01a96751124897e37a65ae0fb7b2ab2c9c480f85a764685dc99216ada87",
   "docs/neural/current_status.json": "a8916cc24d9b1d05fd8a9222a29e8c27321230e84d6063c7039f4df13526ae68",
@@ -50,8 +50,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 21,
-   "PREDATES_CURRENT_IMPLEMENTATION": 28
+   "COVERS_CURRENT_IMPLEMENTATION": 19,
+   "PREDATES_CURRENT_IMPLEMENTATION": 30
   },
   "rows": 49
  },
@@ -476,6 +476,18 @@
    "id": "snakemake",
    "kind": "stack",
    "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "R21",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R23",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },
   {
    "external": false,

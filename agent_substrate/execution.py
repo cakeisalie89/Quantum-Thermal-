@@ -70,9 +70,11 @@ import fnmatch
 import hashlib
 import os
 import resource
+import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 import time
 from dataclasses import dataclass, field
@@ -116,6 +118,21 @@ DEFAULT_MAX_CPU_SECONDS = 120
 #: approximation available to a process that does not own a cgroup: measure
 #: what the user is using and allow this much more.
 DEFAULT_MAX_ADDITIONAL_TASKS = 512
+#: Open file descriptors per process. RLIMIT_NOFILE was inherited from the
+#: caller -- 20000 where it was measured -- so a tool could hold as many
+#: descriptors as its supervisor (finding R-2).
+DEFAULT_MAX_OPEN_FILES = 256
+
+#: PID 1 of a tool's namespaces. See that file for why a shim and not the
+#: tool itself.
+_NS_INIT = Path(__file__).with_name("_ns_init.py")
+#: Kernel namespaces a tool runs in when the host allows them unprivileged:
+#: its own user namespace (to create the others without privilege), its own
+#: PID namespace (so every process it starts dies with it, setsid() or
+#: not), and its own network namespace (no interface but a loopback that
+#: is down: no connection to anything, the host's loopback included).
+_NAMESPACES = ("user", "pid", "net")
+_isolation_probe: dict = {}
 
 
 class ExecutionError(Exception):
@@ -168,6 +185,11 @@ class Limits:
     #: thing an operator actually wants bounded, and it is the only signal
     #: available here -- this executor sees output, not intent.
     idle_seconds: float = 0.0
+    open_files: int = DEFAULT_MAX_OPEN_FILES
+    #: Run the tool in its own user, PID and network namespaces when the
+    #: host allows it. What was actually achieved is recorded per run in
+    #: ``ExecutionResult.isolation``, never assumed from this flag.
+    isolate: bool = True
 
     def to_record(self) -> dict:
         return {"wall_seconds": self.wall_seconds,
@@ -176,6 +198,8 @@ class Limits:
                 "output_bytes": self.output_bytes,
                 "additional_tasks": self.additional_tasks,
                 "idle_seconds": self.idle_seconds,
+                "open_files": self.open_files,
+                "isolate": self.isolate,
                 "nproc_baseline": count_user_tasks()}
 
 
@@ -261,6 +285,11 @@ class ExecutionResult:
     #: reading a durable record of an EXTERNAL run that did not finish learns
     #: what to do from the record itself.
     compensation: str = ""
+    #: What the KERNEL enforced for this run beyond rlimits and the session:
+    #: ``{"namespaces": [...], "detail": ...}``. Empty namespaces means the
+    #: host did not allow them, and the detail says why -- a run is never
+    #: described as contained by more than it was (D-2026-149).
+    isolation: dict = field(default_factory=dict)
     #: Bounded excerpts, for a human reading a failure. DELIBERATELY excluded
     #: from :meth:`to_record`, and therefore from the log and from
     #: ``result_digest``: the digests above are the provenance, and putting a
@@ -318,6 +347,7 @@ class ExecutionResult:
             "undeclared_writes": list(self.undeclared_writes),
             "compensation": self.compensation,
             "retryable": self.retryable,
+            "isolation": dict(self.isolation),
         }
 
 
@@ -368,10 +398,47 @@ def _apply_limits(limits: Limits):
         resource.setrlimit(resource.RLIMIT_FSIZE,
                            (limits.output_bytes, limits.output_bytes))
         resource.setrlimit(resource.RLIMIT_NPROC, (nproc, nproc))
+        resource.setrlimit(resource.RLIMIT_NOFILE,
+                           (limits.open_files, limits.open_files))
         # No core dumps: a crash inside a sandboxed tool must not write a
         # multi-gigabyte image into a workspace that is size-governed.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     return _preexec
+
+
+def namespace_isolation() -> tuple:
+    """``(argv prefix, record)`` for running a tool in its own user, PID and
+    network namespaces, or ``((), record)`` saying why this host cannot.
+
+    Probed once per process by running the real wrapper over ``true``: a
+    host whose policy forbids unprivileged user namespaces (an AppArmor
+    restriction, a container without the capability) answers here, not in
+    the middle of a governed run.
+    """
+    if "result" not in _isolation_probe:
+        unshare = shutil.which("unshare")
+        prefix: tuple = ()
+        if unshare is None:
+            detail = "no unshare(1) on this host"
+        else:
+            cand = (unshare, "--user", "--map-root-user", "--pid", "--fork",
+                    "--kill-child", "--net", "--")
+            try:
+                probe = subprocess.run(
+                    [*cand, "true"], capture_output=True, timeout=10,
+                    env={"PATH": "/usr/bin:/bin"})
+                ok = probe.returncode == 0
+                why = probe.stderr.decode(errors="replace").strip()[:200]
+                detail = ("user, pid and net namespaces" if ok else
+                          f"unshare refused: {why}")
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                ok, detail = False, f"unshare did not run: {exc}"
+            if ok:
+                prefix = cand
+        _isolation_probe["result"] = (prefix, detail)
+    prefix, detail = _isolation_probe["result"]
+    return prefix, {"namespaces": list(_NAMESPACES) if prefix else [],
+                    "detail": detail}
 
 
 def _kill_group(proc: subprocess.Popen, sig: int) -> None:
@@ -671,12 +738,32 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
     proc = None
     outcome, reason = Outcome.FAILED, ""
     exit_status = signal_number = None
+    # IN ITS OWN NAMESPACES WHEN THE HOST ALLOWS IT (D-2026-149). The
+    # session and rlimits below are cooperative-proof only up to a point: a
+    # grandchild that calls setsid() leaves the group the timeout signals,
+    # and nothing stopped a connection. In a PID namespace every process
+    # the tool starts dies with its init; in a network namespace there is
+    # nothing to connect to. What was achieved is recorded, not assumed.
+    prefix, isolation = (namespace_isolation() if limits.isolate else
+                         ((), {"namespaces": [],
+                               "detail": "not requested (Limits.isolate)"}))
+    base["isolation"] = isolation
+    status_r = status_w = None
+    full_argv = list(argv)
+    if prefix:
+        status_r, status_w = os.pipe()
+        full_argv = [*prefix, sys.executable, "-I", "-S", str(_NS_INIT),
+                     str(status_w), "--", *argv]
     try:
         with out_path.open("wb") as fo, err_path.open("wb") as fe:
             proc = subprocess.Popen(
-                list(argv), cwd=str(cwd), stdout=fo, stderr=fe,
+                full_argv, cwd=str(cwd), stdout=fo, stderr=fe,
                 stdin=subprocess.DEVNULL, env=dict(env or {}),
-                preexec_fn=_apply_limits(limits), close_fds=True)
+                preexec_fn=_apply_limits(limits), close_fds=True,
+                pass_fds=(status_w,) if status_w is not None else ())
+            if status_w is not None:
+                os.close(status_w)
+                status_w = None
 
             # Recorded the moment it exists, so a supervisor that dies in
             # the next statement still leaves the child's identity behind.
@@ -755,6 +842,15 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
             signal_number = -rc
         else:
             exit_status = rc
+        if status_r is not None:
+            # The tool's own wait status, from the namespace's init: an init
+            # cannot re-raise a signal, so a signal death arrives here.
+            reported = os.read(status_r, 64).decode(errors="replace").split()
+            if len(reported) == 2 and reported[1].isdigit():
+                if reported[0] == "signal":
+                    signal_number, exit_status = int(reported[1]), None
+                elif reported[0] == "exit":
+                    signal_number, exit_status = None, int(reported[1])
 
         # THE BOUND IS CHECKED AFTER EXIT TOO (D-2026-78). The loop above
         # looks at the deadline only when a 50 ms wait times out, so a
@@ -839,6 +935,9 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
         if proc is not None and proc.poll() is None:  # pragma: no cover
             _kill_group(proc, signal.SIGKILL)
             proc.wait()
+        for fd in (status_r, status_w):
+            if fd is not None:
+                os.close(fd)
         for p in (out_path, err_path):
             p.unlink(missing_ok=True)
         try:

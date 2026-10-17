@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 426,
+   "ADDED": 429,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 43,
-   "LOW": 155,
-   "MEDIUM": 235
+   "HIGH": 44,
+   "LOW": 156,
+   "MEDIUM": 236
   },
   "by_subsystem": {
-   "agent-substrate": 18,
+   "agent-substrate": 19,
    "ai-ingress": 3,
-   "assurance": 94,
+   "assurance": 95,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,16 +31,17 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 132,
+   "tests": 133,
    "tooling": 31,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 458
+  "files": 461
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
+  "agent_substrate/_ns_init.py",
   "tools/isolated_runtime.py"
  ],
  "default_branch_commit": "096fb90fff089a62e4b20513de729a3e45a69f35",
@@ -518,6 +519,7 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_completion_matrix.py",
      "tests/test_decided_appends.py",
+     "tests/test_execution_containment.py",
      "tests/test_generated_mutations.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
@@ -573,6 +575,19 @@
     "mutation_specs": [
      "tools/mutations/governed_breadth.json"
     ],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "agent_substrate/_ns_init.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
     "tests": []
    }
   },
@@ -1033,12 +1048,14 @@
    "verification": {
     "findings": [
      "R-1",
-     "R-2"
+     "R-2",
+     "R-3"
     ],
     "mutation_specs": [
      "tools/mutations/agent_compensation.json",
      "tools/mutations/agent_execution.json",
-     "tools/mutations/decided_appends.json"
+     "tools/mutations/decided_appends.json",
+     "tools/mutations/execution_containment.json"
     ],
     "tests": [
      "tests/test_agent_compensation.py",
@@ -1047,7 +1064,9 @@
      "tests/test_agent_idempotency.py",
      "tests/test_agent_performance.py",
      "tests/test_agent_recovery.py",
-     "tests/test_decided_appends.py"
+     "tests/test_completion_matrix.py",
+     "tests/test_decided_appends.py",
+     "tests/test_execution_containment.py"
     ]
    }
   },
@@ -1782,7 +1801,8 @@
      "tests/test_agent_governed_breadth.py",
      "tests/test_agent_governed_tasks.py",
      "tests/test_agent_idempotency.py",
-     "tests/test_agent_performance.py"
+     "tests/test_agent_performance.py",
+     "tests/test_execution_containment.py"
     ]
    }
   },
@@ -5194,6 +5214,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_execution_containment.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_external_models.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -7113,6 +7150,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/enforcement_asserts.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/execution_containment.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

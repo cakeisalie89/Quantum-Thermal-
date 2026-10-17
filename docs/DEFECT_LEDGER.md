@@ -8256,3 +8256,86 @@ promoted under `"p"` on the governed path, and now uses the published policy.
 * The binding does not evaluate a policy's rules for the promotion. It
   establishes that the named policy is published, is the authority's, and
   is in force.
+
+## D-2026-149 — a tool's process tree, network and descriptors were bounded by nothing the tool could not leave
+
+**CLASS** — `TRUE_DEFECT` (runtime containment), Tranche F findings R-1 and
+R-2. Filesystem reads stay open as R-3.
+
+**DEMONSTRATION.** At `89e9da0`, a tool run under `run_bounded` was written
+to be uncooperative. After `run_bounded` returned TIMED_OUT, the probe
+observed:
+
+* a grandchild that had called `setsid()` was still alive, outside the
+  process group the timeout signals;
+* the tool had opened 5000 descriptors (RLIMIT_NOFILE was the caller's,
+  20000);
+* the tool had attempted an outbound connection, and nothing in the kernel
+  stood in its way.
+
+**REPAIR.** Where the host allows unprivileged user namespaces, `run_bounded`
+runs the tool as
+
+    unshare --user --map-root-user --pid --fork --kill-child --net -- \
+        python -I -S _ns_init.py FD -- TOOL...
+
+The parts of this do the following:
+
+* In a PID namespace, every process the tool starts dies when the
+  namespace's init exits, `setsid()` or not.
+* In a network namespace there is no route anywhere, the host's loopback
+  included.
+* The init is `_ns_init.py`, not the tool. The kernel does not deliver
+  unhandled signals to PID 1, so a tool running as PID 1 would ignore its
+  own SIGTERM and would report a death by signal as an exit. The init runs
+  the tool as an ordinary process, reaps orphans, and reports the tool's
+  exit or signal through a pipe the executor reads.
+* RLIMIT_NOFILE is set (`Limits.open_files`, default 256).
+* What a run got is recorded in `ExecutionResult.isolation`, from a probe of
+  the real wrapper, never from the request. `Limits(isolate=False)` turns
+  the namespaces off and says so.
+
+`AGENT_SUBSTRATE.md` claimed that `setsid` makes a timeout kill "the whole
+tree rather than orphaning a grandchild". That was not true, and now says
+what is.
+
+**HELD BY.** `tests/test_execution_containment.py`. Each isolated case has
+an `isolate=False` control showing the threat on this host:
+
+* the escapee survives;
+* the host's loopback answers.
+
+The isolated cases are:
+
+* the escapee dies, on a timeout and on a normal exit alike;
+* the tool's own exit and signal are reported;
+* no network, not even loopback;
+* descriptors are bounded, with a generous-bound control;
+* the caller's environment does not reach the tool.
+
+`HARNESS_ISOLATION_REQUIRED=1` turns a missing namespace from a skip into a
+failure. The agent-substrate jobs set it where the runner allows namespaces,
+after relaxing the runner's AppArmor restriction on them. A runner that
+still refuses skips those tests, and the containment mutations then fail
+rather than pass silently. `tools/mutations/execution_containment.json`
+(EC1–EC7, 7/7 killed) removes each piece:
+
+* isolation claimed but not applied;
+* the isolation flag ignored;
+* no PID namespace;
+* no network namespace;
+* no descriptor bound;
+* the init's report ignored;
+* no init at all.
+
+**NOT CLAIMED.**
+
+* Filesystem reads: there is no mount namespace or LSM policy, so a tool
+  reads what its user can (R-3, OPEN).
+* GPU, disk-space and network-bandwidth quotas.
+* Containment on a host that forbids unprivileged namespaces. There the
+  bounds are the session, the group and the rlimits, and the record says
+  so. Deploying kernel containment on such a host is a deployment
+  requirement (DEPLOYMENT.md), not a property of this code.
+* The governed path's existing records were made without these
+  namespaces. New runs say what they got.

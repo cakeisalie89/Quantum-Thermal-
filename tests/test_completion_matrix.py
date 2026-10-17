@@ -848,7 +848,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: store, the second reader and the governed path -- the implementation of
 #: eighteen more rows, whose hosted evidence predates them until a later
 #: commit cites runs at this one.
-EXPECTED_EVIDENCE_COVERS = 21
+#:
+#: 21 -> 19 with D-2026-149, in the same commit as it: tools now run in
+#: their own namespaces where the host allows, which changes
+#: agent_substrate/execution.py and the workflow that measures it -- two
+#: more rows whose hosted evidence predates them.
+EXPECTED_EVIDENCE_COVERS = 19
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

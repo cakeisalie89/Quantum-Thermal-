@@ -52,7 +52,8 @@ rather than a web:
 | `idempotency.py` | durable request identity, scoped to (owner, tool, key) so a guessed string reaches nothing |
 | `readpath.py` | who may read what: default-deny, capability-checked, every attempt recorded |
 | `tools.py` | tool contracts and a default-deny registry |
-| `execution.py` | kernel-bounded execution; a timeout is not a success |
+| `execution.py` | kernel-bounded execution; a timeout is not a success. When the host allows unprivileged namespaces a tool runs in its own user, PID and network namespaces, and each run records the isolation it actually got (D-2026-149) |
+| `_ns_init.py` | PID 1 of a tool's namespaces: runs the tool as an ordinary process, reports its exit or signal through a pipe, and its exit takes every process left in the namespace with it |
 | `checkpoint.py` | a cached verification result, never a second truth |
 | `proposals.py` | the AI proposal ingress: a proposal is a content-addressed envelope with a closed schema, received NON_AUTHORITATIVE (`proposal.receive`, idempotent by id) and submittable only as a governed model run whose result starts PROPOSED; it reads the log through `read_verified` and refuses what it cannot verify, and it can reach no authority of its own -- a proposer cannot even take its own claim into review (D-2026-105) |
 | `policy.py` | versioned rule documents, deny-overrides, dated decisions |
@@ -833,11 +834,22 @@ something a verifier can work out afterwards.
 
 `execution.py` runs tools in a subprocess, because an in-process call cannot be
 bounded: it shares the caller's memory, descriptors, environment and lifetime.
-CPU, address space, output size, process count and wall clock are enforced by
-the kernel against a process the caller does not share, `setsid` puts it in its
-own group so a timeout kills the whole tree rather than orphaning a grandchild,
-and the environment is **replaced** rather than inherited — inheritance is how
-a tool acquires credentials nobody granted it.
+CPU, address space, output size, process count, open descriptors and wall
+clock are enforced by the kernel against a process the caller does not share,
+`setsid` puts it in its own group so a timeout signals the whole group, and the
+environment is **replaced** rather than inherited — inheritance is how a tool
+acquires credentials nobody granted it.
+
+The group is not the tree. A grandchild that calls `setsid()` itself leaves
+the group, and outlived the timeout (D-2026-149). Where the host allows
+unprivileged user namespaces, the tool therefore runs in its own PID
+namespace under `_ns_init.py`, whose exit kills every process in it, and in
+its own network namespace, where there is nothing to connect to, not even the
+host's loopback. Where the host does not allow them, the run says so in
+`ExecutionResult.isolation` and the bounds are the group and the rlimits
+alone. Filesystem reads are confined by nothing here but the process's
+credentials; that is a deployment requirement (a read-only container
+filesystem or an LSM profile), not a property of this code.
 
 Output is capped with `RLIMIT_FSIZE` on real files rather than by a counter on
 a pipe. A counter caps what you *keep*; the kernel caps what is *produced*, and

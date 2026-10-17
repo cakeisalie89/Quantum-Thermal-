@@ -1,0 +1,59 @@
+{
+ "title": "An uncooperative tool against the executor's containment",
+ "note": "D-2026-149 (findings R-1, R-2). Each mutation removes one piece of kernel containment or of its reporting. tests/test_execution_containment.py pairs each isolated case with an isolate=False control that shows the threat on this host. Run with HARNESS_ISOLATION_REQUIRED=1, so a host without unprivileged namespaces fails instead of skipping (the shard job sets it only where the runner allows namespaces; see DEPLOYMENT.md).",
+ "suites": [
+  "tests/test_execution_containment.py",
+  "tests/test_agent_execution.py"
+ ],
+ "mutations": [
+  {
+   "name": "EC1_isolation_claimed_and_not_applied",
+   "path": "agent_substrate/execution.py",
+   "find": "    prefix, isolation = (namespace_isolation() if limits.isolate else",
+   "replace": "    prefix, isolation = (((), namespace_isolation()[1]) if limits.isolate else",
+   "rationale": "D-2026-149: the run records namespaces it never entered; the escapee and the network are back"
+  },
+  {
+   "name": "EC2_isolate_false_is_ignored",
+   "path": "agent_substrate/execution.py",
+   "find": "    prefix, isolation = (namespace_isolation() if limits.isolate else",
+   "replace": "    prefix, isolation = (namespace_isolation() if True else",
+   "rationale": "D-2026-149: a caller cannot turn isolation off, and the controls that show the threat stop showing it"
+  },
+  {
+   "name": "EC3_no_pid_namespace",
+   "path": "agent_substrate/execution.py",
+   "find": "\"--map-root-user\", \"--pid\", \"--fork\",",
+   "replace": "\"--map-root-user\", \"--fork\",",
+   "rationale": "D-2026-149: R-1: without a PID namespace a setsid() grandchild outlives the run"
+  },
+  {
+   "name": "EC4_no_network_namespace",
+   "path": "agent_substrate/execution.py",
+   "find": "\"--kill-child\", \"--net\", \"--\")",
+   "replace": "\"--kill-child\", \"--\")",
+   "rationale": "D-2026-149: R-2: the tool reaches the host's loopback and whatever else routes"
+  },
+  {
+   "name": "EC5_no_descriptor_bound",
+   "path": "agent_substrate/execution.py",
+   "find": "        resource.setrlimit(resource.RLIMIT_NOFILE,\n                           (limits.open_files, limits.open_files))",
+   "replace": "        pass",
+   "rationale": "D-2026-149: R-2: the tool holds as many descriptors as its supervisor"
+  },
+  {
+   "name": "EC6_the_inits_report_is_ignored",
+   "path": "agent_substrate/execution.py",
+   "find": "        if status_r is not None:\n            # The tool's own wait status",
+   "replace": "        if False:\n            # The tool's own wait status",
+   "rationale": "D-2026-149: a tool killed by a signal under isolation is reported as exiting 128+n"
+  },
+  {
+   "name": "EC7_the_namespace_init_is_skipped",
+   "path": "agent_substrate/execution.py",
+   "find": "        full_argv = [*prefix, sys.executable, \"-I\", \"-S\", str(_NS_INIT),\n                     str(status_w), \"--\", *argv]",
+   "replace": "        full_argv = [*prefix, *argv]",
+   "rationale": "D-2026-149: the tool is PID 1 of its namespace: its own SIGTERM is ignored and its signal deaths are lost"
+  }
+ ]
+}

@@ -300,10 +300,11 @@
    "impact": "_kill_group signals the tool's process group; a descendant in a new session is outside it, is reparented to init and runs on after run_bounded returns TIMED_OUT, with the tool's credentials and its inherited rlimits but no wall-clock bound.",
    "reproduction": {
     "kind": "test",
-    "ref": "tests/test_execution_containment.py",
+    "ref": "tests/test_execution_containment.py::test_a_setsid_grandchild_dies_with_the_run",
     "observed_at_baseline": "GRANDCHILD 2966 STILL ALIVE after timeout kill"
    },
-   "status": "OPEN"
+   "status": "FIXED",
+   "deployment_condition": "kernel containment where unprivileged user namespaces are allowed; elsewhere the run records that it had none (DEPLOYMENT.md)"
   },
   {
    "id": "R-2",
@@ -324,10 +325,11 @@
    "impact": "The child opened 5000 descriptors (RLIMIT_NOFILE is inherited, 20000 here), attempted an outbound TCP connection (it failed only because this host has no direct egress), and read /etc/passwd. run_bounded's docstring states the network limit honestly; the descriptor bound was missing; filesystem reads are confined by nothing but the process's own credentials.",
    "reproduction": {
     "kind": "test",
-    "ref": "tests/test_execution_containment.py",
+    "ref": "tests/test_execution_containment.py::test_an_isolated_tool_reaches_no_network_not_even_the_hosts_loopback",
     "observed_at_baseline": "FDS_OPENED 5000 NOFILE (20000, 20000); READ_PASSWD True"
    },
-   "status": "OPEN"
+   "status": "FIXED",
+   "deployment_condition": "the network namespace needs unprivileged user namespaces; the descriptor bound holds everywhere"
   },
   {
    "id": "T-2",
@@ -371,6 +373,31 @@
     "ref": "docs/DEFECT_LEDGER.md D-2026-147 NOT CLAIMED",
     "observed_at_baseline": "each named writer checks its projection and then calls log.append outside append_decided"
    },
+   "status": "OPEN"
+  },
+  {
+   "id": "R-3",
+   "ledger": "D-2026-149",
+   "priority": "P1",
+   "area": "runtime isolation",
+   "title": "a tool's filesystem reads are confined by nothing but the process's credentials",
+   "files": [
+    {
+     "path": "agent_substrate/execution.py",
+     "symbols": [
+      "run_bounded",
+      "namespace_isolation"
+     ]
+    }
+   ],
+   "precondition": "A tool whose code reads paths outside its workspace.",
+   "impact": "The tool reads anything its user can (measured: /etc/hostname, /etc/passwd). Writes outside the declared scope are detected afterwards as undeclared writes; reads are not detected or prevented.",
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_execution_containment.py::test_filesystem_reads_are_not_confined_by_this_executor",
+    "observed_at_baseline": "READ_PASSWD True"
+   },
+   "deployment_condition": "a read-only container filesystem, a mount namespace with only the workspace bound, or an LSM profile (DEPLOYMENT.md)",
    "status": "OPEN"
   }
  ]
