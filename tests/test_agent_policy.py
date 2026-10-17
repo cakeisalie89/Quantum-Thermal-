@@ -202,8 +202,12 @@ def test_policy_is_not_retroactive(store):
 
 
 def test_position_before_first_publication_is_denied(store):
-    store.log.append(actor="x", action="policy.decision", target="t",
-                     payload={"decision": {}, "decision_digest": ""})
+    # Filler at seq 0 so the publication lands at seq 1. It used to be a
+    # malformed policy.decision, which a publish never read; a publish now
+    # reads the history it appends onto (D-2026-148) and refuses that one,
+    # so the filler is another subsystem's record, inert here.
+    store.log.append(actor="x", action="context.build", target="t",
+                     payload={})
     store.publish(_doc(1), actor="owner")
     with pytest.raises(UnknownPolicy, match="after"):
         store.in_force_at("p", 0)
@@ -497,7 +501,10 @@ def test_the_reducer_is_only_ever_reached_in_log_order():
     expressions return the same document.
 
     That is a fact about the CALL SITES, not about the expression -- so the
-    call sites are what this asserts. Add an out-of-order caller and the two
+    call sites are what this asserts. Since D-2026-148 they are load(), the
+    two branches of _fold_new (each folds only records after the last one
+    folded, in sequence order) and _append_decided (the record just
+    written at the head, after that fold): four sites, all in log order. Add an out-of-order caller and the two
     stop agreeing, this test fails, and the mutation becomes meaningful
     again and belongs back in the spec.
 
@@ -514,10 +521,10 @@ def test_the_reducer_is_only_ever_reached_in_log_order():
              and n.func.attr == "apply"
              and isinstance(n.func.value, ast.Name)
              and n.func.value.id == "self"]
-    assert len(calls) == 3, (
-        f"policy.py now has {len(calls)} self.apply call sites, not 3; the "
-        "equivalence argument above covers exactly load() and the two write "
-        "paths, and a new one may fold events out of order")
+    assert len(calls) == 4, (
+        f"policy.py now has {len(calls)} self.apply call sites, not 4; the "
+        "equivalence argument above covers exactly load(), the fold and the "
+        "decided append, and a new one may fold events out of order")
 
     fns = {}
     for fn in ast.walk(tree):
@@ -526,7 +533,7 @@ def test_the_reducer_is_only_ever_reached_in_log_order():
                 if c in ast.walk(fn):
                     fns.setdefault(fn.name, 0)
                     fns[fn.name] += 1
-    assert set(fns) == {"load", "publish", "decide_and_record"}, (
+    assert set(fns) == {"load", "_fold_new", "_append_decided"}, (
         f"self.apply is now called from {sorted(fns)}; every caller must "
         "fold in log order for the re-check to see only the prefix")
 

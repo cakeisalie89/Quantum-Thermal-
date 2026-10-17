@@ -8168,3 +8168,91 @@ installation permissions.
 * The rules govern files on this branch. They govern the deployed agent
   only once the default branch carries them.
 * The agent's system prompt is not a control and is not counted as one.
+
+## D-2026-148 — a promotion named a policy that nothing checked was published, by whom, or still in force
+
+**CLASS** — `TRUE_DEFECT` (authority), Tranche F finding D-1 (hostile Case D).
+
+**DEMONSTRATION.** At `89e9da0`, on a plain store, a record moved through
+VERIFIED to PROMOTED under `policy_id="never-published"`, and the result was
+canonical. The governed tests did the same with `"p"`. I5 required only
+that a promotion name a policy. The store held no view of the policy
+subsystem, and `PolicyStore` had no withdrawal and no expiry, so "the
+policy was revoked" could not even be recorded.
+
+**REPAIR.**
+
+* **Policy store.** The owner of a policy (whoever published version 1) may
+  WITHDRAW it. Withdrawal is terminal, a fact of the log, and re-checked on
+  replay. A document may carry `not_after`, which sits in its body only
+  when set, so existing digests are unchanged. `in_force` and
+  `in_force_at` refuse a withdrawn or expired policy, and a recorded
+  decision is re-checked against the wall time it carries. `publish`,
+  `withdraw` and `decide_and_record` decide under the writer lock against
+  a folded view: the D-2026-147 discipline, closing the policy part of
+  finding T-2.
+* **Authority store.** A history may declare, once, through
+  `authority.policy_binding`, which principals' policies bind its
+  promotions. From then on, a promotion's policy, and the policy its
+  evidence cites, must meet all of these:
+  * published on that history by a named authority;
+  * not withdrawn;
+  * not expired at the promotion's wall time.
+
+  This is decided on the write path, re-decided on replay, and carried
+  through snapshots.
+* **Second reader.** `reconstruct.py` restates the rule from the policy
+  records themselves, and `reconstruct_subsystems` restates the withdrawal
+  rules. The auditor reports a decision that postdates its policy's
+  withdrawal.
+* **Governed path.** It declares the binding at start-up, naming the
+  owner, and no longer republishes a policy its owner withdrew.
+* **Tests changed to keep their meaning.**
+  * Governed tests that promoted under `"p"` now promote under the
+    published governed policy, so they keep testing admission rather than
+    the binding.
+  * One policy test used a malformed decision record as positional filler,
+    which a publish never used to read. The filler is now another
+    subsystem's record.
+  * The call-site argument for `_recheck_decision` now counts four sites,
+    all of them still in log order.
+
+**HELD BY.** `tests/test_policy_binding.py` (24 tests). Each refusal has a
+control that differs only in the reason:
+
+* never-published;
+* published by the promoter itself;
+* withdrawn, which is not retroactive;
+* expired;
+* a cited policy differing from the named one;
+* a second binding;
+* a forged line refused by both readers;
+* the binding surviving a checkpoint.
+
+`tests/test_scientific_authority_replay.py::test_the_governed_path_declares_the_binding`
+holds the production path. `tools/mutations/policy_binding.json` (PB1–PB23)
+deletes each rule. PB13 and PB17 survived the first run. With a write-path
+check deleted, the record was appended and only the replay of it raised the
+expected message, so the test could not tell a refusal from a write that
+left an unloadable log. The test now requires the log to load afterwards,
+with the policy as it was.
+
+**ALSO, IN THIS COMMIT.** Commit `fa2346e` (D-2026-147) added
+`tests/test_agent_toctou.py` without registering it in
+`tests/test_agent_substrate_isolation.py`'s allowlist of substrate
+importers, and that suite was not among the ones run for it. It is
+registered here, beside this record's test. `tests/test_replay_origin_view.py`
+promoted under `"p"` on the governed path, and now uses the published policy.
+
+**NOT CLAIMED.**
+
+* A history that declares no binding promotes under any named policy, as
+  before. Unit-level stores do not declare one; the governed path always
+  does.
+* Expiry is judged against the wall time a record carries. Verification
+  holds that time non-decreasing along the chain, but the record's writer
+  asserts it.
+* The scheduler's replay judges withdrawal by position and not expiry.
+* The binding does not evaluate a policy's rules for the promotion. It
+  establishes that the named policy is published, is the authority's, and
+  is in force.

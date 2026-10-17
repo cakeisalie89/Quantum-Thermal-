@@ -754,6 +754,36 @@ _PROFILE_REQUIRED = "AUTHENTICATED_REQUIRED"
 _PROFILES = frozenset({"UNAUTHENTICATED_LEGACY", _PROFILE_REQUIRED})
 
 
+#: D-2026-148, RESTATED. A history may declare, once, that every later
+#: promotion names a policy published on it by an authority the declaration
+#: names, not withdrawn and not expired at the promotion. Folded here from
+#: the policy records themselves and judged by this module's own rule, not
+#: by asking the store: a second reader that asked the store would agree
+#: with a broken store.
+_BINDING_ACTION = "authority.policy_binding"
+
+
+def _bound_promotion_refusal(binding: dict, policies: dict, policy_ids,
+                             seq: int, wall_time) -> str | None:
+    named = [x for x in policy_ids if x is not None]
+    if not named:
+        return "a bound promotion names no policy"
+    for pid in dict.fromkeys(named):
+        entry = policies.get(pid)
+        before = [] if entry is None else entry["versions"]
+        if entry is None or not before:
+            return f"policy {pid!r} was not published on this history by {seq}"
+        if entry["by"] not in binding["publishers"]:
+            return (f"policy {pid!r} was published by {entry['by']!r}, not a "
+                    "policy authority the history names")
+        if entry["withdrawn"] is not None and entry["withdrawn"] <= seq:
+            return f"policy {pid!r} was withdrawn at seq {entry['withdrawn']}"
+        limit = before[-1][2]
+        if limit is not None and wall_time > limit:
+            return f"policy {pid!r} expired at {limit}"
+    return None
+
+
 def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 evidence=None, authenticator=None) -> Reconstruction:
     """Rebuild authority state from a verified log.
@@ -799,6 +829,9 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
             out.task_replays += 1
         return held[0]
 
+    binding: dict | None = None
+    policies: dict = {}
+
     for ev in events:
         out.events_replayed += 1
         if ev.seq in unattested:
@@ -812,6 +845,40 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 out.unauthorized.append(
                     f"seq {ev.seq}: a security profile is declared once, by "
                     "a history's first event, and must be a known one")
+            continue
+
+        if action == _BINDING_ACTION:
+            named = p.get("publishers")
+            if binding is not None:
+                out.unauthorized.append(
+                    f"seq {ev.seq}: a second policy binding; the first, at "
+                    f"seq {binding['seq']}, stands")
+            elif (not isinstance(named, list) or not named
+                  or not all(isinstance(x, str) and x for x in named)):
+                out.unauthorized.append(
+                    f"seq {ev.seq}: a policy binding that names no policy "
+                    "authority; not applied")
+            else:
+                binding = {"seq": ev.seq, "publishers": set(named)}
+            continue
+
+        if action in ("policy.publish", "policy.withdraw"):
+            doc = p.get("document") if action == "policy.publish" else None
+            if isinstance(doc, dict) and isinstance(doc.get("policy_id"),
+                                                    str):
+                limit = doc.get("not_after")
+                entry = policies.setdefault(
+                    doc["policy_id"], {"by": ev.actor, "versions": [],
+                                       "withdrawn": None})
+                entry["versions"].append(
+                    (ev.seq, doc.get("version"),
+                     limit if isinstance(limit, (int, float))
+                     and not isinstance(limit, bool) else None))
+            elif action == "policy.withdraw":
+                entry = policies.get(p.get("policy_id"))
+                if entry is not None and entry["withdrawn"] is None:
+                    entry["withdrawn"] = ev.seq
+            out.foreign_events += 1
             continue
 
         if action == "record.create":
@@ -873,6 +940,19 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                         f"would be refused today: {refusal}")
                     # Do NOT apply. An unauthorized transition must not become
                     # canonical merely because it is present in the log.
+                    continue
+            if (reauthorize and binding is not None
+                    and p.get("dst") == _AUTH_PROMOTED):
+                refusal = _bound_promotion_refusal(
+                    binding, policies,
+                    (p.get("policy_id") or cur["policy_id"],
+                     {**cur["evidence"],
+                      **p.get("evidence", {})}.get("policy_id")),
+                    ev.seq, ev.wall_time)
+                if refusal is not None:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {rid} {cur['state']} -> PROMOTED "
+                        f"would be refused today: {refusal}")
                     continue
             if (reauthorize and isinstance(cur["kind"], str)
                     and cur["kind"].startswith(_LEARNED_PREFIX)
@@ -1235,6 +1315,9 @@ class SubsystemReconstruction:
 
     jobs: dict = field(default_factory=dict)
     policies: dict = field(default_factory=dict)
+    #: policy_id -> {"by": owner, "withdrawn_seq": seq or None}
+    #: (D-2026-148): who may withdraw a policy, and whether one did.
+    policy_owners: dict = field(default_factory=dict)
     decisions: dict = field(default_factory=dict)
     capabilities: dict = field(default_factory=dict)
     agents: dict = field(default_factory=dict)
@@ -1403,6 +1486,8 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_priority(ev, p, out)
         elif a == "policy.publish":
             _sub_policy_publish(ev, p, out)
+        elif a == "policy.withdraw":
+            _sub_policy_withdraw(ev, p, out)
         elif a == "policy.decision":
             _sub_policy_decision(ev, p, out)
         elif a == "capability.root":
@@ -1946,6 +2031,12 @@ def _sub_policy_publish(ev, p: dict, out) -> None:
         _note(out, ev, "policy.publish carries no document")
         return
     pid = doc.get("policy_id")
+    owner = out.policy_owners.setdefault(pid, {"by": ev.actor,
+                                               "withdrawn_seq": None})
+    if owner["withdrawn_seq"] is not None:
+        _note(out, ev, f"policy {pid!r} is republished after its withdrawal "
+                       f"at seq {owner['withdrawn_seq']}")
+        return
     versions = out.policies.setdefault(pid, [])
     version = doc.get("version")
     if any(v["version"] == version for v in versions):
@@ -1961,6 +2052,24 @@ def _sub_policy_publish(ev, p: dict, out) -> None:
         return
     versions.append({"version": version, "digest": p.get("policy_digest"),
                      "effective_seq": ev.seq})
+
+
+def _sub_policy_withdraw(ev, p: dict, out) -> None:
+    """Restated, D-2026-148: a policy is withdrawn once, by its owner (the
+    publisher of its first version), and only if it was published."""
+    pid = p.get("policy_id")
+    owner = out.policy_owners.get(pid)
+    if owner is None:
+        _note(out, ev, f"policy.withdraw names {pid!r}, which nothing "
+                       "published")
+    elif owner["withdrawn_seq"] is not None:
+        _note(out, ev, f"policy {pid!r} is withdrawn again (first at seq "
+                       f"{owner['withdrawn_seq']})")
+    elif ev.actor != owner["by"]:
+        _note(out, ev, f"{ev.actor!r} withdraws {pid!r}, which "
+                       f"{owner['by']!r} published")
+    else:
+        owner["withdrawn_seq"] = ev.seq
 
 
 def _sub_policy_decision(ev, p: dict, out) -> None:

@@ -59,6 +59,9 @@ OWNERS: dict = {
     # agent_substrate.policy
     "policy.publish": "policy",
     "policy.decision": "policy",
+    # D-2026-148: a policy's owner withdraws it, and from then on it
+    # authorizes nothing
+    "policy.withdraw": "policy",
     # agent_substrate.scheduler
     "scheduler.enqueue": "scheduler",
     "scheduler.transition": "scheduler",
@@ -98,6 +101,9 @@ OWNERS: dict = {
     # under, declared by its first event and enforced by the read primitives
     # themselves; every reducer meets it at seq 0 and passes it by (D-2026-92)
     "history.security_profile": "events",
+    # agent_substrate.store -- D-2026-148: promotions on this history name a
+    # policy published on it by an authority it names, and in force
+    "authority.policy_binding": "store",
 }
 
 KNOWN: FrozenSet[str] = frozenset(OWNERS)

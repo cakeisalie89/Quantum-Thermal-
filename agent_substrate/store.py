@@ -30,6 +30,7 @@ retried tool call cannot double-apply a transition.
 from __future__ import annotations
 
 import json
+import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field, replace
 
@@ -132,12 +133,33 @@ ACT_CHECKPOINT_STATE = "checkpoint.state"
 #: unattributed record in an audited log is a gap in the audit.
 CHECKPOINT_ACTOR = "checkpointer"
 
+#: A history's declaration that every later promotion on it names a policy
+#: that was published on it, by a principal the declaration names, and that
+#: is still in force at the promotion -- not withdrawn, not expired
+#: (D-2026-148). Made once; it only ever narrows what promotes.
+ACT_POLICY_BINDING = "authority.policy_binding"
+#: The policy subsystem's records, read here for the binding alone.
+_POLICY_PUBLISH = "policy.publish"
+_POLICY_WITHDRAW = "policy.withdraw"
+
 #: The actions THIS reducer applies. Everything else on the log is either
 #: another subsystem's business (skipped) or unrecognised (refused) -- see
 #: :mod:`agent_substrate.actions` for why those two cases must be told apart.
 OWNED = frozenset({ACT_CREATE, ACT_TRANSITION, ACT_DEPEND,
-                   ACT_CHECKPOINT_STATE})
+                   ACT_CHECKPOINT_STATE, ACT_POLICY_BINDING})
 
+
+
+def _binding_publishers(p, seq) -> list:
+    """The policy authorities a binding names: a non-empty list of ids."""
+    named = p.get("publishers") if isinstance(p, dict) else None
+    where = f"seq {seq}: " if seq is not None else ""
+    if (not isinstance(named, list) or not named
+            or not all(isinstance(x, str) and x for x in named)):
+        raise StoreError(
+            f"{where}a policy binding names its policy authorities: a "
+            "non-empty list of principal ids")
+    return sorted(set(named))
 
 
 class AuthorityStore:
@@ -182,6 +204,12 @@ class AuthorityStore:
         #: An anchor at ``_loaded_through``, so catching up costs O(new)
         #: rather than O(history). See Scheduler for why that matters.
         self._anchor: Anchor | None = None
+        #: The binding declared by this history, or None: ``{"seq",
+        #: "publishers"}``. See ACT_POLICY_BINDING.
+        self._binding: dict | None = None
+        #: policy_id -> ``{"publisher", "published": [[seq, version,
+        #: not_after]], "withdrawn_seq"}``, from the log's policy records.
+        self._policy_view: dict = {}
 
     @property
     def _resolver(self):
@@ -242,6 +270,8 @@ class AuthorityStore:
         self._loaded_through = -1
         self._loaded_prefix_verified = True
         self._anchor = None
+        self._binding = None
+        self._policy_view = {}
         self._authenticate(events)
         with self._one_origin_view():
             for ev in events:
@@ -372,9 +402,27 @@ class AuthorityStore:
             # business, and refusing it would make one log impossible to
             # share -- which is exactly what happened before this branch
             # existed: the authority store raised on 'policy.publish'.
+            #
+            # Except for what a promotion needs to know: which policies
+            # were published, by whom, and whether they were withdrawn. The
+            # policy store is the strict reader of those records; this one
+            # keeps the facts the binding is judged on, and counts any
+            # recorded withdrawal -- the direction that fails closed.
+            if ev.action in (_POLICY_PUBLISH, _POLICY_WITHDRAW):
+                self._fold_policy_record(ev)
             self._loaded_through = ev.seq
             return
         p = ev.payload
+        if ev.action == ACT_POLICY_BINDING:
+            if self._binding is not None:
+                raise StoreError(
+                    f"seq {ev.seq}: the policy binding was declared at seq "
+                    f"{self._binding['seq']}; a second declaration could "
+                    "name other policy authorities")
+            self._binding = {"seq": ev.seq,
+                             "publishers": _binding_publishers(p, ev.seq)}
+            self._loaded_through = ev.seq
+            return
         if ev.action == ACT_CHECKPOINT_STATE:
             # A FACT ABOUT THE PROJECTION, NOT A CHANGE TO IT.
             #
@@ -500,6 +548,14 @@ class AuthorityStore:
             # to the governed executions that produced them -- or, if they
             # cannot be read here, the record is UNVERIFIABLE rather than
             # silently VERIFIED. See agent_substrate.result_rules.
+            if State(p["dst"]) is State.PROMOTED:
+                refusal = self._policy_refusal(
+                    p.get("policy_id") or cur.policy_id,
+                    merged_evidence.get("policy_id"), ev.seq, ev.wall_time)
+                if refusal is not None:
+                    raise StoreError(
+                        f"seq {ev.seq}: {rid!r} -> PROMOTED: {refusal}. "
+                        "Presence in the log is not authority.")
             admission, basis = self._admit(
                 cur, State(p["dst"]), merged_evidence,
                 policy=p.get("admission_policy"), actor=ev.actor,
@@ -564,6 +620,11 @@ class AuthorityStore:
             "records": {rid: r.to_record()
                         for rid, r in sorted(self._records.items())},
             "applied_keys": dict(sorted(self._applied_keys.items())),
+            "policy_binding": self.policy_binding,
+            "policies": {pid: {"publisher": v["publisher"],
+                               "published": [list(x) for x in v["published"]],
+                               "withdrawn_seq": v["withdrawn_seq"]}
+                         for pid, v in sorted(self._policy_view.items())},
         }
 
     def snapshot_digest(self) -> str:
@@ -657,6 +718,24 @@ class AuthorityStore:
                 "snapshot applied_keys must map key -> record_id")
         self._applied_keys = dict(keys)
         self._loaded_through = through
+        binding = snap.get("policy_binding")
+        policies = snap.get("policies", {})
+        if binding is not None:
+            if not isinstance(binding, dict) or not isinstance(
+                    binding.get("seq"), int):
+                raise StoreError("snapshot policy_binding is malformed")
+            binding = {"seq": binding["seq"],
+                       "publishers": _binding_publishers(binding, None)}
+        if not isinstance(policies, dict) or not all(
+                isinstance(v, dict) and isinstance(v.get("published"), list)
+                for v in policies.values()):
+            raise StoreError("snapshot policies are malformed")
+        self._binding = binding
+        self._policy_view = {pid: {"publisher": v.get("publisher"),
+                                   "published": [list(x)
+                                                 for x in v["published"]],
+                                   "withdrawn_seq": v.get("withdrawn_seq")}
+                             for pid, v in policies.items()}
 
     # ---- checkpointing -------------------------------------------------
     def checkpoint(self, checkpoints, *, blobs=None,
@@ -1184,6 +1263,15 @@ class AuthorityStore:
             learned = learned_rules.refusal(cur.kind, dst)
             if learned is not None:
                 raise StoreError(f"{record_id}: {learned}")
+            # The binding is judged at the position and the time this record
+            # is written with, which is what its replay will judge it at.
+            now = time.time()
+            if dst is State.PROMOTED:
+                refusal = self._policy_refusal(
+                    policy_id or cur.policy_id, req.evidence.get("policy_id"),
+                    self._loaded_through + 1, now)
+                if refusal is not None:
+                    raise StoreError(f"{record_id} -> PROMOTED: {refusal}")
             payload = {"record_id": record_id, "src": cur.state.value,
                        "dst": dst.value, "role": role.value,
                        "evidence": evidence,
@@ -1199,10 +1287,97 @@ class AuthorityStore:
                 # whatever this code says in a later version.
                 payload["admission_policy"] = result_rules.CURRENT_POLICY
             return dict(actor=actor, action=ACT_TRANSITION,
-                        target=record_id, payload=payload)
+                        target=record_id, payload=payload, wall_time=now)
 
         self._append_decided(build)
         return self.get(record_id)
+
+    # ---- the policy binding (D-2026-148) --------------------------------
+    @property
+    def policy_binding(self) -> dict | None:
+        """``{"seq", "publishers"}`` if this history binds promotions to
+        published policies, else None."""
+        return None if self._binding is None else {
+            "seq": self._binding["seq"],
+            "publishers": list(self._binding["publishers"])}
+
+    def bind_policies(self, *, actor: str, publishers) -> dict:
+        """Declare that every later promotion on this history names a
+        policy published on it by one of ``publishers`` and still in force.
+        Once per history; it narrows what promotes and widens nothing."""
+        named = _binding_publishers({"publishers": list(publishers)}, None)
+
+        def build():
+            if self._binding is not None:
+                raise StoreError(
+                    f"the policy binding was already declared at seq "
+                    f"{self._binding['seq']}")
+            return dict(actor=actor, action=ACT_POLICY_BINDING,
+                        target="authority.promotion",
+                        payload={"publishers": named})
+
+        self._append_decided(build)
+        return self.policy_binding or {}
+
+    def _fold_policy_record(self, ev) -> None:
+        p = ev.payload if isinstance(ev.payload, dict) else {}
+        if ev.action == _POLICY_PUBLISH:
+            doc = p.get("document")
+            if not isinstance(doc, dict):
+                return
+            pid, version = doc.get("policy_id"), doc.get("version")
+            if not isinstance(pid, str) or not isinstance(version, int):
+                return
+            not_after = doc.get("not_after")
+            view = self._policy_view.setdefault(
+                pid, {"publisher": ev.actor, "published": [],
+                      "withdrawn_seq": None})
+            view["published"].append(
+                [ev.seq, version,
+                 not_after if isinstance(not_after, (int, float))
+                 and not isinstance(not_after, bool) else None])
+        else:
+            pid = p.get("policy_id")
+            view = self._policy_view.get(pid) if isinstance(pid, str) \
+                else None
+            if view is not None and view["withdrawn_seq"] is None:
+                view["withdrawn_seq"] = ev.seq
+
+    def _policy_refusal(self, policy_id, cited, seq: int,
+                        wall_time: float) -> str | None:
+        """Why a promotion at ``seq`` and ``wall_time`` naming ``policy_id``
+        (and citing ``cited`` in its evidence) is not bound to a policy in
+        force; None if it is, or if this history declared no binding."""
+        if self._binding is None:
+            return None
+        for pid in dict.fromkeys(x for x in (policy_id, cited)
+                                 if x is not None):
+            # The view holds what was folded before this position -- in a
+            # replay, the records before it; live, the head -- so every
+            # version in it was published by then.
+            view = self._policy_view.get(pid)
+            live = [] if view is None else view["published"]
+            if view is None or not live:
+                return (f"policy {pid!r} was not published on this history "
+                        f"by seq {seq}; an unpublished policy authorizes "
+                        "nothing")
+            if view["publisher"] not in self._binding["publishers"]:
+                return (f"policy {pid!r} was published by "
+                        f"{view['publisher']!r}, who is not a policy "
+                        "authority this history names "
+                        f"({self._binding['publishers']})")
+            if view["withdrawn_seq"] is not None and \
+                    view["withdrawn_seq"] <= seq:
+                return (f"policy {pid!r} was withdrawn at seq "
+                        f"{view['withdrawn_seq']}")
+            not_after = live[-1][2]
+            if not_after is not None and wall_time > not_after:
+                return (f"policy {pid!r} version {live[-1][1]} expired at "
+                        f"{not_after}, before this promotion "
+                        f"(wall time {wall_time})")
+        if policy_id is None and cited is None:
+            return "a bound promotion names no policy"
+        return None
 
     def _require_admissible(self, cur: "Record", dst: State,
                             evidence: dict, actor: str) -> None:

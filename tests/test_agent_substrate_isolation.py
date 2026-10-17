@@ -124,6 +124,10 @@ ALLOWED_IMPORTERS = {
     "tests/test_actor_authentication.py",
     "tests/test_authenticated_history.py",
     "tests/test_signed_append_lifecycle.py",
+    # Tranche F. Writers deciding under the lock (D-2026-147) and promotions
+    # bound to a policy in force (D-2026-148): they drive the stores.
+    "tests/test_agent_toctou.py",
+    "tests/test_policy_binding.py",
     # NF-1T. The learned-record boundary's own tests: the store's live and
     # replayed refusal, the second reader's, and the lifecycle's links.
     "tests/test_neural_provenance.py",

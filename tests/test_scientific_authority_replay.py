@@ -28,6 +28,7 @@ if str(ROOT) not in sys.path:
 
 from agent_substrate import reconstruct as rc  # noqa: E402
 from agent_substrate import result_rules  # noqa: E402
+from agent_substrate.governed_tasks import POLICY_ID  # noqa: E402
 from agent_substrate.authority import Role, State  # noqa: E402
 from agent_substrate.canonical import digest  # noqa: E402
 from agent_substrate.checkpoint import CheckpointStore  # noqa: E402
@@ -278,9 +279,9 @@ def test_a_forged_promotion_is_refused_by_both_readers(world):
     base = _copy("forged-promotion")
     forged = _put(base, _genuine_report(base, chk))
     _append_transition(base, run.record_id, src="VERIFIED", dst="PROMOTED",
-                       actor=PROMOTER, role="PROMOTER", policy_id="p",
+                       actor=PROMOTER, role="PROMOTER", policy_id=POLICY_ID,
                        evidence={"verification_report": forged,
-                                 "policy_id": "p"})
+                                 "policy_id": POLICY_ID})
     with pytest.raises(StoreError, match="not admissible"):
         _open(base)
     recon = _second_reader(base)
@@ -319,11 +320,48 @@ def _promote(base: Path, rid: str) -> AuthorityStore:
     g = _open(base)
     g.authority.transition(
         record_id=rid, dst=State.PROMOTED, actor=PROMOTER,
-        role=Role.PROMOTER, policy_id="p",
+        role=Role.PROMOTER, policy_id=POLICY_ID,
         evidence={"verification_report":
                   g.authority.get(rid).evidence["verification_report"],
-                  "policy_id": "p"})
+                  "policy_id": POLICY_ID})
     return g
+
+
+def test_the_governed_path_declares_the_binding(world):
+    """D-2026-148 on the production path: the governed history binds its
+    promotions to the owner's published policy. A promotion naming a
+    policy nobody published, or the governed policy after its owner
+    withdraws it, is refused live and by both readers on replay."""
+    from agent_substrate.policy import PolicyStore
+    run, chk = world
+    base = _copy("binding")
+    g = _open(base)
+    assert g.authority.policy_binding["publishers"] == ["owner"]
+    rid = run.record_id
+    report = g.authority.get(rid).evidence["verification_report"]
+    with pytest.raises(StoreError, match="not published"):
+        g.authority.transition(
+            record_id=rid, dst=State.PROMOTED, actor=PROMOTER,
+            role=Role.PROMOTER, policy_id="p",
+            evidence={"verification_report": report, "policy_id": "p"})
+    PolicyStore(EventLog(base / "log.jsonl")).load().withdraw(
+        POLICY_ID, actor="owner", reason="the review that adopted it was "
+                                         "itself withdrawn")
+    g = _open(base)
+    with pytest.raises(StoreError, match="withdrawn"):
+        g.authority.transition(
+            record_id=rid, dst=State.PROMOTED, actor=PROMOTER,
+            role=Role.PROMOTER, policy_id=POLICY_ID,
+            evidence={"verification_report": report, "policy_id": POLICY_ID})
+    _append_transition(base, rid, src="VERIFIED", dst="PROMOTED",
+                       actor=PROMOTER, role="PROMOTER", policy_id=POLICY_ID,
+                       evidence={"verification_report": report,
+                                 "policy_id": POLICY_ID})
+    with pytest.raises(StoreError, match="withdrawn"):
+        _open(base)
+    recon = _second_reader(base)
+    assert any(rid in u and "withdrawn" in u for u in recon.unauthorized)
+    assert recon.records[rid]["state"] == "VERIFIED"
 
 
 def test_lost_evidence_is_unverifiable_to_both_readers(world):

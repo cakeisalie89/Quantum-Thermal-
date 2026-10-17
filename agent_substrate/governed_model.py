@@ -451,6 +451,11 @@ class GovernedModelRuns:
         else:
             self.authority = AuthorityStore(log, evidence=evidence,
                                             origins=self.origins).load()
+        if self.authority.policy_binding is None:
+            # A governed history binds its promotions to the policy its
+            # owner published on it: not a name any promoter may write, and
+            # not one withdrawn or expired since (D-2026-148).
+            self.authority.bind_policies(actor="owner", publishers=("owner",))
         for iid, role in ((CHECK_WORKER_ID, AgentRole.EXECUTOR),
                           (REVIEWER_ID, AgentRole.VERIFIER)):
             try:

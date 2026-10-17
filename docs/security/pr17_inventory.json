@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 424,
+   "ADDED": 426,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 43,
-   "LOW": 154,
-   "MEDIUM": 234
+   "LOW": 155,
+   "MEDIUM": 235
   },
   "by_subsystem": {
    "agent-substrate": 18,
    "ai-ingress": 3,
-   "assurance": 93,
+   "assurance": 94,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 131,
+   "tests": 132,
    "tooling": 31,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 456
+  "files": 458
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -526,6 +526,7 @@
      "tests/test_neural_boundary.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
+     "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
@@ -644,6 +645,7 @@
      "tools/mutations/agent_audit.json",
      "tools/mutations/agent_idempotency.json",
      "tools/mutations/agent_snapshot_coherence.json",
+     "tools/mutations/policy_binding.json",
      "tools/mutations/task_execution_phase.json"
     ],
     "tests": [
@@ -656,6 +658,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
+     "tests/test_policy_binding.py",
      "tests/test_task_execution_phase.py"
     ]
    }
@@ -668,9 +671,7 @@
    "subsystem": "authority-core",
    "trust_boundary": "authority decision rules",
    "verification": {
-    "findings": [
-     "D-1"
-    ],
+    "findings": [],
     "mutation_specs": [
      "tools/mutations/agent_evidence.json",
      "tools/mutations/agent_substrate.json",
@@ -701,6 +702,7 @@
      "tests/test_model_check.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
+     "tests/test_policy_binding.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
      "tests/test_replay_origin_view.py",
@@ -829,6 +831,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
+     "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_replay_origin_view.py",
@@ -944,6 +947,7 @@
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_neural_provenance.py",
+     "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
@@ -1007,6 +1011,7 @@
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_neural_provenance.py",
+     "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
@@ -1059,6 +1064,7 @@
      "tools/mutations/checkpoint_recovery.json",
      "tools/mutations/governed_model.json",
      "tools/mutations/governed_model_reuse.json",
+     "tools/mutations/policy_binding.json",
      "tools/mutations/proposal_crash_recovery.json",
      "tools/mutations/proposal_ingress.json",
      "tools/mutations/replay_origin_view.json",
@@ -1131,6 +1137,7 @@
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_proposal_crash_recovery.py",
+     "tests/test_replay_origin_view.py",
      "tests/test_repo_contract.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
@@ -1305,12 +1312,12 @@
    "trust_boundary": "policy decisions",
    "verification": {
     "findings": [
-     "D-1",
-     "T-2"
+     "D-1"
     ],
     "mutation_specs": [
      "tools/mutations/agent_policy.json",
-     "tools/mutations/agent_snapshot_coherence.json"
+     "tools/mutations/agent_snapshot_coherence.json",
+     "tools/mutations/policy_binding.json"
     ],
     "tests": [
      "tests/test_agent_audit.py",
@@ -1332,7 +1339,9 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
      "tests/test_generated_mutations.py",
-     "tests/test_proposal_crash_recovery.py"
+     "tests/test_policy_binding.py",
+     "tests/test_proposal_crash_recovery.py",
+     "tests/test_scientific_authority_replay.py"
     ]
    }
   },
@@ -1447,7 +1456,9 @@
    "subsystem": "authority-core",
    "trust_boundary": "independent second reader",
    "verification": {
-    "findings": [],
+    "findings": [
+     "D-1"
+    ],
     "mutation_specs": [
      "tools/mutations/actor_authentication.json",
      "tools/mutations/agent_actions.json",
@@ -1460,6 +1471,7 @@
      "tools/mutations/agent_substrate.json",
      "tools/mutations/authenticated_history.json",
      "tools/mutations/neural_authority.json",
+     "tools/mutations/policy_binding.json",
      "tools/mutations/proposal_ingress.json",
      "tools/mutations/replay_origin_view.json",
      "tools/mutations/scientific_authority_replay.json",
@@ -1485,6 +1497,7 @@
      "tests/test_decided_appends.py",
      "tests/test_generic_consistency.py",
      "tests/test_neural_provenance.py",
+     "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
@@ -1669,6 +1682,7 @@
      "tools/mutations/checkpoint_recovery.json",
      "tools/mutations/decided_appends.json",
      "tools/mutations/neural_authority.json",
+     "tools/mutations/policy_binding.json",
      "tools/mutations/replay_origin_view.json",
      "tools/mutations/scientific_authority_replay.json"
     ],
@@ -1699,6 +1713,7 @@
      "tests/test_governed_model.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
+     "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
@@ -4983,7 +4998,9 @@
    "verification": {
     "findings": [],
     "mutation_specs": [],
-    "tests": []
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
    }
   },
   {
@@ -5665,6 +5682,23 @@
     "findings": [],
     "mutation_specs": [],
     "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_policy_binding.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
    }
   },
   {
@@ -7408,6 +7442,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/performance_telemetry.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/policy_binding.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

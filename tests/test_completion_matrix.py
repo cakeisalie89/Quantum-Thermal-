@@ -842,7 +842,13 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 40 -> 39 with D-2026-143/144/145, in the same commit as them: R65's
 #: verifier moved into tools/offline_verify.py, so its hosted evidence
 #: predates its implementation until a later commit cites runs at this one.
-EXPECTED_EVIDENCE_COVERS = 39
+#:
+#: 39 -> 21 with D-2026-148, in the same commit as it: promotions are bound
+#: to a policy in force, which changes the authority store, the policy
+#: store, the second reader and the governed path -- the implementation of
+#: eighteen more rows, whose hosted evidence predates them until a later
+#: commit cites runs at this one.
+EXPECTED_EVIDENCE_COVERS = 21
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

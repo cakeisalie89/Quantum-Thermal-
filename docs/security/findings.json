@@ -249,21 +249,25 @@
    "title": "a promotion names a policy id that nothing checks was published, or is still in force",
    "files": [
     {
-     "path": "agent_substrate/authority.py",
+     "path": "agent_substrate/store.py",
      "symbols": [
-      "check"
+      "_policy_refusal",
+      "bind_policies",
+      "AuthorityStore.transition"
      ]
     },
     {
      "path": "agent_substrate/policy.py",
      "symbols": [
-      "PolicyStore"
+      "PolicyStore.withdraw",
+      "in_force",
+      "in_force_at"
      ]
     },
     {
-     "path": "agent_substrate/store.py",
+     "path": "agent_substrate/reconstruct.py",
      "symbols": [
-      "AuthorityStore.transition"
+      "_bound_promotion_refusal"
      ]
     }
    ],
@@ -271,10 +275,10 @@
    "impact": "I5 requires only that policy_id is present. The authority store holds no view of the policy subsystem, so a promotion under a policy that was never published, or that its owner has withdrawn, is admitted and canonical. Policies can be published and versioned but not withdrawn or expired, so 'the policy was revoked' cannot even be recorded.",
    "reproduction": {
     "kind": "test",
-    "ref": "tests/test_hostile_composition.py::test_case_d_a_withdrawn_policy_does_not_promote",
+    "ref": "tests/test_policy_binding.py::test_a_promotion_after_the_policy_is_withdrawn_is_refused",
     "observed_at_baseline": "transition(dst=PROMOTED, policy_id='never-published') succeeds"
    },
-   "status": "OPEN"
+   "status": "FIXED"
   },
   {
    "id": "R-1",
@@ -333,13 +337,6 @@
    "title": "writers outside the agent directory and memory still decide against a loaded view and append outside the writer lock",
    "files": [
     {
-     "path": "agent_substrate/policy.py",
-     "symbols": [
-      "PolicyStore.publish",
-      "PolicyStore.decide_and_record"
-     ]
-    },
-    {
      "path": "agent_substrate/capability.py",
      "symbols": [
       "revoke"
@@ -368,7 +365,7 @@
     }
    ],
    "precondition": "Two processes, each with a projection loaded before the other's append, making the same decision (two revocations of one grant, two publications of one policy version).",
-   "impact": "The same class as T-1: both appends can succeed, and whether a later load then refuses the history depends on each reducer's tolerance of the duplicate. Not measured per writer in this tranche.",
+   "impact": "The same class as T-1: both appends can succeed, and whether a later load then refuses the history depends on each reducer's tolerance of the duplicate. Not measured per writer in this tranche. PolicyStore's writers were converted by D-2026-148; the others remain.",
    "reproduction": {
     "kind": "analysis",
     "ref": "docs/DEFECT_LEDGER.md D-2026-147 NOT CLAIMED",

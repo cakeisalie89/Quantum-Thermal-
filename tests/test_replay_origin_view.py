@@ -37,6 +37,7 @@ from agent_substrate.evidence import EvidenceStore  # noqa: E402
 from agent_substrate.governed_model import (  # noqa: E402
     GovernedModelRuns, GovernedOrigins,
 )
+from agent_substrate.governed_tasks import POLICY_ID  # noqa: E402
 from agent_substrate.store import AuthorityStore  # noqa: E402
 
 WS = "verification/stage10/_pytest_origin_view"
@@ -71,10 +72,10 @@ def world():
         rid = out[name][0].record_id
         g.authority.transition(
             record_id=rid, dst=State.PROMOTED, actor=PROMOTER,
-            role=Role.PROMOTER, policy_id="p",
+            role=Role.PROMOTER, policy_id=POLICY_ID,
             evidence={"verification_report":
                       g.authority.get(rid).evidence["verification_report"],
-                      "policy_id": "p"})
+                      "policy_id": POLICY_ID})
     yield out
     if base.exists():
         shutil.rmtree(base)
@@ -186,9 +187,9 @@ def test_an_anchored_catch_up_builds_one_view_for_what_it_folds(world):
     for r in (rid, a2.record_id):
         writer.authority.transition(
             record_id=r, dst=State.PROMOTED, actor=PROMOTER,
-            role=Role.PROMOTER, policy_id="p",
+            role=Role.PROMOTER, policy_id=POLICY_ID,
             evidence={"verification_report": chk.report_sha256,
-                      "policy_id": "p"})
+                      "policy_id": POLICY_ID})
     q0, v0 = reader.origins.questions, reader.origins.views_built
     assert reader.authority._anchor is not None
     reader.authority.catch_up()

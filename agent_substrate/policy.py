@@ -70,6 +70,18 @@ discharged it, so "I did that" is a record rather than a claim.
 answers, and a caller that catches denial should not silently absorb the
 second.
 
+WITHDRAWAL AND EXPIRY (D-2026-148)
+
+A policy stops authorizing in two ways, and both are facts of the log. Its
+owner -- whoever published version 1 -- may WITHDRAW it, which is terminal:
+nothing is in force for that id from the withdrawal's position on, and the
+id is not republished. A document may carry ``not_after`` (seconds since
+the epoch), after which it is EXPIRED: a write judges that against the
+clock, and a replay against the wall time the deciding record carries,
+which verification holds non-decreasing along the chain but which its
+writer asserts. Neither changes a decision recorded while the policy was
+in force.
+
 VERSIONS ARE GAP-FREE
 
 A document's version must be exactly one more than the previous version of the
@@ -79,10 +91,12 @@ for the version that is missing.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 
 from .canonical import digest
+from .events import EventLogError
 
 #: Explicit wildcard. Must be written out; a blank field is refused.
 ANY = "*"
@@ -90,6 +104,7 @@ ANY = "*"
 #: Event actions. Constants so a typo cannot create a second, unread action.
 ACT_POLICY_PUBLISH = "policy.publish"
 ACT_POLICY_DECISION = "policy.decision"
+ACT_POLICY_WITHDRAW = "policy.withdraw"
 
 #: A published document larger than this is refused. A policy nobody can read
 #: is not inspectable, and an unbounded one is a memory bomb on every replay.
@@ -127,6 +142,10 @@ class PolicyDenied(PolicyError):
 
 class UnknownPolicy(PolicyError):
     """No such policy was ever published, or none at the requested position."""
+
+
+class PolicyNotInForce(UnknownPolicy):
+    """Published, and since withdrawn or expired: it authorizes nothing."""
 
 
 class PolicyVersionError(PolicyError):
@@ -301,11 +320,21 @@ class PolicyDocument:
     version: int
     rules: tuple
     description: str = ""
+    #: Seconds since the epoch after which this version authorizes nothing,
+    #: or None. In the body only when set, so a document without one keeps
+    #: the digest it always had.
+    not_after: float | None = None
 
     def body(self) -> dict:
-        return {"policy_id": self.policy_id, "version": self.version,
-                "rules": [r.body() for r in self.rules],
-                "description": self.description}
+        b = {"policy_id": self.policy_id, "version": self.version,
+             "rules": [r.body() for r in self.rules],
+             "description": self.description}
+        if self.not_after is not None:
+            b["not_after"] = self.not_after
+        return b
+
+    def expired_at(self, at_time: float) -> bool:
+        return self.not_after is not None and at_time > self.not_after
 
     def digest(self) -> str:
         return digest(self.body())
@@ -350,8 +379,14 @@ class PolicyDocument:
 
 
 def document(*, policy_id: str, version: int, rules,
-             description: str = "") -> PolicyDocument:
+             description: str = "",
+             not_after: float | None = None) -> PolicyDocument:
     """Construct a document, validating shape and rule-id uniqueness."""
+    if not_after is not None and (
+            isinstance(not_after, bool)
+            or not isinstance(not_after, (int, float)) or not_after <= 0):
+        raise PolicyError(f"not_after must be seconds since the epoch, got "
+                          f"{not_after!r}")
     if not isinstance(policy_id, str) or not policy_id:
         raise PolicyError("policy_id must be a non-empty str")
     if (not isinstance(version, int) or isinstance(version, bool)
@@ -378,7 +413,9 @@ def document(*, policy_id: str, version: int, rules,
                 "not identify which rule decided")
         seen.add(r.rule_id)
     return PolicyDocument(policy_id=policy_id, version=version, rules=rules,
-                          description=str(description))
+                          description=str(description),
+                          not_after=(None if not_after is None
+                                     else float(not_after)))
 
 
 def document_from_record(rec: dict) -> PolicyDocument:
@@ -416,9 +453,16 @@ def document_from_record(rec: dict) -> PolicyDocument:
                 roles=rr["roles"], resources=rr["resources"],
                 reason=rr.get("reason", ""),
                 obligations=rr.get("obligations", ())))
+        unknown = set(rec) - {"policy_id", "version", "rules",
+                              "description", "not_after"}
+        if unknown:
+            raise PolicyError(
+                f"policy record carries unknown fields {sorted(unknown)}; "
+                "refusing a document this version does not fully understand")
         return document(policy_id=rec["policy_id"], version=rec["version"],
                         rules=tuple(rules),
-                        description=rec.get("description", ""))
+                        description=rec.get("description", ""),
+                        not_after=rec.get("not_after"))
     except KeyError as exc:
         raise PolicyError(f"policy record missing {exc}") from exc
     except ValueError as exc:
@@ -571,17 +615,61 @@ class PolicyStore:
         self.log = log
         #: policy_id -> list of (seq, PolicyDocument), version-ordered.
         self._published: dict = {}
+        #: policy_id -> the actor that published version 1: its owner.
+        self._owner: dict = {}
+        #: policy_id -> (seq, actor, reason) of its withdrawal.
+        self._withdrawn: dict = {}
         self._loaded_through = -1
+        self._folded_through = -1
+        self._anchor = None
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "PolicyStore":
         report, events = self.log.read_verified()
         report.raise_if_bad()
         self._published = {}
+        self._owner = {}
+        self._withdrawn = {}
         self._loaded_through = -1
+        self._folded_through = -1
         for ev in events:
             self.apply(ev)
+        self._anchor = (self.log.anchor_at(self._folded_through)
+                        if self._folded_through >= 0 else None)
         return self
+
+    def _fold_new(self) -> None:
+        """What other writers appended since this store last read: O(new)
+        from the anchor, a verified full read without one."""
+        if self._anchor is not None:
+            try:
+                events, self._anchor = self.log.advance(self._anchor)
+            except EventLogError:
+                self._anchor = None
+            else:
+                for ev in events:
+                    if ev.seq > self._folded_through:
+                        self.apply(ev)
+                return
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
+        for ev in events:
+            if ev.seq > self._folded_through:
+                self.apply(ev)
+        self._anchor = (self.log.anchor_at(self._folded_through)
+                        if self._folded_through >= 0 else None)
+
+    def _append_decided(self, decide):
+        """Decide against the history the record is appended onto, under
+        the writer lock (D-2026-147, D-2026-148): two publishers of one next
+        version, or a decision racing a withdrawal, otherwise both write."""
+        def under_lock(head_seq):
+            self._fold_new()
+            return decide()
+
+        ev = self.log.append_decided(under_lock)
+        self.apply(ev)
+        return ev
 
     def apply(self, ev) -> bool:
         """Fold one event in. Returns True when it was a policy event.
@@ -590,6 +678,7 @@ class PolicyStore:
         one reducer among several over a shared log and must not claim that
         another subsystem's event is unknown.
         """
+        self._folded_through = max(self._folded_through, ev.seq)
         if ev.action == ACT_POLICY_PUBLISH:
             doc = document_from_record(ev.payload["document"])
             claimed = ev.payload.get("policy_digest")
@@ -598,6 +687,11 @@ class PolicyStore:
                     f"seq {ev.seq}: policy record claims digest "
                     f"{str(claimed)[:12]} but its content hashes to "
                     f"{doc.digest()[:12]}")
+            if doc.policy_id in self._withdrawn:
+                raise PolicyError(
+                    f"seq {ev.seq}: {doc.policy_id!r} was withdrawn at seq "
+                    f"{self._withdrawn[doc.policy_id][0]}; a withdrawn policy "
+                    "is not republished under the same id")
             history = self._published.setdefault(doc.policy_id, [])
             expected = history[-1][1].version + 1 if history else 1
             if doc.version != expected:
@@ -606,6 +700,11 @@ class PolicyStore:
                     f"follows version {expected - 1}; versions must be "
                     "gap-free so 'which policy governed seq N' is answerable")
             history.append((ev.seq, doc))
+            self._owner.setdefault(doc.policy_id, ev.actor)
+            self._loaded_through = ev.seq
+            return True
+        if ev.action == ACT_POLICY_WITHDRAW:
+            self._recheck_withdrawal(ev)
             self._loaded_through = ev.seq
             return True
         if ev.action == ACT_POLICY_DECISION:
@@ -613,6 +712,26 @@ class PolicyStore:
             self._loaded_through = ev.seq
             return True
         return False
+
+    def _recheck_withdrawal(self, ev) -> None:
+        """Re-authorize a withdrawal on replay: the policy exists, is not
+        already withdrawn, and the withdrawer is its owner."""
+        p = ev.payload if isinstance(ev.payload, dict) else {}
+        pid = p.get("policy_id")
+        if pid not in self._published:
+            raise PolicyError(
+                f"seq {ev.seq}: withdrawal of {pid!r}, which nothing "
+                "published")
+        if pid in self._withdrawn:
+            raise PolicyError(
+                f"seq {ev.seq}: {pid!r} was already withdrawn at seq "
+                f"{self._withdrawn[pid][0]}")
+        if ev.actor != self._owner[pid]:
+            raise PolicyError(
+                f"seq {ev.seq}: {ev.actor!r} withdrew {pid!r}, which "
+                f"{self._owner[pid]!r} published; a policy is withdrawn by "
+                "its owner")
+        self._withdrawn[pid] = (ev.seq, ev.actor, str(p.get("reason", "")))
 
     def _recheck_decision(self, ev) -> None:
         """Re-derive a recorded verdict from the rules that were in force.
@@ -644,7 +763,7 @@ class PolicyStore:
             raise PolicyError(f"seq {ev.seq}: decision cites policy "
                               f"{policy_id!r}, which is not a policy id")
         try:
-            doc = self.in_force_at(policy_id, ev.seq)
+            doc = self.in_force_at(policy_id, ev.seq, at_time=ev.wall_time)
         except (UnknownPolicy, PolicyError) as exc:
             raise PolicyError(
                 f"seq {ev.seq}: decision cites policy {policy_id!r}, which "
@@ -690,16 +809,30 @@ class PolicyStore:
                     "the rules do not produce did not come from them.")
 
     # ---- reads ---------------------------------------------------------
-    def in_force(self, policy_id: str) -> PolicyDocument:
-        """The newest published version of ``policy_id``."""
+    def in_force(self, policy_id: str, *,
+                 at_time: float | None = None) -> PolicyDocument:
+        """The newest published version of ``policy_id``, if it still
+        authorizes: not withdrawn, and not expired at ``at_time`` (now when
+        not given)."""
         history = self._published.get(policy_id)
         if not history:
             raise UnknownPolicy(
                 f"no policy {policy_id!r} has been published; an unpublished "
                 "policy authorizes nothing")
-        return history[-1][1]
+        if policy_id in self._withdrawn:
+            seq, by, why = self._withdrawn[policy_id]
+            raise PolicyNotInForce(
+                f"policy {policy_id!r} was withdrawn by {by!r} at seq {seq}"
+                f" ({why}); a withdrawn policy authorizes nothing")
+        doc = history[-1][1]
+        if doc.expired_at(time.time() if at_time is None else at_time):
+            raise PolicyNotInForce(
+                f"{doc.identity} expired at {doc.not_after}; an expired "
+                "policy authorizes nothing")
+        return doc
 
-    def in_force_at(self, policy_id: str, at_seq: int) -> PolicyDocument:
+    def in_force_at(self, policy_id: str, at_seq: int, *,
+                    at_time: float | None = None) -> PolicyDocument:
         """The version published at or before ``at_seq``.
 
         This is what makes a historical decision re-checkable: an auditor
@@ -717,7 +850,24 @@ class PolicyStore:
                 f"policy {policy_id!r} was first published at seq "
                 f"{history[0][0]}, after {at_seq}; nothing governed that "
                 "position and the default is deny")
-        return candidates[-1]
+        withdrawn = self._withdrawn.get(policy_id)
+        if withdrawn is not None and withdrawn[0] <= at_seq:
+            raise PolicyNotInForce(
+                f"policy {policy_id!r} was withdrawn at seq {withdrawn[0]}, "
+                f"at or before {at_seq}; nothing governed that position")
+        doc = candidates[-1]
+        if at_time is not None and doc.expired_at(at_time):
+            raise PolicyNotInForce(
+                f"{doc.identity} expired at {doc.not_after}, before the "
+                f"record at seq {at_seq} (wall time {at_time})")
+        return doc
+
+    def withdrawn(self, policy_id: str) -> tuple | None:
+        """``(seq, actor, reason)`` of the withdrawal, or None."""
+        return self._withdrawn.get(policy_id)
+
+    def owner(self, policy_id: str) -> str | None:
+        return self._owner.get(policy_id)
 
     def versions(self, policy_id: str) -> tuple:
         """``(seq, version, digest)`` for every publication, oldest first."""
@@ -732,17 +882,47 @@ class PolicyStore:
         """Append a new version. Refuses gaps, reuse and silent edits."""
         if not isinstance(doc, PolicyDocument):
             raise PolicyError(f"expected a PolicyDocument, got {doc!r}")
-        history = self._published.get(doc.policy_id, [])
-        expected = history[-1][1].version + 1 if history else 1
-        if doc.version != expected:
-            raise PolicyVersionError(
-                f"{doc.policy_id!r} is at version {expected - 1}; the next "
-                f"publication must be version {expected}, not {doc.version}")
-        ev = self.log.append(
-            actor=actor, action=ACT_POLICY_PUBLISH, target=doc.policy_id,
-            payload={"document": doc.body(), "policy_digest": doc.digest()})
-        self.apply(ev)
+
+        def decide():
+            if doc.policy_id in self._withdrawn:
+                raise PolicyError(
+                    f"{doc.policy_id!r} was withdrawn; a withdrawn policy is "
+                    "not republished under the same id")
+            history = self._published.get(doc.policy_id, [])
+            expected = history[-1][1].version + 1 if history else 1
+            if doc.version != expected:
+                raise PolicyVersionError(
+                    f"{doc.policy_id!r} is at version {expected - 1}; the "
+                    f"next publication must be version {expected}, not "
+                    f"{doc.version}")
+            return {"actor": actor, "action": ACT_POLICY_PUBLISH,
+                    "target": doc.policy_id,
+                    "payload": {"document": doc.body(),
+                                "policy_digest": doc.digest()}}
+
+        self._append_decided(decide)
         return doc
+
+    def withdraw(self, policy_id: str, *, actor: str, reason: str) -> None:
+        """Withdraw ``policy_id``: from here on it authorizes nothing, at
+        any version. Its owner's act, terminal, and a fact of the log."""
+        if not isinstance(reason, str) or not reason.strip():
+            raise PolicyError("a withdrawal states why")
+
+        def decide():
+            if policy_id not in self._published:
+                raise UnknownPolicy(f"no policy {policy_id!r} to withdraw")
+            if policy_id in self._withdrawn:
+                raise PolicyNotInForce(f"{policy_id!r} is already withdrawn")
+            if actor != self._owner[policy_id]:
+                raise PolicyError(
+                    f"{actor!r} may not withdraw {policy_id!r}; its owner, "
+                    f"{self._owner[policy_id]!r}, published it")
+            return {"actor": actor, "action": ACT_POLICY_WITHDRAW,
+                    "target": policy_id,
+                    "payload": {"policy_id": policy_id, "reason": reason}}
+
+        self._append_decided(decide)
 
     def evaluate(self, policy_id: str, req: PolicyRequest, *,
                  at_seq: int | None = None) -> Decision:
@@ -759,11 +939,15 @@ class PolicyStore:
         permitted cannot answer "what did this agent try", which is the
         question an incident starts with.
         """
-        decision = self.evaluate(policy_id, req)
-        ev = self.log.append(
-            actor=actor, action=ACT_POLICY_DECISION,
-            target=target or req.resource,
-            payload={"decision": decision.to_record(),
-                     "decision_digest": decision.digest()})
-        self.apply(ev)
-        return Decision(**{**decision.__dict__, "at_seq": ev.seq})
+        made: list = []
+
+        def decide():
+            decision = self.evaluate(policy_id, req)
+            made.append(decision)
+            return {"actor": actor, "action": ACT_POLICY_DECISION,
+                    "target": target or req.resource,
+                    "payload": {"decision": decision.to_record(),
+                                "decision_digest": decision.digest()}}
+
+        ev = self._append_decided(decide)
+        return Decision(**{**made[-1].__dict__, "at_seq": ev.seq})

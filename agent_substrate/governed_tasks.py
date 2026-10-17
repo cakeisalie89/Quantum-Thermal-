@@ -505,9 +505,10 @@ class GovernedTasks:
         republishing a policy: versions are gap-free, so this publishes only
         when nothing is published yet.
         """
-        try:
-            self.policy.in_force(POLICY_ID)
-        except Exception:                            # noqa: BLE001
+        # PUBLISHED AT ALL, not "in force": a policy its owner withdrew is
+        # not quietly republished by the next process to open the log
+        # (D-2026-148). It stays withdrawn, and what it governed stops.
+        if not self.policy.versions(POLICY_ID):
             self.policy.publish(governed_policy(), actor="owner")
         roles = {SUBMITTER_ID: AgentRole.PROPOSER,
                  WORKER_ID: AgentRole.EXECUTOR,

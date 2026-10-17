@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "56a592168f589314c84b76c4ec66a252b90b4e11e80be086cb70266111f80432",
+  "entries_digest": "f87702e1ae29b0298da9b3e3c09cbf2baccde3684d097ca4b9ed80043a3a5242",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -22,7 +22,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "ac6ed3f5d2fa870e9d19262ed98a7d70abdeb7f6163ab4b1e9781a198676a809"
+      "sha256": "11a058c7a3e064511b7df17d774a90a46bda7c52b29c715d5bc733ed60d9fd34"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -74,7 +74,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "72dedafc1971d226c610331ab4498c5d4e2298aa8cb0e116bb7220d8fadb99d9"
+      "sha256": "d54836e4e1fc22593ee93590b57e698d05a5f653b8c9fe0957c59faa7320f7d5"
     },
     {
       "path": "docs/security/owner_actions.md",

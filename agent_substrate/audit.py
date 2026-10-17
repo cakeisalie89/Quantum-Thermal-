@@ -179,6 +179,7 @@ ACT_RECORD_TRANSITION = "record.transition"
 ACT_RECORD_DEPEND = "record.depend"
 ACT_POLICY_PUBLISH = "policy.publish"
 ACT_POLICY_DECISION = "policy.decision"
+ACT_POLICY_WITHDRAW = "policy.withdraw"
 
 _RECORD_ACTIONS = (ACT_RECORD_CREATE, ACT_RECORD_TRANSITION,
                    ACT_RECORD_DEPEND)
@@ -839,6 +840,15 @@ class AuditIndex:
                 f"the decision claims version {d.get('version')} but the "
                 f"document with that digest was published as version "
                 f"{match[0][1]}")
+        withdrawn = next(
+            (e for e in self.events if e.action == ACT_POLICY_WITHDRAW
+             and (e.payload or {}).get("policy_id") == d.get("policy_id")
+             and e.seq < at_seq), None)
+        if withdrawn is not None:
+            gaps.append(
+                f"policy {d.get('policy_id')!r} was withdrawn by "
+                f"{withdrawn.actor!r} at seq {withdrawn.seq}, before this "
+                "decision: a withdrawn policy decides nothing (D-2026-148)")
         return Explanation(
             f"decision@{at_seq}",
             "ALLOW" if d.get("allowed") else "DENY",

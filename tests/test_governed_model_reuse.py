@@ -29,7 +29,7 @@ from agent_substrate.evidence import EvidenceStore  # noqa: E402
 from agent_substrate.governed_model import (  # noqa: E402
     REVIEWER_ID, TOOL_RUN_SLAB, GovernedModelRuns, ModelRunRefused,
 )
-from agent_substrate.governed_tasks import SUBMITTER_ID  # noqa: E402
+from agent_substrate.governed_tasks import POLICY_ID, SUBMITTER_ID  # noqa: E402
 from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_models_reuse"
@@ -233,7 +233,7 @@ def _move(g, rid, dst, actor, role, key, **kw):
     if dst is State.PROMOTED:
         ev = {"verification_report":
               g.authority.get(rid).evidence["verification_report"],
-              "policy_id": "p"}
+              "policy_id": POLICY_ID}
     g.authority.transition(record_id=rid, dst=dst, actor=actor, role=role,
                            evidence=ev, **kw)
 
@@ -254,7 +254,7 @@ def test_a_result_withdrawn_after_verification_is_not_reused(world, steps):
     rid = _record(world, "withdrawn-" + "-".join(s[0].value for s in steps))
     for dst, actor, role, key in steps:
         _move(g, rid, dst, actor, role, key,
-              **({"policy_id": "p"} if dst is State.PROMOTED else {}))
+              **({"policy_id": POLICY_ID} if dst is State.PROMOTED else {}))
     rec = g.authority.get(rid)
     assert rec.state is steps[-1][0]
     # The store clears the admission when authority is withdrawn.
@@ -313,10 +313,10 @@ def test_a_promoted_result_is_reusable(world):
     rid = _record(world, "promoted")
     rec = g.authority.transition(
         record_id=rid, dst=State.PROMOTED, actor="result-promoter",
-        role=Role.PROMOTER, policy_id="p",
+        role=Role.PROMOTER, policy_id=POLICY_ID,
         evidence={"verification_report":
                   g.authority.get(rid).evidence["verification_report"],
-                  "policy_id": "p"})
+                  "policy_id": POLICY_ID})
     assert rec.state is State.PROMOTED and rec.admission == "ADMITTED"
     assert rid in g.reusable(_ident(world))
 
