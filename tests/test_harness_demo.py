@@ -56,6 +56,37 @@ def test_the_generic_leg_runs_end_to_end(generic):
     assert "fmu" not in generic["legs"]
 
 
+def test_the_demonstration_builds_and_verifies_a_release_candidate(generic):
+    """Step 8 at the scope a run without an OIDC identity has: integrity
+    and provenance established, the signature NOT checked here and saying
+    so, and the gate refusing to admit a digest-only verification."""
+    rel = generic["release"]
+    assert rel["levels"]["ARTIFACT_INTEGRITY"] == "ESTABLISHED"
+    assert rel["levels"]["PROVENANCE_STRUCTURE"] == "ESTABLISHED"
+    assert rel["levels"]["SIGNATURE_VERIFIED"] == "NOT_CHECKED"
+    assert rel["release_authorized"] is False
+    assert rel["gate"]["admitted"] is False
+    assert "never admits" in rel["gate"]["reason"]
+    assert rel["signature"]["status"] == "NOT_CHECKED_HERE"
+    assert rel["source_tree"].startswith("MATCHES ")
+
+
+def test_the_demonstration_refuses_every_hostile_input(generic):
+    hostile = generic["hostile"]
+    assert set(hostile) == {"tampered_release_candidate", "forged_admission",
+                            "proposer_as_reviewer",
+                            "decision_under_a_withdrawn_policy"}
+    assert all(c["refused"] and c["reason"] for c in hostile.values()), \
+        hostile
+    assert "not the signed digest" in \
+        hostile["tampered_release_candidate"]["reason"] or \
+        "manifest" in hostile["tampered_release_candidate"]["reason"]
+    assert "cannot decide" in hostile["proposer_as_reviewer"]["reason"]
+    assert "withdrawn" in \
+        hostile["decision_under_a_withdrawn_policy"]["reason"]
+    assert hostile["forged_admission"]["second_reader_flags_it"]
+
+
 def test_a_demonstration_compared_with_itself_is_byte_identical(generic,
                                                                 tmp_path):
     a = tmp_path / "a.json"
@@ -95,7 +126,16 @@ def _full():
         "crate": {"problems": []},
         "recovery": {"mode": "CHECKPOINT_ASSISTED", "healthy": True,
                      "agrees_with_full_replay": True,
-                     "prefix_verified": False}}
+                     "prefix_verified": False},
+        "release": {"highest_established": "PROVENANCE_STRUCTURE",
+                    "release_authorized": False,
+                    "gate": {"admitted": False}},
+        "hostile": {
+            "tampered_release_candidate": {"refused": True},
+            "forged_admission": {"refused": True,
+                                 "second_reader_flags_it": True},
+            "proposer_as_reviewer": {"refused": True},
+            "decision_under_a_withdrawn_policy": {"refused": True}}}
 
 
 def test_the_judge_accepts_a_complete_demonstration():
@@ -121,6 +161,15 @@ def test_the_judge_accepts_a_complete_demonstration():
     (("recovery", "mode"), "FULL_REPLAY", "restart"),
     (("recovery", "agrees_with_full_replay"), False, "restart"),
     (("recovery", "healthy"), False, "restart"),
+    (("release", "highest_established"), "RELEASE_AUTHORIZED",
+     "release candidate"),
+    (("release", "gate", "admitted"), True, "release candidate"),
+    (("hostile", "forged_admission", "refused"), False,
+     "HOSTILE INPUT WAS NOT REFUSED"),
+    (("hostile", "proposer_as_reviewer", "refused"), False,
+     "HOSTILE INPUT WAS NOT REFUSED"),
+    (("hostile", "forged_admission", "second_reader_flags_it"), False,
+     "second reader did not flag"),
 ])
 def test_the_judge_refuses_an_incomplete_demonstration(path, value, why):
     rep = copy.deepcopy(_full())

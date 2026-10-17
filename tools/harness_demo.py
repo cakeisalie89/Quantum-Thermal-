@@ -24,6 +24,16 @@ One governed history, no hardware-era mode anywhere in it:
     reconstruction              the second reader and the generic
                                 consistency verifier over the same log
     packaging                   an RO-Crate of the demonstration's files
+    release candidate           built from the commit and verified by the
+                                portable verifier to PROVENANCE_STRUCTURE;
+                                the release gate refuses a digest-only run.
+                                The live signature is the hosted
+                                supply-chain job's (GitHub OIDC); here it is
+                                NOT_CHECKED and the report says so
+    hostile inputs              a tampered candidate, a forged admission, the
+                                proposer as its own reviewer, a decision
+                                under a withdrawn policy: each refused, and
+                                the demonstration fails if one is not
 
 and an FMI leg through the SAME boundary: the FMU built, cited by digest,
 run in its own runtime as a governed task, checked against the closed form,
@@ -116,7 +126,8 @@ def _decision(g, run, chk) -> dict:
     return out
 
 
-def slab_leg(log, ev, g, ctx, fenicsx: str | None, base: Path) -> dict:
+def slab_leg(log, ev, g, ctx, fenicsx: str | None, base: Path,
+             keep: dict | None = None) -> dict:
     from scientific import hdf5_bundle as H
     from scientific.models.slab_transient import SlabTransientModel
     from scientific.result import ResultBundle
@@ -145,6 +156,8 @@ def slab_leg(log, ev, g, ctx, fenicsx: str | None, base: Path) -> dict:
     if back.to_record() != bundle.to_record() or arts != payloads:
         raise DemoFailed("the HDF5 representation did not round-trip")
     decision = _decision(g, run, fem or series)
+    if keep is not None:
+        keep.update(run=run, check=fem or series)
     return {"proposal_id": receipt.envelope.proposal_id,
             "proposal_digest": receipt.envelope.digest(),
             "context_digest": ctx["digest"],
@@ -266,6 +279,127 @@ def crate(base: Path, report: dict) -> dict:
             "problems": problems, "sha256": _sha_file(out)}
 
 
+def release_leg(base: Path) -> dict:
+    """The candidate this commit would release, verified as far as a run
+    without an OIDC identity can: integrity and provenance structure.
+    Signature, signer and authorization are NOT_CHECKED here, and the gate
+    refuses a digest-only verification (D-2026-143)."""
+    import supply_chain as SC
+    out = base / "release-candidate"
+    built = SC.build(out, allow_dirty=True)
+    policy = ROOT / "docs" / "supply_chain_ci_policy.json"
+    rep = SC.verify(out, SC.load_policy(policy), mode="digests")
+    try:
+        SC.admit(out, policy, mode="digests", trust_config=None)
+        gate = {"admitted": True, "reason": ""}
+    except SC.Refused as exc:
+        gate = {"admitted": False, "reason": str(exc)}
+    return {"commit": built["commit"], "dirty": built["dirty"],
+            "deterministic_payload": built["deterministic_payload"],
+            "levels": {k: v["status"] for k, v in rep["levels"].items()},
+            "highest_established": rep["highest_established"],
+            "release_authorized": rep["release_authorized"],
+            "source_tree": rep["source_tree"], "gate": gate,
+            "signature": {
+                "status": "NOT_CHECKED_HERE",
+                "live_provider": "UNTESTED in this run: the hosted "
+                                 "supply-chain job signs with its OIDC "
+                                 "identity and verifies online, offline "
+                                 "and from a network namespace"}}
+
+
+def hostile_leg(base: Path, g, slab: dict) -> dict:
+    """Malicious inputs, each through the real component it attacks; every
+    one must be refused, and the reason is recorded."""
+    import offline_verify as OV
+    from agent_substrate import reconstruct as rc
+    from agent_substrate import result_rules
+    from agent_substrate.authority import Role, State
+    from agent_substrate.events import EventLog
+    from agent_substrate.evidence import EvidenceStore
+    from agent_substrate.governed_model import (REVIEWER_ID,
+                                                GovernedModelRuns,
+                                                ModelRunRefused)
+    from agent_substrate.governed_tasks import POLICY_ID, SUBMITTER_ID
+    from agent_substrate.policy import PolicyRequest, PolicyStore, \
+        UnknownPolicy
+    from agent_substrate.store import StoreError
+    out: dict = {}
+
+    def refused(name, fn, errors):
+        try:
+            fn()
+            out[name] = {"refused": False, "reason": ""}
+        except errors as exc:
+            out[name] = {"refused": True, "reason": str(exc)[:300]}
+
+    def copy_world(name: str) -> Path:
+        dst = base / "hostile" / name
+        if dst.exists():
+            shutil.rmtree(dst)
+        dst.mkdir(parents=True)
+        shutil.copy(base / "log.jsonl", dst / "log.jsonl")
+        shutil.copytree(base / "evidence", dst / "evidence")
+        return dst
+
+    # 1. a release candidate with one byte changed after it was built
+    rc_copy = base / "hostile" / "release-candidate"
+    if rc_copy.exists():
+        shutil.rmtree(rc_copy)
+    shutil.copytree(base / "release-candidate", rc_copy)
+    z = bytearray((rc_copy / "source.zip").read_bytes())
+    z[200] ^= 0x01
+    (rc_copy / "source.zip").write_bytes(bytes(z))
+    refused("tampered_release_candidate", lambda: OV.verify_bundle(
+        rc_copy, OV.load_policy(ROOT / "docs" / "supply_chain_ci_policy.json"),
+        mode="digests"), OV.Refused)
+
+    # 2. a VERIFIED line citing the genuine report's fields in other bytes
+    w = copy_world("forged-admission")
+    gw = GovernedModelRuns(root=ROOT, log=EventLog(w / "log.jsonl"),
+                           evidence=EvidenceStore(w / "evidence"))
+    gw.authority.create(record_id="hostile-forged", kind=result_rules.KIND,
+                        proposer=SUBMITTER_ID,
+                        evidence={"result_bundle": slab["bundle_sha256"]})
+    gw.authority.transition(record_id="hostile-forged",
+                            dst=State.UNDER_REVIEW, actor=REVIEWER_ID,
+                            role=Role.VERIFIER)
+    genuine = slab["decision"]["cited_report"]
+    forged = EvidenceStore(w / "evidence").put(json.dumps(json.loads(
+        EvidenceStore(w / "evidence").get(genuine)), indent=2).encode())
+    EventLog(w / "log.jsonl").append(
+        actor=REVIEWER_ID, action="record.transition", target="hostile-forged",
+        payload={"record_id": "hostile-forged", "src": "UNDER_REVIEW",
+                 "dst": "VERIFIED", "role": "VERIFIER",
+                 "evidence": {"verification_report": forged},
+                 "policy_id": None, "stale_reason": None,
+                 "edge_reason": "forged", "idempotency_key": None,
+                 "admission_policy": result_rules.CURRENT_POLICY})
+    refused("forged_admission", lambda: GovernedModelRuns(
+        root=ROOT, log=EventLog(w / "log.jsonl"),
+        evidence=EvidenceStore(w / "evidence")), StoreError)
+    out["forged_admission"]["second_reader_flags_it"] = any(
+        "hostile-forged" in u for u in rc.reconstruct(
+            EventLog(w / "log.jsonl"),
+            evidence=EvidenceStore(w / "evidence")).unauthorized)
+
+    # 3. the proposer as its own reviewer
+    run, check = slab["_run"], slab["_check"]
+    refused("proposer_as_reviewer", lambda: g.decide(
+        run, check, reviewer=run.submitter), ModelRunRefused)
+
+    # 4. a decision under the governed policy after its owner withdrew it
+    w = copy_world("withdrawn-policy")
+    ps = PolicyStore(EventLog(w / "log.jsonl")).load()
+    ps.withdraw(POLICY_ID, actor="owner", reason="demonstration: revoked")
+    refused("decision_under_a_withdrawn_policy", lambda: ps.decide_and_record(
+        POLICY_ID, PolicyRequest(action="stage10.execute", subject=AGENT,
+                                 role="SUBMITTER", resource="any",
+                                 task_id="hostile"), actor=AGENT),
+        UnknownPolicy)
+    return out
+
+
 def run(*, fenicsx: str | None, fmi: str | None, required: set) -> dict:
     from agent_substrate import proposals as PR
     from agent_substrate.rag_index import retrieve
@@ -290,13 +424,19 @@ def run(*, fenicsx: str | None, fmi: str | None, required: set) -> dict:
                     "context": {"digest": ctx["digest"],
                                 "citations": PR.citations(ctx)},
                     "legs": {}}
-    report["legs"]["slab"] = slab_leg(log, ev, g, ctx, fenicsx, base)
+    kept: dict = {}
+    report["legs"]["slab"] = slab_leg(log, ev, g, ctx, fenicsx, base,
+                                      keep=kept)
     if fmi:
         report["legs"]["fmu"] = fmu_leg(log, ev, g, ctx, fmi, base,
                                         fault=False)
         report["legs"]["fmu_negative_twin"] = fmu_leg(
             log, ev, g, ctx, fmi, base, fault=True,
             parent=report["legs"]["fmu"]["proposal_id"])
+    report["release"] = release_leg(base)
+    report["hostile"] = hostile_leg(
+        base, g, {**report["legs"]["slab"], "_run": kept["run"],
+                  "_check": kept["check"]})
     report["recovery"] = restart(base, log, ev, g)
     report["reconstruction"] = reconstruction(base / "log.jsonl",
                                               base / "evidence")
@@ -338,6 +478,16 @@ def judge(report: dict, fenicsx, fmi) -> tuple:
         why.append(f"reconstruction findings: {rec}")
     if report["crate"]["problems"]:
         why.append(f"crate: {report['crate']['problems']}")
+    rel = report.get("release") or {}
+    if rel.get("highest_established") != "PROVENANCE_STRUCTURE" \
+            or rel.get("release_authorized") is not False \
+            or (rel.get("gate") or {}).get("admitted") is not False:
+        why.append(f"release candidate: {rel}")
+    hostile = report.get("hostile") or {}
+    if not hostile or not all(c.get("refused") for c in hostile.values()):
+        why.append(f"A HOSTILE INPUT WAS NOT REFUSED: {hostile}")
+    elif not hostile["forged_admission"].get("second_reader_flags_it"):
+        why.append("the second reader did not flag the forged admission")
     return not why, why
 
 

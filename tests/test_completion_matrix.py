@@ -853,7 +853,11 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: their own namespaces where the host allows, which changes
 #: agent_substrate/execution.py and the workflow that measures it -- two
 #: more rows whose hosted evidence predates them.
-EXPECTED_EVIDENCE_COVERS = 19
+#:
+#: 19 -> 18 with D-2026-150, in the same commit as it: the end-to-end
+#: demonstration now builds and verifies a release candidate and refuses
+#: hostile inputs, so its row's hosted evidence predates it.
+EXPECTED_EVIDENCE_COVERS = 18
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

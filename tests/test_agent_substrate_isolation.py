@@ -130,6 +130,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_policy_binding.py",
     # D-2026-149: an uncooperative tool against the executor's containment.
     "tests/test_execution_containment.py",
+    # D-2026-150: hostile Cases A-H, each through the components it crosses.
+    "tests/test_hostile_composition.py",
     # NF-1T. The learned-record boundary's own tests: the store's live and
     # replayed refusal, the second reader's, and the lifecycle's links.
     "tests/test_neural_provenance.py",

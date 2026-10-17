@@ -1,14 +1,14 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 429,
+   "ADDED": 435,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 44,
-   "LOW": 156,
-   "MEDIUM": 236
+   "HIGH": 45,
+   "LOW": 159,
+   "MEDIUM": 238
   },
   "by_subsystem": {
    "agent-substrate": 19,
@@ -19,8 +19,8 @@
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
-   "documentation": 23,
-   "evidence": 19,
+   "documentation": 24,
+   "evidence": 22,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 133,
+   "tests": 135,
    "tooling": 31,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 461
+  "files": 467
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -96,6 +96,7 @@
     "tests": [
      "tests/test_ci_authority.py",
      "tests/test_claude_workflow_prompt.py",
+     "tests/test_hostile_composition.py",
      "tests/test_offline_verify.py",
      "tests/test_release_admission.py",
      "tests/test_security_findings.py"
@@ -237,6 +238,19 @@
      "tests/test_claims_boundary.py",
      "tests/test_scientific_interfaces.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "DEPLOYMENT.md",
+   "risk": "LOW",
+   "runtime_dependencies": [],
+   "subsystem": "documentation",
+   "trust_boundary": "documentation and configuration",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {
@@ -524,6 +538,7 @@
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_hostile_composition.py",
      "tests/test_model_check.py",
      "tests/test_neural_boundary.py",
      "tests/test_neural_provenance.py",
@@ -641,6 +656,7 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_toctou.py",
      "tests/test_authenticated_history.py",
+     "tests/test_hostile_composition.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
      "tests/test_second_reader_audit_actions.py"
@@ -714,6 +730,7 @@
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_hostile_composition.py",
      "tests/test_model_check.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
@@ -776,6 +793,7 @@
      "tests/test_decided_appends.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_hostile_composition.py",
      "tests/test_proposal_ingress.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
@@ -961,6 +979,7 @@
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_hostile_composition.py",
      "tests/test_neural_provenance.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
@@ -1025,6 +1044,7 @@
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_hostile_composition.py",
      "tests/test_neural_provenance.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
@@ -1096,6 +1116,7 @@
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_hostile_composition.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
@@ -1155,6 +1176,7 @@
      "tests/test_decided_appends.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_hostile_composition.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_replay_origin_view.py",
      "tests/test_repo_contract.py",
@@ -1358,6 +1380,7 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
      "tests/test_generated_mutations.py",
+     "tests/test_hostile_composition.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_scientific_authority_replay.py"
@@ -1515,6 +1538,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_generic_consistency.py",
+     "tests/test_hostile_composition.py",
      "tests/test_neural_provenance.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
@@ -1544,6 +1568,7 @@
     "tests": [
      "tests/test_agent_result_rules.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_hostile_composition.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py"
     ]
@@ -1730,6 +1755,7 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
      "tests/test_governed_model.py",
+     "tests/test_hostile_composition.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
      "tests/test_policy_binding.py",
@@ -2382,6 +2408,19 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/security/readiness_matrix.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "security audit records",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/security/reproducibility_contract.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -2393,6 +2432,19 @@
     "tests": [
      "tests/test_release_reproducibility.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/security/standards_matrix.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "security audit records",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {
@@ -2779,6 +2831,7 @@
      "tests/test_harness_integrations.py",
      "tests/test_harness_status.py",
      "tests/test_hdf5_bundle.py",
+     "tests/test_hostile_composition.py",
      "tests/test_neural_accounting.py",
      "tests/test_neural_boundary.py",
      "tests/test_neural_config.py",
@@ -5376,6 +5429,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_hostile_composition.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_identity_inventory.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -5804,6 +5874,21 @@
     "tests": [
      "tests/test_test_isolation.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_readiness_matrix.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {
@@ -7900,6 +7985,7 @@
     "tests": [
      "tests/test_ci_authority.py",
      "tests/test_completion_matrix.py",
+     "tests/test_hostile_composition.py",
      "tests/test_offline_verify.py",
      "tests/test_release_admission.py"
     ]
@@ -7935,6 +8021,21 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_security_findings.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/readiness.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived readiness status",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_readiness_matrix.py"
     ]
    }
   },
@@ -8058,6 +8159,7 @@
     "tests": [
      "tests/test_completion_matrix.py",
      "tests/test_dependency_declarations.py",
+     "tests/test_hostile_composition.py",
      "tests/test_offline_verify.py",
      "tests/test_release_admission.py",
      "tests/test_release_reproducibility.py",

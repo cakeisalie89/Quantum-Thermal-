@@ -177,10 +177,10 @@
   {
    "@id": "docs/harness_status.json",
    "@type": "File",
-   "contentSize": "16195",
+   "contentSize": "16369",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "66e65d31551cb2f61bef52462eba0f181e1782af8f8edce181a612bc37f0c55d"
+   "sha256": "92b210753bd0eb53fa57b10d27346d190b0a8975b8e6b17b76da5ea196eeed2f"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -204,7 +204,7 @@
    "contentSize": "2589",
    "description": "the repository content audit of the current tree",
    "name": "repo_content_audit.json",
-   "sha256": "3f3b258f78203b95f16da8700d163a11aaad82676baac46b2c7f3422fde89c37"
+   "sha256": "82f4bac29005d1bb691380202b784d682a814a0f800a8c561b3cd4020216c7dc"
   },
   {
    "@id": "docs/repository_inventory.json",
@@ -217,7 +217,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "81879",
+   "contentSize": "82907",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -273,10 +273,10 @@
     "File",
     "SoftwareSourceCode"
    ],
-   "contentSize": "19831",
+   "contentSize": "27490",
    "description": "the end-to-end demonstration, proposal to decision, with its negative twin",
    "name": "harness_demo.py",
-   "sha256": "3499d7725344f0f628cd470880ec1e858bf49629916f8f0ab3de3c63fff67236"
+   "sha256": "3f2f49a01374ff79dcff47677dfebc329de1e440dc9b8a99f7e508d059b3d1aa"
   },
   {
    "@id": "uv.lock",

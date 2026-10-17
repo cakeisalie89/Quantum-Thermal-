@@ -8044,7 +8044,7 @@ tool does not make.
 
 ## D-2026-145 — no contract said which release bytes must be identical across builds
 
-**CLASS** — `CLAIM_WITHOUT_CONTRACT`, Tranche F finding F-03.
+**CLASS** — `GAP` (a claim without a contract), Tranche F finding F-03.
 
 **DEMONSTRATION.** The module said "the same commit always packs to the
 same bytes", and only two builds in one process and one environment
@@ -8339,3 +8339,73 @@ rather than pass silently. `tools/mutations/execution_containment.json`
   requirement (DEPLOYMENT.md), not a property of this code.
 * The governed path's existing records were made without these
   namespaces. New runs say what they got.
+
+## D-2026-150 — the hostile cases, the release step and the deployment had no end-to-end test and no contract
+
+**CLASS** — `GAP`: Tranche F, Sections 7 and 9 to 12.
+
+**DEMONSTRATION.** Each rule the hostile cases A–H attack had its own
+suite, but nothing drove a case through the components it crosses and
+required it refused end to end. The end-to-end demonstration stopped at
+reconstruction: no release candidate was built or verified in it, and the
+only hostile input was the FMU negative twin. No document said what a
+deployment must provide, which capabilities were only locally tested, or
+how the engineering relates to SLSA, NIST SP 800-218 or FedRAMP.
+
+**REPAIR.**
+
+* **`tests/test_hostile_composition.py`** (18 tests). One governed world,
+  copied per case, with a control in which the genuine composition is
+  admitted, promoted and reconstructed. Each case runs through the real
+  governed path, authority store, second reader, agent directory, policy
+  store and release verifier:
+  * **A.** An integrity-valid bundle whose result fails its invariant is
+    refused, live and by the second reader. A release report always says it
+    does not attest correctness.
+  * **B.** A re-serialized report, and another run's report, are refused.
+  * **C.** The proposer and both executors cannot decide. The check's
+    executor cannot admit. An agent cannot answer for a person, or hold
+    both PROPOSER and REVIEWER. The agent's workflow cannot be a release
+    identity.
+  * **D.** A withdrawn governed policy does not promote, and an expired
+    release policy authorizes nothing.
+  * **E.** A learned record citing admissible evidence is refused by both
+    readers.
+  * **F.** Another parameter set's check, or the producer's own code as
+    checker, is refused.
+  * **G.** A NOT_RUN report is refused, and an unreadable report is
+    UNVERIFIABLE, never VERIFIED.
+  * **H.** Two valid answers to one escalation, or two valid next versions
+    of one policy, cannot both stand.
+* **The demonstration (`tools/harness_demo.py`)** now builds this commit's
+  release candidate. The portable verifier takes it to PROVENANCE_STRUCTURE
+  and the gate refuses the digest-only run. The signature is
+  NOT_CHECKED_HERE, and the report labels the live provider UNTESTED in the
+  run, since the hosted supply-chain job carries it. The demonstration then
+  refuses four hostile inputs, and its judge fails if any is accepted:
+  * a tampered candidate;
+  * a forged admission, which the second reader must also flag;
+  * the proposer as its own reviewer;
+  * a decision under a withdrawn policy.
+* **`DEPLOYMENT.md`** is the deployment contract. It covers modes,
+  dependencies, trust configuration, secrets, tool containment and limits,
+  container privileges, monitoring and recovery, including restart while
+  trust services are down.
+* **`docs/security/readiness_matrix.json`**, held by `tools/readiness.py`
+  and `tests/test_readiness_matrix.py`, classifies twenty capabilities as
+  IMPLEMENTED, HOSTED_TESTED, DEPLOYMENT_REQUIRED, EXTERNALLY_BLOCKED or
+  UNVERIFIED. The contract is met only when nothing is blocked, unverified
+  or only locally tested. Its verdict is
+  `PRODUCTION_READINESS_CONTRACT_NOT_MET`, and a control shows the verdict
+  can be met.
+* **`docs/security/standards_matrix.md`** maps SLSA (provenance format
+  versus build level), NIST SP 800-218 practices, and FedRAMP (engineering
+  evidence versus organizational requirements) with no compliance claim.
+
+**NOT CLAIMED.**
+
+* Production readiness. The matrix says why not: owner actions, an absent
+  release trust root, production keys, deployment isolation, and writers
+  still outside the lock.
+* Any SLSA build level, SSDF conformance or FedRAMP status.
+* That the demonstration exercised a live signing provider.

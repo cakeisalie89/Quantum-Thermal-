@@ -78,14 +78,19 @@
       "sha256": "377efaeddb37f140413c905f505c809d1c94dc7ab7bc47c7e7aa824e276e398e"
     },
     {
+      "filename": "DEPLOYMENT.md",
+      "size_bytes": 8848,
+      "sha256": "725cbbb816b807f06b6d1de267ec927fef0e6f9483998eb06fb84065e227c3bd"
+    },
+    {
       "filename": "Dockerfile",
       "size_bytes": 2321,
       "sha256": "86d53259675e3f57430fad89841e442d3d858d1e58fa7be8062766966d010533"
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 6881,
-      "sha256": "2ad9a3b2615e89b8f97bc0fcde7614d35725e2dffdb619932dbf0642fa3a6f98"
+      "size_bytes": 6986,
+      "sha256": "78480954e3ca6fb121ace770acf4bb71536c7a203b644ddda81c17dc3e570fe2"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -374,8 +379,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 464545,
-      "sha256": "b9205c260ba58f77d26d2a6b106737b0311dd863b07f5adc0019efef9763aa23"
+      "size_bytes": 468353,
+      "sha256": "c8d940500cb8e4fb8ef185846e4a16350fb54ac122a41a191ec565daf6c94ef4"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -389,8 +394,8 @@
     },
     {
       "filename": "docs/corpus_allowlist.json",
-      "size_bytes": 3377,
-      "sha256": "459241e9c4c04fcdacc71bb780436e0bd817e9187dcd8d2d0c1786dad980fef6"
+      "size_bytes": 3651,
+      "sha256": "66f56be1d76b354aea40d1e0515fd0a9ed759ed39d87e9d8c17962258e822b58"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -409,8 +414,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 16195,
-      "sha256": "66e65d31551cb2f61bef52462eba0f181e1782af8f8edce181a612bc37f0c55d"
+      "size_bytes": 16369,
+      "sha256": "92b210753bd0eb53fa57b10d27346d190b0a8975b8e6b17b76da5ea196eeed2f"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -525,7 +530,7 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2589,
-      "sha256": "3f3b258f78203b95f16da8700d163a11aaad82676baac46b2c7f3422fde89c37"
+      "sha256": "82f4bac29005d1bb691380202b784d682a814a0f800a8c561b3cd4020216c7dc"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -544,13 +549,23 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 202426,
-      "sha256": "13c8c1c7c81d7f2ffec0ea040dcaffd2a291c618205b28d40f2ea19114399b40"
+      "size_bytes": 204944,
+      "sha256": "89d492d590f36ba7179310a31d132314fc878dc14d8e0290219d585424c90ce3"
+    },
+    {
+      "filename": "docs/security/readiness_matrix.json",
+      "size_bytes": 8626,
+      "sha256": "196faab922c1fbf6979519197b2dd678c8f8805000715a9e21bd13c0fb67fb99"
     },
     {
       "filename": "docs/security/reproducibility_contract.json",
       "size_bytes": 2543,
       "sha256": "9963325cc9b2ca15546b712cc0a3727d7b2cf3fcc093051e4dbc94beb4d0bc6d"
+    },
+    {
+      "filename": "docs/security/standards_matrix.md",
+      "size_bytes": 7364,
+      "sha256": "682c8dbc508ce5c56930ad0173e66b2d461df8e1d84adf790426a45d1f659ee4"
     },
     {
       "filename": "docs/supply_chain_ci_policy.json",
@@ -560,7 +575,7 @@
     {
       "filename": "docs/typing_scope.json",
       "size_bytes": 772,
-      "sha256": "98f7226099a8ff6980b7edf69290cbb5f5d7bceb2d722979417b2e20e7bbb454"
+      "sha256": "4452c455b757d301f786201907819028991fb4a22b5f655fa681e4194a5716f2"
     },
     {
       "filename": "generate_manifest.py",
@@ -650,7 +665,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "626da33bd3f1829e63b3e93e7dccd325b6a4c231b7021fe1b292fb6819e2b504"
+      "sha256": "afda90097d5c2bd9663635a97c8f3cfc7d6dcb9008a7a576993b1f944e5f0e25"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1254,8 +1269,8 @@
     },
     {
       "filename": "tests/test_agent_substrate_isolation.py",
-      "size_bytes": 45467,
-      "sha256": "4d5f8bb5774e6826e8d16f62861b136f87400470103f15988ca6457e0945a445"
+      "size_bytes": 45585,
+      "sha256": "1b73815a797c7b8a8980b306088c35e0c05c3ab97f827cdd8f872ad4ed73849b"
     },
     {
       "filename": "tests/test_agent_substrate_properties.py",
@@ -1304,8 +1319,8 @@
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 45084,
-      "sha256": "3b6a737decf11dd298c1cc1c6c45966ca4e911a03b7e28da24fbd3b6041fd972"
+      "size_bytes": 45291,
+      "sha256": "5ca4417d67c318afc29644682e83863314d5e0e499c572c1017e453b89947fbf"
     },
     {
       "filename": "tests/test_container_manifest_coverage.py",
@@ -1359,8 +1374,8 @@
     },
     {
       "filename": "tests/test_harness_demo.py",
-      "size_bytes": 8677,
-      "sha256": "1e38fb8c1d1e0448630400d30cbaf66c4574c00d9b9b1fc049852d1d42c3de72"
+      "size_bytes": 11179,
+      "sha256": "e8f47b551bb40f166207585a735b53297bbe7ad88328315c21c09e7abade59c9"
     },
     {
       "filename": "tests/test_harness_integrations.py",
@@ -1376,6 +1391,11 @@
       "filename": "tests/test_hdf5_bundle.py",
       "size_bytes": 7001,
       "sha256": "0b5c37dcb64047d5b05746401f47978c41930378bf7193417396f8e69469b99d"
+    },
+    {
+      "filename": "tests/test_hostile_composition.py",
+      "size_bytes": 18180,
+      "sha256": "fe6f3dbc91defe8a0dc4112610a6c963701fd0ad694e37e203bc79619f535ecc"
     },
     {
       "filename": "tests/test_identity_inventory.py",
@@ -1511,6 +1531,11 @@
       "filename": "tests/test_ranking_equivalence.py",
       "size_bytes": 14010,
       "sha256": "9a44330b4dabfa53f9abdbab53d60101e286c7f7d63995d7a59a89570f24ef66"
+    },
+    {
+      "filename": "tests/test_readiness_matrix.py",
+      "size_bytes": 2068,
+      "sha256": "3530f0bf883488f0e1e905b35c68a7dfdbca9b336b590e6416b9749f76b48b08"
     },
     {
       "filename": "tests/test_release_admission.py",
@@ -1709,8 +1734,8 @@
     },
     {
       "filename": "tools/harness_demo.py",
-      "size_bytes": 19831,
-      "sha256": "3499d7725344f0f628cd470880ec1e858bf49629916f8f0ab3de3c63fff67236"
+      "size_bytes": 27490,
+      "sha256": "3f2f49a01374ff79dcff47677dfebc329de1e440dc9b8a99f7e508d059b3d1aa"
     },
     {
       "filename": "tools/harness_status.py",
@@ -2246,6 +2271,11 @@
       "filename": "tools/pr_inventory.py",
       "size_bytes": 16509,
       "sha256": "00e557707076be28415f99041f8de1979632017c5fc034f3ba6730564f73749a"
+    },
+    {
+      "filename": "tools/readiness.py",
+      "size_bytes": 4372,
+      "sha256": "483ccc889bfcfb51d1640a619a1631add9bdd3190fc30898fb642d3d438ec5b6"
     },
     {
       "filename": "tools/repo_content_audit.py",
