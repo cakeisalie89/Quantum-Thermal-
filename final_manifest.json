@@ -84,8 +84,8 @@
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 3500,
-      "sha256": "0b8716373e52eb7dec4b3229b5f9bff24ab621dfc28c6aede2727313ee3dff2a"
+      "size_bytes": 3733,
+      "sha256": "19d77e291feee78e214a5defd828c7cf299f3ddaed15610d5ae13cd483d2eb26"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -385,7 +385,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3233,
-      "sha256": "5e719249b8923876d621491c89ae42a3435294d746866775467ffa9f361a482a"
+      "sha256": "d061cd613dfc89c337ab8f985b51b3d3c87638779943379fcd91d73b85677fd5"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -404,8 +404,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 10092,
-      "sha256": "aac74e28b7f15a2ab417b902045b8780d406116e42394072e5d1c2537264e0e1"
+      "size_bytes": 10548,
+      "sha256": "2682c7a9d5646c8b52c4ffc2370ec778e6d89de5f39dfa93a3d7aa605953b1f0"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -520,12 +520,22 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2589,
-      "sha256": "184a4c97aab1025339d14ee07b35ea0ac9de4faeb5e022a31de156f0ca116857"
+      "sha256": "7a3f1051d4aa09333071c5f571efee32fa6d87e4622b50e4eb43cb372dd04c17"
     },
     {
       "filename": "docs/repository_inventory.json",
       "size_bytes": 1211907,
       "sha256": "64442f2331598313bab0d596814497fd188abe27845fb0de88e8955ac10d333a"
+    },
+    {
+      "filename": "docs/security/findings.json",
+      "size_bytes": 13210,
+      "sha256": "ca5a41f8bfadc24ccd68dac4f7b662809f74255633030327437a2a7a623fd654"
+    },
+    {
+      "filename": "docs/security/pr17_inventory.json",
+      "size_bytes": 195684,
+      "sha256": "e8279ee99f3cc6ba13c52698c36a968e22ac258d6d5939cfd2253090418973bc"
     },
     {
       "filename": "docs/supply_chain_ci_policy.json",
@@ -535,7 +545,7 @@
     {
       "filename": "docs/typing_scope.json",
       "size_bytes": 772,
-      "sha256": "6ed82da15c1ce2807b12b2e5eb5dbff6cf5f8e57a64a63baa91365144f0f5dcc"
+      "sha256": "e794144831b781e95934a37668227df458ac6ce4eff9d7fef5c15a1ebd14c49f"
     },
     {
       "filename": "generate_manifest.py",
@@ -625,7 +635,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "8ebf39167dafe5e1198f5658003bacdfa18439640fe3428bfbfdc65f37443b4e"
+      "sha256": "3c9eab8b24cde7dff7eaeed297018269150cc89c77cb27c6b4dfc7084f28d2ce"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1528,6 +1538,11 @@
       "sha256": "a0f99494bb63c0c4a95a49390fbf5a519c817848c74267b37c4d7571fb45daec"
     },
     {
+      "filename": "tests/test_security_findings.py",
+      "size_bytes": 4786,
+      "sha256": "806210784ceb941e6eec4c3e40cc38ce6d3bd9d355f94f48cb0fcba0b7c10df6"
+    },
+    {
       "filename": "tests/test_sensitivity_cross_check.py",
       "size_bytes": 5572,
       "sha256": "a957d4a2346877781b5fe0e42f82c9d082aea3ae621dc81e60b99c8bdbf66e2f"
@@ -2151,6 +2166,11 @@
       "filename": "tools/performance_baseline.py",
       "size_bytes": 10557,
       "sha256": "901b27dab48ed3399b13addc0a357f6a42d44355e386f93f5d82527197495c45"
+    },
+    {
+      "filename": "tools/pr_inventory.py",
+      "size_bytes": 16509,
+      "sha256": "00e557707076be28415f99041f8de1979632017c5fc034f3ba6730564f73749a"
     },
     {
       "filename": "tools/repo_content_audit.py",
