@@ -146,6 +146,13 @@ ALLOWED_IMPORTERS = {
     "tools/confinement_probe.py",
     # D-2026-158: the memory trust audit, each property broken alone.
     "tests/test_memory_trust.py",
+    # D-2026-159: the grounding benchmark. It writes seeded worlds through
+    # the authority store into temporary directories and reads them back
+    # through both readers; it computes no scientific result and is
+    # imported by nothing.
+    "tests/test_grounding_bench.py",
+    "tools/grounding_bench/agents.py",
+    "tools/grounding_bench/world.py",
     # NF-1T. The learned-record boundary's own tests: the store's live and
     # replayed refusal, the second reader's, and the lifecycle's links.
     "tests/test_neural_provenance.py",

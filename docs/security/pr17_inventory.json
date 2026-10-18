@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 456,
+   "ADDED": 464,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 46,
-   "LOW": 169,
-   "MEDIUM": 248
+   "LOW": 170,
+   "MEDIUM": 255
   },
   "by_subsystem": {
    "agent-substrate": 20,
    "ai-ingress": 3,
-   "assurance": 101,
+   "assurance": 102,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 23,
+   "evidence": 24,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 145,
-   "tooling": 34,
+   "tests": 146,
+   "tooling": 39,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 488
+  "files": 496
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -548,6 +548,7 @@
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
      "tests/test_memory_trust.py",
      "tests/test_model_check.py",
@@ -1013,6 +1014,7 @@
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
@@ -1082,6 +1084,7 @@
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
@@ -1363,6 +1366,7 @@
      "tests/test_agent_toctou.py",
      "tests/test_authenticated_history.py",
      "tests/test_completion_matrix.py",
+     "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
      "tests/test_refused_fold.py"
     ]
@@ -1485,6 +1489,7 @@
     "tests": [
      "tests/test_actor_authentication.py",
      "tests/test_authenticated_history.py",
+     "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
      "tests/test_signed_append_lifecycle.py"
     ]
@@ -1630,6 +1635,7 @@
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_generic_consistency.py",
+     "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
@@ -1855,6 +1861,7 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
      "tests/test_governed_model.py",
+     "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
@@ -2462,6 +2469,21 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_repo_inventory.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/research/GROUNDING_BENCHMARK.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_grounding_bench.py"
     ]
    }
   },
@@ -5570,6 +5592,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_grounding_bench.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_harness_demo.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -6862,6 +6901,103 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/grounding_bench/__init__.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_grounding_bench.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/grounding_bench/agents.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/grounding_bench.json"
+    ],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_grounding_bench.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/grounding_bench/claims.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/grounding_bench.json"
+    ],
+    "tests": [
+     "tests/test_claim_hygiene.py",
+     "tests/test_claims_boundary.py",
+     "tests/test_grounding_bench.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/grounding_bench/run.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/grounding_bench.json"
+    ],
+    "tests": [
+     "tests/test_agent_result_rules.py",
+     "tests/test_backend_identity.py",
+     "tests/test_filesystem_confinement.py",
+     "tests/test_governed_model_reuse.py",
+     "tests/test_grounding_bench.py",
+     "tests/test_hdf5_bundle.py",
+     "tests/test_release_reproducibility.py",
+     "tests/test_run_identity_backend.py",
+     "tests/test_scientific_authority_replay.py",
+     "tests/test_scientific_integrations.py",
+     "tests/test_scientific_interfaces.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/grounding_bench/world.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/grounding_bench.json"
+    ],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_grounding_bench.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/harness_demo.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -7727,6 +7863,19 @@
     "tests": [
      "tests/test_agent_authority_boundaries.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/grounding_bench.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {

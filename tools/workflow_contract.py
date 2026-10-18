@@ -299,6 +299,12 @@ VERIFIER_EXEMPT = {
         "a subprocess verifier spawned by agent_substrate/separate_verify.py "
         "with a log path on argv, exercised by the agent suites; it is not a "
         "standalone gate and has no tree-wide verdict to report",
+    "tools/grounding_bench/run.py":
+        "a research benchmark, not a verifier: it reports a measurement of "
+        "scripted agents over seeded worlds and has no verdict on the tree "
+        "to take. Its suite runs the real code -- run(), main() and the "
+        "protocol -- and re-derives a committed seed of its results "
+        "(D-2026-159)",
 }
 
 

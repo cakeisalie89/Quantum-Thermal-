@@ -9121,3 +9121,97 @@ the comparison is held against a reader made to disagree.
 * **Stale checkpoints.** These are covered by the existing checkpoint
   tests (`loaded_prefix_verified`, the anchored reads), not restated here.
   A checkpoint does not stand in for authentication (D-2026-92).
+
+## D-2026-159 — whether gating assertions on independently reconstructed state reduces false ones was asserted nowhere and measured nowhere
+
+**CLASS** — `RESEARCH`: Tranche G, phase G5. A benchmark, not a repair. The
+hypothesis is the tranche's research question, and nothing below treats it
+as a result until the confirmatory run is recorded.
+
+**WHAT WAS MISSING.** The substrate rebuilds authoritative state from the
+log twice, with two independent readers, and refuses what it cannot vouch
+for. Whether that helps anything that ASSERTS things was a hope. Nothing
+measured the false statements an agent makes with or without it, nothing
+measured what the refusals cost, and nothing measured what the
+reconstruction cannot know.
+
+**WHAT IS ADDED.** `tools/grounding_bench/`:
+
+* **The claim contract** (`claims.py`): V(C, S, E) answers SUPPORTED,
+  CONTRADICTED, UNKNOWN or UNVERIFIABLE, each for a stated reason. S is
+  the independent reader's state; E is the evidence store, which
+  re-hashes.
+* **The world** (`world.py`): seeded histories written through the real
+  authority store, with each honest event attested by a TEST identity. Six
+  faults are injected after the history:
+  * `forged`: refused by the rules;
+  * `forged_valid`: accepted by the rules, unattested;
+  * `forged_signed`: the same with a compromised key;
+  * `tampered`: report bytes rewritten;
+  * `poisoned`: a wrong memory note;
+  * `unrecorded`: the negative control; the world changes and the log
+    does not.
+
+  The ORACLE stays in the world object. An agent is handed a view with
+  four fields, and a test walks every agent's object graph for a path
+  back to the oracle.
+* **Scripted agents** (`agents.py`): an explicit error model (miss,
+  corrupt, credulity, window, guess). The conditions:
+  * A: beliefs;
+  * B: memory;
+  * C: the primary projection;
+  * D: the independent reconstruction;
+  * E: the claim gated by V;
+  * F: E over an authenticated reconstruction;
+  * five ablations, one removing each mechanism.
+
+  No model is called. The real-model condition is reported `NOT_RUN`.
+* **The runner** (`run.py`): a balanced question mix, scoring against the
+  oracle, false-assertion and over-refusal rates, coverage, precision,
+  per-fault pooled rates, and paired per-seed contrasts with bootstrap
+  intervals. `--protocol` runs the pre-registered configuration;
+  `--long` adds the 1k to 10k step horizons, opt-in.
+
+**PROTOCOL BEFORE RESULTS.** `docs/research/GROUNDING_BENCHMARK.md` was
+committed with the code, before the confirmatory run. It contains:
+
+* the pilot runs that shaped the design, recorded;
+* the confirmatory seeds, disjoint from the pilots';
+* eight hypotheses, each with what falsifies it. Three predict that the
+  treatment FAILS:
+  * a forgery the rules accept;
+  * a compromised key;
+  * a change the log never records.
+
+**FOUND WHILE BUILDING IT** (pilot 1, recorded in the protocol). The
+evidence check's ablation measured nothing: E and E_no_evidence scored
+identically. Tampered reports had landed on records already REVOKED, and
+only an admitted result holds a value, so no question could expose them.
+Value faults now target admitted records, and
+`test_a_value_fault_targets_a_value_some_question_can_expose` holds it.
+
+**THE WORKFLOW CONTRACT FLAGGED IT.** A mutated `tools/*.py` with a `main`
+counts as a verifier that CI must run against the real tree, and nothing
+ran `tools/grounding_bench/run.py`. The benchmark has no verdict on the
+tree to take, so it is exempted in `VERIFIER_EXEMPT` with that reason,
+rather than run in CI as if it were a gate. Its suite runs the real code.
+
+**TESTS AND MUTATIONS.** `tests/test_grounding_bench.py` covers:
+
+* each verdict, for its reason;
+* the oracle's isolation;
+* each fault reaching the readers it should, and no others;
+* each condition and ablation;
+* scoring;
+* determinism;
+* opt-in horizons;
+* an import check: the standard library, the substrate, nothing that
+  reaches the network or a subprocess.
+
+`tools/mutations/grounding_bench.json` (GB1 to GB17) breaks one thing the
+numbers depend on: a verdict, a fault, a condition, an ablation or a
+score. **17 of 17** killed, at the commit that fixed the protocol.
+
+**NOT CLAIMED.** Any property of a language model. Any result, in this
+entry. The confirmatory results and the adversarial review
+(`docs/research/GROUNDING_REVIEW.md`) are recorded with the run.

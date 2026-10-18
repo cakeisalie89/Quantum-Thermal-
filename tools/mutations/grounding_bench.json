@@ -1,0 +1,128 @@
+{
+  "title": "The grounding benchmark: its contract, its faults, its conditions and its scoring",
+  "note": "D-2026-159. Each mutation breaks one thing the benchmark's numbers depend on: a verdict of the claim contract, a fault that stops being the fault it says, a condition or ablation that becomes another, or a score that is charged to the wrong outcome. A survivor would mean the benchmark could report a number its own machinery does not produce.",
+  "suites": [
+    "tests/test_grounding_bench.py"
+  ],
+  "mutations": [
+    {
+      "name": "GB1_a_refused_history_is_vouched_for",
+      "path": "tools/grounding_bench/claims.py",
+      "find": "    if claim.subject in refused_subjects(state, targets):",
+      "replace": "    if False:",
+      "rationale": "a subject whose transition the replay refused is SUPPORTED or CONTRADICTED as if its history were the gates'"
+    },
+    {
+      "name": "GB2_a_pending_record_holds_a_value",
+      "path": "tools/grounding_bench/claims.py",
+      "find": "    if record.get(\"state\") not in ADMITTED:\n        return Verdict(UNVERIFIABLE,",
+      "replace": "    if False:\n        return Verdict(UNVERIFIABLE,",
+      "rationale": "a value is read from a record that is not admitted"
+    },
+    {
+      "name": "GB3_the_report_is_not_looked_up",
+      "path": "tools/grounding_bench/claims.py",
+      "find": "    if evidence is None or not evidence.contains(dg):",
+      "replace": "    if evidence is None:",
+      "rationale": "a report that no longer verifies is read anyway, or crashes the verdict"
+    },
+    {
+      "name": "GB4_a_subject_is_found_inside_another",
+      "path": "tools/grounding_bench/claims.py",
+      "find": "        out |= ids & set(_TOKEN.findall(line))",
+      "replace": "        out |= {i for i in ids if i in line}",
+      "rationale": "rec-1 is refused because rec-10 was"
+    },
+    {
+      "name": "GB5_a_seq_only_refusal_refuses_nothing",
+      "path": "tools/grounding_bench/claims.py",
+      "find": "        if targets:\n            out |= ids &",
+      "replace": "        if False:\n            out |= ids &",
+      "rationale": "an authenticator's refusal, which names a seq and not a record, leaves its target vouched for"
+    },
+    {
+      "name": "GB6_the_unrecorded_change_is_recorded",
+      "path": "tools/grounding_bench/world.py",
+      "find": "        w.oracle[rid][\"state\"] = \"REVOKED\"\n        say(step, rid, \"state\", \"REVOKED\")",
+      "replace": "        w.oracle[rid][\"state\"] = \"REVOKED\"\n        w.log.append(actor=\"carol\", action=\"record.transition\", target=rid, payload={\"record_id\": rid, \"src\": \"VERIFIED\", \"dst\": \"REVOKED\", \"role\": \"PROMOTER\", \"evidence\": {\"revocation_reason\": reason}})\n        say(step, rid, \"state\", \"REVOKED\")",
+      "rationale": "the negative control leaks: the change the log was not supposed to hold is in it"
+    },
+    {
+      "name": "GB7_the_compromised_writer_does_not_sign",
+      "path": "tools/grounding_bench/world.py",
+      "find": "        if kind == \"forged_signed\":\n            w.attestations.add(",
+      "replace": "        if False:\n            w.attestations.add(",
+      "rationale": "forged_signed is forged_valid: the compromised-writer fault tests nothing"
+    },
+    {
+      "name": "GB8_the_honest_history_is_not_signed",
+      "path": "tools/grounding_bench/world.py",
+      "find": "    for ev in honest:\n        w.attestations.add(who[ev.actor].attest(ev))",
+      "replace": "    for ev in honest[:0]:\n        w.attestations.add(who[ev.actor].attest(ev))",
+      "rationale": "the authenticated reader refuses the honest history too, and F wins by refusing everything"
+    },
+    {
+      "name": "GB9_value_faults_hit_revoked_records",
+      "path": "tools/grounding_bench/world.py",
+      "find": "            if w.oracle[r][\"state\"] in (\"VERIFIED\", \"PROMOTED\")]",
+      "replace": "            if w.oracle[r][\"value\"] is not None]",
+      "rationale": "pilot 1's defect: a value fault lands on a record no value question can expose"
+    },
+    {
+      "name": "GB10_F_does_not_authenticate",
+      "path": "tools/grounding_bench/agents.py",
+      "find": "        return self.sources.state(authenticated=self.condition == \"F\")",
+      "replace": "        return self.sources.state(authenticated=False)",
+      "rationale": "F is E under another name"
+    },
+    {
+      "name": "GB11_the_evidence_ablation_verifies",
+      "path": "tools/grounding_bench/agents.py",
+      "find": "        ev = (_RawEvidence(self.evidence) if c == \"E_no_evidence\"\n              else self.evidence)",
+      "replace": "        ev = self.evidence",
+      "rationale": "E_no_evidence is E: the evidence check's ablation removes nothing"
+    },
+    {
+      "name": "GB12_no_correct_corrects",
+      "path": "tools/grounding_bench/agents.py",
+      "find": "            return (ABSTAIN if c == \"E_no_correct\"\n                    else Claim(subject, predicate, v.held))",
+      "replace": "            return Claim(subject, predicate, v.held)",
+      "rationale": "E_no_correct is E: the correction's ablation removes nothing"
+    },
+    {
+      "name": "GB13_no_abstain_abstains",
+      "path": "tools/grounding_bench/agents.py",
+      "find": "        return claim if c == \"E_no_abstain\" else ABSTAIN",
+      "replace": "        return ABSTAIN",
+      "rationale": "E_no_abstain is E: the abstention's ablation removes nothing"
+    },
+    {
+      "name": "GB14_the_attacker_is_never_believed",
+      "path": "tools/grounding_bench/agents.py",
+      "find": "            if not n.honest and rng.random() >= err.credulity:",
+      "replace": "            if not n.honest:",
+      "rationale": "credulity is ignored: no agent believes an attack, and every attack is defeated before any condition acts"
+    },
+    {
+      "name": "GB15_a_correct_abstention_is_over_refusal",
+      "path": "tools/grounding_bench/run.py",
+      "find": "        return \"abstain_ok\" if q[\"truth\"] is None else \"abstain\"",
+      "replace": "        return \"abstain\"",
+      "rationale": "abstaining where there is no true answer is scored as refusing one"
+    },
+    {
+      "name": "GB16_over_refusal_counts_faulted_records",
+      "path": "tools/grounding_bench/run.py",
+      "find": "    answerable = [s for s, kind in outcomes if kind == \"clean\"",
+      "replace": "    answerable = [s for s, kind in outcomes if kind != \"absent\"",
+      "rationale": "abstaining on a faulted record counts as over-refusal, and the treatment's caution is charged as cost"
+    },
+    {
+      "name": "GB17_the_primary_refusal_is_answered_from_beliefs",
+      "path": "tools/grounding_bench/agents.py",
+      "find": "            return (ABSTAIN if self.condition == \"C_fail_abstain\"\n                    else self.beliefs.claim(subject, predicate, at_step))",
+      "replace": "            return self.beliefs.claim(subject, predicate, at_step)",
+      "rationale": "C_fail_abstain is C"
+    }
+  ]
+}
