@@ -857,7 +857,16 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 19 -> 18 with D-2026-150, in the same commit as it: the end-to-end
 #: demonstration now builds and verifies a release candidate and refuses
 #: hostile inputs, so its row's hosted evidence predates it.
-EXPECTED_EVIDENCE_COVERS = 18
+#:
+#: 18 -> 49 with hosted evidence at 40440ce attached to every row, in the
+#: commit that attaches it. The agent-substrate workflow's push and
+#: pull_request runs are on every row, and harness-integrations,
+#: stack-verify, container-verify and supply-chain on the rows whose
+#: evidence they are: 44 check runs, every one green. D-2026-151 to
+#: D-2026-154 lie between 18 and this commit and moved no count. The
+#: attaching commit changes no path that any row's implementation digest
+#: covers, so the digests at 40440ce are the digests now.
+EXPECTED_EVIDENCE_COVERS = 49
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

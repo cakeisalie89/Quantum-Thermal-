@@ -13,7 +13,7 @@
   {
    "id": "REL-1",
    "capability": "release verification reports five non-interchangeable levels; admit is the only gate and refuses digest-only runs",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_release_admission.py",
     "tests/test_supply_chain.py"
@@ -22,18 +22,28 @@
     "tools/mutations/supply_chain.json"
    ],
    "ledger": "D-2026-143",
-   "note": "hosted: supply-chain sign-and-verify requires admit to refuse a CI signature (exit 3) -- not yet run at this tranche's head",
+   "note": "hosted at the commit named; what ran is in hosted.what",
    "implementation": [
     "tools/supply_chain.py",
     "tools/offline_verify.py",
     "docs/supply_chain_ci_policy.json",
     ".github/workflows/supply-chain.yml"
-   ]
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033",
+     "39092564447"
+    ],
+    "implementation_sha256": "2525f1ab8c3374ddbd74a8d62eb56890a15f652e864b13cca476bd0a2cc6d99e",
+    "what": "supply-chain sign-and-verify: admit took the signed candidate to SIGNER_TRUSTED and refused it (exit 3) under the CI policy; the admission tests ran in agent-substrate"
+   }
   },
   {
    "id": "REL-2",
    "capability": "portable offline verifier: stdlib only, no checkout, provisioned trust root, hostile inputs refused",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_offline_verify.py"
    ],
@@ -41,29 +51,49 @@
     "tools/mutations/supply_chain.json"
    ],
    "ledger": "D-2026-144",
-   "note": "hosted: supply-chain offline-verify (sparse kit, no network, hostile suite with a real Sigstore bundle) -- not yet run at this tranche's head",
+   "note": "hosted at the commit named; what ran is in hosted.what",
    "implementation": [
     "tools/offline_verify.py",
     "integrations/supply_chain/sigstore.lock",
     "docs/supply_chain_ci_policy.json",
     ".github/workflows/supply-chain.yml"
-   ]
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033",
+     "39092564447"
+    ],
+    "implementation_sha256": "a2b50ad439a34ea680ea8c0f5a8c77cea6b2a552cbbda3479d3b1f0fdf490b00",
+    "what": "supply-chain offline-verify: a three-file kit with the network removed (loopback down); verify exit 0 to SIGNER_TRUSTED, --require RELEASE_AUTHORIZED exit 3, and 17 hostile cases all as expected with a real decoy signature"
+   }
   },
   {
    "id": "REL-3",
    "capability": "reproducibility contract: which release bytes are identical across builds",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_release_reproducibility.py"
    ],
    "mutation_specs": [],
    "ledger": "D-2026-145",
-   "note": "hosted: supply-chain rebuild-elsewhere (ubuntu-22.04, Python 3.11) -- not yet run at this tranche's head",
+   "note": "hosted at the commit named; what ran is in hosted.what",
    "implementation": [
     "tools/supply_chain.py",
     "docs/security/reproducibility_contract.json",
     ".github/workflows/supply-chain.yml"
-   ]
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033",
+     "39092564447"
+    ],
+    "implementation_sha256": "08c67f4a30be3794e2a3896d4874c16bbb8938e8041abda1b6d84134375d0ac5",
+    "what": "supply-chain rebuild-elsewhere: ubuntu-22.04 with Python 3.11 rebuilt the candidate and compared it under the reproducibility contract"
+   }
   },
   {
    "id": "REL-4",
@@ -113,7 +143,7 @@
   {
    "id": "CI-4",
    "capability": "every workflow on this branch holds no more than its stated authority; the agent's and the CI signer's identities cannot sign a release",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_ci_authority.py"
    ],
@@ -130,7 +160,16 @@
     ".github/workflows/harness-integrations.yml",
     ".github/workflows/stack-verify.yml",
     ".github/workflows/supply-chain.yml"
-   ]
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "663ec20b5e210f373844b3c3711fbf845a609dc562f148de9b88f433e815759e",
+    "what": "agent-substrate: the workflow contract, with its authority rules and exit-capture rule, and tests/test_ci_authority.py in the full suite"
+   }
   },
   {
    "id": "CI-5",
@@ -144,7 +183,7 @@
   {
    "id": "SUB-1",
    "capability": "authority-bearing writers decide under the writer lock against the history they append onto",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_agent_toctou.py",
     "tests/test_decided_appends.py"
@@ -159,7 +198,16 @@
     "agent_substrate/agents.py",
     "agent_substrate/memory.py",
     "agent_substrate/events.py"
-   ]
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "98056f22745c5e0bc52aa57fed788d92f2637cbc22000bc8866250460938e613",
+    "what": "agent-substrate: full suite and mutation shards"
+   }
   },
   {
    "id": "SUB-2",
@@ -173,7 +221,7 @@
   {
    "id": "SUB-3",
    "capability": "promotions bound to a policy published by a named authority, not withdrawn, not expired; restated by the second reader",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_policy_binding.py",
     "tests/test_scientific_authority_replay.py"
@@ -189,12 +237,21 @@
     "agent_substrate/reconstruct.py",
     "agent_substrate/governed_model.py",
     "agent_substrate/audit.py"
-   ]
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "ef07b3032b920413d20d3bb74552f70bf50c695485d945a0f662decd2163ece5",
+    "what": "agent-substrate: full suite and mutation shards"
+   }
   },
   {
    "id": "SUB-4",
    "capability": "hostile Cases A-H refused end to end",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_hostile_composition.py"
    ],
@@ -208,7 +265,16 @@
     "agent_substrate/policy.py",
     "agent_substrate/governed_model.py",
     "tools/offline_verify.py"
-   ]
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "e41e344d84dfd6a1645e8077a84bace1c95c45fa4041ad6eb72edf58a8346506",
+    "what": "agent-substrate: full suite"
+   }
   },
   {
    "id": "SUB-5",
@@ -224,7 +290,7 @@
   {
    "id": "RUN-1",
    "capability": "tool resource bounds: wall, CPU, address space, output, tasks, descriptors, environment",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_agent_execution.py",
     "tests/test_execution_containment.py"
@@ -237,7 +303,16 @@
    "implementation": [
     "agent_substrate/execution.py",
     "agent_substrate/_ns_init.py"
-   ]
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "5a170fbb678c90b1a53247e0e0a338e353d406443a00782b3f802ed9747f2c2e",
+    "what": "agent-substrate: full suite and mutation shards with HARNESS_ISOLATION_REQUIRED=1 on the runner"
+   }
   },
   {
    "id": "RUN-2",
@@ -250,7 +325,7 @@
     "tools/mutations/execution_containment.json"
    ],
    "ledger": "D-2026-149",
-   "note": "implemented and measured where unprivileged namespaces exist; a deployment must check namespace_isolation() or supply container isolation (DEPLOYMENT.md section 5)"
+   "note": "implemented and measured where unprivileged namespaces exist; a deployment must check namespace_isolation() or supply container isolation (DEPLOYMENT.md section 5); at 40440ce the containment tests and mutations ran with namespaces on GitHub's ubuntu-latest runners after the job relaxed kernel.apparmor_restrict_unprivileged_userns, which a production host should not do (DEPLOYMENT.md section 5)"
   },
   {
    "id": "RUN-3",
@@ -275,7 +350,7 @@
   {
    "id": "DEMO-1",
    "capability": "end-to-end demonstration: proposal, policy and capability, model run, independent check, HDF5 and provenance, authority decision, reconstruction, a release candidate built and verified, hostile inputs refused",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_harness_demo.py"
    ],
@@ -288,7 +363,18 @@
     "tools/harness_demo.py",
     "tools/supply_chain.py",
     "tools/offline_verify.py"
-   ]
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033",
+     "39092564434",
+     "39092567950"
+    ],
+    "implementation_sha256": "245e65234ec5a268dcfc1476378165a987ad7639acc5c237a1fc8d2865678ad0",
+    "what": "harness-integrations end-to-end: the demonstration with both runtimes, including the release leg and the hostile inputs; the live signing provider is exercised by supply-chain, not by the demonstration"
+   }
   }
  ]
 }

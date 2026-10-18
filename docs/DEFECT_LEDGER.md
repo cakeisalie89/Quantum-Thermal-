@@ -8527,6 +8527,13 @@ it leaves the `-e` that the runner set in place.
 * That the repair is hosted-verified at the commit that makes it. That
   needs its own hosted run.
 
+**HOSTED, AFTERWARDS.** At `8dd99d6` (supply-chain 39081912402) and at
+`40440ce` (39092564447) the gate step passed by observing exit 3. The
+`offline-verify` job then ran for the first time at `8dd99d6`, with the
+network removed: `verify` exited 0 at SIGNER_TRUSTED, requiring
+RELEASE_AUTHORIZED exited 3, and all 17 hostile cases were refused as
+expected. `rebuild-elsewhere` passed on ubuntu-22.04.
+
 ## D-2026-153 — D-2026-149 moved signal reporting into the namespace init, and the process's own path was left untested
 
 **CLASS** — `COVERAGE_LOSS`: Tranche F, Section 11 (F5), the first hosted run
@@ -8563,6 +8570,10 @@ it asked for and the host gave. `agent_execution` ran in full here:
 **NOT CLAIMED.** That no other existing specification lost a path in the
 same way. Hosted shards 2 and 3 at `1c5df5c` were still running when this
 was recorded. The other five shards passed.
+
+**HOSTED, AFTERWARDS.** Shards 2 and 3 at `1c5df5c` passed, so shard 6 was
+the only failure there. At `8dd99d6` and at `40440ce` every shard and the
+aggregate passed, on push and on pull_request.
 
 ## D-2026-154 — a HOSTED_TESTED readiness row was bound to runs and a commit, not to the code they tested
 

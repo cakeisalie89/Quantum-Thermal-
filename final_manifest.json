@@ -89,8 +89,8 @@
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 6986,
-      "sha256": "8c505191c4366df086408b2555ce55f2a82a20abf1d516bd281b182d7d1b451f"
+      "size_bytes": 3500,
+      "sha256": "7c7eadcf56e6f3b44961ce42c58b6413164d7caae876b6130d6e2f03bf4d9c2f"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -379,8 +379,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 479109,
-      "sha256": "027e78b00646fb257f7a3446d1946183aa4a7b11ec4df2ab848efba9564b0cdc"
+      "size_bytes": 479708,
+      "sha256": "787d8c547ed9b66a338bbe2ba6c944af0d781270ef7fc74afdbe9aef95f05427"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -389,13 +389,13 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 254402,
-      "sha256": "c88c4650f824700ab945b260da4b1fc5127373686607c1fec7409b5c3142cf61"
+      "size_bytes": 252277,
+      "sha256": "11dd29eff5676320529a83393db6032fe34437957666fe726db72cfea3935eb9"
     },
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3651,
-      "sha256": "22d820d882d1e4fc1859d30f3f6e00d7e8cb4d49cb2fbfd08cbec7bde4e1a5bf"
+      "sha256": "54f59e9496181945aee43f542b8bcb1d6430f063807763d07efa2390577eaeb7"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -414,8 +414,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 16369,
-      "sha256": "a7a6d6f2e69a18972df170d0aef8da2c76e5ad4c4d1e05b1794db28ce2722999"
+      "size_bytes": 10092,
+      "sha256": "8869a4c09e512795696a9a9dc8d3b0dca076a67652cc112270a78289ab3888a8"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -554,8 +554,8 @@
     },
     {
       "filename": "docs/security/readiness_matrix.json",
-      "size_bytes": 10330,
-      "sha256": "27f20e8a8c6d64b44ecdf3a8a8a288aa4383615fac632a8fe70476464f09a29d"
+      "size_bytes": 13811,
+      "sha256": "88a03ca1c70ce75c2592d2ed37c3abababd7711f36116cd4f5ba6eddb3a8a662"
     },
     {
       "filename": "docs/security/reproducibility_contract.json",
@@ -665,7 +665,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "7beb58539f1c03632ea6f8c6b0196f17a9f65488727850b16fc79089e9fe3321"
+      "sha256": "0a810f416363dc5057c1142ef31f36c7186c4cb2254849256331dd3f1503e7e2"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1319,8 +1319,8 @@
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 45291,
-      "sha256": "5ca4417d67c318afc29644682e83863314d5e0e499c572c1017e453b89947fbf"
+      "size_bytes": 45838,
+      "sha256": "ad8e277a759c6b9eb951b6ca4362c3a84fb5326db4997ae1a520a43aa86d9981"
     },
     {
       "filename": "tests/test_container_manifest_coverage.py",
