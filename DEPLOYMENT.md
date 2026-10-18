@@ -118,11 +118,48 @@ Hosts known to refuse unprivileged namespaces:
   isolation above.
 * Container runtimes whose seccomp profile denies `unshare(CLONE_NEWUSER)`.
 
+**Filesystem confinement (D-2026-157).** Inside its namespaces, the tool
+runs under a Landlock ruleset. The namespace's init applies the ruleset in
+the forked child before the tool executes. The tool, and everything it
+starts, can open only what the ruleset grants:
+
+* **Read:** the interpreter's trees, the runtime files a dynamically linked
+  program needs, its own `/proc/self`, and the Python packages under its
+  working directory. Also anything the caller grants in
+  `Limits.read_paths`.
+* **List:** the working directory.
+* **Write:** the tool's declared writable scope, the directory of each
+  output its contract names, `/dev/null`, and a temporary directory private
+  to the run. The executor sets `TMPDIR` to that directory.
+
+Everything else is refused by the kernel when it is opened. That includes
+the host's configuration, other users' files, other mounts, and a symbolic
+link from inside the scope to outside it.
+
+The init then tries to open a probe path that nothing grants. If the open
+succeeds, the confinement is not in force, whatever the ruleset said.
+
+`Limits.confine` chooses what happens when confinement cannot be put in
+force: no namespaces, no Landlock, or a probe that opened.
+
+* `research` (the default) runs the tool and records it as unconfined, with
+  the reason.
+* `high_assurance` does not run the tool.
+
+Neither mode downgrades without saying so in
+`ExecutionResult.isolation["filesystem"]`. A deployment that relies on
+confinement constructs its runner as
+`GovernedTasks(..., confine="high_assurance")`, and **checks the host**:
+
+    uv run python tools/confinement_probe.py
+
+Landlock grants and never subtracts. A supervisor store kept beneath a
+tool's writable scope can be reached by the tool: an authority log inside
+the workspace, for example. Keep the log and the evidence store outside
+every tool's scope.
+
 **Not provided by this code. These are DEPLOYMENT_REQUIRED:**
 
-* confinement of filesystem READS (finding R-3), by a read-only root
-  filesystem with only the workspace writable, a mount namespace that binds
-  only the workspace, or an LSM profile;
 * GPU, disk-space and network-bandwidth quotas;
 * memory accounting beyond `RLIMIT_AS`, by cgroup `memory.max`.
 
@@ -183,7 +220,7 @@ deployment policy.
 | Check | Row | What the deployment observes |
 |---|---|---|
 | `namespace_isolation` | RUN-2 | A tool run under `run_bounded` records user, PID and network namespaces in `ExecutionResult.isolation`. A descendant that calls `setsid()` dies with the run, and a connection to the host's loopback is refused. |
-| `filesystem_confinement` | RUN-3 | A tool reading a sentinel outside its declared readable paths is refused by the kernel, directly and through a symbolic link. |
+| `filesystem_confinement` | RUN-3 | `uv run python tools/confinement_probe.py`, run on the deployment host with the deployment's interpreter, reports `PASS`. It runs a tool in `high_assurance` mode and observes five things: a sentinel outside the granted paths is refused, directly and through a symbolic link; the host's configuration is refused; a write outside the declared scope is refused; and a write inside it lands. The runner the deployment uses is constructed with `confine="high_assurance"`. |
 | `resource_quotas` | RUN-4 | The deployment bounds a tool's memory, task count, disk and network bandwidth below the host's, through cgroups or the container runtime. |
 
 **The attestation** (`harness-deployment-attestation/1`) is a JSON object

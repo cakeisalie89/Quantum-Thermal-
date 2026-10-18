@@ -44,15 +44,15 @@
   {
    "name": "EC6_the_inits_report_is_ignored",
    "path": "agent_substrate/execution.py",
-   "find": "        if status_r is not None:\n            # The tool's own wait status",
-   "replace": "        if False:\n            # The tool's own wait status",
+   "find": "        if status_r is not None:\n            # What the namespace's init reported",
+   "replace": "        if False:\n            # What the namespace's init reported",
    "rationale": "D-2026-149: a tool killed by a signal under isolation is reported as exiting 128+n"
   },
   {
    "name": "EC7_the_namespace_init_is_skipped",
    "path": "agent_substrate/execution.py",
-   "find": "        full_argv = [*prefix, sys.executable, \"-I\", \"-S\", str(_NS_INIT),\n                     str(status_w), \"--\", *argv]",
-   "replace": "        full_argv = [*prefix, *argv]",
+   "find": "        full_argv = [*prefix, sys.executable, \"-I\", \"-S\", str(_NS_INIT),\n                     str(status_w), \"--confine\", limits.confine,\n                     json.dumps(policy, sort_keys=True), \"--\", *argv]\n",
+   "replace": "        full_argv = [*prefix, *argv]\n",
    "rationale": "D-2026-149: the tool is PID 1 of its namespace: its own SIGTERM is ignored and its signal deaths are lost"
   }
  ]

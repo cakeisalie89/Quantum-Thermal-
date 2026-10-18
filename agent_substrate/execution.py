@@ -68,6 +68,7 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import json
 import os
 import resource
 import shutil
@@ -98,6 +99,12 @@ EXCERPT_BYTES = 2000
 #: a well-behaved tool to flush and exit, short enough that a hung one does not
 #: hold the executor open.
 TERMINATE_GRACE_S = 5.0
+
+#: How long the executor waits on a running tool before it looks at the
+#: deadline, the idle bound and the cancellation token again. A tool that
+#: exits inside one interval is not seen until it does -- which is why the
+#: bound is checked again after exit (D-2026-78).
+POLL_S = 0.05
 
 #: Default caps. Every one is a refusal-to-guess: a tool that needs more says
 #: so in its own limits, in a declaration somebody reviewed.
@@ -164,6 +171,67 @@ SUCCESSFUL: frozenset = frozenset({Outcome.COMPLETED})
 RETRYABLE: frozenset = frozenset({Outcome.TIMED_OUT, Outcome.CANCELLED})
 
 
+#: Filesystem confinement modes. See :attr:`Limits.confine`.
+CONFINEMENT_MODES = ("research", "high_assurance")
+
+#: Outside the interpreter, what any dynamically linked program opens to
+#: start. Files, granted read only.
+_RUNTIME_FILES = ("/etc/ld.so.cache", "/dev/zero", "/dev/urandom",
+                  "/proc/cpuinfo")
+#: Opened for writing by anything that discards output -- a subprocess
+#: started with ``stdin=DEVNULL`` opens it read-write -- and a write to it
+#: reaches nothing. Granted read-only, ``ctypes.util.find_library`` failed
+#: inside the confinement and the runtime identity came out UNRESOLVED.
+_DISCARD = "/dev/null"
+#: The tool's OWN process directory. Resolved by the confining child, whose
+#: process id the tool keeps across exec, so it names that process and no
+#: other: a run fingerprints its runtime from its own mappings and reads
+#: nothing of any other process the host's /proc shows.
+_PROC_SELF = "/proc/self"
+
+
+def confinement_policy(*, cwd: Path, writable_scope: tuple,
+                       read_paths: tuple, probe: Path,
+                       scratch: Path | None = None,
+                       outputs: tuple = ()) -> dict:
+    """What a confined tool may open (D-2026-157).
+
+    READ: the interpreter's trees, the runtime files every dynamically linked
+    program needs, the Python packages directly under ``cwd`` (the tool's
+    own code and what it imports), and whatever the caller grants in
+    ``read_paths``. LIST: ``cwd`` itself, which the import system lists to
+    find those packages -- names beneath it are visible, contents are not.
+    WRITE: the tool's declared writable scope, the directory of each output
+    its contract names (``outputs``, already resolved and refused by the
+    contract if it would leave ``cwd``), and ``scratch``, a temporary
+    directory private to this run (its ``TMPDIR``). Nothing else.
+
+    Everything else is refused at ``open``: the rest of the working tree,
+    the host's configuration, other users' files, other mounts. ``probe`` is
+    a path none of this grants; the confinement is shown to be in force by
+    the shim failing to open it.
+
+    Landlock only grants. A supervisor store that lies beneath the writable
+    scope -- an authority log kept inside the workspace -- is reachable by
+    the tool; where the log is kept is a deployment decision, and the
+    deployment contract says so.
+    """
+    cwd = Path(cwd)
+    interp = sorted({sys.base_prefix, sys.prefix, sys.exec_prefix,
+                     sys.base_exec_prefix})
+    packages = sorted(str(d) for d in cwd.iterdir()
+                      if d.is_dir() and (d / "__init__.py").is_file())
+    granted = [str(p if Path(p).is_absolute() else cwd / p)
+               for p in read_paths]
+    return {"read": [*interp, *_RUNTIME_FILES, _PROC_SELF, *packages,
+                     *granted],
+            "list": [str(cwd)],
+            "write": [str(cwd / s) for s in writable_scope]
+            + sorted({str((cwd / rel).parent) for rel in outputs})
+            + ([str(scratch)] if scratch is not None else []) + [_DISCARD],
+            "probe": str(probe)}
+
+
 @dataclass(frozen=True)
 class Limits:
     """Kernel-enforced bounds. Every field has a default; none is unlimited."""
@@ -190,6 +258,21 @@ class Limits:
     #: host allows it. What was actually achieved is recorded per run in
     #: ``ExecutionResult.isolation``, never assumed from this flag.
     isolate: bool = True
+    #: Filesystem confinement (D-2026-157). ``research``: confine where the
+    #: host can, and where it cannot, run unconfined and record why.
+    #: ``high_assurance``: confine, or do not run the tool. Neither mode
+    #: downgrades without saying so in the execution record.
+    confine: str = "research"
+    #: Further paths the tool may READ, relative to its working directory or
+    #: absolute. What a tool reads beyond its interpreter and the packages
+    #: beside it is something somebody grants, not something it finds.
+    read_paths: tuple = ()
+
+    def __post_init__(self) -> None:
+        if self.confine not in CONFINEMENT_MODES:
+            raise ValueError(
+                f"confine must be one of {CONFINEMENT_MODES}, not "
+                f"{self.confine!r}")
 
     def to_record(self) -> dict:
         return {"wall_seconds": self.wall_seconds,
@@ -200,6 +283,8 @@ class Limits:
                 "idle_seconds": self.idle_seconds,
                 "open_files": self.open_files,
                 "isolate": self.isolate,
+                "confine": self.confine,
+                "read_paths": list(self.read_paths),
                 "nproc_baseline": count_user_tasks()}
 
 
@@ -747,18 +832,55 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
     prefix, isolation = (namespace_isolation() if limits.isolate else
                          ((), {"namespaces": [],
                                "detail": "not requested (Limits.isolate)"}))
+    isolation = dict(isolation)
     base["isolation"] = isolation
+    # FILESYSTEM CONFINEMENT (D-2026-157, finding R-3). Applied by the
+    # namespace's init before the tool is forked, so it binds the tool and
+    # everything the tool starts. Where it cannot be applied, the mode
+    # decides, and the record says which -- never a silent downgrade.
+    probe = out_dir / "probe"
+    probe.write_bytes(b"a path no confinement policy grants\n")
+    scratch = out_dir / "tmp"
+    scratch.mkdir()
+    policy = confinement_policy(
+        cwd=Path(cwd), writable_scope=tuple(spec.writable_scope),
+        read_paths=tuple(limits.read_paths), probe=probe, scratch=scratch,
+        outputs=tuple(rel for _name, rel, _required in collect))
+    filesystem: dict[str, Any] = {"mode": limits.confine, "applied": None,
+                                  "policy": {k: policy[k] for k in
+                                             ("read", "list", "write")}}
+    isolation["filesystem"] = filesystem
+    if not prefix:
+        filesystem["detail"] = (
+            "no namespaces to confine within: " + isolation["detail"])
+        if limits.confine == "high_assurance":
+            shutil.rmtree(out_dir, ignore_errors=True)
+            now = time.time()
+            return ExecutionResult(
+                outcome=Outcome.FAILED, ended_wall=now,
+                duration_s=now - started,
+                reason=("filesystem confinement is required (high_assurance) "
+                        "and cannot be put in force: "
+                        f"{filesystem['detail']}. The tool did not run."),
+                **base)
     status_r = status_w = None
     full_argv = list(argv)
+    run_env = dict(env or {})
     if prefix:
         status_r, status_w = os.pipe()
         full_argv = [*prefix, sys.executable, "-I", "-S", str(_NS_INIT),
-                     str(status_w), "--", *argv]
+                     str(status_w), "--confine", limits.confine,
+                     json.dumps(policy, sort_keys=True), "--", *argv]
+        # The one variable this adds to an environment it otherwise takes
+        # as given: a temporary directory nobody else's run can see, since a
+        # confined tool may write nowhere else. Recorded beside the policy.
+        run_env["TMPDIR"] = str(scratch)
+        filesystem["tmpdir"] = str(scratch)
     try:
         with out_path.open("wb") as fo, err_path.open("wb") as fe:
             proc = subprocess.Popen(
                 full_argv, cwd=str(cwd), stdout=fo, stderr=fe,
-                stdin=subprocess.DEVNULL, env=dict(env or {}),
+                stdin=subprocess.DEVNULL, env=run_env,
                 preexec_fn=_apply_limits(limits), close_fds=True,
                 pass_fds=(status_w,) if status_w is not None else ())
             if status_w is not None:
@@ -784,7 +906,7 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
             last_size = 0
             while True:
                 try:
-                    proc.wait(timeout=0.05)
+                    proc.wait(timeout=POLL_S)
                     break
                 except subprocess.TimeoutExpired:
                     pass
@@ -842,18 +964,37 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
             signal_number = -rc
         else:
             exit_status = rc
+        refused = None
         if status_r is not None:
-            # The tool's own wait status, from the namespace's init: an init
-            # cannot re-raise a signal, so a signal death arrives here.
-            reported = os.read(status_r, 64).decode(errors="replace").split()
-            if len(reported) == 2 and reported[1].isdigit():
-                if reported[0] == "signal":
-                    signal_number, exit_status = int(reported[1]), None
-                elif reported[0] == "exit":
-                    signal_number, exit_status = None, int(reported[1])
+            # What the namespace's init reported, a line at a time: the
+            # confinement it put in force (or why not), then the tool's own
+            # wait status -- an init cannot re-raise a signal, so a signal
+            # death arrives here.
+            chunks = []
+            while True:
+                chunk = os.read(status_r, 4096)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            for line in b"".join(chunks).decode(
+                    errors="replace").splitlines():
+                word, _, rest = line.partition(" ")
+                if word == "confined":
+                    filesystem["applied"] = rest
+                elif word in ("unconfined", "refused"):
+                    filesystem["detail"] = rest
+                    if word == "refused":
+                        refused = rest
+                elif word in ("signal", "exit") and rest.isdigit():
+                    if word == "signal":
+                        signal_number, exit_status = int(rest), None
+                    else:
+                        signal_number, exit_status = None, int(rest)
+        if filesystem["applied"] is None and "detail" not in filesystem:
+            filesystem["detail"] = "the init reported no confinement"
 
         # THE BOUND IS CHECKED AFTER EXIT TOO (D-2026-78). The loop above
-        # looks at the deadline only when a 50 ms wait times out, so a
+        # looks at the deadline only when a POLL_S wait times out, so a
         # process that exited past its deadline but inside one poll interval
         # came back COMPLETED: a run that outlived its declared bound,
         # accepted. It stayed hidden while the tools run here were slow to
@@ -886,6 +1027,13 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
             else:
                 outcome = Outcome.FAILED
                 reason = f"exited with status {exit_status}"
+        if refused is not None:
+            # Whatever the status says: the init refused before forking,
+            # and the reason is the confinement, not the tool.
+            outcome = Outcome.FAILED
+            reason = ("filesystem confinement is required "
+                      "(high_assurance) and was not in force: "
+                      f"{refused}. The tool did not run.")
 
         out, out_size, out_cut = _read_capped(out_path, limits.output_bytes)
         err, err_size, err_cut = _read_capped(err_path, limits.output_bytes)
@@ -938,8 +1086,9 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
         for fd in (status_r, status_w):
             if fd is not None:
                 os.close(fd)
-        for p in (out_path, err_path):
+        for p in (out_path, err_path, probe):
             p.unlink(missing_ok=True)
+        shutil.rmtree(scratch, ignore_errors=True)
         try:
             out_dir.rmdir()
         except OSError:                              # pragma: no cover

@@ -8867,3 +8867,127 @@ tree, before the commit:
   HOSTED_TESTED to IMPLEMENTED: their implementation changed, and their
   last hosted evidence is kept as `last_hosted`. 26 completion rows' hosted
   evidence predates this commit.
+
+## D-2026-157 — a tool's reads and writes were confined by nothing but its credentials
+
+**CLASS** — `ISOLATION` and `WRONG_CLAIM`: Tranche G, Phase G3. Closes
+finding R-3, and adds and closes R-4.
+
+**DEMONSTRATION.** Measured at `b9b2187` with `run_bounded`, the tool inside
+its user, PID and network namespaces:
+
+* **R-3, reads.** The tool opened a sentinel beside its workspace, the same
+  sentinel through a symbolic link inside its scope, a file on another mount
+  (`/dev/shm`) and `/etc/passwd`.
+* **R-4, writes.** It wrote a file outside its declared scope. The write
+  landed, and `undeclared_writes` was empty. The inventory that reports
+  undeclared writes is scoped to the writable scope, on the stated premise
+  that "a tool may only write inside its declared scope". Nothing enforced
+  that premise. R-3's own impact statement said such writes "are detected
+  afterwards as undeclared writes", and they were not.
+
+**ROOT CAUSE.** The namespaces confined processes and the network. The
+filesystem was the host's, and no rule said what a tool could open.
+
+**REPAIR.**
+
+* **Landlock in the namespace's init.** The forked child restricts itself,
+  through Landlock's three system calls from the standard library, before it
+  executes the tool. The tool, and everything it starts, inherits the
+  restriction and cannot shed it. That includes a descendant that calls
+  `setsid()`.
+* **What the ruleset grants** (`execution.confinement_policy`).
+  * Read: the interpreter's trees, the runtime files every dynamically
+    linked program opens, the tool's own `/proc/self`, the packages under
+    its working directory, and `Limits.read_paths`.
+  * List: the working directory.
+  * Write: the declared scope, the directory of each output the contract
+    names, `/dev/null`, and a temporary directory private to the run.
+    `TMPDIR` is the one variable the executor adds.
+* **Proven, not reported.** After restricting itself, the child tries to
+  open a probe path the ruleset does not grant. If the open succeeds, the
+  record does not say "confined".
+* **Two modes, and neither downgrades silently** (`Limits.confine`).
+  * `research` runs an unconfinable tool and records why it was not
+    confined.
+  * `high_assurance` refuses to run it: no namespaces, no Landlock, or a
+    probe that opened. The run's outcome says the tool did not run.
+  * `ExecutionResult.isolation["filesystem"]` records the mode, what was
+    applied, the policy and the scratch directory.
+  * `GovernedTasks(confine=...)` sets the mode for every tool the runner
+    starts: the work, the undo and the verifier's re-execution.
+* **The deployment check.** `tools/confinement_probe.py` is what a
+  deployment runs and attests for RUN-3 (DEPLOYMENT.md section 9). It runs a
+  tool in `high_assurance` mode and reports observations, not the record:
+  * the sentinel is refused, directly and through a symbolic link;
+  * the host's configuration is refused;
+  * a write outside the scope is refused;
+  * a write inside it lands.
+
+  CI runs it on its own runner, where it says what that runner does.
+
+**FOUND WHILE DOING IT**, each measured and repaired before the commit:
+
+* **A confined run fingerprinted a different runtime.** `/dev/null` was
+  granted read-only. `ctypes.util.find_library` opens it read-write, and so
+  failed inside the confinement. `libc` and `libm` came out UNRESOLVED, and
+  every confined run carried a different environment digest from the same
+  code unconfined. `test_a_confined_run_fingerprints_the_same_runtime_as_an
+  _unconfined_one` now compares the two records whole.
+* **The scientific identity tool failed under the first policy.** Its
+  library lookup falls back to a temporary file, which is now written to
+  the run's own directory, and `/tmp` stays refused.
+* **Two fixtures wrote outside the scope they declared.** Both are in
+  `test_agent_execution.py`, and nothing enforced a scope until now. One
+  declares the scope it writes; the other writes a declared output, whose
+  directory is now granted.
+* **The first mutation run killed 12 of 13.** FC10 survived: nothing
+  exercised a confined temporary file. After the test above, **13 of 13**.
+* **Confinement costs a minimal tool run about 17 ms here.** The median
+  went from 38 ms to 55 ms over 25 runs each, which is past the executor's
+  50 ms poll interval.
+  * `test_a_run_that_exits_after_its_bound_is_not_completed` assumed the
+    tool exits inside the first interval. It failed 13 runs in 30 (1 in 30
+    before this change): the loop's own deadline check won the race, giving
+    a TIMED_OUT for the other reason.
+  * It turned the null control red in both specifications re-anchored
+    here. The mutation runner refused to report either; a red null control
+    would have read every mutation as killed.
+  * The interval is now `execution.POLL_S`, and the test widens it, so the
+    D-2026-78 path it exists for no longer depends on a race: 30 runs in
+    30 pass.
+  * Re-run: `agent_execution` **63 of 63**, `execution_containment`
+    **7 of 7**.
+
+**Tests and mutations.** `tests/test_filesystem_confinement.py` pairs each
+case with a control:
+
+* a sentinel, the host's configuration, a symbolic link, another mount;
+* a write outside the scope, a `setsid()` grandchild, the network;
+* a sandbox too narrow, and the grant that widens it;
+* both modes with no namespaces;
+* a false isolation report in both modes;
+* identity parity, a declared output with no scope, and the private
+  temporary directory.
+
+`tests/test_confinement_probe.py` covers the probe. R-3's reproduction in
+`test_execution_containment.py` is now its regression test, with a control.
+`tools/mutations/filesystem_confinement.json` (FC1 to FC13) removes each
+rule.
+
+**NOT CLAIMED.**
+
+* **Deployment evidence.** That any deployment is confined. RUN-3 stays
+  DEPLOYMENT_REQUIRED: the deployment must run with `high_assurance` on a
+  host with Landlock and unprivileged namespaces, and attest the probe.
+  Measured here on one development host, Landlock ABI 7.
+* **Landlock only grants.** A supervisor store kept beneath a tool's
+  writable scope is reachable by the tool. DEPLOYMENT.md says to keep the
+  log and the evidence store outside every scope.
+* **Names are listable.** Directory names beneath the working directory can
+  be listed; file contents outside the grants cannot be read.
+* **Scopes not handled.** Abstract UNIX sockets and signals are not scoped
+  (Landlock ABI 6). The network is confined by the network namespace, as
+  before, and not by Landlock.
+* **Research mode.** It runs an unconfinable tool. That is its definition,
+  and the record says so; it is not a confinement guarantee.

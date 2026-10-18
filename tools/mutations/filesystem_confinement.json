@@ -1,0 +1,101 @@
+{
+  "title": "Filesystem confinement: what a confined tool can open, observed",
+  "note": "D-2026-157 (findings R-3, R-4). Each mutation removes one part of the confinement the namespace's init applies with Landlock, the proof that it is in force, the mode that refuses to run without it, or the executor's record of it. The suites observe what the tool could open rather than reading the record.",
+  "suites": [
+    "tests/test_filesystem_confinement.py",
+    "tests/test_confinement_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "FC1_nothing_is_restricted",
+      "path": "agent_substrate/_ns_init.py",
+      "find": "        if libc.syscall(_SYS_LANDLOCK_RESTRICT_SELF, ctypes.c_int(ruleset),\n                        ctypes.c_uint32(0)) != 0:\n",
+      "replace": "        if False:\n",
+      "rationale": "the ruleset is built and never applied; every open the policy refuses goes through"
+    },
+    {
+      "name": "FC2_the_restriction_is_not_proven",
+      "path": "agent_substrate/_ns_init.py",
+      "find": "    try:\n        fd = os.open(probe, os.O_RDONLY | os.O_CLOEXEC)\n    except PermissionError:\n        return f\"landlock abi {abi}\"\n",
+      "replace": "    try:\n        return f\"landlock abi {abi}\"\n    except PermissionError:\n        return f\"landlock abi {abi}\"\n",
+      "rationale": "the record says confined without anything having been refused: a false isolation report"
+    },
+    {
+      "name": "FC3_high_assurance_runs_unconfined",
+      "path": "agent_substrate/_ns_init.py",
+      "find": "                if mode == \"high_assurance\":\n                    _report(status_fd, f\"refused {exc}\")\n                    os._exit(126)\n",
+      "replace": "                if False:\n                    _report(status_fd, f\"refused {exc}\")\n                    os._exit(126)\n",
+      "rationale": "high assurance downgrades to research when confinement cannot be put in force"
+    },
+    {
+      "name": "FC4_file_rules_carry_directory_rights",
+      "path": "agent_substrate/_ns_init.py",
+      "find": "                    allowed &= _FILE_RIGHTS\n",
+      "replace": "                    allowed = allowed\n",
+      "rationale": "a file grant carries directory rights the kernel refuses, so a granted file fails the ruleset"
+    },
+    {
+      "name": "FC5_reads_are_not_granted",
+      "path": "agent_substrate/_ns_init.py",
+      "find": "_READ_RIGHTS = _EXECUTE | _READ_FILE | _READ_DIR\n",
+      "replace": "_READ_RIGHTS = _EXECUTE | _READ_DIR\n",
+      "rationale": "the interpreter cannot read its own library, so every confined tool fails: a sandbox too narrow to run"
+    },
+    {
+      "name": "FC6_write_scope_is_read_only",
+      "path": "agent_substrate/_ns_init.py",
+      "find": "                  + [(p, handled) for p in policy.get(\"write\", ())])\n",
+      "replace": "                  + [(p, _READ_RIGHTS) for p in policy.get(\"write\", ())])\n",
+      "rationale": "a tool cannot write its declared outputs"
+    },
+    {
+      "name": "FC7_no_namespaces_high_assurance_runs",
+      "path": "agent_substrate/execution.py",
+      "find": "        if limits.confine == \"high_assurance\":\n            shutil.rmtree(out_dir, ignore_errors=True)\n",
+      "replace": "        if False:\n            shutil.rmtree(out_dir, ignore_errors=True)\n",
+      "rationale": "on a host with no namespaces, high assurance runs the tool unconfined"
+    },
+    {
+      "name": "FC8_a_refusal_reads_as_an_exit_status",
+      "path": "agent_substrate/execution.py",
+      "find": "        if refused is not None:\n            # Whatever the status says",
+      "replace": "        if False:\n            # Whatever the status says",
+      "rationale": "a refused run is reported as 'exited with status 126', not as the confinement it was"
+    },
+    {
+      "name": "FC9_the_confinement_is_not_recorded",
+      "path": "agent_substrate/execution.py",
+      "find": "                    filesystem[\"applied\"] = rest\n",
+      "replace": "                    pass\n",
+      "rationale": "the record says nothing was applied when it was; an operator cannot tell confined from not"
+    },
+    {
+      "name": "FC10_the_tool_gets_no_private_tmp",
+      "path": "agent_substrate/execution.py",
+      "find": "        run_env[\"TMPDIR\"] = str(scratch)\n",
+      "replace": "        pass\n",
+      "rationale": "a tool that makes a temporary file fails under confinement"
+    },
+    {
+      "name": "FC11_the_tools_own_packages_are_not_granted",
+      "path": "agent_substrate/execution.py",
+      "find": "    return {\"read\": [*interp, *_RUNTIME_FILES, _PROC_SELF, *packages,\n",
+      "replace": "    return {\"read\": [*interp, *_RUNTIME_FILES, _PROC_SELF,\n",
+      "rationale": "a governed tool cannot import its own module"
+    },
+    {
+      "name": "FC12_declared_outputs_are_not_writable",
+      "path": "agent_substrate/execution.py",
+      "find": "            + sorted({str((cwd / rel).parent) for rel in outputs})\n",
+      "replace": "            + []\n",
+      "rationale": "a tool whose contract names an output and declares no scope cannot produce it"
+    },
+    {
+      "name": "FC13_discard_is_read_only",
+      "path": "agent_substrate/execution.py",
+      "find": "            + ([str(scratch)] if scratch is not None else []) + [_DISCARD],\n",
+      "replace": "            + ([str(scratch)] if scratch is not None else []),\n",
+      "rationale": "find_library fails inside the confinement and the run identity comes out UNRESOLVED"
+    }
+  ]
+}

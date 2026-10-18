@@ -85,8 +85,13 @@ def test_isolation_is_present_where_it_is_required():
 
 def test_the_run_records_the_isolation_it_got(tmp_path):
     r = _run(tmp_path, "pass", isolate=True)
-    assert r.isolation == _ISOLATION
-    assert r.to_record()["isolation"] == _ISOLATION
+    for key in ("namespaces", "detail"):
+        assert r.isolation[key] == _ISOLATION[key]
+        assert r.to_record()["isolation"][key] == _ISOLATION[key]
+    # And the filesystem confinement it got (D-2026-157), recorded beside.
+    assert r.isolation["filesystem"]["mode"] == "research"
+    assert r.to_record()["isolation"]["filesystem"] == \
+        r.isolation["filesystem"]
     off = _run(tmp_path, "pass", isolate=False)
     assert off.isolation["namespaces"] == []
     assert "not requested" in off.isolation["detail"]
@@ -259,11 +264,31 @@ def test_the_callers_environment_does_not_reach_the_tool(tmp_path,
 
 # ---- not contained here: stated so it is not forgotten ---------------------------
 
-def test_filesystem_reads_are_not_confined_by_this_executor(tmp_path):
-    """No mount namespace and no LSM policy: a tool reads what its user can.
-    Confinement of reads is a deployment requirement (a read-only container
-    filesystem, or an LSM profile), recorded in the readiness matrix."""
+def test_filesystem_reads_outside_the_grant_are_refused(tmp_path):
+    """Finding R-3, measured at b9b2187: a tool read /etc/hostname and
+    /etc/passwd, confined by nothing but its credentials. The namespace's
+    init now restricts the tool with Landlock before it runs (D-2026-157),
+    so the read is refused by the kernel. tests/test_filesystem_confinement
+    .py holds the rest: symlinks, other mounts, writes, descendants and the
+    modes."""
+    if not r_landlock_available():
+        pytest.skip("DEPLOYMENT_REQUIRED: no Landlock on this host")
     r = _run(tmp_path, "print(len(open('/etc/hostname').read()) > 0)",
              isolate=True)
+    assert "PermissionError" in r.stderr_excerpt
+    assert r.isolation["filesystem"]["applied"].startswith("landlock")
+
+
+def test_control_unisolated_the_read_is_not_refused(tmp_path):
+    r = _run(tmp_path, "print(len(open('/etc/hostname').read()) > 0)",
+             isolate=False)
     assert "True" in r.stdout_excerpt
-    assert "mnt" not in r.isolation["namespaces"]
+    assert r.isolation["filesystem"]["applied"] is None
+
+
+def r_landlock_available() -> bool:
+    import ctypes
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.syscall.restype = ctypes.c_long
+    return bool(_PREFIX) and libc.syscall(
+        444, None, ctypes.c_size_t(0), ctypes.c_uint32(1)) >= 1

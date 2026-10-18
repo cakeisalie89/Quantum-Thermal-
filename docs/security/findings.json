@@ -491,7 +491,7 @@
   },
   {
    "id": "R-3",
-   "ledger": "D-2026-149",
+   "ledger": "D-2026-157",
    "priority": "P1",
    "area": "runtime isolation",
    "title": "a tool's filesystem reads are confined by nothing but the process's credentials",
@@ -500,19 +500,50 @@
      "path": "agent_substrate/execution.py",
      "symbols": [
       "run_bounded",
-      "namespace_isolation"
+      "confinement_policy"
+     ]
+    },
+    {
+     "path": "agent_substrate/_ns_init.py",
+     "symbols": [
+      "_landlock",
+      "main"
      ]
     }
    ],
    "precondition": "A tool whose code reads paths outside its workspace.",
-   "impact": "The tool reads anything its user can (measured: /etc/hostname, /etc/passwd). Writes outside the declared scope are detected afterwards as undeclared writes; reads are not detected or prevented.",
+   "impact": "Measured at b9b2187, inside the user, PID and network namespaces: the tool opened a sentinel beside its workspace, the same sentinel through a symbolic link in its scope, a file on another mount (/dev/shm) and /etc/passwd.",
    "reproduction": {
     "kind": "test",
-    "ref": "tests/test_execution_containment.py::test_filesystem_reads_are_not_confined_by_this_executor",
-    "observed_at_baseline": "READ_PASSWD True"
+    "ref": "tests/test_filesystem_confinement.py::test_a_file_beside_the_workspace_is_refused",
+    "observed_at_baseline": "sentinel OPENED; symlink OPENED; other mount OPENED; /etc/passwd OPENED"
    },
-   "deployment_condition": "a read-only container filesystem, a mount namespace with only the workspace bound, or an LSM profile (DEPLOYMENT.md)",
-   "status": "OPEN"
+   "deployment_condition": "a host with Landlock and unprivileged namespaces, running the governed runner with confine='high_assurance'; checked by tools/confinement_probe.py (DEPLOYMENT.md section 9)",
+   "status": "FIXED"
+  },
+  {
+   "id": "R-4",
+   "ledger": "D-2026-157",
+   "priority": "P1",
+   "area": "runtime isolation",
+   "title": "a tool's writes outside its declared scope were neither refused nor detected",
+   "files": [
+    {
+     "path": "agent_substrate/execution.py",
+     "symbols": [
+      "_inventory",
+      "confinement_policy"
+     ]
+    }
+   ],
+   "precondition": "A tool that writes a file outside its declared writable scope.",
+   "impact": "Measured at b9b2187: the write landed, and ExecutionResult.undeclared_writes was empty. The undeclared-write inventory is scoped to the writable scope, on the stated premise that a tool may only write inside it; nothing enforced that premise. R-3's impact statement said such writes were detected afterwards, and they were not.",
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_filesystem_confinement.py::test_a_write_outside_the_scope_is_refused_not_only_detected",
+    "observed_at_baseline": "write outside scope WROTE; undeclared writes: ()"
+   },
+   "status": "FIXED"
   }
  ]
 }

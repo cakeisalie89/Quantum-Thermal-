@@ -882,7 +882,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: reader -- the implementation of 26 more rows (R22-R33, R36-R40, R42,
 #: R46-R49, R52-R55, R66). Their hosted evidence predates them until a
 #: later commit cites runs at this one.
-EXPECTED_EVIDENCE_COVERS = 19
+#:
+#: 19 -> 17 with D-2026-157, in the same commit as it: the executor and its
+#: namespace init now confine a tool's filesystem, which is the
+#: implementation of R21 and R23. Their hosted evidence predates them until
+#: a later commit cites runs at this one.
+EXPECTED_EVIDENCE_COVERS = 17
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

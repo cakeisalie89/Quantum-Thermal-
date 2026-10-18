@@ -220,7 +220,7 @@
     {
       "name": "X8_environment_inherited",
       "path": "agent_substrate/execution.py",
-      "find": "                stdin=subprocess.DEVNULL, env=dict(env or {}),",
+      "find": "                stdin=subprocess.DEVNULL, env=run_env,",
       "replace": "                stdin=subprocess.DEVNULL, env=None,",
       "rationale": "the child inherits credentials, proxies and paths nobody granted it"
     },
@@ -255,8 +255,8 @@
     {
       "name": "X13_temp_output_files_leak",
       "path": "agent_substrate/execution.py",
-      "find": "        for p in (out_path, err_path):\n            p.unlink(missing_ok=True)",
-      "replace": "        pass",
+      "find": "        for p in (out_path, err_path, probe):\n            p.unlink(missing_ok=True)\n",
+      "replace": "        pass\n",
       "rationale": "every run leaves its stdout and stderr behind"
     },
     {

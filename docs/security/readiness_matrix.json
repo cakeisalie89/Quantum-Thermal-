@@ -310,7 +310,7 @@
   {
    "id": "RUN-1",
    "capability": "tool resource bounds: wall, CPU, address space, output, tasks, descriptors, environment",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_agent_execution.py",
     "tests/test_execution_containment.py"
@@ -319,12 +319,12 @@
     "tools/mutations/execution_containment.json"
    ],
    "ledger": "D-2026-149",
-   "note": "rlimits apply on every host",
+   "note": "rlimits apply on every host; hosted evidence at 40440ce predates this implementation: D-2026-157 changed the executor and its namespace init (filesystem confinement); re-attached only from a hosted run of the new implementation",
    "implementation": [
     "agent_substrate/execution.py",
     "agent_substrate/_ns_init.py"
    ],
-   "hosted": {
+   "last_hosted": {
     "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
     "runs": [
      "39092564444",
@@ -350,14 +350,18 @@
   },
   {
    "id": "RUN-3",
-   "capability": "confinement of a tool's filesystem reads",
+   "capability": "confinement of a tool's filesystem reads and writes",
    "status": "DEPLOYMENT_REQUIRED",
    "tests": [
+    "tests/test_filesystem_confinement.py",
+    "tests/test_confinement_probe.py",
     "tests/test_execution_containment.py"
    ],
-   "mutation_specs": [],
-   "ledger": "D-2026-149",
-   "note": "finding R-3: a read-only root, a workspace-only mount namespace, or an LSM profile (DEPLOYMENT.md section 5)",
+   "mutation_specs": [
+    "tools/mutations/filesystem_confinement.json"
+   ],
+   "ledger": "D-2026-157",
+   "note": "implemented: Landlock applied by the namespace's init before the tool runs, proven by a probe the ruleset does not grant; high_assurance refuses to run a tool it cannot confine. Still DEPLOYMENT_REQUIRED: the deployment must run on a host with Landlock and unprivileged namespaces, construct its runner with confine='high_assurance', and attest tools/confinement_probe.py (DEPLOYMENT.md sections 5 and 9). Measured here on the development host only.",
    "deployment_check": "filesystem_confinement"
   },
   {

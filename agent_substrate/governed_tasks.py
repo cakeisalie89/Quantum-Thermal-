@@ -468,8 +468,14 @@ class GovernedTasks:
     entry point."""
 
     def __init__(self, *, root: Path, log: EventLog, evidence: EvidenceStore,
-                 registry: Registry | None = None, notifier=None):
+                 registry: Registry | None = None, notifier=None,
+                 confine: str = "research"):
         self.root = Path(root)
+        #: Filesystem confinement for every tool this runner starts --
+        #: the work, the undo and the verifier's re-execution alike
+        #: (D-2026-157). A deployment that must not run a tool unconfined
+        #: says ``high_assurance`` here; see DEPLOYMENT.md section 5.
+        self.confine = Limits(confine=confine).confine
         self.log = log
         self.evidence = evidence
         self.registry = registry or governed_registry()
@@ -1202,7 +1208,8 @@ class GovernedTasks:
                 tool_id=tool_id, actor=worker, task_id=task_id,
                 capability_id=cap_id, capabilities=caps, inputs=inputs,
                 argv=argv, cwd=self.root,
-                limits=Limits(wall_seconds=spec.timeout_s),
+                limits=Limits(wall_seconds=spec.timeout_s,
+                              confine=self.confine),
                 env=env, ignore_writes=self._supervisor_paths())
 
         result_digest = digest(result.to_record())
@@ -1821,7 +1828,8 @@ class GovernedTasks:
                 capabilities=self.capabilities.in_force(
                     self._head_seq()),
                 capability_id=cap_id,
-                limits=Limits(wall_seconds=undo.timeout_s),
+                limits=Limits(wall_seconds=undo.timeout_s,
+                              confine=self.confine),
                 env=self._tool_environment(),
                 ignore_writes=self._supervisor_paths())
         self.log.append(
@@ -2544,7 +2552,8 @@ class GovernedTasks:
                     tool_id=tool_id, actor=verifier, task_id=task_id,
                     capability_id=verify_cap, capabilities=fresh,
                     inputs=again, argv=argv, cwd=self.root,
-                    limits=Limits(wall_seconds=spec.timeout_s),
+                    limits=Limits(wall_seconds=spec.timeout_s,
+                                  confine=self.confine),
                     env=self._tool_environment(),
                     ignore_writes=self._supervisor_paths())
             if result.outcome is not Outcome.COMPLETED:

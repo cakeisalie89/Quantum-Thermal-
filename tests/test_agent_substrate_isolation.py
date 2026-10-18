@@ -138,6 +138,12 @@ ALLOWED_IMPORTERS = {
     "tests/test_refused_fold.py",
     "tests/test_t2_governed.py",
     "tests/test_decided_under_lock.py",
+    # D-2026-157: filesystem confinement, observed, and the deployment probe
+    # that runs it -- a tool that measures the executor and computes no
+    # scientific result.
+    "tests/test_filesystem_confinement.py",
+    "tests/test_confinement_probe.py",
+    "tools/confinement_probe.py",
     # NF-1T. The learned-record boundary's own tests: the store's live and
     # replayed refusal, the second reader's, and the lifecycle's links.
     "tests/test_neural_provenance.py",

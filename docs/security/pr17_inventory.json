@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 449,
+   "ADDED": 453,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 45,
-   "LOW": 166,
-   "MEDIUM": 245
+   "LOW": 168,
+   "MEDIUM": 247
   },
   "by_subsystem": {
    "agent-substrate": 19,
    "ai-ingress": 3,
-   "assurance": 99,
+   "assurance": 100,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 142,
-   "tooling": 33,
+   "tests": 144,
+   "tooling": 34,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 481
+  "files": 485
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -539,9 +539,11 @@
      "tests/test_authority_inventory.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_completion_matrix.py",
+     "tests/test_confinement_probe.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_execution_containment.py",
+     "tests/test_filesystem_confinement.py",
      "tests/test_generated_mutations.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
@@ -612,8 +614,12 @@
    "subsystem": "agent-substrate",
    "trust_boundary": "event-sourced projections",
    "verification": {
-    "findings": [],
-    "mutation_specs": [],
+    "findings": [
+     "R-3"
+    ],
+    "mutation_specs": [
+     "tools/mutations/filesystem_confinement.json"
+    ],
     "tests": []
    }
   },
@@ -1100,13 +1106,15 @@
     "findings": [
      "R-1",
      "R-2",
-     "R-3"
+     "R-3",
+     "R-4"
     ],
     "mutation_specs": [
      "tools/mutations/agent_compensation.json",
      "tools/mutations/agent_execution.json",
      "tools/mutations/decided_appends.json",
-     "tools/mutations/execution_containment.json"
+     "tools/mutations/execution_containment.json",
+     "tools/mutations/filesystem_confinement.json"
     ],
     "tests": [
      "tests/test_agent_compensation.py",
@@ -1116,8 +1124,10 @@
      "tests/test_agent_performance.py",
      "tests/test_agent_recovery.py",
      "tests/test_completion_matrix.py",
+     "tests/test_confinement_probe.py",
      "tests/test_decided_appends.py",
-     "tests/test_execution_containment.py"
+     "tests/test_execution_containment.py",
+     "tests/test_filesystem_confinement.py"
     ]
    }
   },
@@ -1890,7 +1900,8 @@
      "tests/test_agent_governed_tasks.py",
      "tests/test_agent_idempotency.py",
      "tests/test_agent_performance.py",
-     "tests/test_execution_containment.py"
+     "tests/test_execution_containment.py",
+     "tests/test_filesystem_confinement.py"
     ]
    }
   },
@@ -2902,6 +2913,7 @@
      "tests/test_completion_matrix.py",
      "tests/test_container_workflow_contract.py",
      "tests/test_external_models.py",
+     "tests/test_filesystem_confinement.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
@@ -3022,6 +3034,7 @@
     ],
     "tests": [
      "tests/test_backend_identity.py",
+     "tests/test_filesystem_confinement.py",
      "tests/test_governed_model_reuse.py"
     ]
    }
@@ -5295,6 +5308,23 @@
    }
   },
   {
+   "change": "ADDED",
+   "path": "tests/test_confinement_probe.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
    "change": "MODIFIED",
    "path": "tests/test_container_manifest_coverage.py",
    "risk": "LOW",
@@ -5402,7 +5432,8 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
-     "tests/test_agent_substrate_isolation.py"
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_filesystem_confinement.py"
     ]
    }
   },
@@ -5419,6 +5450,23 @@
     "findings": [],
     "mutation_specs": [],
     "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_filesystem_confinement.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
    }
   },
   {
@@ -6587,6 +6635,22 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/confinement_probe.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_confinement_probe.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/corpus_allowlist.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -7512,6 +7576,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/external_models.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/filesystem_confinement.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

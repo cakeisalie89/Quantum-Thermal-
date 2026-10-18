@@ -25,6 +25,7 @@ from agent_substrate.capability import (  # noqa: E402
     CapabilitySet, CapabilityUnknown, Request, capability_from_record,
     digest_is_consistent, issue,
 )
+from agent_substrate import execution as X  # noqa: E402
 from agent_substrate.execution import (  # noqa: E402
     RETRYABLE, SUCCESSFUL, CancellationToken, ExecutionResult, Executor,
     Limits, Outcome, namespace_isolation, run_bounded,
@@ -315,11 +316,19 @@ def test_a_timeout_is_not_a_success(env):
     assert "not a success" in r.reason
 
 
-def test_a_run_that_exits_after_its_bound_is_not_completed(env):
-    """D-2026-78. The deadline was checked only when a 50 ms wait timed
+def test_a_run_that_exits_after_its_bound_is_not_completed(env,
+                                                          monkeypatch):
+    """D-2026-78. The deadline was checked only when a poll wait timed
     out, so a process that exited PAST its bound but inside one poll
     interval came back COMPLETED. No interpreter starts in a millisecond, so
-    under a 1 ms bound this exits late every time, on every runner."""
+    under a 1 ms bound this exits late every time, on every runner.
+
+    The poll interval is widened so the exit lands inside the first one on
+    every runner too. At 50 ms it did not: a confined start takes about
+    55 ms here (D-2026-157), and the loop's own deadline check then won the
+    race 13 times in 30 -- a TIMED_OUT for the other reason, which is not
+    the path this test exists for."""
+    monkeypatch.setattr(X, "POLL_S", 30.0)
     r = _run(env, [PY, "-c", "pass"], limits=Limits(wall_seconds=0.001))
     assert r.outcome is Outcome.TIMED_OUT, (r.outcome, r.duration_s)
     assert not r.succeeded
@@ -1166,8 +1175,10 @@ def test_partial_output_from_a_killed_run_is_still_collected(tmp_path):
 def test_a_contract_that_declares_no_outputs_collects_nothing(tmp_path):
     """Silence, not a claim that the tool wrote nothing."""
     (tmp_path / "d").mkdir()
-    r = run_bounded(_write("d/a.json"), spec=_spec(), cwd=tmp_path,
-                    limits=Limits(wall_seconds=20.0), env={})
+    # Its scope is where it writes: nothing enforced a scope until the
+    # executor's confinement (D-2026-157), and this case wrote outside its.
+    r = run_bounded(_write("d/a.json"), spec=_spec(writable_scope=("d",)),
+                    cwd=tmp_path, limits=Limits(wall_seconds=20.0), env={})
     assert r.outcome is Outcome.COMPLETED
     assert r.output_digests == {} and r.missing_outputs == {}
 
