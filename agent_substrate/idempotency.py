@@ -66,7 +66,7 @@ from typing import FrozenSet
 
 from .actions import require_known
 from .canonical import digest, is_digest
-from .events import EventLogError
+from .events import EventLogError, projection_fold, projection_load
 
 #: The one durable action this module owns.
 ACT_BIND = "idempotency.bind"
@@ -219,6 +219,7 @@ class IdempotencyLedger:
         self._anchor = None
 
     # ---- projection ----------------------------------------------------
+    @projection_load
     def load(self) -> "IdempotencyLedger":
         report, events = self.log.read_verified()
         report.raise_if_bad()
@@ -231,6 +232,7 @@ class IdempotencyLedger:
                         if self._folded_through >= 0 else None)
         return self
 
+    @projection_fold
     def catch_up(self) -> "IdempotencyLedger":
         """Fold what has been appended since this projection last read, in
         O(new).

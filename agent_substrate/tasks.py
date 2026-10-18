@@ -423,6 +423,10 @@ class TaskProjection:
 
     tasks: dict = field(default_factory=dict)
     at_seq: int = -1
+    #: escalation_id -> ``{"task_id", "authorized_seq", "ran_seq"}``: the
+    #: undo each answer authorized, and where its outcome was recorded
+    #: (None until it is). D-2026-156: one answer authorizes one undo.
+    compensations: dict = field(default_factory=dict)
 
     def get(self, task_id: str) -> Task:
         try:

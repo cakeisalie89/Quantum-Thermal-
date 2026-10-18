@@ -74,14 +74,14 @@
   {
    "name": "R10_no_capabilities_means_allow",
    "path": "agent_substrate/readpath.py",
-   "find": "        if self.capabilities is None:",
-   "replace": "        if False:",
+   "find": "        if caps is None:\n            raise ReadDenied(",
+   "replace": "        if False:\n            raise ReadDenied(",
    "rationale": "default DENY becomes default allow -- a reader holding nothing reads everything"
   },
   {
    "name": "R11_capability_not_checked",
    "path": "agent_substrate/readpath.py",
-   "find": "            self.capabilities.check(capability_id, Request(",
+   "find": "            caps.check(capability_id, Request(",
    "replace": "            _unused = (capability_id, Request(",
    "rationale": "any capability id authorizes any read, including one issued to another actor for another task"
   },

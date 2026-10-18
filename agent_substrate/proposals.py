@@ -52,7 +52,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from .canonical import canonical_bytes, digest
-from .events import EventLogError
+from .events import EventLogError, projection_fold
 
 SCHEMA = "proposal-envelope/1"
 ACT_PROPOSAL_RECEIVE = "proposal.receive"
@@ -498,6 +498,7 @@ class ProposalIngress:
         self._folded_through = -1
         self._anchor: Any = None
 
+    @projection_fold
     def _catch_up(self) -> dict:
         """The receipts, folded in O(new) since this ingress last read.
 

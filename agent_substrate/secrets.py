@@ -71,6 +71,7 @@ from typing import FrozenSet
 
 from . import safeio
 from .canonical import digest
+from .events import DecidedWriter, projection_load
 
 ACT_SECRET_GRANT = "secret.grant"
 ACT_SECRET_ACCESS = "secret.access"
@@ -654,7 +655,7 @@ class MappingSecretProvider(SecretProvider):
         return _check_secret_bytes(secret_id, bytearray(buf))
 
 
-class SecretStore:
+class SecretStore(DecidedWriter):
     """Registered secrets, the grants over them, and every access recorded.
 
     The store is the only thing that ever holds a plaintext value, and it
@@ -671,10 +672,15 @@ class SecretStore:
         #: store enforces that on one path and not two.
         self._granted_by: dict = {}
         self._revoked: set = set()
+        #: secret_id -> the provider description its first provisioning
+        #: recorded. One id, one source (D-2026-156).
+        self._provisioned: dict = {}
         self._at_seq = 0
         self._accesses: list = []
+        self._reset_fold()
 
     # ---- projection ----------------------------------------------------
+    @projection_load
     def load(self) -> "SecretStore":
         """Rebuild grant AUTHORITY from the log. Values are not in the log.
 
@@ -716,12 +722,33 @@ class SecretStore:
         self._grants = {}
         self._granted_by = {}
         self._revoked = set()
+        self._provisioned = {}
+        self._reset_fold()
         for ev in events:
             self.apply(ev)
+        self._set_fold_anchor()
         return self
 
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a secret-grant event."""
+        self._folded(ev.seq)
+        if ev.action == ACT_SECRET_PROVISION:
+            # ONE ID, ONE SOURCE (D-2026-156). Values are process-local, so
+            # another process provisioning the same id is ordinary -- from
+            # the same provider. From a different one, holders in two
+            # processes would resolve different credentials under one grant.
+            p = ev.payload if isinstance(ev.payload, dict) else {}
+            sid, desc = p.get("secret_id"), p.get("provider")
+            first = self._provisioned.get(sid)
+            if first is not None and first != desc:
+                raise SecretError(
+                    f"seq {ev.seq}: secret {sid!r} is provisioned from "
+                    f"{desc!r}, and was provisioned from {first!r}; one id "
+                    "resolving to two credentials is two secrets under one "
+                    "name")
+            self._provisioned.setdefault(sid, desc)
+            self._at_seq = max(self._at_seq, ev.seq)
+            return False
         if ev.action != ACT_SECRET_GRANT:
             self._at_seq = max(self._at_seq, ev.seq)
             return False
@@ -832,11 +859,25 @@ class SecretStore:
             except SecretError:
                 self.forget(secret_id)
                 raise
-            ev = self.log.append(
-                actor=actor, action=ACT_SECRET_PROVISION, target=secret_id,
-                payload={"secret_id": secret_id, "provider": desc,
-                         "bytes": len(buf)})
-            self._at_seq = ev.seq
+
+            def decide(head_seq: int) -> dict:
+                first = self._provisioned.get(secret_id)
+                if first is not None and first != desc:
+                    raise SecretError(
+                        f"secret {secret_id!r} was provisioned from "
+                        f"{first!r}; provisioning it from {desc!r} would give "
+                        "holders in different processes different "
+                        "credentials under one grant")
+                return {"actor": actor, "action": ACT_SECRET_PROVISION,
+                        "target": secret_id,
+                        "payload": {"secret_id": secret_id, "provider": desc,
+                                    "bytes": len(buf)}}
+
+            try:
+                self._append_decided(decide)
+            except SecretError:
+                self.forget(secret_id)
+                raise
         return SecretRef(secret_id)
 
     def provision_all(self, provider: SecretProvider, secret_ids, *,
@@ -890,7 +931,7 @@ class SecretStore:
     def issue(self, g: SecretGrant, *, actor: str) -> SecretGrant:
         if not isinstance(g, SecretGrant):
             raise SecretError(f"expected a SecretGrant, got {g!r}")
-        if g.grant_id in self._grants:
+        if self.log is None and g.grant_id in self._grants:
             raise SecretError(f"secret grant {g.grant_id!r} already exists")
         if g.secret_id not in self._values:
             raise UnknownSecret(
@@ -911,6 +952,11 @@ class SecretStore:
         stamped: dict = {}
 
         def decide(head_seq: int) -> dict:
+            # an id issued elsewhere since this store loaded is refused, not
+            # stamped again at another position (D-2026-156)
+            if g.grant_id in self._grants:
+                raise SecretError(
+                    f"secret grant {g.grant_id!r} already exists")
             # rebuilt by replay's own constructor, so a stamp that moved the
             # start past the expiry is refused with nothing written rather
             # than appended as a grant every replay refuses
@@ -922,13 +968,12 @@ class SecretStore:
                     "payload": {"grant": s.body(),
                                 "grant_digest": s.digest()}}
 
-        ev = self.log.append_decided(decide)
-        g = stamped["grant"]
         # FOLDED THROUGH THE REDUCER, not assigned beside it. The write path
         # and the replay now reach the projection by the same route, so a
         # rule added to one cannot be missing from the other -- which is the
         # shape of most of what this ledger records.
-        self.apply(ev)
+        self._append_decided(decide)
+        g = stamped["grant"]
         return self._grants[g.grant_id]
 
     def revoke(self, grant_id: str, *, actor: str, reason: str) -> None:
@@ -941,22 +986,28 @@ class SecretStore:
         reconstruction was the only thing that noticed. :meth:`apply` now
         carries the same rule, so the record is re-authorized on every load.
         """
-        if grant_id not in self._grants:
-            raise SecretError(f"no secret grant {grant_id!r} to revoke")
-        granter = self._granted_by.get(grant_id)
-        if granter is not None and actor != granter:
-            raise SecretError(
-                f"{actor!r} may not revoke secret grant {grant_id!r}, "
-                f"granted by {granter!r}. A grant is withdrawn by whoever "
-                "made it.")
+        def decide(head_seq: int = -1) -> dict:
+            if grant_id not in self._grants:
+                raise SecretError(f"no secret grant {grant_id!r} to revoke")
+            if grant_id in self._revoked:
+                raise SecretRevoked(
+                    f"secret grant {grant_id!r} was already revoked")
+            granter = self._granted_by.get(grant_id)
+            if granter is not None and actor != granter:
+                raise SecretError(
+                    f"{actor!r} may not revoke secret grant {grant_id!r}, "
+                    f"granted by {granter!r}. A grant is withdrawn by "
+                    "whoever made it.")
+            return {"actor": actor, "action": ACT_SECRET_GRANT,
+                    "target": grant_id,
+                    "payload": {"grant_id": grant_id, "revoke": True,
+                                "reason": reason}}
+
         if self.log is None:
+            decide()
             self._revoked.add(grant_id)
             return
-        ev = self.log.append(
-            actor=actor, action=ACT_SECRET_GRANT, target=grant_id,
-            payload={"grant_id": grant_id, "revoke": True,
-                     "reason": reason})
-        self.apply(ev)
+        self._append_decided(decide)
 
     def set_position(self, at_seq: int) -> None:
         if not isinstance(at_seq, int) or isinstance(at_seq, bool):
@@ -1032,20 +1083,32 @@ class SecretStore:
 
     def _reveal(self, *, grant_id, secret_id, actor, task_id, tool_id,
                 purpose) -> str:
-        g = self._authorize(grant_id=grant_id, secret_id=secret_id,
-                            actor=actor, task_id=task_id, tool_id=tool_id,
-                            purpose=purpose)
+        def decide(head_seq: int = -1) -> dict:
+            # AUTHORIZED AGAINST THE LOG AS IT IS, and recorded in the same
+            # step, BEFORE the value exists outside this store (D-2026-156).
+            # Decided from the view this store loaded, a grant another
+            # process had revoked still revealed the plaintext, and the
+            # record of the use was the only trace. One authorization for
+            # both modes: a store with no log decides the same way, and
+            # simply has nowhere to write the record.
+            g = self._authorize(grant_id=grant_id, secret_id=secret_id,
+                                actor=actor, task_id=task_id,
+                                tool_id=tool_id, purpose=purpose)
+            # Identity and purpose. No value, and no digest of one.
+            return {"actor": actor, "action": ACT_SECRET_ACCESS,
+                    "target": task_id,
+                    "payload": {"secret_id": secret_id,
+                                "grant_id": grant_id,
+                                "grant_digest": g.digest(),
+                                "tool_id": tool_id, "purpose": purpose}}
+
+        if self.log is None:
+            decide()
+        else:
+            self._append_decided(decide)
         self._accesses.append(
             {"grant_id": grant_id, "secret_id": secret_id, "actor": actor,
              "task_id": task_id, "tool_id": tool_id, "purpose": purpose})
-        if self.log is not None:
-            # Identity and purpose. No value, and no digest of one.
-            ev = self.log.append(
-                actor=actor, action=ACT_SECRET_ACCESS, target=task_id,
-                payload={"secret_id": secret_id, "grant_id": grant_id,
-                         "grant_digest": g.digest(), "tool_id": tool_id,
-                         "purpose": purpose})
-            self._at_seq = ev.seq
         return bytes(self._values[secret_id]).decode("utf-8")
 
     def accesses(self) -> tuple:

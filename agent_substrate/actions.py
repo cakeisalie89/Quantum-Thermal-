@@ -50,6 +50,7 @@ OWNERS: dict = {
     "task.execution": "governed_tasks",
     "task.evidence": "governed_tasks",
     "task.compensation": "governed_tasks",
+    "task.compensation.authorize": "governed_tasks",
     "task.separate_verification": "governed_tasks",
     "task.reexecution": "governed_tasks",
     # agent_substrate.capability -- the ledger that makes a grant real

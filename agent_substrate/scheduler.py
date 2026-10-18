@@ -54,7 +54,7 @@ from enum import Enum
 from typing import Any, FrozenSet
 
 from .canonical import digest, is_digest
-from .events import EventLogError
+from .events import EventLogError, projection_fold, projection_load
 from .policy import (Decision, Effect, PolicyDocument, PolicyRequest,
                      document, rule)
 
@@ -452,6 +452,7 @@ class Scheduler:
         self._anchor = None
 
     # ---- projection ----------------------------------------------------
+    @projection_load
     def load(self) -> "Scheduler":
         """Rebuild the queue from the verified log. Fail closed."""
         report, events = self.log.read_verified()
@@ -475,6 +476,7 @@ class Scheduler:
         self._anchor = (self.log.anchor_at(self._seen_through)
                         if self._seen_through >= 0 else None)
 
+    @projection_fold
     def catch_up(self, *, force: bool = False) -> "Scheduler":
         """Fold in everything appended since this projection last read.
 
@@ -502,6 +504,7 @@ class Scheduler:
         self._fold_new()
         return self
 
+    @projection_fold
     def _fold_new(self) -> None:
         """Fold everything this projection has not seen, in O(new).
 

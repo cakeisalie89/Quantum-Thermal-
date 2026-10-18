@@ -290,8 +290,8 @@
     {
       "name": "L4_ledger_issue_does_not_append",
       "path": "agent_substrate/capability.py",
-      "find": "        ev = self.log.append_decided(decide)\n        self.apply(ev)\n        return self._issued[cap.capability_id]",
-      "replace": "        self._issued[cap.capability_id] = cap\n        return cap",
+      "find": "        self._append_decided(decide)\n        return self._issued[cap.capability_id]\n",
+      "replace": "        self._issued[cap.capability_id] = cap\n        return cap\n",
       "rationale": "THE DEFECT THE LEDGER CLOSES: a grant held only in memory authorizes work, and the log never recorded it"
     },
     {

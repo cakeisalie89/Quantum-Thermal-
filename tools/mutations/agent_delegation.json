@@ -190,8 +190,8 @@
     {
       "name": "G27_the_write_path_lets_anyone_revoke",
       "path": "agent_substrate/capability.py",
-      "find": "        issuer = self._issued_by.get(capability_id)\n        if actor != issuer and not (self._root is not None\n                                    and actor == self._root):",
-      "replace": "        issuer = self._issued_by.get(capability_id)\n        if False:",
+      "find": "            issuer = self._issued_by.get(capability_id)\n            if actor != issuer and not (self._root is not None\n                                        and actor == self._root):\n",
+      "replace": "            issuer = self._issued_by.get(capability_id)\n            if False:\n",
       "rationale": "the caller builds a record its own reducer will refuse, which is the writer-versus-reducer divergence this repository has already recorded once"
     }
   ]

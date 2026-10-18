@@ -51,7 +51,7 @@ from enum import Enum
 from typing import FrozenSet
 
 from .canonical import digest, is_digest
-from .events import EventLogError
+from .events import EventLogError, projection_fold, projection_load
 
 ACT_AGENT_REGISTER = "agent.register"
 ACT_AGENT_RETIRE = "agent.retire"
@@ -513,6 +513,7 @@ class AgentDirectory:
         self._anchor = None
 
     # ---- projection ----------------------------------------------------
+    @projection_load
     def load(self) -> "AgentDirectory":
         report, events = self.log.read_verified()
         report.raise_if_bad()
@@ -528,6 +529,7 @@ class AgentDirectory:
                         if self._folded_through >= 0 else None)
         return self
 
+    @projection_fold
     def _fold_new(self) -> None:
         """Fold what other writers appended since this directory last read.
 

@@ -8702,3 +8702,168 @@ existence rather than by anything a deployment had shown.
 * That an attestation's observations are true. Validation establishes who
   signed what about which deployment and commit, and when. It does not
   establish that the deployment measured correctly.
+
+## D-2026-156 — authority writers decided against a loaded view, and a refused fold was resumed past the record it refused
+
+**CLASS** — `CONCURRENCY` and `FAIL_OPEN`: Tranche G, Phase G2. Closes finding
+T-2. Adds T-3 to T-6, each found by the G0 inventory and measured at
+`b9b2187` before any repair.
+
+**DEMONSTRATION.** Each case below was measured at `b9b2187`.
+
+* **T-2 — writers outside the lock.** D-2026-147 moved the agent directory,
+  memory and policy onto `EventLog.append_decided`. The capability ledger,
+  the egress authority and the secret store still decided against the
+  projection they had loaded. Measured, in
+  `tests/test_t2_closure.py` (12 cases fail there, 6 controls pass on both):
+  * a ledger loaded before another process revoked a capability, egress
+    grant or secret grant still found it in force, and authorized the tool
+    run, the connection, or the reveal of the plaintext;
+  * two authorities each one call under a service's budget both allowed
+    and recorded a call, overrunning it;
+  * four races left a history every later `load()` refuses: a capability id
+    issued twice ("issued twice with different terms"), a service
+    registered again with other terms, an egress grant id and a secret
+    grant id each issued twice;
+  * one secret id was provisioned from two providers, and nothing refused
+    it.
+* **T-3 — a refused fold was resumed past.** Every catch-up moved its
+  anchor past the new records before applying them, and most marked a
+  record folded before checking it. A record the reducer refused (one
+  written outside the gate) refused the first decision, and the second
+  call began after it. In `tests/test_refused_fold.py`, the memory store
+  refused attempt 1 ("written twice") and wrote attempt 2 onto a history
+  every fresh load refuses. Agents, policy and scheduler did the same. A
+  refused `load()` emptied the projection and kept its old anchor, so the
+  next catch-up folded new records onto nothing. Agents, memory, policy and
+  the three writers above failed that way. The store, idempotency and
+  proposal folds already refused twice.
+* **T-4 — the execution record.** The tool runs outside any lock, and the
+  record of who ran it was appended unchecked when the tool returned:
+  * a task a supervisor returned to the queue meanwhile was given an
+    executor, and replay then refused the history ("an execution record
+    ... while it is QUEUED");
+  * a task let again to the same worker identity under a new lease was
+    credited with the first attempt's result, and the record was accepted.
+* **T-5 — the compensation.** Nothing consumed a person's COMPENSATE
+  answer. `compensate()` called twice ran the external undo twice, and a
+  second supervisor holding the answer ran it again.
+* **T-6 — the governed read.** The verifier read under a capability set
+  taken before the read. A grant revoked while the bytes were read was
+  recorded as an ALLOWED read ("an allowed read cites capability ...,
+  which was revoked at seq 20"). The separate-process check rejected the
+  run only afterwards, by reading that record back. The history states an
+  allowed read that was not.
+
+**ROOT CAUSE.** Read, check and append were three steps, with the lock
+around the last one only. Catching up was a performance path (D-2026-115,
+D-2026-119) written as though every record it met would apply. The
+compensation authority and the execution record were facts at the time they
+were written, and nothing re-decided them at the head they joined.
+
+**REPAIR.**
+
+* **One mixin.** `events.DecidedWriter` (`_append_decided`, `_fold_new`)
+  folds what other writers appended and decides under the writer lock. The
+  capability ledger, the egress authority and the secret store use it for
+  every authority write: issue, revoke, register a service, provision a
+  secret, record an egress request and reveal a secret. `record()`
+  re-decides a request at the head, so one that no longer holds is recorded
+  refused; `_reveal` records before it returns a value.
+  `CapabilityLedger.in_force(at_seq)` reads a position it has not read.
+* **A refused fold is remembered.** `events.projection_fold` raises a
+  remembered refusal before any catch-up, and `projection_load` clears it
+  only by a full rebuild that succeeds. Every catch-up and load in the
+  package is decorated: agents, memory, policy, scheduler, store,
+  idempotency, proposals and the mixin. `in_force` checks it too, because
+  a position already read needs no fold.
+* **The execution record** is written by `append_decided`, under the
+  replay's own rule (`check_execution`) and against the lease the attempt
+  ran under. It folds O(new) from the last move this runner wrote
+  (`EventLog.written_anchor`), so a governed run makes no more whole-log
+  passes than before (`test_agent_performance`: 14).
+* **A compensation is prepared, run and committed.**
+  `task.compensation.authorize` is decided under the lock against the
+  escalation re-read from the history, and it consumes the answer. The undo
+  runs outside any lock. The outcome record cites its authorization. Replay
+  refuses an authorization of an answer that was not COMPENSATE about that
+  task, a second authorization of one answer, an outcome with no
+  authorization and a second outcome. An authorization with no outcome is
+  an undo whose effect is not known: it is reported, and it is not run
+  again without a new decision.
+* **A governed read** is checked before the bytes are fetched, and its
+  ALLOWED record is decided at the head. A grant withdrawn meanwhile turns
+  it into a refused record, and the bytes are not handed back. The
+  verifier passes its ledger, not a set.
+* **The second reader** restates each rule: allowed egress under a grant
+  not live at its position, one secret from two sources, one answer
+  authorizing two undos, an outcome citing no authorization, and an
+  authorization of an answer that was not COMPENSATE.
+* **The inventory (G0).** `tools/authority_inventory.py`, run in CI, walks
+  the package's AST and finds every durable write: 47 at this commit.
+  `docs/security/authority_inventory.json` classifies each as DECISION,
+  USE, MINT, FACT or TELEMETRY. A DECISION or USE write must be decided
+  under the lock unless an OPEN finding names it; none is.
+* **Tests and mutations.** `tests/test_t2_closure.py`,
+  `test_refused_fold.py`, `test_t2_governed.py`,
+  `test_decided_under_lock.py` and `test_authority_inventory.py` each pair
+  a case with a control. `test_decided_under_lock.py` holds a decision open
+  while another writer competes on another thread. Without it, the
+  sequential races would pass a writer that re-reads and then appends
+  without the lock. `tools/mutations/t2_closure.json` (TC1 to TC41) and
+  `authority_inventory.json` (AI1 to AI14) remove each rule. TC5, TC23,
+  TC27 and TC33 move a decision out of the lock, and TC26 moves it off the
+  head.
+
+**THE MUTATION RUNS, INCLUDING THE ONE THAT FAILED.** Run locally on a quiet
+tree, before the commit:
+
+* `t2_closure.json`, first run: **36 of 40 killed**. Four survived, each a
+  rule with no test inside the spec's suites:
+  * TC19 and TC22, the refusal of a stale second revocation of an egress or
+    secret grant. Only the capability ledger's had a test.
+  * TC37, the second reader's report of one secret provisioned from two
+    sources. The race test refuses the second provisioning at the write, so
+    the reader never saw two.
+  * TC40, the second reader's refusal of an authorization citing an answer
+    that was not COMPENSATE. It was tested only in
+    `test_agent_second_reader.py`, outside the spec.
+
+  Writing TC40's test showed that the PRIMARY replay accepted such a
+  forged authorization. It compared the copied answerer and nothing else.
+  It now refuses an authorization whose escalation the directory holds and
+  which was not answered COMPENSATE about that task. TC41 removes that
+  rule.
+* `agent_secrets.json`, first run: **34 of 35**. S15 ("reveal does not
+  re-authorize") survived. Re-anchored to the decided branch of `_reveal`,
+  it was no longer exercised by the store-without-a-log path that its
+  suites test. `_reveal` now has one decision for both modes; S15 and S23
+  are anchored on it.
+* Killed on the first run: `authority_inventory.json` 14/14,
+  `agent_toctou.json` 9/9, `decided_appends.json` 14/14,
+  `agent_delegation.json` 27/27, `agent_readpath.json` 21/21,
+  `agent_secret_provider.json` 18/18, `agent_netauth.json` 61/61 and
+  `agent_execution.json` 63/63. Ten mutations in five of these specs were
+  re-anchored because the code they mutate moved. Each targets the same
+  rule in its new form.
+* Rerun after those repairs: `t2_closure.json` **41 of 41**, and
+  `agent_secrets.json` **35 of 35**.
+* The other 39 specifications that mutate a file this change touches run in
+  the hosted mutation shards. They were not run locally.
+
+**NOT CLAIMED.**
+
+* **Facts written beside a decision.** Evidence capture, re-execution and
+  separate-verification records are FACTs, appended without the lock. A
+  stale one is flagged by the second reader. It authorizes nothing, because
+  the verdict is its own decided transition.
+* **Undo outcomes.** An authorization with no outcome says the undo's
+  effect is unknown. Nothing here can learn whether the far side changed.
+* **Folds that already refused twice.** The store, idempotency and proposal
+  catch-ups are decorated for uniformity. Their decorators are not
+  independently killable by a mutation, because those folds already met
+  the refused record again on retry.
+* **Hosted evidence.** None yet. SUB-1, SUB-3 and SUB-4 move from
+  HOSTED_TESTED to IMPLEMENTED: their implementation changed, and their
+  last hosted evidence is kept as `last_hosted`. 26 completion rows' hosted
+  evidence predates this commit.

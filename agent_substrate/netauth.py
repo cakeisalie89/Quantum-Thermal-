@@ -84,6 +84,7 @@ from pathlib import PurePosixPath
 from .secrets import check_egress_composition
 
 from .canonical import digest
+from .events import DecidedWriter, projection_load
 
 #: Event actions. Constants so a typo cannot create an unread action.
 ACT_SERVICE_REGISTER = "network.service"
@@ -851,7 +852,7 @@ class NetworkDecision:
         return self
 
 
-class NetworkAuthority:
+class NetworkAuthority(DecidedWriter):
     """The set of egress grants in force, and the decisions made under them.
 
     Grants and revocations come from the event log when one is attached, so
@@ -874,8 +875,13 @@ class NetworkAuthority:
         #: does not hand a task a fresh budget for work it had already spent.
         self._service_calls: dict = {}
         self._at_seq = 0
+        #: set_position() asks about one position; a refresh then folds new
+        #: records without moving the position the question is about.
+        self._position_pinned = False
+        self._reset_fold()
 
     # ---- projection ----------------------------------------------------
+    @projection_load
     def load(self) -> "NetworkAuthority":
         if self.log is None:
             return self
@@ -886,11 +892,25 @@ class NetworkAuthority:
         self._revoked = set()
         self._services = {}
         self._service_calls = {}
+        self._reset_fold()
         for ev in events:
             self.apply(ev)
+        self._set_fold_anchor()
         return self
 
+    def _refresh(self) -> None:
+        """Fold what other writers appended, and measure expiry from there
+        (D-2026-156). A decision about egress NOW is a decision about the log
+        now: a grant another process revoked, or a budget it spent, since
+        this authority loaded is revoked and spent here too."""
+        if self.log is None:
+            return
+        self._fold_new()
+        if not self._position_pinned:
+            self._at_seq = max(self._at_seq, self._folded_through)
+
     def apply(self, ev) -> bool:
+        self._folded(ev.seq)
         if ev.action == ACT_SERVICE_REGISTER:
             svc = service_from_record(ev.payload["service"])
             claimed = ev.payload.get("service_digest")
@@ -1005,31 +1025,43 @@ class NetworkAuthority:
         """Put a service contract in force. It does not exist until this."""
         if not isinstance(svc, Service):
             raise NetworkError(f"expected a Service, got {svc!r}")
-        existing = self._services.get(svc.service_id)
-        if existing is not None and existing.digest() != svc.digest():
-            raise NetworkError(
-                f"service {svc.service_id!r} is already registered with "
-                "different terms; changing a contract in force would make "
-                "every decision recorded under the old one read as though it "
-                "had been made under the new")
+        def decide(head_seq: int = -1) -> dict:
+            # Against the log as it is (D-2026-156). Decided from the view
+            # loaded earlier, a registration another process had made since
+            # was invisible, the conflicting one was appended, and every
+            # later load() refused the history.
+            existing = self._services.get(svc.service_id)
+            if existing is not None and existing.digest() != svc.digest():
+                raise NetworkError(
+                    f"service {svc.service_id!r} is already registered with "
+                    "different terms; changing a contract in force would "
+                    "make every decision recorded under the old one read as "
+                    "though it had been made under the new")
+            return {"actor": actor, "action": ACT_SERVICE_REGISTER,
+                    "target": svc.service_id,
+                    "payload": {"service": svc.body(),
+                                "service_digest": svc.digest()}}
+
         if self.log is not None:
-            ev = self.log.append(
-                actor=actor, action=ACT_SERVICE_REGISTER,
-                target=svc.service_id,
-                payload={"service": svc.body(),
-                         "service_digest": svc.digest()})
-            self.apply(ev)
+            self._append_decided(decide)
         else:
+            decide()
             self._services[svc.service_id] = svc
         return self._services[svc.service_id]
 
     def issue(self, g: EgressGrant, *, actor: str) -> EgressGrant:
         if not isinstance(g, EgressGrant):
             raise NetworkError(f"expected an EgressGrant, got {g!r}")
-        if g.grant_id in self._grants:
-            raise NetworkError(
-                f"egress grant {g.grant_id!r} already exists; reusing an id "
-                "would make two different grants indistinguishable in the log")
+
+        def unused() -> None:
+            if g.grant_id in self._grants:
+                raise NetworkError(
+                    f"egress grant {g.grant_id!r} already exists; reusing an "
+                    "id would make two different grants indistinguishable in "
+                    "the log")
+
+        if self.log is None:
+            unused()
         if self.log is not None:
             # Stamped, not accepted: a caller that could choose the start
             # could grant egress over traffic that already happened. Stamped
@@ -1039,6 +1071,9 @@ class NetworkAuthority:
             stamped: dict = {}
 
             def decide(head_seq: int) -> dict:
+                # an id issued elsewhere since this authority loaded is
+                # refused, not stamped again at another position (D-2026-156)
+                unused()
                 # rebuilt by replay's own constructor, so a stamp that moved
                 # the start past the expiry is refused with nothing written
                 # rather than appended as a grant every replay refuses
@@ -1051,9 +1086,8 @@ class NetworkAuthority:
                                     "grant_digest": s.digest(),
                                     "grant_id": s.grant_id}}
 
-            ev = self.log.append_decided(decide)
+            self._append_decided(decide)
             g = stamped["grant"]
-            self.apply(ev)
         else:
             self._grants[g.grant_id] = g
         return g
@@ -1079,21 +1113,27 @@ class NetworkAuthority:
                 "by whoever made it.")
 
     def revoke(self, grant_id: str, *, actor: str, reason: str) -> None:
-        if grant_id not in self._grants:
-            raise NetworkError(f"no egress grant {grant_id!r} to revoke")
-        granter = self._granted_by.get(grant_id)
-        if granter is not None and actor != granter:
-            raise NetworkError(
-                f"{actor!r} may not revoke egress grant {grant_id!r}, "
-                f"granted by {granter!r}. A grant is withdrawn by whoever "
-                "made it.")
+        def decide(head_seq: int = -1) -> dict:
+            if grant_id not in self._grants:
+                raise NetworkError(f"no egress grant {grant_id!r} to revoke")
+            if grant_id in self._revoked:
+                raise NetworkError(
+                    f"egress grant {grant_id!r} was already revoked")
+            granter = self._granted_by.get(grant_id)
+            if granter is not None and actor != granter:
+                raise NetworkError(
+                    f"{actor!r} may not revoke egress grant {grant_id!r}, "
+                    f"granted by {granter!r}. A grant is withdrawn by "
+                    "whoever made it.")
+            return {"actor": actor, "action": ACT_NET_GRANT,
+                    "target": grant_id,
+                    "payload": {"grant_id": grant_id, "revoke": True,
+                                "reason": reason}}
+
         if self.log is not None:
-            ev = self.log.append(
-                actor=actor, action=ACT_NET_GRANT, target=grant_id,
-                payload={"grant_id": grant_id, "revoke": True,
-                         "reason": reason})
-            self.apply(ev)
+            self._append_decided(decide)
         else:
+            decide()
             self._revoked.add(grant_id)
 
     def set_position(self, at_seq: int) -> None:
@@ -1101,6 +1141,7 @@ class NetworkAuthority:
         if not isinstance(at_seq, int) or isinstance(at_seq, bool):
             raise NetworkError(f"at_seq must be an int, got {at_seq!r}")
         self._at_seq = at_seq
+        self._position_pinned = True
 
     # ---- the decision --------------------------------------------------
     def authorize(self, req: NetworkRequest, *,
@@ -1127,7 +1168,19 @@ class NetworkAuthority:
         method: it looks at what is actually in the body. It is still
         mediation -- a component that builds its own socket never reaches
         this function at all.
+
+        AGAINST THE LOG AS IT IS (D-2026-156). With a log, what other
+        writers appended since this authority loaded is folded first: a
+        grant revoked elsewhere was otherwise still in force here.
         """
+        self._refresh()
+        return self._decide(req, grant_id=grant_id, body=body,
+                            secrets=secrets)
+
+    def _decide(self, req: NetworkRequest, *, grant_id: str | None = None,
+                body=None, secrets=None) -> NetworkDecision:
+        """The decision against this authority's state, which the caller
+        has brought up to date."""
         candidates = ([grant_id] if grant_id is not None
                       else sorted(self._grants))
         rec = req.to_record()
@@ -1293,25 +1346,46 @@ class NetworkAuthority:
         """
         if self.log is None:
             return decision
-        self.log.append(actor=actor, action=ACT_NET_REQUEST,
-                        target=req.task_id,
-                        payload={"request": req.to_record(),
-                                 "decision": decision.to_record(),
-                                 # Lifted to the top level because the quota
-                                 # projection reads them on every event, and
-                                 # a projection that has to reach into a
-                                 # nested record to find its own state is one
-                                 # more shape a forged payload can vary.
-                                 "service_id": decision.service_id,
-                                 "task_id": req.task_id,
-                                 "allowed": decision.allowed})
-        # Fold it in so the budget this object reports is the budget the log
-        # holds -- otherwise a caller that records is still working from the
-        # count it had before.
-        if decision.service_id and decision.allowed:
-            key = (decision.service_id, req.task_id)
-            self._service_calls[key] = self._service_calls.get(key, 0) + 1
-        return decision
+        recorded: dict = {}
+
+        def decide(head_seq: int) -> dict:
+            # DECIDED AGAIN, UNDER THE LOCK (D-2026-156). ``decision`` was
+            # reached before the lock: another process may since have
+            # revoked its grant or spent the budget. Two authorities each one
+            # call under a budget both recorded an allowed call. What is
+            # recorded -- and returned, and what the caller must act on --
+            # is the decision against the log as it is.
+            final = decision
+            if decision.allowed:
+                # at the position the record is written, then back to any
+                # position a caller pinned for its own questions
+                saved = self._at_seq
+                self._at_seq = max(self._at_seq, head_seq)
+                try:
+                    fresh = self._decide(req, grant_id=decision.grant_id)
+                finally:
+                    if self._position_pinned:
+                        self._at_seq = saved
+                if not fresh.allowed:
+                    final = fresh
+            recorded["decision"] = final
+            return {"actor": actor, "action": ACT_NET_REQUEST,
+                    "target": req.task_id,
+                    "payload": {"request": req.to_record(),
+                                "decision": final.to_record(),
+                                # Lifted to the top level because the quota
+                                # projection reads them on every event, and
+                                # a projection that has to reach into a
+                                # nested record to find its own state is
+                                # one more shape a forged payload can vary.
+                                "service_id": final.service_id,
+                                "task_id": req.task_id,
+                                "allowed": final.allowed}}
+
+        # apply() folds the record in, so the budget this object reports is
+        # the budget the log holds.
+        self._append_decided(decide)
+        return recorded["decision"]
 
     def record_result(self, req: NetworkRequest, *, actor: str,
                       outcome: str, status: int | None = None,

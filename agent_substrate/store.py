@@ -44,7 +44,8 @@ from .authority import (
     check,
 )
 from .canonical import canonical_bytes, digest, is_digest
-from .events import Anchor, ChainBroken, Event, EventLog, EventLogError
+from .events import (Anchor, ChainBroken, Event, EventLog, EventLogError,
+                     projection_fold, projection_load)
 from .projection import ProjectionIdentityError, ReducerIdentity, identity_of
 
 #: What a snapshot of this store is, for :class:`ReducerIdentity`.
@@ -255,6 +256,7 @@ class AuthorityStore:
         return result_rules.ADMITTED, basis
 
     # ---- projection ---------------------------------------------------
+    @projection_load
     def load(self) -> "AuthorityStore":
         """Rebuild the projection from the verified log. Fail closed.
 
@@ -303,6 +305,7 @@ class AuthorityStore:
         self._anchor = (self.log.anchor_at(self._loaded_through)
                         if self._loaded_through >= 0 else None)
 
+    @projection_fold
     def catch_up(self, *, force: bool = False) -> "AuthorityStore":
         """Fold in everything appended since this projection last read.
 
@@ -326,6 +329,7 @@ class AuthorityStore:
         self._fold_new()
         return self
 
+    @projection_fold
     def _fold_new(self) -> None:
         """Fold everything this projection has not seen, in O(new).
 

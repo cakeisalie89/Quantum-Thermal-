@@ -78,6 +78,7 @@ from pathlib import PurePosixPath
 from typing import FrozenSet
 
 from .canonical import digest, is_digest
+from .events import DecidedWriter, check_projection, projection_load
 
 
 class CapabilityError(Exception):
@@ -544,7 +545,7 @@ class _RootExists(Exception):
     """Raised inside a decided append: a root is already in the log."""
 
 
-class CapabilityLedger:
+class CapabilityLedger(DecidedWriter):
     """The grants in force, PROJECTED from the log rather than asserted.
 
     WHY THIS EXISTS SEPARATELY FROM :class:`CapabilitySet`
@@ -572,8 +573,10 @@ class CapabilityLedger:
         self._root: str | None = None
         self._root_seq = -1
         self._at_seq = -1
+        self._reset_fold()
 
     # ---- projection ----------------------------------------------------
+    @projection_load
     def load(self) -> "CapabilityLedger":
         report, events = self.log.read_verified()
         report.raise_if_bad()
@@ -583,12 +586,15 @@ class CapabilityLedger:
         self._root = None
         self._root_seq = -1
         self._at_seq = -1
+        self._reset_fold()
         for ev in events:
             self.apply(ev)
+        self._set_fold_anchor()
         return self
 
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a capability event."""
+        self._folded(ev.seq)
         if ev.action == ACT_ROOT:
             issuer = ev.payload.get("issuer")
             if not isinstance(issuer, str) or not issuer:
@@ -775,7 +781,21 @@ class CapabilityLedger:
 
         Expiry is relative to ``at_seq``, so two readers of the same log at
         the same position reach the same verdict.
+
+        A POSITION THIS LEDGER HAS NOT READ IS READ FIRST (D-2026-156). The
+        governed runner asks ``in_force(head)`` of a ledger it loaded at the
+        start of the run. A revocation another process recorded since was
+        not in it, and a revoked grant authorized the tool. The question is
+        about the log at ``at_seq``, so the answer folds the log up to
+        there.
+
+        A LEDGER THAT REFUSED A LATER RECORD ANSWERS FOR NO POSITION. A
+        position already read needs no fold, so without the check here the
+        answer would come from a projection that skipped what it refused.
         """
+        check_projection(self)
+        if at_seq is not None and at_seq > self._folded_through:
+            self._fold_new()
         return CapabilitySet(
             issued=dict(self._issued), revoked=frozenset(self._revoked),
             at_seq=self._at_seq if at_seq is None else at_seq)
@@ -851,10 +871,6 @@ class CapabilityLedger:
                 or isinstance(lifetime_seqs, bool) or lifetime_seqs < 1):
             raise CapabilityError(
                 f"lifetime_seqs must be a positive int, got {lifetime_seqs!r}")
-        if cap.capability_id in self._issued:
-            raise CapabilityError(
-                f"capability {cap.capability_id!r} already exists; reusing an "
-                "id would make two grants indistinguishable in the log")
         if self._root is None:
             # TRUST ON FIRST USE, WRITTEN DOWN. The first mint establishes
             # the root, as its own event, before the grant. Doing it here
@@ -880,6 +896,15 @@ class CapabilityLedger:
         # every load, and appending it would leave a log nobody can open.
         # Refused here, under the lock, nothing is written.
         def decide(head_seq: int) -> dict:
+            # Against the log as it is now (D-2026-156): an id another
+            # process issued since this ledger loaded is stamped at another
+            # position, and replay refused the second record as the same
+            # grant "issued twice with different terms" on every load.
+            if cap.capability_id in self._issued:
+                raise CapabilityError(
+                    f"capability {cap.capability_id!r} already exists; "
+                    "reusing an id would make two grants indistinguishable "
+                    "in the log")
             c = replace(cap, issued_seq=head_seq + 1)
             if lifetime_seqs is not None:
                 c = replace(c, expires_after_seq=c.issued_seq
@@ -896,8 +921,7 @@ class CapabilityLedger:
             return {"actor": actor, "action": ACT_ISSUE, "target": c.task_id,
                     "payload": payload}
 
-        ev = self.log.append_decided(decide)
-        self.apply(ev)
+        self._append_decided(decide)
         return self._issued[cap.capability_id]
 
     def delegate(self, cap: Capability, *, parent_id: str,
@@ -948,18 +972,30 @@ class CapabilityLedger:
 
     def revoke(self, capability_id: str, *, actor: str,
                reason: str) -> None:
-        """Withdraw a grant. Takes effect for every later check."""
-        if capability_id not in self._issued:
-            raise CapabilityError(
-                f"no capability {capability_id!r} to revoke")
-        issuer = self._issued_by.get(capability_id)
-        if actor != issuer and not (self._root is not None
-                                    and actor == self._root):
-            raise NotTheIssuer(
-                f"{actor!r} may not revoke {capability_id!r}, granted by "
-                f"{issuer!r}. A grant is withdrawn by whoever made it or by "
-                f"the root issuer ({self._root!r}).")
-        ev = self.log.append(
-            actor=actor, action=ACT_REVOKE, target=capability_id,
-            payload={"capability_id": capability_id, "reason": reason})
-        self.apply(ev)
+        """Withdraw a grant. Takes effect for every later check.
+
+        Decided under the writer lock, against the log as it is
+        (D-2026-156): a grant issued since this ledger loaded can be
+        withdrawn, and one another process already withdrew is refused
+        rather than withdrawn twice.
+        """
+        def decide(head_seq: int) -> dict:
+            if capability_id not in self._issued:
+                raise CapabilityError(
+                    f"no capability {capability_id!r} to revoke")
+            if capability_id in self._revoked:
+                raise CapabilityRevoked(
+                    f"capability {capability_id!r} was already revoked")
+            issuer = self._issued_by.get(capability_id)
+            if actor != issuer and not (self._root is not None
+                                        and actor == self._root):
+                raise NotTheIssuer(
+                    f"{actor!r} may not revoke {capability_id!r}, granted by "
+                    f"{issuer!r}. A grant is withdrawn by whoever made it or "
+                    f"by the root issuer ({self._root!r}).")
+            return {"actor": actor, "action": ACT_REVOKE,
+                    "target": capability_id,
+                    "payload": {"capability_id": capability_id,
+                                "reason": reason}}
+
+        self._append_decided(decide)

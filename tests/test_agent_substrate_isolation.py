@@ -132,6 +132,12 @@ ALLOWED_IMPORTERS = {
     "tests/test_execution_containment.py",
     # D-2026-150: hostile Cases A-H, each through the components it crosses.
     "tests/test_hostile_composition.py",
+    # Tranche G. D-2026-156: every authority writer decides against the
+    # history it appends onto, and never resumes past a refused record.
+    "tests/test_t2_closure.py",
+    "tests/test_refused_fold.py",
+    "tests/test_t2_governed.py",
+    "tests/test_decided_under_lock.py",
     # NF-1T. The learned-record boundary's own tests: the store's live and
     # replayed refusal, the second reader's, and the lifecycle's links.
     "tests/test_neural_provenance.py",

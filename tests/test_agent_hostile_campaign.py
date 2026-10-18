@@ -581,10 +581,19 @@ def test_99_the_campaign_gained_nothing_and_the_history_proves_it(world,
         f"the audit reported outcome {exp.outcome} with no gap; a reader is "
         "being told the forgery held")
 
-    # The hostile agent holds nothing.
-    caps = world.capabilities.in_force(report.head_seq)
-    mine = [c for c in caps.issued.values() if c.subject == HOSTILE]
-    assert not mine, f"the hostile agent holds live capabilities: {mine}"
+    # The hostile agent holds nothing. The backdated grant of test_20 is in
+    # the log too, so the live ledger -- loaded before it -- refuses to name
+    # a set at the head rather than answer from a projection that skipped
+    # it (D-2026-156), the same fail-closed answer the task projection gives
+    # above. What the log holds for the hostile agent is that one grant,
+    # which no reader accepts.
+    from agent_substrate.capability import ACT_ISSUE, CapabilityError
+    with pytest.raises(CapabilityError, match="claims it was issued at seq"):
+        world.capabilities.in_force(report.head_seq)
+    mine = [ev.payload.get("capability_id") for ev in world.log.read()
+            if ev.action == ACT_ISSUE and ev.payload.get("subject") == HOSTILE]
+    assert mine == ["cap-hostile-backdated"], (
+        f"the hostile agent was issued capabilities: {mine}")
     assert not [ev for ev in world.log.read()
                 if ev.action in ("network.grant", "secret.grant")]
 

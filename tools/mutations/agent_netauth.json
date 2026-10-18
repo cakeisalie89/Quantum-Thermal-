@@ -225,8 +225,8 @@
     {
       "name": "W32_denials_not_recorded",
       "path": "agent_substrate/netauth.py",
-      "find": "                        payload={\"request\": req.to_record(),\n                                 \"decision\": decision.to_record(),",
-      "replace": "                        payload={\"request\": {},\n                                 \"decision\": {},",
+      "find": "                    \"payload\": {\"request\": req.to_record(),\n                                \"decision\": final.to_record(),\n",
+      "replace": "                    \"payload\": {\"request\": {},\n                                \"decision\": {},\n",
       "rationale": "the audit trail records that something happened but not what was attempted"
     },
     {

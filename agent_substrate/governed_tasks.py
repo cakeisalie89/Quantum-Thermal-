@@ -116,7 +116,7 @@ from .canonical import digest
 from . import capability as _cap_actions
 from .capability import Action, CapabilityLedger, issue
 from .context import ACT_CONTEXT_BUILD, ContextBuilder, Tier, record_context
-from .events import Anchor, EventLog
+from .events import Anchor, EventLog, EventLogError
 from .evidence import EvidenceStore
 from .execution import Executor, Limits, Outcome
 from .memory import MemoryStore
@@ -193,6 +193,12 @@ ACT_EVIDENCE = "task.evidence"
 #: and an audit that could not tell them apart would count an undo as a
 #: retry.
 ACT_COMPENSATION = "task.compensation"
+#: The PREPARE half of a compensation (D-2026-156): an answered escalation
+#: consumed, under the writer lock, before the undo runs. One answer
+#: authorizes one undo. An authorization with no outcome after it is a
+#: compensation whose effect is not known -- the process died while the undo
+#: ran -- and it is not run again without a new decision.
+ACT_COMPENSATION_AUTHORIZE = "task.compensation.authorize"
 #: What a process that cannot import these reducers concluded about the log
 #: this run wrote. Recorded whatever it concluded: "the independent verifier
 #: refused" is exactly the fact an auditor must be able to find.
@@ -203,7 +209,8 @@ ACT_REEXECUTION = "task.reexecution"
 #: else is another subsystem's (skipped) or unrecognised (refused).
 OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
                    ACT_EXECUTION, ACT_EVIDENCE, ACT_COMPENSATION,
-                   ACT_SEPARATE_VERIFY, ACT_REEXECUTION})
+                   ACT_COMPENSATION_AUTHORIZE, ACT_SEPARATE_VERIFY,
+                   ACT_REEXECUTION})
 
 
 def governed_policy(version: int = 1) -> PolicyDocument:
@@ -391,6 +398,16 @@ def governed_registry() -> Registry:
     ])
 
 
+class CompensationAlreadyAuthorized(AgentError):
+    """An answer that has already authorized its one undo (D-2026-156).
+
+    Whether that undo finished is a separate question, answered by the
+    outcome record after its authorization or by its absence. Either way a
+    second run is an external action nobody decided, and it needs a new
+    answer to a new question.
+    """
+
+
 class TaskMovedUnderWriter(TaskTransitionError):
     """A move decided from a task another process has moved since.
 
@@ -463,6 +480,9 @@ class GovernedTasks:
         self.executor = Executor(self.registry, workspace=self.root)
         #: Where this caller's verification has reached. See :meth:`_head_seq`.
         self._head_anchor: Anchor | None = None
+        #: The projection the last move left, and an anchor at that move's
+        #: record: what :meth:`_projection_at_head` catches up from.
+        self._after_move: tuple | None = None
         #: Further stores this runner's supervisors write -- a checkpoint
         #: store, say -- that a tool's run must not be charged with. See
         #: :meth:`_supervisor_paths`.
@@ -608,6 +628,8 @@ class GovernedTasks:
         decided against, by the same rules as the replay."""
         tasks: dict = dict(start.tasks) if start is not None else {}
         seq = start.at_seq if start is not None else -1
+        comps: dict = (dict(start.compensations) if start is not None
+                       else {})
         for ev in events:
             seq = ev.seq
             p = ev.payload
@@ -734,10 +756,49 @@ class GovernedTasks:
                     result_digest=p.get("result_digest")
                     or task.result_digest,
                     updated_seq=ev.seq)
+            elif ev.action == ACT_COMPENSATION_AUTHORIZE:
+                # ONE ANSWER, ONE UNDO (D-2026-156). The answer is consumed
+                # here; a second authorization citing it would run an
+                # external undo a second time on one person's decision.
+                eid = p.get("authorized_by_escalation")
+                tid = p.get("task_id")
+                if not eid or tid not in tasks:
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: a compensation authorization must "
+                        "cite an escalation and a task this history holds")
+                self._check_compensation_answerer(ev, p)
+                # THE ANSWER IS THE AUTHORITY: one that did not say
+                # COMPENSATE, about this task, authorizes no undo. Looked up
+                # in the directory as the answerer check above is, and
+                # refused only where the directory can say.
+                try:
+                    esc = self.agents.escalation(eid)
+                except Exception:
+                    esc = None
+                if esc is not None and (
+                        esc.task_id != tid
+                        or esc.state is not EscalationState.ANSWERED
+                        or esc.answer != "COMPENSATE"):
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: a compensation of {tid!r} is "
+                        f"authorized by escalation {eid!r}, which is "
+                        f"{esc.state.value} with answer {esc.answer!r} "
+                        f"about {esc.task_id!r}. Only an answer of "
+                        "COMPENSATE about this task authorizes an undo")
+                prior = comps.get(eid)
+                if prior is not None:
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: escalation {eid!r} already "
+                        "authorized a compensation, at seq "
+                        f"{prior['authorized_seq']}. One answer authorizes "
+                        "one undo; a second is an external action nobody "
+                        "decided")
+                comps[eid] = {"task_id": tid, "authorized_seq": ev.seq,
+                              "ran_seq": None}
+                continue
             elif ev.action in (ACT_EVIDENCE, ACT_COMPENSATION,
                                ACT_SEPARATE_VERIFY, ACT_REEXECUTION):
-                if ev.action is ACT_COMPENSATION or (
-                        ev.action == ACT_COMPENSATION):
+                if ev.action == ACT_COMPENSATION:
                     # A DIAGNOSTIC DUPLICATE MUST AGREE WITH ITS SOURCE.
                     #
                     # `answered_by` here is a copy of the escalation's
@@ -752,22 +813,30 @@ class GovernedTasks:
                     # the escalation it cites. Not folded into state -- a
                     # compensation is a fact about the task rather than a
                     # state of it -- but not taken on trust either.
+                    self._check_compensation_answerer(ev, p)
+                    # AND IT CITES THE AUTHORIZATION IT RAN UNDER
+                    # (D-2026-156), exactly once. An outcome with none
+                    # is an undo nobody's answer was consumed for.
                     eid = p.get("authorized_by_escalation")
-                    named = p.get("answered_by")
-                    if eid:
-                        try:
-                            esc = self.agents.escalation(eid)
-                        except Exception:
-                            esc = None
-                        if esc is not None and named != esc.answered_by:
-                            raise TaskTransitionError(
-                                f"seq {ev.seq}: compensation of "
-                                f"{p.get('task_id')!r} says escalation "
-                                f"{eid!r} was answered by {named!r}; that "
-                                f"escalation was answered by "
-                                f"{esc.answered_by!r}. A record naming who "
-                                "authorized an undo may repeat the "
-                                "escalation and may not disagree with it")
+                    granted = comps.get(eid) if eid else None
+                    if granted is None or \
+                            granted["authorized_seq"] != \
+                            p.get("authorization_seq") or \
+                            granted["task_id"] != p.get("task_id"):
+                        raise TaskTransitionError(
+                            f"seq {ev.seq}: the compensation of "
+                            f"{p.get('task_id')!r} cites authorization "
+                            f"{p.get('authorization_seq')!r} of escalation "
+                            f"{eid!r}, which this history does not hold. "
+                            "An undo is recorded against the authorization "
+                            "it ran under")
+                    if granted["ran_seq"] is not None:
+                        raise TaskTransitionError(
+                            f"seq {ev.seq}: the outcome of the compensation "
+                            f"authorized at seq {granted['authorized_seq']} "
+                            f"was already recorded, at seq "
+                            f"{granted['ran_seq']}")
+                    comps[eid] = {**granted, "ran_seq": ev.seq}
                 # A compensation does not move the task. The task's outcome
                 # was and remains whatever it reached; what a compensation
                 # records is that somebody tried to undo its effect, which is
@@ -795,7 +864,39 @@ class GovernedTasks:
                 raise ValueError(                # pragma: no cover - closed
                     f"seq {ev.seq}: {ev.action!r} is listed as owned by this "
                     "projection and has no branch handling it")
-        return TaskProjection(tasks=tasks, at_seq=seq)
+        return TaskProjection(tasks=tasks, at_seq=seq,
+                              compensations=comps)
+
+    def _check_compensation_answerer(self, ev, p: dict) -> None:
+        """A DIAGNOSTIC DUPLICATE MUST AGREE WITH ITS SOURCE.
+
+        `answered_by` on a compensation record is a copy of the escalation's
+        answerer, carried so an auditor reading the record can see who
+        authorized the undo without joining two tables. The authority is the
+        escalation; this is a convenience.
+
+        A convenience that nothing checks is a field a forged record can set
+        freely, and it names a PERSON as having authorized destroying
+        something. So it is compared to the escalation it cites. Not folded
+        into state -- a compensation is a fact about the task rather than a
+        state of it -- but not taken on trust either.
+        """
+        eid = p.get("authorized_by_escalation")
+        named = p.get("answered_by")
+        if eid:
+            try:
+                esc = self.agents.escalation(eid)
+            except Exception:
+                esc = None
+            if esc is not None and named != esc.answered_by:
+                raise TaskTransitionError(
+                    f"seq {ev.seq}: compensation of "
+                    f"{p.get('task_id')!r} says escalation "
+                    f"{eid!r} was answered by {named!r}; that "
+                    f"escalation was answered by "
+                    f"{esc.answered_by!r}. A record naming who "
+                    "authorized an undo may repeat the "
+                    "escalation and may not disagree with it")
 
     # ---- the governed run ----------------------------------------------
     def run(self, *, tool_id: str, inputs: dict,
@@ -1105,10 +1206,41 @@ class GovernedTasks:
                 env=env, ignore_writes=self._supervisor_paths())
 
         result_digest = digest(result.to_record())
-        self.log.append(actor=worker, action=ACT_EXECUTION, target=task_id,
-                        payload={"task_id": task_id,
-                                 "result_digest": result_digest,
-                                 **result.to_record()})
+
+        def decide_execution(head_seq: int) -> dict:
+            # DECIDED UNDER THE WRITER LOCK (D-2026-156). The tool ran
+            # outside any lock, for as long as it took, and the task could
+            # move meanwhile: a supervisor that took this worker for dead
+            # returned it to the queue, or a submitter cancelled it. Appended
+            # unchecked, this record named an executor for a task that was
+            # no longer running, the COMPLETED move after it was refused, and
+            # every later replay refused the history. It is decided here by
+            # the replay's own rule, against the head it is written onto --
+            # and against THIS lease, which the replay does not ask about: a
+            # task let again to the same worker identity would otherwise be
+            # credited with this attempt's result.
+            cur = self._projection_at_head().tasks.get(task_id)
+            held = cur.lease.lease_id if cur is not None and \
+                cur.lease is not None else None
+            try:
+                if held != lease.lease_id:
+                    raise TaskTransitionError(
+                        f"it is held under {held!r}, not {lease.lease_id!r}")
+                check_execution(cur, worker, at_seq=head_seq + 1)
+            except TaskTransitionError as exc:
+                raise TaskMovedUnderWriter(
+                    f"{task_id} moved while its tool ran: "
+                    f"{cur.state.value if cur else 'absent'} -- {exc}. "
+                    "This attempt's result is not recorded and its outputs "
+                    "are not captured; another process got there first"
+                ) from exc
+            return {"actor": worker, "action": ACT_EXECUTION,
+                    "target": task_id,
+                    "payload": {"task_id": task_id,
+                                "result_digest": result_digest,
+                                **result.to_record()}}
+
+        self.log.append_decided(decide_execution)
 
         if result.outcome is not Outcome.COMPLETED:
             dst = {Outcome.TIMED_OUT: TaskState.TIMED_OUT,
@@ -1621,23 +1753,56 @@ class GovernedTasks:
                 f"to perform it: {spec.compensation!r}. That is an operator's "
                 "action, not this system's, and reporting otherwise would be "
                 "the fabrication the declaration exists to avoid")
-        esc = self.agents.escalation(escalation_id)
-        if esc.task_id != task_id:
-            raise AgentError(
-                f"escalation {escalation_id!r} is about task {esc.task_id!r}, "
-                f"not {task_id!r}. An answer given about one piece of work "
-                "does not authorize acting on another")
-        if esc.state is not EscalationState.ANSWERED:
-            raise AgentError(
-                f"escalation {escalation_id!r} is {esc.state.value}; a "
-                "compensation runs because somebody decided it should, and "
-                "nobody has decided yet")
-        if esc.answer != "COMPENSATE":
-            raise AgentError(
-                f"escalation {escalation_id!r} was answered "
-                f"{esc.answer!r}, not 'COMPENSATE'. Running the undo anyway "
-                "would perform an external action the person asked was "
-                "explicitly not to perform")
+        decided: dict = {}
+
+        def prepare(head_seq: int) -> dict:
+            # PREPARE, UNDER THE WRITER LOCK (D-2026-156). The answer is
+            # read from the history this record is appended onto, not from
+            # the view this process loaded, and it is CONSUMED here: nothing
+            # consumed it before, so one answer ran the external undo once
+            # per call -- and once per supervisor holding the answer.
+            self.agents._fold_new()
+            esc = self.agents.escalation(escalation_id)
+            if esc.task_id != task_id:
+                raise AgentError(
+                    f"escalation {escalation_id!r} is about task "
+                    f"{esc.task_id!r}, not {task_id!r}. An answer given "
+                    "about one piece of work does not authorize acting on "
+                    "another")
+            if esc.state is not EscalationState.ANSWERED:
+                raise AgentError(
+                    f"escalation {escalation_id!r} is {esc.state.value}; a "
+                    "compensation runs because somebody decided it should, "
+                    "and nobody has decided yet")
+            if esc.answer != "COMPENSATE":
+                raise AgentError(
+                    f"escalation {escalation_id!r} was answered "
+                    f"{esc.answer!r}, not 'COMPENSATE'. Running the undo "
+                    "anyway would perform an external action the person "
+                    "asked was explicitly not to perform")
+            prior = self.projection().compensations.get(escalation_id)
+            if prior is not None:
+                ran = (f"its outcome was recorded at seq {prior['ran_seq']}"
+                       if prior["ran_seq"] is not None else
+                       "no outcome was recorded, so whether it ran is not "
+                       "known")
+                raise CompensationAlreadyAuthorized(
+                    f"escalation {escalation_id!r} already authorized a "
+                    f"compensation of {task_id!r}, at seq "
+                    f"{prior['authorized_seq']}, and {ran}. One answer "
+                    "authorizes one undo; another needs a new decision")
+            decided["esc"] = esc
+            return {"actor": actor, "action": ACT_COMPENSATION_AUTHORIZE,
+                    "target": task_id,
+                    "payload": {"task_id": task_id,
+                                "authorized_by_escalation": escalation_id,
+                                "answered_by": esc.answered_by,
+                                "compensated_tool": spec.tool_id,
+                                "compensating_tool": undo.tool_id,
+                                "contract_digest": undo.digest()}}
+
+        authorization = self.log.append_decided(prepare)
+        esc = decided["esc"]
 
         # THROUGH THE ORDINARY EXECUTOR. Same contract, same capability,
         # same limits, same provenance -- a compensation that ran outside all
@@ -1666,6 +1831,7 @@ class GovernedTasks:
                      "compensating_tool": undo.tool_id,
                      "contract_digest": undo.digest(),
                      "authorized_by_escalation": escalation_id,
+                     "authorization_seq": authorization.seq,
                      "answered_by": esc.answered_by,
                      "outcome": result.outcome.value,
                      "exit_status": result.exit_status,
@@ -2206,8 +2372,33 @@ class GovernedTasks:
         # The task as this record leaves it: the one record folded onto the
         # projection it was decided against, by the replay's own rules --
         # one pass over the log per move, as before, not two.
-        return self._project(
-            [ev], start=decided_against["projection"]).get(task.task_id)
+        after = self._project([ev], start=decided_against["projection"])
+        # Kept with an anchor at this record, so the decision that follows a
+        # tool run (D-2026-156) catches up O(new) instead of replaying the
+        # whole history once more per run.
+        anchor = self.log.written_anchor
+        self._after_move = ((after, anchor)
+                            if anchor is not None and anchor.seq == ev.seq
+                            else None)
+        return after.get(task.task_id)
+
+    def _projection_at_head(self) -> TaskProjection:
+        """The task projection at the head. Called with the lock held.
+
+        O(new) from the last move this runner wrote when it has one --
+        ``advance`` verifies every record it returns -- and the full verified
+        replay otherwise. Either way, the state the next record is decided
+        against is the state the log holds."""
+        held = self._after_move
+        if held is not None:
+            start, anchor = held
+            try:
+                events, _ = self.log.advance(anchor)
+            except EventLogError:
+                pass
+            else:
+                return self._project(events, start=start)
+        return self.projection()
 
     def invalidate(self, task_id: str, *, reason: str,
                    actor: str = "system") -> Task:
@@ -2458,9 +2649,13 @@ class GovernedTasks:
         if not artifacts:
             return False, ("the run produced no artifacts; a completion with "
                            "nothing to point at is not verifiable")
-        caps = self.capabilities.in_force(self._head_seq())
+        # The LEDGER, not a set taken from it here: each read's record is
+        # decided against the grants in force at the head it is written
+        # onto, so a revocation landing while the verifier reads is honoured
+        # rather than recorded as an allowed read (D-2026-156).
         with GovernedReader(self.log, root_id=READ_ROOT_ID,
-                            root_path=self.root, capabilities=caps) as reader:
+                            root_path=self.root,
+                            capabilities=self.capabilities) as reader:
             for rel, dg in sorted(artifacts.items()):
                 req = ReadRequest(actor=verifier, task_id=task_id,
                                   root_id=READ_ROOT_ID, resource=rel,

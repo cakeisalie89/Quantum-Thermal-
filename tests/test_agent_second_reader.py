@@ -1222,6 +1222,7 @@ from agent_substrate.agents import ACT_CLAIM  # noqa: E402
 from agent_substrate.canonical import digest_bytes as _dg  # noqa: E402
 
 ACT_COMPENSATION = "task.compensation"
+ACT_COMPENSATION_AUTHORIZE = "task.compensation.authorize"
 VALUE = _dg(b"the value this claim is about")
 
 
@@ -1370,14 +1371,70 @@ def _answered(gov):
     return d
 
 
+def _answered_compensate(gov):
+    d = _people(gov)
+    d.escalate(escalation_id="e1", task_id="t1", question="undo it?",
+               raised_by="A", options=("COMPENSATE", "ACCEPT_AS_DONE"))
+    d.answer(escalation_id="e1", answered_by="H", answer="COMPENSATE",
+             reason="it was published")
+    return d
+
+
+def _authorization(**over):
+    p = {"task_id": "t1", "authorized_by_escalation": "e1",
+         "answered_by": "H", "compensated_tool": "stage10.emit_artifact",
+         "compensating_tool": "stage10.remove_artifact"}
+    p.update(over)
+    return p
+
+
 def test_the_second_reader_follows_an_honest_compensation(gov):
-    """Anti-vacuity for every refusal below."""
-    _answered(gov)
-    recon = _forge(gov, ACT_COMPENSATION, _compensation(), actor="A",
+    """Anti-vacuity for every refusal below.
+
+    Honest since D-2026-156 means two records: the answer consumed by an
+    authorization, then the outcome citing it."""
+    _answered_compensate(gov)
+    gov.log.append(actor="A", action=ACT_COMPENSATION_AUTHORIZE,
+                   target="t1", payload=_authorization())
+    auth_seq = gov.log.verify().head_seq
+    recon = _forge(gov, ACT_COMPENSATION,
+                   _compensation(authorization_seq=auth_seq), actor="A",
                    target="t1")
     assert recon.anomalies == [], recon.anomalies
     (rec,) = recon.compensations["t1"]
     assert (rec["answered_by"], rec["authorized_by_escalation"]) == ("H", "e1")
+    assert recon.compensation_authorizations["e1"] == {
+        "task_id": "t1", "authorized_seq": auth_seq,
+        "ran_seq": recon.head_seq}
+
+
+def test_the_second_reader_refuses_an_authorization_of_an_answer_to_leave_it(
+        gov):
+    """The answer is the authority: one that said anything but COMPENSATE
+    authorizes no undo."""
+    _answered(gov)
+    recon = _forge(gov, ACT_COMPENSATION_AUTHORIZE, _authorization(),
+                   actor="A", target="t1")
+    assert any("answered COMPENSATE" in a for a in recon.anomalies), \
+        recon.anomalies
+
+
+def test_the_second_reader_refuses_an_authorization_naming_another_answerer(
+        gov):
+    _answered_compensate(gov)
+    recon = _forge(gov, ACT_COMPENSATION_AUTHORIZE,
+                   _authorization(answered_by="H2"), actor="A", target="t1")
+    assert any("it was answered by 'H'" in a for a in recon.anomalies), \
+        recon.anomalies
+
+
+def test_the_second_reader_refuses_an_authorization_citing_no_escalation(gov):
+    _answered_compensate(gov)
+    recon = _forge(gov, ACT_COMPENSATION_AUTHORIZE,
+                   _authorization(authorized_by_escalation=None),
+                   actor="A", target="t1")
+    assert any("names no escalation" in a for a in recon.anomalies), \
+        recon.anomalies
 
 
 def test_the_second_reader_refuses_a_compensation_naming_another_answerer(

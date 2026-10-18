@@ -1,0 +1,402 @@
+{
+  "schema": "harness-authority-inventory/1",
+  "baseline_commit": "b9b21876f97eaf1854757c9dbb6d85ae9ad063ee",
+  "label": "Every durable write in agent_substrate, its class, and whether it is decided under the writer lock. The writes, and how each is made, are measured by tools/authority_inventory.py; the class is a reviewed judgement.",
+  "rule": "A DECISION or USE write is DECIDED -- written by append_decided, its decision taken under the writer lock against the history it is appended onto -- unless an OPEN finding in docs/security/findings.json names it. MINT, FACT and TELEMETRY writes permit nothing another writer's record could invalidate.",
+  "classes": {
+    "DECISION": "changes what someone may do, or what state a replay holds",
+    "USE": "exercises or spends an authority",
+    "MINT": "creates an entity under an identifier the writer generated at random",
+    "FACT": "records an observation; permits nothing",
+    "TELEMETRY": "diagnostic only"
+  },
+  "at_baseline_note": "at_baseline is how the write was made at baseline_commit where that differs (APPEND: read-check-append outside the lock; ABSENT: no such record existed). Informational: the check measures the current tree only.",
+  "writes": [
+    {
+      "module": "agents.py",
+      "function": "AgentDirectory.answer",
+      "action": "ACT_ESCALATION_ANSWER",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a person's answer to an escalation is the authority a compensation or an override acts on; one answer per question"
+    },
+    {
+      "module": "agents.py",
+      "function": "AgentDirectory.claim",
+      "action": "ACT_CLAIM",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "an exclusive claim on work; a second claimant would hold what the first was granted"
+    },
+    {
+      "module": "agents.py",
+      "function": "AgentDirectory.escalate",
+      "action": "ACT_ESCALATION",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "opens the question a person's answer will authorize; one escalation per id"
+    },
+    {
+      "module": "agents.py",
+      "function": "AgentDirectory.register",
+      "action": "ACT_AGENT_REGISTER",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "establishes a principal and its roles, which every later separation-of-duties check reads"
+    },
+    {
+      "module": "agents.py",
+      "function": "AgentDirectory.retire",
+      "action": "ACT_AGENT_RETIRE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "withdraws a principal's standing; a retired principal's later answer is refused"
+    },
+    {
+      "module": "agents.py",
+      "function": "AgentDirectory.send",
+      "action": "ACT_MESSAGE",
+      "mode": "DECIDED",
+      "class": "FACT",
+      "why": "a message between principals carries no authority; it is decided anyway because a reused message id is refused on replay"
+    },
+    {
+      "module": "agents.py",
+      "function": "AgentDirectory.withdraw",
+      "action": "ACT_ESCALATION_ANSWER",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "closes a question without an answer, which forecloses the answer"
+    },
+    {
+      "module": "capability.py",
+      "function": "CapabilityLedger.anoint",
+      "action": "ACT_ROOT",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "names the root issuer every grant's minting is checked against"
+    },
+    {
+      "module": "capability.py",
+      "function": "CapabilityLedger.issue",
+      "action": "ACT_ISSUE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a grant: what a subject may do, from where it is stamped"
+    },
+    {
+      "module": "capability.py",
+      "function": "CapabilityLedger.revoke",
+      "action": "ACT_REVOKE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "withdraws a grant for every later check",
+      "at_baseline": "APPEND"
+    },
+    {
+      "module": "context.py",
+      "function": "record_context",
+      "action": "ACT_CONTEXT_BUILD",
+      "mode": "APPEND",
+      "class": "FACT",
+      "why": "what was in front of a run, by digest; folded by no reducer and permits nothing"
+    },
+    {
+      "module": "governed_tasks.py",
+      "function": "GovernedTasks._attempt",
+      "action": "ACT_EXECUTION",
+      "mode": "DECIDED",
+      "class": "USE",
+      "why": "names who ran the task, which separation of duties is checked against; decided against the head and the lease it ran under",
+      "at_baseline": "APPEND"
+    },
+    {
+      "module": "governed_tasks.py",
+      "function": "GovernedTasks._capture",
+      "action": "ACT_EVIDENCE",
+      "mode": "APPEND",
+      "class": "FACT",
+      "why": "content digests of what the tool produced; the verdict re-derives them from disk rather than trusting this record"
+    },
+    {
+      "module": "governed_tasks.py",
+      "function": "GovernedTasks._move",
+      "action": "ACT_TASK_TRANSITION",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a task's lifecycle move, re-authorized on replay"
+    },
+    {
+      "module": "governed_tasks.py",
+      "function": "GovernedTasks._reexecute_and_compare",
+      "action": "ACT_REEXECUTION",
+      "mode": "APPEND",
+      "class": "FACT",
+      "why": "how a result was checked; the verdict it supports is its own decided transition, and a stale record is flagged by the second reader"
+    },
+    {
+      "module": "governed_tasks.py",
+      "function": "GovernedTasks._settle",
+      "action": "ACT_SEPARATE_VERIFY",
+      "mode": "APPEND",
+      "class": "FACT",
+      "why": "what a separate process concluded about the log; the verdict is the decided transition after it"
+    },
+    {
+      "module": "governed_tasks.py",
+      "function": "GovernedTasks.compensate",
+      "action": "ACT_COMPENSATION",
+      "mode": "APPEND",
+      "class": "FACT",
+      "why": "the outcome of an undo whose authorization was already consumed under the lock by task.compensation.authorize; replay accepts one outcome per authorization, citing it"
+    },
+    {
+      "module": "governed_tasks.py",
+      "function": "GovernedTasks.compensate",
+      "action": "ACT_COMPENSATION_AUTHORIZE",
+      "mode": "DECIDED",
+      "class": "USE",
+      "why": "consumes a person's COMPENSATE answer before an external undo runs; one answer authorizes one undo",
+      "at_baseline": "ABSENT"
+    },
+    {
+      "module": "governed_tasks.py",
+      "function": "GovernedTasks.run",
+      "action": "ACT_TASK_CREATE",
+      "mode": "APPEND",
+      "class": "MINT",
+      "why": "creates a task under an id this writer draws from uuid4; no other writer's record can name it first, and admission was decided by the policy decision recorded before it"
+    },
+    {
+      "module": "idempotency.py",
+      "function": "IdempotencyLedger.bind",
+      "action": "ACT_BIND",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "binds a request key to one task; a rebinding would suppress the work it named"
+    },
+    {
+      "module": "memory.py",
+      "function": "MemoryStore._set_status",
+      "action": "ACT_MEMORY_STATUS",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "retracts or supersedes a memory, which changes what recall returns"
+    },
+    {
+      "module": "memory.py",
+      "function": "MemoryStore.remember",
+      "action": "ACT_MEMORY_WRITE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "claims a memory id once; a second write to it would silently replace the first"
+    },
+    {
+      "module": "netauth.py",
+      "function": "NetworkAuthority.issue",
+      "action": "ACT_NET_GRANT",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "an egress grant"
+    },
+    {
+      "module": "netauth.py",
+      "function": "NetworkAuthority.record",
+      "action": "ACT_NET_REQUEST",
+      "mode": "DECIDED",
+      "class": "USE",
+      "why": "an egress request allowed or refused, counted against a quota; re-decided under the lock so a spent budget or a revoked grant is honoured",
+      "at_baseline": "APPEND"
+    },
+    {
+      "module": "netauth.py",
+      "function": "NetworkAuthority.record_result",
+      "action": "ACT_NET_RESULT",
+      "mode": "APPEND",
+      "class": "TELEMETRY",
+      "why": "the outcome of a request whose authorization was already recorded; folded into no decision"
+    },
+    {
+      "module": "netauth.py",
+      "function": "NetworkAuthority.register_service",
+      "action": "ACT_SERVICE_REGISTER",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a service contract and its quota, which every egress decision reads",
+      "at_baseline": "APPEND"
+    },
+    {
+      "module": "netauth.py",
+      "function": "NetworkAuthority.revoke",
+      "action": "ACT_NET_GRANT",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "withdraws an egress grant",
+      "at_baseline": "APPEND"
+    },
+    {
+      "module": "policy.py",
+      "function": "PolicyStore.decide_and_record",
+      "action": "ACT_POLICY_DECISION",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a policy verdict, re-evaluated on replay"
+    },
+    {
+      "module": "policy.py",
+      "function": "PolicyStore.publish",
+      "action": "ACT_POLICY_PUBLISH",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a policy version"
+    },
+    {
+      "module": "policy.py",
+      "function": "PolicyStore.withdraw",
+      "action": "ACT_POLICY_WITHDRAW",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "withdraws a policy"
+    },
+    {
+      "module": "principals.py",
+      "function": "begin_history",
+      "action": "ACT_SECURITY_PROFILE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "fixes the history's authentication profile, once, at its start"
+    },
+    {
+      "module": "proposals.py",
+      "function": "ProposalIngress.receive",
+      "action": "ACT_PROPOSAL_RECEIVE",
+      "mode": "DECIDED",
+      "class": "FACT",
+      "why": "receipt of a NON_AUTHORITATIVE proposal; decided because two receipts of one id would be refused on replay"
+    },
+    {
+      "module": "readpath.py",
+      "function": "GovernedReader._record",
+      "action": "ACT_FILE_READ",
+      "mode": "APPEND",
+      "class": "FACT",
+      "why": "a REFUSED read: an attempt, which permits nothing"
+    },
+    {
+      "module": "readpath.py",
+      "function": "GovernedReader._record_read",
+      "action": "ACT_FILE_READ",
+      "mode": "DECIDED",
+      "class": "USE",
+      "why": "an allowed read under a capability, decided against the grants in force at the head it is written onto",
+      "at_baseline": "APPEND"
+    },
+    {
+      "module": "scheduler.py",
+      "function": "Scheduler.enqueue",
+      "action": "ACT_ENQUEUE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "admits a job to the queue"
+    },
+    {
+      "module": "scheduler.py",
+      "function": "Scheduler.renew_lease",
+      "action": "ACT_LEASE_RENEW",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "extends a worker's lease"
+    },
+    {
+      "module": "scheduler.py",
+      "function": "Scheduler.set_priority",
+      "action": "ACT_PRIORITY",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "reorders the queue"
+    },
+    {
+      "module": "scheduler.py",
+      "function": "Scheduler.transition",
+      "action": "ACT_JOB_TRANSITION",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a job's lifecycle move, dispatch and outcome included"
+    },
+    {
+      "module": "secrets.py",
+      "function": "SecretStore._reveal",
+      "action": "ACT_SECRET_ACCESS",
+      "mode": "DECIDED",
+      "class": "USE",
+      "why": "a secret revealed under a grant; decided and recorded under the lock before the value is returned",
+      "at_baseline": "APPEND"
+    },
+    {
+      "module": "secrets.py",
+      "function": "SecretStore.issue",
+      "action": "ACT_SECRET_GRANT",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a secret grant"
+    },
+    {
+      "module": "secrets.py",
+      "function": "SecretStore.provision",
+      "action": "ACT_SECRET_PROVISION",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "binds a secret id to one provider; a second source for one id is refused",
+      "at_baseline": "APPEND"
+    },
+    {
+      "module": "secrets.py",
+      "function": "SecretStore.revoke",
+      "action": "ACT_SECRET_GRANT",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "withdraws a secret grant",
+      "at_baseline": "APPEND"
+    },
+    {
+      "module": "store.py",
+      "function": "AuthorityStore.add_dependency",
+      "action": "ACT_DEPEND",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a dependency between records, which the invalidation cascade follows"
+    },
+    {
+      "module": "store.py",
+      "function": "AuthorityStore.bind_policies",
+      "action": "ACT_POLICY_BINDING",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "binds the store to the policies its promotions are checked against"
+    },
+    {
+      "module": "store.py",
+      "function": "AuthorityStore.checkpoint",
+      "action": "ACT_CHECKPOINT_STATE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "the digest of a projection at a position, which authorizes restoring from a snapshot"
+    },
+    {
+      "module": "store.py",
+      "function": "AuthorityStore.create",
+      "action": "ACT_CREATE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a scientific record"
+    },
+    {
+      "module": "store.py",
+      "function": "AuthorityStore.transition",
+      "action": "ACT_TRANSITION",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a record's authority move: VERIFIED, PROMOTED, REVOKED"
+    }
+  ]
+}

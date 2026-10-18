@@ -1,0 +1,107 @@
+{
+  "title": "The authority inventory: every durable write measured, classified and decided",
+  "note": "Tranche G, G0. Each mutation deletes one rule of tools/authority_inventory.py or blinds its walk to one way a record is written. tests/test_authority_inventory.py pairs each with a synthetic package that passes.",
+  "suites": [
+    "tests/test_authority_inventory.py"
+  ],
+  "mutations": [
+    {
+      "name": "AI1_a_decision_may_be_written_outside_the_lock",
+      "path": "tools/authority_inventory.py",
+      "find": "        if e.get(\"class\") in MUST_DECIDE and have[k][\"mode\"] != DECIDED:",
+      "replace": "        if False:",
+      "rationale": "a DECISION or USE appended outside append_decided passes the check"
+    },
+    {
+      "name": "AI2_a_closed_finding_excuses_an_undecided_write",
+      "path": "tools/authority_inventory.py",
+      "find": "            elif findings.get(fid) != \"OPEN\":",
+      "replace": "            elif False:",
+      "rationale": "a FIXED or absent finding is accepted as the reason a decision is not decided"
+    },
+    {
+      "name": "AI3_an_unclassified_write_passes",
+      "path": "tools/authority_inventory.py",
+      "find": "    for k in have:\n        if k not in listed:",
+      "replace": "    for k in have:\n        if False:",
+      "rationale": "a new writer nobody classified passes the check"
+    },
+    {
+      "name": "AI4_a_stale_entry_passes",
+      "path": "tools/authority_inventory.py",
+      "find": "            out.append(f\"{k} is classified but no such write exists; the \"\n                       \"table describes a past version of the code\")\n",
+      "replace": "            pass\n",
+      "rationale": "the table can describe writers the code no longer has"
+    },
+    {
+      "name": "AI5_a_recorded_mode_is_not_compared",
+      "path": "tools/authority_inventory.py",
+      "find": "        if e.get(\"mode\") != have[k][\"mode\"]:",
+      "replace": "        if False:",
+      "rationale": "the table may say DECIDED of a write the code appends"
+    },
+    {
+      "name": "AI6_a_duplicate_entry_passes",
+      "path": "tools/authority_inventory.py",
+      "find": "        if k in listed:\n            out.append(f\"{k} is classified twice\")",
+      "replace": "        if False:\n            out.append(f\"{k} is classified twice\")",
+      "rationale": "one write classified twice, the second entry shadowing the first"
+    },
+    {
+      "name": "AI7_an_unknown_class_passes",
+      "path": "tools/authority_inventory.py",
+      "find": "        if e.get(\"class\") not in CLASSES:",
+      "replace": "        if False:",
+      "rationale": "a class outside the reviewed vocabulary, which no rule reads, passes"
+    },
+    {
+      "name": "AI8_a_class_with_no_reason_passes",
+      "path": "tools/authority_inventory.py",
+      "find": "        if not (e.get(\"why\") or \"\").strip():",
+      "replace": "        if False:",
+      "rationale": "a judgement with no stated reason passes"
+    },
+    {
+      "name": "AI9_any_schema_passes",
+      "path": "tools/authority_inventory.py",
+      "find": "    if doc.get(\"schema\") != SCHEMA:",
+      "replace": "    if False:",
+      "rationale": "a document of another format is checked as though it were this one"
+    },
+    {
+      "name": "AI10_the_walk_misses_a_record_built_elsewhere",
+      "path": "tools/authority_inventory.py",
+      "find": "        elif name == \"append\" and isinstance(f, ast.Attribute) and any(\n                k.arg is None for k in node.keywords):",
+      "replace": "        elif False:",
+      "rationale": "log.append(**record) is not seen, so a write through a helper is never classified"
+    },
+    {
+      "name": "AI11_the_walk_misses_dict_built_records",
+      "path": "tools/authority_inventory.py",
+      "find": "                and node.func.id == \"dict\":",
+      "replace": "                and node.func.id == \"never\":",
+      "rationale": "a decided record spelled dict(action=...) has no action, as the scheduler's and the store's are"
+    },
+    {
+      "name": "AI12_the_walk_credits_a_writer_with_its_callees",
+      "path": "tools/authority_inventory.py",
+      "find": "    if acts or scopes is None:\n        return acts",
+      "replace": "    if scopes is None:\n        return acts",
+      "rationale": "a writer that calls another writer is credited with that writer's action"
+    },
+    {
+      "name": "AI13_the_walk_misses_a_deciding_helper",
+      "path": "tools/authority_inventory.py",
+      "find": "        elif name in DECIDING_HELPERS and any(k.arg == \"action\"",
+      "replace": "        elif False and any(k.arg == \"action\"",
+      "rationale": "the scheduler's writes through its deciding helper are not seen"
+    },
+    {
+      "name": "AI14_a_decided_and_appended_write_is_decided",
+      "path": "tools/authority_inventory.py",
+      "find": "                rows[key] = APPEND if APPEND in (mode, rows.get(key)) \\",
+      "replace": "                rows[key] = APPEND if APPEND == mode \\",
+      "rationale": "a function that appends one action outside the lock and also decides it is measured as decided"
+    }
+  ]
+}

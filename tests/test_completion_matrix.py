@@ -872,7 +872,17 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: specifications and the shard matrix), R70 and R71 have hosted evidence
 #: that predates their implementation until a later commit cites runs at
 #: this one.
-EXPECTED_EVIDENCE_COVERS = 45
+#:
+#: 45 -> 19 with D-2026-156, in the same commit as it: every authority
+#: writer now decides under the writer lock against the history it appends
+#: onto, and no projection resumes past a record it refused. That changes
+#: the event log, the capability ledger, the egress and secret authorities,
+#: the agent directory, memory, policy, scheduler, store, idempotency and
+#: proposal folds, the governed task runner, the read path and the second
+#: reader -- the implementation of 26 more rows (R22-R33, R36-R40, R42,
+#: R46-R49, R52-R55, R66). Their hosted evidence predates them until a
+#: later commit cites runs at this one.
+EXPECTED_EVIDENCE_COVERS = 19
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

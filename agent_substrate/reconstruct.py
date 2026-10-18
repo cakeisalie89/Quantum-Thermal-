@@ -1357,6 +1357,11 @@ class SubsystemReconstruction:
     #: into them. What it carries that needs a second reader is the name of
     #: the PERSON who authorized destroying something.
     compensations: dict = field(default_factory=dict)
+    #: escalation_id -> ``{"task_id", "authorized_seq", "ran_seq"}``: the
+    #: undo each answer authorized (D-2026-156). ``ran_seq`` None is an
+    #: authorization with no recorded outcome -- an undo whose effect is not
+    #: known, which is a state to report rather than an anomaly.
+    compensation_authorizations: dict = field(default_factory=dict)
     #: service_id -> its contract as this reader rebuilt it.
     services: dict = field(default_factory=dict)
     #: "service_id/task_id" -> permitted calls counted from the log.
@@ -1369,6 +1374,8 @@ class SubsystemReconstruction:
     reads: int = 0
     secret_uses: int = 0
     provisioned: dict = field(default_factory=dict)
+    #: secret_id -> the provider its first provisioning named (D-2026-156)
+    provision_sources: dict = field(default_factory=dict)
     net_results: int = 0
     #: (actor, task, target) -> allowed requests not yet answered.
     egress_open: dict = field(default_factory=dict)
@@ -1508,6 +1515,8 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_claim(ev, p, out)
         elif a == "task.compensation":
             _sub_compensation(ev, p, out)
+        elif a == "task.compensation.authorize":
+            _sub_compensation_authorize(ev, p, out)
         elif a == "agent.escalation":
             _sub_escalation(ev, p, out)
         elif a == "agent.escalation.answer":
@@ -1520,6 +1529,7 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_service(ev, p, out)
         elif a == "network.request":
             _sub_service_call(ev, p, out)
+            _sub_egress_use(ev, p, out)
             _sub_net_request_seen(ev, p, out)
         elif a == "network.result":
             _sub_network_result(ev, p, out)
@@ -1681,6 +1691,32 @@ def _sub_file_read(ev, p: dict, out) -> None:
     out.reads += 1
 
 
+def _sub_egress_use(ev, p: dict, out) -> None:
+    """An ALLOWED request names the grant that allowed it; was that grant in
+    force at the position the request was recorded? (D-2026-156)
+
+    This reader held every egress grant -- issued where, revoked where,
+    expiring where -- and consulted none of it for a use. A request recorded
+    as allowed after its grant's revocation read as ordinary traffic.
+    """
+    if not p.get("allowed"):
+        return
+    decision = p.get("decision") if isinstance(p.get("decision"), dict) \
+        else {}
+    gid = decision.get("grant_id")
+    g = out.net_grants.get(gid)
+    if g is None:
+        _note(out, ev, f"an egress request was allowed under grant {gid!r}, "
+                       "which this log never issued")
+        return
+    why = _sub_grant_live({**g, "expires_after_seq":
+                           (g.get("body") or {}).get("expires_after_seq")},
+                          ev.seq)
+    if why:
+        _note(out, ev, f"egress grant {gid!r} {why}, and a request under it "
+                       "was recorded as allowed")
+
+
 def _sub_net_request_seen(ev, p: dict, out) -> None:
     """Remember an ALLOWED egress, so its result has something to answer."""
     req = p.get("request")
@@ -1770,6 +1806,15 @@ def _sub_secret_provision(ev, p: dict, out) -> None:
     if not isinstance(sid, str) or not sid:
         _note(out, ev, "secret.provision names no secret")
         return
+    # One id, one source (D-2026-156), restated: a second provisioning from a
+    # different provider would give holders two credentials under one name.
+    first = out.provision_sources.get(sid)
+    if first is not None and first != p.get("provider"):
+        _note(out, ev, f"secret {sid!r} is provisioned from "
+                       f"{p.get('provider')!r} and was provisioned from "
+                       f"{first!r}; one id, two credentials")
+        return
+    out.provision_sources.setdefault(sid, p.get("provider"))
     out.provisioned[sid] = ev.seq
 
 
@@ -2636,6 +2681,20 @@ def _sub_compensation(ev, p: dict, out) -> None:
     }
     out.compensations.setdefault(tid, []).append(record)
 
+    granted = out.compensation_authorizations.get(eid) if eid else None
+    if granted is None or granted["authorized_seq"] != \
+            p.get("authorization_seq") or granted["task_id"] != tid:
+        _note(out, ev, f"compensation of {tid!r} cites authorization "
+                       f"{p.get('authorization_seq')!r} of escalation "
+                       f"{eid!r}, which this log does not hold; an undo is "
+                       "recorded against the authorization it ran under")
+    elif granted["ran_seq"] is not None:
+        _note(out, ev, f"the outcome of the compensation authorized at seq "
+                       f"{granted['authorized_seq']} was already recorded, "
+                       f"at seq {granted['ran_seq']}")
+    else:
+        granted["ran_seq"] = ev.seq
+
     if not eid:
         _note(out, ev, f"compensation of {tid!r} names no escalation; an "
                        "undo nobody authorized is an undo that authorized "
@@ -2657,6 +2716,41 @@ def _sub_compensation(ev, p: dict, out) -> None:
                        f"by {esc.get('answered_by')!r}. A record naming who "
                        "authorized an undo may repeat the escalation and may "
                        "not disagree with it")
+
+
+def _sub_compensation_authorize(ev, p: dict, out) -> None:
+    """One answer, one undo (D-2026-156), restated from the log alone.
+
+    The primary refuses a second authorization citing one escalation. Here
+    it is a finding, and so is an authorization citing an escalation that
+    was not answered COMPENSATE about this task: the answer is the
+    authority, and the record that consumes it must be able to point at it.
+    """
+    tid = p.get("task_id", ev.target)
+    eid = p.get("authorized_by_escalation")
+    if not eid:
+        _note(out, ev, f"compensation authorization for {tid!r} names no "
+                       "escalation")
+        return
+    prior = out.compensation_authorizations.get(eid)
+    if prior is not None:
+        _note(out, ev, f"escalation {eid!r} already authorized a "
+                       f"compensation, at seq {prior['authorized_seq']}; one "
+                       "answer authorizes one undo")
+        return
+    esc = out.escalations.get(eid)
+    if esc is None or esc.get("state") != "ANSWERED" or \
+            esc.get("answer") != "COMPENSATE" or \
+            esc.get("task_id") != tid:
+        _note(out, ev, f"compensation of {tid!r} is authorized by "
+                       f"escalation {eid!r}, which this log does not hold "
+                       "answered COMPENSATE about that task")
+    elif p.get("answered_by") != esc.get("answered_by"):
+        _note(out, ev, f"compensation authorization for {tid!r} says "
+                       f"{eid!r} was answered by {p.get('answered_by')!r}; "
+                       f"it was answered by {esc.get('answered_by')!r}")
+    out.compensation_authorizations[eid] = {
+        "task_id": tid, "authorized_seq": ev.seq, "ran_seq": None}
 
 
 def _sub_memory_write(ev, p: dict, out) -> None:

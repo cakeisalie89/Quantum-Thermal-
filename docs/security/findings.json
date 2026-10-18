@@ -333,7 +333,7 @@
   },
   {
    "id": "T-2",
-   "ledger": "D-2026-147",
+   "ledger": "D-2026-156",
    "priority": "P2",
    "area": "event history and concurrency",
    "title": "writers outside the agent directory and memory still decide against a loaded view and append outside the writer lock",
@@ -341,39 +341,153 @@
     {
      "path": "agent_substrate/capability.py",
      "symbols": [
-      "revoke"
+      "revoke",
+      "issue",
+      "in_force"
      ]
     },
     {
      "path": "agent_substrate/netauth.py",
      "symbols": [
       "register_service",
-      "revoke"
+      "revoke",
+      "record"
      ]
     },
     {
      "path": "agent_substrate/secrets.py",
      "symbols": [
       "provision",
-      "revoke"
+      "revoke",
+      "_reveal"
      ]
     },
     {
-     "path": "agent_substrate/governed_tasks.py",
+     "path": "agent_substrate/events.py",
      "symbols": [
-      "ACT_TASK_CREATE",
-      "ACT_COMPENSATION"
+      "DecidedWriter"
      ]
     }
    ],
    "precondition": "Two processes, each with a projection loaded before the other's append, making the same decision (two revocations of one grant, two publications of one policy version).",
-   "impact": "The same class as T-1: both appends can succeed, and whether a later load then refuses the history depends on each reducer's tolerance of the duplicate. Not measured per writer in this tranche. PolicyStore's writers were converted by D-2026-148; the others remain.",
+   "impact": "Measured per writer at b9b2187: a ledger loaded before another process revoked a capability, egress grant or secret grant still authorized the tool run, the connection or the reveal of the plaintext; two authorities each one call under a service budget both recorded an allowed call; a capability id, an egress grant id or a secret grant id issued twice, or a service registered again with other terms, left a history every later load() refuses; one secret id was provisioned from two providers.",
    "reproduction": {
-    "kind": "analysis",
-    "ref": "docs/DEFECT_LEDGER.md D-2026-147 NOT CLAIMED",
-    "observed_at_baseline": "each named writer checks its projection and then calls log.append outside append_decided"
+    "kind": "test",
+    "ref": "tests/test_t2_closure.py::test_a_capability_revoked_elsewhere_is_not_in_force_now",
+    "observed_at_baseline": "12 cases of tests/test_t2_closure.py fail at b9b2187 and its 6 controls pass; e.g. 'capability c2 was issued twice with different terms' on every later load"
    },
-   "status": "OPEN"
+   "status": "FIXED"
+  },
+  {
+   "id": "T-3",
+   "ledger": "D-2026-156",
+   "priority": "P1",
+   "area": "event-sourced substrate: projections",
+   "title": "a projection that refused a record resumed past it, and decided against a history that skipped it",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "symbols": [
+      "projection_fold",
+      "projection_load",
+      "check_projection"
+     ]
+    },
+    {
+     "path": "agent_substrate/memory.py",
+     "symbols": [
+      "_fold_new",
+      "load"
+     ]
+    },
+    {
+     "path": "agent_substrate/agents.py",
+     "symbols": [
+      "_fold_new",
+      "load"
+     ]
+    }
+   ],
+   "precondition": "A record the reducer refuses -- written by anything outside the gate -- lands after a writer's projection was loaded.",
+   "impact": "The first decision is refused; the second starts after the refused record and writes onto a history every fresh load refuses. A refused load() leaves an emptied projection and its old anchor, and the next catch-up folds new records onto nothing.",
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_refused_fold.py::test_a_refused_fold_keeps_refusing",
+    "observed_at_baseline": "memory store: attempt 1 refused ('written twice'), attempt 2 WRITTEN; agents, policy and scheduler the same; six writers resumed after a refused load()"
+   },
+   "status": "FIXED"
+  },
+  {
+   "id": "T-4",
+   "ledger": "D-2026-156",
+   "priority": "P1",
+   "area": "governed execution",
+   "title": "the execution record was appended unchecked after a tool ran, whatever had happened to the task meanwhile",
+   "files": [
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "symbols": [
+      "_attempt",
+      "_projection_at_head"
+     ]
+    }
+   ],
+   "precondition": "The task moves while its tool runs: a supervisor returns it to the queue, or lets it again to the same worker identity.",
+   "impact": "A task no longer running was given an executor and every later replay refused the history; a task let again under a new lease was credited with the first attempt's result.",
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_t2_governed.py::test_an_execution_record_for_a_task_recovered_meanwhile_is_refused",
+    "observed_at_baseline": "'seq 18: an execution record for ... while it is QUEUED' on replay; the re-let case's record was accepted"
+   },
+   "status": "FIXED"
+  },
+  {
+   "id": "T-5",
+   "ledger": "D-2026-156",
+   "priority": "P1",
+   "area": "governed execution: external effects",
+   "title": "one person's COMPENSATE answer ran the external undo once per call",
+   "files": [
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "symbols": [
+      "compensate",
+      "ACT_COMPENSATION_AUTHORIZE"
+     ]
+    }
+   ],
+   "precondition": "An escalation answered COMPENSATE, and compensate() called twice -- by one supervisor or two.",
+   "impact": "The external undo ran twice on one decision. Nothing in the log or either reader refused it.",
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_t2_governed.py::test_one_answer_runs_one_undo",
+    "observed_at_baseline": "the second compensate() raised nothing and ran the undo again"
+   },
+   "status": "FIXED"
+  },
+  {
+   "id": "T-6",
+   "ledger": "D-2026-156",
+   "priority": "P2",
+   "area": "governed reads",
+   "title": "a read was recorded ALLOWED under a grant revoked while it ran",
+   "files": [
+    {
+     "path": "agent_substrate/readpath.py",
+     "symbols": [
+      "_record_read",
+      "_grants"
+     ]
+    }
+   ],
+   "precondition": "Another process revokes the verifier's read grant between the check and the record.",
+   "impact": "The history states an allowed read under a revoked grant; the separate-process check rejected the run only afterwards, by reading that record back.",
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_t2_governed.py::test_a_read_whose_grant_is_revoked_while_it_reads_is_refused",
+    "observed_at_baseline": "'an allowed read cites capability cap-read-..., which was revoked at seq 20'"
+   },
+   "status": "FIXED"
   },
   {
    "id": "R-3",

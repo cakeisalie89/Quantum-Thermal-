@@ -67,7 +67,7 @@ from dataclasses import dataclass, replace
 from enum import Enum
 
 from .canonical import digest, is_digest
-from .events import EventLogError
+from .events import EventLogError, projection_fold, projection_load
 
 ACT_MEMORY_WRITE = "memory.write"
 ACT_MEMORY_STATUS = "memory.status"
@@ -242,6 +242,7 @@ class MemoryStore:
         self._anchor = None
 
     # ---- projection ----------------------------------------------------
+    @projection_load
     def load(self) -> "MemoryStore":
         report, events = self.log.read_verified()
         report.raise_if_bad()
@@ -255,6 +256,7 @@ class MemoryStore:
                         if self._folded_through >= 0 else None)
         return self
 
+    @projection_fold
     def _fold_new(self) -> None:
         """Fold what other writers appended since this store last read:
         O(new) from the anchor, a whole verified read without one."""

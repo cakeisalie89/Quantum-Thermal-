@@ -90,8 +90,12 @@ class GovernedReader:
         self.root_id = root_id
         self._root = ReadRoot(root_path, **(
             {"max_bytes": max_bytes} if max_bytes else {}))
-        #: A CapabilitySet, or None. None means default-deny for every read:
-        #: a reader with no grants is not a reader with all of them.
+        #: A CapabilityLedger, a CapabilitySet, or None. None means
+        #: default-deny for every read: a reader with no grants is not a
+        #: reader with all of them. A LEDGER is asked at the position each
+        #: decision is taken at, so a grant revoked by another process is
+        #: revoked here; a set is a snapshot its caller vouches for
+        #: (D-2026-156). The governed runner passes its ledger.
         self.capabilities = capabilities
 
     # ---- lifecycle -----------------------------------------------------
@@ -121,14 +125,33 @@ class GovernedReader:
         as a scope miss. The two produce different operator actions.
         """
         split_relative(req.resource)          # raises PathRefused
-        if self.capabilities is None:
+        self._check(req, capability_id, self._grants(self._witnessed()))
+
+    def _grants(self, at_seq):
+        """The grants to decide against at ``at_seq``."""
+        caps = self.capabilities
+        in_force = getattr(caps, "in_force", None)
+        return in_force(at_seq) if in_force is not None else caps
+
+    def _witnessed(self):
+        """The head as the witness file has it: cheap, possibly behind, and
+        only ever used for the early refusal. The decision that is recorded
+        is taken under the writer lock at the real head."""
+        try:
+            witness = self.log.head()
+        except Exception:                # noqa: BLE001 - only an early-out
+            return None
+        return witness.seq if witness is not None else None
+
+    def _check(self, req: ReadRequest, capability_id: str, caps) -> None:
+        if caps is None:
             raise ReadDenied(
                 f"{req.actor!r} holds no capabilities, so no read is "
                 "authorized. Reading is default-deny: absence of a rule is "
                 "not an allow rule.")
         scoped = f"{self.root_id}/{req.resource}"
         try:
-            self.capabilities.check(capability_id, Request(
+            caps.check(capability_id, Request(
                 actor=req.actor, action=Action.READ_PATHS,
                 task_id=req.task_id, tool_id=req.tool_id,
                 paths=(scoped,)))
@@ -155,13 +178,49 @@ class GovernedReader:
             self._record(req, capability_id, allowed=False,
                          reason=f"{type(exc).__name__}: {exc}")
             raise
-        self._record(req, capability_id, allowed=True, reason="read",
-                     result=result)
+        self._record_read(req, capability_id, result)
         return result
 
+    def _record_read(self, req: ReadRequest, capability_id: str,
+                     result: ReadResult) -> None:
+        """Record an allowed read, decided against the head (D-2026-156).
+
+        The read was authorized before the bytes were fetched, and the grant
+        can be revoked by another process while they are. Appended
+        unchecked, the record said "allowed" under a grant that was not in
+        force at its own position, and the second reader could only say so
+        afterwards. So the grant is asked again under the writer lock: still
+        in force, and the read is recorded with its result; withdrawn, and
+        it is recorded as refused, and the bytes -- already in this process
+        -- are not handed to the caller.
+        """
+        refused: list = []
+
+        def decide(head_seq: int) -> dict:
+            try:
+                self._check(req, capability_id, self._grants(head_seq))
+            except ReadDenied as exc:
+                refused.append(ReadDenied(
+                    f"the grant was withdrawn while the read ran: {exc}"))
+                return self._entry(
+                    req, capability_id, allowed=False,
+                    reason=f"ReadDenied: {refused[0]}")
+            return self._entry(req, capability_id, allowed=True,
+                               reason="read", result=result)
+
+        self.log.append_decided(decide)
+        if refused:
+            raise refused[0]
+
     def _record(self, req: ReadRequest, capability_id: str, *,
-                allowed: bool, reason: str,
-                result: ReadResult | None = None) -> None:
+                allowed: bool, reason: str) -> None:
+        """A REFUSED read: a fact about an attempt, which permits nothing."""
+        self.log.append(**self._entry(req, capability_id, allowed=allowed,
+                                      reason=reason))
+
+    def _entry(self, req: ReadRequest, capability_id: str, *,
+               allowed: bool, reason: str,
+               result: ReadResult | None = None) -> dict:
         payload = {"request": req.to_record(), "capability_id": capability_id,
                    "allowed": allowed, "reason": reason,
                    "root_path": self._root.path}
@@ -169,8 +228,8 @@ class GovernedReader:
             # The identity of what was OPENED, and the digest of the bytes.
             # Never the bytes: a read is exactly how a secret would get here.
             payload["result"] = result.to_record()
-        self.log.append(actor=req.actor, action=ACT_FILE_READ,
-                        target=req.task_id or req.resource, payload=payload)
+        return {"actor": req.actor, "action": ACT_FILE_READ,
+                "target": req.task_id or req.resource, "payload": payload}
 
 
 def read_scope(root_id: str, *paths: str) -> tuple:

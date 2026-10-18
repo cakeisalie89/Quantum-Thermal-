@@ -578,6 +578,21 @@
       "authority_note": "Does not move the task -- 'was compensated' and 'did not happen' must not become the same answer -- but it names the PERSON who authorized destroying something, copied from the escalation. A name nothing checks is a name a forged record chooses."
     },
     {
+      "action": "task.compensation.authorize",
+      "module": "governed_tasks.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "answered_by",
+          "role": "DIAGNOSTIC_DUPLICATE",
+          "note": "a copy of the escalation's answerer, compared to it on replay by both readers, for the reason given on task.compensation: it names a PERSON as having authorized destroying something"
+        }
+      ],
+      "note": "D-2026-156. The prepare half of a compensation: written under the writer lock, after the escalation is re-read from the history it is appended onto.",
+      "authority_changing": true,
+      "authority_note": "Consumes an answered escalation. One answer authorizes one undo: the primary refuses a second authorization citing it, the second reader reports one, and an outcome must cite the authorization it ran under. An authorization with no outcome after it is an undo whose effect is not known, and it is not run again without a new decision."
+    },
+    {
       "action": "task.create",
       "module": "governed_tasks.py",
       "independent_reader": "YES",

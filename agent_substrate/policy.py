@@ -96,7 +96,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .canonical import digest
-from .events import EventLogError
+from .events import EventLogError, projection_fold, projection_load
 
 #: Explicit wildcard. Must be written out; a blank field is refused.
 ANY = "*"
@@ -624,6 +624,7 @@ class PolicyStore:
         self._anchor = None
 
     # ---- projection ----------------------------------------------------
+    @projection_load
     def load(self) -> "PolicyStore":
         report, events = self.log.read_verified()
         report.raise_if_bad()
@@ -638,6 +639,7 @@ class PolicyStore:
                         if self._folded_through >= 0 else None)
         return self
 
+    @projection_fold
     def _fold_new(self) -> None:
         """What other writers appended since this store last read: O(new)
         from the anchor, a verified full read without one."""

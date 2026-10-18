@@ -96,6 +96,7 @@ from __future__ import annotations
 
 import contextlib
 import errno
+import functools
 import json
 import os
 import sys
@@ -1236,6 +1237,18 @@ class EventLog:
                 + "; ".join(report.problems))
         return report
 
+    @property
+    def written_anchor(self) -> "Anchor | None":
+        """An anchor at the last record THIS handle wrote, or None.
+
+        The write path verified the chain up to the record and wrote it, so
+        the anchor is as trustworthy as one :meth:`anchor_at` builds, without
+        the full read. A caller that holds a projection through that record
+        can catch it up with :meth:`advance` for O(new). None after damage
+        forced a full verify, or before this handle has written.
+        """
+        return self._anchor
+
     def append_decided(self, decide, *, before_write=None) -> "Event":
         """Decide and record under ONE lock. The read-decide-write primitive.
 
@@ -1434,3 +1447,142 @@ class EventLog:
             except OSError:
                 pass
             raise
+
+
+def projection_load(load):
+    """A projection's full rebuild: the one way past a refused fold.
+
+    D-2026-156. Clears a refusal :func:`projection_fold` remembered, then
+    rebuilds from the whole verified log -- which refuses again if the
+    record that caused it is still there. A load that raises is remembered
+    in its turn: it has emptied the projection and kept whatever anchor it
+    held, and a catch-up resumed from that anchor would fold the new
+    records onto nothing.
+    """
+    @functools.wraps(load)
+    def run(self, *args, **kwargs):
+        self._fold_refused = None
+        try:
+            return load(self, *args, **kwargs)
+        except BaseException as exc:
+            self._fold_refused = exc
+            raise
+    return run
+
+
+def projection_fold(fold):
+    """An incremental catch-up that never resumes past a refusal.
+
+    D-2026-156. Every catch-up moved its anchor past the new records before
+    applying them, and most marked a record folded before checking it. A
+    record the reducer refused -- written by anything outside the gate --
+    refused the first decision, and the second call began AFTER it: it
+    decided against a projection that had skipped the refused record, and
+    wrote onto a history every fresh load refuses. So a fold that raised is
+    remembered, and every later fold, and every decision taken after one,
+    raises it again until :func:`projection_load` succeeds.
+    """
+    @functools.wraps(fold)
+    def run(self, *args, **kwargs):
+        check_projection(self)
+        try:
+            return fold(self, *args, **kwargs)
+        except BaseException as exc:
+            self._fold_refused = exc
+            raise
+    return run
+
+
+def check_projection(owner) -> None:
+    """Raise the refusal a fold of ``owner`` remembered, if there is one.
+
+    For an answer given from the projection without folding first: a
+    position it has already read is not a position it can still vouch for
+    once a later record has been refused."""
+    refused = getattr(owner, "_fold_refused", None)
+    if refused is not None:
+        raise refused
+
+
+class DecidedWriter:
+    """A projection that decides against the history it appends onto.
+
+    D-2026-156. The agent directory and the memory store carry their own
+    copies of this (D-2026-147); the capability ledger, the egress authority
+    and the secret store share this one. A subclass has ``log``, an
+    ``apply(ev)`` that calls :meth:`_folded` with each event's seq, and a
+    ``load()`` that calls :meth:`_reset_fold` before folding and
+    :meth:`_set_fold_anchor` after.
+
+    Two things it gives a writer:
+
+    * :meth:`_fold_new` folds what OTHER writers appended since this
+      projection last read -- O(new) from an anchor, or one verified read when
+      there is none or it no longer describes the bytes at its offset. A
+      decision taken after it is taken against the log as it is, not as it
+      was when this object loaded.
+    * :meth:`_append_decided` runs a caller's ``decide()`` after that fold,
+      with the writer lock held, and appends what it returns. Nothing can land
+      between the decision and its record, so the loser of a race is refused
+      before anything is written instead of leaving a history every later
+      load refuses.
+
+    A fold that raised is remembered (:func:`projection_fold`): every later
+    fold and decision raises it until ``load()``, which a subclass decorates
+    with :func:`projection_load`, succeeds.
+
+    ``decide`` MUST NOT APPEND: the lock is not reentrant.
+    """
+
+    _folded_through: int = -1
+    _fold_anchor: "Anchor | None" = None
+
+    def _reset_fold(self) -> None:
+        self._folded_through = -1
+        self._fold_anchor = None
+
+    def _folded(self, seq: int) -> None:
+        if seq > self._folded_through:
+            self._folded_through = seq
+
+    def _set_fold_anchor(self) -> None:
+        self._fold_anchor = (self.log.anchor_at(self._folded_through)
+                             if self._folded_through >= 0 else None)
+
+    @projection_fold
+    def _fold_new(self) -> None:
+        if self._fold_anchor is not None:
+            try:
+                events, self._fold_anchor = self.log.advance(
+                    self._fold_anchor)
+            except EventLogError:
+                self._fold_anchor = None
+            else:
+                for ev in events:
+                    if ev.seq > self._folded_through:
+                        self.apply(ev)
+                return
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
+        for ev in events:
+            if ev.seq > self._folded_through:
+                self.apply(ev)
+        self._set_fold_anchor()
+
+    def _append_decided(self, decide) -> "Event":
+        """``decide(head_seq)`` returns the append keywords or raises; it
+        runs after the fold, under the lock, so ``head_seq`` is the position
+        this projection has just folded through."""
+        def under_lock(head_seq: int) -> dict:
+            self._fold_new()
+            return decide(head_seq)
+
+        ev = self.log.append_decided(under_lock)
+        self.apply(ev)
+        return ev
+
+    # The subclass's reducer; declared for the type checker.
+    log: "EventLog"
+
+    def apply(self, ev) -> bool:                     # pragma: no cover
+        raise NotImplementedError
