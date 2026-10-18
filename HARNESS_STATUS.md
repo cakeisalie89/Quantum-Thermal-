@@ -2,7 +2,7 @@
 
 Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (evidence recomputed from implementation digests), the audits re-run, and the learned-model status, against the definition of done in `docs/harness_contract.json`. Not written by hand; `verify` fails if this file differs from what the inputs give.
 
-**Outcome: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT**
+**Outcome: INCOMPLETE**
 
 ## Required stack
 
@@ -18,11 +18,11 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 | openusd | ADOPTED | R72 (COMPLETE, COVERS) | yes |
 | paraview-vtk | ADOPTED | R72 (COMPLETE, COVERS) | yes |
 | proposal-ingress | ADOPTED | R66 (COMPLETE, COVERS) | yes |
-| pytest-hypothesis | ADOPTED | R50 (COMPLETE, COVERS), R51 (COMPLETE, COVERS) | yes |
+| pytest-hypothesis | ADOPTED | R50 (COMPLETE, COVERS), R51 (COMPLETE, PREDATES) | NO |
 | python-scientific-core | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | rag-read-only | ADOPTED | R35 (COMPLETE, COVERS) | yes |
 | ro-crate | ADOPTED | R65 (COMPLETE, COVERS) | yes |
-| ruff-mypy-pydantic | ADOPTED | R70 (COMPLETE, COVERS) | yes |
+| ruff-mypy-pydantic | ADOPTED | R70 (COMPLETE, PREDATES) | NO |
 | salib | ADOPTED | R72 (COMPLETE, COVERS) | yes |
 | slsa-sigstore | ADOPTED | R65 (COMPLETE, COVERS) | yes |
 | snakemake | ADOPTED | R55 (COMPLETE, COVERS), R69 (COMPLETE, COVERS) | yes |
@@ -30,11 +30,11 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 ## Completion matrix
 
-49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 49.
+49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 45, PREDATES_CURRENT_IMPLEMENTATION 4.
 
 ## Audits
 
-* repository_content: clean (files 469, findings 0, committed_report_current True)
+* repository_content: clean (files 472, findings 0, committed_report_current True)
 * repository_inventory: clean (problems 0, baseline_files 874)
 * claims_boundary: clean (problems 0)
 * workflow_contract: clean (problems 0)
@@ -45,9 +45,14 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * flagship_not_allocated_or_trained: holds
 * flagship_architecture_as_declared: holds
 
-## Unsatisfied (0)
+## Unsatisfied (6)
 
-* none
+* stack pytest-hypothesis: ADOPTED
+* stack ruff-mypy-pydantic: ADOPTED
+* row R51: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R58: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R70: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R71: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 
 ## Outside this software-completion claim
 

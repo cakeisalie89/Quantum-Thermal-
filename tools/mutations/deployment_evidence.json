@@ -1,0 +1,163 @@
+{
+ "title": "Deployment evidence: what may satisfy a DEPLOYMENT_REQUIRED readiness row",
+ "note": "D-2026-155. Each mutation deletes one rule of tools/deployment_evidence.py: a refusal of an attestation, of a deployment policy, of where either lies, of the signature or of the verifier label, or the tree check against committed evidence. tests/test_deployment_evidence.py pairs every refusal with an attestation that passes every other check.",
+ "suites": [
+  "tests/test_deployment_evidence.py"
+ ],
+ "mutations": [
+  {
+   "name": "DE1_any_environment_is_production",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if doc.get(\"environment\") != ENVIRONMENT:\n",
+   "replace": "    if False:\n",
+   "rationale": "a test or staging deployment's evidence is taken as production evidence"
+  },
+  {
+   "name": "DE2_any_deployment_is_covered",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if dep not in policy[\"deployment_ids\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "an attestation about a deployment the owner's policy does not cover is accepted"
+  },
+  {
+   "name": "DE3_another_commit_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if doc.get(\"source_commit\") != commit:\n",
+   "replace": "    if False:\n",
+   "rationale": "evidence about another implementation is accepted as evidence about this one"
+  },
+  {
+   "name": "DE4_an_expired_attestation_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if now > not_after:\n",
+   "replace": "    if False:\n",
+   "rationale": "an attestation past its validity is accepted"
+  },
+  {
+   "name": "DE5_a_future_observation_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if observed > now:\n",
+   "replace": "    if False:\n",
+   "rationale": "an attestation observed at a time that has not happened is accepted"
+  },
+  {
+   "name": "DE6_validity_is_unbounded",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if not_after - observed > _dt.timedelta(\n            days=policy[\"max_validity_days\"]):\n",
+   "replace": "    if False and _dt.timedelta(\n            days=policy[\"max_validity_days\"]):\n",
+   "rationale": "an attestation may claim validity past the owner's bound"
+  },
+  {
+   "name": "DE7_a_failed_check_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "        if c.get(\"result\") != \"PASS\":\n",
+   "replace": "        if False:\n",
+   "rationale": "a control whose check failed satisfies its row"
+  },
+  {
+   "name": "DE8_the_wrong_check_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "        if c.get(\"check\") != row.get(\"deployment_check\"):\n",
+   "replace": "        if False:\n",
+   "rationale": "a control reporting some other check satisfies the row"
+  },
+  {
+   "name": "DE9_any_row_may_be_attested",
+   "path": "tools/deployment_evidence.py",
+   "find": "        if row is None or row.get(\"status\") != \"DEPLOYMENT_REQUIRED\":\n",
+   "replace": "        if row is None:\n",
+   "rationale": "a deployment attests a row the matrix holds as hosted-tested or blocked"
+  },
+  {
+   "name": "DE10_an_empty_attestation_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if not isinstance(controls, dict) or not controls:\n",
+   "replace": "    if not isinstance(controls, dict):\n",
+   "rationale": "an attestation covering no control validates"
+  },
+  {
+   "name": "DE11_a_policy_in_the_repository_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if _inside_checkout(path, root):\n        raise Refused(\"the deployment policy lies inside the repository; a \"",
+   "replace": "    if False:\n        raise Refused(\"the deployment policy lies inside the repository; a \"",
+   "rationale": "a trust policy committed beside the code it judges is accepted"
+  },
+  {
+   "name": "DE12_a_policy_beside_the_attestation_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if not OV._outside(path, attestation_dir):\n",
+   "replace": "    if False:\n",
+   "rationale": "the deployment supplies the policy that judges its own evidence"
+  },
+  {
+   "name": "DE13_an_attestation_in_the_repository_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if _inside_checkout(attestation, root):\n",
+   "replace": "    if False:\n",
+   "rationale": "a JSON status the repository wrote about itself is accepted as deployment evidence"
+  },
+  {
+   "name": "DE14_a_ci_identity_may_attest",
+   "path": "tools/deployment_evidence.py",
+   "find": "        if wf in p[\"attester_identity\"]:\n",
+   "replace": "        if False:\n",
+   "rationale": "this repository's CI or agent workflow is accepted as a deployment's attester"
+  },
+  {
+   "name": "DE15_a_pattern_may_name_the_attester",
+   "path": "tools/deployment_evidence.py",
+   "find": "        if not isinstance(v, str) or not v or \"*\" in v or \"PENDING\" in v:\n            raise Refused(f\"deployment policy {k} is not an exact value: \"",
+   "replace": "        if not isinstance(v, str) or not v:\n            raise Refused(f\"deployment policy {k} is not an exact value: \"",
+   "rationale": "a wildcard attester identity is accepted"
+  },
+  {
+   "name": "DE16_the_trusted_root_is_not_pinned",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if OV._sha(tc) != policy[\"trust_config_sha256\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "a trust configuration other than the one the owner pinned is used"
+  },
+  {
+   "name": "DE17_an_expired_policy_is_accepted",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if (today or _dt.date.today()) > not_after:\n        raise Refused(f\"the deployment policy expired on {not_after}\")",
+   "replace": "    if False:\n        raise Refused(f\"the deployment policy expired on {not_after}\")",
+   "rationale": "an expired deployment policy still authorizes evidence"
+  },
+  {
+   "name": "DE18_the_signature_is_not_checked",
+   "path": "tools/deployment_evidence.py",
+   "find": "        OV.sigstore_check(bundle, attestation, signer, mode=\"offline\",\n                          trust_config=Path(trust_config),\n                          sigstore_python=sigstore_python)\n",
+   "replace": "        pass\n",
+   "rationale": "an unsigned attestation validates as Sigstore-verified"
+  },
+  {
+   "name": "DE19_a_test_verifier_is_reported_as_sigstore",
+   "path": "tools/deployment_evidence.py",
+   "find": "        verifier = \"injected\"\n",
+   "replace": "        verifier = SIGSTORE\n",
+   "rationale": "evidence a test verifier accepted is labelled production evidence"
+  },
+  {
+   "name": "DE20_a_committed_attestation_is_not_noticed",
+   "path": "tools/deployment_evidence.py",
+   "find": "            if f'\"{schema}\"' in text:\n",
+   "replace": "            if False:\n",
+   "rationale": "an attestation or deployment policy committed to the repository goes unnoticed"
+  },
+  {
+   "name": "DE21_validity_bound_unchecked",
+   "path": "tools/deployment_evidence.py",
+   "find": "            or not 1 <= days <= MAX_VALIDITY_DAYS:\n",
+   "replace": "            or not 1 <= days:\n",
+   "rationale": "a policy may let attestations live for years"
+  },
+  {
+   "name": "DE22_any_policy_label",
+   "path": "tools/deployment_evidence.py",
+   "find": "    if p.get(\"label\") != POLICY_LABEL:\n",
+   "replace": "    if False:\n",
+   "rationale": "a policy that does not say it is a deployment trust root is accepted"
+  }
+ ]
+}

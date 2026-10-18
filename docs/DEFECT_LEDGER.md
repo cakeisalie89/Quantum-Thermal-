@@ -8630,3 +8630,75 @@ Attaching also exposed two smaller faults:
   completion matrix's is.
 * That the readiness contract is met. The verdict is
   PRODUCTION_READINESS_CONTRACT_NOT_MET.
+
+## D-2026-155 — the readiness verdict counted a deployment requirement as met with no evidence from any deployment
+
+**CLASS** — `WRONG_CLAIM`: Tranche G, Phase G1.
+
+**DEMONSTRATION.** The readiness contract (`production_ready_when`) says a
+DEPLOYMENT_REQUIRED row counts only "with its deployment check passing at
+the deployment". `tools/readiness.py::summary()` counted EXTERNALLY_BLOCKED,
+UNVERIFIED and IMPLEMENTED rows, and nothing else. At `b9b2187`, a copy of
+the shipped matrix with every other row set to HOSTED_TESTED and RUN-2,
+RUN-3 and RUN-4 left DEPLOYMENT_REQUIRED, with no deployment evidence
+anywhere, derived `PRODUCTION_READINESS_CONTRACT_MET`.
+`tests/test_deployment_evidence.py::test_unattested_deployment_rows_do_not_meet_the_contract`
+fails there (`assert True is False`). The shipped verdict was NOT MET only
+because other rows were blocked.
+
+**ROOT CAUSE.** The verdict was written as "nothing is open", and
+DEPLOYMENT_REQUIRED was read as closed by the deployment contract's
+existence rather than by anything a deployment had shown.
+
+**REPAIR.**
+
+* `summary(doc, deployment=None)` is met only when every
+  DEPLOYMENT_REQUIRED row is in `attested()`. That set is the rows a
+  validated deployment attestation covers, and only when its signature was
+  verified with Sigstore. The output lists `deployment_unattested`.
+* `tools/deployment_evidence.py` defines the evidence. It has three parts:
+  * **an attestation** (`harness-deployment-attestation/1`): one
+    deployment, in `production`, running one full commit, with observed
+    and expiry times and a PASS result per row for that row's
+    `deployment_check`;
+  * **a Sigstore signature** over its exact bytes;
+  * **the owner's deployment policy** (`harness-deployment-policy/1`). It
+    lives outside the repository and away from the attestation. It names an
+    exact attester identity and issuer, the deployments it covers, a
+    validity bound of at most 90 days and the trusted root by digest. It may
+    not name this repository's CI or agent workflow.
+* **What validation refuses:**
+  * any missing piece;
+  * evidence or a policy inside the checkout;
+  * a test or staging environment;
+  * another deployment or another commit;
+  * an expired, not-yet-valid or over-long attestation;
+  * an empty attestation;
+  * a failed or mismatched check, or a check for a row that is not
+    DEPLOYMENT_REQUIRED;
+  * a pattern identity, an unpinned root or an expired policy;
+  * a signature that does not verify.
+
+  A signature checked by an injected verifier, which only tests use, is
+  marked `injected` and never counts. Without a Sigstore runtime,
+  validation fails closed.
+* **Tree check.** `deployment_evidence.py check`, run in CI, requires every
+  deployment row to name a check that DEPLOYMENT.md §9 documents. It refuses
+  any committed attestation or deployment policy.
+* **Readiness check.** `readiness.py check` refuses a deployment row that
+  names no check. RUN-2, RUN-3 and RUN-4 name `namespace_isolation`,
+  `filesystem_confinement` and `resource_quotas`.
+* **Tests and mutations.** `tests/test_deployment_evidence.py` pairs every
+  refusal with a passing attestation. It has a control in which
+  Sigstore-attested rows meet the verdict, built directly because no
+  production attestation exists. `tools/mutations/deployment_evidence.json`
+  (DE1 to DE22) and `readiness.json` RM9 to RM11 delete each rule.
+
+**NOT CLAIMED.**
+
+* That any deployment has been attested. No deployment policy exists;
+  creating one is the owner's action, as the release trust root is. Every
+  DEPLOYMENT_REQUIRED row is unattested, and the verdict is NOT MET.
+* That an attestation's observations are true. Validation establishes who
+  signed what about which deployment and commit, and when. It does not
+  establish that the deployment measured correctly.

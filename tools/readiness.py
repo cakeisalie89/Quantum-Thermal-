@@ -19,8 +19,14 @@ tests and mutation specifications from the commit's tree. ``check``
 refuses the row once the working tree no longer matches that digest:
 evidence about an older implementation is not evidence about this one.
 
+A DEPLOYMENT_REQUIRED row counts toward the verdict only when the
+deployment itself attests that its check passed there, in a signed
+attestation ``tools/deployment_evidence.py`` validates against the owner's
+deployment policy (D-2026-155). Hosted CI is not a deployment.
+
     python tools/readiness.py check
-    python tools/readiness.py summary
+    python tools/readiness.py summary [--attestation A --bundle B \
+        --policy P --trust-config T --commit SHA]
     python tools/readiness.py attach --commit SHA --rows REL-1,REL-2 \
         --runs 123,456 --what "what the runs covered"
 """
@@ -34,6 +40,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import completion_matrix as CM  # noqa: E402
+import deployment_evidence as DE  # noqa: E402
 MATRIX = ROOT / "docs" / "security" / "readiness_matrix.json"
 LEDGER = ROOT / "docs" / "DEFECT_LEDGER.md"
 STATUSES = ("IMPLEMENTED", "HOSTED_TESTED", "DEPLOYMENT_REQUIRED",
@@ -114,16 +121,42 @@ def problems(doc: dict, root: Path = ROOT) -> list:
                 and "cgroups" not in note:
             out.append(f"{rid}: DEPLOYMENT_REQUIRED does not point at the "
                        "deployment contract")
+        if st == "DEPLOYMENT_REQUIRED" \
+                and r.get("deployment_check") not in DE.CHECKS:
+            out.append(f"{rid}: DEPLOYMENT_REQUIRED names no deployment "
+                       f"check that satisfies it (one of {sorted(DE.CHECKS)})")
     return out
 
 
-def summary(doc: dict) -> dict:
+def attested(doc: dict, deployment=None) -> frozenset:
+    """The DEPLOYMENT_REQUIRED rows a deployment has shown are enforced
+    there (D-2026-155): covered by an attestation that
+    ``tools/deployment_evidence.py`` validated, and verified with Sigstore.
+    Hosted CI is not a deployment, and an attestation checked by anything
+    else is a test's, not production evidence."""
+    if deployment is None or deployment.verifier != DE.SIGSTORE:
+        return frozenset()
+    return frozenset(r["id"] for r in doc["rows"]
+                     if r["status"] == "DEPLOYMENT_REQUIRED"
+                     and r["id"] in deployment.rows)
+
+
+def summary(doc: dict, deployment=None) -> dict:
+    """The verdict. Met only when no row is blocked, unverified or only
+    locally tested, AND every DEPLOYMENT_REQUIRED row is attested by the
+    deployment itself (``deployment``, a validated
+    :class:`deployment_evidence.DeploymentEvidence`)."""
     counts = {s: 0 for s in STATUSES}
     for r in doc["rows"]:
         counts[r["status"]] += 1
+    shown = attested(doc, deployment)
+    unattested = sorted(r["id"] for r in doc["rows"]
+                        if r["status"] == "DEPLOYMENT_REQUIRED"
+                        and r["id"] not in shown)
     met = counts["EXTERNALLY_BLOCKED"] == 0 and counts["UNVERIFIED"] == 0 \
-        and counts["IMPLEMENTED"] == 0
+        and counts["IMPLEMENTED"] == 0 and not unattested
     return {"rows": len(doc["rows"]), "by_status": counts,
+            "deployment_unattested": unattested,
             "contract_met": met,
             "verdict": ("PRODUCTION_READINESS_CONTRACT_MET" if met else
                         "PRODUCTION_READINESS_CONTRACT_NOT_MET")}
@@ -178,7 +211,26 @@ def main(argv=None) -> int:
         print("readiness matrix " + ("holds" if not found else
                                      f"BROKEN ({len(found)} problem(s))"))
         return 1 if found else 0
-    s = summary(doc)
+    deployment = None
+    if args[:1] == ["summary"] and len(args) > 1:
+        # Deployment evidence, optional. Without it every DEPLOYMENT_REQUIRED
+        # row is unattested, which is the honest answer when no deployment
+        # has shown anything (D-2026-155).
+        import argparse
+        ap = argparse.ArgumentParser(prog="readiness.py summary")
+        for flag in ("--attestation", "--bundle", "--policy",
+                     "--trust-config", "--commit"):
+            ap.add_argument(flag, required=True)
+        ap.add_argument("--sigstore-python")
+        ns = ap.parse_args(args[1:])
+        try:
+            deployment = DE.validate(
+                Path(ns.attestation), Path(ns.bundle), Path(ns.policy),
+                trust_config=Path(ns.trust_config), commit=ns.commit,
+                matrix=doc, sigstore_python=ns.sigstore_python)
+        except DE.Refused as exc:
+            print(f"deployment evidence refused: {exc}")
+    s = summary(doc, deployment)
     print(json.dumps(s, indent=1, sort_keys=True))
     return 0 if not found else 1
 

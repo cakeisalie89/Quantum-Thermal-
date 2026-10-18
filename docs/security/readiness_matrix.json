@@ -4,11 +4,11 @@
  "statuses": {
   "IMPLEMENTED": "built and tested locally at this commit; hosted CI at this tranche's head has not yet run it",
   "HOSTED_TESTED": "IMPLEMENTED, and a hosted run at a commit whose implementation is this one passed (runs cited)",
-  "DEPLOYMENT_REQUIRED": "this code cannot provide it alone; the deployment must, and DEPLOYMENT.md says how to check",
+  "DEPLOYMENT_REQUIRED": "this code cannot provide it alone; the deployment must, and DEPLOYMENT.md says how to check. Counts toward readiness only when the deployment attests its deployment_check passed there; hosted CI does not",
   "EXTERNALLY_BLOCKED": "needs an owner action, credentials or settings outside this repository",
   "UNVERIFIED": "not established either way"
  },
- "production_ready_when": "every row is HOSTED_TESTED, or DEPLOYMENT_REQUIRED with its deployment check passing at the deployment; no row EXTERNALLY_BLOCKED or UNVERIFIED",
+ "production_ready_when": "every row is HOSTED_TESTED, or DEPLOYMENT_REQUIRED and attested by the deployment itself: a signed harness-deployment-attestation/1, validated by tools/deployment_evidence.py against the owner's harness-deployment-policy/1, reporting that row's deployment_check as PASS (D-2026-155); no row EXTERNALLY_BLOCKED or UNVERIFIED",
  "rows": [
   {
    "id": "REL-1",
@@ -143,7 +143,7 @@
   {
    "id": "CI-4",
    "capability": "every workflow on this branch holds no more than its stated authority; the agent's and the CI signer's identities cannot sign a release",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_ci_authority.py"
    ],
@@ -151,7 +151,7 @@
     "tools/mutations/ci_authority.json"
    ],
    "ledger": "D-2026-146",
-   "note": "enforced on this branch's files by CI; governs the deployed agent only once on the default branch",
+   "note": "hosted evidence at 40440ce predates this implementation: the agent-substrate workflow gained the deployment-evidence step (D-2026-155); re-attached only from a hosted run of the new implementation",
    "implementation": [
     "tools/workflow_contract.py",
     ".github/workflows/agent-substrate.yml",
@@ -161,7 +161,7 @@
     ".github/workflows/stack-verify.yml",
     ".github/workflows/supply-chain.yml"
    ],
-   "hosted": {
+   "last_hosted": {
     "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
     "runs": [
      "39092564444",
@@ -325,7 +325,8 @@
     "tools/mutations/execution_containment.json"
    ],
    "ledger": "D-2026-149",
-   "note": "implemented and measured where unprivileged namespaces exist; a deployment must check namespace_isolation() or supply container isolation (DEPLOYMENT.md section 5); at 40440ce the containment tests and mutations ran with namespaces on GitHub's ubuntu-latest runners after the job relaxed kernel.apparmor_restrict_unprivileged_userns, which a production host should not do (DEPLOYMENT.md section 5)"
+   "note": "implemented and measured where unprivileged namespaces exist; a deployment must check namespace_isolation() or supply container isolation (DEPLOYMENT.md section 5); at 40440ce the containment tests and mutations ran with namespaces on GitHub's ubuntu-latest runners after the job relaxed kernel.apparmor_restrict_unprivileged_userns, which a production host should not do (DEPLOYMENT.md section 5)",
+   "deployment_check": "namespace_isolation"
   },
   {
    "id": "RUN-3",
@@ -336,7 +337,8 @@
    ],
    "mutation_specs": [],
    "ledger": "D-2026-149",
-   "note": "finding R-3: a read-only root, a workspace-only mount namespace, or an LSM profile (DEPLOYMENT.md section 5)"
+   "note": "finding R-3: a read-only root, a workspace-only mount namespace, or an LSM profile (DEPLOYMENT.md section 5)",
+   "deployment_check": "filesystem_confinement"
   },
   {
    "id": "RUN-4",
@@ -345,7 +347,8 @@
    "tests": [],
    "mutation_specs": [],
    "ledger": "D-2026-149",
-   "note": "cgroups or the container runtime"
+   "note": "cgroups or the container runtime",
+   "deployment_check": "resource_quotas"
   },
   {
    "id": "DEMO-1",

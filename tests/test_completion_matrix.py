@@ -866,7 +866,13 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: D-2026-154 lie between 18 and this commit and moved no count. The
 #: attaching commit changes no path that any row's implementation digest
 #: covers, so the digests at 40440ce are the digests now.
-EXPECTED_EVIDENCE_COVERS = 49
+#:
+#: 49 -> 45 with D-2026-155, in the same commit as it: deployment evidence
+#: adds a mutation specification and a workflow step, so R51 and R58 (the
+#: specifications and the shard matrix), R70 and R71 have hosted evidence
+#: that predates their implementation until a later commit cites runs at
+#: this one.
+EXPECTED_EVIDENCE_COVERS = 45
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

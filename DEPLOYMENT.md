@@ -168,3 +168,66 @@ to obtain them; use container-level isolation instead.
   promotions stand.
 * **Revoking a release.** Not implemented: there is no release yet, and no
   revocation channel. It is part of owner action O-8's trust root.
+
+## 9. Deployment evidence
+
+A DEPLOYMENT_REQUIRED row in `docs/security/readiness_matrix.json` counts
+toward production readiness only when the deployment itself attests that the
+row's check passed there (D-2026-155). A passing hosted CI job is not a
+deployment. A JSON file in this repository is not evidence about one, and
+`tools/deployment_evidence.py check` refuses any committed attestation or
+deployment policy.
+
+**The checks.** Each DEPLOYMENT_REQUIRED row names one in `deployment_check`.
+
+| Check | Row | What the deployment observes |
+|---|---|---|
+| `namespace_isolation` | RUN-2 | A tool run under `run_bounded` records user, PID and network namespaces in `ExecutionResult.isolation`. A descendant that calls `setsid()` dies with the run, and a connection to the host's loopback is refused. |
+| `filesystem_confinement` | RUN-3 | A tool reading a sentinel outside its declared readable paths is refused by the kernel, directly and through a symbolic link. |
+| `resource_quotas` | RUN-4 | The deployment bounds a tool's memory, task count, disk and network bandwidth below the host's, through cgroups or the container runtime. |
+
+**The attestation** (`harness-deployment-attestation/1`) is a JSON object
+with these fields:
+
+* `deployment_id`.
+* `environment`, which must be `production`.
+* `source_commit`, the full commit id the deployment runs.
+* `observed_at` and `not_after`, as UTC timestamps.
+* `controls`, mapping each row id to its `check`, its `result` (`PASS`)
+  and the observation.
+
+The deployment signs the attestation's exact bytes with Sigstore under its
+own identity.
+
+**The policy** (`harness-deployment-policy/1`, label
+`DEPLOYMENT_TRUST_ROOT`) is provisioned by the owner, outside the
+repository and away from the attestation. It names:
+
+* the exact attester identity and OIDC issuer;
+* the `deployment_ids` it covers;
+* `max_validity_days`, at most 90;
+* the trusted root by `trust_config_sha256`;
+* `issued_by` and `not_after`.
+
+It may not name this repository's CI or agent workflow as attester. **No
+deployment policy exists. Creating one is the owner's action.**
+
+**Validation.** Run:
+
+    uv run python tools/readiness.py summary --attestation A \
+        --bundle A.sigstore.json --policy P --trust-config T --commit SHA
+
+A refusal is printed with its reason, and the rows stay unattested.
+
+Validation refuses:
+
+* a missing piece;
+* a test or staging environment;
+* another deployment or another commit;
+* an expired, not-yet-valid or over-long attestation;
+* a check for a row that is not DEPLOYMENT_REQUIRED, or the wrong check for
+  its row;
+* any result other than PASS;
+* a signature that does not verify against the policy's identity.
+
+A signature checked by anything but Sigstore is marked and never counts.

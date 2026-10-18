@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 437,
+   "ADDED": 440,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 45,
-   "LOW": 160,
-   "MEDIUM": 239
+   "LOW": 161,
+   "MEDIUM": 241
   },
   "by_subsystem": {
    "agent-substrate": 19,
    "ai-ingress": 3,
-   "assurance": 96,
+   "assurance": 97,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 136,
-   "tooling": 31,
+   "tests": 137,
+   "tooling": 32,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 469
+  "files": 472
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -96,6 +96,7 @@
     "tests": [
      "tests/test_ci_authority.py",
      "tests/test_claude_workflow_prompt.py",
+     "tests/test_deployment_evidence.py",
      "tests/test_hostile_composition.py",
      "tests/test_offline_verify.py",
      "tests/test_release_admission.py",
@@ -156,6 +157,7 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_ci_authority.py",
+     "tests/test_deployment_evidence.py",
      "tests/test_release_admission.py",
      "tests/test_supply_chain.py"
     ]
@@ -251,7 +253,8 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
-     "tests/test_agent_execution.py"
+     "tests/test_agent_execution.py",
+     "tests/test_deployment_evidence.py"
     ]
    }
   },
@@ -5269,6 +5272,21 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_deployment_evidence.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_execution_containment.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -6429,6 +6447,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/deployment_evidence.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/deployment_evidence.json"
+    ],
+    "tests": [
+     "tests/test_deployment_evidence.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/fenicsx_acceptance.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -7240,6 +7275,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/dependency_declarations.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/deployment_evidence.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",
@@ -8068,6 +8116,7 @@
      "tools/mutations/readiness.json"
     ],
     "tests": [
+     "tests/test_deployment_evidence.py",
      "tests/test_readiness_matrix.py"
     ]
    }
