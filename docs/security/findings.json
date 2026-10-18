@@ -544,6 +544,89 @@
     "observed_at_baseline": "write outside scope WROTE; undeclared writes: ()"
    },
    "status": "FIXED"
+  },
+  {
+   "id": "M-1",
+   "ledger": "D-2026-158",
+   "priority": "P1",
+   "area": "memory trust",
+   "title": "the primary memory store projected an entry appended by one actor in another's name",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "symbols": [
+      "apply",
+      "recall"
+     ]
+    }
+   ],
+   "precondition": "Any actor that can append to the log writes a memory.write whose entry names a different author.",
+   "impact": "Measured at b9b2187: an entry appended by 'mallory' naming 'alice' loaded, and recall() returned it as alice's. Only the independent reader flagged it. Retraction is the named author's, so its real writer could not even withdraw it.",
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_memory_trust.py::test_an_entry_attributed_to_somebody_else_is_refused_by_both_readers",
+    "observed_at_baseline": "primary: LOADED; recall -> [('m-forged', 'alice')]; second reader: \"memory 'm-forged' names author 'alice' but was appended by 'mallory'\""
+   },
+   "status": "FIXED"
+  },
+  {
+   "id": "M-2",
+   "ledger": "D-2026-158",
+   "priority": "P2",
+   "area": "memory trust",
+   "title": "the independent reader accepted memory histories the primary refuses, and the primary refused some of them with raw exceptions",
+   "files": [
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "symbols": [
+      "_sub_memory_status",
+      "_sub_memory_write"
+     ]
+    },
+    {
+     "path": "agent_substrate/memory.py",
+     "symbols": [
+      "apply"
+     ]
+    }
+   ],
+   "precondition": "A memory.status record appended past the write path: a retraction or supersession by a non-author, a move the status edges forbid, or a status no store has.",
+   "impact": "Measured at b9b2187: the independent reader took a retraction or a supersession by a non-author, STALE made ACTIVE again, and status 'BOGUS', each with no anomaly, and reported the result as the memory's state; the primary refused each. Two of the primary's refusals, and a status change for an unknown memory, escaped load() as a raw ValueError or KeyError, past every caller that handles a refusal.",
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_memory_trust.py::test_both_readers_refuse_the_same_status_moves",
+    "observed_at_baseline": "ACTIVE->RETRACTED by bob: primary MemoryError_, second RETRACTED with 0 anomalies; ACTIVE->SUPERSEDED by bob: same; STALE->ACTIVE: primary MemoryError_, second ACTIVE, 0 anomalies; BOGUS: primary ValueError, second BOGUS, 0 anomalies; unknown memory: primary KeyError"
+   },
+   "status": "FIXED"
+  },
+  {
+   "id": "M-3",
+   "ledger": "D-2026-158",
+   "priority": "P2",
+   "area": "memory trust",
+   "title": "a log truncated together with its head witness is consistent with itself, and a retracted memory reads as ACTIVE again",
+   "files": [
+    {
+     "path": "agent_substrate/memory_trust.py",
+     "symbols": [
+      "_hash_consistent"
+     ]
+    },
+    {
+     "path": "agent_substrate/events.py",
+     "symbols": [
+      "head_path"
+     ]
+    }
+   ],
+   "precondition": "Somebody who can rewrite both the log file and the head witness beside it drops the tail of the history.",
+   "impact": "The memory's retraction disappears and every reader of the log agrees it is ACTIVE. Only a head held where that writer cannot reach (a checkpoint anchor kept elsewhere, an attested head) can see it. The audit reports hash_consistent YES on such a log; that is what the property means, and the audit's docstring says so.",
+   "reproduction": {
+    "kind": "test",
+    "ref": "tests/test_memory_trust.py::test_a_truncation_that_also_rewrites_the_head_is_not_visible_here",
+    "observed_at_baseline": "not measured at the baseline: the audit did not exist; measured on this branch, hash_consistent YES and status ACTIVE"
+   },
+   "status": "ACCEPTED_LIMITATION"
   }
  ]
 }

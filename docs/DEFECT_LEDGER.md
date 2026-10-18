@@ -8991,3 +8991,133 @@ rule.
   before, and not by Landlock.
 * **Research mode.** It runs an unconfinable tool. That is its definition,
   and the record says so; it is not a confinement guarantee.
+
+## D-2026-158 — a memory was taken to be whatever the record that wrote it said, and the two readers disagreed about which records counted
+
+**CLASS** — `AUTHORITY` and `SECOND_READER`: Tranche G, Phase G4. Adds the
+memory trust audit, closes findings M-1 and M-2, and records M-3 as an
+accepted limitation.
+
+**THE QUESTION.** A remembered statement can be several things, and the
+danger is a reader treating them as one:
+
+* it is in the log;
+* the person it names wrote it;
+* a key vouches for that person;
+* it cites evidence that still resolves;
+* two independent readers agree on it;
+* it is true.
+
+`agent_substrate/memory_trust.py` answers six properties separately, from
+the log, each with its reason:
+
+| Property | Answer | Note |
+|---|---|---|
+| `hash_consistent` | YES / NO | the chain and its head witness, read past the profile gate so authentication is not folded in |
+| `authenticated_actor` | YES / NO / NOT_ESTABLISHED | the appender is the author named, and the authenticator vouches for that record; NOT_ESTABLISHED with no authenticator |
+| `policy_authorized` | NOT_APPLICABLE, always | no policy gates a memory write; memory is not authority |
+| `evidence_supported` | YES / NO / NOT_ESTABLISHED | every cited digest resolves and re-hashes; an entry citing nothing is NOT_ESTABLISHED |
+| `consistently_reconstructed` | YES / NO | the primary and the independent reader agree, and so does a view the caller holds |
+| `factually_established` | NOT_ESTABLISHED, always | a fact is a VERIFIED or PROMOTED record in the authority store, and a memory is at most a pointer to one |
+
+**DEMONSTRATION.** Measured at `b9b2187`:
+
+* **M-1.** An entry appended by `mallory` naming `alice` as its author was
+  loaded by the primary memory store, and `recall()` returned it as alice's.
+  Only the independent reader flagged it. Retraction is the named author's,
+  so its real writer could not even withdraw it.
+* **M-2, found by the audit's own consistency property.** The opposite
+  divergence. The independent reader took four memory histories the
+  primary refuses, each with **no anomaly**, and reported the result as the
+  memory's state:
+  * a retraction by a non-author;
+  * a supersession by a non-author;
+  * STALE made ACTIVE again;
+  * a status no store has (`BOGUS`).
+
+  Its only rule was "no un-retraction". In addition, the primary refused
+  some of these records by crashing rather than refusing:
+  * the unknown status escaped `load()` as a raw `ValueError`;
+  * a status change for an unknown memory escaped as a raw `KeyError`.
+
+  Both went past every caller that handles a refusal.
+
+**REPAIR.**
+
+* **M-1.** `MemoryStore.apply` refuses an entry whose author is not the
+  actor that appended it, after the duplicate check and with the second
+  reader's order.
+* **M-2, the second reader.** It restates the store's status edges and its
+  author-only moves (`_MEMORY_EDGES`, `_MEMORY_AUTHORS_OWN`). They are
+  restated, not imported: a second opinion that called the first one's
+  code would be the first opinion twice. It notes, and does not project,
+  each move the primary refuses, and an entry born with an unknown status.
+* **M-2, the primary.** A status record for an unknown memory, or with an
+  unknown status, is a `MemoryError_` naming the record.
+* **The differential test.** `test_both_readers_refuse_the_same_status_moves`
+  holds the two readers to the same answer on nine histories: six refused
+  and three allowed, the allowed ones as controls.
+
+**TESTS AND MUTATIONS.** `tests/test_memory_trust.py` breaks one property
+at a time and checks that the assessment names that property and only that
+one:
+
+* forged attribution, and its control;
+* a signed writer with a false citation (a compromised writer is
+  authenticated, and unsupported);
+* an altered blob;
+* a removed attestation (unauthenticated, and still hash-consistent);
+* an omitted event;
+* a truncated tail;
+* a truncation that also rewrites the head;
+* a stale view, and its control;
+* a retracted memory;
+* an unknown memory;
+* the differential moves;
+* malformed status records;
+* a second reader made to disagree.
+
+The last is a TEST DOUBLE, labelled as one. No history is known, after M-1
+and M-2, on which the primary accepts what the second reader refuses, so
+the comparison is held against a reader made to disagree.
+
+`tools/mutations/memory_trust.json` has MT1 to MT17:
+
+* MT1 reopens M-1;
+* MT13 to MT17 reopen M-2;
+* the rest collapse one property into another.
+
+**FOUND WHILE DOING IT.**
+
+* **The first draft folded authentication into the chain property.**
+  `EventLog.verify()` on an authenticated log reports an unattested record
+  as a chain problem. The audit reads the chain past the profile gate
+  (`_Chain`) and judges authentication per record with the log's own
+  authenticator. `test_a_removed_attestation_is_an_unauthenticated_writer
+  _and_nothing_else` holds them apart.
+* **The first mutation run killed 9 of 12.** Three survived:
+  * MT5: nothing checked an entry that cites nothing;
+  * MT7: no real divergence exercised the second-reader comparison; M-2
+    was found looking for one;
+  * MT10: the omitted-event test checked only that nothing said YES, which
+    a history read past its break also satisfies.
+
+  Each has a test now. After those tests and M-2's repair:
+  * `memory_trust` **17 of 17**;
+  * `agent_memory_context` **60 of 60**;
+  * `agent_second_reader` **112 of 112**.
+
+  The last two were re-run because their reducers changed.
+
+**NOT CLAIMED.**
+
+* **M-3, an accepted limitation.** A log truncated together with its head
+  witness is consistent with itself. A retracted memory then reads as
+  ACTIVE to every reader of the log. Only a head held where that writer
+  cannot reach shows it. The audit says `hash_consistent` YES on such a
+  log, because that is what the property means, and its test records it.
+* **A memory is never established as fact.** Nothing here makes one so;
+  the sixth property is NOT_ESTABLISHED by construction.
+* **Stale checkpoints.** These are covered by the existing checkpoint
+  tests (`loaded_prefix_verified`, the anchored reads), not restated here.
+  A checkpoint does not stand in for authentication (D-2026-92).

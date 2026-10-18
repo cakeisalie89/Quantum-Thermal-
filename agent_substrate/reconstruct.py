@@ -2770,9 +2770,26 @@ def _sub_memory_write(ev, p: dict, out) -> None:
         _note(out, ev, f"memory {mid!r} names author {entry.get('author')!r} "
                        f"but was appended by {ev.actor!r}")
         return
+    status = entry.get("status") or "ACTIVE"
+    if status not in _MEMORY_EDGES:
+        _note(out, ev, f"memory {mid!r} is written with unknown status "
+                       f"{status!r}")
+        return
     out.memory[mid] = {"memory_id": mid, "author": ev.actor,
-                       "status": entry.get("status") or "ACTIVE",
-                       "written_seq": ev.seq}
+                       "status": status, "written_seq": ev.seq}
+
+
+#: Where a memory's status may move, and which moves are its author's alone.
+#: RESTATED from the memory store's rules rather than imported: this reader
+#: imports no reducer, and a second opinion that called the first one's code
+#: would be the first opinion twice (D-2026-158, finding M-2).
+_MEMORY_EDGES = {
+    "ACTIVE": frozenset({"STALE", "SUPERSEDED", "RETRACTED"}),
+    "STALE": frozenset({"SUPERSEDED", "RETRACTED"}),
+    "SUPERSEDED": frozenset({"RETRACTED"}),
+    "RETRACTED": frozenset(),
+}
+_MEMORY_AUTHORS_OWN = frozenset({"RETRACTED", "SUPERSEDED"})
 
 
 def _sub_memory_status(ev, p: dict, out) -> None:
@@ -2786,6 +2803,23 @@ def _sub_memory_status(ev, p: dict, out) -> None:
         # A withdrawn note that can be un-withdrawn is a note whose author
         # never really withdrew it.
         _note(out, ev, f"memory {mid!r} is un-retracted to {new!r}")
+        return
+    # M-2. Only un-retraction was refused here, so this reader took a
+    # retraction or a supersession by somebody other than the author, a
+    # STALE note made ACTIVE again, and a status no store has -- each of
+    # which the primary refuses -- and reported the result as the memory's
+    # state, with no anomaly.
+    if new not in _MEMORY_EDGES:
+        _note(out, ev, f"memory {mid!r} is moved to unknown status {new!r}")
+        return
+    if new != cur["status"] and new not in _MEMORY_EDGES[cur["status"]]:
+        _note(out, ev, f"memory {mid!r} may not move from {cur['status']} "
+                       f"to {new}")
+        return
+    if new in _MEMORY_AUTHORS_OWN and ev.actor != cur["author"]:
+        _note(out, ev, f"{ev.actor!r} moves memory {mid!r} to {new}; it was "
+                       f"written by {cur['author']!r}, and withdrawing or "
+                       "replacing a statement is its author's alone")
         return
     cur["status"] = new
 

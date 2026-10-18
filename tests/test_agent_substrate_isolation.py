@@ -144,6 +144,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_filesystem_confinement.py",
     "tests/test_confinement_probe.py",
     "tools/confinement_probe.py",
+    # D-2026-158: the memory trust audit, each property broken alone.
+    "tests/test_memory_trust.py",
     # NF-1T. The learned-record boundary's own tests: the store's live and
     # replayed refusal, the second reader's, and the lifecycle's links.
     "tests/test_neural_provenance.py",
@@ -231,7 +233,12 @@ LAYERS = ("canonical", "projection", "hostid",
           # the scheduler/policy/capability layer -- the same set the
           # child's import guard refuses at runtime.
           "separate_verify",
-          "scheduler", "memory", "context", "agents", "audit",
+          "scheduler", "memory",
+          # D-2026-158: six properties of a remembered statement, each
+          # answered from the log. Reads memory, the chain and the second
+          # reader; nothing imports it, and it writes nothing.
+          "memory_trust",
+          "context", "agents", "audit",
           "_artifact_tool", "_index_tool", "governed_tasks",
           # Read-only retrieval over the reviewed corpus. Imports nothing
           # internal; its one crossing is the workspace guard's read side.

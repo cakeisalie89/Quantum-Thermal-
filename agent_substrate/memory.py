@@ -314,6 +314,19 @@ class MemoryStore:
                     f"seq {ev.seq}: memory {entry.memory_id!r} written twice; "
                     "a second write would silently replace a remembered "
                     "statement without recording that it changed")
+            if entry.author != ev.actor:
+                # M-1 (D-2026-158). An entry names its own author, and the
+                # record that wrote it names an actor; recall() hands back
+                # the first. Unchecked, anybody who could append wrote in
+                # anybody's name: a statement attributed to someone who
+                # never made it, which its real writer could not even
+                # retract, since retraction is the named author's. The
+                # independent reader already refused it.
+                raise MemoryError_(
+                    f"seq {ev.seq}: memory {entry.memory_id!r} names "
+                    f"{entry.author!r} as its author and was appended by "
+                    f"{ev.actor!r}; a memory is written in its author's own "
+                    "name or not at all")
             entry = replace(entry, created_seq=ev.seq, updated_seq=ev.seq)
             self._entries[entry.memory_id] = entry
             for src in entry.derived_from:
@@ -326,13 +339,25 @@ class MemoryStore:
                     status_reason="derived from an already-invalidated source",
                     updated_seq=ev.seq)
         elif ev.action == ACT_MEMORY_STATUS:
-            mid = p["memory_id"]
-            cur = self._entries[mid]
+            # Refused, not raised: a raw KeyError or ValueError here names no
+            # record and escapes every caller that handles a refusal
+            # (D-2026-158, as the "carries no entry" case above).
+            mid = p.get("memory_id")
+            cur = self._entries.get(mid)
+            if cur is None:
+                raise MemoryError_(
+                    f"seq {ev.seq}: a status change from {ev.actor!r} for "
+                    f"unknown memory {mid!r} is refused rather than projected")
             # RE-AUTHORIZE ON REPLAY. This used to assign whatever the record
             # said, so one appended line moved a RETRACTED note back to
             # ACTIVE -- a statement its author had withdrawn, presented as
             # current again, in a store that feeds the agent's context.
-            dst = MemoryStatus(p["status"])
+            try:
+                dst = MemoryStatus(p.get("status"))
+            except ValueError:
+                raise MemoryError_(
+                    f"seq {ev.seq}: {mid!r} is moved to unknown status "
+                    f"{p.get('status')!r}; no memory has it") from None
             allowed = STATUS_EDGES.get(cur.status, frozenset())
             if dst is not cur.status and dst not in allowed:
                 raise MemoryError_(

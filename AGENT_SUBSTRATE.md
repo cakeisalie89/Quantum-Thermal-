@@ -67,6 +67,7 @@ rather than a web:
 | `tasks.py` | durable work: state that survives the process that started it |
 | `scheduler.py` | the durable queue: readiness, leases, retry, cancellation |
 | `memory.py` | what the agent remembers, kept structurally apart from evidence |
+| `memory_trust.py` | six questions about a remembered statement, answered separately: does the chain hold, did a key vouch for its writer, does a policy govern it, does its evidence resolve, do two readers agree, is it a fact (never, for a memory) |
 | `context.py` | what the agent was shown, recorded apart from what is true |
 | `agents.py` | several agents, role separation, and a human that cannot be simulated |
 | `audit.py` | turning the log into answers, and finding provenance holes |
