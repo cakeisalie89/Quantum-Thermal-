@@ -22,7 +22,13 @@
     "tools/mutations/supply_chain.json"
    ],
    "ledger": "D-2026-143",
-   "note": "hosted: supply-chain sign-and-verify requires admit to refuse a CI signature (exit 3) -- not yet run at this tranche's head"
+   "note": "hosted: supply-chain sign-and-verify requires admit to refuse a CI signature (exit 3) -- not yet run at this tranche's head",
+   "implementation": [
+    "tools/supply_chain.py",
+    "tools/offline_verify.py",
+    "docs/supply_chain_ci_policy.json",
+    ".github/workflows/supply-chain.yml"
+   ]
   },
   {
    "id": "REL-2",
@@ -35,7 +41,13 @@
     "tools/mutations/supply_chain.json"
    ],
    "ledger": "D-2026-144",
-   "note": "hosted: supply-chain offline-verify (sparse kit, no network, hostile suite with a real Sigstore bundle) -- not yet run at this tranche's head"
+   "note": "hosted: supply-chain offline-verify (sparse kit, no network, hostile suite with a real Sigstore bundle) -- not yet run at this tranche's head",
+   "implementation": [
+    "tools/offline_verify.py",
+    "integrations/supply_chain/sigstore.lock",
+    "docs/supply_chain_ci_policy.json",
+    ".github/workflows/supply-chain.yml"
+   ]
   },
   {
    "id": "REL-3",
@@ -46,7 +58,12 @@
    ],
    "mutation_specs": [],
    "ledger": "D-2026-145",
-   "note": "hosted: supply-chain rebuild-elsewhere (ubuntu-22.04, Python 3.11) -- not yet run at this tranche's head"
+   "note": "hosted: supply-chain rebuild-elsewhere (ubuntu-22.04, Python 3.11) -- not yet run at this tranche's head",
+   "implementation": [
+    "tools/supply_chain.py",
+    "docs/security/reproducibility_contract.json",
+    ".github/workflows/supply-chain.yml"
+   ]
   },
   {
    "id": "REL-4",
@@ -104,7 +121,16 @@
     "tools/mutations/ci_authority.json"
    ],
    "ledger": "D-2026-146",
-   "note": "enforced on this branch's files by CI; governs the deployed agent only once on the default branch"
+   "note": "enforced on this branch's files by CI; governs the deployed agent only once on the default branch",
+   "implementation": [
+    "tools/workflow_contract.py",
+    ".github/workflows/agent-substrate.yml",
+    ".github/workflows/claude.yml",
+    ".github/workflows/container-verify.yml",
+    ".github/workflows/harness-integrations.yml",
+    ".github/workflows/stack-verify.yml",
+    ".github/workflows/supply-chain.yml"
+   ]
   },
   {
    "id": "CI-5",
@@ -128,7 +154,12 @@
     "tools/mutations/agent_agents.json"
    ],
    "ledger": "D-2026-147",
-   "note": "the agent directory, memory and policy stores; finding T-2 lists writers not yet converted"
+   "note": "the agent directory, memory and policy stores; finding T-2 lists writers not yet converted",
+   "implementation": [
+    "agent_substrate/agents.py",
+    "agent_substrate/memory.py",
+    "agent_substrate/events.py"
+   ]
   },
   {
    "id": "SUB-2",
@@ -151,7 +182,14 @@
     "tools/mutations/policy_binding.json"
    ],
    "ledger": "D-2026-148",
-   "note": "the governed path declares the binding; an unbound history does not have it; the governed path refuses a history whose binding names any other authority (D-2026-151)"
+   "note": "the governed path declares the binding; an unbound history does not have it; the governed path refuses a history whose binding names any other authority (D-2026-151)",
+   "implementation": [
+    "agent_substrate/policy.py",
+    "agent_substrate/store.py",
+    "agent_substrate/reconstruct.py",
+    "agent_substrate/governed_model.py",
+    "agent_substrate/audit.py"
+   ]
   },
   {
    "id": "SUB-4",
@@ -162,7 +200,15 @@
    ],
    "mutation_specs": [],
    "ledger": "D-2026-150",
-   "note": "each case through the real components with a control"
+   "note": "each case through the real components with a control",
+   "implementation": [
+    "agent_substrate/store.py",
+    "agent_substrate/reconstruct.py",
+    "agent_substrate/agents.py",
+    "agent_substrate/policy.py",
+    "agent_substrate/governed_model.py",
+    "tools/offline_verify.py"
+   ]
   },
   {
    "id": "SUB-5",
@@ -187,7 +233,11 @@
     "tools/mutations/execution_containment.json"
    ],
    "ledger": "D-2026-149",
-   "note": "rlimits apply on every host"
+   "note": "rlimits apply on every host",
+   "implementation": [
+    "agent_substrate/execution.py",
+    "agent_substrate/_ns_init.py"
+   ]
   },
   {
    "id": "RUN-2",
@@ -233,7 +283,12 @@
     "tools/mutations/harness_demo.json"
    ],
    "ledger": "D-2026-150",
-   "note": "the live signing provider is UNTESTED in the demonstration (the hosted supply-chain job carries it)"
+   "note": "the live signing provider is UNTESTED in the demonstration (the hosted supply-chain job carries it)",
+   "implementation": [
+    "tools/harness_demo.py",
+    "tools/supply_chain.py",
+    "tools/offline_verify.py"
+   ]
   }
  ]
 }

@@ -8563,3 +8563,59 @@ it asked for and the host gave. `agent_execution` ran in full here:
 **NOT CLAIMED.** That no other existing specification lost a path in the
 same way. Hosted shards 2 and 3 at `1c5df5c` were still running when this
 was recorded. The other five shards passed.
+
+## D-2026-154 — a HOSTED_TESTED readiness row was bound to runs and a commit, not to the code they tested
+
+**CLASS** — `GAP`: Tranche F, Section 12, found while attaching the first
+hosted evidence to `docs/security/readiness_matrix.json`.
+
+**DEMONSTRATION.** The matrix defines HOSTED_TESTED as "a hosted run at a
+commit whose implementation is this one passed". `tools/readiness.py`
+checked only that such a row named runs and a 40-hex commit. A row
+attached at `8dd99d6` would have stayed HOSTED_TESTED after any later
+change to the code it covers. That is evidence from an older
+implementation presented as evidence about the current one, which the
+completion matrix has refused since D-2026-44 (PREDATES).
+
+Attaching also exposed two smaller faults:
+
+* The matrix's negative controls each picked "the first IMPLEMENTED row".
+  Once every tested row was hosted, they failed with StopIteration instead
+  of testing anything.
+* `tools/readiness.py check` ran in no workflow. The workflow contract's
+  verifier rule caught this when the tool gained a mutation specification.
+
+**REPAIR.**
+
+* **The binding.** A HOSTED_TESTED row names its `implementation` files.
+  Its evidence is those files, its tests and its mutation specifications,
+  digested with `completion_matrix.implementation_digest`. `check` refuses
+  the row when:
+  * it has no implementation;
+  * an implementation file is missing;
+  * its working tree no longer matches the digest recorded at the run's
+    commit.
+* **`readiness.py attach`.** It re-checks each run with
+  `attach_hosted_evidence.check_run`: exactly that commit, completed, every
+  job a success. It takes the digest from the commit's tree, not from the
+  working tree.
+* **Tests.**
+  * The controls build their own correctly bound hosted row.
+  * A one-commit throwaway repository shows that attaching at the commit
+    holds, while a later change, or an uncommitted change made before
+    attaching, is refused.
+  * A run at another commit, or one that is not green, is refused.
+  * A row without implementation files cannot be attached.
+  * The verdict stays unmet with even one IMPLEMENTED, EXTERNALLY_BLOCKED
+    or UNVERIFIED row.
+* **Mutations.** `tools/mutations/readiness.json` (RM1 to RM8) deletes each
+  rule.
+* **CI.** The agent-substrate workflow runs `readiness.py check` and
+  `summary`.
+
+**NOT CLAIMED.**
+
+* That a row's implementation list is complete. It is reviewed, as the
+  completion matrix's is.
+* That the readiness contract is met. The verdict is
+  PRODUCTION_READINESS_CONTRACT_NOT_MET.

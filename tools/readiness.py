@@ -12,8 +12,17 @@ row that names no owner action, and a deployment row that does not point at
 the deployment contract. The summary says whether the contract is met; it
 is not met while any row is EXTERNALLY_BLOCKED or UNVERIFIED.
 
+A HOSTED_TESTED row is bound to the code the run tested (D-2026-154). It
+names its implementation files. ``attach`` re-checks each run against the
+API with the completion matrix's own check and digests the implementation,
+tests and mutation specifications from the commit's tree. ``check``
+refuses the row once the working tree no longer matches that digest:
+evidence about an older implementation is not evidence about this one.
+
     python tools/readiness.py check
     python tools/readiness.py summary
+    python tools/readiness.py attach --commit SHA --rows REL-1,REL-2 \
+        --runs 123,456 --what "what the runs covered"
 """
 from __future__ import annotations
 
@@ -23,6 +32,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import completion_matrix as CM  # noqa: E402
 MATRIX = ROOT / "docs" / "security" / "readiness_matrix.json"
 LEDGER = ROOT / "docs" / "DEFECT_LEDGER.md"
 STATUSES = ("IMPLEMENTED", "HOSTED_TESTED", "DEPLOYMENT_REQUIRED",
@@ -31,6 +42,23 @@ STATUSES = ("IMPLEMENTED", "HOSTED_TESTED", "DEPLOYMENT_REQUIRED",
 
 def load(path: Path = MATRIX) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def evidence_paths(row: dict) -> list:
+    """What a HOSTED_TESTED row's evidence is about: its implementation
+    files, its tests and its mutation specifications."""
+    return (list(row.get("implementation") or [])
+            + list(row.get("tests") or [])
+            + list(row.get("mutation_specs") or []))
+
+
+def tree_digest(row: dict, root: Path = ROOT) -> str:
+    """The row's evidence paths as they stand in ``root``."""
+    def read(p):
+        q = root / p
+        return q.read_bytes() if q.is_file() else None
+    return CM.implementation_digest(evidence_paths(row), read,
+                                    lambda p: [])
 
 
 def problems(doc: dict, root: Path = ROOT) -> list:
@@ -63,6 +91,19 @@ def problems(doc: dict, root: Path = ROOT) -> list:
                     r"[0-9a-f]{40}", str(h.get("commit", ""))):
                 out.append(f"{rid}: HOSTED_TESTED names no hosted runs at a "
                            "commit")
+            impl = r.get("implementation") or []
+            if not impl:
+                out.append(f"{rid}: HOSTED_TESTED names no implementation "
+                           "files the run tested")
+            for f in impl:
+                if not (root / f).is_file():
+                    out.append(f"{rid}: implementation {f} is not a file")
+            if h.get("implementation_sha256") != tree_digest(r, root):
+                out.append(
+                    f"{rid}: HOSTED_TESTED, but its implementation, tests or "
+                    "specifications are not what the run at "
+                    f"{str(h.get('commit', ''))[:7]} tested; the evidence "
+                    "predates them")
         if st in ("IMPLEMENTED", "HOSTED_TESTED") and not r.get("tests"):
             out.append(f"{rid}: {st} cites no test")
         if st == "EXTERNALLY_BLOCKED" and "owner action" not in note \
@@ -88,8 +129,47 @@ def summary(doc: dict) -> dict:
                         "PRODUCTION_READINESS_CONTRACT_NOT_MET")}
 
 
+def attach(doc: dict, rows: list, commit: str, runs: list, what: str,
+           fetch=None, root: Path = ROOT) -> None:
+    """Mark ``rows`` HOSTED_TESTED by ``runs`` at ``commit``: every run is
+    re-checked against the API, and the digest is taken from the commit's
+    tree, never from the working tree."""
+    import subprocess
+
+    import attach_hosted_evidence as AH
+    full = subprocess.run(["git", "rev-parse", commit], cwd=root,
+                          capture_output=True, text=True,
+                          check=True).stdout.strip()
+    checked = [AH.check_run(r, full, fetch or AH._gh) for r in runs]
+    read, _ = AH._at_commit(full, root)
+    by_id = {r["id"]: r for r in doc["rows"]}
+    for rid in rows:
+        row = by_id[rid]
+        if not row.get("implementation"):
+            raise AH.EvidenceRefused(f"{rid} names no implementation files")
+        row["status"] = "HOSTED_TESTED"
+        row["hosted"] = {
+            "commit": full, "runs": [c["id"] for c in checked],
+            "implementation_sha256": CM.implementation_digest(
+                evidence_paths(row), read, lambda p: []),
+            "what": what}
+
+
 def main(argv=None) -> int:
     args = sys.argv[1:] if argv is None else argv
+    if args[:1] == ["attach"]:
+        import argparse
+        ap = argparse.ArgumentParser(prog="readiness.py attach")
+        for flag in ("--commit", "--rows", "--runs", "--what"):
+            ap.add_argument(flag, required=True)
+        ns = ap.parse_args(args[1:])
+        doc = load()
+        attach(doc, ns.rows.split(","), ns.commit, ns.runs.split(","),
+               ns.what)
+        MATRIX.write_text(json.dumps(doc, indent=1, ensure_ascii=False)
+                          + "\n", encoding="utf-8")
+        print(f"attached {ns.rows} at {ns.commit[:12]}")
+        return 0
     doc = load()
     found = problems(doc)
     if args[:1] == ["check"]:

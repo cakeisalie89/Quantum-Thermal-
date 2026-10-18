@@ -24,8 +24,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 32902,
-      "sha256": "68928eef28cee224df998c304f53bf4ccafd842cc20c1507b781e0bc6da3d846"
+      "size_bytes": 33382,
+      "sha256": "316bc71bf5644273e2bace30922db01e301666f0e20510e2e8e781332910f397"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -90,7 +90,7 @@
     {
       "filename": "HARNESS_STATUS.md",
       "size_bytes": 6986,
-      "sha256": "8908d8e4eb6f0a4d992bbfcb53104167b779b451816e80cfdcdb4733a3503987"
+      "sha256": "8c505191c4366df086408b2555ce55f2a82a20abf1d516bd281b182d7d1b451f"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -379,8 +379,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 476559,
-      "sha256": "4cac410caa4fc7df6c4af5890521724386c0eab490d85a99f571e0801a589f22"
+      "size_bytes": 479109,
+      "sha256": "027e78b00646fb257f7a3446d1946183aa4a7b11ec4df2ab848efba9564b0cdc"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -389,13 +389,13 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 254369,
-      "sha256": "ebcef627f5019ec9115e5a730d1d98d42ae8293dd21c70896bb1604fc218f043"
+      "size_bytes": 254402,
+      "sha256": "c88c4650f824700ab945b260da4b1fc5127373686607c1fec7409b5c3142cf61"
     },
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3651,
-      "sha256": "1e440164ec58756bf7a52b2404bebba2a5537495b908e9f9545fd9d8695a4a56"
+      "sha256": "22d820d882d1e4fc1859d30f3f6e00d7e8cb4d49cb2fbfd08cbec7bde4e1a5bf"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -415,7 +415,7 @@
     {
       "filename": "docs/harness_status.json",
       "size_bytes": 16369,
-      "sha256": "2a3e0f63169f3da7a3571515ebe32885e9a9a80c74564f7c600e45d495fd07c4"
+      "sha256": "a7a6d6f2e69a18972df170d0aef8da2c76e5ad4c4d1e05b1794db28ce2722999"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -530,7 +530,7 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2589,
-      "sha256": "68952324ee67b7e73cedd7f8f5fe9ea2ae528b67a4e10b98f0f1548d2633efb0"
+      "sha256": "c3ac3328938a8803698aabb955d86e6bc0662d8a639688cc8d98be6d02b9b65f"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -549,13 +549,13 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 205330,
-      "sha256": "8537b3accded83ce7720a27ae6b29d9d11d5faa3eadaa7edfb74cdd6826f038f"
+      "size_bytes": 205705,
+      "sha256": "e244935dac1287d911e87c658b4ad9046e9706ded2b5167daed0578f4052a63a"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
-      "size_bytes": 8716,
-      "sha256": "1924aa018f4102c86d2e416dd5be4683e6ade0fa2855e69037cdb5acae95f2cb"
+      "size_bytes": 10330,
+      "sha256": "27f20e8a8c6d64b44ecdf3a8a8a288aa4383615fac632a8fe70476464f09a29d"
     },
     {
       "filename": "docs/security/reproducibility_contract.json",
@@ -665,7 +665,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "8ac7efb7f4f61903ef707ee04a2dcb83f4d59eccab6ded62d7aa3a567207ac60"
+      "sha256": "7beb58539f1c03632ea6f8c6b0196f17a9f65488727850b16fc79089e9fe3321"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1534,8 +1534,8 @@
     },
     {
       "filename": "tests/test_readiness_matrix.py",
-      "size_bytes": 2068,
-      "sha256": "3530f0bf883488f0e1e905b35c68a7dfdbca9b336b590e6416b9749f76b48b08"
+      "size_bytes": 7069,
+      "sha256": "572269bdf391e9e66e198ad5a04530459513c022e60a50b00e9ff6ec994c7784"
     },
     {
       "filename": "tests/test_release_admission.py",
@@ -2143,6 +2143,11 @@
       "sha256": "8046811281f20135b602ab1264da9a6083673b309d1a2c961d87c1c66d395c94"
     },
     {
+      "filename": "tools/mutations/readiness.json",
+      "size_bytes": 3155,
+      "sha256": "1baf4cc283569989b3bca4693c3ac5aa04b2431e7b9ed73162e8513a1700c173"
+    },
+    {
       "filename": "tools/mutations/replay_origin_view.json",
       "size_bytes": 4766,
       "sha256": "214755c7d22f8804c181bf212249bc4324d81aa9306aa93edab3b71bfa1a1979"
@@ -2279,8 +2284,8 @@
     },
     {
       "filename": "tools/readiness.py",
-      "size_bytes": 4372,
-      "sha256": "483ccc889bfcfb51d1640a619a1631add9bdd3190fc30898fb642d3d438ec5b6"
+      "size_bytes": 8106,
+      "sha256": "ad360056d4957ccc37787bc06d402040a4551ba55c2283cb15cbf1d871dfecca"
     },
     {
       "filename": "tools/repo_content_audit.py",

@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 436,
+   "ADDED": 437,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 45,
    "LOW": 160,
-   "MEDIUM": 238
+   "MEDIUM": 239
   },
   "by_subsystem": {
    "agent-substrate": 19,
    "ai-ingress": 3,
-   "assurance": 95,
+   "assurance": 96,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -37,7 +37,7 @@
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 468
+  "files": 469
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -6334,7 +6334,8 @@
      "tools/mutations/harness_status.json"
     ],
     "tests": [
-     "tests/test_harness_status.py"
+     "tests/test_harness_status.py",
+     "tests/test_readiness_matrix.py"
     ]
    }
   },
@@ -7658,6 +7659,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/readiness.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/replay_origin_view.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -8050,7 +8064,9 @@
    "trust_boundary": "derived readiness status",
    "verification": {
     "findings": [],
-    "mutation_specs": [],
+    "mutation_specs": [
+     "tools/mutations/readiness.json"
+    ],
     "tests": [
      "tests/test_readiness_matrix.py"
     ]
