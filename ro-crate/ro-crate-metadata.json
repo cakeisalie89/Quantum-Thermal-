@@ -177,10 +177,10 @@
   {
    "@id": "docs/harness_status.json",
    "@type": "File",
-   "contentSize": "10092",
+   "contentSize": "10548",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "a9057f7e756b19e452f82a585bdde4b33fa2116edb53a96cad13181a61f75b50"
+   "sha256": "adf15901c12f7151d4d42daaf15a6cc90623518abdb10847d32740dbd29009e6"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -204,7 +204,7 @@
    "contentSize": "2589",
    "description": "the repository content audit of the current tree",
    "name": "repo_content_audit.json",
-   "sha256": "b4fb9998251693ace1ca4cddf143b1cd79bfd2e3495a54c9e160e90fcee4d651"
+   "sha256": "15cce9a87696f5f361f7af31bc0c3f88027dd691c0c1d76417c38bb5d042a3d5"
   },
   {
    "@id": "docs/repository_inventory.json",
@@ -217,7 +217,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "88389",
+   "contentSize": "88919",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"

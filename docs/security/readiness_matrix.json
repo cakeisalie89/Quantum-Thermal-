@@ -230,7 +230,7 @@
   {
    "id": "SUB-2",
    "capability": "every other authority writer decides under the writer lock against the history it appends onto -- capability, egress and secret writers, the execution record, the compensation authorization, governed reads -- and no projection resumes past a record it refused",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_t2_closure.py",
     "tests/test_refused_fold.py",
@@ -243,7 +243,7 @@
     "tools/mutations/authority_inventory.json"
    ],
    "ledger": "D-2026-156",
-   "note": "finding T-2 FIXED; every durable write is classified and measured by tools/authority_inventory.py, which CI runs. Not yet hosted.",
+   "note": "finding T-2 FIXED; every durable write is classified and measured by tools/authority_inventory.py, which CI runs. Hosted at 1586322; attached in Tranche H Gate A, having been missed in the Tranche G evidence commit (D-2026-161).",
    "implementation": [
     "agent_substrate/events.py",
     "agent_substrate/capability.py",
@@ -254,7 +254,16 @@
     "agent_substrate/reconstruct.py",
     "tools/authority_inventory.py",
     "docs/security/authority_inventory.json"
-   ]
+   ],
+   "hosted": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "5e501474e79a43e5a4ddf1118513340a72324f011be054858fdd0159fe876e03",
+    "what": "agent-substrate: full suite (tests/test_t2_closure.py, test_refused_fold.py, test_t2_governed.py, test_decided_under_lock.py, test_authority_inventory.py) and mutation shards (t2_closure, authority_inventory), and the authority-inventory step"
+   }
   },
   {
    "id": "SUB-3",

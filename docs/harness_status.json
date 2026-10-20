@@ -6,7 +6,7 @@
   },
   "repository_content": {
    "committed_report_current": true,
-   "files": 498,
+   "files": 501,
    "findings": 0,
    "ok": true
   },
@@ -50,11 +50,12 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 49
+   "COVERS_CURRENT_IMPLEMENTATION": 47,
+   "PREDATES_CURRENT_IMPLEMENTATION": 2
   },
   "rows": 49
  },
- "outcome": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+ "outcome": "INCOMPLETE",
  "outside_this_software_completion": [
   {
    "class": "EXPERIMENTAL_SCIENCE",
@@ -346,12 +347,12 @@
    "rows": {
     "R70": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "salib": {
@@ -421,5 +422,24 @@
    "status": "ADOPTED"
   }
  },
- "unsatisfied": []
+ "unsatisfied": [
+  {
+   "external": false,
+   "id": "ruff-mypy-pydantic",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "R70",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R71",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  }
+ ]
 }

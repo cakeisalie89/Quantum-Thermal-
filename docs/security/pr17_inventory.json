@@ -1,14 +1,14 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 466,
+   "ADDED": 469,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 46,
-   "LOW": 170,
-   "MEDIUM": 257
+   "LOW": 171,
+   "MEDIUM": 259
   },
   "by_subsystem": {
    "agent-substrate": 20,
@@ -20,7 +20,7 @@
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 26,
+   "evidence": 28,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 146,
+   "tests": 147,
    "tooling": 39,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 498
+  "files": 501
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -2625,6 +2625,34 @@
     "findings": [],
     "mutation_specs": [],
     "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/tranche_h/GATE_A_AUDIT.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/tranche_h/capability_matrix.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_tranche_h_audit.py"
+    ]
    }
   },
   {
@@ -6581,6 +6609,19 @@
    "runtime_dependencies": [
     "pytest"
    ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_tranche_h_audit.py",
+   "risk": "LOW",
+   "runtime_dependencies": [],
    "subsystem": "tests",
    "trust_boundary": "verification only",
    "verification": {

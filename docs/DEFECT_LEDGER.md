@@ -9297,3 +9297,51 @@ survivor's report says why it matters and not only its name. It now does.
 **PROCESS.** Every remaining step of the agent-substrate job, run locally at
 this commit, passes. That includes the confinement probe, the authority
 inventory, the workflow contract, the fuzzer and the type-check.
+
+## D-2026-161 — Tranche H Gate A: what the system can and cannot do before a model is connected, and one evidence row left behind
+
+**CLASS** — `AUDIT` and `EVIDENCE`: Tranche H, Gate A. No implementation file
+changes. No model was called, no autonomous decision was made, and no
+credential was used.
+
+**THE AUDIT.** `docs/tranche_h/GATE_A_AUDIT.md` and
+`docs/tranche_h/capability_matrix.json` hold the audit. The 41 matrix rows
+are held to the tree by `tests/test_tranche_h_audit.py`:
+
+| State | Rows |
+|---|---|
+| IMPLEMENTED | 20 |
+| PARTIAL | 10 |
+| ABSENT | 7 |
+| EXTERNALLY_BLOCKED | 3 |
+| DEPLOYMENT_REQUIRED | 1 |
+
+The audit also contains a threat model in six trust zones, with the model
+gateway separate from the control plane and from the confined workers; an
+interface map; and gates B to H, each with acceptance criteria. Seven owner
+decisions are named (OD-1 to OD-7). Live inference is EXTERNALLY_BLOCKED on
+OD-1: no credential is provisioned for the harness, and none was used.
+
+**GAPS, REPRODUCED** at `9e5ac06` rather than asserted:
+
+* the external adapter has no time, output, budget or token bound;
+* only MODEL_RUN proposals execute;
+* a rationale is kept by digest only;
+* there are no `inference.*`, `objective.*` or `hypothesis.*` actions;
+* a proposal's context binds retrieval only, not authority state;
+* the hypothesis lifecycle is NOT_BUILT;
+* no symbolic engine or proof checker is installed;
+* a claimed model identity is recorded unchecked, which is correct and stays
+  so.
+
+**F-H1.** Readiness row SUB-2 (the T-2 closure, D-2026-156) stayed
+IMPLEMENTED with the note "Not yet hosted". The Tranche G evidence commit
+attached the five rows that had been hosted before, and missed this one,
+which never had been. Its five tests and two mutation specifications ran
+green in both hosted agent-substrate runs at `1586322`. They are attached
+now by `tools/readiness.py attach`, which re-checks each run against the API
+and digests the implementation from that commit's tree. Readiness counts 10
+rows HOSTED_TESTED. The verdict remains PRODUCTION_READINESS_CONTRACT_NOT_MET.
+
+**NOT CLAIMED.** That any model can do anything in this system. That an
+IMPLEMENTED row is production-ready, scientifically valid or autonomous.
