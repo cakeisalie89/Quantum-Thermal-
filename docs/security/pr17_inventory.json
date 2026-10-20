@@ -5364,9 +5364,7 @@
    "change": "ADDED",
    "path": "tests/test_confinement_probe.py",
    "risk": "LOW",
-   "runtime_dependencies": [
-    "pytest"
-   ],
+   "runtime_dependencies": [],
    "subsystem": "tests",
    "trust_boundary": "verification only",
    "verification": {
@@ -5429,9 +5427,7 @@
    "change": "ADDED",
    "path": "tests/test_decided_under_lock.py",
    "risk": "LOW",
-   "runtime_dependencies": [
-    "pytest"
-   ],
+   "runtime_dependencies": [],
    "subsystem": "tests",
    "trust_boundary": "verification only",
    "verification": {
@@ -6732,7 +6728,8 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_agent_substrate_isolation.py",
-     "tests/test_confinement_probe.py"
+     "tests/test_confinement_probe.py",
+     "tests/test_filesystem_confinement.py"
     ]
    }
   },

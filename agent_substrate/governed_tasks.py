@@ -1230,7 +1230,7 @@ class GovernedTasks:
             held = cur.lease.lease_id if cur is not None and \
                 cur.lease is not None else None
             try:
-                if held != lease.lease_id:
+                if cur is None or held != lease.lease_id:
                     raise TaskTransitionError(
                         f"it is held under {held!r}, not {lease.lease_id!r}")
                 check_execution(cur, worker, at_seq=head_seq + 1)

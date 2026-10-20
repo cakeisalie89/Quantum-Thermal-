@@ -19,8 +19,6 @@ import sys
 import threading
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 for _p in (ROOT, ROOT / "tests"):
     if str(_p) not in sys.path:
@@ -125,7 +123,7 @@ def test_control_a_revocation_of_another_grant_is_written_after_it(tmp_path):
 
 # ---- the execution record ----------------------------------------------------
 
-def _recover_meanwhile(gov, gate, task_ids):
+def _recover_meanwhile(gov, gate, task_ids):  # noqa: F811 - the imported fixture
     def recover():
         other = _second(gov)
         task = other.projection().get(task_ids[0])
@@ -135,7 +133,7 @@ def _recover_meanwhile(gov, gate, task_ids):
 
 
 def test_a_recovery_waits_for_the_execution_record_it_would_contradict(
-        gov, monkeypatch):
+        gov, monkeypatch):  # noqa: F811 - the imported fixture
     gate = _Gate("decide_execution")
     monkeypatch.setattr(gov, "_projection_at_head",
                         gate.wrap(gov._projection_at_head))
@@ -157,7 +155,7 @@ def test_a_recovery_waits_for_the_execution_record_it_would_contradict(
 
 
 def test_control_an_execution_with_no_competing_move_is_verified(
-        gov, monkeypatch):
+        gov, monkeypatch):  # noqa: F811 - the imported fixture
     gate = _Gate("decide_execution")
     monkeypatch.setattr(gov, "_projection_at_head",
                         gate.wrap(gov._projection_at_head))
@@ -174,7 +172,7 @@ def test_control_an_execution_with_no_competing_move_is_verified(
 # ---- the compensation --------------------------------------------------------
 
 def test_a_second_supervisor_waits_for_the_authorization_and_is_refused(
-        gov, monkeypatch):
+        gov, monkeypatch):  # noqa: F811 - the imported fixture
     run = _answered(gov, monkeypatch)
     other = _second(gov, undo=True)
     gate = _Gate("prepare")
@@ -195,7 +193,7 @@ def test_a_second_supervisor_waits_for_the_authorization_and_is_refused(
 # ---- the governed read -------------------------------------------------------
 
 def test_a_revocation_waits_for_the_read_it_would_contradict(
-        gov, monkeypatch):
+        gov, monkeypatch):  # noqa: F811 - the imported fixture
     import agent_substrate.readpath as RP
 
     gate = _Gate("decide")

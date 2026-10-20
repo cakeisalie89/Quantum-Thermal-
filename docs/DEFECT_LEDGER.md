@@ -9215,3 +9215,59 @@ score. **17 of 17** killed, at the commit that fixed the protocol.
 **NOT CLAIMED.** Any property of a language model. Any result, in this
 entry. The confirmatory results and the adversarial review
 (`docs/research/GROUNDING_REVIEW.md`) are recorded with the run.
+
+## D-2026-160 — what hosted CI found at 5e31ae0, which the local checks had not
+
+**CLASS** — `ISOLATION` and `PROCESS`: Tranche G. These are the first hosted
+results for G1 to G3 (pushed as 5e31ae0). Two jobs failed. The full suite,
+the dispatch-sensitivity job and all eight mutation shards passed.
+
+**1. Confinement refused to start an interpreter installed outside /usr**
+(a defect in D-2026-157).
+
+* The second-interpreter job runs the agent suites on a uv-managed CPython
+  3.13 under the runner's home directory. Every confined run there exited
+  127 with "cannot execute .../python: Permission denied", and 166 agent
+  tests failed or errored.
+* The kernel opens an ELF's loader FOR EXECUTION. The policy granted the
+  interpreter's own trees and none of the system's library directories.
+* On the development host, and in CI's main job, the interpreter is
+  /usr/bin/python3.x. There `sys.base_prefix` is /usr, which granted the
+  loader by accident.
+* Reproduced here with a standalone CPython 3.12.11 installed outside /usr:
+  the same status 127 and the same message.
+* Repaired. The system's shared-library directories (`_LIBRARY_DIRS`) are
+  granted read and execute, never write. The deployment probe then passes
+  under that interpreter with every denial still observed: the sentinel,
+  the sentinel through a symbolic link, the host's configuration, and a
+  write outside the scope.
+* Tests:
+  * `test_the_loader_is_granted_for_an_interpreter_outside_usr` reads the
+    interpreter's PT_INTERP and holds on any host;
+  * `test_a_standalone_interpreter_runs_confined_and_stays_confined` runs
+    the probe under such an interpreter where one exists.
+* FC14 removes the grant. `filesystem_confinement` kills **14 of 14**.
+
+**2. Lint.** CI lints every tracked Python file. Nine findings in this
+tranche's files failed it: five F811 (an imported fixture used as a
+parameter), two unused imports, and two long lines. The local checks had
+linted only the files each change edited. The repair follows the repository's
+existing `# noqa: F811 - the imported fixture` convention.
+
+**3. Type-check.** The job stopped at lint, so its type-check never ran. Run
+here, the active scope found 15 errors. None was a behaviour change:
+
+* `reconstruct.py` and `governed_tasks.py` (G2): a value the checker could
+  not see was a dict, and a task the lease check had already refused when
+  absent. Both are now stated so the checker can see them. TC24 is
+  re-anchored to remove only the lease comparison; still **killed**.
+* `memory_trust.py` (G4): one name reused for two types.
+* `tools/grounding_bench` (G5): annotations only, made AFTER the confirmatory
+  run. `git diff 4008763 -- tools/grounding_bench` is ten lines of type
+  annotations and changes nothing the benchmark computes. The committed
+  results re-derive from the code at the results commit
+  (`test_the_committed_results_reproduce_from_the_committed_code`).
+
+**PROCESS.** Every remaining step of the agent-substrate job, run locally at
+this commit, passes. That includes the confinement probe, the authority
+inventory, the workflow contract, the fuzzer and the type-check.

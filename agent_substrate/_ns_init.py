@@ -25,10 +25,11 @@ itself. The executor reads it, so a signal death is still a signal death.
 WHAT IT CONFINES (D-2026-157). With ``--confine MODE POLICY`` the forked
 child restricts itself with Landlock before it executes the tool, so the
 tool and everything it starts can open only what POLICY grants, and proves
-it by failing to open a probe path the policy does not grant. It reports ``confined ...`` first. If
-confinement cannot be put in force, MODE decides: ``research`` reports
-``unconfined REASON`` and runs the tool, so the record says so;
-``high_assurance`` reports ``refused REASON`` and does not run it.
+it by failing to open a probe path the policy does not grant. It reports
+``confined ...`` first. If confinement cannot be put in force, MODE
+decides: ``research`` reports ``unconfined REASON`` and runs the tool, so
+the record says so; ``high_assurance`` reports ``refused REASON`` and does
+not run it.
 
 Standard library only, started with -I -S: nothing on the host's path or
 in the tool's environment decides how this runs.
@@ -109,7 +110,7 @@ def _landlock(policy: dict) -> str:
             try:
                 fd = os.open(path, os.O_PATH | os.O_CLOEXEC)
             except FileNotFoundError:
-                continue                  # a path that is not there grants nothing
+                continue          # a path that is not there grants nothing
             try:
                 allowed = rights & handled
                 if not stat.S_ISDIR(os.fstat(fd).st_mode):

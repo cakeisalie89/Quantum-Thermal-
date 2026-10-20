@@ -178,6 +178,16 @@ CONFINEMENT_MODES = ("research", "high_assurance")
 #: start. Files, granted read only.
 _RUNTIME_FILES = ("/etc/ld.so.cache", "/dev/zero", "/dev/urandom",
                   "/proc/cpuinfo")
+#: The system's shared-library directories, the dynamic loader among them.
+#: Read and execute, never write. The kernel opens an ELF's loader FOR
+#: EXECUTION, so without these not even the interpreter starts: an
+#: interpreter installed outside /usr -- a uv-managed or standalone build,
+#: as CI's second interpreter is -- was refused at exec ("cannot execute
+#: ...: Permission denied", status 127) on every confined run. On a host
+#: whose interpreter lives under /usr they were granted only by accident,
+#: through ``sys.base_prefix``. A directory that does not exist grants
+#: nothing.
+_LIBRARY_DIRS = ("/lib", "/lib64", "/usr/lib", "/usr/lib64")
 #: Opened for writing by anything that discards output -- a subprocess
 #: started with ``stdin=DEVNULL`` opens it read-write -- and a write to it
 #: reaches nothing. Granted read-only, ``ctypes.util.find_library`` failed
@@ -196,8 +206,9 @@ def confinement_policy(*, cwd: Path, writable_scope: tuple,
                        outputs: tuple = ()) -> dict:
     """What a confined tool may open (D-2026-157).
 
-    READ: the interpreter's trees, the runtime files every dynamically linked
-    program needs, the Python packages directly under ``cwd`` (the tool's
+    READ: the interpreter's trees, the system's shared-library directories
+    and the runtime files every dynamically linked program needs (the loader
+    and its cache), the Python packages directly under ``cwd`` (the tool's
     own code and what it imports), and whatever the caller grants in
     ``read_paths``. LIST: ``cwd`` itself, which the import system lists to
     find those packages -- names beneath it are visible, contents are not.
@@ -223,8 +234,8 @@ def confinement_policy(*, cwd: Path, writable_scope: tuple,
                       if d.is_dir() and (d / "__init__.py").is_file())
     granted = [str(p if Path(p).is_absolute() else cwd / p)
                for p in read_paths]
-    return {"read": [*interp, *_RUNTIME_FILES, _PROC_SELF, *packages,
-                     *granted],
+    return {"read": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,
+                     *packages, *granted],
             "list": [str(cwd)],
             "write": [str(cwd / s) for s in writable_scope]
             + sorted({str((cwd / rel).parent) for rel in outputs})

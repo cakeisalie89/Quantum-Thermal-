@@ -79,8 +79,8 @@
     {
       "name": "FC11_the_tools_own_packages_are_not_granted",
       "path": "agent_substrate/execution.py",
-      "find": "    return {\"read\": [*interp, *_RUNTIME_FILES, _PROC_SELF, *packages,\n",
-      "replace": "    return {\"read\": [*interp, *_RUNTIME_FILES, _PROC_SELF,\n",
+      "find": "    return {\"read\": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,\n                     *packages, *granted],\n",
+      "replace": "    return {\"read\": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,\n                     *granted],\n",
       "rationale": "a governed tool cannot import its own module"
     },
     {
@@ -96,6 +96,13 @@
       "find": "            + ([str(scratch)] if scratch is not None else []) + [_DISCARD],\n",
       "replace": "            + ([str(scratch)] if scratch is not None else []),\n",
       "rationale": "find_library fails inside the confinement and the run identity comes out UNRESOLVED"
+    },
+    {
+      "name": "FC14_the_loader_is_not_granted",
+      "path": "agent_substrate/execution.py",
+      "find": "    return {\"read\": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,\n",
+      "replace": "    return {\"read\": [*interp, *_RUNTIME_FILES, _PROC_SELF,\n",
+      "rationale": "an interpreter installed outside /usr cannot start: the kernel opens its loader for execution, and nothing grants it (found by hosted CI at 5e31ae0)"
     }
   ]
 }

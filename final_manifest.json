@@ -25,7 +25,7 @@
     {
       "filename": ".github/workflows/agent-substrate.yml",
       "size_bytes": 34887,
-      "sha256": "89cfac095c6ab88c9627b808314b5f3d290aec1a5f492c9d268175b9ee28cb07"
+      "sha256": "7c1b4264ba18b99e61c05e651d43896f25390f239741bd9aad5eddab25d845a2"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -169,8 +169,8 @@
     },
     {
       "filename": "agent_substrate/_ns_init.py",
-      "size_bytes": 9098,
-      "sha256": "94db839ba5b98759f21b452604a2d93e27c2473aeceb1de10eb0d8c62c7ee268"
+      "size_bytes": 9090,
+      "sha256": "f2897e8b43516c6a815b590d212a555ab2bec1e5313331851ebbbb3397629819"
     },
     {
       "filename": "agent_substrate/actions.py",
@@ -229,8 +229,8 @@
     },
     {
       "filename": "agent_substrate/execution.py",
-      "size_bytes": 55750,
-      "sha256": "d822c0165cced53d35123a55bbb4574a11133d323191032a68bd132957107d15"
+      "size_bytes": 56493,
+      "sha256": "af22801c35c50f2e032fe57882c631b65353631fa8484641edfdad699459f0c1"
     },
     {
       "filename": "agent_substrate/governed_model.py",
@@ -239,8 +239,8 @@
     },
     {
       "filename": "agent_substrate/governed_tasks.py",
-      "size_bytes": 144767,
-      "sha256": "7ae9b5129fc1f57ad5661ce65c9d51fb320055b822b46c086eca3ed42d3be081"
+      "size_bytes": 144782,
+      "sha256": "6afe82af5e827fa4583aa3494d712e7deaf98d98eb13dcdd9b087bdf73cd8b1c"
     },
     {
       "filename": "agent_substrate/hostid.py",
@@ -274,8 +274,8 @@
     },
     {
       "filename": "agent_substrate/memory_trust.py",
-      "size_bytes": 9946,
-      "sha256": "eaf9c42ba6d0775aedda8640a91fd68b059761bcfd7163225bac06f8858b5813"
+      "size_bytes": 9950,
+      "sha256": "cc8fb6f9f8bb6c51b22cf54bc988ec8dc130001a88562dd8d38c277178032bf9"
     },
     {
       "filename": "agent_substrate/netauth.py",
@@ -314,8 +314,8 @@
     },
     {
       "filename": "agent_substrate/reconstruct.py",
-      "size_bytes": 151008,
-      "sha256": "dd7080427e89bc91b1755aa2141d4b21d8f3730efc40eccef5c1101a4b683c0b"
+      "size_bytes": 150998,
+      "sha256": "f207ff2978c9069305fbb43622fb69cde26f0b6d5274b75061f40c481235450f"
     },
     {
       "filename": "agent_substrate/result_rules.py",
@@ -384,8 +384,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 510617,
-      "sha256": "0219226c41c322663fe506b88476646f2db373b8abd82a63d96aeaf46af94d83"
+      "size_bytes": 513759,
+      "sha256": "36bbf1dd46d36ffdef25d91a1b2fce74314175b65268b7ba06bb3dd5ed066120"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -400,7 +400,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3801,
-      "sha256": "b741c4f54761f1b547e4f8be453c38c8e30335d5c6ba8912ea72cb560cccbf02"
+      "sha256": "0384550d309ba38d347c1761819461309da7c4cbfe396fa83dfe3d2db5c63cf2"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -564,8 +564,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 218746,
-      "sha256": "79894583adcba76fdb1385c73f63e7cafe326ca83544eb2cea6591fa0eef45c1"
+      "size_bytes": 218757,
+      "sha256": "b70aad399819425e2c866970fa8d2ee310e7911359489becf6cb4f689cae755f"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -1344,8 +1344,8 @@
     },
     {
       "filename": "tests/test_confinement_probe.py",
-      "size_bytes": 2464,
-      "sha256": "542aac99d066105a944823ccea9b4f3032c496e5aa1d277ae0c8c63a47ece054"
+      "size_bytes": 2449,
+      "sha256": "8f5e5741e69df83d0970c9fea86204758f20dd0b78e9bc23123fa6fda33d468c"
     },
     {
       "filename": "tests/test_container_manifest_coverage.py",
@@ -1364,8 +1364,8 @@
     },
     {
       "filename": "tests/test_decided_under_lock.py",
-      "size_bytes": 8664,
-      "sha256": "9073a136e913824426fc96a48f738d8cb565eb3764ec1dfcc470141046659d93"
+      "size_bytes": 8834,
+      "sha256": "4d05b0ec229e0cbcb8b83bd6ea70d8e9760e574ccd5b684975089df0b4656372"
     },
     {
       "filename": "tests/test_dependency_declarations.py",
@@ -1389,8 +1389,8 @@
     },
     {
       "filename": "tests/test_filesystem_confinement.py",
-      "size_bytes": 15426,
-      "sha256": "9c6291fdde8940cb1687ffae46f4433c2381d76a59e7686e8bfb60748d53745b"
+      "size_bytes": 18854,
+      "sha256": "933636c586af1ee3c4d6c3d99fc0f954198b1412e98b6e8cb8d7f62780926734"
     },
     {
       "filename": "tests/test_generated_mutations.py",
@@ -1834,13 +1834,13 @@
     },
     {
       "filename": "tools/grounding_bench/run.py",
-      "size_bytes": 13939,
-      "sha256": "4779fd258c05df46dc785959208f07a7fe8ef4100f0150bae53fc1fd6060042f"
+      "size_bytes": 13996,
+      "sha256": "0310721601dd6ebfc396f987cc6b660233c5ef8b69f768a687745ad75a7da02f"
     },
     {
       "filename": "tools/grounding_bench/world.py",
-      "size_bytes": 12831,
-      "sha256": "e49b0ba1c33471d826726fc44449c809aaed3e0835aab2d4487dee66fc48d1eb"
+      "size_bytes": 12817,
+      "sha256": "70fdbd4c0d964d143ced77545c1b3f8c74c5964dfb376bc31c55808c2f0b6e5e"
     },
     {
       "filename": "tools/harness_demo.py",
@@ -2119,8 +2119,8 @@
     },
     {
       "filename": "tools/mutations/filesystem_confinement.json",
-      "size_bytes": 5520,
-      "sha256": "e258f6aae4a6dd8e0d6c905d9456ee395184d1779575cbacacbbb69986ce7ac2"
+      "size_bytes": 6074,
+      "sha256": "44e9a29e8c255bfd9510a759dbedbc830ad78bc54937c200cb62ec574b50daf4"
     },
     {
       "filename": "tools/mutations/fuzz_harness.json",
@@ -2364,8 +2364,8 @@
     },
     {
       "filename": "tools/mutations/t2_closure.json",
-      "size_bytes": 18069,
-      "sha256": "23064ec189963afa4ca75cf49a07e9ad76fc2f7c4f77bddca612c17bfe57d73d"
+      "size_bytes": 18090,
+      "sha256": "454dd4048f30f0945323268cbcfd00cea318facb32f2897ac9a01ecb21b9182b"
     },
     {
       "filename": "tools/mutations/task_execution_phase.json",

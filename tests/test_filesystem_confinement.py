@@ -305,6 +305,85 @@ def test_the_policy_grants_what_it_says_and_nothing_wider(tmp_path):
     json.dumps(pol)
 
 
+# ---- an interpreter installed outside /usr --------------------------------
+#
+# Found by hosted CI at 5e31ae0: the second-interpreter job runs on a
+# uv-managed CPython under the runner's home, and every confined run there
+# exited 127 -- "cannot execute ...: Permission denied". The kernel opens an
+# ELF's loader FOR EXECUTION, and the policy granted the interpreter's own
+# trees and nothing of the system's libraries. Here the interpreter lives
+# under /usr, which granted them by accident.
+
+def _loader(executable: str) -> str | None:
+    """The ELF interpreter (PT_INTERP) the kernel opens to start
+    ``executable``, or None for anything but a little-endian ELF64."""
+    import struct
+    with open(os.path.realpath(executable), "rb") as f:
+        head = f.read(64)
+        if head[:4] != b"\x7fELF" or head[4] != 2 or head[5] != 1:
+            return None
+        phoff, = struct.unpack_from("<Q", head, 0x20)
+        phentsize, phnum = struct.unpack_from("<HH", head, 0x36)
+        for i in range(phnum):
+            f.seek(phoff + i * phentsize)
+            p_type, _, p_offset = struct.unpack("<IIQ", f.read(16))
+            if p_type == 3:                                   # PT_INTERP
+                f.seek(p_offset)
+                return f.read(256).split(b"\0", 1)[0].decode()
+    return None
+
+
+def _granted(path: str, grants) -> bool:
+    real = os.path.realpath(path)
+    return any(real == os.path.realpath(g)
+               or real.startswith(os.path.realpath(g).rstrip("/") + "/")
+               for g in grants)
+
+
+def test_the_loader_is_granted_for_an_interpreter_outside_usr(
+        tmp_path, monkeypatch):
+    loader = _loader(PY)
+    if loader is None:
+        pytest.skip("this interpreter is not a dynamically linked ELF64")
+    for name in ("base_prefix", "prefix", "exec_prefix", "base_exec_prefix"):
+        monkeypatch.setattr(sys, name, "/opt/elsewhere/python")
+    pol = X.confinement_policy(cwd=tmp_path, writable_scope=(),
+                               read_paths=(), probe=tmp_path / "p")
+    assert _granted(loader, pol["read"]), (loader, pol["read"])
+    # Read and execute, never write.
+    assert not _granted(loader, pol["write"])
+
+
+def _standalone() -> str | None:
+    """An interpreter whose real path is outside /usr, if this host has one:
+    the CI second interpreter's shape."""
+    import glob
+    cands = [os.environ.get("HARNESS_STANDALONE_PYTHON", ""), PY]
+    for pattern in ("~/.local/share/uv/python/*/bin/python3",
+                    "/opt/*/python/*/bin/python3"):
+        cands += sorted(glob.glob(os.path.expanduser(pattern)))
+    for c in cands:
+        if c and os.path.isfile(c) and not os.path.realpath(c).startswith(
+                "/usr/"):
+            return c
+    return None
+
+
+@needs_confinement
+def test_a_standalone_interpreter_runs_confined_and_stays_confined():
+    """The deployment probe, run BY such an interpreter: it starts, and every
+    denial the probe expects is still observed."""
+    import subprocess
+    interp = _standalone()
+    if interp is None:
+        pytest.skip("no interpreter outside /usr on this host; the CI "
+                    "second-interpreter job runs on one")
+    out = subprocess.run([interp, "tools/confinement_probe.py"], cwd=ROOT,
+                         capture_output=True, text=True, timeout=120)
+    doc = json.loads(out.stdout)
+    assert doc["result"] == "PASS", (interp, doc["failures"], out.stderr)
+
+
 @needs_confinement
 def test_a_confined_run_fingerprints_the_same_runtime_as_an_unconfined_one(
         tmp_path):

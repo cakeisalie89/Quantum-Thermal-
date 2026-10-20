@@ -135,10 +135,10 @@ def assess(log: EventLog, memory_id: str, *, evidence=None,
             "and no key vouches for it")
     else:
         report = log.authenticator(events, complete=True)
-        why = [f"{k}: {d}" for s, k, d in report.findings if s == ev.seq]
+        found = [f"{k}: {d}" for s, k, d in report.findings if s == ev.seq]
         answers["authenticated_actor"] = (
             Answer(NO, f"the record at seq {ev.seq} does not authenticate: "
-                       + "; ".join(why or ["refused"]))
+                       + "; ".join(found or ["refused"]))
             if ev.seq in report.refused else
             Answer(YES, f"appended by {ev.actor!r}, the author it names, "
                         "and the authenticator vouches for that record"))

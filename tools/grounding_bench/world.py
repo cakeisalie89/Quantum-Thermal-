@@ -97,7 +97,7 @@ class World:
     log: EventLog
     evidence: EvidenceStore
     memory: MemoryStore
-    attestations: "pr.Attestations | None" = None
+    attestations: "pr.Attestations"
     narrations: list = field(default_factory=list)
     #: record_id -> {"state": ..., "value": ...}: what the honest steps
     #: established. HIDDEN: see the module docstring.

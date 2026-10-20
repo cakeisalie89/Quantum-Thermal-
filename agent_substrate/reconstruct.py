@@ -1701,8 +1701,8 @@ def _sub_egress_use(ev, p: dict, out) -> None:
     """
     if not p.get("allowed"):
         return
-    decision = p.get("decision") if isinstance(p.get("decision"), dict) \
-        else {}
+    raw = p.get("decision")
+    decision = raw if isinstance(raw, dict) else {}
     gid = decision.get("grant_id")
     g = out.net_grants.get(gid)
     if g is None:

@@ -81,7 +81,7 @@ def score(answer, q) -> str:
     return "correct" if answer.value == q["truth"] else "false"
 
 
-def metrics(outcomes: list, faults: list = ()) -> dict:
+def metrics(outcomes: list, faults: tuple | list = ()) -> dict:
     """``outcomes``: (score, question kind) pairs; ``faults``: the faults
     against each question's subject, in the same order."""
     n = len(outcomes)
@@ -230,11 +230,11 @@ def run(*, seeds: int, steps: int, questions_per_seed: int,
 #: THE PROTOCOL, fixed before the confirmatory run (see
 #: docs/research/GROUNDING_BENCHMARK.md). Its seeds are disjoint from every
 #: pilot's (0-5).
-CONFIRMATORY = dict(seeds=30, seed_base=1000, steps=400,
-                    questions_per_seed=200, fault_rate=0.05)
+CONFIRMATORY: dict = dict(seeds=30, seed_base=1000, steps=400,
+                          questions_per_seed=200, fault_rate=0.05)
 #: Secondary and exploratory: one error-model or world parameter moved at a
 #: time from the default, ten seeds each, disjoint again.
-SENSITIVITY = (
+SENSITIVITY: tuple = (
     ("credulity=0", dict(err=dict(credulity=0.0))),
     ("credulity=1", dict(err=dict(credulity=1.0))),
     ("guess=0", dict(err=dict(guess=0.0))),
@@ -244,11 +244,11 @@ SENSITIVITY = (
     ("fault_rate=0.01", dict(fault_rate=0.01)),
     ("fault_rate=0.2", dict(fault_rate=0.2)),
 )
-SENSITIVITY_RUN = dict(seeds=10, seed_base=2000, steps=300,
-                       questions_per_seed=200, fault_rate=0.05)
+SENSITIVITY_RUN: dict = dict(seeds=10, seed_base=2000, steps=300,
+                             questions_per_seed=200, fault_rate=0.05)
 #: Opt-in, slow: each horizon with few seeds, disjoint again.
-LONG_RUN = dict(seeds=2, seed_base=3000, questions_per_seed=200,
-                fault_rate=0.05)
+LONG_RUN: dict = dict(seeds=2, seed_base=3000, questions_per_seed=200,
+                      fault_rate=0.05)
 
 
 def _summary(result: dict) -> dict:
@@ -257,7 +257,7 @@ def _summary(result: dict) -> dict:
 
 
 def protocol(*, long: bool = False, log=print) -> dict:
-    doc = {"schema": SCHEMA, "real_model": REAL_MODEL}
+    doc: dict = {"schema": SCHEMA, "real_model": REAL_MODEL}
     t = time.perf_counter()
     doc["confirmatory"] = run(err=ErrorModel(), **CONFIRMATORY)
     log(f"confirmatory: {time.perf_counter() - t:.0f}s")

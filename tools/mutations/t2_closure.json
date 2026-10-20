@@ -172,8 +172,8 @@
     {
       "name": "TC24_the_execution_record_ignores_the_lease",
       "path": "agent_substrate/governed_tasks.py",
-      "find": "                if held != lease.lease_id:",
-      "replace": "                if False:",
+      "find": "                if cur is None or held != lease.lease_id:",
+      "replace": "                if cur is None:",
       "rationale": "a task let again to the same worker identity is credited with the first attempt's result"
     },
     {
