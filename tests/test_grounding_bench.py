@@ -8,8 +8,8 @@ What is held here is that the benchmark measures what it says it measures:
 * each fault reaches the readers it is meant to reach, and no others;
 * each condition consults what its name says, and each ablation removes
   exactly one thing;
-* a run is deterministic, and the real-model condition is reported
-  NOT_RUN.
+* a run is deterministic, the committed results reproduce from the
+  committed code, and the real-model condition is reported NOT_RUN.
 
 Nothing here asserts that a condition reduces hallucination. That is the
 experiment's question -- docs/research/GROUNDING_BENCHMARK.md states it, the
@@ -44,6 +44,7 @@ from tools.grounding_bench.claims import (  # noqa: E402
 )
 
 PACKAGE = ROOT / "tools" / "grounding_bench"
+RESULTS = ROOT / "docs" / "research" / "grounding_bench_results.json"
 
 #: Beliefs are exactly the narrations, the attacker's included: an agent that
 #: misses nothing, corrupts nothing, believes everything, forgets nothing and
@@ -388,6 +389,21 @@ def test_long_horizons_are_opt_in(tmp_path, monkeypatch):
     doc = R.protocol(long=True, **quiet)
     assert doc["long_horizon"]["40"]["steps"] == 40
     assert "per_seed" not in doc["long_horizon"]["40"]
+
+
+def test_the_committed_results_reproduce_from_the_committed_code():
+    """One seed of the committed confirmatory run, re-run here, is the
+    committed record for that seed, exactly -- so the numbers in
+    docs/research/GROUNDING_BENCHMARK.md are this code's, and the annotations
+    added after the run (D-2026-160) changed nothing it computes."""
+    doc = json.loads(RESULTS.read_text())
+    conf = doc["confirmatory"]
+    seed = conf["per_seed"][0]
+    again = R.run_seed(seed["seed"], conf["steps"],
+                       conf["questions_per_seed"],
+                       A.ErrorModel(**conf["error_model"]),
+                       conf["fault_rate"])
+    assert json.loads(json.dumps(again)) == seed
 
 
 def test_the_benchmark_calls_nothing_outside_this_process():

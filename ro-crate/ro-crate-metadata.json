@@ -180,7 +180,7 @@
    "contentSize": "16132",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "ff78e4accdd2a8a70875d8b147a7b64f68a3091915cfa8a0eeae9e02dae30568"
+   "sha256": "ccdc5e18d341cc94b3be1845b673b3ce317d9d9b960fe8d02f23373fb87a11bb"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -204,7 +204,7 @@
    "contentSize": "2589",
    "description": "the repository content audit of the current tree",
    "name": "repo_content_audit.json",
-   "sha256": "6e830a52ec3d58aba5dda395d8602b0b1f79ab5c5bceeac4a4f570aa526bbc92"
+   "sha256": "b4fb9998251693ace1ca4cddf143b1cd79bfd2e3495a54c9e160e90fcee4d651"
   },
   {
    "@id": "docs/repository_inventory.json",

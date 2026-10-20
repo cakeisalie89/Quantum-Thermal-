@@ -195,3 +195,98 @@ stated bound).
 Nothing in the confirmatory run may change the code, the protocol or these
 hypotheses. A defect found in the run is recorded with the run, not fixed
 inside it.
+
+---
+
+## Results (added after the confirmatory run)
+
+The confirmatory and sensitivity runs used the code at `4008763`, the
+commit that fixed the protocol above. The numbers are in
+`docs/research/grounding_bench_results.json`, with how each part was
+produced. The only later change to the benchmark's code is type annotations
+(D-2026-160); `tests/test_grounding_bench.py` re-derives a committed seed
+from the current code and requires the identical record.
+
+**Everything below is about scripted agents under the stated error model.
+The real-model condition was not run (`NOT_RUN`).**
+
+### Confirmatory run: 30 seeds, 400 steps, 200 questions each
+
+| Condition | False-assertion rate [95% CI] | Over-refusal [95% CI] | Coverage | Precision |
+|---|---|---|---|---|
+| A (beliefs) | 0.400 [0.384, 0.416] | 0.023 [0.016, 0.029] | 0.837 | 0.522 |
+| B (memory) | 0.421 [0.403, 0.439] | 0.018 [0.014, 0.023] | 0.871 | 0.517 |
+| C (primary) | 0.394 [0.371, 0.416] | 0.021 [0.015, 0.028] | 0.827 | 0.525 |
+| C_fail_abstain | 0.006 [0.000, 0.017] | 0.967 [0.900, 1.000] | 0.015 | 0.633 |
+| D (reconstruction) | 0.126 [0.111, 0.140] | 0.000 | 0.528 | 0.760 |
+| **E (gated)** | **0.102 [0.087, 0.115]** | **0.000** | 0.477 | 0.786 |
+| E_no_evidence | 0.126 [0.111, 0.141] | 0.000 | 0.501 | 0.748 |
+| E_no_correct | 0.051 [0.043, 0.059] | 0.083 [0.069, 0.097] | 0.379 | 0.864 |
+| E_no_abstain | 0.403 [0.385, 0.421] | 0.000 | 0.852 | 0.527 |
+| **F (authenticated)** | **0.078 [0.066, 0.089]** | **0.000** | 0.453 | 0.828 |
+
+Pooled false-assertion rate on questions about faulted records:
+
+| Condition | forged | forged_valid | forged_signed | tampered | poisoned | unrecorded |
+|---|---|---|---|---|---|---|
+| A | 0.672 | 0.274 | 0.315 | 0.227 | 0.397 | 0.519 |
+| B | 0.691 | 0.253 | 0.252 | 0.057 | 0.603 | 0.551 |
+| D | 0.000 | 0.505 | 0.458 | 0.487 | 0.000 | 1.000 |
+| E | 0.000 | 0.505 | 0.458 | 0.000 | 0.000 | 1.000 |
+| F | 0.000 | **0.000** | 0.458 | 0.000 | 0.000 | 1.000 |
+
+Questions per fault, pooled over all seeds: 314, 285, 330, 300, 290 and 316.
+
+### The hypotheses
+
+Every interval is a paired, per-seed 95% bootstrap interval.
+
+| | Prediction | Observed | Verdict |
+|---|---|---|---|
+| H1 | E's false-assertion rate below A's | A−E = 0.298 [0.276, 0.321] | holds |
+| H2 | E's over-refusal ≤ 0.05 | 0.000 [0.000, 0.000] | holds; see the review on why it is close to true by construction |
+| H3 | removing correction raises over-refusal | E_no_correct−E = 0.083 [0.069, 0.097] | holds |
+| H4 | removing abstention raises false assertions | E_no_abstain−E = 0.301 [0.287, 0.316] | holds |
+| H5 | removing the evidence check raises false assertions | E_no_evidence−E = 0.024 [0.018, 0.031] | holds, and is small |
+| H6 | on `forged_valid`, E is no better than A | E 0.505 against A 0.274 | holds: E is WORSE |
+| H7 | F stops `forged_valid` and not `forged_signed` | F 0.000; F = E = 0.458 | holds |
+| H8 | on `unrecorded`, E is worse than A | E 1.000 against A 0.519 | holds: no leak from the oracle |
+
+All eight hold. What that does and does not establish is in
+`docs/research/GROUNDING_REVIEW.md`. Read it before quoting any number here.
+
+### Secondary and exploratory (not pre-registered as tests)
+
+- **E does not depend on the error model.** Across the six error-model
+  sensitivity runs (credulity 0 and 1, guess 0 and 0.6, window 50,
+  miss 0.3), E's false-assertion rate is 0.074 in every one, while A's
+  ranges from 0.311 to 0.504.
+  - E's answer is S's whenever S can vouch, whatever the agent believed.
+  - The measured benefit is therefore that of answering from the state
+    instead of the agent, not of filtering the agent's claims.
+  - Only the fault rate moves E: 0.093 at 0.01, and 0.041 at 0.2, where
+    more of the questions concern faulted records that E abstains on.
+- **Correction amplifies an accepted forgery.** On `forged_valid`, E's false
+  rate (0.505) is almost double A's (0.274). Where the agent's belief was
+  right and the forged state wrong, E "corrected" it. E_no_correct, which
+  abstains instead, is wrong 0.232 of the time there.
+- **One refused record withdraws the primary projection.** The primary
+  store refuses a whole history that contains one forged transition, by
+  design (fail-closed). C therefore falls back to beliefs in most worlds,
+  and C ≈ A. C_fail_abstain refuses 0.967 of the answerable questions.
+  This is an availability cost of failing closed, and nothing here
+  measures a way around it.
+- **Long horizons** (opt-in, 2 seeds each, so the intervals are wide):
+
+  | Steps | A | E | F | A's over-refusal | Wall time |
+  |---|---|---|---|---|---|
+  | 1000 | 0.315 | 0.092 | 0.065 | 0.275 | 44 s |
+  | 3000 | 0.305 | 0.073 | 0.060 | 0.447 | 145 s |
+  | 5000 | 0.287 | 0.105 | 0.080 | 0.538 | 232 s |
+  | 10000 | 0.328 | 0.083 | 0.060 | 0.553 | 530 s |
+
+  The agent forgets beyond its 400-step window, so A's refusals grow with
+  the horizon. B worsens with it (0.392 to 0.492), as more notes give
+  "latest wins" more to be wrong about. E and F stay in the range of the
+  confirmatory run. The wall times were measured with a test suite sharing
+  the host, and are indications only.

@@ -9216,6 +9216,27 @@ score. **17 of 17** killed, at the commit that fixed the protocol.
 entry. The confirmatory results and the adversarial review
 (`docs/research/GROUNDING_REVIEW.md`) are recorded with the run.
 
+
+**RESULTS** (recorded after the confirmatory run, which used the code at
+`4008763`). For scripted agents only; the real-model condition is
+`NOT_RUN`. All eight pre-registered hypotheses held.
+
+* E made fewer confident false statements than A: 0.102 against 0.400,
+  paired A−E = 0.298 [0.276, 0.321], with no over-refusal on answerable
+  questions. F, which adds authentication, made 0.078.
+* The three predicted failures happened:
+  * an accepted forgery: E was worse than A, 0.505 against 0.274, because E
+    "corrects" a right belief to the forged state;
+  * a compromised key: F was fooled exactly as E was, 0.458;
+  * an unrecorded change: E was wrong every time, against A's 0.519.
+* Exploratory: E's rate was the same (0.074) under every error-model
+  setting. What reduced false statements was answering from the state, not
+  checking the agent's own claims.
+
+`docs/research/GROUNDING_REVIEW.md` sets out what this does and does not
+support. `docs/research/grounding_bench_results.json` holds the numbers, and
+a committed seed re-derives from the code.
+
 ## D-2026-160 — what hosted CI found at 5e31ae0, which the local checks had not
 
 **CLASS** — `ISOLATION` and `PROCESS`: Tranche G. These are the first hosted
