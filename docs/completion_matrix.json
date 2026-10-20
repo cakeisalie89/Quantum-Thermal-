@@ -3142,12 +3142,12 @@
       "hosted_ci": "hosted runs 37997302565, 37997307170 at efaf08a, every job of the workflows as they then stood green; whether they cover this row's current implementation is derived from its implementation digest, not stated here",
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "39476512794",
+          "39476526706"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "182cb17cd3babaee1a23d3e662078e54413256a387902002b92ae7cdbbe268c3",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "7b6cfba224aad094fbe897c48e36ed7046be9ff4",
+        "implementation_sha256": "6de4ca241ad8115e080eb8cabd39327e72d7fb95a4d080b9cc9c165b7a23cb0b",
+        "note": "agent-substrate push 39476512794: 13 jobs succeeded; agent-substrate pull_request 39476526706: 13 jobs succeeded"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3199,13 +3199,13 @@
       "hosted_ci": "never run on a hosted runner at a commit carrying this row's implementation",
       "hosted_evidence": {
         "runs": [
-          "39354155533",
-          "39354155571",
-          "39354161849"
+          "39476512674",
+          "39476512794",
+          "39476526706"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "9abe34f2607c317ec2e159a1acda084756675d8a970f38c4e1abacd8c087e32d",
-        "note": "container-verify push 39354155533: 1 jobs succeeded; agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "7b6cfba224aad094fbe897c48e36ed7046be9ff4",
+        "implementation_sha256": "bcac8133bfb00cccdbbddf61983f5603844979e42603056bf84fa4d9b9860b98",
+        "note": "container-verify push 39476512674: 1 jobs succeeded; agent-substrate push 39476512794: 13 jobs succeeded; agent-substrate pull_request 39476526706: 13 jobs succeeded"
       },
       "residual_gaps": [],
       "boundaries": [

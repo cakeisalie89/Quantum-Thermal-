@@ -89,8 +89,8 @@
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 3733,
-      "sha256": "873910d241c79353c00aac9cdaed8c57f262184de9f2bd9a67f1cb91cb3146b6"
+      "size_bytes": 3500,
+      "sha256": "8a376e283d01177680e5f9c0a25b5a1e57415d5dbe8a713f4fa3fa0e2ce59eca"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -384,8 +384,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 517371,
-      "sha256": "f59c9551b4fb8e9f44c67816780f0cca8cb5d97bb538e8a8423f98a3a6dc30d8"
+      "size_bytes": 517881,
+      "sha256": "9d2532860539c73eb63bc8535ab4e9872a73eec8d0636ee51311aae2e69aac6b"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -395,12 +395,12 @@
     {
       "filename": "docs/completion_matrix.json",
       "size_bytes": 252414,
-      "sha256": "88da2fbb070ad9d975f0a4befe064b2abebf7bc1881991c12a39ac62dadb5ec5"
+      "sha256": "64a34b07ba59ba5c0ee74e8e8a7af9ec69d93d6aafcf18f9fc49be473beb3b54"
     },
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 4092,
-      "sha256": "b3cbf5c3902bbd530af409809c2ee74ae022a770b14bbcba7334270d551eed19"
+      "sha256": "83207411ee29211dfdca5947bc02d0411930793e561cbb18406e55db5830d342"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -419,8 +419,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 10548,
-      "sha256": "adf15901c12f7151d4d42daaf15a6cc90623518abdb10847d32740dbd29009e6"
+      "size_bytes": 10092,
+      "sha256": "a5e104e14d12307759183bf84d3bcae192dcfaafe2f2453ba704125575131144"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -700,7 +700,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "7ee7a3901aaeb5d58b3d0a476f610d5e98eab07b5a9bc124fb7196b9e5a79f14"
+      "sha256": "92a77691e62f78dc267218a487cc2072811d1513c2853ad51f8b1503efcccf39"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1359,8 +1359,8 @@
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 47652,
-      "sha256": "5afa6f6be9a4d568e2705008d01d67568a031171e3bd7c5699735335d910d60d"
+      "size_bytes": 47872,
+      "sha256": "fb9fa498d4b43c4dff565dbe8e9d99c93dbffa949f9fa07365ad2fde8357713e"
     },
     {
       "filename": "tests/test_confinement_probe.py",

@@ -9343,5 +9343,14 @@ now by `tools/readiness.py attach`, which re-checks each run against the API
 and digests the implementation from that commit's tree. Readiness counts 10
 rows HOSTED_TESTED. The verdict remains PRODUCTION_READINESS_CONTRACT_NOT_MET.
 
+**FOUND BY THE FULL SUITE BEFORE THE PUSH.** The Gate A commit (`0b9a622`)
+added tracked files, and new tracked files move the derived inventories
+that R70 and R71 name as implementation. The evidence-axis pin still said
+49 rows covered; it should have said 47, and
+`test_the_shipped_matrix_reports_its_evidence_axis_honestly` failed. `7b6cfba`
+moved it and said why. All 44 hosted check runs at `7b6cfba` succeeded, and
+the evidence commit after it attaches them to R70 and R71 and moves the pin
+back to 49.
+
 **NOT CLAIMED.** That any model can do anything in this system. That an
 IMPLEMENTED row is production-ready, scientifically valid or autonomous.

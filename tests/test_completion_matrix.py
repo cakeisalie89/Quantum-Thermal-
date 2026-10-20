@@ -898,7 +898,11 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: typed-file count) and R71 (the content audit) name as implementation.
 #: Their hosted evidence predates them until a later commit cites runs at
 #: the Gate A commit.
-EXPECTED_EVIDENCE_COVERS = 47
+#:
+#: 47 -> 49 in the evidence commit after 7b6cfba: all 44 hosted check runs
+#: at 7b6cfba succeeded, and R70 and R71 cite the runs of the workflows
+#: they cited before, now at the commit whose inventories they cover.
+EXPECTED_EVIDENCE_COVERS = 49
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

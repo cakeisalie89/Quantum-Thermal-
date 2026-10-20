@@ -2,7 +2,7 @@
 
 Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (evidence recomputed from implementation digests), the audits re-run, and the learned-model status, against the definition of done in `docs/harness_contract.json`. Not written by hand; `verify` fails if this file differs from what the inputs give.
 
-**Outcome: INCOMPLETE**
+**Outcome: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT**
 
 ## Required stack
 
@@ -22,7 +22,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 | python-scientific-core | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | rag-read-only | ADOPTED | R35 (COMPLETE, COVERS) | yes |
 | ro-crate | ADOPTED | R65 (COMPLETE, COVERS) | yes |
-| ruff-mypy-pydantic | ADOPTED | R70 (COMPLETE, PREDATES) | NO |
+| ruff-mypy-pydantic | ADOPTED | R70 (COMPLETE, COVERS) | yes |
 | salib | ADOPTED | R72 (COMPLETE, COVERS) | yes |
 | slsa-sigstore | ADOPTED | R65 (COMPLETE, COVERS) | yes |
 | snakemake | ADOPTED | R55 (COMPLETE, COVERS), R69 (COMPLETE, COVERS) | yes |
@@ -30,7 +30,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 ## Completion matrix
 
-49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 47, PREDATES_CURRENT_IMPLEMENTATION 2.
+49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 49.
 
 ## Audits
 
@@ -45,11 +45,9 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * flagship_not_allocated_or_trained: holds
 * flagship_architecture_as_declared: holds
 
-## Unsatisfied (3)
+## Unsatisfied (0)
 
-* stack ruff-mypy-pydantic: ADOPTED
-* row R70: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
-* row R71: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* none
 
 ## Outside this software-completion claim
 
