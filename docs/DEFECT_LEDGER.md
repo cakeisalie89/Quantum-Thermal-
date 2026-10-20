@@ -9289,6 +9289,11 @@ here, the active scope found 15 errors. None was a behaviour change:
   results re-derive from the code at the results commit
   (`test_the_committed_results_reproduce_from_the_committed_code`).
 
+**4. A mutation rationale too short to report.** The full suite before the
+push found it: GB17's rationale read "C_fail_abstain is C", 18 characters,
+and `test_every_mutation_states_why_it_matters` requires 20, so that a
+survivor's report says why it matters and not only its name. It now does.
+
 **PROCESS.** Every remaining step of the agent-substrate job, run locally at
 this commit, passes. That includes the confinement probe, the authority
 inventory, the workflow contract, the fuzzer and the type-check.

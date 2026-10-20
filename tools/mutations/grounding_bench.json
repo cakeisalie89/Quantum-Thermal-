@@ -122,7 +122,7 @@
       "path": "tools/grounding_bench/agents.py",
       "find": "            return (ABSTAIN if self.condition == \"C_fail_abstain\"\n                    else self.beliefs.claim(subject, predicate, at_step))",
       "replace": "            return self.beliefs.claim(subject, predicate, at_step)",
-      "rationale": "C_fail_abstain is C"
+      "rationale": "C_fail_abstain is C: when the primary refuses the history, the ablation answers from beliefs instead of abstaining, and measures nothing"
     }
   ]
 }

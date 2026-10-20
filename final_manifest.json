@@ -384,8 +384,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 514825,
-      "sha256": "53f5bf13775fef3c02d70b8620dfc2f0d98df570de652dcb7ce0e50f4fd5077b"
+      "size_bytes": 515121,
+      "sha256": "d7d3c6f756238fc9a36d23e62e5443832af820a701a01202f3189491581c8c40"
     },
     {
       "filename": "docs/claims_boundary.json",
@@ -400,7 +400,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 3948,
-      "sha256": "aa3ffe47b9b2afcccc83ad9381bcfd7302d18eeac3875e9c66da08c47ec9c4b1"
+      "sha256": "b4ee138ee746f11876acd111c505afca08f575835cb2fd9629b44fb84dd39f52"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -690,7 +690,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "185e3b6ffb8a51e9abdd185dc785a0bc7d296e60328719bb5b99d5ccc2aa5c23"
+      "sha256": "cd52702741f736f15269452bfd7c08d2aa838edd673275838ef6eb0f52a71fb9"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -2164,8 +2164,8 @@
     },
     {
       "filename": "tools/mutations/grounding_bench.json",
-      "size_bytes": 6989,
-      "sha256": "57fd747c51d4a68f08cf9e16e199ca967b95993b0b9ce35de8e16a73426e3e1a"
+      "size_bytes": 7106,
+      "sha256": "c5898b3aa3b61b85ba524e9e6d5d87b7c571f6128974731f536d9721af9ddde1"
     },
     {
       "filename": "tools/mutations/harness_demo.json",
