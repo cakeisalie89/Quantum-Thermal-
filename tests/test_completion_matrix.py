@@ -887,7 +887,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: namespace init now confine a tool's filesystem, which is the
 #: implementation of R21 and R23. Their hosted evidence predates them until
 #: a later commit cites runs at this one.
-EXPECTED_EVIDENCE_COVERS = 17
+#:
+#: 17 -> 49 in the evidence commit after 1586322: every one of the 44 hosted
+#: check runs at 1586322 succeeded, and the 32 rows above cite the runs of
+#: the workflows they cited before, now at the commit whose implementation
+#: they cover. No implementation file changes in that commit.
+EXPECTED_EVIDENCE_COVERS = 49
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

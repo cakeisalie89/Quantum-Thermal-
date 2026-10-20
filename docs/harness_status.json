@@ -21,7 +21,7 @@
   }
  },
  "derived_from": {
-  "docs/completion_matrix.json": "f71692a68b4102bc0652e7afbb6fb0cb99c2988366b84853cec7110e94a78267",
+  "docs/completion_matrix.json": "88da2fbb070ad9d975f0a4befe064b2abebf7bc1881991c12a39ac62dadb5ec5",
   "docs/harness_contract.json": "18e7d4ceecbd82facfe3ca711fe3298fe722afd49a4791fedb267830f523a94f",
   "docs/neural/claims.json": "2a68b01a96751124897e37a65ae0fb7b2ab2c9c480f85a764685dc99216ada87",
   "docs/neural/current_status.json": "a8916cc24d9b1d05fd8a9222a29e8c27321230e84d6063c7039f4df13526ae68",
@@ -50,12 +50,11 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 17,
-   "PREDATES_CURRENT_IMPLEMENTATION": 32
+   "COVERS_CURRENT_IMPLEMENTATION": 49
   },
   "rows": 49
  },
- "outcome": "INCOMPLETE",
+ "outcome": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
  "outside_this_software_completion": [
   {
    "class": "EXPERIMENTAL_SCIENCE",
@@ -125,18 +124,18 @@
    "rows": {
     "R40": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     },
     "R42": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "containers": {
@@ -266,12 +265,12 @@
    "rows": {
     "R66": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "pytest-hypothesis": {
@@ -287,12 +286,12 @@
     },
     "R51": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "python-scientific-core": {
@@ -347,12 +346,12 @@
    "rows": {
     "R70": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "salib": {
@@ -392,7 +391,7 @@
    "rows": {
     "R55": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     },
@@ -403,7 +402,7 @@
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "uv": {
@@ -422,228 +421,5 @@
    "status": "ADOPTED"
   }
  },
- "unsatisfied": [
-  {
-   "external": false,
-   "id": "authority-substrate",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "proposal-ingress",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "pytest-hypothesis",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "ruff-mypy-pydantic",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "snakemake",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "R21",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R22",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R23",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R24",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R25",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R26",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R27",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R28",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R29",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R30",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R31",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R32",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R33",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R36",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R37",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R38",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R39",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R40",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R42",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R46",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R47",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R48",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R49",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R51",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R52",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R53",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R54",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R55",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R58",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R66",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R70",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R71",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  }
- ]
+ "unsatisfied": []
 }

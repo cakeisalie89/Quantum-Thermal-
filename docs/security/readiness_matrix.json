@@ -143,7 +143,7 @@
   {
    "id": "CI-4",
    "capability": "every workflow on this branch holds no more than its stated authority; the agent's and the CI signer's identities cannot sign a release",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_ci_authority.py"
    ],
@@ -169,6 +169,15 @@
     ],
     "implementation_sha256": "663ec20b5e210f373844b3c3711fbf845a609dc562f148de9b88f433e815759e",
     "what": "agent-substrate: the workflow contract, with its authority rules and exit-capture rule, and tests/test_ci_authority.py in the full suite"
+   },
+   "hosted": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "657ba6f44e535cf4ca3911ed810956f2b8c61db08ab122df9f2279586e813913",
+    "what": "agent-substrate: the workflow contract, with its authority rules and exit-capture rule, and tests/test_ci_authority.py in the full suite"
    }
   },
   {
@@ -183,7 +192,7 @@
   {
    "id": "SUB-1",
    "capability": "authority-bearing writers decide under the writer lock against the history they append onto",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_agent_toctou.py",
     "tests/test_decided_appends.py"
@@ -206,6 +215,15 @@
      "39092568033"
     ],
     "implementation_sha256": "98056f22745c5e0bc52aa57fed788d92f2637cbc22000bc8866250460938e613",
+    "what": "agent-substrate: full suite and mutation shards"
+   },
+   "hosted": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "8164c761bf000d9c7112c531233d3edc0fed0de54c79bc739591897306aa11b7",
     "what": "agent-substrate: full suite and mutation shards"
    }
   },
@@ -241,7 +259,7 @@
   {
    "id": "SUB-3",
    "capability": "promotions bound to a policy published by a named authority, not withdrawn, not expired; restated by the second reader",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_policy_binding.py",
     "tests/test_scientific_authority_replay.py"
@@ -266,12 +284,21 @@
     ],
     "implementation_sha256": "ef07b3032b920413d20d3bb74552f70bf50c695485d945a0f662decd2163ece5",
     "what": "agent-substrate: full suite and mutation shards"
+   },
+   "hosted": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "5263950f050372f8bda9cd193d7af578c5e00523e41c0625623cca90253867b5",
+    "what": "agent-substrate: full suite and mutation shards"
    }
   },
   {
    "id": "SUB-4",
    "capability": "hostile Cases A-H refused end to end",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_hostile_composition.py"
    ],
@@ -294,6 +321,15 @@
     ],
     "implementation_sha256": "e41e344d84dfd6a1645e8077a84bace1c95c45fa4041ad6eb72edf58a8346506",
     "what": "agent-substrate: full suite"
+   },
+   "hosted": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "8b7ea80fee2e93c0169fdb7deb7394e11a10d62250e192a5d3e94a886aa6b477",
+    "what": "agent-substrate: full suite"
    }
   },
   {
@@ -310,7 +346,7 @@
   {
    "id": "RUN-1",
    "capability": "tool resource bounds: wall, CPU, address space, output, tasks, descriptors, environment",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_agent_execution.py",
     "tests/test_execution_containment.py"
@@ -332,6 +368,15 @@
     ],
     "implementation_sha256": "5a170fbb678c90b1a53247e0e0a338e353d406443a00782b3f802ed9747f2c2e",
     "what": "agent-substrate: full suite and mutation shards with HARNESS_ISOLATION_REQUIRED=1 on the runner"
+   },
+   "hosted": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "0be062c5e8faa22db3d4b66d672989787934f1f2b46b9b791e15b98247a8848c",
+    "what": "agent-substrate: full suite and mutation shards with HARNESS_ISOLATION_REQUIRED=1 on the runner, the confinement probe, and the agent suites on a second interpreter installed outside /usr"
    }
   },
   {
