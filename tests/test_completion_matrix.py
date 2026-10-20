@@ -892,7 +892,13 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: check runs at 1586322 succeeded, and the 32 rows above cite the runs of
 #: the workflows they cited before, now at the commit whose implementation
 #: they cover. No implementation file changes in that commit.
-EXPECTED_EVIDENCE_COVERS = 49
+#:
+#: 49 -> 47 with Tranche H Gate A (D-2026-161): its audit and validator are
+#: new tracked files, which move the derived inventories that R70 (the
+#: typed-file count) and R71 (the content audit) name as implementation.
+#: Their hosted evidence predates them until a later commit cites runs at
+#: the Gate A commit.
+EXPECTED_EVIDENCE_COVERS = 47
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

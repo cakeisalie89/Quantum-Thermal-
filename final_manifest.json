@@ -1359,8 +1359,8 @@
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 47333,
-      "sha256": "d3f807334720ac3c9788a4941c8464ab3af8fb9f6c3b6077edba55cfaaaa33b0"
+      "size_bytes": 47652,
+      "sha256": "5afa6f6be9a4d568e2705008d01d67568a031171e3bd7c5699735335d910d60d"
     },
     {
       "filename": "tests/test_confinement_probe.py",
