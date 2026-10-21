@@ -9354,3 +9354,66 @@ back to 49.
 
 **NOT CLAIMED.** That any model can do anything in this system. That an
 IMPLEMENTED row is production-ready, scientifically valid or autonomous.
+
+## D-2026-162 — a test that asserted nothing, two that asserted less than they said, and evidence words that said more than their checks
+
+**FOUND BY** the assurance programme's first step: reconcile, then repair
+security and test quality before building anything.
+
+**THE DEFAULT BRANCH, RE-OBSERVED (2026-10-21, read-only API).** Unchanged
+since the audit of 2026-10-17: `main` is `096fb90`, unprotected, with no
+rulesets; the ungated "Claude Code" workflow is active; and
+`tools/workflow_contract.py --ref origin/main` reports the same three
+problems. No agent run has started since 2026-09-11. CI-1 to CI-3 stay
+EXTERNALLY_BLOCKED, on the owner (O-1 to O-9). The re-observation is recorded
+in `docs/security/owner_actions.md`.
+
+**A VACUOUS ASSERTION.** `test_confidence_is_commentary_and_status_is_the_system_s`
+ended in `assert "confidence" not in ... if False else True`, which Python
+reads as `assert (... if False else True)`: always true. The test claimed to
+show that a memory's confidence cannot become the system's status, and
+showed only that a fresh entry is ACTIVE. Two mutations that make confidence
+matter survived it: one ranks a "certain" memory first in recall, and one
+spares a "certain" memory when its source is invalidated. The test now writes
+two entries identical but for confidence and requires identical status,
+recall score, refusal as evidence (the store and the authority gate both),
+trust assessment (`factually_established` NOT_ESTABLISHED for both) and
+invalidation. Both mutations are in `agent_memory_context.json` (Y21, Y22),
+and both are killed.
+
+**TWO WEAKER ONES.**
+
+* `test_a_handle_holds_no_value_of_its_own` checked that the secret was not
+  in the handle's slot NAMES, which cannot contain it. It now checks that the
+  handle has no instance dictionary, renders no value, holds none in any
+  slot, and has nothing to reveal once the store forgets the value.
+* A dead conditional (`object.__new__(Checkpoint) if False else other`) and a
+  trailing `assert True` were removed. Both tests already asserted what they
+  claimed.
+
+**SWEEP.** Every `except` handler in `agent_substrate/`, `scientific/`,
+`scientific_ai/` and the trust tools whose body only discards the error (66
+of them) was read in context. The four that catch `Exception` either fail
+closed (the egress composition check, a reuse lookup that skips an unreadable
+bundle) or are documented early-outs whose decision is retaken under the
+writer lock. No handler turns an error into permission. No environment
+variable or test-only branch bypasses a check in trust-critical code.
+
+**EVIDENCE TERMS.** Two names in the code said more than their checks did:
+`memory_trust`'s `evidence_supported`, which establishes that cited bytes
+verify, and the grounding benchmark's `SUPPORTED`, which establishes that the
+verified history records a state. `agent_substrate/evidence_terms.py` now
+names nine properties (citation exists, cited bytes verify, citation
+relevant, semantically supported, scientifically verified, decision
+authorized, current world, history intact, history records). It registers
+each check with the one property it establishes, what it requires and what it
+is mistaken for. The only implication is that verified bytes were cited.
+`tests/test_evidence_terms.py` holds the registry to the code and to
+`docs/EVIDENCE_TERMS.md`; `evidence_terms.json` has 7 mutations, all killed.
+The historical names are kept and pinned. No check in the repository
+establishes citation relevance, semantic support or the current state of the
+world, and the document says so.
+
+**NOT CLAIMED.** That the test suite has no other weak assertion: the sweep
+searched for the patterns above, and a weak test can take other forms. That
+the default branch is safe: it is not, and only the owner can change that.

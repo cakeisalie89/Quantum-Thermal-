@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 469,
+   "ADDED": 474,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 46,
-   "LOW": 171,
-   "MEDIUM": 259
+   "HIGH": 47,
+   "LOW": 172,
+   "MEDIUM": 262
   },
   "by_subsystem": {
-   "agent-substrate": 20,
+   "agent-substrate": 21,
    "ai-ingress": 3,
-   "assurance": 102,
+   "assurance": 103,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 28,
+   "evidence": 30,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 147,
+   "tests": 148,
    "tooling": 39,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 501
+  "files": 506
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -542,6 +542,7 @@
      "tests/test_confinement_probe.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
+     "tests/test_evidence_terms.py",
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py",
      "tests/test_generated_mutations.py",
@@ -1081,6 +1082,7 @@
      "tests/test_agent_substrate.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
+     "tests/test_evidence_terms.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
@@ -1099,6 +1101,23 @@
      "tests/test_second_reader_audit_actions.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "agent_substrate/evidence_terms.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/evidence_terms.json"
+    ],
+    "tests": [
+     "tests/test_evidence_terms.py"
     ]
    }
   },
@@ -1366,6 +1385,7 @@
      "tests/test_agent_toctou.py",
      "tests/test_authenticated_history.py",
      "tests/test_completion_matrix.py",
+     "tests/test_evidence_terms.py",
      "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
      "tests/test_refused_fold.py"
@@ -1387,6 +1407,8 @@
      "tools/mutations/memory_trust.json"
     ],
     "tests": [
+     "tests/test_agent_memory.py",
+     "tests/test_evidence_terms.py",
      "tests/test_memory_trust.py"
     ]
    }
@@ -2025,6 +2047,21 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/EVIDENCE_TERMS.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_evidence_terms.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/claims_boundary.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -2630,6 +2667,19 @@
   {
    "change": "ADDED",
    "path": "docs/tranche_h/GATE_A_AUDIT.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/tranche_h/PROGRESS.md",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -5524,6 +5574,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_evidence_terms.py",
+   "risk": "LOW",
+   "runtime_dependencies": [],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_execution_containment.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -6974,6 +7037,7 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
+     "tests/test_evidence_terms.py",
      "tests/test_grounding_bench.py"
     ]
    }
@@ -7011,6 +7075,7 @@
     "tests": [
      "tests/test_claim_hygiene.py",
      "tests/test_claims_boundary.py",
+     "tests/test_evidence_terms.py",
      "tests/test_grounding_bench.py"
     ]
    }
@@ -7798,6 +7863,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/enforcement_asserts.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/evidence_terms.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

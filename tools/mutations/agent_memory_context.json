@@ -425,6 +425,20 @@
       "find": "    if version < 2 and (any(i.summary_of is not None for i in items)",
       "replace": "    if False and (any(i.summary_of is not None for i in items)",
       "rationale": "the compatibility rule stops refusing what version 1 cannot prove"
+    },
+    {
+      "name": "Y21_confidence_raises_recall_rank",
+      "path": "agent_substrate/memory.py",
+      "find": "            scored.append((len(matched), e.memory_id, e))",
+      "replace": "            scored.append((len(matched) + (\"certain\" in e.confidence), e.memory_id, e))",
+      "rationale": "an author who calls their own memory certain gets it read first, so self-assessed confidence decides what reaches the next context"
+    },
+    {
+      "name": "Y22_confident_memory_survives_invalidation",
+      "path": "agent_substrate/memory.py",
+      "find": "            if entry is None or entry.status in NOT_CURRENT:",
+      "replace": "            if entry is None or entry.status in NOT_CURRENT or \"certain\" in entry.confidence:",
+      "rationale": "a memory its author was sure of stays current after its source is withdrawn, so confidence overrides the system's own invalidation"
     }
   ]
 }

@@ -902,7 +902,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 47 -> 49 in the evidence commit after 7b6cfba: all 44 hosted check runs
 #: at 7b6cfba succeeded, and R70 and R71 cite the runs of the workflows
 #: they cited before, now at the commit whose inventories they cover.
-EXPECTED_EVIDENCE_COVERS = 49
+#: 49 -> 45 in the commit that repaired the memory confidence test and
+#: added the evidence vocabulary (D-2026-162): a new module and a new
+#: mutation specification move the typing scope (R51), the mutation
+#: workflow (R58) and the derived inventories (R70, R71), so those rows'
+#: hosted evidence predates them until the evidence commit after it.
+EXPECTED_EVIDENCE_COVERS = 45
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

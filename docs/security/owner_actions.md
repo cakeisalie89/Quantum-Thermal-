@@ -39,6 +39,21 @@ At the audit (default branch `096fb90`), that command reported:
 | Environments | **UNVERIFIED**: the session's proxy refuses `environments` | — |
 | Installed app permissions | **UNVERIFIED**: not readable from this session | — |
 
+### Re-observed 2026-10-21 (read-only API): unchanged
+
+| Setting | Observed |
+|---|---|
+| Default branch | `096fb90`, `protected: false`, required status checks `enforcement_level: off` |
+| Rulesets | `[]` |
+| "Claude Code" workflow on the default branch | `active` |
+| `tools/workflow_contract.py --ref origin/main` | the same three problems as above |
+| Agent runs since the audit | none: the last `claude.yml` run was created 2026-09-11 |
+| Actions permissions, environments | **UNVERIFIED**: the session's proxy still refuses both paths |
+
+CI-1, CI-2 and CI-3 stay open and stay the owner's. Nothing on this branch can
+repair them: the gate in this branch's `claude.yml` takes effect only when the
+default branch carries it.
+
 ## Checklist
 
 Each item names what to do, where to do it, and how to confirm it. The order

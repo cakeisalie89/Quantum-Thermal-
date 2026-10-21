@@ -108,11 +108,50 @@ def test_an_entry_with_no_source_is_allowed_and_says_so(mem):
 
 
 def test_confidence_is_commentary_and_status_is_the_system_s(mem):
-    entry = _remember(mem, confidence="certain")
-    assert entry.status is MemoryStatus.ACTIVE
-    assert entry.confidence == "certain"
-    assert "confidence" not in MemoryEntry.__dataclass_fields__[
-        "status"].type.lower() if False else True
+    """Two entries that differ only in the author's confidence are treated
+    identically by everything the system decides.
+
+    The same status, the same recall score, the same response to an
+    invalidated source, the same refusal as evidence, and the same answer to
+    every trust question: ``factually_established`` is never YES, however
+    sure the author was.
+    """
+    from agent_substrate.memory_trust import NOT_ESTABLISHED, assess
+
+    dg = mem.evidence.put(b"the run both entries were drawn from")
+    sure = _remember(mem, "sure", confidence="certain; I verified it myself",
+                     derived_from=(dg,))
+    hunch = _remember(mem, "hunch", confidence="a guess", derived_from=(dg,))
+    assert sure.confidence != hunch.confidence
+    assert sure.status is hunch.status is MemoryStatus.ACTIVE
+    assert "confidence" not in str(MemoryEntry.__dataclass_fields__[
+        "status"].type).lower()
+
+    hits = {h.memory_id: h for h in mem.recall("coupling term negligible")}
+    assert hits["sure"].score == hits["hunch"].score > 0
+    assert hits["sure"].evidence_status == "REMEMBERED_TEXT_NOT_EVIDENCE"
+
+    for entry in (sure, hunch):
+        assert not mem.evidence.contains(entry.digest())
+        with pytest.raises(MemoryIsNotEvidence):
+            refuse_as_evidence(entry)
+        with pytest.raises(TransitionError, match="I6"):
+            check(TransitionRequest(
+                "r", State.UNDER_REVIEW, State.VERIFIED, "carol",
+                Role.VERIFIER, {"verification_report": entry.digest()},
+                proposer="alice"), resolve=mem.evidence.contains)
+
+    trust = {m: assess(mem.log, m, evidence=mem.evidence)
+             for m in ("sure", "hunch")}
+    assert ({k: a.value for k, a in trust["sure"].answers.items()}
+            == {k: a.value for k, a in trust["hunch"].answers.items()})
+    assert trust["sure"].answers["factually_established"].value \
+        == NOT_ESTABLISHED
+
+    moved = mem.invalidate_source(dg, actor="system", reason="rerun differed")
+    assert sorted(e.memory_id for e in moved) == ["hunch", "sure"]
+    assert mem.get("sure").status is mem.get("hunch").status \
+        is MemoryStatus.STALE
 
 
 def test_entries_survive_a_restart(tmp_path):

@@ -402,7 +402,7 @@ def test_a_checkpoint_from_another_canonical_form_is_refused(tmp_path):
         cp.state_digest, cp.created, cp.canonical_form_version + 1,
         cp.full_verification)
     with pytest.raises(CheckpointMismatch, match="canonical form"):
-        cp_mod.check_against(log, object.__new__(Checkpoint) if False else other)
+        cp_mod.check_against(log, other)
 
 
 def test_latest_usable_skips_a_checkpoint_that_does_not_fit_the_log(tmp_path):

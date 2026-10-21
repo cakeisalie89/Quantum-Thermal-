@@ -592,8 +592,8 @@ def test_the_executor_never_signals_its_own_process_group(env, tmp_path):
         if child.poll() is None:
             child.kill()
             child.wait()
-    # Reaching this line at all is the assertion: killpg would have killed us.
-    assert True
+    # Reaching this line is part of the assertion: killpg would have killed
+    # the test process along with the child.
 
 
 def test_the_task_limit_is_relative_to_what_the_user_already_uses(env):

@@ -26,7 +26,10 @@ the log, and says why:
     Every digest the entry cites resolves in the evidence store and still
     hashes to itself. An entry that cites nothing is NOT_ESTABLISHED; one
     citing a digest the store does not hold is NO -- a false citation reads
-    exactly like a true one to anybody who does not look it up.
+    exactly like a true one to anybody who does not look it up. The name is
+    historical and says more than the check: YES establishes that the cited
+    bytes verify (``evidence_terms.Property.CITED_BYTES_VERIFY``), not that
+    they concern the entry or support what it says.
 ``consistently_reconstructed``
     The primary projection and the independent reader agree on the entry,
     and neither refuses the history. Given a ``view`` -- a projection some

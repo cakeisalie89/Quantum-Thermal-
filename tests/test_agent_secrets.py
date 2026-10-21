@@ -331,10 +331,19 @@ def test_forget_zeroes_the_buffer_rather_than_only_dropping_it():
 
 
 def test_a_handle_holds_no_value_of_its_own(store):
+    """Nothing in the handle carries the characters: no instance dictionary
+    to hide them in, no slot holding them, and once the store forgets the
+    value the handle has nothing left to reveal."""
     secret = _resolve(store)
-    assert VALUE not in repr(vars(Secret) if False else secret.__slots__)
+    assert isinstance(secret, Secret)
+    assert not hasattr(secret, "__dict__"), (
+        "a handle with an instance dictionary can carry anything")
+    assert VALUE not in repr(secret) and VALUE not in str(secret)
     for slot in secret.__slots__:
         assert VALUE not in str(getattr(secret, slot, ""))
+    store.forget("api-token")
+    with pytest.raises(UnknownSecret):
+        secret.reveal()
 
 
 def test_registering_the_same_id_twice_is_refused(store):
