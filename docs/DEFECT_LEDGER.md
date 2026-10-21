@@ -9417,3 +9417,94 @@ world, and the document says so.
 **NOT CLAIMED.** That the test suite has no other weak assertion: the sweep
 searched for the patterns above, and a weak test can take other forms. That
 the default branch is safe: it is not, and only the owner can change that.
+
+## D-2026-163 — Gate B: a model call is reserved, bounded, recorded and reconstructable, and its answer is never authority
+
+**THE GAPS GATE A REPRODUCED, CLOSED OFFLINE.** R1: the adapter had no time,
+output, budget or token bound. R3: a rationale was kept by digest only. R5: a
+proposal's context bound retrieval only. R4 in part: there were no
+`inference.*` records. `agent_substrate/inference.py` is the gateway.
+
+* **Spending authority** (`inference.budget`) is issued by the log's root
+  issuer and nobody else, as minting is, and withdrawn by its issuer.
+* **A reservation** (`inference.reserve`) holds the request's worst case:
+  one token per prompt byte plus framing, the requested output tokens, and
+  their price. It is decided under the writer lock against every reservation
+  and settlement before it. A refusal is recorded too (budget, caller, model,
+  per-request bound, totals, rate window, attempts, unrecorded context, stale
+  policy).
+* **A dispatch** (`inference.dispatch`) is written BEFORE the request leaves,
+  so a crash is settled LOST at the reservation after it and NOT_SENT at no
+  cost before it. **A result** (`inference.result`) is written once per
+  attempt, at the cost the settlement rule gives. A provider's usage above
+  the reservation is flagged as an overrun, not trimmed.
+* **Recovery** settles an attempt only after its lease (timeout plus 30 s)
+  has run out. A result arriving after recovery is refused.
+* **Context**: a request names the recorded context manifest. The prompt is
+  canonical bytes that `prompt_problems` holds to that manifest item by item.
+  A context built under a policy that has since been superseded or withdrawn
+  is refused, CONTEXT_STALE, both when deciding and on replay.
+* **Responses** go to a transcript store at its own root. A response's digest
+  does not resolve in the evidence store, so the authority gate refuses it as
+  a verification report however it is worded. A body carrying anything
+  credential-shaped is refused and not stored. The provider's identity is
+  recorded under `claimed`.
+* **Proposals**: `proposal-envelope/2` carries an `inference` block, and only
+  the gateway's adapter may produce one. An ingress receives a /2 proposal
+  only if it was handed the gateway's `binding_problems` and they are empty:
+  the response the log recorded, asked by the agent that proposes, for the
+  context named. /1 proposals parse and are received as before.
+* **The process boundary**: `_inference_worker.py` runs under `python -I`
+  with an empty environment, reads the credential itself, and imports nothing
+  of the package. Its live mode refuses with EXTERNALLY_BLOCKED until the
+  owner decides OD-1.
+* **The second reader** restates every rule above
+  (`_sub_inference_*`), and the /2 binding, without importing the gateway.
+  The gateway's own replay refuses every forged record class tested, and the
+  second reader notes each one too. Coverage moves to 47 of 47 durable
+  actions.
+* **The third status system** (B6): `tools/model_evidence.py` derives
+  `docs/scientific_model_evidence.json`. Real-model evidence is NOT_RUN;
+  the fixture cycle is FIXTURE_ONLY; Tranche G is SCRIPTED_AGENT_EVIDENCE_ONLY;
+  formal checks and real-world measurement are NONE. No registry reads
+  another. A run bundle counts only with an OD-1 authorization, and then as
+  RECORDED_NOT_VERIFIED.
+
+**ACCEPTANCE** (`tests/test_gate_b_acceptance.py`): a fixture model's answer
+goes through the gateway, becomes a /2 proposal, is received, submitted as
+its agent, run, checked by another executor and decided by a reviewer. Then:
+the context is reconstructed exactly from the log and transcripts alone; one
+call was charged; a crash mid-call is recovered LOST and retried as attempt 2
+without double-spending; the model cannot decide its own result; nothing it
+said is cited by the decision; and both readers agree. Concurrency
+(`tests/test_inference_concurrency.py`): four processes against a seven-call
+budget are granted seven calls between them. Four processes asking one
+question call the provider once.
+
+**FOUND BY MUTATION.** `inference_gateway.json` has 41 mutations, all killed.
+Two survived on the first run, and both exposed tests that checked a message
+rather than an outcome. Remove the root check under the lock in
+`publish_budget`, or the issuer check in `withdraw_budget`, and the forged
+record is WRITTEN. The reducer's fold then raises the same message, so a test
+matching the message passes, and the history is left unloadable. Both tests
+now assert that nothing was written and the history still loads. Planning the
+spec also found two untested paths: a gate refusal of an attempt past the
+bound (the retry loop alone stopped it) and a replayed dispatch outside its
+lease. Both are tested now.
+
+**FOUND BY THE FULL SUITE BEFORE THE PUSH (the D-2026-162 commit).** That
+commit added `evidence_terms.py` without placing it in the declared layering
+or listing its test as an importer. It also changed files covered by five
+HOSTED_TESTED readiness rows (CI-4, SUB-2, SUB-3, SUB-4, RUN-1), whose
+evidence at `1586322` then predated them. Both are repaired in this commit.
+The layering places the three new modules. The five rows return to
+IMPLEMENTED, with their earlier hosted record kept as `hosted_before`, until
+hosted CI has run the code they cover. Neither commit was pushed in between.
+
+**NOT CLAIMED.** That any language model was called: none was, and
+real-model evidence is NOT_RUN. That the fixture's answers say anything about
+a model's behaviour. That the gateway's prices are real prices. That
+the process boundary is a sandbox: the worker runs with the gateway's user
+and no kernel confinement of its own, so isolating it is a deployment
+requirement (Assurance I). That provider-reported usage is true: it is the
+provider's claim, and the bound on exposure is the reservation.

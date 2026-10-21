@@ -56,6 +56,8 @@ rather than a web:
 | `_ns_init.py` | PID 1 of a tool's namespaces: runs the tool as an ordinary process, reports its exit or signal through a pipe, and its exit takes every process left in the namespace with it |
 | `checkpoint.py` | a cached verification result, never a second truth |
 | `proposals.py` | the AI proposal ingress: a proposal is a content-addressed envelope with a closed schema, received NON_AUTHORITATIVE (`proposal.receive`, idempotent by id) and submittable only as a governed model run whose result starts PROPOSED; it reads the log through `read_verified` and refuses what it cannot verify, and it can reach no authority of its own -- a proposer cannot even take its own claim into review (D-2026-105) |
+| `inference.py` | the inference gateway (Gate B): spending authority granted by the root issuer (`inference.budget`), and each model call reserved at its worst case under the writer lock (`inference.reserve`), dispatched inside its lease (`inference.dispatch`) and settled once at a rule-given cost (`inference.result`); a context built under a policy no longer in force is refused, the prompt is checked item by item against its recorded manifest, responses go to a transcript store that is never the evidence store, a provider's claimed identity is recorded as a claim, and a model's answer becomes a proposal only as a `proposal-envelope/2` that an ingress checks against the record; it holds no credential |
+| `_inference_worker.py` | the provider side of the gateway's process boundary: a standalone script, run under `python -I` with an empty environment, that alone reads the provider credential from a file root outside the repository; its live mode refuses until the owner chooses a provider (OD-1) |
 | `policy.py` | versioned rule documents, deny-overrides, dated decisions |
 | `secrets.py` | references that travel, values that do not, redaction at the surface |
 | `netauth.py` | egress as a bounded grant; default deny, label-wise hosts |
@@ -68,6 +70,7 @@ rather than a web:
 | `scheduler.py` | the durable queue: readiness, leases, retry, cancellation |
 | `memory.py` | what the agent remembers, kept structurally apart from evidence |
 | `memory_trust.py` | six questions about a remembered statement, answered separately: does the chain hold, did a key vouch for its writer, does a policy govern it, does its evidence resolve, do two readers agree, is it a fact (never, for a memory) |
+| `evidence_terms.py` | the evidence vocabulary: nine properties a check can establish (a citation exists, its bytes verify, it is relevant, it supports the claim, a result passed its verification, a decision was authorized, a claim holds of the world now, a history is intact, a history records a state) and, for each registered check, the one it establishes and what it is mistaken for; it decides nothing and imports nothing internal (D-2026-162) |
 | `context.py` | what the agent was shown, recorded apart from what is true |
 | `agents.py` | several agents, role separation, and a human that cannot be simulated |
 | `audit.py` | turning the log into answers, and finding provenance holes |

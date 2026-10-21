@@ -11,7 +11,9 @@ refuse each way one goes stale or vacuous:
 * an owner decision that is not defined;
 * an EXTERNALLY_BLOCKED row that names no one who could unblock it;
 * a reproduced gap the audit does not show;
-* a summary table that no longer counts what the matrix says.
+* a summary table that no longer counts what the matrix says;
+* a ``progress`` record -- what a later gate changed, beside the Gate A
+  state it does not overwrite -- held to the same rules as the state.
 """
 from __future__ import annotations
 
@@ -93,3 +95,23 @@ def test_the_audit_counts_what_the_matrix_says():
         assert re.search(rf"^\| {state} \| {n} \|", audit, re.MULTILINE), (
             f"the audit does not say {n} rows are {state}")
     assert f"{sum(counts.values())} rows" in audit
+
+
+def test_progress_is_held_to_the_same_rules_as_the_audit():
+    """A row a later gate moved keeps its Gate A ``state`` (the audit counts
+    it) and records the move in ``progress``, with the code, tests and
+    mutation specifications that justify it."""
+    doc = _doc()
+    for r in doc["rows"]:
+        pr = r.get("progress")
+        if pr is None:
+            continue
+        assert pr["state"] in doc["states"], (r["id"], pr["state"])
+        cited = pr["modules"] + pr["tests"] + pr["mutation_specs"]
+        missing = [p for p in cited if not (ROOT / p).exists()]
+        assert not missing, f"{r['id']} progress cites {missing}"
+        if pr["state"] == "IMPLEMENTED":
+            assert pr["modules"] and pr["tests"] and pr["mutation_specs"], (
+                f"{r['id']} is IMPLEMENTED in progress and names no code, "
+                "test or mutation specification")
+        assert len(pr.get("note", "")) >= 40, f"{r['id']}: progress says why"

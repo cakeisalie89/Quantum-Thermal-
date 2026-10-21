@@ -98,6 +98,13 @@ OWNERS: dict = {
     # agent_substrate.proposals -- a proposal received at the ingress: input,
     # NON_AUTHORITATIVE, recorded before anything runs
     "proposal.receive": "proposals",
+    # agent_substrate.inference -- Gate B: spending authority granted by the
+    # root issuer, and each model call reserved at its worst case, dispatched
+    # inside its lease, and settled once. A response is input, never evidence.
+    "inference.budget": "inference",
+    "inference.reserve": "inference",
+    "inference.dispatch": "inference",
+    "inference.result": "inference",
     # agent_substrate.events -- the security profile a history is written
     # under, declared by its first event and enforced by the read primitives
     # themselves; every reducer meets it at seq 0 and passes it by (D-2026-92)

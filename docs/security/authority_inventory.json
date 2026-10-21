@@ -397,6 +397,46 @@
       "mode": "DECIDED",
       "class": "DECISION",
       "why": "a record's authority move: VERIFIED, PROMOTED, REVOKED"
+    },
+    {
+      "module": "inference.py",
+      "function": "InferenceGateway.publish_budget",
+      "action": "ACT_BUDGET",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "grants spending authority; only the root issuer, and an id issued twice must carry one set of terms"
+    },
+    {
+      "module": "inference.py",
+      "function": "InferenceGateway.withdraw_budget",
+      "action": "ACT_BUDGET",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "withdraws spending authority; only its issuer, once"
+    },
+    {
+      "module": "inference.py",
+      "function": "InferenceGateway._reserve",
+      "action": "ACT_RESERVE",
+      "mode": "DECIDED",
+      "class": "USE",
+      "why": "holds a worst-case cost against a budget; two processes deciding outside the lock would spend past it between them"
+    },
+    {
+      "module": "inference.py",
+      "function": "InferenceGateway._dispatch",
+      "action": "ACT_DISPATCH",
+      "mode": "DECIDED",
+      "class": "USE",
+      "why": "spends a reservation; one dispatch per attempt, inside its lease, never after a settlement"
+    },
+    {
+      "module": "inference.py",
+      "function": "InferenceGateway._settle",
+      "action": "ACT_RESULT",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "settles an attempt once; a gateway and recovery racing to settle it would otherwise both write"
     }
   ]
 }

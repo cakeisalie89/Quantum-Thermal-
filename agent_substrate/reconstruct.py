@@ -1337,6 +1337,17 @@ class SubsystemReconstruction:
     #: but it is the record of what an AI asked for, and an investigation
     #: reads it -- so it is read twice, under rules restated here.
     proposals: dict = field(default_factory=dict)
+    #: manifest digest -> ``{"seq", "policy_identity"}`` of the first
+    #: context.build whose stated digest is its manifest's (Gate B). A model
+    #: call names one of these, and one that names none is a call nobody can
+    #: reconstruct.
+    context_manifests: dict = field(default_factory=dict)
+    #: budget_id -> spending authority as this reader rebuilt it: issuer,
+    #: terms, withdrawal, and what is held against it.
+    inference_budgets: dict = field(default_factory=dict)
+    #: (request_id, attempt) -> one granted attempt: what it reserved, its
+    #: lease, its dispatch and its settlement.
+    inference_attempts: dict = field(default_factory=dict)
     #: claim_id -> what one instance asserted about one subject.
     #:
     #: Claims are the input to conflict resolution, so a claim attributable
@@ -1549,6 +1560,14 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_context(ev, p, out)
         elif a == "proposal.receive":
             _sub_proposal(ev, p, out)
+        elif a == "inference.budget":
+            _sub_inference_budget(ev, p, out)
+        elif a == "inference.reserve":
+            _sub_inference_reserve(ev, p, out)
+        elif a == "inference.dispatch":
+            _sub_inference_dispatch(ev, p, out)
+        elif a == "inference.result":
+            _sub_inference_result(ev, p, out)
         prev = (ev.seq, ev.hash)
     return out
 
@@ -2098,7 +2117,8 @@ def _sub_policy_publish(ev, p: dict, out) -> None:
                        f"{versions[-1]['version']!r}")
         return
     versions.append({"version": version, "digest": p.get("policy_digest"),
-                     "effective_seq": ev.seq})
+                     "effective_seq": ev.seq,
+                     "not_after": doc.get("not_after")})
 
 
 def _sub_policy_withdraw(ev, p: dict, out) -> None:
@@ -2948,6 +2968,17 @@ def _sub_context(ev, p: dict, out) -> None:
         else None
     out.contexts.setdefault(task or ev.target, []).append(
         {"digest": digest_, "seq": ev.seq})
+    # Indexed by digest only where the digest is the manifest's own, so a
+    # record that states one digest and carries another cannot be cited.
+    if isinstance(manifest, dict):
+        try:
+            own = _sci_json_digest(manifest)
+        except (TypeError, ValueError):
+            return
+        if own == digest_:
+            out.context_manifests.setdefault(own, {
+                "seq": ev.seq,
+                "policy_identity": manifest.get("policy_identity")})
 
 
 #: The proposal envelope, restated rather than imported from
@@ -2962,6 +2993,8 @@ _PROP_FIELDS = frozenset({
 _PROP_KINDS = frozenset({"MODEL_RUN", "SIMULATION_PLAN", "RETRY",
                          "DIAGNOSTIC", "CODE_PATCH"})
 _PROP_AUTHORITY = "NON_AUTHORITATIVE"
+#: A proposal a model produced through the inference gateway.
+_PROP_SCHEMA_V2 = "proposal-envelope/2"
 _PROP_FORBIDDEN = frozenset({
     "state", "status", "verdict", "verified", "promoted", "approved",
     "decision", "transition", "signature", "signed", "evidence",
@@ -2985,11 +3018,15 @@ def _sub_proposal(ev, p: dict, out) -> None:
     if not isinstance(env, dict):
         _note(out, ev, "proposal.receive carries no envelope")
         return
-    if set(env) != _PROP_FIELDS:
+    want_fields = (_PROP_FIELDS | {"inference"}
+                   if env.get("schema") == _PROP_SCHEMA_V2 else _PROP_FIELDS)
+    if set(env) != want_fields:
         _note(out, ev, f"proposal envelope fields differ: unknown "
-                       f"{sorted(set(env) - _PROP_FIELDS)}, missing "
-                       f"{sorted(_PROP_FIELDS - set(env))}")
+                       f"{sorted(set(env) - want_fields)}, missing "
+                       f"{sorted(want_fields - set(env))}")
         return
+    if env.get("schema") == _PROP_SCHEMA_V2:
+        _sub_proposal_inference(ev, env, out)
     if env.get("authority") != _PROP_AUTHORITY:
         _note(out, ev, f"a proposal claiming authority "
                        f"{env.get('authority')!r}")
@@ -3030,6 +3067,333 @@ def _sub_proposal(ev, p: dict, out) -> None:
     out.proposals.setdefault(pid, {"digest": whole,
                                    "agent_id": env.get("agent_id"),
                                    "kind": env.get("kind")})
+
+
+def _sub_proposal_inference(ev, env: dict, out) -> None:
+    """A /2 proposal names the inference it came from. Restated: that
+    attempt was granted, settled OK on this log before the receipt, with the
+    response the proposal names, for the context it names, at the request of
+    the agent that proposes. What the response SAID is in the transcript
+    store, which this reader does not hold; the ingress checked it."""
+    inf = env.get("inference")
+    src = env.get("source")
+    if not isinstance(src, dict) or src.get("adapter") != "inference-gateway":
+        _note(out, ev, "a /2 proposal not from the inference gateway")
+    if not isinstance(inf, dict):
+        _note(out, ev, "a /2 proposal names no inference")
+        return
+    n = inf.get("attempt")
+    att = (out.inference_attempts.get((inf.get("request_id"), n))
+           if isinstance(n, int) and not isinstance(n, bool) else None)
+    if att is None:
+        _note(out, ev, f"a proposal names inference {inf.get('request_id')!r}"
+                       f" attempt {n!r}, which this log never granted")
+        return
+    res = att.get("result")
+    if res is None or res.get("outcome") != "OK":
+        _note(out, ev, "a proposal names an inference that did not end OK")
+        return
+    if res.get("response_sha256") != inf.get("response_sha256"):
+        _note(out, ev, "a proposal names a response its inference did not "
+                       "record")
+    req = att["request"]
+    if req.get("context_manifest_digest") != \
+            inf.get("context_manifest_digest"):
+        _note(out, ev, "a proposal names another context than its inference")
+    if req.get("caller") != env.get("agent_id"):
+        _note(out, ev, f"{env.get('agent_id')!r} proposes what "
+                       f"{req.get('caller')!r} asked a model")
+
+
+# ---------------------------------------------------------------------------
+# THE INFERENCE GATEWAY, READ A SECOND TIME (Gate B).
+#
+# Spending authority and model calls, restated rather than imported from
+# agent_substrate.inference. The budget is the root issuer's to grant. A
+# reservation is the request's WORST case, within every total and the rate
+# window, for a recorded context whose policy is still the newest in force.
+# A dispatch falls inside its lease. Each attempt is settled once, at the
+# cost the settlement rule gives. Where the gateway and this reader disagree,
+# the disagreement is the finding.
+# ---------------------------------------------------------------------------
+
+_INF_FRAMING_TOKENS = 256
+_INF_LEASE_GRACE_S = 30.0
+_INF_REFUSALS = frozenset({
+    "BUDGET_UNKNOWN", "BUDGET_WITHDRAWN", "CALLER_NOT_ALLOWED",
+    "MODEL_NOT_ALLOWED", "OVER_REQUEST_LIMIT", "BUDGET_EXHAUSTED",
+    "RATE_LIMITED", "ATTEMPTS_EXHAUSTED", "CONTEXT_UNKNOWN",
+    "CONTEXT_STALE"})
+_INF_OUTCOMES = frozenset({"OK", "SCHEMA_REFUSED", "OUTPUT_TOO_LARGE",
+                           "PROVIDER_ERROR", "TIMEOUT", "RATE_LIMITED",
+                           "CANCELLED", "NOT_SENT", "LOST"})
+#: outcomes that say the request left, and the one that says it did not
+_INF_SENT = frozenset({"OK", "SCHEMA_REFUSED", "OUTPUT_TOO_LARGE",
+                       "PROVIDER_ERROR", "TIMEOUT", "RATE_LIMITED", "LOST"})
+_INF_RECOVERY = frozenset({"NOT_SENT", "LOST"})
+_INF_REQUEST_FIELDS = frozenset({
+    "schema", "budget_id", "caller", "purpose", "model", "prompt_sha256",
+    "prompt_bytes", "context_manifest_digest", "max_output_tokens",
+    "max_output_bytes", "timeout_s", "max_attempts", "idempotency_key",
+    "response_schema"})
+
+
+def _inf_int(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def _inf_cost(prices: dict, model, tin: int, tout: int) -> int:
+    pr = prices.get(model) or {}
+    total = tin * pr.get("input", 0) + tout * pr.get("output", 0)
+    return -(-total // 1_000_000)
+
+
+def _sub_inference_budget(ev, p: dict, out) -> None:
+    if p.get("withdraw"):
+        bid = p.get("budget_id")
+        cur = out.inference_budgets.get(bid)
+        if cur is None:
+            _note(out, ev, f"inference budget {bid!r} withdrawn, never "
+                           "issued")
+        elif ev.actor != cur["issued_by"]:
+            _note(out, ev, f"{ev.actor!r} withdraws inference budget {bid!r}"
+                           f", which {cur['issued_by']!r} issued")
+        elif cur["withdrawn_seq"] is None:
+            cur["withdrawn_seq"] = ev.seq
+        return
+    body = p.get("budget")
+    if not isinstance(body, dict) or body.get("schema") != \
+            "inference-budget/1":
+        _note(out, ev, "inference.budget carries no budget")
+        return
+    try:
+        whole = _sci_json_digest(body)
+    except (TypeError, ValueError):
+        _note(out, ev, "an inference budget that is not canonical JSON")
+        return
+    if p.get("budget_digest") != whole:
+        _note(out, ev, "an inference budget whose stated digest is not its "
+                       "own")
+        return
+    if out.root_issuer is None or ev.actor != out.root_issuer:
+        _note(out, ev, f"{ev.actor!r} grants spending, and the root issuer "
+                       f"is {out.root_issuer!r}")
+        return
+    bid = body.get("budget_id")
+    prior = out.inference_budgets.get(bid)
+    if prior is not None:
+        if prior["digest"] != whole:
+            _note(out, ev, f"inference budget {bid!r} re-issued with other "
+                           "terms")
+        return
+    out.inference_budgets[bid] = {
+        "issued_by": ev.actor, "digest": whole, "body": body,
+        "withdrawn_seq": None, "calls": 0, "cost": 0, "in": 0, "out": 0,
+        "times": []}
+
+
+def _inf_policy_current(identity, out, wall: float) -> bool:
+    """Is ``identity`` (``policy_id@version``) the newest version of its
+    policy, published, not withdrawn and not expired at ``wall``?"""
+    if not isinstance(identity, str) or "@" not in identity:
+        return False
+    pid, _, ver = identity.rpartition("@")
+    versions = out.policies.get(pid) or []
+    owner = out.policy_owners.get(pid) or {}
+    if not versions or owner.get("withdrawn_seq") is not None:
+        return False
+    newest = versions[-1]
+    expiry = newest.get("not_after")
+    if expiry is not None and wall > expiry:
+        return False
+    return str(newest.get("version")) == ver
+
+
+def _inf_grant_problem(req: dict, attempt: int, wall: float, out) -> str:
+    """Why the budget would refuse this attempt, or ''."""
+    b = out.inference_budgets.get(req.get("budget_id"))
+    if b is None:
+        return "no such budget"
+    if b["withdrawn_seq"] is not None:
+        return "a withdrawn budget"
+    body = b["body"]
+    lim, per = body.get("limits") or {}, body.get("per_request") or {}
+    if req.get("caller") not in (body.get("callers") or ()):
+        return "a caller the budget does not name"
+    if req.get("model") not in (body.get("models") or ()):
+        return "a model the budget does not cover"
+    for k, cap in (("prompt_bytes", "max_input_bytes"),
+                   ("max_output_tokens", "max_output_tokens"),
+                   ("max_output_bytes", "max_output_bytes"),
+                   ("timeout_s", "timeout_s"),
+                   ("max_attempts", "max_attempts")):
+        if not _inf_int(req.get(k)) or req[k] > per.get(cap, -1):
+            return f"{k} over the per-request bound"
+    ctx = out.context_manifests.get(req.get("context_manifest_digest"))
+    if ctx is None:
+        return "a context no context.build on this log records"
+    if not _inf_policy_current(ctx.get("policy_identity"), out, wall):
+        return "a context built under a policy no longer in force"
+    if attempt > req["max_attempts"]:
+        return "more attempts than the request allows"
+    tin = req["prompt_bytes"] + _INF_FRAMING_TOKENS
+    tout = req["max_output_tokens"]
+    cost = _inf_cost(body.get("prices") or {}, req.get("model"), tin, tout)
+    for held, add, cap in ((b["calls"], 1, lim.get("max_calls", -1)),
+                           (b["cost"], cost, lim.get("max_cost_micro", -1)),
+                           (b["in"], tin, lim.get("max_input_tokens", -1)),
+                           (b["out"], tout, lim.get("max_output_tokens", -1))):
+        if held + add > cap:
+            return "over the budget's totals"
+    window = lim.get("window_s", 0)
+    if sum(1 for t in b["times"] if t > wall - window) >= \
+            lim.get("max_calls_per_window", 0):
+        return "over the budget's rate window"
+    return ""
+
+
+def _sub_inference_reserve(ev, p: dict, out) -> None:
+    req = p.get("request")
+    if not isinstance(req, dict) or set(req) != _INF_REQUEST_FIELDS or \
+            req.get("schema") != "inference-request/1":
+        _note(out, ev, "an inference reservation carrying no request")
+        return
+    try:
+        rid = "infer-" + _sci_json_digest(req)
+    except (TypeError, ValueError):
+        _note(out, ev, "an inference request that is not canonical JSON")
+        return
+    if p.get("request_id") != rid or ev.target != rid:
+        _note(out, ev, "an inference reservation filed under another id")
+        return
+    if ev.actor == req.get("caller"):
+        _note(out, ev, f"{ev.actor!r} reserved spending for its own request")
+        return
+    mine = [a for (r, _), a in out.inference_attempts.items() if r == rid]
+    nxt = 1 + max((a["attempt"] for a in mine), default=0)
+    n = p.get("attempt")
+    if not _inf_int(n) or n != nxt:
+        _note(out, ev, f"inference attempt {n!r} where {nxt} is next")
+        return
+    if not p.get("granted"):
+        if p.get("refusal") not in _INF_REFUSALS:
+            _note(out, ev, f"inference refusal {p.get('refusal')!r} is not "
+                           "one the gateway gives")
+        return
+    if any(a["result"] is None or a["result"].get("outcome") == "OK"
+           for a in mine):
+        _note(out, ev, f"{rid} reserved again while an attempt is open or "
+                       "after it was answered")
+        return
+    why = _inf_grant_problem(req, n, ev.wall_time, out)
+    if why:
+        _note(out, ev, f"a granted inference reservation the budget "
+                       f"refuses: {why}")
+        return
+    b = out.inference_budgets[req["budget_id"]]
+    tin = req["prompt_bytes"] + _INF_FRAMING_TOKENS
+    tout = req["max_output_tokens"]
+    cost = _inf_cost(b["body"].get("prices") or {}, req.get("model"),
+                     tin, tout)
+    if p.get("reserved") != {"input_tokens": tin, "output_tokens": tout,
+                             "cost_micro": cost}:
+        _note(out, ev, "an inference reservation for less than its worst "
+                       "case")
+        return
+    lease = ev.wall_time + req["timeout_s"] + _INF_LEASE_GRACE_S
+    if p.get("lease_until") != lease:
+        _note(out, ev, "an inference lease that is not the timeout and "
+                       "grace past its reservation")
+        return
+    out.inference_attempts[(rid, n)] = {
+        "attempt": n, "actor": ev.actor, "request": req, "in": tin,
+        "out": tout, "cost": cost, "lease_until": lease,
+        "dispatch_seq": None, "result": None}
+    b["calls"] += 1
+    b["cost"] += cost
+    b["in"] += tin
+    b["out"] += tout
+    b["times"].append(ev.wall_time)
+
+
+def _inf_attempt(ev, p: dict, out):
+    n = p.get("attempt")
+    att = (out.inference_attempts.get((p.get("request_id"), n))
+           if _inf_int(n) else None)
+    if att is None:
+        _note(out, ev, f"{ev.action} for an attempt no reservation granted")
+        return None
+    if ev.actor != att["actor"]:
+        _note(out, ev, f"{ev.actor!r} acts on an inference attempt "
+                       f"{att['actor']!r} reserved")
+        return None
+    return att
+
+
+def _sub_inference_dispatch(ev, p: dict, out) -> None:
+    att = _inf_attempt(ev, p, out)
+    if att is None:
+        return
+    if att["dispatch_seq"] is not None or att["result"] is not None:
+        _note(out, ev, "an inference attempt dispatched twice or after its "
+                       "result")
+        return
+    if ev.wall_time + att["request"]["timeout_s"] > att["lease_until"]:
+        _note(out, ev, "an inference dispatch outside its lease")
+        return
+    att["dispatch_seq"] = ev.seq
+
+
+def _sub_inference_result(ev, p: dict, out) -> None:
+    att = _inf_attempt(ev, p, out)
+    if att is None:
+        return
+    if att["result"] is not None:
+        _note(out, ev, "an inference attempt settled twice")
+        return
+    outcome = p.get("outcome")
+    sent = att["dispatch_seq"] is not None
+    if outcome not in _INF_OUTCOMES:
+        _note(out, ev, f"inference outcome {outcome!r}")
+        return
+    if p.get("dispatched") is not sent or (outcome in _INF_SENT
+                                           and not sent) or \
+            (outcome == "NOT_SENT" and sent):
+        _note(out, ev, f"an inference {outcome} that the dispatch record "
+                       "contradicts")
+        return
+    if outcome in _INF_RECOVERY and ev.wall_time <= att["lease_until"]:
+        _note(out, ev, f"inference {outcome} written inside the lease")
+        return
+    usage = p.get("usage")
+    good_usage = (isinstance(usage, dict)
+                  and set(usage) == {"input_tokens", "output_tokens"}
+                  and all(_inf_int(v) and v >= 0 for v in usage.values()))
+    if outcome == "OK" and (not good_usage or not isinstance(
+            p.get("response_sha256"), str)):
+        _note(out, ev, "an OK inference without usage or a response")
+        return
+    req = att["request"]
+    b = out.inference_budgets[req["budget_id"]]
+    if not sent:
+        cost, tin, tout, over = 0, 0, 0, False
+    elif outcome == "OK" and isinstance(usage, dict):
+        tin, tout = usage["input_tokens"], usage["output_tokens"]
+        cost = _inf_cost(b["body"].get("prices") or {}, req.get("model"),
+                         tin, tout)
+        over = cost > att["cost"] or tin > att["in"] or tout > att["out"]
+    else:
+        cost, tin, tout, over = att["cost"], att["in"], att["out"], False
+    if p.get("cost_micro") != cost or p.get("overrun") is not over:
+        _note(out, ev, f"an inference settled at {p.get('cost_micro')!r} "
+                       f"where the rule gives {cost}")
+        return
+    b["cost"] += cost - att["cost"]
+    b["in"] += tin - att["in"]
+    b["out"] += tout - att["out"]
+    att["result"] = {"outcome": outcome,
+                     "response_sha256": p.get("response_sha256"),
+                     "cost": cost}
 
 
 def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:

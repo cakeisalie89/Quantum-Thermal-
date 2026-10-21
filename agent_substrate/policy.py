@@ -811,6 +811,14 @@ class PolicyStore:
                     "the rules do not produce did not come from them.")
 
     # ---- reads ---------------------------------------------------------
+    def at_head(self) -> "PolicyStore":
+        """This store, folded through whatever other writers appended since
+        it last read. For a caller deciding under the writer lock -- the
+        inference gateway asking whether a context's policy is still the one
+        in force at the head its reservation is written onto."""
+        self._fold_new()
+        return self
+
     def in_force(self, policy_id: str, *,
                  at_time: float | None = None) -> PolicyDocument:
         """The newest published version of ``policy_id``, if it still

@@ -94,7 +94,22 @@
    ],
    "owner_decision": null,
    "gate": "B",
-   "reproduced_gap": "R1, R8"
+   "reproduced_gap": "R1, R8",
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "B",
+    "modules": [
+     "agent_substrate/inference.py",
+     "agent_substrate/_inference_worker.py"
+    ],
+    "tests": [
+     "tests/test_inference_gateway.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "every model call now goes through the gateway: a wall clock, an output bound, bounded attempts and a process boundary for live providers. The live adapter itself is EXTERNALLY_BLOCKED on OD-1."
+   }
   },
   {
    "id": "CAP-03",
@@ -126,7 +141,25 @@
    ],
    "owner_decision": null,
    "gate": "B",
-   "reproduced_gap": "R1, R4"
+   "reproduced_gap": "R1, R4",
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "B",
+    "modules": [
+     "agent_substrate/inference.py",
+     "agent_substrate/reconstruct.py"
+    ],
+    "tests": [
+     "tests/test_inference_gateway.py",
+     "tests/test_inference_second_reader.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_gate_b_acceptance.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "typed requests and results, a failure taxonomy, reservation, dispatch and settlement under the writer lock, recovery by lease, and an independent second reading. Offline only: the provider is a fixture."
+   }
   },
   {
    "id": "CAP-04",
@@ -259,7 +292,23 @@
    ],
    "owner_decision": null,
    "gate": "B",
-   "reproduced_gap": "R5"
+   "reproduced_gap": "R5",
+   "progress": {
+    "state": "PARTIAL",
+    "gate": "B",
+    "modules": [
+     "agent_substrate/inference.py",
+     "agent_substrate/proposals.py"
+    ],
+    "tests": [
+     "tests/test_inference_gateway.py",
+     "tests/test_gate_b_acceptance.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "a model call binds the recorded context manifest, the prompt is checked against it, and a context under a superseded or withdrawn policy is refused (CONTEXT_STALE). An authority DECISION does not yet carry a justification record; that is Assurance D."
+   }
   },
   {
    "id": "CAP-08",
@@ -1335,7 +1384,22 @@
    ],
    "owner_decision": "OD-1",
    "gate": "B",
-   "reproduced_gap": null
+   "reproduced_gap": null,
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "B",
+    "modules": [
+     "agent_substrate/inference.py"
+    ],
+    "tests": [
+     "tests/test_inference_gateway.py",
+     "tests/test_inference_concurrency.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "worst-case token and cost reservation, conservative settlement, per-window rate limits, all decided under the writer lock and re-checked on replay. Prices are the budget's; real prices need OD-1."
+   }
   },
   {
    "id": "CAP-40",
@@ -1396,7 +1460,21 @@
    ],
    "owner_decision": null,
    "gate": "B",
-   "reproduced_gap": null
+   "reproduced_gap": null,
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "B",
+    "modules": [
+     "tools/model_evidence.py"
+    ],
+    "tests": [
+     "tests/test_model_evidence.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "docs/scientific_model_evidence.json: real-model evidence NOT_RUN. No registry reads another."
+   }
   }
  ]
 }

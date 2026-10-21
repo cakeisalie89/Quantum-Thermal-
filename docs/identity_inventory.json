@@ -722,6 +722,76 @@
       "note": "Independently reconstructed: _sub_proposal restates the envelope's closed field set, its one authority value, its content-addressed id, the receipt digest and the authority-bearing keys a proposal may not carry, without importing the ingress.",
       "authority_changing": false,
       "authority_note": "A proposal permits nothing. A MODEL_RUN proposal reaches the authority store only as a governed submission by its agent (a PROPOSER), under the same policy, capability, independent check and separate reviewer as any other; the receipt is the record of what was asked, read by an investigation, which is why it has a second reader."
+    },
+    {
+      "action": "inference.budget",
+      "module": "inference.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "budget.callers",
+          "role": "SUBJECT",
+          "note": "the agents the budget may be spent for; the ISSUER is ev.actor, which must be the log's root issuer, re-checked on replay by both readers"
+        },
+        {
+          "name": "budget.provider",
+          "role": "SUBJECT",
+          "note": "the provider the budget pays; a name, never an identity checked here"
+        }
+      ],
+      "note": "Gate B. Independently reconstructed: _sub_inference_budget restates who may grant spending (the root issuer), the digest, re-issue and withdrawal rules, without importing the gateway.",
+      "authority_changing": true,
+      "authority_note": "Grants spending authority: without a budget in force no reservation is granted, so no model is called."
+    },
+    {
+      "action": "inference.dispatch",
+      "module": "inference.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "request id, attempt and the reservation's position"
+        }
+      ],
+      "note": "Gate B. Independently reconstructed: _sub_inference_dispatch requires a granted reservation by the same actor and a dispatch inside its lease.",
+      "authority_changing": true,
+      "authority_note": "Decides what an attempt costs if its gateway dies: LOST at the reservation after a dispatch, NOT_SENT at nothing before one."
+    },
+    {
+      "action": "inference.reserve",
+      "module": "inference.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "request.caller",
+          "role": "SUBJECT",
+          "note": "the agent asking; it may not be ev.actor, because a caller asks and the gateway decides (both readers refuse a self-reservation)"
+        }
+      ],
+      "note": "Gate B. Independently reconstructed: _sub_inference_reserve restates the worst-case amounts, the totals, the rate window, the recorded context, the policy freshness and the attempt order.",
+      "authority_changing": true,
+      "authority_note": "Spends budget: a granted reservation is what permits a dispatch, and it holds its worst-case cost against every later reservation."
+    },
+    {
+      "action": "inference.result",
+      "module": "inference.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "claimed.provider",
+          "role": "SUBJECT",
+          "note": "what the PROVIDER claims it is; recorded, never checked, never read as authority"
+        },
+        {
+          "name": "claimed.model",
+          "role": "SUBJECT",
+          "note": "what the provider claims answered; recorded, never checked, never read as authority"
+        }
+      ],
+      "note": "Gate B. Independently reconstructed: _sub_inference_result restates the one-settlement rule, the dispatch consistency, the recovery lease and the cost the settlement rule gives.",
+      "authority_changing": true,
+      "authority_note": "Settles the cost held against a budget, and an OK result is what a /2 proposal must cite to be received."
     }
   ]
 }

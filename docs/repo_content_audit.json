@@ -34,7 +34,7 @@
   }
  },
  "by_area": {
-  "AGENT_SUBSTRATE": 43,
+  "AGENT_SUBSTRATE": 45,
   "CONTAINER": 3,
   "DOCUMENTATION": 26,
   "HOSTED_CI": 6,
@@ -44,14 +44,14 @@
   "NEURAL_INFRASTRUCTURE": 27,
   "PACKAGING": 3,
   "PROVENANCE": 5,
-  "REGISTRY_OR_DERIVED_STATUS": 22,
+  "REGISTRY_OR_DERIVED_STATUS": 23,
   "REPOSITORY_CONFIGURATION": 1,
   "SCIENTIFIC_COMPUTING": 36,
-  "SOFTWARE_ASSURANCE": 149,
-  "TESTS": 149,
+  "SOFTWARE_ASSURANCE": 151,
+  "TESTS": 154,
   "WORKFLOW": 1
  },
- "files": 506,
+ "files": 516,
  "finding_counts": {},
  "findings": [],
  "label": "The current tree read for retired content. Zero findings is the transformation's acceptance condition for repository content; it says nothing about scientific correctness.",

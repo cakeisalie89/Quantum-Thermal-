@@ -2,11 +2,11 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "191d03b8e8703bbf124b4b4eef5564159107ba6823c9752bb52d865516a6be2f",
+  "entries_digest": "eeafe12eb2d87afafb0cea31601fa117c5418771406ac47d87ade6abd53af9af",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "1aac66f149bc9be2162051c0501714850d7040b5c856b2a4692e7daef4637e77"
+      "sha256": "40c1e9655ec7fa2d896c2c247008e0481f47338ed7b9e58359c2ae294e7f5887"
     },
     {
       "path": "ARCHITECTURE.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "c8fa08b14ae83d623253cc5b771ec2500b83f4456cfdf7e9de592fd7a36e22d1"
+      "sha256": "2c10e5b5d72153f552bb2b4f82f78ec74aad9dbbf1063373a1b1b24714eb02ef"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -78,11 +78,11 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "a8e20253c5012b21c83d66ac317d470c9cff267955ca91e0c458d588632972c3"
+      "sha256": "4ac7774d97ffc6d31edecf2a969b87dd2de206ce7c2684c3038bdf795a5a4c9b"
     },
     {
       "path": "docs/EVIDENCE_TERMS.md",
-      "sha256": "82ee6333e618a546fd5e607868c7392bc4ee6e3cc6220eb2e990d8cab2131944"
+      "sha256": "b17768013bfa53ee0911545dad22daa8428415c8b20a261539043df0a037362d"
     },
     {
       "path": "docs/research/GROUNDING_BENCHMARK.md",
@@ -106,7 +106,7 @@
     },
     {
       "path": "docs/tranche_h/PROGRESS.md",
-      "sha256": "bb74c0d87642b5bb2f46878f5bf7fd6516b7c1ed5ff90977b08e64fad38b80b2"
+      "sha256": "99a03825afd145df4941981e1a3ea63a6c8ccfe56038086f1a1e1963dd41ce47"
     },
     {
       "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",

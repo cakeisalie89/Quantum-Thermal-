@@ -143,7 +143,7 @@
   {
    "id": "CI-4",
    "capability": "every workflow on this branch holds no more than its stated authority; the agent's and the CI signer's identities cannot sign a release",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_ci_authority.py"
    ],
@@ -151,7 +151,7 @@
     "tools/mutations/ci_authority.json"
    ],
    "ledger": "D-2026-146",
-   "note": "hosted evidence at 40440ce predates this implementation: the agent-substrate workflow gained the deployment-evidence step (D-2026-155); re-attached only from a hosted run of the new implementation",
+   "note": "hosted evidence at 40440ce predates this implementation: the agent-substrate workflow gained the deployment-evidence step (D-2026-155); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "tools/workflow_contract.py",
     ".github/workflows/agent-substrate.yml",
@@ -170,7 +170,7 @@
     "implementation_sha256": "663ec20b5e210f373844b3c3711fbf845a609dc562f148de9b88f433e815759e",
     "what": "agent-substrate: the workflow contract, with its authority rules and exit-capture rule, and tests/test_ci_authority.py in the full suite"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -230,7 +230,7 @@
   {
    "id": "SUB-2",
    "capability": "every other authority writer decides under the writer lock against the history it appends onto -- capability, egress and secret writers, the execution record, the compensation authorization, governed reads -- and no projection resumes past a record it refused",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_t2_closure.py",
     "tests/test_refused_fold.py",
@@ -243,7 +243,7 @@
     "tools/mutations/authority_inventory.json"
    ],
    "ledger": "D-2026-156",
-   "note": "finding T-2 FIXED; every durable write is classified and measured by tools/authority_inventory.py, which CI runs. Hosted at 1586322; attached in Tranche H Gate A, having been missed in the Tranche G evidence commit (D-2026-161).",
+   "note": "finding T-2 FIXED; every durable write is classified and measured by tools/authority_inventory.py, which CI runs. Hosted at 1586322; attached in Tranche H Gate A, having been missed in the Tranche G evidence commit (D-2026-161). Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "agent_substrate/events.py",
     "agent_substrate/capability.py",
@@ -255,7 +255,7 @@
     "tools/authority_inventory.py",
     "docs/security/authority_inventory.json"
    ],
-   "hosted": {
+   "hosted_before": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -268,7 +268,7 @@
   {
    "id": "SUB-3",
    "capability": "promotions bound to a policy published by a named authority, not withdrawn, not expired; restated by the second reader",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_policy_binding.py",
     "tests/test_scientific_authority_replay.py"
@@ -277,7 +277,7 @@
     "tools/mutations/policy_binding.json"
    ],
    "ledger": "D-2026-148",
-   "note": "the governed path declares the binding; an unbound history does not have it; the governed path refuses a history whose binding names any other authority (D-2026-151); hosted evidence at 40440ce predates this implementation: D-2026-156 changed the policy store and authority store folds and the second reader; re-attached only from a hosted run of the new implementation",
+   "note": "the governed path declares the binding; an unbound history does not have it; the governed path refuses a history whose binding names any other authority (D-2026-151); hosted evidence at 40440ce predates this implementation: D-2026-156 changed the policy store and authority store folds and the second reader; re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "agent_substrate/policy.py",
     "agent_substrate/store.py",
@@ -294,7 +294,7 @@
     "implementation_sha256": "ef07b3032b920413d20d3bb74552f70bf50c695485d945a0f662decd2163ece5",
     "what": "agent-substrate: full suite and mutation shards"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -307,13 +307,13 @@
   {
    "id": "SUB-4",
    "capability": "hostile Cases A-H refused end to end",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_hostile_composition.py"
    ],
    "mutation_specs": [],
    "ledger": "D-2026-150",
-   "note": "each case through the real components with a control; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the agent directory, policy and store folds and the second reader; re-attached only from a hosted run of the new implementation",
+   "note": "each case through the real components with a control; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the agent directory, policy and store folds and the second reader; re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "agent_substrate/store.py",
     "agent_substrate/reconstruct.py",
@@ -331,7 +331,7 @@
     "implementation_sha256": "e41e344d84dfd6a1645e8077a84bace1c95c45fa4041ad6eb72edf58a8346506",
     "what": "agent-substrate: full suite"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -355,7 +355,7 @@
   {
    "id": "RUN-1",
    "capability": "tool resource bounds: wall, CPU, address space, output, tasks, descriptors, environment",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_agent_execution.py",
     "tests/test_execution_containment.py"
@@ -364,7 +364,7 @@
     "tools/mutations/execution_containment.json"
    ],
    "ledger": "D-2026-149",
-   "note": "rlimits apply on every host; hosted evidence at 40440ce predates this implementation: D-2026-157 changed the executor and its namespace init (filesystem confinement); re-attached only from a hosted run of the new implementation",
+   "note": "rlimits apply on every host; hosted evidence at 40440ce predates this implementation: D-2026-157 changed the executor and its namespace init (filesystem confinement); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "agent_substrate/execution.py",
     "agent_substrate/_ns_init.py"
@@ -378,7 +378,7 @@
     "implementation_sha256": "5a170fbb678c90b1a53247e0e0a338e353d406443a00782b3f802ed9747f2c2e",
     "what": "agent-substrate: full suite and mutation shards with HARNESS_ISOLATION_REQUIRED=1 on the runner"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",

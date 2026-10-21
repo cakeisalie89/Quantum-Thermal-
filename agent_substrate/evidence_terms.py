@@ -159,6 +159,19 @@ CHECKS: tuple = (
           "a result bundle and its verification report satisfy the named "
           "admission policy", (P.CURRENT_WORLD, P.SEMANTICALLY_SUPPORTED),
           (P.CITED_BYTES_VERIFY,)),
+    Check("agent_substrate.inference:prompt_problems",
+          P.CITED_BYTES_VERIFY, S.DETERMINISTIC,
+          "every item a prompt shows re-hashes to the content digest the "
+          "recorded context manifest gives it, in the manifest's order",
+          (P.CITATION_RELEVANT, P.SEMANTICALLY_SUPPORTED)),
+    Check("agent_substrate.inference:InferenceGateway.binding_problems",
+          P.HISTORY_RECORDS, S.DETERMINISTIC,
+          "a /2 proposal is what the recorded inference's response said, "
+          "asked by the agent that proposes it, for the context it names. "
+          "That the model's answer is right is not part of it",
+          (P.SEMANTICALLY_SUPPORTED, P.SCIENTIFICALLY_VERIFIED,
+           P.CURRENT_WORLD),
+          (P.CITED_BYTES_VERIFY,)),
     Check("tools.grounding_bench.claims:verify",
           P.HISTORY_RECORDS, S.DETERMINISTIC,
           "a structured claim matches the state reconstructed from the "

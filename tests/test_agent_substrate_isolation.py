@@ -138,6 +138,13 @@ ALLOWED_IMPORTERS = {
     "tests/test_refused_fold.py",
     "tests/test_t2_governed.py",
     "tests/test_decided_under_lock.py",
+    # D-2026-162: the evidence vocabulary, held to the checks it registers.
+    "tests/test_evidence_terms.py",
+    # Gate B: the inference gateway and its second reading.
+    "tests/test_inference_gateway.py",
+    "tests/test_inference_concurrency.py",
+    "tests/test_inference_second_reader.py",
+    "tests/test_gate_b_acceptance.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.
@@ -212,6 +219,10 @@ LAYERS = ("canonical", "projection", "hostid",
           # PID 1 of a tool's namespaces: a standalone script run by path,
           # importing nothing of the package (D-2026-149).
           "_ns_init",
+          # Gate B: the provider side of the inference gateway's process
+          # boundary. A standalone script run by path under -I with an empty
+          # environment; it imports nothing of the package.
+          "_inference_worker",
           "safeio", "actions", "events",
           "evidence",
           # Actor authentication: the signature primitive, the provider
@@ -258,7 +269,15 @@ LAYERS = ("canonical", "projection", "hostid",
           # log it records receipts on and the governed runs it submits
           # through, so nothing below can reach it and it can reach no
           # authority of its own.
-          "proposals")
+          "proposals",
+          # Gate B: the inference gateway. Above proposals, whose envelope it
+          # extends to /2, and above policy and context, whose records it
+          # reads; nothing below can reach it, and it holds no credential.
+          "inference",
+          # D-2026-162: the evidence vocabulary. Imports nothing internal and
+          # names the checks it registers by string, so it is placed last:
+          # nothing in the package needs it to decide anything.
+          "evidence_terms")
 
 #: The ONLY modules permitted to reach into the scientific tree, and the only
 #: thing they may reach for.
@@ -730,6 +749,14 @@ IO_LAYER = {
     # may read is what a reviewed commit declared.
     "rag_index": "the reviewed corpus, confined by the committed "
                  "allowlist and its digests",
+    # Gate B. The worker on the far side of the gateway's process boundary
+    # reads the provider credential from the file provider root its operator
+    # names (O_NOFOLLOW, a bounded regular file) and the reply fixture its
+    # caller names. It is a standalone script with no log, no grant and no
+    # package import; reading the credential is what it exists to do, so
+    # that nothing else does.
+    "_inference_worker": "the provider credential and the reply fixture, "
+                         "on the far side of the gateway's process boundary",
 }
 
 _READ_CALLS = {"read_text", "read_bytes"}

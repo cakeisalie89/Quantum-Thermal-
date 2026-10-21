@@ -6,7 +6,7 @@
   },
   "repository_content": {
    "committed_report_current": true,
-   "files": 506,
+   "files": 516,
    "findings": 0,
    "ok": true
   },
@@ -21,7 +21,7 @@
   }
  },
  "derived_from": {
-  "docs/completion_matrix.json": "8a61a443eb5d7c755e73b100ded989b1c3d13caf7cdeae3fa5cfa4b67007b43c",
+  "docs/completion_matrix.json": "b2cc35ddd6fe01b1f5a1cd757fbeb45192fa8d8e4920c715452278628c27c12e",
   "docs/harness_contract.json": "18e7d4ceecbd82facfe3ca711fe3298fe722afd49a4791fedb267830f523a94f",
   "docs/neural/claims.json": "2a68b01a96751124897e37a65ae0fb7b2ab2c9c480f85a764685dc99216ada87",
   "docs/neural/current_status.json": "a8916cc24d9b1d05fd8a9222a29e8c27321230e84d6063c7039f4df13526ae68",
@@ -50,8 +50,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 45,
-   "PREDATES_CURRENT_IMPLEMENTATION": 4
+   "COVERS_CURRENT_IMPLEMENTATION": 37,
+   "PREDATES_CURRENT_IMPLEMENTATION": 12
   },
   "rows": 49
  },
@@ -131,12 +131,12 @@
     },
     "R42": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "containers": {
@@ -266,12 +266,12 @@
    "rows": {
     "R66": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "pytest-hypothesis": {
@@ -425,6 +425,18 @@
  "unsatisfied": [
   {
    "external": false,
+   "id": "authority-substrate",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "proposal-ingress",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
    "id": "pytest-hypothesis",
    "kind": "stack",
    "status": "ADOPTED"
@@ -437,13 +449,61 @@
   },
   {
    "external": false,
+   "id": "R29",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R30",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R38",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R42",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R47",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R48",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
    "id": "R51",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },
   {
    "external": false,
+   "id": "R53",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
    "id": "R58",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R66",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },

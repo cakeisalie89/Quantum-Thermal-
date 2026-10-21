@@ -55,6 +55,10 @@ from .canonical import canonical_bytes, digest
 from .events import EventLogError, projection_fold
 
 SCHEMA = "proposal-envelope/1"
+#: A proposal a model produced through the inference gateway: /1's fields and
+#: an ``inference`` block naming the record it came from. Received only by an
+#: ingress that is handed a check of that record, which is refused otherwise.
+SCHEMA_V2 = "proposal-envelope/2"
 ACT_PROPOSAL_RECEIVE = "proposal.receive"
 AUTHORITY = "NON_AUTHORITATIVE"
 EVIDENCE_STATUS = "RETRIEVED_TEXT_NOT_EVIDENCE"
@@ -66,7 +70,9 @@ MAX_RECORD_BYTES = 64 * 1024
 MAX_DEPTH = 8
 
 KINDS = ("MODEL_RUN", "SIMULATION_PLAN", "RETRY", "DIAGNOSTIC", "CODE_PATCH")
-ADAPTERS = ("recorded-fixture", "external-client")
+ADAPTERS = ("recorded-fixture", "external-client", "inference-gateway")
+#: The adapter whose proposals are /2, and the only one.
+GATEWAY_ADAPTER = "inference-gateway"
 #: request keys, per kind: closed sets. Nothing here names an output
 #: location, a state, a verdict or a signature.
 REQUEST_KEYS = {
@@ -83,6 +89,10 @@ SOURCE_KEYS = {"adapter", "provider", "model"}
 CONTEXT_KEYS = {"digest", "retrieved"}
 CITATION_KEYS = {"path", "line_start", "line_end", "source_sha256"}
 CREATED_KEYS = {"adapter_version", "input_digest"}
+FIELDS_V2 = FIELDS + ("inference",)
+INFERENCE_KEYS = {"request_id", "attempt", "response_sha256",
+                  "context_manifest_digest"}
+_REQUEST_ID = re.compile(r"\Ainfer-[0-9a-f]{64}\Z")
 #: words that, as a KEY anywhere in a proposal, would be a claim about
 #: authority or about where an output goes. Refused wherever they appear.
 FORBIDDEN_KEYS = frozenset({
@@ -230,9 +240,11 @@ class ProposalEnvelope:
         if size > MAX_RECORD_BYTES:
             raise ProposalRefused(f"{size} bytes exceeds {MAX_RECORD_BYTES}")
         _walk(rec, "proposal")
-        _exact(rec, FIELDS, "proposal")
-        if rec["schema"] != SCHEMA:
-            raise ProposalRefused(f"schema {rec['schema']!r} is not {SCHEMA}")
+        schema = rec.get("schema")
+        if schema not in (SCHEMA, SCHEMA_V2):
+            raise ProposalRefused(f"schema {schema!r} is not {SCHEMA} or "
+                                  f"{SCHEMA_V2}")
+        _exact(rec, FIELDS if schema == SCHEMA else FIELDS_V2, "proposal")
         if rec["authority"] != AUTHORITY:
             raise ProposalRefused(f"authority must be {AUTHORITY}: a "
                                   "proposal is never authoritative")
@@ -246,6 +258,23 @@ class ProposalEnvelope:
         if src["adapter"] not in ADAPTERS:
             raise ProposalRefused(f"source.adapter {src['adapter']!r} is "
                                   f"not one of {ADAPTERS}")
+        if (src["adapter"] == GATEWAY_ADAPTER) != (schema == SCHEMA_V2):
+            raise ProposalRefused(
+                f"a {schema} proposal from adapter {src['adapter']!r}: only "
+                "the inference gateway's proposals are /2, and all of them")
+        if schema == SCHEMA_V2:
+            inf = _exact(rec["inference"], INFERENCE_KEYS, "inference")
+            if not isinstance(inf["request_id"], str) or \
+                    not _REQUEST_ID.match(inf["request_id"]):
+                raise ProposalRefused("inference.request_id is not a "
+                                      "request id")
+            n = inf["attempt"]
+            if isinstance(n, bool) or not isinstance(n, int) or \
+                    not 1 <= n <= 1000:
+                raise ProposalRefused("inference.attempt: 1..1000")
+            for k in ("response_sha256", "context_manifest_digest"):
+                if not isinstance(inf[k], str) or not _DIGEST.match(inf[k]):
+                    raise ProposalRefused(f"inference.{k} is not a digest")
         for k in ("provider", "model"):
             if src[k] is not None and (not isinstance(src[k], str)
                                        or not _NAME.match(src[k])):
@@ -371,6 +400,20 @@ def envelope(response, *, context: dict, agent_id: str, adapter,
              parent_proposal_id: str | None = None,
              iteration: int = 0) -> dict:
     """A sealed envelope from one untrusted response and its context."""
+    sealed = seal(envelope_record(
+        response, context=context, agent_id=agent_id,
+        adapter_name=adapter.name, adapter_version=adapter.version,
+        parent_proposal_id=parent_proposal_id, iteration=iteration))
+    ProposalEnvelope.parse(sealed)
+    return sealed
+
+
+def envelope_record(response, *, context: dict, agent_id: str,
+                    adapter_name: str, adapter_version: str,
+                    parent_proposal_id: str | None = None,
+                    iteration: int = 0) -> dict:
+    """The unsealed /1 record for one response: what :func:`envelope` seals,
+    and what the inference gateway extends to /2."""
     if not isinstance(response, dict) or set(response) != RESPONSE_KEYS:
         raise ProposalRefused(
             f"a response has exactly {sorted(RESPONSE_KEYS)}")
@@ -379,7 +422,7 @@ def envelope(response, *, context: dict, agent_id: str, adapter,
         raise ProposalRefused("rationale: text, at most 20000 characters")
     _walk(response, "response")
     rec = {"schema": SCHEMA, "kind": response["kind"], "agent_id": agent_id,
-           "source": {"adapter": adapter.name,
+           "source": {"adapter": adapter_name,
                       "provider": response["provider"],
                       "model": response["model"]},
            "context": {"digest": context["digest"],
@@ -388,14 +431,12 @@ def envelope(response, *, context: dict, agent_id: str, adapter,
            "rationale_sha256": digest(rationale),
            "parent_proposal_id": parent_proposal_id,
            "iteration": iteration,
-           "created_by": {"adapter_version": f"{adapter.name}-"
-                                             f"{adapter.version}",
+           "created_by": {"adapter_version": f"{adapter_name}-"
+                                             f"{adapter_version}",
                           "input_digest": digest({"context": context[
                               "digest"], "response": response})},
            "authority": AUTHORITY}
-    sealed = seal(rec)
-    ProposalEnvelope.parse(sealed)
-    return sealed
+    return rec
 
 
 # ---------------------------------------------------------------- context
@@ -488,9 +529,16 @@ class ProposalIngress:
     """Receives proposals into the log and submits them to governance."""
 
     def __init__(self, log, *, actor: str = INGRESS_ID,
-                 source_digest: Callable[[str], str | None] | None = None):
+                 source_digest: Callable[[str], str | None] | None = None,
+                 inference_check: Callable[["ProposalEnvelope"], list]
+                 | None = None):
         self.log = log
         self.actor = actor
+        #: For a /2 proposal: the problems with its claim to be what a
+        #: recorded inference said (the gateway's ``binding_problems``). An
+        #: ingress without one receives no /2 proposal at all, because a
+        #: provenance claim nobody checks is the forgery's best disguise.
+        self.inference_check = inference_check
         #: path -> the SHA-256 of the reviewed source now, or None. Used to
         #: refuse a proposal citing a span whose source has changed.
         self.source_digest = source_digest
@@ -536,6 +584,16 @@ class ProposalIngress:
         if env.agent_id == self.actor:
             raise ProposalRefused("a proposing agent cannot be the ingress "
                                   "that receives it")
+        if env.record["schema"] == SCHEMA_V2:
+            if self.inference_check is None:
+                raise ProposalRefused(
+                    "a proposal claiming an inference record is received "
+                    "only by an ingress that can check the record")
+            problems = self.inference_check(env)
+            if problems:
+                raise ProposalRefused("the proposal is not what the "
+                                      "recorded inference said: "
+                                      + "; ".join(problems))
         if self.source_digest is not None:
             for c in env.citations:
                 now = self.source_digest(c["path"])

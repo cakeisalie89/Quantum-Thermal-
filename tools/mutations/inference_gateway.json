@@ -1,0 +1,298 @@
+{
+  "title": "Gate B: the inference gateway, its budget, its context binding and its second reading",
+  "note": "Every mutation here would let a model call do something the gateway exists to stop: spend without authority, spend past a budget, answer under stale rules, leak a credential, or turn into a proposal that is not what the model said. The second reader's mutations check that it would notice each of those independently.",
+  "suites": [
+    "tests/test_inference_gateway.py",
+    "tests/test_inference_second_reader.py",
+    "tests/test_model_evidence.py"
+  ],
+  "mutations": [
+    {
+      "name": "IG1_anyone_may_grant_spending_on_replay",
+      "path": "agent_substrate/inference.py",
+      "find": "        if self._root is None or ev.actor != self._root:\n            raise InferenceError(\n                f\"seq {ev.seq}: {ev.actor!r} issued budget",
+      "replace": "        if False:\n            raise InferenceError(\n                f\"seq {ev.seq}: {ev.actor!r} issued budget",
+      "rationale": "a budget appended by any actor would be spending authority on every load"
+    },
+    {
+      "name": "IG2_anyone_may_publish_a_budget",
+      "path": "agent_substrate/inference.py",
+      "find": "            if self._root is None or actor != self._root:\n                raise InferenceError(\n                    f\"{actor!r} may not issue a budget",
+      "replace": "            if False:\n                raise InferenceError(\n                    f\"{actor!r} may not issue a budget",
+      "rationale": "an agent could grant itself money to spend"
+    },
+    {
+      "name": "IG30_anyone_may_withdraw_a_budget",
+      "path": "agent_substrate/inference.py",
+      "find": "            if actor != st.issued_by:\n                raise InferenceError(f\"{actor!r} may not withdraw budget \"",
+      "replace": "            if False:\n                raise InferenceError(f\"{actor!r} may not withdraw budget \"",
+      "rationale": "an agent could withdraw the budget another principal granted, and the record would be written before any reader refused it"
+    },
+    {
+      "name": "IG3_any_caller_may_spend",
+      "path": "agent_substrate/inference.py",
+      "find": "        if req.caller not in b.callers:",
+      "replace": "        if False:",
+      "rationale": "a budget for one researcher would pay for anybody's calls"
+    },
+    {
+      "name": "IG4_any_model_may_be_called",
+      "path": "agent_substrate/inference.py",
+      "find": "        if req.model not in b.models:",
+      "replace": "        if False:",
+      "rationale": "a budget priced for one model would pay for another at a price nobody set"
+    },
+    {
+      "name": "IG5_per_request_bounds_ignored",
+      "path": "agent_substrate/inference.py",
+      "find": "            if have > cap:\n                return (\"OVER_REQUEST_LIMIT\"",
+      "replace": "            if have > cap * 100:\n                return (\"OVER_REQUEST_LIMIT\"",
+      "rationale": "one request could ask for far more output, time or attempts than any request may"
+    },
+    {
+      "name": "IG6_unrecorded_context_accepted",
+      "path": "agent_substrate/inference.py",
+      "find": "        if req.context_manifest_digest not in self._contexts:\n            return (\"CONTEXT_UNKNOWN\"",
+      "replace": "        if False:\n            return (\"CONTEXT_UNKNOWN\"",
+      "rationale": "a call whose context nobody recorded could not be reconstructed"
+    },
+    {
+      "name": "IG7_stale_policy_accepted",
+      "path": "agent_substrate/inference.py",
+      "find": "        if doc.identity != identity:",
+      "replace": "        if False:",
+      "rationale": "a model would answer under rules that have since changed, and the decision would read as current"
+    },
+    {
+      "name": "IG8_totals_check_only_what_is_held",
+      "path": "agent_substrate/inference.py",
+      "find": "            if held + add > cap:\n                return (\"BUDGET_EXHAUSTED\"",
+      "replace": "            if held > cap:\n                return (\"BUDGET_EXHAUSTED\"",
+      "rationale": "the call that crosses the budget would be granted, so the budget is a floor on overspending rather than a ceiling"
+    },
+    {
+      "name": "IG9_rate_window_off_by_one",
+      "path": "agent_substrate/inference.py",
+      "find": "        if len(recent) >= b.max_calls_per_window:",
+      "replace": "        if len(recent) > b.max_calls_per_window:",
+      "rationale": "one more call per window than the budget allows"
+    },
+    {
+      "name": "IG10_attempt_bound_not_enforced_by_the_gate",
+      "path": "agent_substrate/inference.py",
+      "find": "        if attempt > req.max_attempts:",
+      "replace": "        if False:",
+      "rationale": "only the caller's own loop would bound retries; a caller that loops again spends again"
+    },
+    {
+      "name": "IG11_a_second_gateway_calls_while_one_is_open",
+      "path": "agent_substrate/inference.py",
+      "find": "            if open_ is not None:\n                raise AttemptOutstanding(",
+      "replace": "            if False:\n                raise AttemptOutstanding(",
+      "rationale": "two processes asking one question would both pay for it"
+    },
+    {
+      "name": "IG12_an_answered_request_is_asked_again",
+      "path": "agent_substrate/inference.py",
+      "find": "            if done is not None:\n                made[\"done\"] = done",
+      "replace": "            if False:\n                made[\"done\"] = done",
+      "rationale": "an idempotent request would be paid for every time it is repeated"
+    },
+    {
+      "name": "IG13_reservation_omits_the_framing",
+      "path": "agent_substrate/inference.py",
+      "find": "    return prompt_bytes + FRAMING_TOKENS",
+      "replace": "    return prompt_bytes",
+      "rationale": "the reservation would understate the worst case, and a call could cost more than the budget held for it"
+    },
+    {
+      "name": "IG14_a_failed_dispatch_costs_nothing",
+      "path": "agent_substrate/inference.py",
+      "find": "    return att.reserved_cost, att.reserved_in, att.reserved_out, False",
+      "replace": "    return 0, 0, 0, False",
+      "rationale": "a timeout the provider may have billed would be booked as free"
+    },
+    {
+      "name": "IG15_overrun_never_flagged",
+      "path": "agent_substrate/inference.py",
+      "find": "        over = (cost > att.reserved_cost or tin > att.reserved_in\n                or tout > att.reserved_out)",
+      "replace": "        over = False",
+      "rationale": "a provider reporting more than was reserved would read as within bounds"
+    },
+    {
+      "name": "IG16_dispatch_after_the_lease_replays",
+      "path": "agent_substrate/inference.py",
+      "find": "        if ev.wall_time + att.timeout_s > att.lease_until:\n            raise InferenceError(f\"seq {ev.seq}: dispatched too late",
+      "replace": "        if False:\n            raise InferenceError(f\"seq {ev.seq}: dispatched too late",
+      "rationale": "a dispatch could race recovery and both a LOST settlement and a live call would be charged"
+    },
+    {
+      "name": "IG17_recovery_inside_the_lease_replays",
+      "path": "agent_substrate/inference.py",
+      "find": "        if outcome in RECOVERY_OUTCOMES and ev.wall_time <= att.lease_until:",
+      "replace": "        if False:",
+      "rationale": "a live attempt could be settled LOST under its gateway and its answer discarded"
+    },
+    {
+      "name": "IG18_recover_ignores_the_lease",
+      "path": "agent_substrate/inference.py",
+      "find": "            if att.result is not None or att.actor != self.actor or \\\n                    now <= att.lease_until:",
+      "replace": "            if att.result is not None or att.actor != self.actor:",
+      "rationale": "recovery would settle attempts still in flight"
+    },
+    {
+      "name": "IG19_a_credential_bearing_response_is_stored",
+      "path": "agent_substrate/inference.py",
+      "find": "            if not P._CREDENTIAL.search(body.decode(\"utf-8\", \"replace\")):",
+      "replace": "            if True:",
+      "rationale": "a leaked credential would be kept in the transcript store forever"
+    },
+    {
+      "name": "IG20_oversized_output_accepted",
+      "path": "agent_substrate/inference.py",
+      "find": "        if len(body) > req.max_output_bytes:",
+      "replace": "        if False:",
+      "rationale": "the output bound the request names would not bound anything"
+    },
+    {
+      "name": "IG21_binding_ignores_the_response_digest",
+      "path": "agent_substrate/inference.py",
+      "find": "        if r.get(\"response_sha256\") != inf.get(\"response_sha256\"):",
+      "replace": "        if False:",
+      "rationale": "a proposal could name a response the log never recorded"
+    },
+    {
+      "name": "IG22_binding_ignores_who_asked",
+      "path": "agent_substrate/inference.py",
+      "find": "        if req.caller != env.agent_id:",
+      "replace": "        if False:",
+      "rationale": "one agent could propose what another agent's call returned, as its own"
+    },
+    {
+      "name": "IG23_binding_ignores_what_was_asked",
+      "path": "agent_substrate/inference.py",
+      "find": "        if resp[\"kind\"] != rec[\"kind\"] or resp[\"request\"] != rec[\"request\"]:",
+      "replace": "        if False:",
+      "rationale": "a proposer could alter the model's request and keep the model's provenance"
+    },
+    {
+      "name": "IG24_the_prompt_is_not_checked",
+      "path": "agent_substrate/inference.py",
+      "find": "        if digest_bytes(prompt) != req.prompt_sha256 or \\\n                len(prompt) != req.prompt_bytes:",
+      "replace": "        if False:",
+      "rationale": "the bytes sent would not be the bytes the request names and the record keeps"
+    },
+    {
+      "name": "IG25_prompt_text_not_held_to_the_manifest",
+      "path": "agent_substrate/inference.py",
+      "find": "        if digest_bytes(shown[\"text\"].encode(\"utf-8\")) != rec.content_digest:",
+      "replace": "        if False:",
+      "rationale": "a prompt could show text the manifest does not record and still pass"
+    },
+    {
+      "name": "IG26_a_caller_may_reserve_its_own_spending",
+      "path": "agent_substrate/inference.py",
+      "find": "        if ev.actor == req.caller:",
+      "replace": "        if False:",
+      "rationale": "the agent asking and the gate deciding would be the same party"
+    },
+    {
+      "name": "IG27_another_actor_may_settle",
+      "path": "agent_substrate/inference.py",
+      "find": "        if ev.actor != att.actor:",
+      "replace": "        if False:",
+      "rationale": "anyone could dispatch or settle an attempt a gateway reserved"
+    },
+    {
+      "name": "IG28_a_boolean_names_an_attempt",
+      "path": "agent_substrate/inference.py",
+      "find": "        if isinstance(n, bool) or not isinstance(n, int):\n            raise InferenceError(f\"seq {ev.seq}: attempt {n!r} is not a \"",
+      "replace": "        if not isinstance(n, int):\n            raise InferenceError(f\"seq {ev.seq}: attempt {n!r} is not a \"",
+      "rationale": "true would name attempt 1, because True == 1 in a dictionary"
+    },
+    {
+      "name": "IG29_an_attempt_settled_twice",
+      "path": "agent_substrate/inference.py",
+      "find": "        if att.result is not None:\n            raise InferenceError(f\"seq {ev.seq}: attempt {att.attempt} of \"\n                                 f\"{att.request_id} settled twice\")",
+      "replace": "        if False:\n            raise InferenceError(f\"seq {ev.seq}: attempt {att.attempt} of \"\n                                 f\"{att.request_id} settled twice\")",
+      "rationale": "a second settlement would rewrite what an attempt cost"
+    },
+    {
+      "name": "PV1_an_ingress_without_a_check_receives_v2",
+      "path": "agent_substrate/proposals.py",
+      "find": "            if self.inference_check is None:\n                raise ProposalRefused(",
+      "replace": "            if False:\n                raise ProposalRefused(",
+      "rationale": "a provenance claim nobody can check would be received as if checked"
+    },
+    {
+      "name": "PV2_binding_problems_ignored",
+      "path": "agent_substrate/proposals.py",
+      "find": "            if problems:\n                raise ProposalRefused(\"the proposal is not what the \"",
+      "replace": "            if False:\n                raise ProposalRefused(\"the proposal is not what the \"",
+      "rationale": "the check would run and its findings would be discarded"
+    },
+    {
+      "name": "PV3_any_adapter_may_claim_v2",
+      "path": "agent_substrate/proposals.py",
+      "find": "        if (src[\"adapter\"] == GATEWAY_ADAPTER) != (schema == SCHEMA_V2):",
+      "replace": "        if False:",
+      "rationale": "a fixture or external client could claim the gateway's provenance"
+    },
+    {
+      "name": "RI1_second_reader_lets_anyone_grant_spending",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if out.root_issuer is None or ev.actor != out.root_issuer:\n        _note(out, ev, f\"{ev.actor!r} grants spending",
+      "replace": "    if False:\n        _note(out, ev, f\"{ev.actor!r} grants spending",
+      "rationale": "the second reader would agree with a forged budget"
+    },
+    {
+      "name": "RI2_second_reader_totals_off",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if held + add > cap:\n            return \"over the budget's totals\"",
+      "replace": "        if held > cap:\n            return \"over the budget's totals\"",
+      "rationale": "the second reader would accept a reservation that crosses the budget"
+    },
+    {
+      "name": "RI3_second_reader_ignores_policy_freshness",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not _inf_policy_current(ctx.get(\"policy_identity\"), out, wall):",
+      "replace": "    if False:",
+      "rationale": "a stale context would pass the independent reading"
+    },
+    {
+      "name": "RI4_second_reader_ignores_the_v2_proposer",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if req.get(\"caller\") != env.get(\"agent_id\"):",
+      "replace": "    if False:",
+      "rationale": "a proposal in another agent's name would pass the independent reading"
+    },
+    {
+      "name": "RI5_second_reader_ignores_settlement_cost",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if p.get(\"cost_micro\") != cost or p.get(\"overrun\") is not over:\n        _note(out, ev, f\"an inference settled at",
+      "replace": "    if False:\n        _note(out, ev, f\"an inference settled at",
+      "rationale": "a settlement at any cost would pass the independent reading"
+    },
+    {
+      "name": "RI6_second_reader_ignores_the_recovery_lease",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if outcome in _INF_RECOVERY and ev.wall_time <= att[\"lease_until\"]:",
+      "replace": "    if False:",
+      "rationale": "an early LOST would pass the independent reading"
+    },
+    {
+      "name": "ME1_an_unauthorized_run_counts",
+      "path": "tools/model_evidence.py",
+      "find": "        if \"OD-1\" not in str(b[\"authorization\"]):",
+      "replace": "        if False:",
+      "rationale": "a live run nobody authorized would be counted as evidence"
+    },
+    {
+      "name": "ME2_a_recorded_run_reads_as_verified",
+      "path": "tools/model_evidence.py",
+      "find": "         \"status\": \"RECORDED_NOT_VERIFIED\" if runs else \"NOT_RUN\",",
+      "replace": "         \"status\": \"VERIFIED\" if runs else \"NOT_RUN\",",
+      "rationale": "a recorded run would be reported as a verified result"
+    }
+  ]
+}

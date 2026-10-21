@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 474,
+   "ADDED": 484,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 47,
-   "LOW": 172,
-   "MEDIUM": 262
+   "HIGH": 49,
+   "LOW": 177,
+   "MEDIUM": 265
   },
   "by_subsystem": {
-   "agent-substrate": 21,
+   "agent-substrate": 23,
    "ai-ingress": 3,
-   "assurance": 103,
+   "assurance": 104,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 30,
+   "evidence": 31,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,16 +31,17 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 148,
-   "tooling": 39,
+   "tests": 153,
+   "tooling": 40,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 506
+  "files": 516
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
+  "agent_substrate/_inference_worker.py",
   "agent_substrate/_ns_init.py",
   "tools/isolated_runtime.py"
  ],
@@ -423,6 +424,7 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_agent_authority_boundaries.py",
+     "tests/test_inference_gateway.py",
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
      "tests/test_stack_registry.py"
@@ -545,12 +547,16 @@
      "tests/test_evidence_terms.py",
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py",
+     "tests/test_gate_b_acceptance.py",
      "tests/test_generated_mutations.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_inference_gateway.py",
+     "tests/test_inference_second_reader.py",
      "tests/test_memory_trust.py",
      "tests/test_model_check.py",
      "tests/test_neural_boundary.py",
@@ -606,6 +612,19 @@
     "mutation_specs": [
      "tools/mutations/governed_breadth.json"
     ],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "agent_substrate/_inference_worker.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
     "tests": []
    }
   },
@@ -678,6 +697,7 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_toctou.py",
      "tests/test_authenticated_history.py",
+     "tests/test_gate_b_acceptance.py",
      "tests/test_hostile_composition.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
@@ -751,10 +771,12 @@
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
      "tests/test_checkpoint_recovery.py",
+     "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_hostile_composition.py",
+     "tests/test_inference_gateway.py",
      "tests/test_model_check.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
@@ -818,6 +840,7 @@
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_hostile_composition.py",
+     "tests/test_inference_gateway.py",
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
      "tests/test_scientific_authority_replay.py",
@@ -861,7 +884,10 @@
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
+     "tests/test_gate_b_acceptance.py",
      "tests/test_generated_mutations.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_inference_gateway.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_refused_fold.py",
      "tests/test_t2_closure.py",
@@ -918,6 +944,9 @@
      "tests/test_agent_context.py",
      "tests/test_agent_governed_tasks.py",
      "tests/test_agent_second_reader.py",
+     "tests/test_gate_b_acceptance.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_inference_gateway.py",
      "tests/test_scientific_identity.py"
     ]
    }
@@ -1012,11 +1041,14 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
+     "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_inference_gateway.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
      "tests/test_policy_binding.py",
@@ -1083,11 +1115,14 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
      "tests/test_evidence_terms.py",
+     "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_inference_gateway.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
      "tests/test_policy_binding.py",
@@ -1180,6 +1215,7 @@
     "tests": [
      "tests/test_agent_long_horizon.py",
      "tests/test_authenticated_history.py",
+     "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
@@ -1297,6 +1333,26 @@
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_refused_fold.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "agent_substrate/inference.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "tests": [
+     "tests/test_gate_b_acceptance.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_inference_gateway.py",
+     "tests/test_inference_second_reader.py"
     ]
    }
   },
@@ -1485,8 +1541,11 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
+     "tests/test_gate_b_acceptance.py",
      "tests/test_generated_mutations.py",
      "tests/test_hostile_composition.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_inference_gateway.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_refused_fold.py",
@@ -1545,11 +1604,15 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/inference_gateway.json",
      "tools/mutations/proposal_ingress.json"
     ],
     "tests": [
      "tests/test_agent_long_horizon.py",
      "tests/test_authenticated_history.py",
+     "tests/test_gate_b_acceptance.py",
+     "tests/test_inference_gateway.py",
+     "tests/test_inference_second_reader.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
@@ -1628,6 +1691,7 @@
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_substrate.json",
      "tools/mutations/authenticated_history.json",
+     "tools/mutations/inference_gateway.json",
      "tools/mutations/memory_trust.json",
      "tools/mutations/neural_authority.json",
      "tools/mutations/policy_binding.json",
@@ -1656,9 +1720,13 @@
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
+     "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_inference_gateway.py",
+     "tests/test_inference_second_reader.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
      "tests/test_policy_binding.py",
@@ -2214,7 +2282,8 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
-     "tests/test_claim_hygiene.py"
+     "tests/test_claim_hygiene.py",
+     "tests/test_model_evidence.py"
     ]
    }
   },
@@ -2540,6 +2609,21 @@
   {
    "change": "ADDED",
    "path": "docs/research/grounding_bench_results.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_model_evidence.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/scientific_model_evidence.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -3078,6 +3162,7 @@
      "tests/test_harness_status.py",
      "tests/test_hdf5_bundle.py",
      "tests/test_hostile_composition.py",
+     "tests/test_model_evidence.py",
      "tests/test_neural_accounting.py",
      "tests/test_neural_boundary.py",
      "tests/test_neural_config.py",
@@ -5582,7 +5667,9 @@
    "verification": {
     "findings": [],
     "mutation_specs": [],
-    "tests": []
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
    }
   },
   {
@@ -5621,6 +5708,23 @@
   {
    "change": "ADDED",
    "path": "tests/test_filesystem_confinement.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_gate_b_acceptance.py",
    "risk": "LOW",
    "runtime_dependencies": [
     "pytest"
@@ -5815,6 +5919,55 @@
    }
   },
   {
+   "change": "ADDED",
+   "path": "tests/test_inference_concurrency.py",
+   "risk": "LOW",
+   "runtime_dependencies": [],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_inference_gateway.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_inference_second_reader.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
    "change": "MODIFIED",
    "path": "tests/test_manifest_completeness.py",
    "risk": "LOW",
@@ -5874,6 +6027,21 @@
     "tests": [
      "tests/test_agent_substrate_isolation.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_model_evidence.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {
@@ -7240,6 +7408,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/model_evidence.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "tests": [
+     "tests/test_model_evidence.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutation_matrix.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -8075,6 +8260,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/identity_inventory.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/inference_gateway.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

@@ -907,7 +907,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: mutation specification move the typing scope (R51), the mutation
 #: workflow (R58) and the derived inventories (R70, R71), so those rows'
 #: hosted evidence predates them until the evidence commit after it.
-EXPECTED_EVIDENCE_COVERS = 45
+#: 45 -> 37 in the Gate B commit (D-2026-163): the inference gateway
+#: changes the proposal ingress, the second reader, the policy store, the
+#: workflow and the inventories, so R29, R30, R38, R42, R47, R48, R53 and
+#: R66 join R51, R58, R70 and R71 in predating their implementation until
+#: the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 37
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
