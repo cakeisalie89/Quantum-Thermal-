@@ -69,7 +69,10 @@ FMU_MODEL = "fmi.thermal_rc2"
 MAX_RECORD_BYTES = 64 * 1024
 MAX_DEPTH = 8
 
-KINDS = ("MODEL_RUN", "SIMULATION_PLAN", "RETRY", "DIAGNOSTIC", "CODE_PATCH")
+KINDS = ("MODEL_RUN", "SIMULATION_PLAN", "RETRY", "DIAGNOSTIC", "CODE_PATCH",
+         # Gate C: the research loop's non-executable kinds. Each becomes a
+         # research record (agent_substrate.research), never an execution.
+         "HYPOTHESIS", "CONCLUDE", "ABSTAIN")
 ADAPTERS = ("recorded-fixture", "external-client", "inference-gateway")
 #: The adapter whose proposals are /2, and the only one.
 GATEWAY_ADAPTER = "inference-gateway"
@@ -81,6 +84,9 @@ REQUEST_KEYS = {
     "RETRY": {"retry_of"},
     "DIAGNOSTIC": {"question", "subject"},
     "CODE_PATCH": {"patch_sha256", "files", "summary"},
+    "HYPOTHESIS": {"hypothesis_id", "statement", "prediction", "depends_on"},
+    "CONCLUDE": {"hypothesis_id", "summary"},
+    "ABSTAIN": {"reason"},
 }
 FIELDS = ("schema", "proposal_id", "kind", "agent_id", "source", "context",
           "request", "rationale_sha256", "parent_proposal_id", "iteration",
@@ -199,6 +205,30 @@ def _request(kind: str, req) -> None:
             raise ProposalRefused("request.files: relative paths")
         if not isinstance(req["summary"], str) or len(req["summary"]) > 2000:
             raise ProposalRefused("request.summary: at most 2000 characters")
+    elif kind == "HYPOTHESIS":
+        if not isinstance(req["hypothesis_id"], str) or \
+                not _NAME.match(req["hypothesis_id"]):
+            raise ProposalRefused("request.hypothesis_id is not a name")
+        if not isinstance(req["statement"], str) or \
+                not 0 < len(req["statement"]) <= 2000:
+            raise ProposalRefused("request.statement: 1..2000 characters")
+        if not isinstance(req["prediction"], dict):
+            raise ProposalRefused("request.prediction must be an object")
+        deps = req["depends_on"]
+        if not isinstance(deps, list) or len(deps) > 32 or not all(
+                isinstance(d, str) and _NAME.match(d) for d in deps):
+            raise ProposalRefused("request.depends_on: at most 32 names")
+    elif kind == "CONCLUDE":
+        if not isinstance(req["hypothesis_id"], str) or \
+                not _NAME.match(req["hypothesis_id"]):
+            raise ProposalRefused("request.hypothesis_id is not a name")
+        if not isinstance(req["summary"], str) or \
+                not 0 < len(req["summary"]) <= 2000:
+            raise ProposalRefused("request.summary: 1..2000 characters")
+    elif kind == "ABSTAIN":
+        if not isinstance(req["reason"], str) or \
+                not 0 < len(req["reason"]) <= 2000:
+            raise ProposalRefused("request.reason: 1..2000 characters")
 
 
 @dataclass(frozen=True)

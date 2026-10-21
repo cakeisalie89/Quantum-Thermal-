@@ -1348,6 +1348,14 @@ class SubsystemReconstruction:
     #: (request_id, attempt) -> one granted attempt: what it reserved, its
     #: lease, its dispatch and its settlement.
     inference_attempts: dict = field(default_factory=dict)
+    #: research id -> ``{"kind", "status", "body", "basis"}`` (Gate C):
+    #: objectives, hypotheses and observations as this reader rebuilt them.
+    research: dict = field(default_factory=dict)
+    #: objective id -> steps recorded
+    research_steps: dict = field(default_factory=dict)
+    #: record id -> ``{"state", "result_bundle"}``: what a research
+    #: observation may be read from, as the record transitions leave it.
+    sci_states: dict = field(default_factory=dict)
     #: claim_id -> what one instance asserted about one subject.
     #:
     #: Claims are the input to conflict resolution, so a claim attributable
@@ -1568,6 +1576,19 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_inference_dispatch(ev, p, out)
         elif a == "inference.result":
             _sub_inference_result(ev, p, out)
+        elif a == "record.create":
+            out.sci_states[p.get("record_id")] = {
+                "state": "PROPOSED",
+                "result_bundle": (p.get("evidence") or {}).get(
+                    "result_bundle")}
+        elif a == "record.transition":
+            cur = out.sci_states.get(p.get("record_id"))
+            if cur is not None:
+                cur["state"] = p.get("dst")
+                cur["result_bundle"] = (p.get("evidence") or {}).get(
+                    "result_bundle", cur["result_bundle"])
+        elif a.startswith("research."):
+            _sub_research(ev, p, out)
         prev = (ev.seq, ev.hash)
     return out
 
@@ -2991,7 +3012,8 @@ _PROP_FIELDS = frozenset({
     "request", "rationale_sha256", "parent_proposal_id", "iteration",
     "created_by", "authority"})
 _PROP_KINDS = frozenset({"MODEL_RUN", "SIMULATION_PLAN", "RETRY",
-                         "DIAGNOSTIC", "CODE_PATCH"})
+                         "DIAGNOSTIC", "CODE_PATCH", "HYPOTHESIS",
+                         "CONCLUDE", "ABSTAIN"})
 _PROP_AUTHORITY = "NON_AUTHORITATIVE"
 #: A proposal a model produced through the inference gateway.
 _PROP_SCHEMA_V2 = "proposal-envelope/2"
@@ -3394,6 +3416,209 @@ def _sub_inference_result(ev, p: dict, out) -> None:
     att["result"] = {"outcome": outcome,
                      "response_sha256": p.get("response_sha256"),
                      "cost": cost}
+
+
+# ---------------------------------------------------------------------------
+# RESEARCH RECORDS, READ A SECOND TIME (Gate C).
+#
+# Restated rather than imported from agent_substrate.research: who may
+# register an objective, what a hypothesis must cite, what an observation
+# may be read from, which moves a status may make, how a verdict is
+# COMPUTED from observations (never asserted), and how steps are bounded.
+# ---------------------------------------------------------------------------
+
+_RS_MOVES = {
+    "hypothesis": {"OPEN": {"SUPPORTED", "REFUTED", "INCONCLUSIVE",
+                            "RETRACTED", "SUPERSEDED", "STALE"},
+                   "INCONCLUSIVE": {"SUPPORTED", "REFUTED", "RETRACTED",
+                                    "SUPERSEDED", "STALE"},
+                   "SUPPORTED": {"INCONCLUSIVE", "RETRACTED", "SUPERSEDED",
+                                 "STALE"},
+                   "REFUTED": {"INCONCLUSIVE", "RETRACTED", "SUPERSEDED",
+                               "STALE"}},
+    "observation": {"CURRENT": {"STALE"}},
+    "objective": {"OPEN": {"CONCLUDED", "ABSTAINED", "EXHAUSTED", "BLOCKED"},
+                  "BLOCKED": {"OPEN", "ABSTAINED", "EXHAUSTED"},
+                  "CONCLUDED": {"STALE"}},
+}
+_RS_CURRENT = {"hypothesis": {"OPEN", "SUPPORTED", "REFUTED",
+                              "INCONCLUSIVE"},
+               "observation": {"CURRENT"},
+               "objective": {"OPEN", "BLOCKED", "CONCLUDED"}}
+
+
+def _rs_current(out, rid) -> bool:
+    r = out.research.get(rid)
+    return r is not None and r["status"] in _RS_CURRENT[r["kind"]]
+
+
+def _rs_verdict(pred: dict, observations: list) -> str:
+    """The verdict on a prediction, in this reader's words: matching model,
+    quantity by name and unit, and the output's resolution counted against
+    the claim. Disagreement, a unit mismatch, or no matching output decides
+    nothing."""
+    found = []
+    for o in observations:
+        if o.get("model_id") != pred.get("model_id"):
+            continue
+        v = (o.get("values") or {}).get(pred.get("quantity"))
+        if v is None:
+            continue
+        if v.get("unit") != pred.get("unit"):
+            return "INCONCLUSIVE"
+        found.append(v)
+    if not found:
+        return "INCONCLUSIVE"
+    seen = set()
+    t, op = pred.get("value"), pred.get("op")
+    for v in found:
+        lo, hi = v["value"] - v["resolution"], v["value"] + v["resolution"]
+        if op == "<":
+            seen.add("SUPPORTED" if hi < t else "REFUTED" if lo >= t
+                     else "INCONCLUSIVE")
+        elif op == "<=":
+            seen.add("SUPPORTED" if hi <= t else "REFUTED" if lo > t
+                     else "INCONCLUSIVE")
+        elif op == ">":
+            seen.add("SUPPORTED" if lo > t else "REFUTED" if hi <= t
+                     else "INCONCLUSIVE")
+        elif op == ">=":
+            seen.add("SUPPORTED" if lo >= t else "REFUTED" if hi < t
+                     else "INCONCLUSIVE")
+        else:
+            return "INCONCLUSIVE"
+    return seen.pop() if len(seen) == 1 else "INCONCLUSIVE"
+
+
+def _sub_research(ev, p: dict, out) -> None:
+    a = ev.action
+    if a == "research.objective":
+        b = p.get("objective")
+        if not isinstance(b, dict) or not isinstance(b.get("limits"), dict):
+            _note(out, ev, "research.objective carries no objective")
+            return
+        if ev.actor != b.get("owner"):
+            _note(out, ev, f"{ev.actor!r} registers an objective in "
+                           f"{b.get('owner')!r}'s name")
+            return
+        oid = b.get("objective_id")
+        if oid in out.research:
+            _note(out, ev, f"research id {oid!r} recorded twice")
+            return
+        out.research[oid] = {"kind": "objective", "status": "OPEN",
+                             "body": b, "basis": []}
+    elif a == "research.hypothesis":
+        b = p.get("hypothesis")
+        if not isinstance(b, dict):
+            _note(out, ev, "research.hypothesis carries no hypothesis")
+            return
+        obj = out.research.get(b.get("objective_id"))
+        if obj is None or obj["kind"] != "objective" or \
+                obj["status"] != "OPEN":
+            _note(out, ev, "a hypothesis for an objective that is not open")
+            return
+        if any(not _rs_current(out, d) for d in b.get("depends_on") or ()):
+            _note(out, ev, "a hypothesis depending on something not current")
+            return
+        prop = out.proposals.get(b.get("proposal_id"))
+        if prop is None or prop.get("agent_id") != b.get("proposed_by") or \
+                prop.get("kind") != "HYPOTHESIS":
+            _note(out, ev, "a hypothesis citing no received HYPOTHESIS of "
+                           "its proposer")
+            return
+        if ev.actor == b.get("proposed_by"):
+            _note(out, ev, "an agent recording its own hypothesis")
+            return
+        if b.get("hypothesis_id") in out.research:
+            _note(out, ev, "research id recorded twice")
+            return
+        out.research[b.get("hypothesis_id")] = {
+            "kind": "hypothesis", "status": "OPEN", "body": b, "basis": []}
+    elif a == "research.observation":
+        b = p.get("observation")
+        if not isinstance(b, dict):
+            _note(out, ev, "research.observation carries no observation")
+            return
+        sci = out.sci_states.get(b.get("record_id")) or {}
+        if sci.get("state") not in ("VERIFIED", "PROMOTED"):
+            _note(out, ev, f"an observation read from a record that is "
+                           f"{sci.get('state')!r}")
+            return
+        if sci.get("result_bundle") != b.get("result_bundle"):
+            _note(out, ev, "an observation naming a bundle its record does "
+                           "not cite")
+            return
+        if b.get("observation_id") in out.research:
+            _note(out, ev, "research id recorded twice")
+            return
+        out.research[b.get("observation_id")] = {
+            "kind": "observation", "status": "CURRENT", "body": b,
+            "basis": []}
+    elif a == "research.status":
+        _sub_research_status(ev, p, out)
+    elif a == "research.step":
+        b = p.get("step")
+        if not isinstance(b, dict):
+            _note(out, ev, "research.step carries no step")
+            return
+        obj = out.research.get(b.get("objective_id"))
+        have = out.research_steps.get(b.get("objective_id"), 0)
+        if obj is None or b.get("step") != have + 1 or \
+                b.get("step") > obj["body"]["limits"].get("max_steps", 0):
+            _note(out, ev, f"research step {b.get('step')!r} out of order "
+                           "or past its objective's limit")
+            return
+        out.research_steps[b.get("objective_id")] = have + 1
+
+
+def _sub_research_status(ev, p: dict, out) -> None:
+    rid, status = p.get("target_id"), p.get("status")
+    rec = out.research.get(rid)
+    if rec is None:
+        _note(out, ev, f"a research status for unrecorded {rid!r}")
+        return
+    if status not in _RS_MOVES[rec["kind"]].get(rec["status"], set()):
+        _note(out, ev, f"research {rec['kind']} {rec['status']} -> "
+                       f"{status!r} is not a move")
+        return
+    basis = p.get("basis") or []
+    if rec["kind"] == "hypothesis" and status in ("SUPPORTED", "REFUTED",
+                                                  "INCONCLUSIVE"):
+        obs = [out.research[o]["body"] for o in basis
+               if o in out.research
+               and out.research[o]["kind"] == "observation"
+               and _rs_current(out, o)]
+        if not basis or len(obs) != len(basis) or \
+                _rs_verdict(rec["body"].get("prediction") or {}, obs) \
+                != status:
+            _note(out, ev, f"a hypothesis verdict {status} the cited "
+                           "observations do not give")
+            return
+    if rec["kind"] == "objective" and status == "CONCLUDED":
+        h = out.research.get(basis[0]) if len(basis) == 1 else None
+        if h is None or h["kind"] != "hypothesis" or \
+                h["status"] not in ("SUPPORTED", "REFUTED") or \
+                h["body"].get("objective_id") != rid:
+            _note(out, ev, "a conclusion resting on no decided hypothesis "
+                           "of its objective")
+            return
+    if status == "STALE":
+        if rec["kind"] == "observation":
+            lost = (out.sci_states.get(rec["body"].get("record_id"))
+                    or {}).get("state") not in ("VERIFIED", "PROMOTED")
+        elif rec["kind"] == "objective":
+            lost = any(d not in out.research or out.research[d]["status"]
+                       not in ("SUPPORTED", "REFUTED") for d in rec["basis"])
+        else:
+            lost = any(not _rs_current(out, d) for d in
+                       list(rec["basis"]) + list(rec["body"].get(
+                           "depends_on") or []))
+        if not lost:
+            _note(out, ev, f"{rid!r} declared STALE with nothing lost")
+            return
+    rec["status"] = status
+    if status in ("SUPPORTED", "REFUTED", "INCONCLUSIVE", "CONCLUDED"):
+        rec["basis"] = list(basis)
 
 
 def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:

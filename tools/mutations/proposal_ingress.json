@@ -169,7 +169,7 @@
   {
    "name": "SR7_reader_fields",
    "path": "agent_substrate/reconstruct.py",
-   "find": "    if set(env) != _PROP_FIELDS:\n",
+   "find": "    if set(env) != want_fields:\n",
    "replace": "    if False:\n",
    "rationale": "the second reader accepts unknown envelope fields"
   },

@@ -6,7 +6,7 @@
   },
   "repository_content": {
    "committed_report_current": true,
-   "files": 516,
+   "files": 521,
    "findings": 0,
    "ok": true
   },
@@ -21,7 +21,7 @@
   }
  },
  "derived_from": {
-  "docs/completion_matrix.json": "b2cc35ddd6fe01b1f5a1cd757fbeb45192fa8d8e4920c715452278628c27c12e",
+  "docs/completion_matrix.json": "4e066da99a8e10ad53de43f7ffe6398e0e80338f391c788b7db2c8e330c0841e",
   "docs/harness_contract.json": "18e7d4ceecbd82facfe3ca711fe3298fe722afd49a4791fedb267830f523a94f",
   "docs/neural/claims.json": "2a68b01a96751124897e37a65ae0fb7b2ab2c9c480f85a764685dc99216ada87",
   "docs/neural/current_status.json": "a8916cc24d9b1d05fd8a9222a29e8c27321230e84d6063c7039f4df13526ae68",
@@ -50,8 +50,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 37,
-   "PREDATES_CURRENT_IMPLEMENTATION": 12
+   "COVERS_CURRENT_IMPLEMENTATION": 36,
+   "PREDATES_CURRENT_IMPLEMENTATION": 13
   },
   "rows": 49
  },
@@ -446,6 +446,12 @@
    "id": "ruff-mypy-pydantic",
    "kind": "stack",
    "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "R27",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },
   {
    "external": false,

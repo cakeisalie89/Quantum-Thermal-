@@ -42,7 +42,9 @@ from agent_substrate.idempotency import IdempotencyLedger  # noqa: E402
 from agent_substrate.memory import MemoryStore  # noqa: E402
 from agent_substrate.netauth import NetworkAuthority  # noqa: E402
 from agent_substrate.policy import PolicyStore  # noqa: E402
+from agent_substrate.inference import InferenceGateway  # noqa: E402
 from agent_substrate.proposals import received  # noqa: E402
+from agent_substrate.research import ResearchLedger  # noqa: E402
 from agent_substrate.reconstruct import reconstruct, reconstruct_tasks  # noqa: E402
 from agent_substrate.scheduler import Scheduler  # noqa: E402
 from agent_substrate.secrets import SecretStore  # noqa: E402
@@ -425,6 +427,11 @@ BEHAVIOUR = {
         lambda log: NetworkAuthority(log).load(),
     "agent_substrate.secrets.SecretStore": lambda log: SecretStore(log).load(),
     "agent_substrate.proposals.received": lambda log: received(log),
+    "agent_substrate.inference.InferenceGateway": lambda log:
+        InferenceGateway(log, transcripts=None, policies=PolicyStore(log),
+                         provider=None).load(),
+    "agent_substrate.research.ResearchLedger":
+        lambda log: ResearchLedger(log).load(),
 }
 STRUCTURAL_ONLY = {"agent_substrate.governed_tasks.GovernedTasks",
                    "agent_substrate.governed_model.GovernedOrigins",
@@ -501,10 +508,13 @@ def test_a_tool_that_opens_its_own_log_refuses_a_required_history(
                                                  run.stderr[-800:])
 
 
-def test_the_hypothesis_lifecycle_is_recorded_as_not_built():
-    assert pr.READER_COVERAGE["hypothesis lifecycle"] == pr.NOT_BUILT
-    assert not (ROOT / "agent_substrate" / "hypothesis.py").exists(), (
-        "a hypothesis module exists: say what it does with authentication")
+def test_the_hypothesis_lifecycle_is_built_and_gated():
+    """It was NOT_BUILT until Gate C. Now that it exists it is a reader like
+    any other, and the behaviour test above holds it to the gate."""
+    assert "hypothesis lifecycle" not in pr.READER_COVERAGE
+    assert pr.READER_COVERAGE["agent_substrate.research.ResearchLedger"] \
+        == pr.GATED
+    assert "agent_substrate.research.ResearchLedger" in BEHAVIOUR
 
 
 def test_the_independent_reader_refuses_in_its_own_code(tmp_path, monkeypatch):

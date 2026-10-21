@@ -792,6 +792,84 @@
       "note": "Gate B. Independently reconstructed: _sub_inference_result restates the one-settlement rule, the dispatch consistency, the recovery lease and the cost the settlement rule gives.",
       "authority_changing": true,
       "authority_note": "Settles the cost held against a budget, and an OK result is what a /2 proposal must cite to be received."
+    },
+    {
+      "action": "research.objective",
+      "module": "research.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "objective.owner",
+          "role": "ACTOR",
+          "write_path": "ResearchLedger.register() appends with actor=owner",
+          "replay": "ResearchError unless owner == ev.actor; _sub_research notes it too",
+          "regression_test": "test_an_objective_is_its_owner_s_question",
+          "note": "an objective is its owner's question"
+        }
+      ],
+      "note": "Gate C. Independently reconstructed by _sub_research.",
+      "authority_changing": false,
+      "authority_note": "A research question and its limits. It permits nothing, and no authority gate reads it; the limits bound only the research controller."
+    },
+    {
+      "action": "research.hypothesis",
+      "module": "research.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "hypothesis.proposed_by",
+          "role": "SUBJECT",
+          "note": "the agent whose received HYPOTHESIS proposal it records; it may not be ev.actor, because an agent proposes and the controller records"
+        }
+      ],
+      "note": "Gate C. Independently reconstructed by _sub_research.",
+      "authority_changing": false,
+      "authority_note": "A statement under investigation. Its verdict is computed from verified observations, and no authority gate reads it."
+    },
+    {
+      "action": "research.observation",
+      "module": "research.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "ids, statuses and values; no identity"
+        }
+      ],
+      "note": "Gate C. Independently reconstructed by _sub_research: read only from a VERIFIED or PROMOTED record, naming the bundle that record cites.",
+      "authority_changing": false,
+      "authority_note": "A reading of a verified result. It changes no record's state and permits nothing."
+    },
+    {
+      "action": "research.status",
+      "module": "research.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "ids, statuses and values; no identity"
+        }
+      ],
+      "note": "Gate C. Independently reconstructed by _sub_research, verdicts recomputed in its own words.",
+      "authority_changing": false,
+      "authority_note": "What became of a research record. A conclusion is a research conclusion, not an authority state: nothing promotes on it."
+    },
+    {
+      "action": "research.step",
+      "module": "research.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "ids, statuses and values; no identity"
+        }
+      ],
+      "note": "Gate C. Independently reconstructed by _sub_research: numbering and the objective's step limit.",
+      "authority_changing": false,
+      "authority_note": "The controller's progress record. It permits nothing."
     }
   ]
 }

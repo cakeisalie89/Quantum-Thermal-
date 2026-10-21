@@ -105,6 +105,14 @@ OWNERS: dict = {
     "inference.reserve": "inference",
     "inference.dispatch": "inference",
     "inference.result": "inference",
+    # agent_substrate.research -- Gate C: objectives, hypotheses decided
+    # from verified results, observations read from result bundles, what
+    # became of each, and the bounded controller's steps. None is authority.
+    "research.objective": "research",
+    "research.hypothesis": "research",
+    "research.observation": "research",
+    "research.status": "research",
+    "research.step": "research",
     # agent_substrate.events -- the security profile a history is written
     # under, declared by its first event and enforced by the read primitives
     # themselves; every reducer meets it at seq 0 and passes it by (D-2026-92)

@@ -437,6 +437,46 @@
       "mode": "DECIDED",
       "class": "DECISION",
       "why": "settles an attempt once; a gateway and recovery racing to settle it would otherwise both write"
+    },
+    {
+      "module": "research.py",
+      "function": "ResearchLedger.register",
+      "action": "ACT_OBJECTIVE",
+      "mode": "DECIDED",
+      "class": "FACT",
+      "why": "an owner's question and its limits; an id registered twice would let a second owner's limits stand for the first's question"
+    },
+    {
+      "module": "research.py",
+      "function": "ResearchLedger.hypothesize",
+      "action": "ACT_HYPOTHESIS",
+      "mode": "DECIDED",
+      "class": "FACT",
+      "why": "what an agent proposed for investigation, decided against the dependencies current at the head it is written onto"
+    },
+    {
+      "module": "research.py",
+      "function": "ResearchLedger.observe",
+      "action": "ACT_OBSERVATION",
+      "mode": "DECIDED",
+      "class": "FACT",
+      "why": "what a VERIFIED result's bundle says, read only while the record stands at the head it is written onto"
+    },
+    {
+      "module": "research.py",
+      "function": "ResearchLedger.set_status",
+      "action": "ACT_STATUS",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "moves what the research projection holds: a verdict computed from current observations, a conclusion on a current decided hypothesis, or staleness only where currency was lost"
+    },
+    {
+      "module": "research.py",
+      "function": "ResearchLedger.record_step",
+      "action": "ACT_STEP",
+      "mode": "DECIDED",
+      "class": "FACT",
+      "why": "the controller's progress; numbered under the lock so two controllers cannot both record step n"
     }
   ]
 }

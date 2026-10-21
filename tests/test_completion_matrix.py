@@ -912,7 +912,10 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: workflow and the inventories, so R29, R30, R38, R42, R47, R48, R53 and
 #: R66 join R51, R58, R70 and R71 in predating their implementation until
 #: the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 37
+#: 37 -> 36 in the Gate C commit (D-2026-164): the authenticated-history
+#: coverage table (principals.py) gains the gateway and the research
+#: ledger, so R27 predates its implementation too.
+EXPECTED_EVIDENCE_COVERS = 36
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

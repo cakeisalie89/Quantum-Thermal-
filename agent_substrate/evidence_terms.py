@@ -172,6 +172,14 @@ CHECKS: tuple = (
           (P.SEMANTICALLY_SUPPORTED, P.SCIENTIFICALLY_VERIFIED,
            P.CURRENT_WORLD),
           (P.CITED_BYTES_VERIFY,)),
+    Check("agent_substrate.research:evaluate",
+          P.SEMANTICALLY_SUPPORTED, S.DETERMINISTIC,
+          "a STRUCTURED prediction -- one named output of one model, a "
+          "comparison, a value and a unit -- holds of every current "
+          "observation read from a VERIFIED or PROMOTED result, with each "
+          "output's resolution counted against it. Only for structured "
+          "claims; a prose claim is not evaluated here",
+          (P.CURRENT_WORLD,), (P.SCIENTIFICALLY_VERIFIED,)),
     Check("tools.grounding_bench.claims:verify",
           P.HISTORY_RECORDS, S.DETERMINISTIC,
           "a structured claim matches the state reconstructed from the "

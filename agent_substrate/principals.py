@@ -848,5 +848,8 @@ READER_COVERAGE = {
     "tools/audit_log.py": REFUSES_REQUIRED_ONLY,
     "tools/generic_consistency.py": REFUSES_REQUIRED_ONLY,
     "tools/independent_verify.py": REFUSES_REQUIRED_ONLY,
-    "hypothesis lifecycle": NOT_BUILT,
+    # Gate B and Gate C. The hypothesis lifecycle was NOT_BUILT here until
+    # the research ledger (D-2026-164); both read through read_verified.
+    "agent_substrate.inference.InferenceGateway": GATED,
+    "agent_substrate.research.ResearchLedger": GATED,
 }

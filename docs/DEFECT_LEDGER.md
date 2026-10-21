@@ -9508,3 +9508,89 @@ the process boundary is a sandbox: the worker runs with the gateway's user
 and no kernel confinement of its own, so isolating it is a deployment
 requirement (Assurance I). That provider-reported usage is true: it is the
 provider's claim, and the bound on exposure is the reservation.
+
+## D-2026-164 — Gate C: research records a model cannot decide, and a controller that resumes without doing anything twice
+
+**THE GAPS.** R6: the hypothesis lifecycle was NOT_BUILT. R4, the rest of
+it: there were no objective or hypothesis records. R2, for the research loop:
+only MODEL_RUN had a route. Gate A's plan (C1 to C4).
+
+**`agent_substrate/research.py`**, five records, none of them authority:
+
+* **objectives** are registered by their owners, with step and model-call
+  ceilings;
+* **hypotheses** carry a STRUCTURED prediction (one named output of one
+  model, a comparison, a value, a unit). They cite the received HYPOTHESIS
+  proposal of the agent that proposed them, and are recorded by the
+  controller, never by that agent;
+* **observations** are read only from a VERIFIED or PROMOTED record's
+  result bundle, and the values are re-read from the bundle on replay;
+* **statuses**: SUPPORTED, REFUTED and INCONCLUSIVE are COMPUTED from the
+  current observations a verdict cites, never asserted. A quantity matches by
+  name, not merely by unit. A value in another unit is not converted. An
+  output's resolution counts against the claim, and disagreement decides
+  nothing. A conclusion rests on one current, decided hypothesis. STALE needs
+  a cause, and `propagate()` carries lost standing from a result to its
+  observations, hypotheses and conclusions;
+* **steps** are numbered and bounded by their objective.
+
+Every writer runs the reducer's own check under the lock. A writer and its
+replay are one rule, not two copies, so a writer cannot append a record its
+replay refuses (the defect class IG2 exposed in Gate B).
+
+**`agent_substrate/research_loop.py`**, the bounded controller. Each proposal
+kind has one route:
+
+* MODEL_RUN runs through the governed path, with the independent check
+  registered for that model and the reviewer's decision, and becomes an
+  observation only if VERIFIED;
+* HYPOTHESIS, CONCLUDE and ABSTAIN become research records;
+* DIAGNOSTIC blocks the objective;
+* SIMULATION_PLAN, RETRY and CODE_PATCH are refused.
+
+A step's model request, keyed `<objective>/step-<n>`, is the durable
+statement of that step. A restarted controller resumes from it and its
+recorded prompt, not from a new context that would already hold the step's
+own effects.
+
+**ACCEPTANCE** (`tests/test_research_loop.py`). A scripted agent completes a
+three-step objective through the real governed path: hypothesis, run checked
+by the method of lines, conclusion. The verdict comes from the verified
+bundle. A crash at each of seven points in a step is followed by a restart
+with every in-memory object rebuilt from the log. Each ends where the
+uninterrupted run did, with no governed task executed twice and no model call
+repeated, and both readers agree. The ceilings close an objective EXHAUSTED.
+A CODE_PATCH executes nothing. A DIAGNOSTIC blocks. A REJECTED result yields
+no observation. An agent that concludes before anything is decided is
+refused. Invalidating the result makes the conclusion STALE.
+
+**THE SECOND READER** restates all five records (`_sub_research`), the
+verdict included, in its own words, with its own fold of record states.
+Coverage: 52 of 52 durable actions.
+
+**FOUND BY MUTATION.** `research.json` has 27 mutations, all killed. Planning
+them found four untested rules: a verdict resting on a stale observation; a
+conclusion that must go stale when its hypothesis becomes INCONCLUSIVE; a
+verdict flipping SUPPORTED to REFUTED in one move; and the second reader's
+research rules against forged histories. All four are tested now. The
+writer-check duplication above was removed rather than tested around.
+
+**FOUND BY THE FULL SUITE BEFORE THE PUSH (the Gate B commit).** It found
+four failures, all repaired in this commit; neither commit was pushed in
+between:
+
+* the authenticated-history coverage table did not list the gateway, nor
+  now the research ledger. Both are GATED, with behaviour tests, and the
+  table no longer says the hypothesis lifecycle is NOT_BUILT;
+* `proposal_ingress.json`'s SR7 anchored on the second reader's field-set
+  line that Gate B rewrote. It anchors the new line, with the same meaning;
+* three `assert`s in `inference.py`, which `python -O` deletes, are real
+  refusals now.
+
+**NOT CLAIMED.** That a language model can drive this loop well: the agent
+is a script, and real-model evidence stays NOT_RUN. That a SUPPORTED
+hypothesis is true of the world: it holds of a VERIFIED simulation result
+within that result's resolution
+(`evidence_terms.Property.SEMANTICALLY_SUPPORTED`, for structured claims
+only, never CURRENT_WORLD). That a blocked objective will be answered: no
+human principal is registered (OD-4).

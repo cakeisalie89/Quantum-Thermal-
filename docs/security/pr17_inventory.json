@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 484,
+   "ADDED": 489,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 49,
-   "LOW": 177,
-   "MEDIUM": 265
+   "HIGH": 51,
+   "LOW": 179,
+   "MEDIUM": 266
   },
   "by_subsystem": {
-   "agent-substrate": 23,
+   "agent-substrate": 25,
    "ai-ingress": 3,
-   "assurance": 104,
+   "assurance": 105,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 153,
+   "tests": 155,
    "tooling": 40,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 516
+  "files": 521
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -570,6 +570,8 @@
      "tests/test_replay_origin_view.py",
      "tests/test_repo_content_audit.py",
      "tests/test_repo_contract.py",
+     "tests/test_research_ledger.py",
+     "tests/test_research_loop.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
@@ -702,6 +704,7 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
+     "tests/test_research_loop.py",
      "tests/test_second_reader_audit_actions.py",
      "tests/test_t2_governed.py"
     ]
@@ -784,6 +787,7 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
      "tests/test_replay_origin_view.py",
+     "tests/test_research_loop.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_supply_chain.py"
@@ -843,6 +847,7 @@
      "tests/test_inference_gateway.py",
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
+     "tests/test_research_ledger.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_signed_append_lifecycle.py",
@@ -890,6 +895,7 @@
      "tests/test_inference_gateway.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_refused_fold.py",
+     "tests/test_research_loop.py",
      "tests/test_t2_closure.py",
      "tests/test_t2_governed.py"
     ]
@@ -1057,6 +1063,8 @@
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
      "tests/test_replay_origin_view.py",
+     "tests/test_research_ledger.py",
+     "tests/test_research_loop.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
@@ -1131,6 +1139,8 @@
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
      "tests/test_replay_origin_view.py",
+     "tests/test_research_ledger.py",
+     "tests/test_research_loop.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
@@ -1224,6 +1234,7 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
      "tests/test_replay_origin_view.py",
+     "tests/test_research_loop.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py"
@@ -1349,10 +1360,12 @@
      "tools/mutations/inference_gateway.json"
     ],
     "tests": [
+     "tests/test_authenticated_history.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_inference_concurrency.py",
      "tests/test_inference_gateway.py",
-     "tests/test_inference_second_reader.py"
+     "tests/test_inference_second_reader.py",
+     "tests/test_research_loop.py"
     ]
    }
   },
@@ -1549,6 +1562,7 @@
      "tests/test_policy_binding.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_refused_fold.py",
+     "tests/test_research_loop.py",
      "tests/test_scientific_authority_replay.py"
     ]
    }
@@ -1617,6 +1631,8 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
+     "tests/test_research_ledger.py",
+     "tests/test_research_loop.py",
      "tests/test_typecheck_scope.py"
     ]
    }
@@ -1697,6 +1713,7 @@
      "tools/mutations/policy_binding.json",
      "tools/mutations/proposal_ingress.json",
      "tools/mutations/replay_origin_view.json",
+     "tools/mutations/research.json",
      "tools/mutations/scientific_authority_replay.json",
      "tools/mutations/second_reader_audit_actions.json",
      "tools/mutations/t2_closure.json",
@@ -1734,12 +1751,50 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
      "tests/test_replay_origin_view.py",
+     "tests/test_research_ledger.py",
+     "tests/test_research_loop.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
      "tests/test_t2_closure.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "agent_substrate/research.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "tests": [
+     "tests/test_authenticated_history.py",
+     "tests/test_research_ledger.py",
+     "tests/test_research_loop.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "agent_substrate/research_loop.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "tests": [
+     "tests/test_research_loop.py"
     ]
    }
   },
@@ -3183,6 +3238,7 @@
      "tests/test_repo_content_audit.py",
      "tests/test_repo_inventory.py",
      "tests/test_reproduction_verdict.py",
+     "tests/test_research_loop.py",
      "tests/test_run_identity_backend.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
@@ -6557,6 +6613,40 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_research_ledger.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_research_loop.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_ro_crate_conformance.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8572,6 +8662,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/reproduction_policy.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/research.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

@@ -145,6 +145,9 @@ ALLOWED_IMPORTERS = {
     "tests/test_inference_concurrency.py",
     "tests/test_inference_second_reader.py",
     "tests/test_gate_b_acceptance.py",
+    # Gate C: the research ledger and the bounded controller.
+    "tests/test_research_ledger.py",
+    "tests/test_research_loop.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.
@@ -274,6 +277,10 @@ LAYERS = ("canonical", "projection", "hostid",
           # extends to /2, and above policy and context, whose records it
           # reads; nothing below can reach it, and it holds no credential.
           "inference",
+          # Gate C: research records (imports only the log), then the
+          # bounded controller, which drives the gateway, the ingress and the
+          # governed path it is handed and reaches nothing else.
+          "research", "research_loop",
           # D-2026-162: the evidence vocabulary. Imports nothing internal and
           # names the checks it registers by string, so it is placed last:
           # nothing in the package needs it to decide anything.

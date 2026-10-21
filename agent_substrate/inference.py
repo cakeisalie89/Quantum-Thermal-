@@ -551,8 +551,10 @@ class SubprocessProvider:
         got: dict = {}
 
         def pump():
+            if proc.stdin is None or proc.stdout is None:
+                got["err"] = "the worker has no pipes"
+                return
             try:
-                assert proc.stdin is not None and proc.stdout is not None
                 proc.stdin.write(msg)
                 proc.stdin.close()
                 got["out"] = proc.stdout.read(cap + 1)
@@ -1026,6 +1028,27 @@ class InferenceGateway(DecidedWriter):
                      for n, a in sorted(self._requests.get(request_id,
                                                            {}).items()))
 
+    def context_recorded(self, manifest_digest: str) -> bool:
+        """Is there a context.build record whose manifest has this digest?"""
+        self._fold_new()
+        return manifest_digest in self._contexts
+
+    def request_for(self, idempotency_key: str) -> InferenceRequest | None:
+        """The granted request filed under ``idempotency_key``, if any: what
+        a restarted caller resumes instead of asking a new question."""
+        self._fold_new()
+        for (_rid, _n), (_att, req) in sorted(self._attempts.items()):
+            if req.idempotency_key == idempotency_key:
+                return req
+        return None
+
+    def attempts_under(self, prefix: str) -> int:
+        """Granted attempts of every request whose idempotency key starts
+        with ``prefix``: what an objective has spent in model calls."""
+        self._fold_new()
+        return sum(1 for (_a, req) in self._attempts.values()
+                   if req.idempotency_key.startswith(prefix))
+
     def outcome(self, request_id: str) -> Outcome | None:
         """The OK answer to a request, if it has one."""
         self._fold_new()
@@ -1037,7 +1060,9 @@ class InferenceGateway(DecidedWriter):
         resp = None
         if r.get("outcome") == OK:
             resp = parse_response(self.transcripts.get(r["response_sha256"]))
-        assert att.result_seq is not None
+        if att.result_seq is None:
+            raise InferenceError(f"{att.request_id} attempt {att.attempt} "
+                                 "has no result yet")
         return Outcome(att.request_id, att.attempt, r.get("outcome", ""),
                        att.result_seq, resp, r.get("response_sha256"),
                        r.get("usage"), r.get("cost_micro", 0),
@@ -1287,7 +1312,9 @@ class InferenceGateway(DecidedWriter):
                 att = self._reserve(req)
             except _Answered:
                 done = self.outcome(req.request_id)
-                assert done is not None
+                if done is None:
+                    raise InferenceError(f"{req.request_id} was answered "
+                                         "and its answer cannot be read")
                 return done
             if cancel.is_set():
                 seq = self._settle(att, req, CANCELLED,

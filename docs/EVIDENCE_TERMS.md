@@ -48,8 +48,8 @@ records and tests use them, and their meaning is fixed here:
 | `agent_substrate.result_rules:admission_problems` | SCIENTIFICALLY_VERIFIED | DETERMINISTIC | CITED_BYTES_VERIFY | CURRENT_WORLD, SEMANTICALLY_SUPPORTED |
 | `agent_substrate.inference:prompt_problems` | CITED_BYTES_VERIFY | DETERMINISTIC | - | CITATION_RELEVANT, SEMANTICALLY_SUPPORTED |
 | `agent_substrate.inference:InferenceGateway.binding_problems` | HISTORY_RECORDS | DETERMINISTIC | CITED_BYTES_VERIFY | SEMANTICALLY_SUPPORTED, SCIENTIFICALLY_VERIFIED, CURRENT_WORLD |
+| `agent_substrate.research:evaluate` | SEMANTICALLY_SUPPORTED | DETERMINISTIC | SCIENTIFICALLY_VERIFIED | CURRENT_WORLD |
 | `tools.grounding_bench.claims:verify` | HISTORY_RECORDS | DETERMINISTIC | HISTORY_INTACT | SEMANTICALLY_SUPPORTED, CURRENT_WORLD |
 | *(none)* | CITATION_RELEVANT | - | - | no check in this repository establishes it |
-| *(none)* | SEMANTICALLY_SUPPORTED | - | - | no check in this repository establishes it |
 | *(none)* | CURRENT_WORLD | - | - | no check in this repository establishes it |
 <!-- END GENERATED -->

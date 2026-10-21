@@ -336,7 +336,23 @@
    ],
    "owner_decision": null,
    "gate": "C",
-   "reproduced_gap": "R6"
+   "reproduced_gap": "R6",
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "C",
+    "modules": [
+     "agent_substrate/research.py",
+     "agent_substrate/reconstruct.py"
+    ],
+    "tests": [
+     "tests/test_research_ledger.py",
+     "tests/test_research_loop.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "note": "objectives (with subgoals) registered by their owners, hypotheses with structured predictions, observations read only from VERIFIED or PROMOTED bundles, verdicts COMPUTED with resolution and unit and quantity identity, retraction, supersession and propagated staleness, read again by the second reader."
+   }
   },
   {
    "id": "CAP-09",
@@ -366,7 +382,21 @@
    ],
    "owner_decision": null,
    "gate": "C",
-   "reproduced_gap": null
+   "reproduced_gap": null,
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "C",
+    "modules": [
+     "agent_substrate/research_loop.py"
+    ],
+    "tests": [
+     "tests/test_research_loop.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "note": "a bounded controller: one model call per step, the objective's step and call ceilings, resumption from the log after a crash at any of seven points with nothing done twice. A scripted agent only; no language model has driven it."
+   }
   },
   {
    "id": "CAP-10",
@@ -401,7 +431,22 @@
    ],
    "owner_decision": null,
    "gate": "C",
-   "reproduced_gap": "R2"
+   "reproduced_gap": "R2",
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "C",
+    "modules": [
+     "agent_substrate/research_loop.py",
+     "agent_substrate/proposals.py"
+    ],
+    "tests": [
+     "tests/test_research_loop.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "note": "each proposal kind has one route: MODEL_RUN through the governed path with an independent check; HYPOTHESIS, CONCLUDE and ABSTAIN as research records; DIAGNOSTIC blocks the objective; SIMULATION_PLAN, RETRY and CODE_PATCH are refused. Nothing reaches a shell, the repository or a grant."
+   }
   },
   {
    "id": "CAP-11",
@@ -576,7 +621,21 @@
    ],
    "owner_decision": "OD-4",
    "gate": "C",
-   "reproduced_gap": null
+   "reproduced_gap": null,
+   "progress": {
+    "state": "PARTIAL",
+    "gate": "C",
+    "modules": [
+     "agent_substrate/research_loop.py"
+    ],
+    "tests": [
+     "tests/test_research_loop.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "note": "a question for a person BLOCKS the objective with the question recorded. Who answers it is OD-4: no human principal is registered, so a blocked objective stays blocked."
+   }
   },
   {
    "id": "CAP-16",
