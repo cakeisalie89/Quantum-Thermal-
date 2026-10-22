@@ -414,8 +414,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 552748,
-      "sha256": "17cdd5bcfdc8d476ce3a29ed150dd6442a761720a4293f77df4d21b912420a00"
+      "size_bytes": 553605,
+      "sha256": "add4eb2c341d764c8d78a18c0139496a5c01a64b8c039ef55316e632a93687ef"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -435,7 +435,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 4503,
-      "sha256": "f050dc7716c76410b3e127db5d7d4d1711c022725b5bf47aab47599308e6a66a"
+      "sha256": "0c679da722d2dd2fcd2a80c27432eaf937fcc6ba77b84d72f8835dbad18bdb3e"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -659,13 +659,13 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 239867,
-      "sha256": "96f3eab7e2b9fc92e2be3ce816094ea1402a556c8efbec9a55cdba1ced43a021"
+      "size_bytes": 239905,
+      "sha256": "3e0908faf41b7a06e870ed4172496596030926d6cd5ddd8106dc8dcba4f7e3d1"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
-      "size_bytes": 20156,
-      "sha256": "022320e6dd09a911fdd9287f177fc76efc5535d87bf0aaf686c2ca71cd60a5af"
+      "size_bytes": 20430,
+      "sha256": "a27ab3f4b590209215a6034480236e1b0452d2f2cd5dd5a786b061c3b4377f6a"
     },
     {
       "filename": "docs/security/reproducibility_contract.json",
@@ -790,7 +790,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "f0069dc9f339cde5a74ceea07da18d9a9a360e27e3684943702892e00b19219f"
+      "sha256": "df0436dd33cc1264f5eb683ed360202d80aca543651ec7e08ae96c207be9c9cb"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1449,8 +1449,8 @@
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 48747,
-      "sha256": "30ae289235e02672e7b721a4bac2409ed4e475743091fef3e40590084a3c57cc"
+      "size_bytes": 49017,
+      "sha256": "96afa5edbaadfff2bf06cfa1badb2b8b441c8762791fbc55c6aa223222da0598"
     },
     {
       "filename": "tests/test_confinement_probe.py",
@@ -1469,8 +1469,8 @@
     },
     {
       "filename": "tests/test_decided_appends.py",
-      "size_bytes": 15611,
-      "sha256": "648a5c9aadfa187ee4afce7154d43a32d8213e451dcecb57828843a0432e1cde"
+      "size_bytes": 16440,
+      "sha256": "13486291e357738f8831772e6b41ee7f79c886d1a1d576312228fd9256f365ba"
     },
     {
       "filename": "tests/test_decided_under_lock.py",

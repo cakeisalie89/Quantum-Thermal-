@@ -1592,6 +1592,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
+     "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",

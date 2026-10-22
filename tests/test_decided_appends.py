@@ -199,18 +199,31 @@ def test_a_supervisor_appending_while_a_tool_runs_is_not_the_tools_write(
     not the tool's and does not fail its run."""
     import agent_substrate.execution as X
     real = X._collect_outputs
+    appended: list = []
 
     def a_supervisor_appends_meanwhile(cwd, declared):
+        # A well-formed foreign record: another supervisor publishing a
+        # policy of its own. (Until D-2026-168 this was a policy.decision
+        # citing no policy, which the policy store already refused on load
+        # and the second reader now refuses too: filler has to be a record
+        # some writer could have written.)
+        from agent_substrate.policy import (ACT_POLICY_PUBLISH, Effect,
+                                            document, rule)
+        appended.append(f"elsewhere-{len(appended)}")
+        doc = document(policy_id=appended[-1], version=1, rules=(rule(
+            rule_id="r", effect=Effect.ALLOW, actions=("x",),
+            subjects=("*",), roles=("*",), resources=("*",)),))
         EventLog(gov.log.path).append(
-            actor="system", action="policy.decision", target="elsewhere",
-            payload={"decision": {"allowed": True}, "request": {},
-                     "policy_id": "x"})
+            actor="other-supervisor", action=ACT_POLICY_PUBLISH,
+            target=appended[-1], payload={"document": doc.body(),
+                                          "policy_digest": doc.digest()})
         return real(cwd, declared)
 
     monkeypatch.setattr(X, "_collect_outputs",
                         a_supervisor_appends_meanwhile)
     run = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov))
     assert run.state is TaskState.VERIFIED, run.reason
+    assert appended, "the other supervisor never appended"
     (ex,) = _actions(gov, "task.execution")
     assert ex.payload["undeclared_writes"] == []
 

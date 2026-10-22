@@ -10013,3 +10013,19 @@ re-anchored with their intent unchanged, and re-run: 19/19, 29/29, 14/14,
   the adversary the CrashRetry model already bounds (MaxAdversity).
 - Wall time remains writer-asserted. The rule makes time monotone along
   the history; it does not make it true.
+
+**FOUND BY THE FULL SUITE, BEFORE PUSH.**
+
+- `tests/test_decided_appends.py` simulated another supervisor's write
+  with a `policy.decision` citing no policy and carrying no digest. The
+  policy store already refused that history on load. The second reader's
+  new restatement refused it too, so the governed run's independent
+  verification rejected the run. The filler is now a record some writer
+  could have written (a policy publication, unique per append), and the
+  test asserts it was appended.
+- Readiness row SUB-1 covers the event log, the policy store and the
+  authority store. Its hosted evidence at 1586322 no longer describes
+  them, so it returns to IMPLEMENTED until the evidence commit after
+  hosted CI.
+- The completion matrix's evidence pin moves 36 -> 32. R39, R40, R46 and
+  R49 cover the changed files and predate them until then.

@@ -192,7 +192,7 @@
   {
    "id": "SUB-1",
    "capability": "authority-bearing writers decide under the writer lock against the history they append onto",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_agent_toctou.py",
     "tests/test_decided_appends.py"
@@ -202,7 +202,7 @@
     "tools/mutations/agent_agents.json"
    ],
    "ledger": "D-2026-147",
-   "note": "the agent directory, memory and policy stores; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the event log's fold, the agent directory and memory (a refused fold is never resumed past); re-attached only from a hosted run of the new implementation",
+   "note": "the agent directory, memory and policy stores; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the event log's fold, the agent directory and memory (a refused fold is never resumed past); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by D-2026-168: the policy store's decision path, the authority store and the event log changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "agent_substrate/agents.py",
     "agent_substrate/memory.py",
@@ -217,7 +217,7 @@
     "implementation_sha256": "98056f22745c5e0bc52aa57fed788d92f2637cbc22000bc8866250460938e613",
     "what": "agent-substrate: full suite and mutation shards"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",

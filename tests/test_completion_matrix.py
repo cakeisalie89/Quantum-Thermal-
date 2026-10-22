@@ -915,7 +915,11 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 37 -> 36 in the Gate C commit (D-2026-164): the authenticated-history
 #: coverage table (principals.py) gains the gateway and the research
 #: ledger, so R27 predates its implementation too.
-EXPECTED_EVIDENCE_COVERS = 36
+#: 36 -> 32 in the D-2026-168 repair: an expiry is judged at the time the
+#: history reached, in the event log, the policy and authority stores and
+#: the second reader, so R39, R40, R46 and R49 predate their
+#: implementation until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 32
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
