@@ -160,6 +160,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_decision_proof.py",
     # D-2026-168: an expiry judged at the time the history reached
     "tests/test_history_time.py",
+    # Assurance F: freshness and re-observation
+    "tests/test_freshness.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.
@@ -289,9 +291,13 @@ LAYERS = ("canonical", "projection", "hostid",
           # extends to /2, and above policy and context, whose records it
           # reads; nothing below can reach it, and it holds no credential.
           "inference",
-          # Gate C: research records (imports only the log), then the
-          # bounded controller, which drives the gateway, the ingress and the
-          # governed path it is handed and reaches nothing else.
+          # Assurance F: freshness policies and what an observation is now.
+          # Imports nothing internal; the research ledger judges with it.
+          "freshness",
+          # Gate C: research records (imports only the log and freshness),
+          # then the bounded controller, which drives the gateway, the
+          # ingress and the governed path it is handed and reaches nothing
+          # else.
           "research", "research_loop",
           # D-2026-162: the evidence vocabulary. Imports nothing internal and
           # names the checks it registers by string, so it is placed last:

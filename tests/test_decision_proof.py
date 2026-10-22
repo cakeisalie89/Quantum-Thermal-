@@ -349,15 +349,26 @@ def test_each_condition_of_a_record_decision_is_checked(path, value, why):
         **{path: value})))
 
 
+def _held(**over):
+    return [{"observation_id": "o", "record_state": "VERIFIED",
+             "bundle_held": True, "freshness": "FRESH", **over}]
+
+
 @pytest.mark.parametrize("basis, why", [
     ([], "no basis"),
-    ([{"observation_id": "o", "record_state": "STALE",
-       "bundle_held": True}], "rests on a record STALE"),
-    ([{"observation_id": "o", "record_state": "VERIFIED",
-       "bundle_held": False}], "bundle is not held"),
+    (_held(record_state="STALE"), "rests on a record STALE"),
+    (_held(bundle_held=False), "bundle is not held"),
+    # Assurance F: freshness at the decision
+    (_held(freshness="UNKNOWN"), "freshness had run out"),
+    (_held(freshness="SUPERSEDED"), "freshness had run out"),
+    (_held(freshness=None), "freshness had run out"),
 ])
 def test_each_condition_of_a_verdict_is_checked(basis, why):
     from agent_substrate.reconstruct import _conditions
-    d = {"decision": {"kind": "research", "outcome": "SUPPORTED"},
-         "accepted": True, "basis": basis, "proposal": None}
-    assert any(why in f for f in _conditions(d))
+
+    def d(b):
+        return {"decision": {"kind": "research", "outcome": "SUPPORTED"},
+                "accepted": True, "basis": b, "proposal": None}
+    for control in ("FRESH", "HISTORICAL"):
+        assert _conditions(d(_held(freshness=control))) == []
+    assert any(why in f for f in _conditions(d(basis)))

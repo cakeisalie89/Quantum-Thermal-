@@ -113,6 +113,9 @@ OWNERS: dict = {
     "research.observation": "research",
     "research.status": "research",
     "research.step": "research",
+    # Assurance F: how long one source's observations stay current, set by
+    # the objective's owner
+    "research.freshness": "research",
     # agent_substrate.events -- the security profile a history is written
     # under, declared by its first event and enforced by the read primitives
     # themselves; every reducer meets it at seq 0 and passes it by (D-2026-92)

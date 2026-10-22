@@ -10029,3 +10029,124 @@ re-anchored with their intent unchanged, and re-run: 19/19, 29/29, 14/14,
   hosted CI.
 - The completion matrix's evidence pin moves 36 -> 32. R39, R40, R46 and
   R49 cover the changed files and predate them until then.
+
+## D-2026-169 — Assurance F: an authentic but outdated observation is not a current fact
+
+**THE GAP.** A research observation was CURRENT for exactly as long as the
+record it was read from stood. Nothing distinguished "this was observed" from
+"this still holds". A reading taken a year ago supported a verdict, and the
+conclusion drawn from it, for as long as its source record existed. Nor could
+an observation say when it was observed. The only time on record was when it
+was written down.
+
+**WHAT WAS ADDED.**
+
+- `agent_substrate/freshness.py`: typed policies and the standing they give
+  an observation at a stated time. It is pure, and imports nothing internal.
+  - HISTORICAL is the default: valid indefinitely as a record, and claiming
+    nothing about now.
+  - SOURCE_WITHDRAWAL: current until its source stops standing.
+  - UNTIL_EVENT: current until a named action on a named target is recorded
+    after the observation.
+  - INTERVAL: current for a stated number of seconds after the observation.
+  - PERIODIC: the same, and only until a later observation of the same
+    source replaces it.
+
+  There is no universal TTL. A source nobody set a policy for is HISTORICAL,
+  and that is what the derived view reports for it: not current, not
+  expired. The standings are FRESH, HISTORICAL, UNKNOWN (never "false"),
+  SUPERSEDED and WITHDRAWN. FRESH is the owner's stated assumption about how
+  fast the world changes; it is not `CURRENT_WORLD`, which still no check
+  establishes.
+- `research.freshness`: a policy is recorded by the objective's OWNER, in the
+  owner's name, once per source, with a stated reason. It is never
+  rewritten. The view and every EXPIRED record name the policy, who recorded
+  it and where.
+- An observation carries `observed_at` when its source's bytes say it. It is
+  read from the bundle and re-read on replay, never asserted by the
+  recorder. Only one ISO 8601 form is accepted (seconds, an optional
+  fraction, `Z` or an offset). One later than the history has reached is
+  refused. Records written before this carry no time and read exactly as
+  before.
+- Decision-time checks, judged at `events.judged_at` (D-2026-168):
+  - a verdict rests only on observations FRESH or HISTORICAL at its own
+    time;
+  - so does a conclusion's hypothesis;
+  - EXPIRED is justified only by a lapse;
+  - a verdict may be decided again, the same way, on a new basis only once
+    evidence its old basis held has lapsed: a re-observation renews it.
+- `propagate()` first appends EXPIRED for every observation whose freshness
+  ran out, then renews what re-observation supports, then carries lost
+  currency as before. An expired reading's hypothesis becomes STALE, and so
+  does the conclusion drawn from it, unless fresh evidence renews the
+  verdict.
+- `currency(objective)`: the derived view. It gives each observation's
+  record status beside its standing and the reason, the policy and who
+  recorded it. It gives each decided hypothesis the weakest standing among
+  the observations its verdict actually used.
+- The second reader restates all of it, including the time parsing. It may
+  not import `datetime`, so a restated parser reads the one accepted form,
+  and a property test holds both parsers to the same strings and instants.
+- A research verdict's decision proof (Assurance D) states each basis
+  observation's freshness AT the decision, judged against the history
+  before it. Verification fails a verdict whose evidence had run out, and
+  refuses a proof that says otherwise.
+
+**NOTHING IS REWRITTEN.** The acceptance test compares every event's hash and
+payload before and after the expiry and its propagation: none changed. The
+observation's values are still readable, and the hypothesis's history still
+shows what it was decided as.
+
+**TESTS** (`tests/test_freshness.py`), each with a control:
+
+- the acceptance case;
+- no universal TTL, including a simulation result that stays HISTORICAL;
+- who may set a policy, and every malformed one;
+- a clock set back, on the write path and as a record a writer without the
+  rule wrote, refused by both readers;
+- a periodic reading never repeated, and one re-observed and renewed;
+- renewal by propagation, and when renewal is refused;
+- delayed data, recorded but deciding nothing, and a late arrival that does
+  not supersede a later reading;
+- a reading from the future, and five unorderable time forms;
+- source replacement: WITHDRAWN and STALE, never EXPIRED;
+- valid until a named event recorded after it, but not before;
+- contradictory fresh readings, which decide nothing;
+- a contradicting re-observation, which ends a verdict it cannot flip;
+- three kinds of record appended around the ledger, refused by both readers;
+- the decision proof, and the property test of both time parsers.
+
+A load-bearing test pins the fold order: a record is judged against the
+history BEFORE it, so a policy valid until the verdict itself is recorded
+lets that verdict load.
+
+Mutation: `tools/mutations/freshness.json`, 40 mutations over the policy
+rules, the standing, the ledger's checks, expiry and renewal, the second
+reader and the proof: 40/40 killed. Three survived a first run, and each was
+a test gap:
+
+- nothing forged an observation's time against its bundle;
+- nothing had a verdict resting on readings of different standing, so the
+  view could report the strongest instead of the weakest;
+- the random parser test never produced an impossible date, so the second
+  reader could read 30 February.
+
+Each now has a test.
+
+**WHAT THIS DOES NOT DO.**
+
+- Observe the world. Every measurement in these tests is a fixture written
+  by the test, of a source named `probe-1`. An ingestion path for real
+  instruments is Gate F's.
+- Make wall time true. Freshness is judged against a time the writers
+  assert, held monotone along the history (D-2026-168). An instrument whose
+  clock is behind makes its readings look older, which fails closed. One
+  ahead is refused.
+- Judge freshness anywhere but the research ledger. Memory entries, context
+  items and retrieval hits keep their own currency rules (Assurance C's
+  labels, the memory trust audit).
+- Let an owner revise a policy: one per source, never rewritten. A changed
+  view of how fast a source decays is a new objective, or a new source id.
+- Exercise freshness in the deterministic research simulation (Assurance
+  A). That state machine has no clock or policies yet. The composed
+  campaigns (section 7) are where time meets the other controls.

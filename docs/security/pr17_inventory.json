@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 512,
+   "ADDED": 515,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 52,
-   "LOW": 186,
-   "MEDIUM": 281
+   "HIGH": 53,
+   "LOW": 187,
+   "MEDIUM": 282
   },
   "by_subsystem": {
-   "agent-substrate": 26,
+   "agent-substrate": 27,
    "ai-ingress": 3,
-   "assurance": 110,
+   "assurance": 111,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 162,
+   "tests": 163,
    "tooling": 41,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 544
+  "files": 547
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -550,6 +550,7 @@
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py",
      "tests/test_formal_conformance.py",
+     "tests/test_freshness.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generated_mutations.py",
      "tests/test_generic_consistency.py",
@@ -785,6 +786,7 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
+     "tests/test_freshness.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
@@ -1226,6 +1228,23 @@
      "tests/test_decided_appends.py",
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "agent_substrate/freshness.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/freshness.json"
+    ],
+    "tests": [
+     "tests/test_freshness.py"
     ]
    }
   },
@@ -1754,6 +1773,7 @@
      "tools/mutations/agent_substrate.json",
      "tools/mutations/authenticated_history.json",
      "tools/mutations/decision_proof.json",
+     "tools/mutations/freshness.json",
      "tools/mutations/history_time.json",
      "tools/mutations/inference_gateway.json",
      "tools/mutations/memory_trust.json",
@@ -1787,6 +1807,7 @@
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
+     "tests/test_freshness.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_grounding_bench.py",
@@ -1826,12 +1847,14 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/freshness.json",
      "tools/mutations/research.json",
      "tools/mutations/simulation.json"
     ],
     "tests": [
      "tests/test_authenticated_history.py",
      "tests/test_decision_proof.py",
+     "tests/test_freshness.py",
      "tests/test_noninterference.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
@@ -2071,6 +2094,7 @@
      "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
+     "tests/test_freshness.py",
      "tests/test_governed_model.py",
      "tests/test_grounding_bench.py",
      "tests/test_history_time.py",
@@ -6019,6 +6043,24 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_freshness.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "hypothesis",
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_gate_b_acceptance.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8559,6 +8601,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/formal.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/freshness.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

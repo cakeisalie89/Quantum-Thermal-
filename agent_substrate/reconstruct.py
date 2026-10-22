@@ -1360,6 +1360,12 @@ class SubsystemReconstruction:
     research: dict = field(default_factory=dict)
     #: objective id -> steps recorded
     research_steps: dict = field(default_factory=dict)
+    #: (objective id, model id) -> ``{"body", "seq", "by"}``: a source's
+    #: freshness policy (Assurance F), as this reader rebuilt it
+    research_freshness: dict = field(default_factory=dict)
+    #: (action, target) -> the latest seq it was recorded at, for a policy
+    #: that lasts until an event
+    last_seen: dict = field(default_factory=dict)
     #: record id -> ``{"state", "result_bundle"}``: what a research
     #: observation may be read from, as the record transitions leave it.
     sci_states: dict = field(default_factory=dict)
@@ -1597,6 +1603,7 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
                     "result_bundle", cur["result_bundle"])
         elif a.startswith("research."):
             _sub_research(ev, p, out)
+        out.last_seen[(a, ev.target)] = ev.seq
         prev = (ev.seq, ev.hash)
     return out
 
@@ -3457,13 +3464,13 @@ def _sub_inference_result(ev, p: dict, out) -> None:
 _RS_MOVES = {
     "hypothesis": {"OPEN": {"SUPPORTED", "REFUTED", "INCONCLUSIVE",
                             "RETRACTED", "SUPERSEDED", "STALE"},
-                   "INCONCLUSIVE": {"SUPPORTED", "REFUTED", "RETRACTED",
-                                    "SUPERSEDED", "STALE"},
-                   "SUPPORTED": {"INCONCLUSIVE", "RETRACTED", "SUPERSEDED",
-                                 "STALE"},
-                   "REFUTED": {"INCONCLUSIVE", "RETRACTED", "SUPERSEDED",
-                               "STALE"}},
-    "observation": {"CURRENT": {"STALE"}},
+                   "INCONCLUSIVE": {"INCONCLUSIVE", "SUPPORTED", "REFUTED",
+                                    "RETRACTED", "SUPERSEDED", "STALE"},
+                   "SUPPORTED": {"SUPPORTED", "INCONCLUSIVE", "RETRACTED",
+                                 "SUPERSEDED", "STALE"},
+                   "REFUTED": {"REFUTED", "INCONCLUSIVE", "RETRACTED",
+                               "SUPERSEDED", "STALE"}},
+    "observation": {"CURRENT": {"STALE", "EXPIRED"}},
     "objective": {"OPEN": {"CONCLUDED", "ABSTAINED", "EXHAUSTED", "BLOCKED"},
                   "BLOCKED": {"OPEN", "ABSTAINED", "EXHAUSTED"},
                   "CONCLUDED": {"STALE"}},
@@ -3477,6 +3484,95 @@ _RS_CURRENT = {"hypothesis": {"OPEN", "SUPPORTED", "REFUTED",
 def _rs_current(out, rid) -> bool:
     r = out.research.get(rid)
     return r is not None and r["status"] in _RS_CURRENT[r["kind"]]
+
+
+# Freshness (Assurance F), restated from the policy kinds rather than
+# imported: what an observation is now, at time ``at``.
+_RS_SECONDS = {"INTERVAL", "PERIODIC"}
+_RS_USABLE = ("FRESH", "HISTORICAL")
+_RS_LAPSED = ("UNKNOWN", "SUPERSEDED")
+_RS_PARAMS = {"HISTORICAL": set(), "SOURCE_WITHDRAWAL": set(),
+              "UNTIL_EVENT": {"action", "target"}, "INTERVAL": {"seconds"},
+              "PERIODIC": {"seconds"}}
+
+
+def _rs_instant(text):
+    """Seconds since the epoch of ``YYYY-MM-DDTHH:MM:SS[.ffffff]`` with
+    ``Z`` or ``+HH:MM``, or None when ``text`` is not one. Restated without
+    the datetime module the first reader parses it with."""
+    if not isinstance(text, str) or not text.isascii() or len(text) < 20:
+        return None
+    head, rest = text[:19], text[19:]
+    if [head[i] for i in (4, 7, 10, 13, 16)] != ["-", "-", "T", ":", ":"]:
+        return None
+    parts = (head[0:4], head[5:7], head[8:10], head[11:13], head[14:16],
+             head[17:19])
+    if not all(x.isdigit() for x in parts):
+        return None
+    y, mo, d, h, mi, sec = (int(x) for x in parts)
+    frac = 0.0
+    if rest.startswith("."):
+        n = 1
+        while n < len(rest) and rest[n].isdigit():
+            n += 1
+        if not 2 <= n <= 7:
+            return None
+        frac = int(rest[1:n]) / 10 ** (n - 1)
+        rest = rest[n:]
+    if rest == "Z":
+        offset = 0
+    elif len(rest) == 6 and rest[0] in "+-" and rest[3] == ":" and \
+            rest[1:3].isdigit() and rest[4:6].isdigit() and \
+            int(rest[1:3]) <= 23 and int(rest[4:6]) <= 59:
+        offset = (int(rest[1:3]) * 60 + int(rest[4:6])) * 60 * \
+            (1 if rest[0] == "+" else -1)
+    else:
+        return None
+    leap = y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)
+    days_in = (31, 29 if leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30,
+               31)
+    if not (1 <= mo <= 12 and 1 <= d <= days_in[mo - 1] and h <= 23
+            and mi <= 59 and sec <= 59):
+        return None
+    # days since 1970-01-01, by the civil-from-days identity
+    yy = y - (mo <= 2)
+    era = yy // 400
+    yoe = yy - era * 400
+    doy = (153 * (mo + (-3 if mo > 2 else 9)) + 2) // 5 + d - 1
+    days = era * 146097 + yoe * 365 + yoe // 4 - yoe // 100 + doy - 719468
+    return days * 86400 + h * 3600 + mi * 60 + sec + frac - offset
+
+
+def _rs_standing(out, oid, at: float) -> str:
+    rec = out.research[oid]
+    b = rec["body"]
+    if (out.sci_states.get(b.get("record_id")) or {}).get("state") not in \
+            ("VERIFIED", "PROMOTED"):
+        return "WITHDRAWN"
+    entry = out.research_freshness.get((b.get("objective_id"),
+                                        b.get("model_id")))
+    if entry is None or entry["body"]["kind"] == "HISTORICAL":
+        return "HISTORICAL"
+    pol = entry["body"]
+    kind = pol["kind"]
+    if kind == "SOURCE_WITHDRAWAL":
+        return "FRESH"
+    if kind == "UNTIL_EVENT":
+        seen = out.last_seen.get((pol["params"]["action"],
+                                  pol["params"]["target"]))
+        return "UNKNOWN" if seen is not None and seen > rec["seq"] \
+            else "FRESH"
+    t = rec.get("observed_at")
+    if t is None:
+        return "UNKNOWN"
+    if kind == "PERIODIC" and any(
+            r["kind"] == "observation" and r.get("observed_at") is not None
+            and r["observed_at"] > t
+            and r["body"].get("objective_id") == b.get("objective_id")
+            and r["body"].get("model_id") == b.get("model_id")
+            for r in out.research.values()):
+        return "SUPERSEDED"
+    return "UNKNOWN" if at > t + pol["params"]["seconds"] else "FRESH"
 
 
 def _rs_verdict(pred: dict, observations: list) -> str:
@@ -3561,11 +3657,22 @@ def _sub_research(ev, p: dict, out) -> None:
             return
         out.research[b.get("hypothesis_id")] = {
             "kind": "hypothesis", "status": "OPEN", "body": b, "basis": []}
+    elif a == "research.freshness":
+        _sub_research_freshness(ev, p, out)
     elif a == "research.observation":
         b = p.get("observation")
         if not isinstance(b, dict):
             _note(out, ev, "research.observation carries no observation")
             return
+        when = None
+        if "observed_at" in b:
+            when = _rs_instant(b["observed_at"])
+            if when is None or when > out.latest_wall:
+                _note(out, ev, f"an observation observed at "
+                               f"{b['observed_at']!r}: not an instant with "
+                               "an offset, or later than the history has "
+                               "reached")
+                return
         sci = out.sci_states.get(b.get("record_id")) or {}
         if sci.get("state") not in ("VERIFIED", "PROMOTED"):
             _note(out, ev, f"an observation read from a record that is "
@@ -3580,7 +3687,7 @@ def _sub_research(ev, p: dict, out) -> None:
             return
         out.research[b.get("observation_id")] = {
             "kind": "observation", "status": "CURRENT", "body": b,
-            "basis": []}
+            "basis": [], "seq": ev.seq, "observed_at": when}
     elif a == "research.status":
         _sub_research_status(ev, p, out)
     elif a == "research.step":
@@ -3596,6 +3703,44 @@ def _sub_research(ev, p: dict, out) -> None:
                            "or past its objective's limit")
             return
         out.research_steps[b.get("objective_id")] = have + 1
+
+
+def _sub_research_freshness(ev, p: dict, out) -> None:
+    """Restated: an objective's owner sets, once per source, how long its
+    observations stay current -- a known kind with exactly its parameters,
+    and a reason."""
+    b = p.get("freshness")
+    keys = {"policy_id", "objective_id", "model_id", "kind", "params",
+            "rationale"}
+    if not isinstance(b, dict) or set(b) != keys or \
+            b.get("kind") not in _RS_PARAMS or \
+            not isinstance(b.get("params"), dict) or \
+            set(b["params"]) != _RS_PARAMS[b["kind"]] or \
+            not str(b.get("rationale") or "").strip():
+        _note(out, ev, "research.freshness carries no well-formed policy")
+        return
+    if b["kind"] in _RS_SECONDS:
+        sec = b["params"]["seconds"]
+        if isinstance(sec, bool) or not isinstance(sec, (int, float)) or \
+                not sec > 0 or sec == float("inf"):
+            _note(out, ev, "a freshness interval that is not a positive "
+                           "number of seconds")
+            return
+    obj = out.research.get(b["objective_id"])
+    if obj is None or obj["kind"] != "objective" or \
+            ev.actor != obj["body"].get("owner"):
+        _note(out, ev, f"{ev.actor!r} sets the freshness of evidence for "
+                       f"{b['objective_id']!r}, which is not its objective")
+        return
+    key = (b["objective_id"], b["model_id"])
+    if key in out.research_freshness or any(
+            f["body"]["policy_id"] == b["policy_id"]
+            for f in out.research_freshness.values()):
+        _note(out, ev, f"a second freshness policy for {key!r}, or a "
+                       "policy id recorded twice")
+        return
+    out.research_freshness[key] = {"body": b, "seq": ev.seq,
+                                   "by": ev.actor}
 
 
 def _sub_research_status(ev, p: dict, out) -> None:
@@ -3621,6 +3766,20 @@ def _sub_research_status(ev, p: dict, out) -> None:
             _note(out, ev, f"a hypothesis verdict {status} the cited "
                            "observations do not give")
             return
+        lapsed = [o for o in basis
+                  if _rs_standing(out, o, out.latest_wall) not in _RS_USABLE]
+        if lapsed:
+            _note(out, ev, f"a verdict resting on {lapsed}, whose freshness "
+                           "had run out")
+            return
+        if status == rec["status"] and (
+                set(basis) == set(rec["basis"]) or all(
+                    _rs_current(out, o) and _rs_standing(
+                        out, o, out.latest_wall) in _RS_USABLE
+                    for o in rec["basis"])):
+            _note(out, ev, f"{rid!r} decided {status} again with nothing "
+                           "in its basis lapsed")
+            return
     if rec["kind"] == "objective" and status == "CONCLUDED":
         h = out.research.get(basis[0]) if len(basis) == 1 else None
         if h is None or h["kind"] != "hypothesis" or \
@@ -3629,6 +3788,17 @@ def _sub_research_status(ev, p: dict, out) -> None:
             _note(out, ev, "a conclusion resting on no decided hypothesis "
                            "of its objective")
             return
+        if any(not _rs_current(out, o) or _rs_standing(
+                out, o, out.latest_wall) not in _RS_USABLE
+               for o in h["basis"]):
+            _note(out, ev, "a conclusion resting on evidence whose "
+                           "freshness had run out")
+            return
+    if status == "EXPIRED" and \
+            _rs_standing(out, rid, out.latest_wall) not in _RS_LAPSED:
+        _note(out, ev, f"{rid!r} declared EXPIRED while its freshness held "
+                       "(or its source was withdrawn, which is STALE)")
+        return
     if status == "STALE":
         if rec["kind"] == "observation":
             lost = (out.sci_states.get(rec["body"].get("record_id"))
@@ -4144,17 +4314,24 @@ def _research_proof(base, report, events, ev, p, evidence):
         "hypothesis_id": hid, "prediction": hyp.get("prediction"),
         "proposal_id": hyp.get("proposal_id"),
         "proposed_by": hyp.get("proposed_by")}
+    # what each observation was AT the decision: judged against the history
+    # before it, at the time the decision record carries (Assurance F)
+    before = reconstruct_subsystems(_at(report, events, ev.seq - 1))
+    at = judged_at(before.latest_wall, ev.wall_time)
     basis = []
     for oid in p.get("basis") or ():
         o = observed.get(oid) or {}
         r = recs.get(o.get("record_id")) or {}
+        known = (before.research.get(oid) or {}).get("kind") == "observation"
         basis.append({"observation_id": oid,
                       "record_id": o.get("record_id"),
                       "record_state": r.get("state"),
                       "result_bundle": o.get("result_bundle"),
                       "bundle_held": _resolves(evidence,
                                                o.get("result_bundle")),
-                      "values": o.get("values")})
+                      "values": o.get("values"),
+                      "freshness": _rs_standing(before, oid, at)
+                      if known else None})
     base["basis"] = basis
     base["proposal"] = _proposal_chain(events, hyp.get("proposal_id"),
                                        ev.seq)
@@ -4218,6 +4395,9 @@ def _conditions(d: dict) -> list:
                            f"{b['record_state']}")
             if not b["bundle_held"]:
                 out.append(f"{b['observation_id']}'s bundle is not held")
+            if b["freshness"] not in _RS_USABLE:
+                out.append(f"{b['observation_id']} was {b['freshness']} at "
+                           "the decision: its freshness had run out")
         chain = d.get("proposal")
     if chain and chain.get("inference"):
         inf = chain["inference"]
