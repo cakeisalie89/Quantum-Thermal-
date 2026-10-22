@@ -156,6 +156,8 @@ ALLOWED_IMPORTERS = {
     # Assurance C: the label algebra, and the end-to-end noninterference run
     "tests/test_trust_labels.py",
     "tests/test_noninterference.py",
+    # Assurance D: decision proofs, derived and attacked
+    "tests/test_decision_proof.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.

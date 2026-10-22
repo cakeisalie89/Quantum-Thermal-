@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 508,
+   "ADDED": 510,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 52,
-   "LOW": 184,
-   "MEDIUM": 279
+   "LOW": 185,
+   "MEDIUM": 280
   },
   "by_subsystem": {
    "agent-substrate": 26,
    "ai-ingress": 3,
-   "assurance": 108,
+   "assurance": 109,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 160,
+   "tests": 161,
    "tooling": 41,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 540
+  "files": 542
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -545,6 +545,7 @@
      "tests/test_confinement_probe.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
+     "tests/test_decision_proof.py",
      "tests/test_evidence_terms.py",
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py",
@@ -781,6 +782,7 @@
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
      "tests/test_checkpoint_recovery.py",
+     "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
@@ -1058,6 +1060,7 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
+     "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
@@ -1136,6 +1139,7 @@
      "tests/test_agent_substrate.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
+     "tests/test_decision_proof.py",
      "tests/test_evidence_terms.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
@@ -1579,6 +1583,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
+     "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generated_mutations.py",
@@ -1650,6 +1655,7 @@
     "tests": [
      "tests/test_agent_long_horizon.py",
      "tests/test_authenticated_history.py",
+     "tests/test_decision_proof.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_inference_gateway.py",
      "tests/test_inference_second_reader.py",
@@ -1736,6 +1742,7 @@
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_substrate.json",
      "tools/mutations/authenticated_history.json",
+     "tools/mutations/decision_proof.json",
      "tools/mutations/inference_gateway.json",
      "tools/mutations/memory_trust.json",
      "tools/mutations/neural_authority.json",
@@ -1766,6 +1773,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
+     "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
@@ -1810,6 +1818,7 @@
     ],
     "tests": [
      "tests/test_authenticated_history.py",
+     "tests/test_decision_proof.py",
      "tests/test_noninterference.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
@@ -1830,6 +1839,7 @@
      "tools/mutations/research.json"
     ],
     "tests": [
+     "tests/test_decision_proof.py",
      "tests/test_noninterference.py",
      "tests/test_research_loop.py"
     ]
@@ -1970,7 +1980,8 @@
      "tools/mutations/agent_separate_verify.json"
     ],
     "tests": [
-     "tests/test_agent_separate_verify.py"
+     "tests/test_agent_separate_verify.py",
+     "tests/test_decision_proof.py"
     ]
    }
   },
@@ -2044,6 +2055,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
+     "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
      "tests/test_governed_model.py",
      "tests/test_grounding_bench.py",
@@ -3385,6 +3397,7 @@
      "tests/test_claude_workflow_prompt.py",
      "tests/test_completion_matrix.py",
      "tests/test_container_workflow_contract.py",
+     "tests/test_decision_proof.py",
      "tests/test_external_models.py",
      "tests/test_filesystem_confinement.py",
      "tests/test_generic_consistency.py",
@@ -5850,6 +5863,23 @@
    "path": "tests/test_decided_under_lock.py",
    "risk": "LOW",
    "runtime_dependencies": [],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_decision_proof.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
    "subsystem": "tests",
    "trust_boundary": "verification only",
    "verification": {
@@ -8380,6 +8410,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/decided_appends.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/decision_proof.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

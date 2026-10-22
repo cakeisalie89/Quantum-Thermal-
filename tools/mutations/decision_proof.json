@@ -1,0 +1,107 @@
+{
+  "title": "Assurance D: a forged or incomplete decision proof does not pass",
+  "note": "Each mutation weakens the independent verifier in agent_substrate/reconstruct.py: a claim not compared, a field omitted or invented unnoticed, or a condition of the decision -- accepted by the reader, separation of duties, evidence held and re-hashed, admission, dependencies standing, a granted and answered model call, a policy in force -- not checked.",
+  "suites": [
+    "tests/test_decision_proof.py"
+  ],
+  "mutations": [
+    {
+      "name": "DP1_a_changed_claim_is_not_compared",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if claim != derived:\n        return [f\"{path}: the proof says",
+      "replace": "    if False:\n        return [f\"{path}: the proof says",
+      "rationale": "a proof could claim any decider, outcome or evidence and still pass"
+    },
+    {
+      "name": "DP2_an_omitted_field_is_not_noticed",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            if k not in claim:\n                out.append(f\"{where}: missing from the proof\")",
+      "replace": "            if k not in claim:\n                pass",
+      "rationale": "a proof could leave out the proposal, the policy or the evidence it does not want checked"
+    },
+    {
+      "name": "DP3_an_invented_field_is_not_noticed",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                out.append(f\"{where}: in the proof, and nowhere in the \"\n                           \"history\")",
+      "replace": "                pass",
+      "rationale": "a proof could add a reviewer approval the history never recorded"
+    },
+    {
+      "name": "DP4_a_refused_decision_is_proved",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not d.get(\"accepted\"):",
+      "replace": "    if False:",
+      "rationale": "a transition the gates refused could be shown with a clean proof"
+    },
+    {
+      "name": "DP5_the_proposer_may_decide",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if decided and not d[\"separation_of_duties\"][\"distinct\"]:",
+      "replace": "        if False:",
+      "rationale": "a proposer verifying its own claim would pass"
+    },
+    {
+      "name": "DP6_missing_evidence_passes",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if not all(d[\"evidence_held\"].values()):",
+      "replace": "        if False:",
+      "rationale": "a decision citing bytes nobody holds would pass"
+    },
+    {
+      "name": "DP7_the_store_is_trusted_to_say_so",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    return isinstance(data, bytes) and \\\n        hashlib.sha256(data).hexdigest() == digest_",
+      "replace": "    return isinstance(data, bytes)",
+      "rationale": "a store returning any bytes for a digest would make cited evidence held"
+    },
+    {
+      "name": "DP8_an_unadmitted_result_passes",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                d[\"record\"][\"admission\"] != \"ADMITTED\":",
+      "replace": "                False:",
+      "rationale": "a scientific result not admitted under its policy would pass as verified"
+    },
+    {
+      "name": "DP9_a_dependency_out_of_standing_passes",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if decided and any(s not in _DECIDED_STATES for s in",
+      "replace": "        if False and any(s not in _DECIDED_STATES for s in",
+      "rationale": "a decision resting on a stale dependency would pass"
+    },
+    {
+      "name": "DP10_an_ungranted_call_passes",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if not inf[\"granted\"] or inf[\"outcome\"] != \"OK\":",
+      "replace": "        if False:",
+      "rationale": "a proposal no granted, answered model call produced would pass"
+    },
+    {
+      "name": "DP11_a_stale_policy_passes",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if not (chain.get(\"context\") or {}).get(\"policy_in_force\"):",
+      "replace": "        if False:",
+      "rationale": "a proposal asked under a superseded or withdrawn policy would pass"
+    },
+    {
+      "name": "DP12_withdrawal_is_ignored",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    return not withdrawn and latest is not None and str(latest) == ver",
+      "replace": "    return latest is not None and str(latest) == ver",
+      "rationale": "a withdrawn policy would still be in force"
+    },
+    {
+      "name": "DP13_a_verdict_on_a_stale_record_passes",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            if b[\"record_state\"] not in _DECIDED_STATES:",
+      "replace": "            if False:",
+      "rationale": "a verdict resting on a result that lost its standing would pass"
+    },
+    {
+      "name": "DP14_a_verdict_with_no_basis_passes",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if not d[\"basis\"]:",
+      "replace": "        if False:",
+      "rationale": "a verdict that cites nothing would pass"
+    }
+  ]
+}

@@ -66,7 +66,7 @@ rather than a web:
 | `store.py` | live projection, transactional through the log |
 | `learned_lifecycle.py` | a learned model's documents -- architecture, meta validation, dataset, training run, checkpoint, evaluation, distributed report -- as records through the existing `record.create` / `record.depend` actions, each digest link checked before anything is written; an upstream that is REVOKED, REJECTED or STALE is refused (NF-1T) |
 | `invalidation.py` | transitive consequence of a change |
-| `reconstruct.py` | a *second* implementation, for differential verification |
+| `reconstruct.py` | a *second* implementation, for differential verification; it also derives a decision's justification from the verified history as it stood at the decision -- proposal, model call and budget, context and policy in force, proposer and decider, evidence held and re-hashed, dependencies, what changed -- and verifies a presented proof by recomputing every field and condition, never using the proof's own claims (Assurance D, D-2026-167) |
 | `separate_verify.py` | runs that second reading in another PROCESS, under an import guard that admits only the five modules the reader needs (the package, `events`, `canonical`, `actions`, `reconstruct`) and refuses every other `agent_substrate` module -- an allow-list since D-2026-126, when the deny-list it replaced was found never to have named `authority` or `tasks` |
 | `tasks.py` | durable work: state that survives the process that started it |
 | `scheduler.py` | the durable queue: readiness, leases, retry, cancellation |

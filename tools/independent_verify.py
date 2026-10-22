@@ -107,6 +107,17 @@ class _Refuse(importlib.abc.MetaPathFinder):
         return None
 
 
+class _FileEvidence:
+    """``get(digest)`` over the evidence store's layout, read from disk
+    without the store's code; the reader re-hashes whatever it returns."""
+
+    def __init__(self, root: str):
+        self.root = Path(root)
+
+    def get(self, digest: str) -> bytes:
+        return (self.root / digest[:2] / digest[2:]).read_bytes()
+
+
 def main() -> int:
     # Installed FIRST, before agent_substrate is touched at all, so the guard
     # is in place for every import this program will ever do.
@@ -116,6 +127,14 @@ def main() -> int:
     ap.add_argument("log", help="path to the event log to reconstruct")
     ap.add_argument("--root",
                     default=str(Path(__file__).resolve().parent.parent))
+    # Assurance D: verify a decision's proof instead -- every field
+    # re-derived here from the log on disk, every condition rechecked, the
+    # proof's own claims compared and never used.
+    ap.add_argument("--proof", default=None,
+                    help="a decision-proof/1 JSON file to verify")
+    ap.add_argument("--evidence", default=None,
+                    help="the evidence store's directory, for the bytes a "
+                         "decision cites")
     args = ap.parse_args()
 
     if args.root not in sys.path:
@@ -125,6 +144,7 @@ def main() -> int:
         from agent_substrate.events import EventLog
         from agent_substrate.reconstruct import (
             reconstruct, reconstruct_subsystems, reconstruct_tasks,
+            verify_decision_proof,
         )
     except ImportError as exc:
         # The guard firing is a defect in THIS program, and it is reported
@@ -150,6 +170,28 @@ def main() -> int:
         "head_seq": report.head_seq,
         "chain_ok": not report.problems,
     }
+
+    if args.proof is not None:
+        try:
+            proof = json.loads(Path(args.proof).read_text(encoding="utf-8"))
+            findings.extend(verify_decision_proof(
+                log, proof, evidence=_FileEvidence(args.evidence)
+                if args.evidence else None))
+        except Exception as exc:                        # noqa: BLE001
+            print(json.dumps({
+                **result, "ok": False,
+                "reason": f"proof verification raised: "
+                          f"{type(exc).__name__}: {exc}"}))
+            return 2
+        result.update({
+            "proof": str(args.proof), "findings": findings,
+            "ok": not findings,
+            "reason": ("the proof is the history's own account of a "
+                       "decision that holds" if not findings else
+                       f"{len(findings)} way(s) the proof or the decision "
+                       "fails")})
+        print(json.dumps(result, sort_keys=True))
+        return 1 if findings else 0
 
     try:
         subs = reconstruct_subsystems(log)

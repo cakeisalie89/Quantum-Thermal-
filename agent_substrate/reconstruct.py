@@ -65,7 +65,7 @@ one bad record does not hide the twenty after it.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TypeGuard
+from typing import TypeGuard, cast
 
 from . import actions
 from .events import EventLog
@@ -3874,3 +3874,338 @@ def compare(store, recon: Reconstruction) -> tuple:
             if lval != rval:
                 diffs.append(Divergence(rid, name, lval, rval))
     return tuple(diffs)
+
+
+# ================================================ proof-carrying decisions
+#
+# Assurance D. A decision's JUSTIFICATION -- the proposal it answered, the
+# context and policy it was decided under, the budget that paid for the
+# model call, who decided and who proposed, the evidence it cites and
+# whether those bytes are held, the state of what it depends on, and what
+# the decision changed -- derived HERE, from the verified history as it
+# stood at the decision, by this module's own replay. Nothing in it is read
+# from the proof being checked: a proof is a CLAIM about a decision, and
+# verify_decision_proof() recalculates every field and every condition and
+# reports where the claim and the history part.
+#
+# It is not an authority engine. It decides nothing that the gates did not
+# already decide; it restates what they checked so a reader who trusts
+# neither the decider nor the proof's author can check it, in a process
+# that cannot reach the primary reducers (tools/independent_verify.py).
+
+PROOF_SCHEMA = "decision-proof/1"
+_DECIDED_STATES = ("VERIFIED", "PROMOTED")
+_VERDICTS = ("SUPPORTED", "REFUTED", "INCONCLUSIVE")
+
+
+class _Prefix:
+    """The verified history as it stood at ``upto``: a log-shaped view over
+    the first records of a chain verified whole. A prefix of a verified
+    chain is a verified chain."""
+
+    def __init__(self, report, events: list, upto: int):
+        import dataclasses
+        self._events = [e for e in events if e.seq <= upto]
+        last = self._events[-1] if self._events else None
+        self._report = dataclasses.replace(
+            report, head_seq=last.seq if last else -1,
+            head_hash=last.hash if last else "")
+
+    def read_verified(self):
+        return self._report, list(self._events)
+
+
+def _at(report, events: list, upto: int) -> EventLog:
+    """The history at ``upto``, for readers that take a log: they call
+    nothing on it but ``read_verified``."""
+    return cast(EventLog, _Prefix(report, events, upto))
+
+
+def _resolves(evidence, digest_) -> bool:
+    """``evidence`` holds bytes for ``digest_`` that re-hash to it. Re-hashed
+    HERE: whatever ``evidence`` is, it is not trusted to say so."""
+    import hashlib
+    if evidence is None or not isinstance(digest_, str) or \
+            len(digest_) != 64:
+        return False
+    try:
+        data = evidence.get(digest_)
+    except Exception:                                   # noqa: BLE001
+        return False
+    return isinstance(data, bytes) and \
+        hashlib.sha256(data).hexdigest() == digest_
+
+
+def _policy_in_force(events: list, identity: str, at_seq: int) -> bool:
+    """``identity`` (``id@version``) is the latest published version of its
+    policy before ``at_seq``, and the policy is not withdrawn by then."""
+    pid, sep, ver = (identity or "").rpartition("@")
+    if not sep:
+        return False
+    latest, withdrawn = None, False
+    for e in events:
+        if e.seq >= at_seq:
+            break
+        p = e.payload if isinstance(e.payload, dict) else {}
+        if e.action == "policy.publish":
+            doc = p.get("document") or p.get("policy") or {}
+            if isinstance(doc, dict) and doc.get("policy_id") == pid:
+                latest = doc.get("version")
+        elif e.action == "policy.withdraw" and p.get("policy_id") == pid:
+            withdrawn = True
+    return not withdrawn and latest is not None and str(latest) == ver
+
+
+def _proposal_chain(events: list, proposal_id, before: int) -> dict | None:
+    """The received proposal, the inference that produced it and the
+    context it was asked under -- or None if nothing was received."""
+    rec = next((e for e in events if e.action == "proposal.receive"
+                and e.target == proposal_id and e.seq < before), None)
+    if rec is None:
+        return None
+    env = rec.payload.get("envelope") or {}
+    out: dict = {"proposal_id": proposal_id, "agent_id": env.get("agent_id"),
+                 "kind": env.get("kind"),
+                 "envelope_digest": rec.payload.get("envelope_digest"),
+                 "received_seq": rec.seq, "inference": None,
+                 "context": None}
+    inf = env.get("inference")
+    if not isinstance(inf, dict):
+        return out
+    rid = inf.get("request_id")
+    reserve = next((e for e in events if e.action == "inference.reserve"
+                    and e.target == rid and e.seq < rec.seq
+                    and e.payload.get("attempt") == inf.get("attempt")),
+                   None)
+    result = next((e for e in events if e.action == "inference.result"
+                   and e.target == rid and e.seq < rec.seq
+                   and e.payload.get("attempt") == inf.get("attempt")),
+                  None)
+    req = (reserve.payload.get("request") or {}) if reserve else {}
+    out["inference"] = {
+        "request_id": rid, "attempt": inf.get("attempt"),
+        "budget_id": req.get("budget_id"),
+        "reserve_seq": reserve.seq if reserve else None,
+        "granted": bool(reserve and reserve.payload.get("granted") is True),
+        "outcome": result.payload.get("outcome") if result else None}
+    md = inf.get("context_manifest_digest")
+    built = next((e for e in events if e.action == "context.build"
+                  and e.payload.get("manifest_digest") == md
+                  and e.seq < rec.seq), None)
+    manifest = (built.payload.get("manifest") or {}) if built else {}
+    identity = manifest.get("policy_identity", "")
+    at = reserve.seq if reserve else rec.seq
+    out["context"] = {
+        "manifest_digest": md,
+        "recorded_seq": built.seq if built else None,
+        "policy_identity": identity,
+        "policy_in_force": _policy_in_force(events, identity, at)}
+    return out
+
+
+def _execution(events: list, bundle, before: int) -> dict | None:
+    """The governed task that captured ``bundle``: who executed it, who
+    verified it, under which capabilities, and the proposal it answered."""
+    cap = None
+    for e in events:
+        if e.seq >= before:
+            break
+        if e.action == "task.evidence" and bundle in (
+                (e.payload.get("artifacts") or {}).values()):
+            cap = e
+    if cap is None:
+        return None
+    tid = cap.payload.get("task_id")
+    mine = [e for e in events if e.seq < before
+            and (e.payload or {}).get("task_id") == tid]
+    executor = next((e.actor for e in reversed(mine)
+                     if e.action == "task.execution"), None)
+    verifier = next((e.actor for e in reversed(mine)
+                     if e.action == "task.transition"
+                     and e.payload.get("dst") == "VERIFIED"), None)
+    bind = next((e for e in mine if e.action == "idempotency.bind"), None)
+    out: dict = {"task_id": tid, "captured_seq": cap.seq,
+                 "executor": executor, "task_verifier": verifier,
+                 "capabilities": sorted(
+                     e.payload.get("capability_id") for e in mine
+                     if e.action == "capability.issue"),
+                 "proposal": None}
+    if bind is not None:
+        chain = _proposal_chain(events, bind.payload.get("key"), bind.seq)
+        if chain is not None:
+            chain["bound_by"] = bind.payload.get("owner")
+        out["proposal"] = chain
+    return out
+
+
+def derive_decision_proof(log, seq: int, *, evidence=None) -> dict:
+    """The justification of the decision recorded at ``seq``, as this
+    reader derives it from the verified history alone. ``evidence`` is
+    anything with ``get(digest) -> bytes``; what it returns is re-hashed
+    here, and without it no cited bytes are held."""
+    report, events = log.read_verified()
+    report.raise_if_bad()
+    ev = next((e for e in events if e.seq == seq), None)
+    if ev is None:
+        raise ValueError(f"no record at seq {seq}")
+    prev = next((e for e in events if e.seq == seq - 1), None)
+    p = ev.payload if isinstance(ev.payload, dict) else {}
+    base = {"schema": PROOF_SCHEMA,
+            "decision": {"seq": seq, "hash": ev.hash, "actor": ev.actor,
+                         "action": ev.action, "subject": ev.target},
+            "head": {"seq": seq - 1, "hash": prev.hash if prev else ""}}
+    if ev.action == "record.transition":
+        return _record_proof(base, report, events, ev, p, evidence)
+    if ev.action == "research.status" and p.get("status") in _VERDICTS:
+        return _research_proof(base, report, events, ev, p, evidence)
+    raise ValueError(f"seq {seq} is {ev.action}, not a decision this "
+                     "reader proves")
+
+
+def _record_proof(base, report, events, ev, p, evidence):
+    rid, outcome = p.get("record_id"), p.get("dst")
+    after = reconstruct(_at(report, events, ev.seq), evidence=evidence)
+    rec = after.records.get(rid) or {}
+    cited = dict(rec.get("evidence") or {})
+    base["decision"].update(kind="record", outcome=outcome,
+                            role=p.get("role"))
+    base["accepted"] = (rec.get("state") == outcome
+                        and rec.get("updated_seq") == ev.seq)
+    base["record"] = {
+        "record_id": rid, "kind": rec.get("kind"),
+        "proposer": rec.get("proposer"),
+        "created_seq": rec.get("created_seq"),
+        "policy_id": rec.get("policy_id"), "evidence": cited,
+        "admission": rec.get("admission"),
+        "depends_on": {d: (after.records.get(d) or {}).get("state")
+                       for d in rec.get("depends_on") or ()}}
+    base["separation_of_duties"] = {
+        "proposer": rec.get("proposer"), "decider": ev.actor,
+        "distinct": rec.get("proposer") != ev.actor}
+    base["evidence_held"] = {k: _resolves(evidence, v)
+                             for k, v in sorted(cited.items())}
+    base["execution"] = _execution(events, cited.get("result_bundle"),
+                                   rec.get("created_seq") or ev.seq)
+    return base
+
+
+def _research_proof(base, report, events, ev, p, evidence):
+    hid, outcome = ev.target, p.get("status")
+    sub = reconstruct_subsystems(_at(report, events, ev.seq))
+    recs = reconstruct(_at(report, events, ev.seq)).records
+    hyp = next((e.payload.get("hypothesis") or {} for e in events
+                if e.action == "research.hypothesis" and e.target == hid
+                and e.seq < ev.seq), {})
+    observed = {e.target: e.payload.get("observation") or {}
+                for e in events
+                if e.action == "research.observation" and e.seq < ev.seq}
+    base["decision"].update(kind="research", outcome=outcome)
+    base["accepted"] = ((sub.research.get(hid) or {}).get("status")
+                        == outcome and not any(
+                            a.startswith(f"seq {ev.seq}:")
+                            for a in sub.anomalies))
+    base["hypothesis"] = {
+        "hypothesis_id": hid, "prediction": hyp.get("prediction"),
+        "proposal_id": hyp.get("proposal_id"),
+        "proposed_by": hyp.get("proposed_by")}
+    basis = []
+    for oid in p.get("basis") or ():
+        o = observed.get(oid) or {}
+        r = recs.get(o.get("record_id")) or {}
+        basis.append({"observation_id": oid,
+                      "record_id": o.get("record_id"),
+                      "record_state": r.get("state"),
+                      "result_bundle": o.get("result_bundle"),
+                      "bundle_held": _resolves(evidence,
+                                               o.get("result_bundle")),
+                      "values": o.get("values")})
+    base["basis"] = basis
+    base["proposal"] = _proposal_chain(events, hyp.get("proposal_id"),
+                                       ev.seq)
+    return base
+
+
+def _differences(claim, derived, path: str = "") -> list:
+    if isinstance(claim, dict) and isinstance(derived, dict):
+        out = []
+        for k in sorted(set(claim) | set(derived), key=str):
+            where = f"{path}.{k}" if path else str(k)
+            if k not in claim:
+                out.append(f"{where}: missing from the proof")
+            elif k not in derived:
+                out.append(f"{where}: in the proof, and nowhere in the "
+                           "history")
+            else:
+                out.extend(_differences(claim[k], derived[k], where))
+        return out
+    if isinstance(claim, list) and isinstance(derived, list) and \
+            len(claim) == len(derived):
+        out = []
+        for i, (c, d) in enumerate(zip(claim, derived)):
+            out.extend(_differences(c, d, f"{path}[{i}]"))
+        return out
+    if claim != derived:
+        return [f"{path}: the proof says {claim!r}; the history says "
+                f"{derived!r}"]
+    return []
+
+
+def _conditions(d: dict) -> list:
+    """What must hold of a decision, by this reader's own derivation."""
+    out = []
+    if not d.get("accepted"):
+        out.append("the decision is not one this reader accepted: the "
+                   "history does not reach the outcome it records")
+    kind = d["decision"].get("kind")
+    if kind == "record":
+        decided = d["decision"].get("outcome") in _DECIDED_STATES
+        if decided and not d["separation_of_duties"]["distinct"]:
+            out.append("the decider is the record's proposer")
+        if not all(d["evidence_held"].values()):
+            missing = sorted(k for k, v in d["evidence_held"].items()
+                             if not v)
+            out.append(f"cited evidence is not held: {missing}")
+        if decided and d["record"]["kind"] == "scientific_result" and \
+                d["record"]["admission"] != "ADMITTED":
+            out.append(f"the result is {d['record']['admission']}, not "
+                       "ADMITTED")
+        if decided and any(s not in _DECIDED_STATES for s in
+                           d["record"]["depends_on"].values()):
+            out.append("a dependency is not standing at the decision")
+        chain = (d.get("execution") or {}).get("proposal")
+    else:
+        if not d["basis"]:
+            out.append("a verdict with no basis")
+        for b in d["basis"]:
+            if b["record_state"] not in _DECIDED_STATES:
+                out.append(f"{b['observation_id']} rests on a record "
+                           f"{b['record_state']}")
+            if not b["bundle_held"]:
+                out.append(f"{b['observation_id']}'s bundle is not held")
+        chain = d.get("proposal")
+    if chain and chain.get("inference"):
+        inf = chain["inference"]
+        if not inf["granted"] or inf["outcome"] != "OK":
+            out.append("the proposal's model call was not granted and "
+                       "answered")
+        if not (chain.get("context") or {}).get("policy_in_force"):
+            out.append("the proposal's context names a policy not in force "
+                       "when its call was granted")
+    return out
+
+
+def verify_decision_proof(log, proof, *, evidence=None) -> list:
+    """Every way ``proof`` departs from the history, and every condition
+    the decision does not meet -- [] when the proof is the history's own
+    account of a decision that holds. The proof's claims are compared,
+    never used."""
+    if not isinstance(proof, dict) or proof.get("schema") != PROOF_SCHEMA:
+        return [f"not a {PROOF_SCHEMA} proof"]
+    seq = (proof.get("decision") or {}).get("seq")
+    if isinstance(seq, bool) or not isinstance(seq, int):
+        return ["the proof names no decision position"]
+    try:
+        derived = derive_decision_proof(log, seq, evidence=evidence)
+    except ValueError as exc:
+        return [str(exc)]
+    return _differences(proof, derived) + _conditions(derived)

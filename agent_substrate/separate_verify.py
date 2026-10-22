@@ -80,7 +80,9 @@ class SeparateVerification:
 def verify_in_separate_process(
         log_path, *, root: Path | None = None,
         python: str | None = None,
-        timeout_s: float = DEFAULT_TIMEOUT_S) -> SeparateVerification:
+        timeout_s: float = DEFAULT_TIMEOUT_S,
+        proof: dict | None = None,
+        evidence_root=None) -> SeparateVerification:
     """Reconstruct ``log_path`` in a child process. Never raises on a bad log.
 
     Returns a verdict rather than raising, because "the log has findings" is
@@ -91,6 +93,11 @@ def verify_in_separate_process(
     ``python`` selects the interpreter, so a caller can point this at a
     DIFFERENT one -- which is what makes "separate dependency set" testable
     rather than aspirational.
+
+    With ``proof`` (Assurance D), the child verifies that decision proof
+    instead: it re-derives the decision's justification from the log on
+    disk and the evidence under ``evidence_root``, and reports every way the
+    proof departs from it and every condition the decision fails.
     """
     root = (Path(root) if root is not None
             else Path(__file__).resolve().parent.parent)
@@ -102,6 +109,24 @@ def verify_in_separate_process(
                    "that is missing has not agreed with anything")
     argv = [python or sys.executable, str(script), str(log_path),
             "--root", str(root)]
+    held = None
+    if proof is not None:
+        import tempfile
+        held = tempfile.NamedTemporaryFile(
+            "w", suffix=".json", prefix="decision-proof-", delete=False)
+        with held:
+            json.dump(proof, held, sort_keys=True)
+        argv += ["--proof", held.name]
+        if evidence_root is not None:
+            argv += ["--evidence", str(evidence_root)]
+    try:
+        return _run(argv, root=root, timeout_s=timeout_s)
+    finally:
+        if held is not None:
+            Path(held.name).unlink(missing_ok=True)
+
+
+def _run(argv: list, *, root: Path, timeout_s: float) -> SeparateVerification:
     try:
         proc = subprocess.run(
             argv, capture_output=True, text=True, timeout=timeout_s,

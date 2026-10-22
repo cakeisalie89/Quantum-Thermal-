@@ -9807,3 +9807,107 @@ by the label tests alone.
   channel is excluded from the authority view and stated in the test.
 - That the noninterference run covers every channel. It covers the ones the
   agent controls in the research loop.
+
+## D-2026-167 — Assurance D: a decision's justification is recomputed, not trusted
+
+**THE GAP.** A critical decision could be audited only by reading the log
+and re-deriving its context by hand. Nothing produced a justification that
+an independent party could check without trusting the decider, or the
+justification's own author.
+
+**WHAT A PROOF IS.** `reconstruct.derive_decision_proof(log, seq,
+evidence=...)` derives a justification. It covers a record transition (a
+reviewer's VERIFIED, a promotion) or a research verdict, from the verified
+history as it stood at that decision. It is replayed by the SECOND reader,
+over the verified prefix. A proof states:
+
+- the decision event and the head it was written onto;
+- what the reader reached, and whether it accepted the decision;
+- the record's proposer, policy, cited evidence and admission, and its
+  dependencies' states;
+- separation of duties: who proposed, and who decided;
+- whether each cited digest's bytes are held. They are re-hashed by the
+  reader itself, so whatever store is handed in is not trusted to say so.
+- the governed task that captured the result: its executor, its verifier
+  and its capabilities;
+- through the task's idempotency binding: the proposal it answered, the
+  model call and budget behind that proposal, and the context and policy it
+  was asked under, with whether that policy was in force when the call was
+  granted;
+- for a verdict: the prediction, and every observation it rests on, with
+  that observation's record state and bundle.
+
+**WHAT VERIFICATION IS.** `reconstruct.verify_decision_proof` re-derives all
+of the above and compares field by field. It reports a changed value, an
+omitted field and an invented one, and then rechecks the decision's own
+conditions:
+
+- the reader accepted it;
+- separation of duties holds;
+- the evidence is held;
+- a scientific result was ADMITTED;
+- its dependencies are standing;
+- the model call was granted and answered;
+- the context's policy was in force;
+- a verdict has a basis on standing records.
+
+The proof's claims are compared and never used. `tools/independent_verify.py
+--proof --evidence` does this in a process whose import guard refuses every
+primary reducer. Its evidence reader takes bytes off disk, and the reader
+re-hashes them. `separate_verify.verify_in_separate_process(proof=...)`
+drives it.
+
+**NOT A NEW AUTHORITY ENGINE.** No new action, record or durable state was
+added. A proof decides nothing the gates did not already decide; it restates
+what they checked so that someone who trusts neither the decider nor the
+proof's author can check it.
+
+**TESTS** (`tests/test_decision_proof.py`). The proofs are for real
+decisions: the Gate C objective run end to end, the reviewer's VERIFIED and
+the ledger's SUPPORTED. Honest proofs verify, in process and in the guarded
+child. They agree with the PRIMARY projections:
+
+- the authority store's record;
+- the ingress's receipt;
+- the gateway's outcome;
+- the policy store's version in force;
+- the research ledger's verdict and basis.
+
+So the second reader's account is cross-checked, not assumed.
+
+Sixteen forgeries are refused, each naming the field it forged:
+
+- the decider, the outcome or the head's hash;
+- a fabricated report digest, or another decider;
+- a dropped proposal, an obsolete policy, an inflated budget, invented
+  capabilities or dependencies;
+- an omitted field, or a reviewer approval the history never recorded;
+- in a verdict: the record state, the observed values, the prediction or
+  the proposer.
+
+Honest proofs of genuinely bad decisions fail their conditions: evidence
+deleted from the store, and a transition appended around the store by the
+proposer itself. Proofs of nothing, and of events that decide nothing, are
+refused.
+
+**FOUND WHILE WRITING IT.**
+
+- Two existing guards caught the first version of the verifier: it read the
+  evidence store's files directly and imported `pathlib`. The second reader
+  may do neither, so it now takes an `evidence` object and re-hashes what it
+  returns, and the file-reading `get` lives in the tool.
+- A local variable named `evidence` shadowed the store parameter, so every
+  cited digest read as not held. The honest-proof tests caught it before it
+  was committed.
+
+**MUTATION.** `tools/mutations/decision_proof.json`: 14 mutations of the
+verifier, each a claim not compared or a condition not checked; all killed.
+
+**NOT CLAIMED.**
+
+- That a proof makes a decision correct. It shows that the decision is the
+  one the history records and that the gates' conditions held.
+- That the reconstruction is complete for every decision kind. Record
+  transitions and research verdicts are covered. Inference grants and policy
+  publications are themselves facts inside these proofs, not proved
+  separately.
