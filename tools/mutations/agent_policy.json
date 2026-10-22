@@ -93,8 +93,8 @@
     {
       "name": "P13_decisions_not_recorded",
       "path": "agent_substrate/policy.py",
-      "find": "                    \"payload\": {\"decision\": decision.to_record(),\n                                \"decision_digest\": decision.digest()}}",
-      "replace": "                    \"payload\": {\"decision\": {},\n                                \"decision_digest\": \"\"}}",
+      "find": "                    \"payload\": {\"decision\": decision.to_record(),\n                                \"decision_digest\": decision.digest()},\n                    \"wall_time\": now}",
+      "replace": "                    \"payload\": {\"decision\": {},\n                                \"decision_digest\": \"\"},\n                    \"wall_time\": now}",
       "rationale": "the recorded decision stops carrying what was decided, so an auditor reading the log learns only that something happened; anchor moved by D-2026-148"
     },
     {

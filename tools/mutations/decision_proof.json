@@ -85,8 +85,8 @@
     {
       "name": "DP12_withdrawal_is_ignored",
       "path": "agent_substrate/reconstruct.py",
-      "find": "    return not withdrawn and latest is not None and str(latest) == ver",
-      "replace": "    return latest is not None and str(latest) == ver",
+      "find": "    return not withdrawn and not expired and latest is not None and \\\n        str(latest) == ver",
+      "replace": "    return not expired and latest is not None and \\\n        str(latest) == ver",
       "rationale": "a withdrawn policy would still be in force"
     },
     {

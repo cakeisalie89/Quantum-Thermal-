@@ -172,6 +172,37 @@ def test_a_decision_recorded_under_a_withdrawn_policy_is_refused_on_replay(
         PolicyStore(log).load()
 
 
+@pytest.mark.parametrize("forge, why", [
+    ("unpublished", "which nothing published"),
+    ("withdrawn", "withdrawn at seq"),
+    ("digest", "other than the version in force"),
+])
+def test_the_second_reader_restates_the_policy_a_decision_cites(
+        tmp_path, forge, why):
+    """D-2026-168: the second reader held decisions without asking whether
+    the policy they cite was in force; it restates that now."""
+    from agent_substrate.policy import PolicyRequest
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    log = _log(tmp_path)
+    ps = PolicyStore(log).load()
+    ps.publish(_doc(), actor="owner")
+    req = PolicyRequest(action="record.promote", subject="carol",
+                        role="PROMOTER", resource="r1")
+    good = ps.decide_and_record("promote", req, actor="carol")
+    assert reconstruct_subsystems(log).anomalies == []      # control
+    rec = good.to_record()
+    if forge == "unpublished":
+        rec["policy_id"] = "never-published"
+    elif forge == "withdrawn":
+        ps.withdraw("promote", actor="owner", reason="stop")
+    else:
+        rec["policy_digest"] = "e" * 64
+    log.append(actor="carol", action="policy.decision", target="r1",
+               payload={"decision": rec, "decision_digest": good.digest()})
+    found = reconstruct_subsystems(log).anomalies
+    assert any(why in a for a in found), found
+
+
 # ---- the binding: write path -------------------------------------------------
 
 def test_control_a_promotion_under_the_owners_policy_in_force(bound):

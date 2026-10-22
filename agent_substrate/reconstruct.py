@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from typing import TypeGuard, cast
 
 from . import actions
-from .events import EventLog
+from .events import EventLog, judged_at
 
 # ---------------------------------------------------------------------------
 # THE RULES, RESTATED.
@@ -833,11 +833,15 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
 
     binding: dict | None = None
     policies: dict = {}
+    #: the latest wall time folded: a policy's expiry is judged against it,
+    #: not against a record's own wall time (D-2026-168), restated
+    latest_wall: float | None = None
 
     for ev in events:
         out.events_replayed += 1
         if ev.seq in unattested:
             continue
+        latest_wall = judged_at(latest_wall, ev.wall_time)
         p = ev.payload
         action = ev.action
         rid = p.get("record_id")
@@ -950,7 +954,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                     (p.get("policy_id") or cur["policy_id"],
                      {**cur["evidence"],
                       **p.get("evidence", {})}.get("policy_id")),
-                    ev.seq, ev.wall_time)
+                    ev.seq, latest_wall)
                 if refusal is not None:
                     out.unauthorized.append(
                         f"seq {ev.seq}: {rid} {cur['state']} -> PROMOTED "
@@ -1329,6 +1333,9 @@ class SubsystemReconstruction:
     contexts: dict = field(default_factory=dict)
     #: The one actor this log permits to mint grants, or None if none yet.
     root_issuer: "str | None" = None
+    #: The latest wall time folded: a policy's expiry is judged against it
+    #: (events.judged_at, D-2026-168).
+    latest_wall: "float | None" = None
     #: escalation_id -> the question, its state and who decided it.
     escalations: dict = field(default_factory=dict)
     #: proposal_id -> what the ingress received: digest, agent, kind.
@@ -1502,6 +1509,7 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
     prev = (-1, "")
     for ev in events:
         out.events_replayed += 1
+        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)
         p = ev.payload if isinstance(ev.payload, dict) else {}
         a = ev.action
         if a == "scheduler.enqueue":
@@ -2165,6 +2173,25 @@ def _sub_policy_decision(ev, p: dict, out) -> None:
     if not isinstance(d, dict):
         _note(out, ev, "policy.decision carries no decision")
         return
+    # Restated: a decision is taken under the version in force at its
+    # position -- published, not withdrawn, not expired at the latest time
+    # the history has reached (D-2026-168) -- and cites that version.
+    pid = d.get("policy_id")
+    versions = out.policies.get(pid) or []
+    owner = out.policy_owners.get(pid) or {}
+    expiry = versions[-1].get("not_after") if versions else None
+    if not versions:
+        _note(out, ev, f"a decision under {pid!r}, which nothing published")
+    elif owner.get("withdrawn_seq") is not None:
+        _note(out, ev, f"a decision under {pid!r}, withdrawn at seq "
+                       f"{owner['withdrawn_seq']}")
+    elif isinstance(expiry, (int, float)) and not isinstance(expiry, bool) \
+            and out.latest_wall is not None and out.latest_wall > expiry:
+        _note(out, ev, f"a decision under {pid!r}, expired at {expiry} "
+                       f"(the history had reached {out.latest_wall})")
+    elif d.get("policy_digest") != versions[-1].get("digest"):
+        _note(out, ev, f"a decision citing a digest of {pid!r} other than "
+                       "the version in force")
     out.decisions[ev.seq] = {
         "allowed": d.get("allowed"), "policy_id": d.get("policy_id"),
         "policy_digest": d.get("policy_digest"), "actor": ev.actor,
@@ -3226,7 +3253,7 @@ def _inf_policy_current(identity, out, wall: float) -> bool:
         return False
     newest = versions[-1]
     expiry = newest.get("not_after")
-    if expiry is not None and wall > expiry:
+    if expiry is not None and judged_at(out.latest_wall, wall) > expiry:
         return False
     return str(newest.get("version")) == ver
 
@@ -3938,22 +3965,31 @@ def _resolves(evidence, digest_) -> bool:
 
 def _policy_in_force(events: list, identity: str, at_seq: int) -> bool:
     """``identity`` (``id@version``) is the latest published version of its
-    policy before ``at_seq``, and the policy is not withdrawn by then."""
+    policy before ``at_seq``, the policy is not withdrawn by then, and it had
+    not expired by the latest time the history had reached at ``at_seq``
+    (events.judged_at, D-2026-168)."""
     pid, sep, ver = (identity or "").rpartition("@")
     if not sep:
         return False
-    latest, withdrawn = None, False
+    latest, withdrawn, expiry, wall = None, False, None, None
     for e in events:
-        if e.seq >= at_seq:
+        if e.seq > at_seq:
             break
+        wall = judged_at(wall, e.wall_time)
+        if e.seq == at_seq:
+            continue
         p = e.payload if isinstance(e.payload, dict) else {}
         if e.action == "policy.publish":
             doc = p.get("document") or p.get("policy") or {}
             if isinstance(doc, dict) and doc.get("policy_id") == pid:
-                latest = doc.get("version")
+                latest, expiry = doc.get("version"), doc.get("not_after")
         elif e.action == "policy.withdraw" and p.get("policy_id") == pid:
             withdrawn = True
-    return not withdrawn and latest is not None and str(latest) == ver
+    expired = (isinstance(expiry, (int, float)) and
+               not isinstance(expiry, bool) and wall is not None and
+               wall > expiry)
+    return not withdrawn and not expired and latest is not None and \
+        str(latest) == ver
 
 
 def _proposal_chain(events: list, proposal_id, before: int) -> dict | None:

@@ -286,9 +286,10 @@ def test_the_reader_rehashes_what_a_store_returns(decided):
     assert not any(p["evidence_held"].values())
 
 
-def _ev(seq, action, **payload):
+def _ev(seq, action, wall_time=0.0, **payload):
     from types import SimpleNamespace
-    return SimpleNamespace(seq=seq, action=action, payload=payload)
+    return SimpleNamespace(seq=seq, action=action, payload=payload,
+                           wall_time=wall_time)
 
 
 def test_a_policy_is_in_force_only_as_published_and_not_withdrawn():
@@ -304,6 +305,16 @@ def test_a_policy_is_in_force_only_as_published_and_not_withdrawn():
     assert not _policy_in_force(pub, "p@2", at_seq=4)      # withdrawn
     assert not _policy_in_force(pub, "q@1", at_seq=4)
     assert not _policy_in_force(pub, "not-an-identity", at_seq=4)
+    # expired by the time the history reached, whatever the record's own
+    # clock said (D-2026-168)
+    exp = [_ev(1, "policy.publish", wall_time=10.0,
+               document={"policy_id": "p", "version": 1, "not_after": 20.0}),
+           _ev(2, "policy.decision", wall_time=15.0),
+           _ev(3, "policy.decision", wall_time=30.0),
+           _ev(4, "policy.decision", wall_time=15.0)]
+    assert _policy_in_force(exp, "p@1", at_seq=2)
+    assert not _policy_in_force(exp, "p@1", at_seq=3)
+    assert not _policy_in_force(exp, "p@1", at_seq=4)
 
 
 def _record_derived(**over):

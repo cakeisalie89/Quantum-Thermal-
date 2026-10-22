@@ -158,6 +158,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_noninterference.py",
     # Assurance D: decision proofs, derived and attacked
     "tests/test_decision_proof.py",
+    # D-2026-168: an expiry judged at the time the history reached
+    "tests/test_history_time.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.

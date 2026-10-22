@@ -33,6 +33,13 @@ and :meth:`verify` deliberately does NOT reject non-monotonic wall times --
 doing so would make a correct log unreadable after a legitimate NTP
 correction. It reports them instead.
 
+Where a rule does depend on time -- a policy's ``not_after`` -- it is judged
+at :func:`judged_at`: the latest wall time the history has reached, never a
+record's own alone. A record's wall time is what its writer's clock said,
+and a clock set back would otherwise revive what had already expired on
+this history (D-2026-168). A clock set forward expires things early, which
+fails closed.
+
 CRASH SAFETY
 
 Append is: serialize, write, flush, ``fsync``, then update the head pointer.
@@ -148,6 +155,19 @@ PROFILE_UNAUTHENTICATED_LEGACY = "UNAUTHENTICATED_LEGACY"
 PROFILE_AUTHENTICATED_REQUIRED = "AUTHENTICATED_REQUIRED"
 PROFILES = frozenset({PROFILE_UNAUTHENTICATED_LEGACY,
                       PROFILE_AUTHENTICATED_REQUIRED})
+
+
+def judged_at(latest: float | None, wall_time: float) -> float:
+    """The time an expiry is judged at, for a record carrying ``wall_time``
+    on a history whose latest wall time so far is ``latest`` (None before
+    the first record).
+
+    A writer passes its clock reading and the latest time of the history it
+    is about to append onto; a replay passes the record's wall time and the
+    latest time of what it folded. Both get the same answer, because the
+    record carries the clock reading the writer used: max() is unchanged by
+    folding the record itself in first."""
+    return wall_time if latest is None else max(latest, wall_time)
 
 
 class UnverifiedReadRefused(RuntimeError):

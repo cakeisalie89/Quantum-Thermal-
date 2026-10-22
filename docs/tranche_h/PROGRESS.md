@@ -33,7 +33,8 @@ Where this file and those disagree, they are right and this file is stale.
 | Assurance B: formal state-machine models | 5 (B) | COMMITTED: six TLA+ models, 29 runs as expected, conformance replay; TLC pinned, CI-only | Assurance A/B | D-2026-165 |
 | Assurance C: trust labels and information flow | 5 (C) | COMMITTED: label algebra (no transformation grants; only a registered deterministic check adds), projections, end-to-end noninterference with a control | Assurance C | D-2026-166 |
 | Assurance D: proof-carrying decisions | 5 (D) | COMMITTED: proofs derived by the second reader and verified, field by field and condition by condition, in a guarded process; 16 forgeries refused | Assurance D | D-2026-167 |
-| Assurance F: freshness and re-observation | 5 (F) | PENDING | | |
+| Clock set back revives an expired policy (found reconciling Assurance F) | 5 (F) | COMMITTED: every expiry judged at the latest time the history reached, in the four readers and the decision proof; snapshot v4 carries it | Clock rollback | D-2026-168 |
+| Assurance F: freshness and re-observation | 5 (F) | IN_PROGRESS | | |
 | Assurance E: transparency witnesses | 5 (E) | PENDING | | |
 | Gate D: real-model grounding experiment, offline | 4 (D) | PENDING; the live run is BLOCKED on OD-1 and OD-6 | | |
 | Gate E: multi-agent coordination | 4 (E) | PENDING | | |
@@ -54,4 +55,5 @@ Where this file and those disagree, they are right and this file is stale.
 `Gate C` is the commit titled "Gate C: research records and a resumable controller";
 `Assurance A/B` is the commit titled "Assurance A and B: simulation and TLA+ models tied to the code";
 `Assurance C` is the commit titled "Assurance C: trust labels and noninterference";
-`Assurance D` is the commit titled "Assurance D: proof-carrying decisions".
+`Assurance D` is the commit titled "Assurance D: proof-carrying decisions";
+`Clock rollback` is the commit titled "An expiry is judged at the time the history reached".

@@ -98,7 +98,7 @@ from . import proposals as P
 from .canonical import canonical_bytes, digest, digest_bytes, is_digest
 from .context import ACT_CONTEXT_BUILD, Context, ContextError, \
     manifest_from_record
-from .events import DecidedWriter, projection_load
+from .events import DecidedWriter, judged_at, projection_load
 from .policy import PolicyError
 
 ACT_BUDGET = "inference.budget"
@@ -759,6 +759,9 @@ class InferenceGateway(DecidedWriter):
         self._requests: dict = {}
         self._attempts: dict = {}
         self._contexts: dict = {}
+        #: the latest wall time folded: what the context policy's expiry is
+        #: judged against (events.judged_at, D-2026-168)
+        self._latest_wall: float | None = None
         self._reset_fold()
 
     # ---- projection ----------------------------------------------------
@@ -775,6 +778,7 @@ class InferenceGateway(DecidedWriter):
     def apply(self, ev) -> bool:
         """Fold one event. True when it was an inference record."""
         self._folded(ev.seq)
+        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)
         p = ev.payload if isinstance(ev.payload, dict) else {}
         a = ev.action
         if a == _ACT_ROOT:
@@ -1134,8 +1138,8 @@ class InferenceGateway(DecidedWriter):
             return (f"the context names policy {identity!r}, which is not "
                     "an identity; its freshness cannot be checked")
         try:
-            doc = self.policies.at_head().in_force_at(pid, at_seq,
-                                                      at_time=now)
+            doc = self.policies.at_head().in_force_at(
+                pid, at_seq, at_time=judged_at(self._latest_wall, now))
         except PolicyError as exc:
             return f"the context's policy is not in force: {exc}"
         if doc.identity != identity:

@@ -77,10 +77,13 @@ owner -- whoever published version 1 -- may WITHDRAW it, which is terminal:
 nothing is in force for that id from the withdrawal's position on, and the
 id is not republished. A document may carry ``not_after`` (seconds since
 the epoch), after which it is EXPIRED: a write judges that against the
-clock, and a replay against the wall time the deciding record carries,
-which verification holds non-decreasing along the chain but which its
-writer asserts. Neither changes a decision recorded while the policy was
-in force.
+clock, and a replay against the wall time the deciding record carries --
+each no earlier than the latest wall time already on the history
+(:func:`agent_substrate.events.judged_at`). Verification does not hold wall
+times non-decreasing (a clock may legitimately be set back), so a record's
+own wall time alone would let a writer whose clock was set back revive an
+expired policy (D-2026-168). Neither changes a decision recorded while the
+policy was in force.
 
 VERSIONS ARE GAP-FREE
 
@@ -96,7 +99,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .canonical import digest
-from .events import EventLogError, projection_fold, projection_load
+from .events import (EventLogError, judged_at, projection_fold,
+                     projection_load)
 
 #: Explicit wildcard. Must be written out; a blank field is refused.
 ANY = "*"
@@ -622,6 +626,9 @@ class PolicyStore:
         self._loaded_through = -1
         self._folded_through = -1
         self._anchor = None
+        #: the latest wall time on the history folded so far: what an expiry
+        #: is judged against (events.judged_at, D-2026-168)
+        self._latest_wall: float | None = None
 
     # ---- projection ----------------------------------------------------
     @projection_load
@@ -633,6 +640,7 @@ class PolicyStore:
         self._withdrawn = {}
         self._loaded_through = -1
         self._folded_through = -1
+        self._latest_wall = None
         for ev in events:
             self.apply(ev)
         self._anchor = (self.log.anchor_at(self._folded_through)
@@ -681,6 +689,7 @@ class PolicyStore:
         another subsystem's event is unknown.
         """
         self._folded_through = max(self._folded_through, ev.seq)
+        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)
         if ev.action == ACT_POLICY_PUBLISH:
             doc = document_from_record(ev.payload["document"])
             claimed = ev.payload.get("policy_digest")
@@ -765,7 +774,8 @@ class PolicyStore:
             raise PolicyError(f"seq {ev.seq}: decision cites policy "
                               f"{policy_id!r}, which is not a policy id")
         try:
-            doc = self.in_force_at(policy_id, ev.seq, at_time=ev.wall_time)
+            doc = self.in_force_at(policy_id, ev.seq, at_time=judged_at(
+                self._latest_wall, ev.wall_time))
         except (UnknownPolicy, PolicyError) as exc:
             raise PolicyError(
                 f"seq {ev.seq}: decision cites policy {policy_id!r}, which "
@@ -822,8 +832,10 @@ class PolicyStore:
     def in_force(self, policy_id: str, *,
                  at_time: float | None = None) -> PolicyDocument:
         """The newest published version of ``policy_id``, if it still
-        authorizes: not withdrawn, and not expired at ``at_time`` (now when
-        not given)."""
+        authorizes: not withdrawn, and not expired at ``at_time``. Not given,
+        that is now -- the clock, or the latest time this history has
+        reached if the clock is behind it: a clock set back does not revive
+        an expired policy (D-2026-168)."""
         history = self._published.get(policy_id)
         if not history:
             raise UnknownPolicy(
@@ -835,7 +847,8 @@ class PolicyStore:
                 f"policy {policy_id!r} was withdrawn by {by!r} at seq {seq}"
                 f" ({why}); a withdrawn policy authorizes nothing")
         doc = history[-1][1]
-        if doc.expired_at(time.time() if at_time is None else at_time):
+        if doc.expired_at(judged_at(self._latest_wall, time.time())
+                          if at_time is None else at_time):
             raise PolicyNotInForce(
                 f"{doc.identity} expired at {doc.not_after}; an expired "
                 "policy authorizes nothing")
@@ -935,10 +948,11 @@ class PolicyStore:
         self._append_decided(decide)
 
     def evaluate(self, policy_id: str, req: PolicyRequest, *,
-                 at_seq: int | None = None) -> Decision:
+                 at_seq: int | None = None,
+                 at_time: float | None = None) -> Decision:
         """Decide ``req`` under the policy in force. Never raises on denial."""
-        doc = (self.in_force(policy_id) if at_seq is None
-               else self.in_force_at(policy_id, at_seq))
+        doc = (self.in_force(policy_id, at_time=at_time) if at_seq is None
+               else self.in_force_at(policy_id, at_seq, at_time=at_time))
         return doc.evaluate(req)
 
     def decide_and_record(self, policy_id: str, req: PolicyRequest, *,
@@ -952,12 +966,17 @@ class PolicyStore:
         made: list = []
 
         def decide():
-            decision = self.evaluate(policy_id, req)
+            # Judged at the time the record will carry, so its replay judges
+            # it at the same one.
+            now = time.time()
+            decision = self.evaluate(policy_id, req, at_time=judged_at(
+                self._latest_wall, now))
             made.append(decision)
             return {"actor": actor, "action": ACT_POLICY_DECISION,
                     "target": target or req.resource,
                     "payload": {"decision": decision.to_record(),
-                                "decision_digest": decision.digest()}}
+                                "decision_digest": decision.digest()},
+                    "wall_time": now}
 
         ev = self._append_decided(decide)
         return Decision(**{**made[-1].__dict__, "at_seq": ev.seq})

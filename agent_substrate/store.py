@@ -45,15 +45,17 @@ from .authority import (
 )
 from .canonical import canonical_bytes, digest, is_digest
 from .events import (Anchor, ChainBroken, Event, EventLog, EventLogError,
-                     projection_fold, projection_load)
+                     judged_at, projection_fold, projection_load)
 from .projection import ProjectionIdentityError, ReducerIdentity, identity_of
 
 #: What a snapshot of this store is, for :class:`ReducerIdentity`.
 PROJECTION_KIND = "authority_store"
 #: Serialized snapshot shape. 2 added the ``projection`` identity; a v1
 #: snapshot cannot say which reducer made it, so it is replayed, not trusted.
-#: 3 added each record's scientific admission and its basis.
-SNAPSHOT_VERSION = 3
+#: 3 added each record's scientific admission and its basis. 4 added the
+#: latest wall time folded: without it, a load from a checkpoint would judge
+#: a policy's expiry from the tail's times alone (D-2026-168).
+SNAPSHOT_VERSION = 4
 #: Bump when ``_apply``'s semantics change ON PURPOSE. The source digest
 #: already changes with the code; this is the declaration for what it cannot
 #: see -- a behaviour change arriving through a dependency outside the package.
@@ -211,6 +213,9 @@ class AuthorityStore:
         #: policy_id -> ``{"publisher", "published": [[seq, version,
         #: not_after]], "withdrawn_seq"}``, from the log's policy records.
         self._policy_view: dict = {}
+        #: The latest wall time folded: what a policy's expiry is judged
+        #: against (events.judged_at, D-2026-168).
+        self._latest_wall: float | None = None
 
     @property
     def _resolver(self):
@@ -274,6 +279,7 @@ class AuthorityStore:
         self._anchor = None
         self._binding = None
         self._policy_view = {}
+        self._latest_wall = None
         self._authenticate(events)
         with self._one_origin_view():
             for ev in events:
@@ -393,6 +399,7 @@ class AuthorityStore:
         that older readers quietly drop -- and the state those readers
         reconstruct would then be confidently wrong.
         """
+        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)
         try:
             kind = actions.require_known(ev.action, mine=OWNED,
                                          where=f"seq {ev.seq}")
@@ -555,7 +562,8 @@ class AuthorityStore:
             if State(p["dst"]) is State.PROMOTED:
                 refusal = self._policy_refusal(
                     p.get("policy_id") or cur.policy_id,
-                    merged_evidence.get("policy_id"), ev.seq, ev.wall_time)
+                    merged_evidence.get("policy_id"), ev.seq,
+                    judged_at(self._latest_wall, ev.wall_time))
                 if refusal is not None:
                     raise StoreError(
                         f"seq {ev.seq}: {rid!r} -> PROMOTED: {refusal}. "
@@ -629,6 +637,7 @@ class AuthorityStore:
                                "published": [list(x) for x in v["published"]],
                                "withdrawn_seq": v["withdrawn_seq"]}
                          for pid, v in sorted(self._policy_view.items())},
+            "latest_wall": self._latest_wall,
         }
 
     def snapshot_digest(self) -> str:
@@ -734,6 +743,11 @@ class AuthorityStore:
                 isinstance(v, dict) and isinstance(v.get("published"), list)
                 for v in policies.values()):
             raise StoreError("snapshot policies are malformed")
+        latest = snap.get("latest_wall")
+        if latest is not None and (isinstance(latest, bool) or
+                                   not isinstance(latest, (int, float))):
+            raise StoreError("snapshot latest_wall is malformed")
+        self._latest_wall = latest
         self._binding = binding
         self._policy_view = {pid: {"publisher": v.get("publisher"),
                                    "published": [list(x)
@@ -1273,7 +1287,8 @@ class AuthorityStore:
             if dst is State.PROMOTED:
                 refusal = self._policy_refusal(
                     policy_id or cur.policy_id, req.evidence.get("policy_id"),
-                    self._loaded_through + 1, now)
+                    self._loaded_through + 1,
+                    judged_at(self._latest_wall, now))
                 if refusal is not None:
                     raise StoreError(f"{record_id} -> PROMOTED: {refusal}")
             payload = {"record_id": record_id, "src": cur.state.value,

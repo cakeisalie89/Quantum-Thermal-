@@ -9911,3 +9911,105 @@ verifier, each a claim not compared or a condition not checked; all killed.
   transitions and research verdicts are covered. Inference grants and policy
   publications are themselves facts inside these proofs, not proved
   separately.
+
+## D-2026-168 — A clock set back revived an expired policy
+
+**CLASS** — `CLOCK_ROLLBACK`, `WRITER_ASSERTED_TIME`,
+`DOCUMENTATION_OVERCLAIM`.
+
+**FOUND BY.** Reconciliation before Assurance F (freshness). The directive
+asks for tests of clock changes, and the first one written failed against
+the existing code.
+
+**THE DEFECT.** A policy may carry `not_after` (D-2026-148). Four readers
+judged it at the wall time of the record being decided:
+
+- the policy store, for a recorded decision;
+- the authority store, for a bound promotion;
+- the inference gateway, for a reservation under a context's policy;
+- the second reader, for the second and third of these.
+
+The log reports a wall time that went backwards and does not refuse one. That
+is deliberate (`events.py`, TIME): a legitimate NTP correction must not make a
+correct log unreadable. Together the two meant that a writer whose clock was
+set back past an expiry the history had already reached was authorized by
+the expired policy, and every replay, the second reader's included, accepted
+the record. Reproduced: with `not_after = 1500`, the history at 2000 and the
+clock at 1200, an ALLOW decision and a PROMOTED transition were both
+written. The policy store, the authority store and the second reader loaded
+both without complaint. Verification raised only a note.
+
+`policy.py`'s docstring said the wall time a deciding record carries is one
+"which verification holds non-decreasing along the chain". That was false.
+
+**ALSO FOUND.**
+
+- The decision proof's `_policy_in_force` (Assurance D, D-2026-167) ignored
+  expiry entirely. It now judges it, by the same rule.
+- The second reader recorded `policy.decision` records without asking
+  whether the policy they cite was in force. It now notes a decision under
+  an unpublished, withdrawn or expired policy, or one citing a digest other
+  than the version in force.
+- The policy store judged a decision at its clock reading in `decide()`, but
+  the log stamped the record with a later reading at append. An expiry
+  falling between the two would have left a record its own replay refuses.
+  The record now carries the reading it was judged at.
+
+**THE REPAIR — ONE RULE.** `events.judged_at(latest, wall_time)` is the time
+an expiry is judged at: the record's wall time, or the latest wall time the
+history has already reached, whichever is later. A writer passes its clock
+reading and the latest time of the history it appends onto. A replay passes
+the record's wall time and the latest time of what it folded. The record
+carries the reading the writer used, so both get the same answer. Each of
+the four readers tracks the latest wall time it has folded and judges every
+expiry through the rule. A clock set FORWARD expires things early, which
+fails closed.
+
+The authority store's snapshot carries the latest wall time (snapshot v4).
+Without it, a load from a checkpoint would judge expiry from the tail's
+clock alone: a checkpoint taken after the clock was set back would bring
+the rollback back.
+
+**TESTS** (`tests/test_history_time.py`, with additions to
+`tests/test_policy_binding.py` and `tests/test_decision_proof.py`). Each
+case sets the clock back past an expiry the history had reached, in two
+forms:
+
+- on the write path, refused before anything is written;
+- as a record a writer without the rule wrote, refused by every replay that
+  reads it.
+
+The cases are:
+
+- a policy decision;
+- a promotion, including a load from a checkpoint taken with the clock
+  already set back;
+- an inference reservation;
+- a decision proof.
+
+Each has a control that differs only in the clock or the position. A clock
+set back before anything expired refuses nothing. Nine of the twelve new
+tests fail against the code before the repair; the other three are the rule's
+unit test and two controls. Mutation: `tools/mutations/history_time.json`,
+21/21 killed. Two mutants survived the first run, and both were test gaps:
+
+- a write-path test that accepted a refusal raised by the fold of a record
+  already appended;
+- a checkpoint test whose own checkpoint record carried the later time.
+
+Four existing mutations whose anchors moved (AA14, P13, DP12, PB15) were
+re-anchored with their intent unchanged, and re-run: 19/19, 29/29, 14/14,
+24/24.
+
+**WHAT THIS DOES NOT FIX.**
+
+- A writer whose clock is set FORWARD pins the history's time in the
+  future, and every expiring policy expires early. That is a loss of
+  availability, not of integrity, and it is visible: the backwards step
+  that follows is noted by verification.
+- Inference leases and rate windows still use the record's own wall time.
+  A clock set back there refuses more, never less, except that a lease
+  judged lapsed by a clock set forward permits an early recovery. That is
+  the adversary the CrashRetry model already bounds (MaxAdversity).
+- Wall time remains writer-asserted. The rule makes time monotone along
+  the history; it does not make it true.

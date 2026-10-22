@@ -8,7 +8,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 | element | status | backing rows | satisfied |
 |---|---|---|---|
-| authority-substrate | ADOPTED | R40 (COMPLETE, COVERS), R42 (COMPLETE, PREDATES) | NO |
+| authority-substrate | ADOPTED | R40 (COMPLETE, PREDATES), R42 (COMPLETE, PREDATES) | NO |
 | containers | ADOPTED | R64 (COMPLETE, COVERS) | yes |
 | fenicsx | ADOPTED | R62 (COMPLETE, COVERS) | yes |
 | fmi | ADOPTED | R63 (COMPLETE, COVERS) | yes |
@@ -30,11 +30,11 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 ## Completion matrix
 
-49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 36, PREDATES_CURRENT_IMPLEMENTATION 13.
+49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 32, PREDATES_CURRENT_IMPLEMENTATION 17.
 
 ## Audits
 
-* repository_content: clean (files 542, findings 0, committed_report_current True)
+* repository_content: clean (files 544, findings 0, committed_report_current True)
 * repository_inventory: clean (problems 0, baseline_files 874)
 * claims_boundary: clean (problems 0)
 * workflow_contract: clean (problems 0)
@@ -45,7 +45,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * flagship_not_allocated_or_trained: holds
 * flagship_architecture_as_declared: holds
 
-## Unsatisfied (17)
+## Unsatisfied (21)
 
 * stack authority-substrate: ADOPTED
 * stack proposal-ingress: ADOPTED
@@ -55,9 +55,13 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * row R29: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R30: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R38: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R39: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R40: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R42: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R46: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R47: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R48: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R49: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R51: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R53: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R58: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps

@@ -60,7 +60,7 @@ rather than a web:
 | `_inference_worker.py` | the provider side of the gateway's process boundary: a standalone script, run under `python -I` with an empty environment, that alone reads the provider credential from a file root outside the repository; its live mode refuses until the owner chooses a provider (OD-1) |
 | `research.py` | research records (Gate C), none of them authority: objectives registered by their owners, hypotheses with structured predictions recorded as the proposing agent's, observations read only from VERIFIED or PROMOTED result bundles, and statuses whose verdicts the ledger COMPUTES from current observations, numerical resolution included; lost currency propagates from a result to its observations, hypotheses and conclusions |
 | `research_loop.py` | the bounded research controller (Gate C): one model call per step through the inference gateway, each proposal acted on through the one route its kind has (only MODEL_RUN executes, through the governed path with an independent check), within the objective's step and call ceilings; a crash anywhere in a step resumes from the log without doing anything twice |
-| `policy.py` | versioned rule documents, deny-overrides, dated decisions |
+| `policy.py` | versioned rule documents, deny-overrides, dated decisions; a document's expiry is judged at the latest time the history has reached (`events.judged_at`), so a clock set back revives nothing (D-2026-168) |
 | `secrets.py` | references that travel, values that do not, redaction at the surface |
 | `netauth.py` | egress as a bounded grant; default deny, label-wise hosts |
 | `store.py` | live projection, transactional through the log |

@@ -108,7 +108,7 @@
   {
    "name": "PB15_in_force_ignores_expiry",
    "path": "agent_substrate/policy.py",
-   "find": "        if doc.expired_at(time.time() if at_time is None else at_time):",
+   "find": "        if doc.expired_at(judged_at(self._latest_wall, time.time())\n                          if at_time is None else at_time):",
    "replace": "        if False:",
    "rationale": "D-2026-148: an expired policy is in force"
   },
