@@ -188,16 +188,17 @@ def standing(policy: dict | None, *, at: float, observed_at: float | None,
     if not source_stands:
         return Standing.WITHDRAWN, "the record it was read from no longer " \
                                    "stands"
-    kind = Kind.HISTORICAL if policy is None else Kind(policy["kind"])
-    named = "no freshness policy" if policy is None else \
-        f"policy {policy['policy_id']} ({kind.value})"
-    if kind is Kind.HISTORICAL:
+    if policy is None or Kind(policy["kind"]) is Kind.HISTORICAL:
+        named = "no freshness policy" if policy is None else \
+            f"policy {policy['policy_id']} (HISTORICAL)"
         return Standing.HISTORICAL, f"{named}: a record of what was " \
                                     "observed, claiming nothing about now"
+    kind = Kind(policy["kind"])
+    named = f"policy {policy['policy_id']} ({kind.value})"
     if kind is Kind.SOURCE_WITHDRAWAL:
         return Standing.FRESH, f"{named}: its source stands"
     if kind is Kind.UNTIL_EVENT:
-        p = policy["params"]                   # type: ignore[index]
+        p = policy["params"]
         if event_seq is not None:
             return Standing.UNKNOWN, (f"{named}: {p['action']} on "
                                       f"{p['target']} was recorded at seq "
@@ -209,7 +210,7 @@ def standing(policy: dict | None, *, at: float, observed_at: float | None,
                                  "it was observed"
     if kind is Kind.PERIODIC and replaced_by is not None:
         return Standing.SUPERSEDED, f"{named}: re-observed as {replaced_by}"
-    until = observed_at + policy["params"]["seconds"]  # type: ignore[index]
+    until = observed_at + policy["params"]["seconds"]
     if at > until:
         return Standing.UNKNOWN, (f"{named}: observed at {observed_at}, "
                                   f"current until {until}; the history has "

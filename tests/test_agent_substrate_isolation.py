@@ -162,6 +162,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_history_time.py",
     # Assurance F: freshness and re-observation
     "tests/test_freshness.py",
+    # Assurance E: independent witnesses to the log's head
+    "tests/test_witness.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.
@@ -291,6 +293,9 @@ LAYERS = ("canonical", "projection", "hostid",
           # extends to /2, and above policy and context, whose records it
           # reads; nothing below can reach it, and it holds no credential.
           "inference",
+          # Assurance E: independent witnesses to the log's head. Imports
+          # the log's record type and the signature seam; nothing else.
+          "witness",
           # Assurance F: freshness policies and what an observation is now.
           # Imports nothing internal; the research ledger judges with it.
           "freshness",
@@ -750,6 +755,10 @@ IO_LAYER = {
     # signatures, not by who may read the file.
     "principals": "the attestation file beside the log",
     "checkpoint": "checkpoint files, written atomically and read back",
+    # Assurance E (D-2026-170): a witness's durable record of what it
+    # cosigned, one file per log, written atomically and read back. The
+    # files are the witness's own, never a governed task's.
+    "witness": "a witness's own state, written atomically and read back",
     "safeio": "the confinement primitives GovernedReader itself calls",
     "readpath": "GovernedReader",
     # The executor reads the stdout and stderr IT created, in a temporary

@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 515,
+   "ADDED": 518,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 53,
-   "LOW": 187,
-   "MEDIUM": 282
+   "HIGH": 54,
+   "LOW": 188,
+   "MEDIUM": 283
   },
   "by_subsystem": {
-   "agent-substrate": 27,
+   "agent-substrate": 28,
    "ai-ingress": 3,
-   "assurance": 111,
+   "assurance": 112,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 163,
+   "tests": 164,
    "tooling": 41,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 547
+  "files": 550
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -592,7 +592,8 @@
      "tests/test_task_execution_phase.py",
      "tests/test_trust_labels.py",
      "tests/test_typecheck_scope.py",
-     "tests/test_verified_read_guard.py"
+     "tests/test_verified_read_guard.py",
+     "tests/test_witness.py"
     ]
    }
   },
@@ -867,7 +868,8 @@
      "tests/test_scientific_identity.py",
      "tests/test_signed_append_lifecycle.py",
      "tests/test_task_execution_phase.py",
-     "tests/test_trust_labels.py"
+     "tests/test_trust_labels.py",
+     "tests/test_witness.py"
     ]
    }
   },
@@ -1098,7 +1100,8 @@
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py",
      "tests/test_typecheck_scope.py",
-     "tests/test_verified_read_guard.py"
+     "tests/test_verified_read_guard.py",
+     "tests/test_witness.py"
     ]
    }
   },
@@ -2194,6 +2197,23 @@
     ],
     "tests": [
      "tests/test_trust_labels.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "agent_substrate/witness.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/witness.json"
+    ],
+    "tests": [
+     "tests/test_witness.py"
     ]
    }
   },
@@ -7353,6 +7373,24 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_witness.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "hypothesis",
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_workflow_exit_checks.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -9374,6 +9412,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/verified_read_guard.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/witness.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

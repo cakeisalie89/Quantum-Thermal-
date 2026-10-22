@@ -10150,3 +10150,101 @@ Each now has a test.
 - Exercise freshness in the deterministic research simulation (Assurance
   A). That state machine has no clock or policies yet. The composed
   campaigns (section 7) are where time meets the other controls.
+
+## D-2026-170 — Assurance E: a head held where the writer cannot reach (M-3)
+
+**THE LIMIT.** M-3 (D-2026-158) was recorded as accepted: the log's head
+witness lives beside the log, so a writer that can rewrite one can rewrite
+the other. A log truncated together with its head witness verifies.
+So does a log rewritten from some record onward, with every later record
+re-chained and the head witness recomputed. Every reader of either is
+consistently wrong. Both are reproduced by `tests/test_witness.py` before
+anything else runs.
+
+**THE PROTOCOL** (`agent_substrate/witness.py`):
+
+- A checkpoint names one head of one log in three lines: the origin (a name
+  and the log's first record hash, so a checkpoint is never replayed onto
+  another log), the position and the head hash.
+- A witness is a principal holding an Ed25519 key and, per origin, the last
+  checkpoint it cosigned, durably. It cosigns a new checkpoint only when the
+  records between its last head and the new one are shown to it, re-hash,
+  run contiguously, link from its last head, and end at the new head. For a
+  hash chain those records ARE the consistency proof. It refuses a rollback
+  and a fork. It persists the new checkpoint before it answers, and signs
+  the same checkpoint again on request.
+- A witness that lost its state refuses that origin until the owner
+  re-provisions it at the log's first record. It never trusts the first
+  thing it is shown.
+- A cosignature is Ed25519 over `witness-cosignature/1`, the time and the
+  checkpoint text. The shapes follow C2SP's tlog-checkpoint and tlog-witness
+  (an origin line, a size and a head; a witness that cosigns only an
+  extension of what it last cosigned). There is no Merkle tree, so
+  consistency costs O(new records), not O(log n). The event log is not
+  replaced.
+- `verify_witnessed(events, cosignatures, trust_root)` reports:
+  - TRUNCATED, when the log ends before a cosigned position;
+  - FORKED, when the log's record there has another hash;
+  - the reach: the highest position a quorum of distinct authorized
+    witnesses vouched for and the log agrees with, and how many records
+    after it are unwitnessed;
+  - STALE, past a stated bound in records or seconds.
+
+  A cosignature by a witness the trust root does not name, one for another
+  log, and one whose signature does not verify (moved, retimed or forged)
+  is a note and counts for nothing.
+- `Witness.latest(origin)` lets the verifier ask the witness itself, so a
+  holder that drops the stored cosignatures hides nothing.
+
+**TESTS** (`tests/test_witness.py`):
+
+- M-3 reproduced, then closed: by a stored cosignature, and by asking the
+  witness;
+- a rewritten history: FORKED to the verifier, and refused by the witness
+  going forward;
+- rollback, and another head at a cosigned position;
+- six kinds of bad proof (short, long, altered, misnumbered, reordered,
+  malformed), each refused with nothing recorded;
+- a head the records do not reach;
+- lost state, provisioning rules, and a log never provisioned;
+- persist-before-answer under a crash;
+- four kinds of junk cosignature;
+- a trust root for another log;
+- reach and staleness by records and by time;
+- a quorum of distinct witnesses;
+- a property test: whatever is cut or rewritten at or below a cosigned
+  position is detected, and the report states how much after it is not.
+
+Mutation: `tools/mutations/witness.json`, 23/23 killed. Two survived a first
+run, and each was a test gap:
+
+- every "another log" cosignature came from an unknown witness, so the
+  origin check never decided;
+- the quorum test's two cosignatures from one witness were identical
+  bytes, so counting by signature still counted one.
+
+Both tests now make the case the check exists for.
+
+**WHAT THIS DOES NOT DO.**
+
+- Provide an independent witness. Every witness here runs in the test's
+  process with a TEST key, signed by the REFERENCE_ONLY provider. Running
+  one under separate control, choosing it, and keeping its key and the
+  trust root where the writer cannot reach are the owner's decisions. A
+  production signing trust root is not established here and must not be.
+  M-3 is closed in PROTOCOL; it is closed in a deployment only when such a
+  witness exists.
+- Submit checkpoints automatically. Nothing in `EventLog.append` calls a
+  witness: that would put a remote dependency on the authority write path.
+  A deployment runs a submitter, and the verifier states how far the
+  witnessing reaches.
+- Attest truth. A witness cosigns a forged record as readily as a true one,
+  so long as it extends what the witness saw. It attests consistency.
+- Defend against a witness that colludes with the writer. A quorum of
+  independently controlled witnesses is the defence, and the trust root
+  says how many.
+
+**ONE DELIBERATE WIDENING.** `witness` joins the IO layer
+(`tests/test_agent_substrate_isolation.py`). It reads and writes its own
+state files, atomically, as checkpoint files are, and never a governed
+task's.

@@ -17,8 +17,8 @@
   {
    "name": "FR2_no_policy_means_fresh",
    "path": "agent_substrate/freshness.py",
-   "find": "    if kind is Kind.HISTORICAL:\n        return Standing.HISTORICAL",
-   "replace": "    if kind is Kind.HISTORICAL:\n        return Standing.FRESH",
+   "find": "        return Standing.HISTORICAL, f\"{named}: a record of what was \" \\",
+   "replace": "        return Standing.FRESH, f\"{named}: a record of what was \" \\",
    "rationale": "Assurance F: a reading with no policy is presented as current: a universal 'forever' TTL"
   },
   {
@@ -164,8 +164,8 @@
   {
    "name": "FR23_propagation_renews_nothing",
    "path": "agent_substrate/research.py",
-   "find": "            if renewable:\n                hid = renewable[0]",
-   "replace": "            if False:\n                hid = renewable[0]",
+   "find": "            if renewals:\n                hid = min(renewals)",
+   "replace": "            if False:\n                hid = min(renewals)",
    "rationale": "Assurance F: a verdict a re-observation supports is ended anyway"
   },
   {

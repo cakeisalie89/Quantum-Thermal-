@@ -875,15 +875,15 @@ class ResearchLedger(DecidedWriter):
                                 f"{why}{self._determined_by(oid)}")
                 moved.append(oid)
                 continue
-            renewable = sorted(
-                h for h, r in self._recs.items()
-                if r.kind == "hypothesis" and self._renewal(r, at)
+            renewals = {
+                h: ren for h, r in self._recs.items()
+                if r.kind == "hypothesis"
                 and not any(not self.current(d)
-                            for d in r.body["depends_on"]))
-            if renewable:
-                hid = renewable[0]
-                obs_ids, verdict, reason = \
-                    self._renewal(self._recs[hid], at)   # type: ignore[misc]
+                            for d in r.body["depends_on"])
+                and (ren := self._renewal(r, at)) is not None}
+            if renewals:
+                hid = min(renewals)
+                obs_ids, verdict, reason = renewals[hid]
                 self.set_status(hid, verdict, reason=f"re-observed: "
                                 f"{reason}", basis=obs_ids)
                 continue

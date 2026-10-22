@@ -35,7 +35,7 @@ Where this file and those disagree, they are right and this file is stale.
 | Assurance D: proof-carrying decisions | 5 (D) | COMMITTED: proofs derived by the second reader and verified, field by field and condition by condition, in a guarded process; 16 forgeries refused | Assurance D | D-2026-167 |
 | Clock set back revives an expired policy (found reconciling Assurance F) | 5 (F) | COMMITTED: every expiry judged at the latest time the history reached, in the four readers and the decision proof; snapshot v4 carries it | Clock rollback | D-2026-168 |
 | Assurance F: freshness and re-observation | 5 (F) | COMMITTED: typed owner-set policies per source (no universal TTL), standing derived at a stated time, decisions rest only on usable evidence, EXPIRED appended and propagated, re-observation renews; second reader and decision proof restate it | Assurance F | D-2026-169 |
-| Assurance E: transparency witnesses | 5 (E) | PENDING | | |
+| Assurance E: transparency witnesses | 5 (E) | COMMITTED: checkpoint and cosignature protocol, a witness that cosigns only extensions (rollback and fork refused, persist before answer, no trust on first use), verification against a trust root with reach and staleness; closes M-3 in protocol. Fixture witnesses with TEST keys only; an independent witness is the owner's (O-series) | Assurance E | D-2026-170 |
 | Gate D: real-model grounding experiment, offline | 4 (D) | PENDING; the live run is BLOCKED on OD-1 and OD-6 | | |
 | Gate E: multi-agent coordination | 4 (E) | PENDING | | |
 | Gate F and Assurance H: scientific integration, symbolic checks | 4 (F), 5 (H) | PENDING; new dependencies are OD-5 | | |
@@ -57,4 +57,5 @@ Where this file and those disagree, they are right and this file is stale.
 `Assurance C` is the commit titled "Assurance C: trust labels and noninterference";
 `Assurance D` is the commit titled "Assurance D: proof-carrying decisions";
 `Clock rollback` is the commit titled "An expiry is judged at the time the history reached";
-`Assurance F` is the commit titled "Assurance F: freshness and re-observation".
+`Assurance F` is the commit titled "Assurance F: freshness and re-observation";
+`Assurance E` is the commit titled "Assurance E: independent witnesses to the log's head".
