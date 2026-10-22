@@ -9594,3 +9594,138 @@ within that result's resolution
 (`evidence_terms.Property.SEMANTICALLY_SUPPORTED`, for structured claims
 only, never CURRENT_WORLD). That a blocked objective will be answered: no
 human principal is registered (OD-4).
+
+## D-2026-165 — Assurance A and B: a simulation found a double dispatch, and six protocols are modelled and tied to the code
+
+**FOUND BY DETERMINISTIC SIMULATION.** `tests/test_simulation_gateway.py`
+drives two gateway processes over one log through reserve, dispatch, settle,
+crash, time, recovery and policy change. The model it checks against computes
+costs itself rather than reading them from the gateway. Within its first 150
+derandomized examples it found a real defect, shrunk to four steps:
+
+    setup(budget_calls=1); reserve(q1, p=0);
+    dispatch_and_call(i=0, p=0); dispatch_and_call(i=0, p=0)
+
+`InferenceGateway._dispatch` decided against a copy of the dispatch rule that
+left out "already dispatched". The second dispatch was appended, and the
+gateway's own replay then refused the whole history ("dispatched twice or
+after its result"). This is the defect class IG2 exposed in Gate B: a writer
+checking a copy of its reducer's rule.
+
+**REPAIRED STRUCTURALLY.** Every gateway writer (budget, withdrawal, reserve,
+dispatch, settle) now runs the reducer's own `_apply_*` rule on a `_Draft` of
+the record it is about to append, with `commit=False`, under the writer lock,
+as `research.py` already did. Writer and replay are one rule. The copies that
+rule made redundant were deleted rather than kept:
+
+- the root and terms checks in `publish_budget`;
+- the issuer check in `withdraw_budget`;
+- the lease check in the settling writer.
+
+IG2 and IG30 now anchor on the one rule that remains, and
+`inference_gateway.json` kills 41 of 41 against the new code.
+
+Regression test: `test_an_attempt_is_dispatched_once_and_a_second_is_not_written`.
+It fails on the old code with two dispatch records, and passes now with one.
+
+**ASSURANCE A: TWO SIMULATIONS.**
+
+- **Gateway** (`test_simulation_gateway.py`). Hostile settlements of any
+  outcome are written only where the protocol, stated in the test, allows
+  them. Invariants: nothing held exceeds the budget; one open and one OK
+  attempt per request; the model and the implementation agree on what is
+  held and what is open; every reader agrees.
+- **Research ledger** (`test_simulation_research.py`). Two processes; an
+  agent asserting verdicts; results verified and invalidated; propagation;
+  retraction; conclusions; steps; crashes. Verdicts are checked against an
+  ORACLE that decides the prediction from the values the simulation put in
+  the bundles, not from `research.evaluate`. No verdict flips in one move;
+  nothing leaves a terminal status; propagation reaches a fixed point that
+  agrees with each record's standing; every reader agrees.
+
+Coverage was measured, not assumed. Each problem below was found and fixed:
+
+1. 25 examples were too shallow. At 150, the gateway simulation caught IG8.
+2. Reservations were starved by early policy changes: 146 stale-context
+   refusals against 69 grants, and `recover()` never met an attempt inside
+   its lease (0 of 362 calls). Policy changes are now rarer: 290 grants,
+   with 195 in-lease and 65 lapsed recoveries.
+3. Two corners, a decided verdict met by opposing evidence (SM7) and a
+   decided verdict whose evidence goes (SM10), were reached too rarely for
+   mutation testing to see. Both now have targeted rules.
+4. A failing 50-step example took over five minutes to shrink, so mutants
+   were "killed" only by timeout (SM8, SM9). The fixes:
+   - shorter programs, more of them, one bug at a time;
+   - one replay per step, skipped when nothing was written;
+   - `fsync` stubbed inside the simulation: durability is not what it
+     simulates.
+
+   The two mutants are now caught in 68 s and 91 s.
+
+`tools/mutations/simulation.json` has 14 mutations, run with the simulations
+as the ONLY suites; all 14 are killed.
+
+- SM4 first survived as an equivalent mutant: the settling writer refused an
+  early recovery itself. That writer copy was then deleted (above), and SM4
+  targets the one rule left.
+- SM5 is the defect above.
+
+**ASSURANCE B: SIX TLA+ MODELS** (`docs/formal/`). The six protocols are:
+
+1. authority promotion with separation of duties;
+2. concurrent append;
+3. budget reservation and settlement;
+4. crash recovery, retry and idempotency;
+5. dependency invalidation;
+6. context freshness at decision time.
+
+Each has safety invariants, liveness where it is meaningful (with the
+fairness it needs stated), and three to five broken variants, each refuted by
+the property it targets. That makes 29 model runs, every one as expected. The
+correct models explore 91 to 20,574 distinct states.
+
+`tools/formal_check.py` runs TLC 1.7.4 with one worker and fixed seeds, so the
+record (`results.json`, `traces.jsonl`) is reproduced exactly. CI fetches the
+jar from the tlaplus release, refuses it unless its sha256 is the pinned one,
+and runs `verify`. The jar is a CI-only test tool. It ships in nothing, runs
+nothing deployed, and has no deployment implication. OD-5 (a
+symbolic-mathematics dependency, and a proof checker for scientific claims)
+is not touched by it.
+
+**CONFORMANCE** (`tests/test_formal_conformance.py`, no Java):
+
+- the authority edge table is compared with `authority.EDGES`;
+- seeded simulations and liveness-counterexample prefixes are replayed
+  against the real store, policy store, gateway and invalidation planner;
+- every safety counterexample is replayed, and must be refused before the
+  violating state;
+- the two protocols that need real processes are tied to named tests that
+  must exist.
+
+`tools/mutations/formal.json` has ten mutations: eight make the code drift
+from a model, and two weaken the record checker. The conformance tests alone
+kill all ten.
+
+**WHAT THE MODELS FOUND, AND WHAT THEY STATE.**
+
+- **The model, not the code, was wrong once.** The freshness model let a new
+  policy version clear a withdrawal; `PolicyStore` refuses that. The model
+  was corrected before anything was recorded.
+- **A torn tail stops every writer until an operator repairs it.** Liveness
+  needs strong fairness for the repair. This is the stated cost of failing
+  closed.
+- **The lease must outlast the tool.** A stalled worker is an adversary, and
+  its late record is refused.
+- **Separation of duties is two-person, not three.** One actor may verify and
+  promote. Requiring a third party is the owner's policy decision; it is not
+  changed here.
+- **A record-origin cascade has no settle.** A half-applied one is reported by
+  the audit, not finished. The model covers the task-origin protocol.
+
+**NOT CLAIMED.**
+
+- That the Python implementation is formally verified. A model check proves a
+  finite model under stated assumptions. Conformance samples behaviours; it
+  does not enumerate them.
+- That the simulations cover real process scheduling, real clocks or any
+  provider behaviour beyond the replies scripted there.

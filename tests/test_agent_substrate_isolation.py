@@ -148,6 +148,11 @@ ALLOWED_IMPORTERS = {
     # Gate C: the research ledger and the bounded controller.
     "tests/test_research_ledger.py",
     "tests/test_research_loop.py",
+    # Assurance A and B: the deterministic simulations, and the replay of
+    # the TLA+ models' behaviours against the implementation
+    "tests/test_simulation_gateway.py",
+    "tests/test_simulation_research.py",
+    "tests/test_formal_conformance.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.

@@ -17,16 +17,16 @@
     {
       "name": "IG2_anyone_may_publish_a_budget",
       "path": "agent_substrate/inference.py",
-      "find": "            if self._root is None or actor != self._root:\n                raise InferenceError(\n                    f\"{actor!r} may not issue a budget",
-      "replace": "            if False:\n                raise InferenceError(\n                    f\"{actor!r} may not issue a budget",
-      "rationale": "an agent could grant itself money to spend"
+      "find": "        if self._root is None or ev.actor != self._root:\n            raise InferenceError(\n                f\"seq {ev.seq}: {ev.actor!r} issued budget",
+      "replace": "        if False:\n            raise InferenceError(\n                f\"seq {ev.seq}: {ev.actor!r} issued budget",
+      "rationale": "an agent could grant itself money to spend; the writer runs this rule too, so the record would be written as well as replayed"
     },
     {
       "name": "IG30_anyone_may_withdraw_a_budget",
       "path": "agent_substrate/inference.py",
-      "find": "            if actor != st.issued_by:\n                raise InferenceError(f\"{actor!r} may not withdraw budget \"",
-      "replace": "            if False:\n                raise InferenceError(f\"{actor!r} may not withdraw budget \"",
-      "rationale": "an agent could withdraw the budget another principal granted, and the record would be written before any reader refused it"
+      "find": "            if ev.actor != st.issued_by:\n                raise InferenceError(\n                    f\"seq {ev.seq}: {ev.actor!r} withdraws budget",
+      "replace": "            if False:\n                raise InferenceError(\n                    f\"seq {ev.seq}: {ev.actor!r} withdraws budget",
+      "rationale": "an agent could withdraw the budget another principal granted; the writer runs this rule too, so the record would be written as well as replayed"
     },
     {
       "name": "IG3_any_caller_may_spend",

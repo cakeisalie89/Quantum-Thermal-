@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 489,
+   "ADDED": 504,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 51,
-   "LOW": 179,
-   "MEDIUM": 266
+   "LOW": 182,
+   "MEDIUM": 278
   },
   "by_subsystem": {
    "agent-substrate": 25,
    "ai-ingress": 3,
-   "assurance": 105,
+   "assurance": 107,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 31,
+   "evidence": 40,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 155,
-   "tooling": 40,
+   "tests": 158,
+   "tooling": 41,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 521
+  "files": 536
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -547,6 +547,7 @@
      "tests/test_evidence_terms.py",
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py",
+     "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generated_mutations.py",
      "tests/test_generic_consistency.py",
@@ -578,6 +579,8 @@
      "tests/test_second_reader_audit_actions.py",
      "tests/test_security_findings.py",
      "tests/test_signed_append_lifecycle.py",
+     "tests/test_simulation_gateway.py",
+     "tests/test_simulation_research.py",
      "tests/test_supply_chain.py",
      "tests/test_t2_closure.py",
      "tests/test_t2_governed.py",
@@ -754,6 +757,7 @@
      "tools/mutations/agent_evidence.json",
      "tools/mutations/agent_substrate.json",
      "tools/mutations/enforcement_asserts.json",
+     "tools/mutations/formal.json",
      "tools/mutations/proposal_ingress.json"
     ],
     "tests": [
@@ -774,6 +778,7 @@
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
      "tests/test_checkpoint_recovery.py",
+     "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
@@ -1047,6 +1052,7 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
+     "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
@@ -1070,6 +1076,7 @@
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
      "tests/test_signed_append_lifecycle.py",
+     "tests/test_simulation_research.py",
      "tests/test_t2_closure.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py",
@@ -1144,6 +1151,7 @@
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_simulation_research.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py"
     ]
@@ -1357,15 +1365,19 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/inference_gateway.json"
+     "tools/mutations/formal.json",
+     "tools/mutations/inference_gateway.json",
+     "tools/mutations/simulation.json"
     ],
     "tests": [
      "tests/test_authenticated_history.py",
+     "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_inference_concurrency.py",
      "tests/test_inference_gateway.py",
      "tests/test_inference_second_reader.py",
-     "tests/test_research_loop.py"
+     "tests/test_research_loop.py",
+     "tests/test_simulation_gateway.py"
     ]
    }
   },
@@ -1381,12 +1393,14 @@
     "mutation_specs": [
      "tools/mutations/agent_audit.json",
      "tools/mutations/agent_substrate.json",
+     "tools/mutations/formal.json",
      "tools/mutations/scientific_invalidation.json"
     ],
     "tests": [
      "tests/test_agent_audit.py",
      "tests/test_agent_substrate.py",
-     "tests/test_agent_substrate_properties.py"
+     "tests/test_agent_substrate_properties.py",
+     "tests/test_formal_conformance.py"
     ]
    }
   },
@@ -1554,6 +1568,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
+     "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generated_mutations.py",
      "tests/test_hostile_composition.py",
@@ -1633,6 +1648,7 @@
      "tests/test_refused_fold.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
+     "tests/test_simulation_research.py",
      "tests/test_typecheck_scope.py"
     ]
    }
@@ -1737,6 +1753,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
+     "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_grounding_bench.py",
@@ -1756,6 +1773,8 @@
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_simulation_gateway.py",
+     "tests/test_simulation_research.py",
      "tests/test_t2_closure.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py"
@@ -1772,12 +1791,14 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/research.json"
+     "tools/mutations/research.json",
+     "tools/mutations/simulation.json"
     ],
     "tests": [
      "tests/test_authenticated_history.py",
      "tests/test_research_ledger.py",
-     "tests/test_research_loop.py"
+     "tests/test_research_loop.py",
+     "tests/test_simulation_research.py"
     ]
    }
   },
@@ -1976,6 +1997,7 @@
      "tools/mutations/authority_result_rules.json",
      "tools/mutations/checkpoint_recovery.json",
      "tools/mutations/decided_appends.json",
+     "tools/mutations/formal.json",
      "tools/mutations/neural_authority.json",
      "tools/mutations/policy_binding.json",
      "tools/mutations/replay_origin_view.json",
@@ -2005,6 +2027,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
+     "tests/test_formal_conformance.py",
      "tests/test_governed_model.py",
      "tests/test_grounding_bench.py",
      "tests/test_hostile_composition.py",
@@ -2243,6 +2266,125 @@
   {
    "change": "ADDED",
    "path": "docs/equivalence_contracts.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/AuthorityPromotion.tla",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/ContextFreshness.tla",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/CrashRetry.tla",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/InferenceBudget.tla",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_simulation_gateway.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/Invalidation.tla",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/LogAppend.tla",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/README.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/results.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/traces.jsonl",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -5780,6 +5922,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_formal_conformance.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_gate_b_acceptance.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -6826,6 +6985,40 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_simulation_gateway.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "hypothesis"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_simulation_research.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "hypothesis"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_stack_registry.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -7227,6 +7420,23 @@
     ],
     "tests": [
      "tests/test_harness_integrations.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/formal_check.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/formal.json"
+    ],
+    "tests": [
+     "tests/test_formal_conformance.py"
     ]
    }
   },
@@ -8202,6 +8412,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/formal.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/fuzz_harness.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -8805,6 +9028,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/signed_append_lifecycle.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/simulation.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

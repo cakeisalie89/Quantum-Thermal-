@@ -27,10 +27,10 @@ Where this file and those disagree, they are right and this file is stale.
 | Vacuous and weak test assertions | 3.2 | COMMITTED | M1 | D-2026-162 |
 | Exception swallowing and test-only bypasses in trust-critical code | 3.2 | COMMITTED: none found | M1 | D-2026-162 |
 | Evidence terminology | 3.3 | COMMITTED: `agent_substrate/evidence_terms.py`, `docs/EVIDENCE_TERMS.md` | M1 | D-2026-162 |
-| Gate B: offline inference gateway, budgets, context binding, /2 proposals, process boundary, second reader, third status system | 4 (B) | COMMITTED (live inference BLOCKED on OD-1) | Gate B | D-2026-163 |
-| Gate C: research records decided from verified results; bounded, resumable controller | 4 (C) | COMMITTED (human answers BLOCKED on OD-4) | Gate C | D-2026-164 |
-| Assurance A: deterministic simulation | 5 (A) | PENDING | | |
-| Assurance B: formal state-machine models | 5 (B) | PENDING | | |
+| Gate B: offline inference gateway, budgets, context binding, /2 proposals, process boundary, second reader, third status system | 4 (B) | DONE: hosted 44/44 at 76f3d5a (live inference BLOCKED on OD-1) | Gate B | D-2026-163 |
+| Gate C: research records decided from verified results; bounded, resumable controller | 4 (C) | DONE: hosted 44/44 at 76f3d5a (human answers BLOCKED on OD-4) | Gate C | D-2026-164 |
+| Assurance A: deterministic simulation | 5 (A) | COMMITTED: gateway and research-ledger state machines; found and repaired a double dispatch | Assurance A/B | D-2026-165 |
+| Assurance B: formal state-machine models | 5 (B) | COMMITTED: six TLA+ models, 29 runs as expected, conformance replay; TLC pinned, CI-only | Assurance A/B | D-2026-165 |
 | Assurance C: trust labels and information flow | 5 (C) | PENDING | | |
 | Assurance D: proof-carrying decisions | 5 (D) | PENDING | | |
 | Assurance F: freshness and re-observation | 5 (F) | PENDING | | |
@@ -51,4 +51,5 @@ Where this file and those disagree, they are right and this file is stale.
 
 `M1` is the commit titled "Security and test-quality repairs before Gate B";
 `Gate B` is the commit titled "Gate B: the inference gateway";
-`Gate C` is the commit titled "Gate C: research records and a resumable controller".
+`Gate C` is the commit titled "Gate C: research records and a resumable controller";
+`Assurance A/B` is the commit titled "Assurance A and B: simulation and TLA+ models tied to the code".

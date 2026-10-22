@@ -1,0 +1,108 @@
+{
+  "title": "Assurance A: the deterministic simulations kill these on their own",
+  "note": "Negative controls for tests/test_simulation_gateway.py and tests/test_simulation_research.py. The suites here are the simulations ALONE, so a kill shows that interleaving, crashing and comparing with an independent model finds the defect without the unit tests that name it. SM5 is the defect the gateway simulation found (D-2026-165).",
+  "suites": [
+    "tests/test_simulation_gateway.py",
+    "tests/test_simulation_research.py"
+  ],
+  "mutations": [
+    {
+      "name": "SM1_the_budget_checks_only_what_is_held",
+      "path": "agent_substrate/inference.py",
+      "find": "            if held + add > cap:\n                return (\"BUDGET_EXHAUSTED\"",
+      "replace": "            if held > cap:\n                return (\"BUDGET_EXHAUSTED\"",
+      "rationale": "the call that crosses the budget would be granted, so the budget is a floor on overspending rather than a ceiling"
+    },
+    {
+      "name": "SM2_a_second_process_opens_a_second_attempt",
+      "path": "agent_substrate/inference.py",
+      "find": "            if open_ is not None:\n                raise AttemptOutstanding(",
+      "replace": "            if False:\n                raise AttemptOutstanding(",
+      "rationale": "two processes asking one question would both pay for it"
+    },
+    {
+      "name": "SM3_a_failed_dispatch_costs_nothing",
+      "path": "agent_substrate/inference.py",
+      "find": "    return att.reserved_cost, att.reserved_in, att.reserved_out, False",
+      "replace": "    return 0, 0, 0, False",
+      "rationale": "a timeout the provider may have billed would be booked as free"
+    },
+    {
+      "name": "SM4_recovery_settles_inside_the_lease",
+      "path": "agent_substrate/inference.py",
+      "find": "        if outcome in RECOVERY_OUTCOMES and ev.wall_time <= att.lease_until:",
+      "replace": "        if False:",
+      "rationale": "an attempt could be settled LOST or NOT_SENT while its call may still be in flight, and paid for twice when its answer arrives"
+    },
+    {
+      "name": "SM5_the_dispatch_writer_checks_a_copy_of_the_rule",
+      "path": "agent_substrate/inference.py",
+      "find": "            self._apply_dispatch(_Draft(head_seq + 1, self.actor,\n                                        att.request_id, now), payload,\n                                 commit=False)\n",
+      "replace": "            pass\n",
+      "rationale": "the defect the simulation found (D-2026-165): a second dispatch of one attempt is appended and the gateway's own replay refuses the history"
+    },
+    {
+      "name": "SM6_the_settling_writer_checks_a_copy_of_the_rule",
+      "path": "agent_substrate/inference.py",
+      "find": "            self._apply_result(_Draft(head_seq + 1, self.actor,\n                                      att.request_id, now), payload,\n                               commit=False)\n",
+      "replace": "            pass\n",
+      "rationale": "an outcome the protocol forbids for that attempt would be appended, and every later load refused"
+    },
+    {
+      "name": "SM7_a_decided_hypothesis_flips_in_one_move",
+      "path": "agent_substrate/research.py",
+      "find": "    \"SUPPORTED\": {\"INCONCLUSIVE\", \"RETRACTED\", \"SUPERSEDED\", \"STALE\"},",
+      "replace": "    \"SUPPORTED\": {\"INCONCLUSIVE\", \"REFUTED\", \"RETRACTED\", \"SUPERSEDED\", \"STALE\"},",
+      "rationale": "the latest observation, or an agent's assertion, would overturn a verdict instead of recording the disagreement"
+    },
+    {
+      "name": "SM8_the_evaluation_ignores_resolution",
+      "path": "agent_substrate/research.py",
+      "find": "        lo = got[\"value\"] - got[\"resolution\"]\n        hi = got[\"value\"] + got[\"resolution\"]",
+      "replace": "        lo = hi = got[\"value\"]",
+      "rationale": "a value whose resolution straddles the threshold would decide the hypothesis"
+    },
+    {
+      "name": "SM9_disagreeing_observations_decide",
+      "path": "agent_substrate/research.py",
+      "find": "    if len(verdicts) > 1:",
+      "replace": "    if False:",
+      "rationale": "whichever observation came out of the set first would decide"
+    },
+    {
+      "name": "SM10_a_verdict_survives_its_observations",
+      "path": "agent_substrate/research.py",
+      "find": "        deps = list(rec.basis)\n        if rec.kind == \"hypothesis\":",
+      "replace": "        deps = []\n        if rec.kind == \"hypothesis\":",
+      "rationale": "a hypothesis would stay SUPPORTED after every observation it was decided on went stale"
+    },
+    {
+      "name": "SM11_the_status_writer_checks_a_copy_of_the_rule",
+      "path": "agent_substrate/research.py",
+      "find": "            self._apply_status(_Draft(head_seq + 1, self.actor), payload,\n                               commit=False)",
+      "replace": "            pass",
+      "rationale": "an asserted verdict would be appended and every later load of the history refused"
+    },
+    {
+      "name": "SM12_an_observation_of_a_result_without_standing",
+      "path": "agent_substrate/research.py",
+      "find": "        if sci is None or sci[\"state\"] not in STANDING:",
+      "replace": "        if sci is None:",
+      "rationale": "a result that lost its standing would still be observed"
+    },
+    {
+      "name": "SM13_a_conclusion_on_an_undecided_hypothesis",
+      "path": "agent_substrate/research.py",
+      "find": "                    self._recs[basis[0]].status not in (\"SUPPORTED\",\n                                                        \"REFUTED\") or \\\n",
+      "replace": "                    False or \\\n",
+      "rationale": "an objective would be concluded on an open or inconclusive hypothesis"
+    },
+    {
+      "name": "SM14_steps_past_the_limit",
+      "path": "agent_substrate/research.py",
+      "find": "        if n > obj.body[\"limits\"][\"max_steps\"]:",
+      "replace": "        if False:",
+      "rationale": "a controller would run past the steps its owner allowed"
+    }
+  ]
+}

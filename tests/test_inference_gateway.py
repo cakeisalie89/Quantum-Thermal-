@@ -555,6 +555,23 @@ def test_a_crash_after_dispatch_settles_lost_at_the_reservation(tmp_path):
     assert w.infer(req).attempt == 2
 
 
+def test_an_attempt_is_dispatched_once_and_a_second_is_not_written(tmp_path):
+    """Found by the deterministic simulation (D-2026-165): the writer checked
+    a copy of the dispatch rule that left out "already dispatched", so a
+    second dispatch was appended and the gateway's own replay then refused
+    the whole history. The writer now runs the reducer's rule."""
+    w = World(tmp_path)
+    req = w.request()
+    att = w.gw._reserve(req)
+    w.gw._dispatch(att)
+    with pytest.raises(I.InferenceError, match="dispatched twice"):
+        w.gw._dispatch(att)
+    with pytest.raises(I.InferenceError, match="dispatched twice"):
+        w.gateway()._dispatch(att)
+    assert len(w.records(I.ACT_DISPATCH)) == 1
+    w.gateway()                               # the history still loads
+
+
 def test_a_result_after_recovery_settled_the_attempt_is_not_written(tmp_path):
     w = World(tmp_path)
     req = w.request(max_attempts=1)

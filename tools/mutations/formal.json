@@ -1,0 +1,79 @@
+{
+  "title": "Assurance B: the TLA+ models and the code agree",
+  "note": "Each mutation makes the implementation drift from a TLA+ model in docs/formal. The suite is tests/test_formal_conformance.py ALONE: a kill shows the conformance tests -- edge comparison, trace replay, counterexample replay, plan comparison -- notice the drift on their own. A model check proves the model; this is what ties it to the code.",
+  "suites": [
+    "tests/test_formal_conformance.py"
+  ],
+  "mutations": [
+    {
+      "name": "FC1_a_proposer_may_verify_its_own_claim",
+      "path": "agent_substrate/authority.py",
+      "find": "          requires_evidence=frozenset({\"verification_report\"}),\n          requires_distinct_actor=True,\n          reason=\"verification passed (I4: not the proposer)\"),",
+      "replace": "          requires_evidence=frozenset({\"verification_report\"}),\n          requires_distinct_actor=False,\n          reason=\"verification passed (I4: not the proposer)\"),",
+      "rationale": "the gate would describe another machine than AuthorityPromotion.tla's, and the self_verify counterexample would run through the store"
+    },
+    {
+      "name": "FC2_a_withdrawn_policy_still_promotes",
+      "path": "agent_substrate/store.py",
+      "find": "                if refusal is not None:\n                    raise StoreError(f\"{record_id} -> PROMOTED: {refusal}\")",
+      "replace": "                if False:\n                    raise StoreError(f\"{record_id} -> PROMOTED: {refusal}\")",
+      "rationale": "the withdrawn_policy counterexample would promote through the store's write path"
+    },
+    {
+      "name": "FC3_an_attempt_dispatched_twice",
+      "path": "agent_substrate/inference.py",
+      "find": "        if att.dispatch_seq is not None or att.result is not None:",
+      "replace": "        if att.result is not None:",
+      "rationale": "the double_dispatch counterexample would run through the gateway, and replay would accept it"
+    },
+    {
+      "name": "FC4_the_budget_checks_only_what_is_held",
+      "path": "agent_substrate/inference.py",
+      "find": "            if held + add > cap:\n                return (\"BUDGET_EXHAUSTED\"",
+      "replace": "            if held > cap:\n                return (\"BUDGET_EXHAUSTED\"",
+      "rationale": "the check_held_only counterexample would overspend through the gateway"
+    },
+    {
+      "name": "FC5_a_failed_dispatch_costs_nothing",
+      "path": "agent_substrate/inference.py",
+      "find": "    return att.reserved_cost, att.reserved_in, att.reserved_out, False",
+      "replace": "    return 0, 0, 0, False",
+      "rationale": "the gateway's ledger would disagree with the model's settlement rule on a replayed behaviour"
+    },
+    {
+      "name": "FC6_a_superseded_context_still_decides",
+      "path": "agent_substrate/inference.py",
+      "find": "        if doc.identity != identity:",
+      "replace": "        if False:",
+      "rationale": "the check_at_build and check_then_act counterexamples would be granted"
+    },
+    {
+      "name": "FC7_invalidation_reaches_one_level",
+      "path": "agent_substrate/invalidation.py",
+      "find": "            affected.append(child)\n            queue.append(child)",
+      "replace": "            affected.append(child)",
+      "rationale": "the planner would make the direct_only plan, and a record two links from the origin would stay standing"
+    },
+    {
+      "name": "FC8_invalidation_stops_at_a_record_that_cannot_go_stale",
+      "path": "agent_substrate/invalidation.py",
+      "find": "                queue.append(child)\n                continue",
+      "replace": "                continue",
+      "rationale": "the planner would make the stop_at_skipped plan, and the dependents of a SUPERSEDED record would stay standing"
+    },
+    {
+      "name": "FC9_an_edited_specification_keeps_its_old_result",
+      "path": "tools/formal_check.py",
+      "find": "    if results.get(\"specs\") != want:\n        stale",
+      "replace": "    if False:\n        stale",
+      "rationale": "a specification changed after it was checked would still be reported as checked"
+    },
+    {
+      "name": "FC10_a_variant_that_was_not_refuted_passes",
+      "path": "tools/formal_check.py",
+      "find": "            if got != expected or r[\"expected\"] != expected:",
+      "replace": "            if False:",
+      "rationale": "a broken variant TLC did not refute -- a property shown unable to fail -- would go unreported"
+    }
+  ]
+}

@@ -126,6 +126,8 @@ AREAS = (
     ("tools/mutations/*", "SOFTWARE_ASSURANCE"),
     ("tools/*", "SOFTWARE_ASSURANCE"),
     ("tests/*", "TESTS"),
+    # the TLA+ models, their record and their simulated traces (Assurance B)
+    ("docs/formal/*", "SOFTWARE_ASSURANCE"),
     ("docs/neural/dev/*", "LEARNED_MODEL_EVIDENCE"),
     ("docs/neural/*", "LEARNED_MODEL_SPECIFICATION"),
     ("docs/*.json", "REGISTRY_OR_DERIVED_STATUS"),

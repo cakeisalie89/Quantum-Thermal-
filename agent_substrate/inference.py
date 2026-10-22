@@ -606,6 +606,22 @@ def _kill_group(proc) -> None:
 
 # ------------------------------------------------------------- projection
 
+@dataclass(frozen=True)
+class _Draft:
+    """The event a writer is about to append, as its reducer will see it.
+
+    Every writer runs the reducer's own rule on its draft, with ``commit``
+    off, under the writer lock. A writer that checked a copy of the rule
+    would append a record its own replay then refuses wherever the copy and
+    the rule disagree -- which deterministic simulation found it doing for a
+    second dispatch of one attempt (D-2026-165)."""
+
+    seq: int
+    actor: str
+    target: str
+    wall_time: float
+
+
 @dataclass
 class _Attempt:
     request_id: str
@@ -791,7 +807,7 @@ class InferenceGateway(DecidedWriter):
         if p.get("manifest_digest") == m.digest():
             self._contexts.setdefault(m.digest(), (ev.seq, m))
 
-    def _apply_budget(self, ev, p: dict) -> None:
+    def _apply_budget(self, ev, p: dict, commit: bool = True) -> None:
         if p.get("withdraw"):
             bid = p.get("budget_id")
             st = self._budgets.get(bid)
@@ -803,7 +819,7 @@ class InferenceGateway(DecidedWriter):
                     f"seq {ev.seq}: {ev.actor!r} withdraws budget {bid!r}, "
                     f"issued by {st.issued_by!r}; spending authority is "
                     "withdrawn by whoever granted it")
-            if st.withdrawn_seq is None:
+            if commit and st.withdrawn_seq is None:
                 st.withdrawn_seq = ev.seq
             return
         b = Budget.from_body(p.get("budget"))
@@ -820,7 +836,8 @@ class InferenceGateway(DecidedWriter):
                 return
             raise InferenceError(f"seq {ev.seq}: budget {b.budget_id!r} "
                                  "re-issued with different terms")
-        self._budgets[b.budget_id] = _BudgetState(b, ev.actor, ev.seq)
+        if commit:
+            self._budgets[b.budget_id] = _BudgetState(b, ev.actor, ev.seq)
 
     def grant_problem(self, req: InferenceRequest, attempt: int,
                       now: float, at_seq: int) -> tuple | None:
@@ -889,7 +906,7 @@ class InferenceGateway(DecidedWriter):
                     None)
         return max(atts, default=0) + 1, open_, done
 
-    def _apply_reserve(self, ev, p: dict) -> None:
+    def _apply_reserve(self, ev, p: dict, commit: bool = True) -> None:
         req = InferenceRequest.from_body(p.get("request"))
         rid = p.get("request_id")
         if rid != req.request_id or ev.target != rid:
@@ -930,6 +947,8 @@ class InferenceGateway(DecidedWriter):
         if p.get("lease_until") != lease:
             raise InferenceError(f"seq {ev.seq}: lease_until is not the "
                                  "timeout and grace past the reservation")
+        if not commit:
+            return
         att = _Attempt(rid, nxt, ev.actor, ev.seq, tin, tout, cost, lease,
                        req.timeout_s)
         self._requests.setdefault(rid, {})[nxt] = att
@@ -959,7 +978,7 @@ class InferenceGateway(DecidedWriter):
                                  "settles it")
         return att, req
 
-    def _apply_dispatch(self, ev, p: dict) -> None:
+    def _apply_dispatch(self, ev, p: dict, commit: bool = True) -> None:
         att, _ = self._held(ev, p)
         if att.dispatch_seq is not None or att.result is not None:
             raise InferenceError(f"seq {ev.seq}: attempt {att.attempt} of "
@@ -968,9 +987,10 @@ class InferenceGateway(DecidedWriter):
         if ev.wall_time + att.timeout_s > att.lease_until:
             raise InferenceError(f"seq {ev.seq}: dispatched too late for its "
                                  "lease; recovery may settle it meanwhile")
-        att.dispatch_seq = ev.seq
+        if commit:
+            att.dispatch_seq = ev.seq
 
-    def _apply_result(self, ev, p: dict) -> None:
+    def _apply_result(self, ev, p: dict, commit: bool = True) -> None:
         att, req = self._held(ev, p)
         if att.result is not None:
             raise InferenceError(f"seq {ev.seq}: attempt {att.attempt} of "
@@ -1005,6 +1025,8 @@ class InferenceGateway(DecidedWriter):
                                  f"{p.get('cost_micro')!r} (overrun "
                                  f"{p.get('overrun')!r}); the rule gives "
                                  f"{cost} ({over})")
+        if not commit:
+            return
         st = self._budgets[req.budget_id]
         st.held_cost += cost - att.reserved_cost
         st.held_in += tin - att.reserved_in
@@ -1074,18 +1096,11 @@ class InferenceGateway(DecidedWriter):
         body = budget.body()
 
         def decide(head_seq: int) -> dict:
-            if self._root is None or actor != self._root:
-                raise InferenceError(
-                    f"{actor!r} may not issue a budget: the root issuer is "
-                    f"{self._root!r}")
-            prior = self._budgets.get(budget.budget_id)
-            if prior is not None and prior.budget.digest() != budget.digest():
-                raise InferenceError(f"budget {budget.budget_id!r} exists "
-                                     "with different terms")
+            payload = {"budget": body, "budget_digest": budget.digest()}
+            self._apply_budget(_Draft(head_seq + 1, actor, budget.budget_id,
+                                      self.clock()), payload, commit=False)
             return {"actor": actor, "action": ACT_BUDGET,
-                    "target": budget.budget_id,
-                    "payload": {"budget": body,
-                                "budget_digest": budget.digest()}}
+                    "target": budget.budget_id, "payload": payload}
 
         self._append_decided(decide)
         return budget
@@ -1094,18 +1109,15 @@ class InferenceGateway(DecidedWriter):
                         reason: str) -> None:
         def decide(head_seq: int) -> dict:
             st = self._budgets.get(budget_id)
-            if st is None:
-                raise InferenceError(f"no budget {budget_id!r}")
-            if actor != st.issued_by:
-                raise InferenceError(f"{actor!r} may not withdraw budget "
-                                     f"{budget_id!r}, issued by "
-                                     f"{st.issued_by!r}")
-            if st.withdrawn_seq is not None:
+            if st is not None and st.withdrawn_seq is not None:
                 raise InferenceError(f"budget {budget_id!r} is already "
                                      "withdrawn")
+            payload = {"budget_id": budget_id, "withdraw": True,
+                       "reason": str(reason)[:MAX_ERROR_CHARS]}
+            self._apply_budget(_Draft(head_seq + 1, actor, budget_id,
+                                      self.clock()), payload, commit=False)
             return {"actor": actor, "action": ACT_BUDGET, "target": budget_id,
-                    "payload": {"budget_id": budget_id, "withdraw": True,
-                                "reason": str(reason)[:MAX_ERROR_CHARS]}}
+                    "payload": payload}
 
         self._append_decided(decide)
 
@@ -1163,6 +1175,8 @@ class InferenceGateway(DecidedWriter):
                               "cost_micro": cost_micro(b.prices, req.model,
                                                        tin, tout)},
                     lease_until=now + req.timeout_s + LEASE_GRACE_S)
+            self._apply_reserve(_Draft(head_seq + 1, self.actor, rid, now),
+                                payload, commit=False)
             return {"actor": self.actor, "action": ACT_RESERVE, "target": rid,
                     "payload": payload, "wall_time": now}
 
@@ -1177,13 +1191,13 @@ class InferenceGateway(DecidedWriter):
             if att.result is not None:
                 raise _Settled()
             now = self.clock()
-            if now + att.timeout_s > att.lease_until:
-                raise InferenceError("the lease no longer covers a call")
+            payload = {"request_id": att.request_id, "attempt": att.attempt,
+                       "reserve_seq": att.reserve_seq}
+            self._apply_dispatch(_Draft(head_seq + 1, self.actor,
+                                        att.request_id, now), payload,
+                                 commit=False)
             return {"actor": self.actor, "action": ACT_DISPATCH,
-                    "target": att.request_id,
-                    "payload": {"request_id": att.request_id,
-                                "attempt": att.attempt,
-                                "reserve_seq": att.reserve_seq},
+                    "target": att.request_id, "payload": payload,
                     "wall_time": now}
 
         self._append_decided(decide)
@@ -1196,23 +1210,24 @@ class InferenceGateway(DecidedWriter):
             if att.result is not None:
                 raise _Settled()
             now = self.clock()
-            if recovery and now <= att.lease_until:
-                raise InferenceError("the attempt's lease still holds")
             b = self._budgets[req.budget_id].budget
             cost, _, _, over = settlement(att, outcome, usage, b.prices,
                                           req.model)
+            payload = {
+                "request_id": att.request_id, "attempt": att.attempt,
+                "outcome": outcome,
+                "dispatched": att.dispatch_seq is not None,
+                "usage": usage, "cost_micro": cost, "overrun": over,
+                "response_sha256": response_sha256,
+                "response_bytes": response_bytes,
+                "claimed": claimed, "error": _scrub(error),
+                "latency_ms": latency_ms,
+                "settled_by": "recovery" if recovery else "gateway"}
+            self._apply_result(_Draft(head_seq + 1, self.actor,
+                                      att.request_id, now), payload,
+                               commit=False)
             return {"actor": self.actor, "action": ACT_RESULT,
-                    "target": att.request_id,
-                    "payload": {
-                        "request_id": att.request_id, "attempt": att.attempt,
-                        "outcome": outcome,
-                        "dispatched": att.dispatch_seq is not None,
-                        "usage": usage, "cost_micro": cost, "overrun": over,
-                        "response_sha256": response_sha256,
-                        "response_bytes": response_bytes,
-                        "claimed": claimed, "error": _scrub(error),
-                        "latency_ms": latency_ms,
-                        "settled_by": "recovery" if recovery else "gateway"},
+                    "target": att.request_id, "payload": payload,
                     "wall_time": now}
 
         return self._append_decided(decide).seq
