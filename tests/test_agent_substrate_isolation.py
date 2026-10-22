@@ -153,6 +153,9 @@ ALLOWED_IMPORTERS = {
     "tests/test_simulation_gateway.py",
     "tests/test_simulation_research.py",
     "tests/test_formal_conformance.py",
+    # Assurance C: the label algebra, and the end-to-end noninterference run
+    "tests/test_trust_labels.py",
+    "tests/test_noninterference.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.
@@ -289,7 +292,10 @@ LAYERS = ("canonical", "projection", "hostid",
           # D-2026-162: the evidence vocabulary. Imports nothing internal and
           # names the checks it registers by string, so it is placed last:
           # nothing in the package needs it to decide anything.
-          "evidence_terms")
+          "evidence_terms",
+          # Assurance C: trust labels. Imports only the vocabulary, reads
+          # what it labels by duck typing, and decides nothing: last again.
+          "trust_labels")
 
 #: The ONLY modules permitted to reach into the scientific tree, and the only
 #: thing they may reach for.

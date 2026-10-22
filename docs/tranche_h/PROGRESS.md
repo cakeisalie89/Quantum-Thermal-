@@ -31,7 +31,7 @@ Where this file and those disagree, they are right and this file is stale.
 | Gate C: research records decided from verified results; bounded, resumable controller | 4 (C) | DONE: hosted 44/44 at 76f3d5a (human answers BLOCKED on OD-4) | Gate C | D-2026-164 |
 | Assurance A: deterministic simulation | 5 (A) | COMMITTED: gateway and research-ledger state machines; found and repaired a double dispatch | Assurance A/B | D-2026-165 |
 | Assurance B: formal state-machine models | 5 (B) | COMMITTED: six TLA+ models, 29 runs as expected, conformance replay; TLC pinned, CI-only | Assurance A/B | D-2026-165 |
-| Assurance C: trust labels and information flow | 5 (C) | PENDING | | |
+| Assurance C: trust labels and information flow | 5 (C) | COMMITTED: label algebra (no transformation grants; only a registered deterministic check adds), projections, end-to-end noninterference with a control | Assurance C | D-2026-166 |
 | Assurance D: proof-carrying decisions | 5 (D) | PENDING | | |
 | Assurance F: freshness and re-observation | 5 (F) | PENDING | | |
 | Assurance E: transparency witnesses | 5 (E) | PENDING | | |
@@ -52,4 +52,5 @@ Where this file and those disagree, they are right and this file is stale.
 `M1` is the commit titled "Security and test-quality repairs before Gate B";
 `Gate B` is the commit titled "Gate B: the inference gateway";
 `Gate C` is the commit titled "Gate C: research records and a resumable controller";
-`Assurance A/B` is the commit titled "Assurance A and B: simulation and TLA+ models tied to the code".
+`Assurance A/B` is the commit titled "Assurance A and B: simulation and TLA+ models tied to the code";
+`Assurance C` is the commit titled "Assurance C: trust labels and noninterference".

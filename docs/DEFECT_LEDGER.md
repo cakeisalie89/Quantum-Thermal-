@@ -9729,3 +9729,81 @@ kill all ten.
   does not enumerate them.
 - That the simulations cover real process scheduling, real clocks or any
   provider behaviour beyond the replies scripted there.
+
+## D-2026-166 — Assurance C: no transformation grants trust, and untrusted content does not move an authority outcome
+
+**THE GAP.** The rule "no transformation of lower-trust content grants
+higher authority" was enforced only piecemeal: proposals are
+NON_AUTHORITATIVE, a context summary must name what it compresses, a
+memory's confidence is commentary, retrieved spans are stamped NOT_EVIDENCE.
+Nothing stated the rule once, and nothing tested that the system's authority
+outcomes are actually independent of untrusted content.
+
+**`agent_substrate/trust_labels.py`** states it once. A label is derived
+from what the system already records, so no record, manifest or digest
+changes. It carries:
+
+- the content's **origin**: owner, policy, record, evidence, tool output,
+  retrieval, model output, agent message, memory or external;
+- the **properties** established for it, each with the registered check and
+  the reference where the check's answer is recorded;
+- what it was **made from**, and how;
+- whether it is still **current**.
+
+The rules:
+
+- `derive` gives the result of any transformation **no** property. That
+  covers quote, summary, compression, paraphrase, retrieval, relay,
+  citation, index, agreement and explanation, whatever the inputs held and
+  however many there are. Agreement among fifty agents is fifty copies of
+  one claim.
+- The result's origin is the least answerable of its inputs **and of whoever
+  transformed them**: a model's summary of an owner's instruction is the
+  model's.
+- `establish` is the only way up. Its check must be registered in
+  `evidence_terms`, establish that property, and be deterministic. Its
+  prerequisites must already hold, it must cite a reference, and the label
+  must be current.
+- Projections label context items (a summary is derived whatever tier it
+  sits in), memory entries (derived from their sources, and the confidence
+  is not read) and received proposals (their citations exist; nothing more
+  is established).
+
+**NONINTERFERENCE** (`tests/test_noninterference.py`). The Gate C objective
+runs end to end through the real governed path twice: once as written, and
+once with every untrusted channel the agent controls rewritten to attack.
+Those channels are:
+
+- a rationale saying the reviewer approved and the result is verified;
+- a claimed "trusted" provider and "verifier" model;
+- a hypothesis statement and a conclusion summary asserting the opposite
+  and instructing promotion.
+
+The authority view is identical in both runs: authority records and their
+states, the verified result bundle, the research verdicts and their bases,
+and each step's outcome. The attack demonstrably reached the log, recorded
+as the agent's content and the agent's claim. The CONTROL changes one
+structured input that legitimately decides the outcome, the prediction's
+threshold, and the verdict changes from SUPPORTED to REFUTED. Without that
+control, an identical view could mean the comparison saw nothing.
+
+**ONE EXPECTATION CORRECTED WHILE WRITING THE TESTS.** A rewritten
+retrieval span was expected to be refused at receipt. It is not refused, and
+the reason is stronger: a proposal cites a source by path, lines and the
+source's digest, never by the retrieved text. A forged span therefore yields
+exactly the citation the real span does, and the received record holds no
+trace of the injected text. The test now states that.
+
+**MUTATION.** `tools/mutations/trust_labels.json`: 12 mutations, all killed
+by the label tests alone.
+
+**NOT CLAIMED.**
+
+- Complete information-flow security. Python does not confine a value to
+  its label, and a caller reading raw text past its label is not stopped
+  here.
+- That no channel exists. A model call's cost depends on its prompt, so
+  untrusted text moves what is spent, within the budget's ceiling. That
+  channel is excluded from the authority view and stated in the test.
+- That the noninterference run covers every channel. It covers the ones the
+  agent controls in the research loop.

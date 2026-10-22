@@ -24,8 +24,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 36342,
-      "sha256": "35fa2f6b32f7ad8bccb269c94152bbe815fb5f989be18df0d374a24b81ea37bc"
+      "size_bytes": 36390,
+      "sha256": "2e864ac05c297c910018edfd210e8cd42d056ace8045c8aebd00d023c96841b6"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -59,8 +59,8 @@
     },
     {
       "filename": "AGENT_SUBSTRATE.md",
-      "size_bytes": 63825,
-      "sha256": "ba4aa56804fc65ece01a20216edbf1ae113a3a835a96dbc81edaac6facebc716"
+      "size_bytes": 64473,
+      "sha256": "b3f4f4115554a375bf022c824a642daaff5fa638fcbae2090f12b69c11216d12"
     },
     {
       "filename": "ARCHITECTURE.md",
@@ -90,7 +90,7 @@
     {
       "filename": "HARNESS_STATUS.md",
       "size_bytes": 4977,
-      "sha256": "0fde9fae1e46f7e380b3888d4fd0d7d3349e9b3726ee4442f997df4ae4084c25"
+      "sha256": "de3200492feb75968bf3e942ff434e8d0e939e454a518bd1c5b8eb72348eebbe"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -388,6 +388,11 @@
       "sha256": "7362c16030ba78a5a8a4493b7f241f9d44acb9f671d556a60ed8013954148c78"
     },
     {
+      "filename": "agent_substrate/trust_labels.py",
+      "size_bytes": 11807,
+      "sha256": "762f27a70e21912ce2feb417de514e21ce1d74bd23b50338e91bd9ea4cc862e7"
+    },
+    {
       "filename": "authorities.json",
       "size_bytes": 19072,
       "sha256": "7e95e5f581a1726ef1a6112e65238413b14aeed8f36ed20bc38af19168d6828c"
@@ -409,8 +414,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 539036,
-      "sha256": "a55a7ff452ad4eb4d6368dc8efce91d8f6389b5351f4942a7f269dc418220651"
+      "size_bytes": 543034,
+      "sha256": "7132587e1d323833c4ac9d98bfdaa5b7ead6f33d07c779c2e15312ba4b2f068d"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -424,13 +429,13 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 252565,
-      "sha256": "9663a5dd3a6791d4a219f1a488a3b96c67b586822b933d262ce57aabbfc53724"
+      "size_bytes": 252583,
+      "sha256": "74ae36619be0856e2e10eae8de6ff6c6b5047b11713bb650dc3d86697fd7d3fa"
     },
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 4503,
-      "sha256": "9ec1fe6f67f5b0e6913feb7418783a3f30d471239074f4aef6c2edf53ab40567"
+      "sha256": "f86482083718e110879d6c4ecd8b9f8dbcd31a1ff2dd9d39f9dff58a64f403b5"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -495,7 +500,7 @@
     {
       "filename": "docs/harness_status.json",
       "size_bytes": 12763,
-      "sha256": "8c13c14b5192111bf19424e883455914e54169a0d4d5afaad344337f171b472d"
+      "sha256": "b0f0b76b0b40a331ca6080a9b868441f5501bf972eda362f24c2457fb7086f63"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -610,7 +615,7 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2589,
-      "sha256": "c9891c9cebb53d2afb8075fef8a63587b696f0ef0d672102d2d542c4f0984a07"
+      "sha256": "d1e48508383bbc04d7f33c590adf51882b6b16c349ebe1a2b998662ab8ee2901"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -654,8 +659,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 235484,
-      "sha256": "c742850e7249065a172a2d702c22e8d99b018920df7c01946480edfaaaf450a2"
+      "size_bytes": 237568,
+      "sha256": "efb24ef720daa6a15e7a53e460671bc45abc2718558390bf1fa8d01550649a94"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -684,8 +689,8 @@
     },
     {
       "filename": "docs/tranche_h/PROGRESS.md",
-      "size_bytes": 3819,
-      "sha256": "b85f70dcad46d14ea331a025b78008911726741be0c8b88c59d360b2f573755d"
+      "size_bytes": 4070,
+      "sha256": "43ebe6cd96754be1e41c0cbb667bd97f292070c6cdc7da4b104aa58b229d8386"
     },
     {
       "filename": "docs/tranche_h/capability_matrix.json",
@@ -695,7 +700,7 @@
     {
       "filename": "docs/typing_scope.json",
       "size_bytes": 772,
-      "sha256": "fd320bc40ebf4d0c436702885f9bfc02b42685f128de2e73c9747d020ef3da97"
+      "sha256": "959d0e146ecabf6e18938100b031ba36a16be44d2a9a5a9cfa80e5990b817de8"
     },
     {
       "filename": "generate_manifest.py",
@@ -785,7 +790,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8589,
-      "sha256": "42f6a7abccab82423502877723ee8c89b15edc591a8bd25c8be755e054449605"
+      "sha256": "c1412b6e909a70395e7c46b79f034d9782a8ed1f874c5a11edbc4cda5b9df0d2"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1389,8 +1394,8 @@
     },
     {
       "filename": "tests/test_agent_substrate_isolation.py",
-      "size_bytes": 49138,
-      "sha256": "a69c3a048692c44d7fe06f20b9a6d2a1401c020be9647b3ddd606e23a30925e5"
+      "size_bytes": 49462,
+      "sha256": "d52766e165c454cb2b2a8c32e82be39076d4eb4abb51d890f8fb91005ee62074"
     },
     {
       "filename": "tests/test_agent_substrate_properties.py",
@@ -1688,6 +1693,11 @@
       "sha256": "7a053984407308871a88a2006a7ce7255c39d2b2c41a002b5b6b1e9269dcb3e6"
     },
     {
+      "filename": "tests/test_noninterference.py",
+      "size_bytes": 8146,
+      "sha256": "4391163f353d0cf513a4938fcecbb324e1119009b8a24a1662e0c552f2f680cd"
+    },
+    {
       "filename": "tests/test_offline_verify.py",
       "size_bytes": 17006,
       "sha256": "d7307813388b736dfc892285d86fc1605593c4854f5fe964406e5bfe18939835"
@@ -1881,6 +1891,11 @@
       "filename": "tests/test_tranche_h_audit.py",
       "size_bytes": 4689,
       "sha256": "7cbea6cd2ec400049c53dfefd302015149ea229ed5d2d7408ae638147523bf65"
+    },
+    {
+      "filename": "tests/test_trust_labels.py",
+      "size_bytes": 10574,
+      "sha256": "7da7ae9628289de8856f4aa688f03d87fe8d11e8207f6b039ff73b6029490cf3"
     },
     {
       "filename": "tests/test_typecheck_scope.py",
@@ -2576,6 +2591,11 @@
       "filename": "tools/mutations/test_isolation.json",
       "size_bytes": 2645,
       "sha256": "3513d08025498fc5f3177f990e6bbbe518ff92554c304cb46d1b654825aa38b2"
+    },
+    {
+      "filename": "tools/mutations/trust_labels.json",
+      "size_bytes": 4890,
+      "sha256": "d9ab0b0c5e6e045d411b3e45e897c67cd9ba0e1de70419d823cb7564c2b6e999"
     },
     {
       "filename": "tools/mutations/typecheck_scope.json",

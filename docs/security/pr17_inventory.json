@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 504,
+   "ADDED": 508,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 51,
-   "LOW": 182,
-   "MEDIUM": 278
+   "HIGH": 52,
+   "LOW": 184,
+   "MEDIUM": 279
   },
   "by_subsystem": {
-   "agent-substrate": 25,
+   "agent-substrate": 26,
    "ai-ingress": 3,
-   "assurance": 107,
+   "assurance": 108,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 158,
+   "tests": 160,
    "tooling": 41,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 536
+  "files": 540
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -191,7 +191,8 @@
      "tests/test_agent_authority_boundaries.py",
      "tests/test_agent_collusion.py",
      "tests/test_agent_retrieval.py",
-     "tests/test_agent_substrate_isolation.py"
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_noninterference.py"
     ]
    }
   },
@@ -563,6 +564,7 @@
      "tests/test_neural_boundary.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
+     "tests/test_noninterference.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
@@ -585,6 +587,7 @@
      "tests/test_t2_closure.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py",
+     "tests/test_trust_labels.py",
      "tests/test_typecheck_scope.py",
      "tests/test_verified_read_guard.py"
     ]
@@ -795,7 +798,8 @@
      "tests/test_research_loop.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
-     "tests/test_supply_chain.py"
+     "tests/test_supply_chain.py",
+     "tests/test_trust_labels.py"
     ]
    }
   },
@@ -856,7 +860,8 @@
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_signed_append_lifecycle.py",
-     "tests/test_task_execution_phase.py"
+     "tests/test_task_execution_phase.py",
+     "tests/test_trust_labels.py"
     ]
    }
   },
@@ -958,7 +963,8 @@
      "tests/test_gate_b_acceptance.py",
      "tests/test_inference_concurrency.py",
      "tests/test_inference_gateway.py",
-     "tests/test_scientific_identity.py"
+     "tests/test_scientific_identity.py",
+     "tests/test_trust_labels.py"
     ]
    }
   },
@@ -1063,6 +1069,7 @@
      "tests/test_inference_gateway.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
+     "tests/test_noninterference.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
@@ -1153,7 +1160,8 @@
      "tests/test_second_reader_audit_actions.py",
      "tests/test_simulation_research.py",
      "tests/test_t2_governed.py",
-     "tests/test_task_execution_phase.py"
+     "tests/test_task_execution_phase.py",
+     "tests/test_trust_labels.py"
     ]
    }
   },
@@ -1170,7 +1178,8 @@
      "tools/mutations/evidence_terms.json"
     ],
     "tests": [
-     "tests/test_evidence_terms.py"
+     "tests/test_evidence_terms.py",
+     "tests/test_trust_labels.py"
     ]
    }
   },
@@ -1376,6 +1385,7 @@
      "tests/test_inference_concurrency.py",
      "tests/test_inference_gateway.py",
      "tests/test_inference_second_reader.py",
+     "tests/test_noninterference.py",
      "tests/test_research_loop.py",
      "tests/test_simulation_gateway.py"
     ]
@@ -1471,7 +1481,8 @@
      "tests/test_evidence_terms.py",
      "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
-     "tests/test_refused_fold.py"
+     "tests/test_refused_fold.py",
+     "tests/test_trust_labels.py"
     ]
    }
   },
@@ -1642,6 +1653,7 @@
      "tests/test_gate_b_acceptance.py",
      "tests/test_inference_gateway.py",
      "tests/test_inference_second_reader.py",
+     "tests/test_noninterference.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
@@ -1649,6 +1661,7 @@
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
      "tests/test_simulation_research.py",
+     "tests/test_trust_labels.py",
      "tests/test_typecheck_scope.py"
     ]
    }
@@ -1763,6 +1776,7 @@
      "tests/test_inference_second_reader.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
+     "tests/test_noninterference.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
@@ -1796,6 +1810,7 @@
     ],
     "tests": [
      "tests/test_authenticated_history.py",
+     "tests/test_noninterference.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
      "tests/test_simulation_research.py"
@@ -1815,6 +1830,7 @@
      "tools/mutations/research.json"
     ],
     "tests": [
+     "tests/test_noninterference.py",
      "tests/test_research_loop.py"
     ]
    }
@@ -1837,7 +1853,8 @@
      "tests/test_governed_model_reuse.py",
      "tests/test_hostile_composition.py",
      "tests/test_scientific_authority_replay.py",
-     "tests/test_scientific_invalidation.py"
+     "tests/test_scientific_invalidation.py",
+     "tests/test_trust_labels.py"
     ]
    }
   },
@@ -2033,6 +2050,7 @@
      "tests/test_hostile_composition.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
+     "tests/test_noninterference.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
@@ -2108,6 +2126,23 @@
      "tests/test_agent_performance.py",
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "agent_substrate/trust_labels.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/trust_labels.json"
+    ],
+    "tests": [
+     "tests/test_trust_labels.py"
     ]
    }
   },
@@ -6518,6 +6553,24 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_noninterference.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_trust_labels.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_offline_verify.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -7142,6 +7195,24 @@
     "findings": [],
     "mutation_specs": [],
     "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_trust_labels.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "hypothesis",
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
    }
   },
   {
@@ -9121,6 +9192,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/test_isolation.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/trust_labels.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

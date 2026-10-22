@@ -1,0 +1,93 @@
+{
+  "title": "Assurance C: trust labels -- no transformation grants, only a registered check adds",
+  "note": "Each mutation lets a label say more than was checked: a derivation keeping or inventing properties, an upgrade without its registered deterministic check, its prerequisites or its reference, or content out of currency treated as current.",
+  "suites": [
+    "tests/test_trust_labels.py"
+  ],
+  "mutations": [
+    {
+      "name": "TL1_a_derivation_keeps_its_inputs_proofs",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    return Label(origin=origin, source=source, digest=digest,\n                 derived_from=tuple(inputs),",
+      "replace": "    return Label(origin=origin, source=source, digest=digest,\n                 proofs=frozenset().union(*(i.proofs for i in inputs)),\n                 derived_from=tuple(inputs),",
+      "rationale": "a summary, a relay or an agreement would carry its inputs' properties, and a laundered claim would arrive verified"
+    },
+    {
+      "name": "TL2_the_transformer_is_not_answerable",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    origin = min([Origin(by), *(i.origin for i in inputs)],",
+      "replace": "    origin = min([*(i.origin for i in inputs)],",
+      "rationale": "a model's summary of an owner's instruction would read as the owner's"
+    },
+    {
+      "name": "TL3_an_unregistered_check_establishes",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    if c is None:\n        raise TrustError(f\"{check!r} is not a registered check",
+      "replace": "    if False:\n        raise TrustError(f\"{check!r} is not a registered check",
+      "rationale": "any name could be cited as the check that verified something"
+    },
+    {
+      "name": "TL4_a_check_establishes_what_it_does_not",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    if prop not in implied_by(c.establishes):",
+      "replace": "    if False:",
+      "rationale": "a byte check could be cited for scientific verification"
+    },
+    {
+      "name": "TL5_an_assessed_judgement_grants",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    if c.strength is not Strength.DETERMINISTIC:",
+      "replace": "    if False:",
+      "rationale": "a model's or a heuristic's judgement would grant a property"
+    },
+    {
+      "name": "TL6_a_check_s_prerequisites_are_skipped",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    missing = sorted(p.value for p in c.requires\n                     if p not in label.properties)\n    if missing:\n        raise TrustError(f\"{check} requires",
+      "replace": "    missing = sorted(p.value for p in c.requires\n                     if p not in label.properties)\n    if False:\n        raise TrustError(f\"{check} requires",
+      "rationale": "a decision could be authorized on bytes nobody verified"
+    },
+    {
+      "name": "TL7_an_upgrade_cites_nothing",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    if not isinstance(ref, str) or not ref.strip():",
+      "replace": "    if not isinstance(ref, str):",
+      "rationale": "a property could be established with nowhere a reader could look"
+    },
+    {
+      "name": "TL8_a_retracted_label_is_upgraded",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    if not label.current:\n        raise TrustError(\"a retracted or superseded label gains nothing\")",
+      "replace": "    if False:\n        raise TrustError(\"a retracted or superseded label gains nothing\")",
+      "rationale": "withdrawn content could be verified back into use"
+    },
+    {
+      "name": "TL9_a_summary_is_not_derived",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    if item.summary_of is None:\n        return base",
+      "replace": "    if True:\n        return base",
+      "rationale": "a summary in an owner's tier would read as the owner's instruction"
+    },
+    {
+      "name": "TL10_a_superseded_memory_is_current",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    if status == \"SUPERSEDED\":",
+      "replace": "    if False:",
+      "rationale": "a superseded memory would still be offered as current"
+    },
+    {
+      "name": "TL11_a_retracted_memory_is_current",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    if status in (\"RETRACTED\", \"STALE\"):",
+      "replace": "    if False:",
+      "rationale": "a retracted or stale memory would still be offered as current"
+    },
+    {
+      "name": "TL12_require_ignores_currency",
+      "path": "agent_substrate/trust_labels.py",
+      "find": "    if not label.current:\n        raise TrustError(f\"{label.source}: not current",
+      "replace": "    if False:\n        raise TrustError(f\"{label.source}: not current",
+      "rationale": "superseded content would satisfy a requirement"
+    }
+  ]
+}
