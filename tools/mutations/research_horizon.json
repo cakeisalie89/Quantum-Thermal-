@@ -1,0 +1,37 @@
+{
+ "title": "Gate G: the long-horizon campaign's counters see what they count",
+ "note": "D-2026-181. Each blinds a counter the campaign reports apart: a second execution, a second receipt, a restart, or a retry miscounted as a duplicate. tests/test_research_horizon.py holds the counters to each other over a short stage with a crash in it, and the duplicate counter to a positive control.",
+ "suites": [
+  "tests/test_research_horizon.py"
+ ],
+ "mutations": [
+  {
+   "name": "RH1_a_second_execution_is_not_counted",
+   "path": "tools/research_horizon.py",
+   "find": "            executions[e.target] = executions.get(e.target, 0) + 1",
+   "replace": "            pass",
+   "rationale": "G: a task executed twice over the horizon reads as executed once"
+  },
+  {
+   "name": "RH2_a_second_receipt_is_not_counted",
+   "path": "tools/research_horizon.py",
+   "find": "            receipts[e.target] = receipts.get(e.target, 0) + 1",
+   "replace": "            pass",
+   "rationale": "G: a proposal received twice reads as received once"
+  },
+  {
+   "name": "RH3_a_retry_is_a_duplicate",
+   "path": "tools/research_horizon.py",
+   "find": "            key = (e.target, p.get(\"attempt\"))",
+   "replace": "            key = e.target",
+   "rationale": "G: the attempts a retry is allowed are counted as duplicate answers"
+  },
+  {
+   "name": "RH4_a_restart_is_not_counted",
+   "path": "tools/research_horizon.py",
+   "find": "            self.restarts += 1",
+   "replace": "            pass",
+   "rationale": "G: a resumption after a crash is not counted, so restarts and resets merge"
+  }
+ ]
+}

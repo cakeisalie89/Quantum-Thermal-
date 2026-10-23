@@ -152,7 +152,8 @@ QUESTION = {"prediction": hypothesis()["prediction"],
 class World:
     """One log, its stores, the owner's objective and the two agents."""
 
-    def __init__(self, name: str, script: Callable, *, redact=()):
+    def __init__(self, name: str, script: Callable, *, redact=(),
+                 calls: int = 50):
         self.base = ROOT / WS / name
         if self.base.exists():
             shutil.rmtree(self.base)
@@ -172,9 +173,11 @@ class World:
         PolicyStore(log).load().publish(POLICY, actor="owner")
         self.gateway().publish_budget(I.Budget(
             budget_id="research", provider=PROVIDER, models=(MODEL,),
-            callers=(AGENT,), max_calls=50, max_cost_micro=10**9,
-            max_input_tokens=10**8, max_output_tokens=10**7, window_s=3600,
-            max_calls_per_window=50, max_input_bytes=100_000,
+            callers=(AGENT,), max_calls=calls,
+            max_cost_micro=10**9 * max(1, calls // 50),
+            max_input_tokens=10**8 * max(1, calls // 50),
+            max_output_tokens=10**7 * max(1, calls // 50), window_s=3600,
+            max_calls_per_window=calls, max_input_bytes=100_000,
             max_request_output_tokens=500, max_output_bytes=8_000,
             max_timeout_s=60, max_attempts=2,
             prices={MODEL: {"input": 1000, "output": 1000}}),

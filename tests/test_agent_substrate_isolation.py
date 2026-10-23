@@ -184,6 +184,9 @@ ALLOWED_IMPORTERS = {
     # Gate F: model contracts shown to the loop, and the scientific context
     # an observation keeps, read from the bundle it cites
     "tests/test_research_science.py",
+    # Gate G: the long-horizon research campaign and its counters
+    "tests/test_research_horizon.py",
+    "tools/research_horizon.py",
     "tools/adversarial_eval.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no

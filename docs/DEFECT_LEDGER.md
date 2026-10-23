@@ -11274,3 +11274,96 @@ new dependency, and running either against a model is a live evaluation
 - **Check a derivation.** That is OD-5; see D-2026-177.
 - **Make a contract evidence.** It is what the model is told, and the
   check and the reviewer still decide.
+
+## D-2026-181 — Gate G: a staged long-horizon campaign through the research loop, counters apart
+
+**INSPECTED FIRST.** `tests/test_agent_long_horizon.py` ran about ten
+thousand substrate events through restarts and mid-operation crashes. It
+checked the whole-history invariants and counted governed operations. It
+never drove the research loop.
+
+Nothing counted any of these apart:
+
+- scripted decisions;
+- inference calls;
+- verified records;
+- conclusions;
+- resets;
+- restarts.
+
+Nothing measured what replaying a research history costs as it grows.
+
+**WHAT WAS ADDED.**
+
+- **`tools/research_horizon.py`.** One log, one owner and one scripted
+  agent, driven objective after objective. Each objective states its
+  question as data. The agent:
+  - proposes the question's hypothesis and seven alternatives about the
+    same output;
+  - asks for one governed run, which is independently checked and admitted
+    and decides all eight;
+  - concludes on the question's hypothesis.
+
+  Every 17th objective abstains instead, and every 23rd begins with an
+  answer that is no proposal. Every 7th crashes at a rotating fault point
+  and is resumed by a freshly built controller.
+- **At stages of 50, 100, 1,000, 5,000 and 10,000 scripted decisions.**
+  Counted apart, from the verified log:
+  - events;
+  - governed operations;
+  - inference calls;
+  - scripted decisions;
+  - verified records;
+  - conclusions;
+  - objectives, resets and restarts.
+
+  Measured alongside:
+  - duplicates: executions, receipts, inference results;
+  - recovery failures;
+  - replay cost: verify, research ledger, second reader;
+  - the memory a fresh ledger load allocates;
+  - log bytes;
+  - seconds per decision within the stage;
+  - an authority-store checkpoint, whose checkpointed load must reach the
+    full load's state and say it is weaker;
+  - the second reader's notes.
+
+  At the 1,000-decision stage one verified run is withdrawn, and what
+  rested on it is followed.
+- **The agent is a script.** Every decision is labelled a SCRIPTED
+  decision of the governed loop and never a model's.
+- **`tests/test_research_horizon.py`.** One 50-decision stage, with a
+  crash and a resumption, and the counters held to each other:
+  - one recorded inference call per decision;
+  - two governed tasks per verified record;
+  - conclusions equal to CONCLUDED objectives;
+  - resets equal to objectives plus restarts;
+  - nothing twice, nothing lost, every objective terminal.
+
+  The duplicate counter has its own positive control.
+
+**WHAT IT FOUND SO FAR.** At 100 scripted decisions:
+
+- 10 objectives, 20 governed operations, 100 inference calls, 10
+  conclusions, one crash resumed;
+- no duplicate, no recovery failure, no second-reader note;
+- the checkpointed load equals the full one.
+
+About 0.7 s per decision on a shared host. The ingress submits each
+proposal's run without reuse (`reuse=False`), so each objective's run is
+its own governed task: that cost is by design, and is kept. The staged run
+to ten thousand is recorded in
+`docs/assurance/research_horizon_results.json` by its own commit, with the
+commit it ran at.
+
+**MUTATION** (`tools/mutations/research_horizon.json`, 4): a second
+execution or receipt not counted, a restart not counted, a retry counted as
+a duplicate.
+
+**WHAT THIS DOES NOT DO.**
+
+- **Count model decisions.** None were made. The live stages need OD-1 and
+  OD-6.
+- **Exercise more than one agent.** That is Gate E.
+- **Cover other workloads.** One model and one point were run. The
+  campaign measures the loop's accumulation, not the science.

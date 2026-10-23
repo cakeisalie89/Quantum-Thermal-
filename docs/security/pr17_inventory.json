@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 555,
+   "ADDED": 558,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 199,
-   "MEDIUM": 306
+   "LOW": 200,
+   "MEDIUM": 308
   },
   "by_subsystem": {
    "agent-substrate": 31,
    "ai-ingress": 3,
-   "assurance": 122,
+   "assurance": 123,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 175,
-   "tooling": 44,
+   "tests": 176,
+   "tooling": 45,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 587
+  "files": 590
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -7417,6 +7417,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_research_horizon.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_research_ledger.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -9825,6 +9842,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/research_horizon.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/research_science.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -10305,6 +10335,24 @@
      "tests/test_no_enforcing_asserts.py",
      "tests/test_repo_contract.py",
      "tests/test_test_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/research_horizon.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/research_horizon.json"
+    ],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_research_horizon.py"
     ]
    }
   },

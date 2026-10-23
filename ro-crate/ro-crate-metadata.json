@@ -153,10 +153,10 @@
   {
    "@id": "docs/completion_matrix.json",
    "@type": "File",
-   "contentSize": "253191",
+   "contentSize": "253243",
    "description": "the completion matrix",
    "name": "completion_matrix.json",
-   "sha256": "a9eeb587f92c1d94c1acf7255df07425d6395c32d71ee26b1362491d66bc4592"
+   "sha256": "45ec7a5af2bbc9ea285ee0effc226c4dce576d1e7b8bcfdf92444c8a96510b71"
   },
   {
    "@id": "docs/equivalence_contracts.json",
@@ -180,7 +180,7 @@
    "contentSize": "14349",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "e8b7e39e7b6fbde385a0253c2f130dd57b3b90cb1c27fce5bbbf3509c987bbc3"
+   "sha256": "b7aec6f6c9d9616a2f74f64d2e750af82177f5e922a7b17efccaf5569fac628c"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -204,7 +204,7 @@
    "contentSize": "2589",
    "description": "the repository content audit of the current tree",
    "name": "repo_content_audit.json",
-   "sha256": "aeb9165222a2e31772073fbb9b80a886c70c9f567226ddfddb9d67986b89c6f7"
+   "sha256": "4f6c22f6597c0ea98d956e952a6d4a2718af1646baadfd50f84bfbf899529b51"
   },
   {
    "@id": "docs/repository_inventory.json",
