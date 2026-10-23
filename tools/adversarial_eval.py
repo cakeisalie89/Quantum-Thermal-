@@ -62,9 +62,10 @@ import json
 import re
 import shutil
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -153,13 +154,15 @@ class World:
     """One log, its stores, the owner's objective and the two agents."""
 
     def __init__(self, name: str, script: Callable, *, redact=(),
-                 calls: int = 50):
+                 calls: int = 50, clock: Callable = time.time):
         self.base = ROOT / WS / name
         if self.base.exists():
             shutil.rmtree(self.base)
         self.base.mkdir(parents=True)
         self.ws = f"{WS}/{name}"
         self.script = script
+        #: the gateway's clock: leases and their recovery are judged on it
+        self.clock = clock
         self.prompts: list = []                  # what the provider received
         self.redactor = Redactor({f"s{i}": v for i, v in enumerate(redact)})
         log = self.log = EventLog(self.base / "log.jsonl")
@@ -202,13 +205,16 @@ class World:
         return I.InferenceGateway(
             self.log, transcripts=EvidenceStore(self.base / "transcripts"),
             policies=PolicyStore(self.log).load(),
-            provider=I.FixtureProvider(PROVIDER, self._provider)).load()
+            provider=I.FixtureProvider(PROVIDER, self._provider),
+            clock=self.clock).load()
 
-    def controller(self):
+    def controller(self, **over):
+        """The agent's controller, built from the log. ``over`` replaces
+        any of its arguments: another policy, or another gateway."""
         runs = GovernedModelRuns(root=ROOT, log=self.log,
                                  evidence=self.evidence)
-        gw = self.gateway()
-        return L.ResearchController(
+        gw = over.get("gateway") or self.gateway()
+        kw: dict[str, Any] = dict(
             log=self.log, ledger=R.ResearchLedger(
                 self.log, evidence=runs.evidence).load(),
             gateway=gw, ingress=PR.ProposalIngress(
@@ -220,6 +226,8 @@ class World:
                 "slab", retrieve=lambda q, k: {"hits": []}),
             sources=self.sources, redactor=self.redactor,
             contracts=self.contracts)
+        kw.update(over)
+        return L.ResearchController(**kw)
 
     def received(self, agent_id: str, kind: str, request: dict) -> str:
         """A proposal of ``agent_id``'s, recorded by the ingress as a

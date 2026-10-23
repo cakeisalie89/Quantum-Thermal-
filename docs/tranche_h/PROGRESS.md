@@ -48,7 +48,8 @@ Where this file and those disagree, they are right and this file is stale.
 | Independent policy reference model | 6.2 | COMMITTED: a test-only reference (Cedar-shaped permit and forbid sets) agrees with the engine over 2,000 generated cases and with the replay verifier over 150 recorded histories; the second reader now restates the verdict, and four forged verdicts with consistent digests are caught by both readers | Policy semantics | D-2026-172 |
 | Semantic claim verdicts | 6.3 | COMMITTED: citation, admission and semantics answered apart; five verdicts; a closed grammar plus research.evaluate (DETERMINISTIC), a checker's opinion reported as ASSESSED and never established; development benchmark with FP/FN (structured labels by construction, prose labels by the author, NOT human); real-model checker NOT_RUN | Claim check | D-2026-173 |
 | Composed adversarial campaigns | 7 | COMMITTED: ten campaigns registered with all seven fields; four new compositions (old evidence, poisoned memory, policy change, forged history with its checkpoint) measure 11 attempts, none accepted; seven crossed controls mutated, all killed | Campaigns | D-2026-174 |
-| Final integration demonstration | 11 | PENDING | | |
+| Concurrent controllers and concurrent runs (found by section 11) | 11 | COMMITTED: one idempotency key, one question, in the gateway's writer, its replay fold and the second reader; one run at a time in a writable scope, the verifier's scratch inside the hold, the gateway's transcripts a supervisor store | Concurrency | D-2026-184, D-2026-185 |
+| Final integration demonstration | 11 | COMMITTED: `tools/integration_demo.py`, the twenty lifecycle steps each checked against the verified history (all hold) and twelve adversarial variants, one per category (36 attempts, none accepted); nine cases the design cannot establish or prevent reported with their outcomes; five variants' controls switched off and their attacks seen to succeed; `--check` in CI. Scripted agent; the withdrawal is staged; the real-model condition is NOT_RUN (OD-1, OD-6) | Integration demo | D-2026-184, D-2026-185, D-2026-186 |
 | Gate H: operational and release assurance | 4 (H) | BLOCKED: every deployment control is the owner's (O-1 to O-9, OD-7) | | |
 
 `M1` is the commit titled "Security and test-quality repairs before Gate B";
@@ -71,5 +72,7 @@ Where this file and those disagree, they are right and this file is stale.
 `Gate F` is the commit titled "Gate F: model contracts and the scientific context of an observation";
 `Gate G` is the commit titled "Gate G: a staged long-horizon campaign through the research loop";
 `Gate D protocol` is the commit titled "Gate D: a preregistered grounding experiment, protocol before the run";
-`Gate E` is the commit titled "Gate E: several agents on the existing substrate, and an objective's assignees".
-`Gate D results` is the commit titled "Gate D: the confirmatory run's results, recorded after the protocol".
+`Gate E` is the commit titled "Gate E: several agents on the existing substrate, and an objective's assignees";
+`Gate D results` is the commit titled "Gate D: the confirmatory run's results, recorded after the protocol";
+`Concurrency` is the commit titled "Concurrent controllers: one question per step, one run per writable scope";
+`Integration demo` is the commit titled "Section 11: the integration demonstration and twelve adversarial variants".
