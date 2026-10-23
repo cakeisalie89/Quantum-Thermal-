@@ -168,4 +168,112 @@ or of the stated bound.
 
 ## Results
 
-To be added by the confirmatory run's own commit.
+Added after the run, by its own commit. Nothing above this heading was
+changed for it.
+
+**The run.** `tools/grounding_experiment.py --confirmatory --write`, at
+the protocol commit (titled "Gate D: a preregistered grounding experiment,
+protocol before the run"), from 2026-10-23T09:10:15Z to 09:19:29Z. Nothing
+else ran on the host meanwhile. The parameters digest was the registered
+one, `6870d981…2423a`. The results are in
+`docs/research/gate_d_results.json`: per condition, per kind, the
+contrasts, and every seed's metrics without timings.
+`grounding_experiment.py --check` re-runs seed 200 and requires exactly
+what the file records for it. At the commit that records these results,
+it reproduced.
+
+**The answerer was the fixture.** Every number below holds for the
+stated error process. No model was called, and the real-model rows stay
+**NOT_RUN**, blocked on OD-1 and OD-6. Cost is the gateway's accounting at
+the fixture's prices: no money was spent.
+
+### Per condition (1,200 questions each, 30 seeds)
+
+| condition | false acceptance | precision | coverage | false rejection | unsupported | extraction failures | Brier | tokens |
+|---|---|---|---|---|---|---|---|---|
+| D1 model alone | 0.464 | 0.436 | 0.823 | 0.000 | 0.517 | 0.111 | 0.218 | 163,200 |
+| D2 + retrieval | 0.542 | 0.362 | 0.849 | 0.000 | 0.593 | 0.118 | 0.270 | 171,768 |
+| D3 + memory | 0.535 | 0.368 | 0.847 | 0.000 | 0.582 | 0.113 | 0.264 | 180,156 |
+| D4 evidence gate | 0.302 | 0.470 | 0.569 | 0.047 | 0.263 | 0.111 | 0.218 | 163,200 |
+| D5 semantic gate | 0.079 | 0.742 | 0.307 | 0.051 | 0.000 | 0.111 | 0.218 | 163,200 |
+| D6 state answer | 0.183 | 0.735 | 0.689 | 0.000 | 0.000 | 0.000 | — | 0 |
+| D7 governed | 0.143 | 0.742 | 0.552 | 0.093 | 0.000 | 0.134 | 0.276 | 241,959 |
+
+Mean latency per question was 0.043 s (D6) to 0.063 s (D1), on this
+host, measured once.
+
+### The hypotheses
+
+Each interval is the paired 95% bootstrap interval of the per-seed
+difference, over 30 seeds.
+
+| | contrast | mean | 95% interval | registered criterion | verdict |
+|---|---|---|---|---|---|
+| H1 | D1 − D5, false acceptance | 0.385 | [0.356, 0.411] | above 0 | **holds** |
+| H2 | D1 − D4, false acceptance | 0.163 | [0.143, 0.181] | above 0 | **holds** |
+| H3 | D4 − D5, false acceptance | 0.223 | [0.202, 0.245] | above 0 | **holds** |
+| H4 | D3 − D1, false acceptance | 0.071 | [0.055, 0.088] | above 0 | **holds** |
+| H5 | D2 − D1, false acceptance, withdrawn subjects | 0.011 | [0.000, 0.028] | above 0 | **falsified**: the interval includes 0 |
+| H6 | D7 − D5, coverage | 0.245 | [0.219, 0.273] | above 0 | **holds** |
+| H7 | D7 − D5, false acceptance | 0.063 | [0.050, 0.076] | upper bound at most 0.02 | **falsified** |
+| H8 | D6 − D5, false acceptance (two-sided) | 0.103 | [0.084, 0.121] | reported | D6 accepts more false assertions |
+| H8 | D6 − D5, coverage | 0.383 | [0.357, 0.411] | above 0 | **holds** |
+| H9 | D6 pooled false acceptance on negative controls | 1.000 | | at least 0.90 | **holds**: no oracle leak |
+
+### What the falsifications show
+
+**H7: the governed context costs false acceptance, and all of it comes
+from a wrong record.** By kind:
+
+| kind | D1 | D4 | D5 | D6 | D7 |
+|---|---|---|---|---|---|
+| admitted | 0.324 | 0.281 | 0.000 | 0.000 | 0.000 |
+| withdrawn | 0.840 | 0.000 | 0.000 | 0.000 | 0.000 |
+| conflicting | 0.352 | 0.312 | 0.000 | 0.000 | 0.000 |
+| absent | 0.285 | 0.000 | 0.000 | 0.000 | 0.000 |
+| unrecorded (negative control) | 0.790 | 0.655 | 0.412 | 1.000 | 0.748 |
+| wrong_verified (negative control) | 0.820 | 0.740 | 0.460 | 1.000 | 0.820 |
+
+On every kind where the log is right, D5 and D7 assert nothing false.
+Every false assertion they make is on a negative control, where the log
+itself is wrong: the world moved and the log did not, or the reviewer
+admitted a wrong value. There, the admitted evidence SUPPORTS the false
+answer, so the semantic gate passes it. It is meant to: it checks an
+answer against the record, and the record is wrong. The governed context
+makes the answerer adopt what the record shows (adopt_state 0.9). That
+raises coverage (H6) at unchanged precision (0.742 against 0.742), and
+it raises false acceptance exactly where the record is false. This is
+the case the design cannot establish truth in: **a gate on admitted
+evidence is as wrong as the evidence it admits**. Only a re-observation,
+or a reviewer who does not admit the wrong value, would change it. D6
+shows the limit plainly: answering from the record alone asserts the
+record's value on every negative control (H9).
+
+**H5: outdated retrieval adds little on withdrawn subjects, because the
+answerer is already wrong there.** D1's false acceptance on withdrawn
+subjects is 0.840: the answerer's training saw the withdrawn value. A
+retrieved document stating that value, or one 8 K low, moves it to 0.856,
+an effect whose interval reaches 0. The hypothesis is falsified as
+registered. Retrieval did raise false acceptance overall (D2 0.542
+against D1 0.464), but that contrast was not registered and is not
+claimed.
+
+### What else the results say, and do not
+
+* **Presence is not support.** The evidence gate (D4) refuses withdrawn
+  and absent subjects entirely. Yet it still asserts a false value on 28%
+  of the questions about admitted subjects, where an admitted observation
+  exists and says something else (H3).
+* **The semantic gate's cost is coverage.** D5 abstains on 69% of
+  questions. Its false rejections (0.051) are correct, supported answers
+  the grammar could not read or the check could not decide. Extraction
+  failures are reported apart: 0.111 of D1's answers assert a value the
+  closed grammar cannot read.
+* **D7's false rejection is the highest (0.093).** Its answerer writes
+  more prose (extraction failures 0.134), and the grammar refuses what it
+  cannot read in full.
+* **Calibration is the fixture's.** Brier scores reflect the stated
+  confidences (0.9, 0.75, 0.7, 0.35), not anything learned.
+* **None of this is a measurement of a language model.** A live model's
+  adoption, guessing and phrasing rates are what the fixture assumes. The
+  contrasts say what each intervention does to *this* error process.

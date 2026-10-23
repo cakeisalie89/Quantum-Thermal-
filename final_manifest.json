@@ -90,7 +90,7 @@
     {
       "filename": "HARNESS_STATUS.md",
       "size_bytes": 5869,
-      "sha256": "46f76dbce7ded883581e959e36c36da791acb31c27543b3998d5531fd9455002"
+      "sha256": "bb9b9f63aa07a87b14c7724834626fbbfbb8f740a8c3c7917c3c4782a64b6de9"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -439,8 +439,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 626341,
-      "sha256": "d9762202f5d483ad39a00975141e59dcec096c834e46d98e3009196becb395f6"
+      "size_bytes": 628065,
+      "sha256": "2af92e873c1969e2cd04f8e88258bf47982ccbd9d191c07de69ec9e496e3838c"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -480,7 +480,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5075,
-      "sha256": "9ad7bae5c6bf9eb93dd9896e02e0b5aa3a52ebf9702dd2dad7c6cfb105c78c3e"
+      "sha256": "df128eceb1ae58d94b3124160ef9f75485934182fb0fb974d128d1f94b22d398"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -545,7 +545,7 @@
     {
       "filename": "docs/harness_status.json",
       "size_bytes": 14349,
-      "sha256": "7e9f7963dbafea43d5a3777545a852fd95147278d7314cbbfc55f7295a26102e"
+      "sha256": "5a668bce6810b7dde5ad3d8a036d882ddec17b83256b9b893502082647c5e73b"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -665,7 +665,7 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2589,
-      "sha256": "ff1e8b98eee2f1767ea8bc1a864a3a6338ab8ebdcac38eab6cfe9d22ed550834"
+      "sha256": "38ab0208a2e59976d9bfafe9ea163d669cff314069350d04ef25e0d6a8685a7c"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -679,8 +679,8 @@
     },
     {
       "filename": "docs/research/GATE_D_PROTOCOL.md",
-      "size_bytes": 9182,
-      "sha256": "a2d92764fa1b352ecba48e399eb0c6154c3bad947d464a976ab9b5c9a9f59cc1"
+      "size_bytes": 15311,
+      "sha256": "b5edc124100fb0e3c91d6d4b1e16ac20ef93c454787f896b42ad806cdb001c4c"
     },
     {
       "filename": "docs/research/GROUNDING_BENCHMARK.md",
@@ -696,6 +696,11 @@
       "filename": "docs/research/claim_bench_results.json",
       "size_bytes": 43029,
       "sha256": "7d75e67a5f5f22d37b1f5f3a51ced05ae665fb77cee609ab7f1fa54abe5eb372"
+    },
+    {
+      "filename": "docs/research/gate_d_results.json",
+      "size_bytes": 98870,
+      "sha256": "41af4f0dc61401b2b57de3bb83fb6deb884669a1f1139f187f81b0526374dbbe"
     },
     {
       "filename": "docs/research/grounding_bench_results.json",
@@ -729,8 +734,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 262536,
-      "sha256": "7064d99e52a998ab19ddb52cd2d8f359d79084caa1dc57cd61e67afe5c26a358"
+      "size_bytes": 262838,
+      "sha256": "7c817d2da2e50e340c0d955338df35a3ee659b715ff76763f8df96b8701d1daf"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -759,8 +764,8 @@
     },
     {
       "filename": "docs/tranche_h/PROGRESS.md",
-      "size_bytes": 11215,
-      "sha256": "a6c69f8bcc4fada4ae15583a713eac6dea792279b95a64ea50990d3eb54b722c"
+      "size_bytes": 11563,
+      "sha256": "cb756da1316d28433b782b24d6aa1ea94c88f61589335cebcdd2ea528071057a"
     },
     {
       "filename": "docs/tranche_h/capability_matrix.json",
@@ -860,7 +865,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "2c8db7f7cd33256d1974c7b195c5f66720e2e6fd925ccce1c2539c3e247a14a1"
+      "sha256": "5e9659d399e4bf4f14bf681bd2aa6b90a1bc0dad90199db49afaad8f72a3d21d"
     },
     {
       "filename": "ro_crate_tools.py",

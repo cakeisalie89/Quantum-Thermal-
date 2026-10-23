@@ -1,14 +1,14 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 565,
+   "ADDED": 566,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
    "LOW": 202,
-   "MEDIUM": 313
+   "MEDIUM": 314
   },
   "by_subsystem": {
    "agent-substrate": 31,
@@ -20,7 +20,7 @@
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 48,
+   "evidence": 49,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -37,7 +37,7 @@
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 597
+  "files": 598
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -3148,6 +3148,19 @@
     "tests": [
      "tests/test_claim_check.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/research/gate_d_results.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {

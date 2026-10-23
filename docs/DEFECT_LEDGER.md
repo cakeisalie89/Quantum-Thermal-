@@ -11445,6 +11445,35 @@ The confirmatory run is recorded by its own commit.
   the negative controls measure that.
 - **Generality.** The rates hold for this error process and question mix.
 
+**ADDENDUM: THE CONFIRMATORY RUN.** It ran at the protocol commit,
+2026-10-23T09:10:15Z to 09:19:29Z, with the registered parameters digest.
+It found no defect, and nothing was changed for it. Its results are in
+`docs/research/gate_d_results.json`, and its analysis is in the
+protocol's Results section, added by a later commit than the protocol.
+
+- **Seven hypotheses hold.** These are H1 to H4, H6, H8's coverage
+  prediction and H9. Both gates lower false acceptance against the model
+  alone, and the semantic gate lowers it further than the evidence gate.
+  Poisoned memory raises false acceptance. The governed context raises
+  coverage. The state answer asserts the log's value on every negative
+  control.
+- **Two are falsified.**
+  - H5: outdated retrieval on withdrawn subjects. Its interval is [0.000,
+    0.028], because the answerer is already wrong there.
+  - H7: the governed context costs no false acceptance. D7 − D5 is 0.063,
+    in [0.050, 0.076], against a registered bound of 0.02.
+- **Where H7's excess comes from.** All of D7's and D5's false acceptance
+  is on the two negative-control kinds, where the log itself is wrong. It
+  is 0.000 on every kind where the log is right. A gate on admitted
+  evidence is as wrong as the evidence it admits. The governed context
+  makes the answerer adopt the record and assert more of it at the same
+  precision. This is reported as a limit of the design, not a defect: it
+  cannot establish truth when the record is false.
+- **Seed 200 reproduces.** `--check` re-runs seed 200 and requires what
+  the file records for it. It reproduced at the commit that records the
+  results, which comes after Gate E's changes to the research ledger and
+  the controller.
+
 ## D-2026-183 — Gate E: several agents on the existing substrate, and an objective's assignees
 
 **INSPECTED FIRST.** The substrate already had what Gate E asks to reuse:
