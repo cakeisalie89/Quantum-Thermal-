@@ -178,21 +178,47 @@ class Campaign:
             self.recovery_failures += 1
 
     def invalidate_one(self):
-        """Withdraw the first verified run, and follow what rested on it."""
+        """Withdraw the first verified run, then the bytes it produced, and
+        follow what rested on each.
+
+        Every objective here runs one model on the same inputs, so every
+        run's bundle is the same bytes. Withdrawing one task therefore
+        moves nothing: other tasks standing VERIFIED captured those bytes
+        too, and a result keeps its origin while one does, the rule reuse
+        applies. That is measured here, not assumed. Withdrawing the bytes
+        themselves invalidates every task that captured them, which is the
+        widest cascade this history allows (D-2026-188)."""
         task = next(e.target for e in self.w.events()
                     if e.action == "task.create" and e.payload["tool_id"] ==
                     "model.thermal.slab_transient.run")
+        inv = self._withdraw("one task", lambda g: g.invalidate_task(
+            task, reason="a stage boundary withdraws one run"))
+        if inv.kept:
+            runs = GovernedModelRuns(root=ROOT, log=self.w.log,
+                                     evidence=self.w.evidence)
+            bundle = runs.authority.all_records()[inv.kept[0]].evidence[
+                "result_bundle"]
+            self._withdraw("its bytes", lambda g: g.withdraw_evidence(
+                bundle, reason="a stage boundary withdraws one run's "
+                               "bytes"))
+
+    def _withdraw(self, what: str, act):
         t = time.monotonic()
-        GovernedModelRuns(root=ROOT, log=self.w.log,
-                          evidence=self.w.evidence).invalidate_task(
-            task, reason="a stage boundary withdraws one result")
+        inv = act(GovernedModelRuns(root=ROOT, log=self.w.log,
+                                    evidence=self.w.evidence))
         moved = R.ResearchLedger(self.w.log,
                                  evidence=self.w.evidence).load().propagate()
         self.invalidations.append({
-            "task": task, "moved": len(moved),
+            "withdrawn": what, "origin": inv.origin,
+            "tasks_invalidated": len(inv.tasks),
+            "results_stale": len(inv.plan.affected),
+            "results_kept": len(inv.kept),
+            "memories_stale": len(inv.memories),
+            "moved": len(moved),
             "objectives_stale": sum(m.startswith("obj-") and "." not in m
                                     for m in moved),
             "seconds": round(time.monotonic() - t, 3)})
+        return inv
 
     # ---- measuring -------------------------------------------------------
     def measure(self, target: int) -> dict:

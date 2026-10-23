@@ -5,7 +5,7 @@ and integrate"). It is written by hand from the evidence it cites, and the
 evidence is the authority where they disagree:
 
 - `git log` names every commit;
-- `docs/DEFECT_LEDGER.md` (D-2026-162 to D-2026-187) says what each found
+- `docs/DEFECT_LEDGER.md` (D-2026-162 to D-2026-188) says what each found
   and what it did not;
 - the results files under `docs/assurance/` and `docs/research/` hold the
   measurements;
@@ -30,7 +30,11 @@ writing, the newest engineering commits are:
 
 - `dfaf988`, the section 11 demonstration;
 - `0d1710a`, the concurrency repairs it found;
-- `b7b8e9e`, the Gate G campaign keeping the stages it finished.
+- `b7b8e9e`, the Gate G campaign keeping the stages it finished;
+- `e33eeb4` and `4bc9b05`, two test defects found by hosted mutation
+  testing and by the full suite (D-2026-187, and D-2026-186's addendum);
+- the commit titled "Gate G: the stage boundary withdraws the bytes as
+  well as one run" (D-2026-188).
 
 PR #17 stays open and unmerged. `main` was not touched, and no history was
 rewritten.
@@ -48,7 +52,7 @@ rewritten.
 | Gate D: a preregistered grounding experiment, protocol before results | 4 (D) | D-2026-182 |
 | Gate E: several agents on the existing substrate; objective assignees | 4 (E) | D-2026-183 |
 | Gate F: model contracts; an observation's scientific context | 4 (F) | D-2026-180 |
-| Gate G: a staged long-horizon campaign, every counter kept apart | 4 (G) | D-2026-181 |
+| Gate G: a staged long-horizon campaign, every counter kept apart | 4 (G) | D-2026-181, D-2026-188 |
 | Assurance A: deterministic simulation of the gateway and the research ledger | 5 (A) | D-2026-165 |
 | Assurance B: six TLA+ models tied to the code by conformance replay | 5 (B) | D-2026-165 |
 | Assurance C: trust labels and end-to-end noninterference | 5 (C) | D-2026-166 |
@@ -369,9 +373,15 @@ At the 100-decision stage, run in CI, every invariant holds:
 - no second-reader notes;
 - a checkpointed load equal to a full one.
 
-**The staged campaign to 10,000 decisions** runs at `b7b8e9e` and records
-each stage as it finishes. The per-decision cost grows with the history,
-from about 0.7 s at 100 decisions to about 6 s at 1,450 on this host
+**The staged campaign to 10,000 decisions** records each stage as it
+finishes. Its first run reached 1,000 decisions clean, but the withdrawal
+there moved nothing. Every run makes the same bytes, so the withdrawn
+run's results kept their origin in the others. The substrate was right,
+and the measurement said nothing (D-2026-188). The stage boundary now
+withdraws one run, and then its bytes. The campaign was restarted at that
+commit, so every recorded stage ran on one version of the code. The
+per-decision cost grows with the history, from about 0.7 s at 100
+decisions to about 2.2 s on average between 100 and 1,000, on this host
 while other work ran. At that growth, 5,000 decisions take about half a
 day and 10,000 about two days. The stages reached are recorded in
 `docs/assurance/research_horizon_results.json` by their own commit. Any

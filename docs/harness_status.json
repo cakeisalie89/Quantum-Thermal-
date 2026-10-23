@@ -16,8 +16,8 @@
    "problems": 0
   },
   "workflow_contract": {
-   "ok": true,
-   "problems": 0
+   "ok": false,
+   "problems": 1
   }
  },
  "derived_from": {
@@ -620,6 +620,12 @@
    "id": "R71",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "workflow_contract",
+   "kind": "audit",
+   "status": "finding"
   }
  ]
 }

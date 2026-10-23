@@ -11856,3 +11856,59 @@ mutations sets.
 **WHAT THIS IS NOT.** On a host that refuses namespaces, IS1 changes
 nothing and cannot be detected there. The spec's note already says it is
 held on a host with unprivileged namespaces.
+
+## D-2026-188 — Gate G's withdrawal at the 1,000 stage could never move anything
+
+**FOUND BY READING THE STAGE'S OWN RECORD.** The staged campaign at the
+commit titled "Gate G: a long campaign keeps the stages it finished"
+reached 1,000 scripted decisions clean:
+
+- 101 objectives and 1,009 inference calls;
+- no duplicate, no recovery failure, no second-reader note;
+- the checkpointed load equal to the full one.
+
+Its withdrawal at that stage recorded `moved: 0`. A measurement of
+invalidation that moves nothing measures nothing, so the cause was
+traced before the stage was recorded.
+
+**THE CAUSE IS THE DESIGN, AND THE DEFECT IS THE MEASUREMENT'S.** Every
+objective in the campaign runs one model on the same inputs, so every
+run's bundle is the same bytes. Withdrawing one task leaves each result
+citing those bytes an origin in another task standing VERIFIED. Reuse
+applies the same rule, and `invalidate_task` reports those results as
+`kept`. The substrate did what its contract says. The campaign recorded
+only what moved, so its record said nothing had happened, without saying
+why. Nothing tested the campaign's withdrawal: the test's stage was too
+short to reach it.
+
+**THE REPAIR.** At the stage boundary the campaign now does two things,
+and records each:
+
+- **It withdraws one task, as before.** The record now also shows the
+  results kept, the results made STALE, the memories made STALE, the
+  records the research ledger moved, and the objectives made STALE.
+- **It then withdraws the bytes themselves** (`withdraw_evidence`). That
+  invalidates every task that captured them, which is the widest cascade
+  this history allows.
+
+`tests/test_research_horizon.py` runs a short stage that ends in both
+withdrawals, then a stage after them:
+
+- the first withdrawal moves nothing and keeps at least two results;
+- the second makes STALE every result the first kept, along with
+  memories and objectives;
+- no objective of the first stage stays CONCLUDED;
+- the campaign goes on, and later objectives conclude on new runs, with
+  no duplicate and no recovery failure.
+
+`tools/mutations/research_horizon.json` gains three mutations, and all
+seven are killed:
+
+- the bytes never withdrawn;
+- the kept results unreported;
+- the ledger not followed.
+
+**THE CAMPAIGN WAS RESTARTED** at the commit carrying this repair, so the
+recorded stages all ran on one version of the code. The earlier run's
+1,000 stage is not recorded as a result. Its figures are given above
+only to say what was found.

@@ -177,10 +177,10 @@
   {
    "@id": "docs/harness_status.json",
    "@type": "File",
-   "contentSize": "15308",
+   "contentSize": "15413",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "4da7a4793d2bb573fe1428f963e4f29666779e8f10a95bb7ff382a89c31f28b8"
+   "sha256": "dfe0ed46b2cbf32b8983dc71ef27b96b3116742b6cbeec57698db77e0efdabad"
   },
   {
    "@id": "docs/neural/claims.json",

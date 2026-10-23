@@ -96,3 +96,46 @@ def test_a_duplicate_is_seen_where_there_is_one():
               _ev("inference.result", "r2", attempt=2)]
     assert H._duplicates(events) == {"executions": 1, "receipts": 1,
                                      "inference_results": 1}
+
+
+@pytest.fixture(scope="module")
+def withdrawn():
+    """A short stage ending in both withdrawals, then a stage after them:
+    the campaign goes on over a history with STALE in it."""
+    c = H.Campaign("pytest-horizon-withdrawn")
+    try:
+        c.run(20, invalidate_at=(20,))
+        out = c.run(45, invalidate_at=())
+    finally:
+        c.clean()
+    return out
+
+
+def test_a_run_whose_bytes_another_run_made_keeps_its_results(withdrawn):
+    """Every run here makes the same bytes, so withdrawing one task leaves
+    each result an origin in another standing VERIFIED, and nothing moves.
+    That is the rule reuse applies, measured where it applies
+    (D-2026-188)."""
+    one = withdrawn["invalidations"][0]
+    assert (one["withdrawn"], one["tasks_invalidated"]) == ("one task", 1)
+    assert (one["results_stale"], one["memories_stale"], one["moved"]) == \
+        (0, 0, 0)
+    assert one["results_kept"] >= 2
+
+
+def test_withdrawing_the_bytes_takes_what_rested_on_them(withdrawn):
+    one, them = withdrawn["invalidations"]
+    assert them["withdrawn"] == "its bytes"
+    assert (them["results_stale"], them["results_kept"]) == \
+        (one["results_kept"], 0)
+    assert them["memories_stale"] >= 1 and them["objectives_stale"] >= 1
+    at, after = withdrawn["stages"]
+    assert at["objective_states"].get("STALE") == them["objectives_stale"]
+    assert "CONCLUDED" not in at["objective_states"]
+    # and the campaign goes on: later objectives conclude on new runs
+    assert after["objective_states"]["STALE"] == them["objectives_stale"]
+    assert after["objective_states"].get("CONCLUDED", 0) >= 1
+    for s in (at, after):
+        assert s["recovery_failures"] == 0
+        assert not any(s["duplicates"].values())
+        assert s["log_verifies"] and s["second_reader_anomalies"] == 0

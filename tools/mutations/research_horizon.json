@@ -1,6 +1,6 @@
 {
  "title": "Gate G: the long-horizon campaign's counters see what they count",
- "note": "D-2026-181. Each blinds a counter the campaign reports apart: a second execution, a second receipt, a restart, or a retry miscounted as a duplicate. tests/test_research_horizon.py holds the counters to each other over a short stage with a crash in it, and the duplicate counter to a positive control.",
+ "note": "D-2026-181. Each blinds a counter the campaign reports apart: a second execution, a second receipt, a restart, or a retry miscounted as a duplicate. tests/test_research_horizon.py holds the counters to each other over a short stage with a crash in it, and the duplicate counter to a positive control. D-2026-188 adds three that blind the stage boundary's withdrawals: the bytes never withdrawn, the kept results unreported, the ledger not followed; a short stage ending in both withdrawals holds them.",
  "suites": [
   "tests/test_research_horizon.py"
  ],
@@ -32,6 +32,27 @@
    "find": "            self.restarts += 1",
    "replace": "            pass",
    "rationale": "G: a resumption after a crash is not counted, so restarts and resets merge"
+  },
+  {
+   "name": "RH5_the_bytes_are_never_withdrawn",
+   "path": "tools/research_horizon.py",
+   "find": "        if inv.kept:\n",
+   "replace": "        if False:\n",
+   "rationale": "G: the only withdrawal measured is one that moves nothing here, as at the 1,000 stage before D-2026-188"
+  },
+  {
+   "name": "RH6_kept_results_are_not_reported",
+   "path": "tools/research_horizon.py",
+   "find": "            \"results_kept\": len(inv.kept),",
+   "replace": "            \"results_kept\": 0,",
+   "rationale": "G: a withdrawal that moved nothing is reported without the reason it moved nothing"
+  },
+  {
+   "name": "RH7_the_ledger_is_not_followed",
+   "path": "tools/research_horizon.py",
+   "find": "        moved = R.ResearchLedger(self.w.log,\n                                 evidence=self.w.evidence).load().propagate()",
+   "replace": "        moved: list = []",
+   "rationale": "G: the research records resting on a withdrawn result keep their standing"
   }
  ]
 }
