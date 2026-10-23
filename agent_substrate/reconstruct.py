@@ -2154,7 +2154,8 @@ def _sub_policy_publish(ev, p: dict, out) -> None:
         return
     versions.append({"version": version, "digest": p.get("policy_digest"),
                      "effective_seq": ev.seq,
-                     "not_after": doc.get("not_after")})
+                     "not_after": doc.get("not_after"),
+                     "rules": doc.get("rules") or []})
 
 
 def _sub_policy_withdraw(ev, p: dict, out) -> None:
@@ -2199,11 +2200,43 @@ def _sub_policy_decision(ev, p: dict, out) -> None:
     elif d.get("policy_digest") != versions[-1].get("digest"):
         _note(out, ev, f"a decision citing a digest of {pid!r} other than "
                        "the version in force")
+    else:
+        req = d.get("request")
+        want = _sub_policy_verdict(versions[-1].get("rules") or [],
+                                   req if isinstance(req, dict) else {})
+        got = (d.get("allowed"), d.get("effect"), d.get("rule_id"),
+               list(d.get("obligations") or []))
+        if got != want:
+            _note(out, ev, f"a decision the rules of {pid!r} do not give: "
+                           f"recorded {got}, the rules give {want}")
     out.decisions[ev.seq] = {
         "allowed": d.get("allowed"), "policy_id": d.get("policy_id"),
         "policy_digest": d.get("policy_digest"), "actor": ev.actor,
         "subject": d.get("subject"), "action": d.get("action"),
     }
+
+
+def _sub_policy_verdict(rules: list, req: dict) -> tuple:
+    """``(allowed, effect, rule_id, obligations)`` for ``req``, restated
+    (section 6.2): every field of a rule must hold, ``*`` holding of
+    anything; a holding DENY overrides every ALLOW and the first DENY in
+    document order decides; otherwise the first holding ALLOW decides, and
+    the obligations are those of every holding ALLOW; with none holding,
+    the answer is DENY, decided by no rule."""
+    def holds(r) -> bool:
+        return all("*" in (r.get(f) or ()) or req.get(k) in (r.get(f) or ())
+                   for f, k in (("actions", "action"),
+                                ("subjects", "subject"), ("roles", "role"),
+                                ("resources", "resource")))
+    held = [r for r in rules if isinstance(r, dict) and holds(r)]
+    deny = next((r for r in held if r.get("effect") == "DENY"), None)
+    if deny is not None:
+        return (False, "DENY", deny.get("rule_id"), [])
+    allow = [r for r in held if r.get("effect") == "ALLOW"]
+    if allow:
+        return (True, "ALLOW", allow[0].get("rule_id"),
+                sorted({o for r in allow for o in r.get("obligations") or ()}))
+    return (False, "DENY", None, [])
 
 
 def _sub_capability_root(ev, p: dict, out) -> None:

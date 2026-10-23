@@ -44,7 +44,7 @@ Where this file and those disagree, they are right and this file is stale.
 | Assurance I: deployment isolation contract | 5 (I) | PENDING | | |
 | Assurance J: provenance export | 5 (J) | PENDING | | |
 | Causal assurance graph | 6.1 | COMMITTED: projection with typed recorded edges and an auditor's explain; the Gate C history withdrawn and the system's cascades, reconstructed by the second reader, agree with the graph's prediction exactly; found that a withdrawn run's notes stayed current (repaired) | Assurance graph | D-2026-171 |
-| Independent policy reference model | 6.2 | PENDING | | |
+| Independent policy reference model | 6.2 | COMMITTED: a test-only reference (Cedar-shaped permit and forbid sets) agrees with the engine over 2,000 generated cases and with the replay verifier over 150 recorded histories; the second reader now restates the verdict, and four forged verdicts with consistent digests are caught by both readers | Policy semantics | D-2026-172 |
 | Semantic claim verdicts | 6.3 | PENDING | | |
 | Composed adversarial campaigns | 7 | PENDING | | |
 | Final integration demonstration | 11 | PENDING | | |
@@ -59,4 +59,5 @@ Where this file and those disagree, they are right and this file is stale.
 `Clock rollback` is the commit titled "An expiry is judged at the time the history reached";
 `Assurance F` is the commit titled "Assurance F: freshness and re-observation";
 `Assurance E` is the commit titled "Assurance E: independent witnesses to the log's head";
-`Assurance graph` is the commit titled "The causal assurance graph; a withdrawn run's notes go stale".
+`Assurance graph` is the commit titled "The causal assurance graph; a withdrawn run's notes go stale";
+`Policy semantics` is the commit titled "The second reader restates a policy verdict; a reference model checks the engine".

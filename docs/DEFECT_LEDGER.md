@@ -10406,3 +10406,92 @@ All three new tests fail without the repair. Mutation:
   when the withdrawal moved nothing. Memory keeps that only in process
   (`_invalidated`). It is a pre-existing gap, recorded here, not repaired.
 
+## D-2026-172 — Section 6.2: the second reader took a decision's verdict on trust
+
+**INSPECTED FIRST.** Each recorded `policy.decision` was checked twice on
+replay:
+
+- `PolicyStore`'s replay re-derives the verdict with the engine
+  (`PolicyDocument.evaluate`) and refuses a record that disagrees;
+- the second reader (`reconstruct.py`) restated that the decision cites a
+  version that was published, not withdrawn, not expired (D-2026-168), and
+  carries that version's digest.
+
+The second reader did NOT restate the verdict. A decision record with a
+correct digest, whose `allowed`, `effect`, `rule_id` or `obligations` the
+cited rules do not produce, passed it without a note. Only the engine's
+own replay caught it, so the "independent" check stopped one field short
+of the answer that matters. Nothing outside the engine had ever stated
+what the rules mean.
+
+**WHAT WAS ADDED.**
+
+- The second reader restates the evaluation (`_sub_policy_verdict`).
+  Every field of a rule must hold, and `*` holds of anything. A holding
+  DENY overrides every ALLOW, and the first DENY in document order decides.
+  Otherwise the first holding ALLOW decides, and the obligations are those
+  of every holding ALLOW. With none holding, the answer is DENY, decided by
+  no rule. It is judged under the version in force at the decision and
+  shares no code with the engine. A recorded verdict that differs is
+  noted: "a decision the rules of ... do not give".
+- A reference model, for testing only (`tests/test_policy_semantics.py`,
+  `authorize`). It is written from the semantics `policy.py` states, in the
+  shape formally specified authorization languages give them (Cedar's): a
+  request is authorized when some permit is satisfied and no forbid is,
+  and the determining policies are the satisfied forbids if any, else the
+  satisfied permits. It is plain set arithmetic over the published rule
+  bodies, imports nothing from the engine, and nothing at runtime calls
+  it. It is not a second authority: it decides nothing.
+
+**THE COMPARISON.**
+
+- Engine against reference, over 2,000 generated documents and requests.
+  Each document has one to six rules, wildcards in every field and
+  obligations on ALLOW rules. Request values include a literal `*`, and
+  requests carry attributes named like roles or grants. Hypothesis is
+  derandomized, so a disagreement reproduces. None was found.
+- The replay verifier, over 150 generated documents with up to four
+  decisions each, recorded through `PolicyStore`. Each recorded verdict
+  equals the reference's. The policy store's replay accepts the history,
+  and the second reader notes nothing.
+- Forged verdicts. Four single-field forgeries are appended around the
+  store, each with a digest consistent with its own body: allowed flipped,
+  effect flipped, the deciding rule swapped, the obligations dropped. Each
+  is refused by the policy store's replay and noted by the second reader.
+- A later, narrower version decides a request differently from the first.
+  The second reader judges under the version in force and notes nothing.
+
+**WHAT IT FOUND.** No disagreement between the engine and the reference.
+The defect is the one above: before this change, the second reader passed
+all four forged verdicts (mutation PS6 restores that behaviour and is
+killed).
+
+**MUTATION** (`tools/mutations/policy_semantics.json`, 13 mutations).
+
+- Five in the engine, killed by the reference comparison:
+  - first-match instead of deny-overrides;
+  - the last DENY deciding;
+  - obligations from the deciding ALLOW only;
+  - a request of `*` matching every rule;
+  - a rule ignoring its resources.
+- Eight in the restatement, killed by the replay comparison, the forgeries
+  and the version test:
+  - the verdict not checked;
+  - `*` forgotten;
+  - first-match;
+  - the last DENY;
+  - one ALLOW's obligations;
+  - a field dropped;
+  - the first version's rules;
+  - a default of allow.
+
+**WHAT THIS DOES NOT DO.**
+
+- Prove the engine correct. The reference is a second statement of the
+  same informal semantics, by the same author. Agreement shows that two
+  statements made independently of each other's code coincide on every
+  input tried; it does not show either matches an intent nobody wrote
+  down. The comparison is with Cedar's SHAPE, not with Cedar: no Cedar
+  implementation is run, and adding one would be a new dependency (OD-5).
+- Cover conditions. The engine has none: attributes reach the record and
+  never the verdict, and the generated requests check that.

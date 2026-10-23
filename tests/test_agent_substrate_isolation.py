@@ -166,6 +166,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_witness.py",
     # Section 6.1: the causal assurance graph, and the withdrawal it predicts
     "tests/test_assurance_graph.py",
+    # Section 6.2: the policy engine against an independent reference model
+    "tests/test_policy_semantics.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.
