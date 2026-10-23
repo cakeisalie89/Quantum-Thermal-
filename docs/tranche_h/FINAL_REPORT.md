@@ -374,19 +374,49 @@ At the 100-decision stage, run in CI, every invariant holds:
 - a checkpointed load equal to a full one.
 
 **The staged campaign to 10,000 decisions** records each stage as it
-finishes. Its first run reached 1,000 decisions clean, but the withdrawal
-there moved nothing. Every run makes the same bytes, so the withdrawn
-run's results kept their origin in the others. The substrate was right,
-and the measurement said nothing (D-2026-188). The stage boundary now
-withdraws one run, and then its bytes. The campaign was restarted at that
-commit, so every recorded stage ran on one version of the code. The
-per-decision cost grows with the history, from about 0.7 s at 100
-decisions to about 2.2 s on average between 100 and 1,000, on this host
-while other work ran. At that growth, 5,000 decisions take about half a
-day and 10,000 about two days. The stages reached are recorded in
-`docs/assurance/research_horizon_results.json` by their own commit. Any
-stage not reached is reported with this measurement as the reason, not
-claimed.
+finishes (`docs/assurance/research_horizon_results.json`). Its first run
+reached 1,000 decisions clean, but the withdrawal there moved nothing.
+Every run makes the same bytes, so the withdrawn run's results kept their
+origin in the others. The substrate was right, and the measurement said
+nothing (D-2026-188). The stage boundary now withdraws one run, and then
+its bytes. The campaign was restarted at the commit that made the change.
+Every recorded stage ran on that code, and nothing the campaign exercises
+has changed since.
+
+| stage | events | inference calls | verified records | restarts | seconds per decision | ledger replay | log |
+|---|---|---|---|---|---|---|---|
+| 50 | 659 | 50 | 5 | 1 | 0.56 | 0.17 s | 0.6 MB |
+| 100 | 1,305 | 100 | 10 | 1 | 0.72 | 0.43 s | 1.2 MB |
+| 1,000 | 13,989 | 1,009 | 96 | 14 | 2.33 | 4.34 s | 12.2 MB |
+
+At every stage:
+
+- no execution, receipt or answer happened twice;
+- no recovery failed;
+- the second reader had no note;
+- the log verified;
+- a checkpointed load reached the full load's state, and said it was
+  weaker.
+
+At 1,000 decisions, withdrawing one run moved nothing, and all 96 results
+kept their origin. Withdrawing its bytes invalidated the 95 other tasks
+that captured them. It made STALE 96 results, 96 memories and 96
+objectives, and the ledger moved 960 records, in 184 s.
+
+**Why the cost grows.** A profile at 100 decisions puts 40 of 75 seconds
+in the sandboxed runs, which cost the same at any length. A further 17
+seconds go to 385 verified reads of the whole log, and each of those
+grows with the history. Every fold re-verifies the chain from genesis,
+which is the coherence rule D-2026-76 and its successors established.
+An anchored read would make it cheaper, but it re-reads no prefix and
+trusts the anchor. The store already labels that weaker trust. Moving
+the governed projection onto it would weaken a control to buy
+throughput, so it was not done.
+
+**The later stages.** At the measured growth, the 5,000 stage lands about
+10 hours after the 1,000, and the 10,000 about 31 hours after that, on
+this host with other work running. The campaign continues, and each stage
+is committed as it lands. A stage that has not landed is not claimed.
 
 ## Production status
 

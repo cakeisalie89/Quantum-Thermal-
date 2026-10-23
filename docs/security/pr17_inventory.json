@@ -1,14 +1,14 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 572,
+   "ADDED": 573,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
    "LOW": 204,
-   "MEDIUM": 318
+   "MEDIUM": 319
   },
   "by_subsystem": {
    "agent-substrate": 31,
@@ -20,7 +20,7 @@
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 51,
+   "evidence": 52,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -37,7 +37,7 @@
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 604
+  "files": 605
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -2521,6 +2521,21 @@
     "findings": [],
     "mutation_specs": [],
     "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/research_horizon_results.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_research_horizon.py"
+    ]
    }
   },
   {

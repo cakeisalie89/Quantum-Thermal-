@@ -11382,6 +11382,28 @@ a duplicate.
 - **Cover other workloads.** One model and one point were run. The
   campaign measures the loop's accumulation, not the science.
 
+**ADDENDUM: THE STAGES REACHED.** The campaign was run to 10,000 at the
+commit titled "Gate G: the stage boundary withdraws the bytes as well as
+one run" (D-2026-188), and it records each stage as it finishes. The
+50, 100 and 1,000 stages are committed. Each was clean:
+
+- no duplicate execution, receipt or answer;
+- no recovery failure and no second-reader note;
+- the log verified;
+- the checkpointed load equal to the full one.
+
+At 1,000 there were 13,989 events, 1,009 inference calls, 96 verified
+records and 14 resumed crashes. The cost was 2.33 s per decision, and a
+research-ledger replay took 4.34 s.
+
+The cost per decision grows with the history. A profile at 100 decisions
+puts 40 of 75 s in the sandboxed runs. A further 17 s go to 385 verified
+reads of the whole log, each of which grows with it. An anchored read
+would be cheaper, but it trusts its anchor and re-reads no prefix, which
+is weaker trust, so the governed projection was not moved onto it. The
+later stages are projected at about 10 and 31 further hours. They are
+committed as they land and claimed only then.
+
 ## D-2026-182 — Gate D: a preregistered grounding experiment, offline
 
 **INSPECTED FIRST.** Tranche G's benchmark (`tools/grounding_bench`) is
