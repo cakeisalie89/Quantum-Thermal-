@@ -439,8 +439,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 651007,
-      "sha256": "b41c4382df052ab970c0be4108f7c331af92e4184544a96fff16655f3618e5fc"
+      "size_bytes": 652193,
+      "sha256": "ee964065f82df1ed2b369cb82b2a834047b795cb0b781d078e531cef40635cdb"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -490,7 +490,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5219,
-      "sha256": "acbddd02a1e99672ccae3887842e7bb8c137f85354c4a340eb508c798aee4520"
+      "sha256": "3d2b86d536af07bb418bced4a5297483f3e210bdcba8dff2a68f30d80ffdefd5"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -769,8 +769,8 @@
     },
     {
       "filename": "docs/tranche_h/FINAL_REPORT.md",
-      "size_bytes": 23653,
-      "sha256": "e6504ecae93fc215154e39248b152d2823b286e2a435728587823e05107e9a93"
+      "size_bytes": 25579,
+      "sha256": "947bdc022c73ea9cab57c07f07a21b0ecef297fa58c7b1f6a12195836a877ef4"
     },
     {
       "filename": "docs/tranche_h/GATE_A_AUDIT.md",
@@ -779,8 +779,8 @@
     },
     {
       "filename": "docs/tranche_h/PROGRESS.md",
-      "size_bytes": 13383,
-      "sha256": "df82d6e10bcc26f087b0afa15f0d6557b969e3dd43935602dc6566d4c71b2d25"
+      "size_bytes": 13643,
+      "sha256": "bd0d475d7e30f629de29559c605478b54fa6d682d607868a6d2ea6602b9a62d9"
     },
     {
       "filename": "docs/tranche_h/capability_matrix.json",

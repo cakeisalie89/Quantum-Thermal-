@@ -11404,6 +11404,28 @@ is weaker trust, so the governed projection was not moved onto it. The
 later stages are projected at about 10 and 31 further hours. They are
 committed as they land and claimed only then.
 
+**ADDENDUM: WHY THE LATER STAGES WERE NOT REACHED.** The run reached
+1,547 scripted decisions in 76 minutes, clean to that point. At
+17:00:53Z the session's container was reclaimed while the session was
+idle, and the process went with it. Its files survived. The campaign
+keeps its harness counters (resets, restarts, recovery failures) in its
+process, so it cannot resume. A restart from genesis needs about 36
+minutes to 1,000 decisions, then about 10 hours of continuous compute to
+5,000 and 31 more to 10,000. No process here survives that long.
+
+Two changes would remove the limit. Neither was made:
+
+- **A resumable campaign.** Persist the counters beside the world, and
+  finish the objective in flight with a fresh controller. That is a
+  whole-process recovery test in its own right.
+- **A memoized verified prefix.** Key it by a hash of the log's prefix
+  bytes. If the bytes are identical to bytes already verified,
+  re-verifying them says nothing new, so the full-chain rule stands while
+  most of the growth goes. It changes the most trusted read in the
+  substrate, and it needs its own review.
+
+The 5,000 and 10,000 stages are not claimed, and nothing that ran failed.
+
 ## D-2026-182 — Gate D: a preregistered grounding experiment, offline
 
 **INSPECTED FIRST.** Tranche G's benchmark (`tools/grounding_bench`) is

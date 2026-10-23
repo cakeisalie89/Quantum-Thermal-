@@ -5,7 +5,7 @@ and integrate"). It is written by hand from the evidence it cites, and the
 evidence is the authority where they disagree:
 
 - `git log` names every commit;
-- `docs/DEFECT_LEDGER.md` (D-2026-162 to D-2026-188) says what each found
+- `docs/DEFECT_LEDGER.md` (D-2026-162 to D-2026-190) says what each found
   and what it did not;
 - the results files under `docs/assurance/` and `docs/research/` hold the
   measurements;
@@ -33,14 +33,19 @@ writing, the newest engineering commits are:
 - `b7b8e9e`, the Gate G campaign keeping the stages it finished;
 - `e33eeb4` and `4bc9b05`, two test defects found by hosted mutation
   testing and by the full suite (D-2026-187, and D-2026-186's addendum);
-- the commit titled "Gate G: the stage boundary withdraws the bytes as
-  well as one run" (D-2026-188).
+- `23d8034`, the Gate G stage boundary withdrawing the bytes as well as
+  one run (D-2026-188);
+- `51f3348`, the mutation shards placed by measured hosted seconds
+  (D-2026-189);
+- `8f53500`, the Gate G stages recorded to 1,000;
+- `3fa6072`, V7 counting executed run tasks rather than created ones
+  (D-2026-190).
 
 PR #17 stays open and unmerged. `main` was not touched, and no history was
 rewritten.
 
-**Files changed.** 155 files, +42,114 / −1,011 lines from `aa0c413` to
-`dfaf988`, over 31 commits.
+**Files changed.** 160 files, +44,519 / −2,367 lines from `aa0c413` to
+`8f53500`, over 38 commits.
 
 ### Capabilities completed
 
@@ -111,12 +116,14 @@ copy is the point of the check it makes.
 |---|---|---|
 | test files | 133 | 166 |
 | mutation specifications run in CI | 102 | 125 |
-| mutations | 2,004 | 2,367 |
+| mutations | 2,004 | 2,371 |
 | TLA+ models | 0 | 6 (29 model runs, each as expected) |
 
-**The full suite.** It passed at the head pushed before this report's
-batch (`e07d991`: exit 0, skips only for hosts without IPv6, FEniCSx, FMI
-or the isolation requirement), and it runs again before every push.
+**The full suite.** It runs before every push. It passed (exit 0) at
+`e07d991`, at `4bc9b05` and at `51f3348`, with skips only for hosts
+without IPv6, FEniCSx, FMI or the isolation requirement. Its one failure
+in this period was at `e4e8772`, before that head was pushed: the
+structural read guard found V10's raw read (D-2026-186 addendum).
 
 **Mutations.** Each new mutation was run locally before its commit, and
 every one was killed. The 125 specifications also run in CI, in eight
@@ -251,6 +258,12 @@ the executor whether the host had namespaces. A mutant that stopped the
 executor entering them therefore made the test skip its own probes. That
 mutant had been killed only by an assertion D-2026-176 corrected. The
 test now asks the host itself.
+
+**Found by hosted CI, D-2026-190.** On the hosted runner, V7's two
+controllers both reached the idempotency race. The loser's task was
+cancelled before dispatch, as D-2026-117 designs it, and V7 counted that
+orphan as a second execution of the model. The model ran once. V7 now
+counts executed tasks, and a test forces the race.
 
 **Defence in depth, measured.** With the gateway's policy-freshness check
 removed, the stale call is granted. The independent process then finds
@@ -413,10 +426,34 @@ trusts the anchor. The store already labels that weaker trust. Moving
 the governed projection onto it would weaken a control to buy
 throughput, so it was not done.
 
-**The later stages.** At the measured growth, the 5,000 stage lands about
-10 hours after the 1,000, and the 10,000 about 31 hours after that, on
-this host with other work running. The campaign continues, and each stage
-is committed as it lands. A stage that has not landed is not claimed.
+**The later stages were not reached.** The run reached 1,547 scripted
+decisions in 76 minutes, clean to that point. At 17:00:53Z the session's
+container was reclaimed while the session was idle, and the process went
+with it. This had happened once before in the directive. Three facts set
+the limit:
+
+- **At the measured growth,** the 5,000 stage needs about 10 hours of
+  continuous compute after the 1,000, and the 10,000 about 31 more.
+- **A process here survives only while the session is active.** Files
+  survive reclamation, and processes do not.
+- **The campaign is not resumable across the death of its process.** Its
+  harness counters (resets, restarts, recovery failures) live in that
+  process.
+
+Two engineering changes would remove the limit, and neither was made in
+this directive:
+
+- **A resumable campaign** that persists its counters beside the world
+  and finishes the objective in flight. That is also a whole-process
+  recovery test.
+- **A memoized verified prefix,** keyed by a hash of the prefix's bytes.
+  If the bytes are identical to bytes already verified, re-verifying them
+  says nothing new. That keeps the full-chain rule and removes most of the
+  growth, but it is a change to the most trusted read in the substrate,
+  and it needs its own review.
+
+The 5,000 and 10,000 stages are therefore not claimed. They are not
+claimed as failures either: nothing that ran failed.
 
 ## Production status
 
@@ -475,9 +512,11 @@ None of these was performed here, and none may be without the owner.
 and executable offline has been implemented and has met its acceptance
 criteria, with these exceptions:
 
-1. **Gate G's later stages.** The 5,000 and 10,000 stages are bounded by
-   replay cost that grows with the history. They are recorded as far as
-   they run, and the growth is reported as the finding.
+1. **Gate G's later stages.** The 5,000 and 10,000 stages were not
+   reached. Replay cost grows with the history, a process here lives only
+   while the session is active, and the campaign cannot resume across the
+   death of its process. The two changes that would remove the limit are
+   named above. The run reached 1,547 decisions, clean.
 2. **Hosted evidence for the newest heads.** It is attached after their
    hosted runs, which raises the evidence pin again.
 
