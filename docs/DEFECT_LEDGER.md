@@ -10696,3 +10696,62 @@ a verdict both versions give.
   - a witness here is a fixture with a TEST key;
   - a model persuaded by a note acts on it outside the system.
 - Cover a live model (NOT_RUN), a production witness, or production keys.
+
+## D-2026-175 — Assurance J: a read-only W3C PROV export
+
+**INSPECTED FIRST.** The history already had one projection with typed,
+recorded edges: the causal assurance graph (D-2026-171). RO-Crate metadata
+(`ro_crate_tools.py`) describes the repository's files, not the history of
+decisions. Nothing rendered the history in a standard provenance model.
+
+**WHAT WAS ADDED** (`agent_substrate/prov_export.py`). A PROV-JSON document
+of one verified history, versioned `qt-prov/1`, built on the graph, so the
+log is not read a second way:
+
+- **Activities**: one per event, with its time, action, position and record
+  hash, associated with its actor (`wasAssociatedWith`).
+- **Entities**: what the graph names, with the state the history last
+  recorded:
+  - records, observations, hypotheses and objectives;
+  - memories, contexts, proposals, model calls and tasks;
+  - policies, and evidence bytes by digest.
+- **Relations**:
+  - evidence, verification, derivation, dependency and summary edges are
+    `wasDerivedFrom`;
+  - a model's output, an agent's request, a claimed citation and a
+    context's link to its run are only `wasInfluencedBy`;
+  - verification and promotion are `wasAttributedTo` the agent;
+  - a context holds its items (`hadMember`);
+  - a superseded memory `wasInvalidatedBy` the activity that superseded it.
+  Each relation names the activity that recorded it.
+
+A history that does not verify is refused (`export_log`). The document
+says what it does not represent (`qt:notRepresented`):
+
+- the hash chain (carried as attributes; PROV cannot verify it);
+- every payload field the graph does not read;
+- the actions the graph does not read, with their counts.
+
+**ROUND TRIP.** `edges()` and `activities()` read a document back. The Gate
+C history, with a memory superseded, reads back to exactly its graph and its
+events. A document in which a model's output is re-typed as evidence is
+still well formed. It no longer reads back to the history, and the round
+trip is how it is told apart. A Hypothesis test maps any identifier to a
+`qt:` name and back.
+
+**MUTATION** (`tools/mutations/prov_export.json`, 11): a model's output as a
+derivation, an unattributed verification, an activity with no agent, a
+dropped note or time or state, an invalidation never emitted, the unread
+actions hidden, an unverified history exported, a dangling relation passed,
+unencoded identifiers.
+
+**WHAT THIS DOES NOT DO.**
+
+- **Create authority.** Nothing in the package imports it, and a document
+  claiming what the log does not say proves nothing. The canonical event
+  log stays the only source.
+- **Claim conformance to PROV-AGENT or to a PROV validator.** No validator
+  is run: none is installed, and adding one is a dependency decision. The
+  structural check is this module's own.
+- **Represent every field.** It represents the graph's fields, losslessly
+  for those, and says so.

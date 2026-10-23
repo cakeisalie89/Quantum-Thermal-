@@ -174,6 +174,8 @@ ALLOWED_IMPORTERS = {
     "tools/claim_bench.py",
     # Section 7: composed adversarial campaigns across the subsystems
     "tests/test_composed_campaigns.py",
+    # Assurance J: the PROV export, against the Gate C history
+    "tests/test_prov_export.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.
@@ -306,6 +308,9 @@ LAYERS = ("canonical", "projection", "hostid",
           # Section 6.1: the causal assurance graph. A projection of the
           # verified history; imports nothing internal and decides nothing.
           "assurance_graph",
+          # Assurance J: a read-only W3C PROV export of the verified
+          # history, through the graph above it; nothing imports it.
+          "prov_export",
           # Assurance E: independent witnesses to the log's head. Imports
           # the log's record type and the signature seam; nothing else.
           "witness",

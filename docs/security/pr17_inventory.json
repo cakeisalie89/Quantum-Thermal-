@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 532,
+   "ADDED": 535,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 56,
-   "LOW": 192,
-   "MEDIUM": 291
+   "HIGH": 57,
+   "LOW": 193,
+   "MEDIUM": 292
   },
   "by_subsystem": {
-   "agent-substrate": 30,
+   "agent-substrate": 31,
    "ai-ingress": 3,
-   "assurance": 116,
+   "assurance": 117,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 168,
+   "tests": 169,
    "tooling": 42,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 564
+  "files": 567
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -576,6 +576,7 @@
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
+     "tests/test_prov_export.py",
      "tests/test_refused_fold.py",
      "tests/test_replay_origin_view.py",
      "tests/test_repo_content_audit.py",
@@ -737,7 +738,8 @@
      "tools/mutations/assurance_graph.json"
     ],
     "tests": [
-     "tests/test_assurance_graph.py"
+     "tests/test_assurance_graph.py",
+     "tests/test_prov_export.py"
     ]
    }
   },
@@ -1134,6 +1136,7 @@
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
+     "tests/test_prov_export.py",
      "tests/test_refused_fold.py",
      "tests/test_replay_origin_view.py",
      "tests/test_research_ledger.py",
@@ -1217,6 +1220,7 @@
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
+     "tests/test_prov_export.py",
      "tests/test_refused_fold.py",
      "tests/test_replay_origin_view.py",
      "tests/test_research_ledger.py",
@@ -1574,6 +1578,7 @@
      "tests/test_evidence_terms.py",
      "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
+     "tests/test_prov_export.py",
      "tests/test_refused_fold.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_trust_labels.py"
@@ -1772,6 +1777,23 @@
   },
   {
    "change": "ADDED",
+   "path": "agent_substrate/prov_export.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/prov_export.json"
+    ],
+    "tests": [
+     "tests/test_prov_export.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "agent_substrate/rag_index.py",
    "risk": "HIGH",
    "runtime_dependencies": [],
@@ -1933,6 +1955,7 @@
      "tests/test_decision_proof.py",
      "tests/test_freshness.py",
      "tests/test_noninterference.py",
+     "tests/test_prov_export.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
      "tests/test_simulation_research.py"
@@ -1955,6 +1978,7 @@
      "tests/test_assurance_graph.py",
      "tests/test_decision_proof.py",
      "tests/test_noninterference.py",
+     "tests/test_prov_export.py",
      "tests/test_research_loop.py"
     ]
    }
@@ -6989,6 +7013,24 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_prov_export.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "hypothesis",
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_ranking_equivalence.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -9326,6 +9368,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/proposal_ingress.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/prov_export.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",
