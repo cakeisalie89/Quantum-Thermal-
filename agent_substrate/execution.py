@@ -788,13 +788,18 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
 
     WHAT THE KERNEL ENFORCES HERE, AND WHAT IT DOES NOT. The limits are
     rlimits set between fork and exec: CPU, address space, output size,
-    process count, core dumps. NETWORKING IS NOT AMONG THEM. A child can
-    open sockets, and a probe under these bounds did. Egress is governed by
-    authority -- no grant is issued to a tool -- and by an in-process guard
-    that patches ``socket.socket.connect`` in the PARENT interpreter. That
-    guard is not containment, says so in its own docstring, and does not
-    exist in a child process. Anything describing this function's bounds as
-    denying network access is describing something that is not here.
+    process count, core dumps. NETWORKING IS NOT AMONG THE RLIMITS. With
+    ``Limits.isolate`` (the default) the tool runs in a network namespace
+    of its own where the host allows unprivileged user namespaces, and then
+    has no route to the host's interfaces, loopback included
+    (tools/isolation_contract.py observes it, D-2026-176). Where the host
+    refuses, the run's ``isolation`` record says so, and nothing in the
+    kernel stands between the tool and the network. Egress is also governed
+    by authority -- no grant is issued to a tool -- and by an in-process
+    guard that patches ``socket.socket.connect`` in the PARENT interpreter;
+    that guard is not containment and does not exist in a child process.
+    Describing these bounds as denying network access is accurate only for
+    a run whose record names the net namespace.
 
     ``env`` REPLACES the environment rather than extending it. Inheriting the
     caller's environment is how a tool acquires credentials, proxies and paths

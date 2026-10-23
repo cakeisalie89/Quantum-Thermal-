@@ -60,7 +60,11 @@ EXPECTED = {"sentinel": "DENIED", "sentinel_via_symlink": "DENIED",
             "write_inside_scope": "WROTE"}
 
 
-def probe(work: Path) -> dict:
+def probe(work: Path, limits: Limits | None = None) -> dict:
+    """The check, under ``limits``: by default ``high_assurance``, which is
+    what a deployment relying on it uses. tools/isolation_contract.py
+    passes the same with the boundary switched off, to show the check can
+    fail."""
     (work / "out").mkdir()
     sentinel = work / "sentinel.txt"
     sentinel.write_text("a file no tool was granted\n")
@@ -76,7 +80,8 @@ def probe(work: Path) -> dict:
                     writable_scope=("out",), timeout_s=30.0)
     r = run_bounded([sys.executable, "-c", _TOOL, json.dumps(paths)],
                     spec=spec, cwd=work,
-                    limits=Limits(wall_seconds=30.0, confine="high_assurance"),
+                    limits=limits or Limits(wall_seconds=30.0,
+                                            confine="high_assurance"),
                     env={"PATH": "/usr/bin:/bin"})
     fs = r.isolation.get("filesystem", {})
     observed: dict = {}

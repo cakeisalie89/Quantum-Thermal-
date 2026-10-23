@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 535,
+   "ADDED": 539,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 193,
-   "MEDIUM": 292
+   "LOW": 194,
+   "MEDIUM": 295
   },
   "by_subsystem": {
    "agent-substrate": 31,
    "ai-ingress": 3,
-   "assurance": 117,
+   "assurance": 118,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 43,
+   "evidence": 44,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 169,
-   "tooling": 42,
+   "tests": 170,
+   "tooling": 43,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 567
+  "files": 571
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -565,6 +565,7 @@
      "tests/test_inference_concurrency.py",
      "tests/test_inference_gateway.py",
      "tests/test_inference_second_reader.py",
+     "tests/test_isolation_contract.py",
      "tests/test_memory_trust.py",
      "tests/test_model_check.py",
      "tests/test_neural_boundary.py",
@@ -1274,7 +1275,8 @@
      "tools/mutations/agent_execution.json",
      "tools/mutations/decided_appends.json",
      "tools/mutations/execution_containment.json",
-     "tools/mutations/filesystem_confinement.json"
+     "tools/mutations/filesystem_confinement.json",
+     "tools/mutations/isolation_contract.json"
     ],
     "tests": [
      "tests/test_agent_compensation.py",
@@ -1287,7 +1289,8 @@
      "tests/test_confinement_probe.py",
      "tests/test_decided_appends.py",
      "tests/test_execution_containment.py",
-     "tests/test_filesystem_confinement.py"
+     "tests/test_filesystem_confinement.py",
+     "tests/test_isolation_contract.py"
     ]
    }
   },
@@ -3115,6 +3118,21 @@
     "tests": [
      "tests/test_security_findings.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/security/isolation_contract.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "security audit records",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/isolation_contract.json"
+    ],
+    "tests": []
    }
   },
   {
@@ -6545,6 +6563,23 @@
    }
   },
   {
+   "change": "ADDED",
+   "path": "tests/test_isolation_contract.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
    "change": "MODIFIED",
    "path": "tests/test_manifest_completeness.py",
    "risk": "LOW",
@@ -8160,6 +8195,24 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/isolation_contract.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/isolation_contract.json"
+    ],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_isolation_contract.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/model_check.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -9134,6 +9187,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/inference_gateway.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/isolation_contract.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

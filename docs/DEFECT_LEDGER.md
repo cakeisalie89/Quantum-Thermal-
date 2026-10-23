@@ -10772,3 +10772,88 @@ unencoded identifiers.
   structural check is this module's own.
 - **Represent every field.** It represents the graph's fields, losslessly
   for those, and says so.
+
+## D-2026-176 — Assurance I: a deployment isolation contract, held to the host
+
+**INSPECTED FIRST.** The executor already confines every governed tool. It
+sets per-process rlimits (CPU, address space, file size, tasks, open files,
+no core) and a wall and idle bound. It makes the tool a process-group
+leader, killed as a group. It enters user, PID and network namespaces
+where the host allows them. It applies a Landlock ruleset (D-2026-157), and
+`high_assurance` refuses to run what it cannot confine. Each run records
+what it achieved. What did not exist was one statement of what each
+isolation dimension relies on, and a probe holding a host to it.
+
+**WHAT WAS ADDED.**
+
+- `docs/security/isolation_contract.json` covers eight dimensions:
+  - filesystem;
+  - network;
+  - namespaces;
+  - system calls;
+  - the process tree;
+  - quotas;
+  - credentials;
+  - audit.
+
+  For each it says whether the KERNEL, an APPLICATION rule or nothing
+  enforces it, what it does not cover, and what a deployment must supply.
+  System calls are NOT_PROVIDED: no seccomp filter is installed.
+  Credentials and audit are application rules. Mount, IPC and UTS
+  namespaces are not entered. Quotas are per-process rlimits: there is no
+  cgroup, no tree-wide memory or disk total, and no GPU quota.
+- `tools/isolation_contract.py` probes each dimension through the executor,
+  under `high_assurance`. Where an observation needs one, it takes a
+  control on the same host:
+  - a host listener reachable from outside the tool and not from inside;
+  - the tool's namespaces, compared with the host's;
+  - the seccomp mode;
+  - a grandchild that starts a session of its own and must die with a tool
+    that times out;
+  - a CPU-bound run ended by the CPU limit, not the wall;
+  - an allocation past the address space;
+  - a file past its size limit;
+  - a token in the caller's environment and a credential file outside the
+    tool's paths.
+- `tests/test_isolation_contract.py` runs the probes. On this host all eight
+  hold. On a host without unprivileged namespaces, high_assurance must run
+  nothing instead. A control switches each kernel boundary off and requires
+  the probe to see it gone. A separate control removes one quota at a time,
+  so each probe is shown to discriminate.
+
+**WHAT IT FOUND.**
+
+- **A stale description.** `run_bounded`'s docstring said nothing in it
+  denies network access, and that a probe had opened sockets. That predates
+  the network namespace. The probe shows a host listener unreachable from
+  the tool. The docstring now says the rlimits do not cover network, the
+  namespace does where the host allows it, and the run's record says which.
+- **A probe too weak to fail.** The first quota probe passed a CPU-bound
+  run that ended any way but completion, so a missing CPU limit (the run
+  ending on the wall) still passed. It now requires the CPU limit to end
+  the run well inside the wall.
+- **A control too broad to localize.** The first quota control removed two
+  quotas at once, so a probe ignoring the CPU result still failed on the
+  memory one (IS8 survived). The controls now remove one quota each.
+
+**STRONGER ISOLATION: NOT ADOPTED.** gVisor narrows the syscall surface for
+untrusted code. The workload runs this repository's own tools under typed
+contracts, and model output never becomes code: an undeclared tool runs
+nothing (`test_01_run_an_undeclared_tool`). The cost would be a runtime the
+fixture CI path does not have. This is recorded as a decision, to revisit
+if a tool ever executes code it did not ship.
+
+**MUTATION** (`tools/mutations/isolation_contract.json`, 10):
+
+- four remove a mechanism: namespaces, a clean environment, the CPU
+  rlimit, the address-space rlimit;
+- five make a probe pass what it did not observe;
+- one makes the contract claim a syscall filter.
+
+**WHAT THIS DOES NOT DO.**
+
+- **Attest a deployment.** A pass here says what this development container
+  does. RUN-3 stays DEPLOYMENT_REQUIRED: the deployment runs the probe
+  under its own identity. CI containment is not production attestation.
+- **Make the uncovered dimensions covered.** Syscall filtering, tree-wide
+  and GPU quotas, and egress filtering are stated as absent.

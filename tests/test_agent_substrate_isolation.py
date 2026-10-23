@@ -182,6 +182,10 @@ ALLOWED_IMPORTERS = {
     "tests/test_filesystem_confinement.py",
     "tests/test_confinement_probe.py",
     "tools/confinement_probe.py",
+    # Assurance I: the deployment isolation contract, probed through the
+    # same executor on the host it runs on
+    "tests/test_isolation_contract.py",
+    "tools/isolation_contract.py",
     # D-2026-158: the memory trust audit, each property broken alone.
     "tests/test_memory_trust.py",
     # D-2026-159: the grounding benchmark. It writes seeded worlds through

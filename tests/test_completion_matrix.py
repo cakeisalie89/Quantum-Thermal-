@@ -922,7 +922,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 32 -> 30 in the causal assurance graph commit (D-2026-171): the
 #: governed path now carries a withdrawal to memory, so R43 and R61 predate
 #: their implementation until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 30
+#: 30 -> 28 in the isolation contract commit (D-2026-176): run_bounded's
+#: docstring no longer says nothing in it denies network access, so R21
+#: and R23, which cite agent_substrate/execution.py, predate it until the
+#: evidence commit after hosted CI. The change is to a docstring only; the
+#: evidence axis is by content, and says so.
+EXPECTED_EVIDENCE_COVERS = 28
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

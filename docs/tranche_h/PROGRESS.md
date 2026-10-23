@@ -41,7 +41,7 @@ Where this file and those disagree, they are right and this file is stale.
 | Gate F and Assurance H: scientific integration, symbolic checks | 4 (F), 5 (H) | PENDING; new dependencies are OD-5 | | |
 | Gate G: long-horizon reliability | 4 (G) | PENDING | | |
 | Assurance G: adversarial evaluation harnesses | 5 (G) | PENDING; live evaluation is BLOCKED on OD-1 | | |
-| Assurance I: deployment isolation contract | 5 (I) | PENDING | | |
+| Assurance I: deployment isolation contract | 5 (I) | COMMITTED: eight dimensions, each KERNEL, APPLICATION or NOT_PROVIDED with what it does not cover; probed through the executor on this host (all hold), each probe shown to see its boundary gone; a stale network claim corrected; gVisor not adopted (no untrusted code runs); attestation stays the deployment's (RUN-3) | Isolation contract | D-2026-176 |
 | Assurance J: provenance export | 5 (J) | COMMITTED: read-only, versioned PROV-JSON export built on the causal graph; a model's output only influences, verification is attributed; round-trips to the graph and events of the Gate C history; discloses what it does not represent; no validator dependency | PROV export | D-2026-175 |
 | Causal assurance graph | 6.1 | COMMITTED: projection with typed recorded edges and an auditor's explain; the Gate C history withdrawn and the system's cascades, reconstructed by the second reader, agree with the graph's prediction exactly; found that a withdrawn run's notes stayed current (repaired) | Assurance graph | D-2026-171 |
 | Independent policy reference model | 6.2 | COMMITTED: a test-only reference (Cedar-shaped permit and forbid sets) agrees with the engine over 2,000 generated cases and with the replay verifier over 150 recorded histories; the second reader now restates the verdict, and four forged verdicts with consistent digests are caught by both readers | Policy semantics | D-2026-172 |
@@ -63,4 +63,5 @@ Where this file and those disagree, they are right and this file is stale.
 `Policy semantics` is the commit titled "The second reader restates a policy verdict; a reference model checks the engine";
 `Claim check` is the commit titled "Semantic claim verification: three questions apart, an opinion granted nothing";
 `Campaigns` is the commit titled "Composed adversarial campaigns across the subsystems";
-`PROV export` is the commit titled "A read-only W3C PROV export of the verified history".
+`PROV export` is the commit titled "A read-only W3C PROV export of the verified history";
+`Isolation contract` is the commit titled "A deployment isolation contract, held to the host".
