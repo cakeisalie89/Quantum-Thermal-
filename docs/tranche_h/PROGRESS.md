@@ -46,7 +46,7 @@ Where this file and those disagree, they are right and this file is stale.
 | Causal assurance graph | 6.1 | COMMITTED: projection with typed recorded edges and an auditor's explain; the Gate C history withdrawn and the system's cascades, reconstructed by the second reader, agree with the graph's prediction exactly; found that a withdrawn run's notes stayed current (repaired) | Assurance graph | D-2026-171 |
 | Independent policy reference model | 6.2 | COMMITTED: a test-only reference (Cedar-shaped permit and forbid sets) agrees with the engine over 2,000 generated cases and with the replay verifier over 150 recorded histories; the second reader now restates the verdict, and four forged verdicts with consistent digests are caught by both readers | Policy semantics | D-2026-172 |
 | Semantic claim verdicts | 6.3 | COMMITTED: citation, admission and semantics answered apart; five verdicts; a closed grammar plus research.evaluate (DETERMINISTIC), a checker's opinion reported as ASSESSED and never established; development benchmark with FP/FN (structured labels by construction, prose labels by the author, NOT human); real-model checker NOT_RUN | Claim check | D-2026-173 |
-| Composed adversarial campaigns | 7 | PENDING | | |
+| Composed adversarial campaigns | 7 | COMMITTED: ten campaigns registered with all seven fields; four new compositions (old evidence, poisoned memory, policy change, forged history with its checkpoint) measure 11 attempts, none accepted; seven crossed controls mutated, all killed | Campaigns | D-2026-174 |
 | Final integration demonstration | 11 | PENDING | | |
 | Gate H: operational and release assurance | 4 (H) | BLOCKED: every deployment control is the owner's (O-1 to O-9, OD-7) | | |
 
@@ -61,4 +61,5 @@ Where this file and those disagree, they are right and this file is stale.
 `Assurance E` is the commit titled "Assurance E: independent witnesses to the log's head";
 `Assurance graph` is the commit titled "The causal assurance graph; a withdrawn run's notes go stale";
 `Policy semantics` is the commit titled "The second reader restates a policy verdict; a reference model checks the engine";
-`Claim check` is the commit titled "Semantic claim verification: three questions apart, an opinion granted nothing".
+`Claim check` is the commit titled "Semantic claim verification: three questions apart, an opinion granted nothing";
+`Campaigns` is the commit titled "Composed adversarial campaigns across the subsystems".

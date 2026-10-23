@@ -10607,3 +10607,92 @@ third test keeps the second from being vacuous.
 - **Convert units, or read tables or figures.**
 - **Say anything about how a real model checker behaves** (NOT_RUN, OD-1).
 - **Establish that the world is so.**
+
+## D-2026-174 — Section 7: composed adversarial campaigns
+
+**INSPECTED FIRST.** The directive lists ten example campaigns. Six were
+already held by composed tests that cross the named subsystems:
+
+- Cases A-H (`test_hostile_composition`);
+- the gateway's crash and recovery tests and its state machine;
+- the causal graph's withdrawal demonstration;
+- the hostile agent campaign and the delegation suite;
+- noninterference;
+- release admission and the offline verifier.
+
+Four crossed subsystems no test had joined.
+
+**WHAT WAS ADDED.**
+
+- `docs/assurance/campaigns.json` registers all ten, in the directive's
+  order. Each one states:
+  - the invariant;
+  - a valid control;
+  - the adversarial input;
+  - the expected outcome;
+  - the independent observable evidence;
+  - the regression test, or that no defect was found;
+  - the risk that remains.
+- `tests/test_composed_campaigns.py` composes the four new campaigns. Each
+  counts its adversarial attempts, and the test checks that the registry
+  records the same counts. A test also checks every test the registry
+  names exists.
+
+The four new campaigns:
+
+- **K1: correct but old evidence, then a current-world claim, with no
+  re-observation.**
+  - Freshness, research, the store and the claim checker are crossed.
+  - The claim is INSUFFICIENT_EVIDENCE with its citation intact.
+  - A conclusion on the outdated verdict is refused, and so is the verdict
+    re-recorded on the same reading.
+  - A fresh reading renews the claim and the verdict on the new reading
+    alone. CURRENT_WORLD is never established.
+- **K2: a poisoned memory, then its summary, the model's context, the
+  model's claim, and an attempt to verify it.**
+  - The note cites the real bytes and misreports them.
+  - The claim is CONTRADICTED.
+  - Neither the note nor the summary can be required as supported.
+  - The ledger refuses to record the note as an observation.
+  - memory_trust says the bytes verify and the note is NOT_ESTABLISHED.
+- **K3: a policy change, then a context built under the old version, a
+  delayed proposal, and its authorization.**
+  - The run is denied under the version in force.
+  - A second call with the old context is CONTEXT_STALE.
+  - A decision taken under version 1, whose verdict version 2 also gives,
+    is refused on replay and noted by the second reader. Only the version
+    it cites betrays it.
+- **K4: a forged event, then a checkpoint made to match it, then an
+  independent witness.**
+  - Who verified the record is rewritten, the chain re-made and a fresh
+    checkpoint written.
+  - Every local check accepts it, and the witness reports FORKED.
+
+11 adversarial attempts, none accepted.
+
+**ATTACKED.** `tools/mutations/composed_campaigns.json` disables, one at a
+time, seven controls the campaigns cross. Each control is in a module other
+than the one its campaign is about:
+
+- an interval that never lapses;
+- a conclusion that ignores lapsed evidence;
+- an observation read from no standing record;
+- a gateway that ignores a policy change;
+- the store accepting a superseded digest;
+- the second reader accepting a superseded digest;
+- the witness missing a fork.
+
+7/7 killed.
+
+**WHAT IT FOUND.** No defect in the system. The first design of K3 could
+not tell the digest check from the verdict check, because both refused the
+forgery: a test that passed whichever control held. Its forgery now carries
+a verdict both versions give.
+
+**WHAT THIS DOES NOT DO.**
+
+- Show robustness from passing tests. Each campaign states what remains:
+  - an effect completed before a policy change is not revoked;
+  - a witness here is a fixture with a TEST key;
+  - a model persuaded by a note acts on it outside the system.
+- Cover a live model (NOT_RUN), a production witness, or production keys.

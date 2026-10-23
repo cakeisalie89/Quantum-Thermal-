@@ -172,6 +172,8 @@ ALLOWED_IMPORTERS = {
     # builds its world through the authority store and the research ledger
     "tests/test_claim_check.py",
     "tools/claim_bench.py",
+    # Section 7: composed adversarial campaigns across the subsystems
+    "tests/test_composed_campaigns.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.

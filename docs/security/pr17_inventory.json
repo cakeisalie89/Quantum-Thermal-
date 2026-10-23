@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 529,
+   "ADDED": 532,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 56,
-   "LOW": 191,
-   "MEDIUM": 289
+   "LOW": 192,
+   "MEDIUM": 291
   },
   "by_subsystem": {
    "agent-substrate": 30,
    "ai-ingress": 3,
-   "assurance": 115,
+   "assurance": 116,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 42,
+   "evidence": 43,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 167,
+   "tests": 168,
    "tooling": 42,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 561
+  "files": 564
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -544,6 +544,7 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_claim_check.py",
      "tests/test_completion_matrix.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_confinement_probe.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
@@ -806,6 +807,7 @@
      "tests/test_agent_substrate_properties.py",
      "tests/test_assurance_graph.py",
      "tests/test_checkpoint_recovery.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
      "tests/test_freshness.py",
@@ -877,6 +879,7 @@
      "tests/test_agent_substrate_isolation.py",
      "tests/test_agent_substrate_properties.py",
      "tests/test_authenticated_history.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
@@ -965,6 +968,7 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
      "tests/test_checkpoint_recovery.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_history_time.py",
      "tests/test_policy_binding.py",
@@ -989,6 +993,7 @@
     ],
     "tests": [
      "tests/test_claim_check.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_trust_labels.py"
     ]
    }
@@ -1009,6 +1014,7 @@
      "tests/test_agent_context.py",
      "tests/test_agent_governed_tasks.py",
      "tests/test_agent_second_reader.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_inference_concurrency.py",
      "tests/test_inference_gateway.py",
@@ -1106,6 +1112,7 @@
      "tests/test_agent_toctou.py",
      "tests/test_authenticated_history.py",
      "tests/test_checkpoint_recovery.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
@@ -1191,6 +1198,7 @@
      "tests/test_assurance_graph.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_claim_check.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
      "tests/test_evidence_terms.py",
@@ -1237,6 +1245,7 @@
     ],
     "tests": [
      "tests/test_claim_check.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_evidence_terms.py",
      "tests/test_trust_labels.py"
     ]
@@ -1288,6 +1297,7 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/composed_campaigns.json",
      "tools/mutations/freshness.json"
     ],
     "tests": [
@@ -1451,6 +1461,7 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/composed_campaigns.json",
      "tools/mutations/formal.json",
      "tools/mutations/history_time.json",
      "tools/mutations/inference_gateway.json",
@@ -1458,6 +1469,7 @@
     ],
     "tests": [
      "tests/test_authenticated_history.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_history_time.py",
@@ -1558,6 +1570,7 @@
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_completion_matrix.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_evidence_terms.py",
      "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
@@ -1583,6 +1596,7 @@
     ],
     "tests": [
      "tests/test_agent_memory.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_evidence_terms.py",
      "tests/test_memory_trust.py"
     ]
@@ -1638,6 +1652,7 @@
     "mutation_specs": [
      "tools/mutations/agent_policy.json",
      "tools/mutations/agent_snapshot_coherence.json",
+     "tools/mutations/composed_campaigns.json",
      "tools/mutations/history_time.json",
      "tools/mutations/policy_binding.json",
      "tools/mutations/policy_semantics.json",
@@ -1662,6 +1677,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
@@ -1824,6 +1840,7 @@
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_substrate.json",
      "tools/mutations/authenticated_history.json",
+     "tools/mutations/composed_campaigns.json",
      "tools/mutations/decision_proof.json",
      "tools/mutations/freshness.json",
      "tools/mutations/history_time.json",
@@ -1857,6 +1874,7 @@
      "tests/test_agent_substrate_properties.py",
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
@@ -1902,6 +1920,7 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/composed_campaigns.json",
      "tools/mutations/freshness.json",
      "tools/mutations/research.json",
      "tools/mutations/simulation.json"
@@ -1910,6 +1929,7 @@
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_claim_check.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_decision_proof.py",
      "tests/test_freshness.py",
      "tests/test_noninterference.py",
@@ -2150,6 +2170,7 @@
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_checkpoint_recovery.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
@@ -2253,6 +2274,7 @@
     ],
     "tests": [
      "tests/test_claim_check.py",
+     "tests/test_composed_campaigns.py",
      "tests/test_trust_labels.py"
     ]
    }
@@ -2267,9 +2289,11 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/composed_campaigns.json",
      "tools/mutations/witness.json"
     ],
     "tests": [
+     "tests/test_composed_campaigns.py",
      "tests/test_witness.py"
     ]
    }
@@ -2366,6 +2390,21 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_evidence_terms.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/campaigns.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_composed_campaigns.py"
     ]
    }
   },
@@ -5979,6 +6018,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_composed_campaigns.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_confinement_probe.py",
    "risk": "LOW",
    "runtime_dependencies": [],
@@ -7626,7 +7682,8 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_agent_substrate_isolation.py",
-     "tests/test_claim_check.py"
+     "tests/test_claim_check.py",
+     "tests/test_composed_campaigns.py"
     ]
    }
   },
@@ -8675,6 +8732,19 @@
     "tests": [
      "tests/test_completion_matrix.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/composed_campaigns.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {
