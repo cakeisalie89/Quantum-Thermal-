@@ -10600,6 +10600,23 @@ was deterministic. It is split. Deterministic checks must grant. A check
 that is not deterministic must be refused with its prerequisites met. A
 third test keeps the second from being vacuous.
 
+**FOUND BY HOSTED CI, AFTER THE PUSH.** The lint step (`ruff check` over
+every tracked Python file) failed on `93f425e`, so that job's tests never
+ran. Two findings, both in this entry's files:
+
+- a 109-column line building the comparator alternatives in
+  `claim_check.py`;
+- an ambiguous single-letter name (`I`) among the benchmark's verdict
+  shorthands.
+
+The full suite had passed locally, and the derived artifacts and the
+typing scope had been checked. The lint had not been run: it was missing
+from the checks run before a push. The regular expression is now built
+from one named alternation (`_CMP`), byte-for-byte the same pattern. The
+shorthands are named. The benchmark reproduces its committed results, and
+`claim_check.json`'s anchors are unchanged. The check run before a push
+now includes the lint, as CI runs it.
+
 **WHAT THIS DOES NOT DO.**
 
 - **Judge prose.** The grammar reads one sentence form. Everything else is

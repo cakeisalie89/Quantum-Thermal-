@@ -123,11 +123,13 @@ _PHRASES = (
     (">=", ">="), ("<", "<"), (">", ">"), ("=", "="),
 )
 _ID = r"[A-Za-z][A-Za-z0-9_.-]*"
+#: The phrases as alternatives, any run of whitespace between their words.
+_CMP = "|".join(re.escape(p).replace(r"\ ", r"\s+") for p, _ in _PHRASES)
 _NUM = r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?"
 _GRAMMAR = re.compile(
     rf"\s*(?:the\s+)?(?P<quantity>{_ID})\s+(?:of|from)\s+(?P<model>{_ID})\s+"
     rf"(?:(?:is|was|stays|stayed|remains|remained)\s+)?"
-    rf"(?:(?P<cmp>{'|'.join(re.escape(p).replace(chr(92) + ' ', chr(92) + 's+') for p, _ in _PHRASES)})\s+)?"
+    rf"(?:(?P<cmp>{_CMP})\s+)?"
     rf"(?P<value>{_NUM})\s*(?P<unit>[^\s.,;:]+)\s*\.?\s*",
     re.IGNORECASE)
 

@@ -156,46 +156,45 @@ def structured_claims() -> list:
                     "label_source": "CONSTRUCTION", "why": why,
                     "cites": list(cites)})
 
-    S, X, I, U, F = VERDICTS[0], VERDICTS[1], VERDICTS[2], VERDICTS[3], \
-        VERDICTS[4]
+    SUP, CON, INS, UNV, CNF = VERDICTS
     for model in ("slab-1",):
         for q, (v, unit, r) in sorted(RUNS[model]["a"].items()):
             o = [f"o-{model}-a"]
-            add(f"{q} of {model} is below {_n(v + 3 * r)} {unit}", S,
+            add(f"{q} of {model} is below {_n(v + 3 * r)} {unit}", SUP,
                 "threshold three resolutions above the value", o)
-            add(f"{q} of {model} is above {_n(v - 3 * r)} {unit}", S,
+            add(f"{q} of {model} is above {_n(v - 3 * r)} {unit}", SUP,
                 "threshold three resolutions below the value", o)
             add(f"the {q} of {model} remains at most {_n(v + 4 * r)} "
-                f"{unit}.", S, "at most, four resolutions above", o)
-            add(f"{q} of {model} is {_n(v)} {unit}", S,
+                f"{unit}.", SUP, "at most, four resolutions above", o)
+            add(f"{q} of {model} is {_n(v)} {unit}", SUP,
                 "the reported value itself", o)
-            add(f"{q} of {model} is below {_n(v - 3 * r)} {unit}", X,
+            add(f"{q} of {model} is below {_n(v - 3 * r)} {unit}", CON,
                 "threshold three resolutions below the value", o)
-            add(f"{q} of {model} is at least {_n(v + 3 * r)} {unit}", X,
+            add(f"{q} of {model} is at least {_n(v + 3 * r)} {unit}", CON,
                 "threshold three resolutions above the value", o)
-            add(f"{q} of {model} is {_n(v + 3 * r)} {unit}", X,
+            add(f"{q} of {model} is {_n(v + 3 * r)} {unit}", CON,
                 "a value three resolutions off", o)
-            add(f"{q} of {model} is below {_n(v + r / 2)} {unit}", I,
+            add(f"{q} of {model} is below {_n(v + r / 2)} {unit}", INS,
                 "within the resolution of the value", o)
-            add(f"{q} of {model} is above {_n(v - r / 2)} {unit}", I,
+            add(f"{q} of {model} is above {_n(v - r / 2)} {unit}", INS,
                 "within the resolution of the value", o)
-            add(f"{q} of {model} is below {_n(v + 3 * r)} furlongs", U,
+            add(f"{q} of {model} is below {_n(v + 3 * r)} furlongs", UNV,
                 "a unit the evidence is not in")
-        add(f"T_edge of {model} is below 400 K", I,
+        add(f"T_edge of {model} is below 400 K", INS,
             "an output no run reports")
     lo = RUNS["slab-2"]["a"]["T_at_half"][0]
     hi = RUNS["slab-2"]["b"]["T_at_half"][0]
-    add(f"T_at_half of slab-2 is below {_n((lo + hi) / 2)} K", F,
+    add(f"T_at_half of slab-2 is below {_n((lo + hi) / 2)} K", CNF,
         "between two runs that disagree", ["o-slab-2-a"])
-    add(f"T_at_half of slab-2 is above {_n((lo + hi) / 2)} K", F,
+    add(f"T_at_half of slab-2 is above {_n((lo + hi) / 2)} K", CNF,
         "between two runs that disagree, citing the other", ["o-slab-2-b"])
-    add(f"T_at_half of slab-2 is below {_n(hi + 1)} K", S,
+    add(f"T_at_half of slab-2 is below {_n(hi + 1)} K", SUP,
         "above both runs")
-    add(f"T_at_half of slab-2 is above {_n(hi + 1)} K", X,
+    add(f"T_at_half of slab-2 is above {_n(hi + 1)} K", CON,
         "above both runs")
-    add("T_probe of probe-1 is below 300 K", I,
+    add("T_probe of probe-1 is below 300 K", INS,
         "its only observation was withdrawn", ["o-probe-1-a"])
-    add("T_at_half of slab-9 is below 300 K", I, "a model nothing ran")
+    add("T_at_half of slab-9 is below 300 K", INS, "a model nothing ran")
     return out
 
 

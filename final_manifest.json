@@ -219,8 +219,8 @@
     },
     {
       "filename": "agent_substrate/claim_check.py",
-      "size_bytes": 13708,
-      "sha256": "267076b4a49940e6a56577850792dc355802d9c76768f8d20b365e1b5f68d85e"
+      "size_bytes": 13779,
+      "sha256": "694c82dd8595084ec43db23966fda5e20a580d148473e4f5b58821c04e73b76a"
     },
     {
       "filename": "agent_substrate/context.py",
@@ -439,8 +439,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 588988,
-      "sha256": "94c545fc033c8415559c9a2905aefa6893b05907dae94d124f917e17ae5c0715"
+      "size_bytes": 589819,
+      "sha256": "3794d17456591261831e383043d70efba60f27140fe506cc963ee23b93242e69"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -465,7 +465,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 4645,
-      "sha256": "b0c0b74cba10fd3079488a0e21946d6f25c2346a1c22185b1644288b0ef564ab"
+      "sha256": "19dbc6de2f6841b793ae5a16fa0754e21062ced79789b624444133efb591e1e9"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -829,8 +829,8 @@
     },
     {
       "filename": "ro-crate/ro-crate-metadata.json",
-      "size_bytes": 8589,
-      "sha256": "47539403a8362bdb8a895bae5c554ef5c5cac5a5145c827c2dcc44a3dec197d7"
+      "size_bytes": 8590,
+      "sha256": "cfe338c9b7dbf73b900a45eadca6ce24d37be21b67c1562be9c50d27aeec7adb"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -2019,8 +2019,8 @@
     },
     {
       "filename": "tools/claim_bench.py",
-      "size_bytes": 16047,
-      "sha256": "11ce985598950299e0efb5671521885f09208a6739de1453ee1f520cedc6b3ed"
+      "size_bytes": 16026,
+      "sha256": "8feabb6c1eaf825e0831a5e6347f09901966a08875c10cef05a43754d16544f7"
     },
     {
       "filename": "tools/claims_enforcement.py",

@@ -217,7 +217,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "99892",
+   "contentSize": "101124",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -225,7 +225,7 @@
   {
    "@id": "manifest_hash.txt",
    "@type": "File",
-   "contentSize": "179",
+   "contentSize": "180",
    "description": "detached manifest hash",
    "name": "manifest_hash.txt",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
