@@ -11912,3 +11912,30 @@ seven are killed:
 recorded stages all ran on one version of the code. The earlier run's
 1,000 stage is not recorded as a result. Its figures are given above
 only to say what was found.
+
+## D-2026-189 — The mutation shards were placed by weights measured for 39 of 125 specs
+
+**FOUND BY HOSTED CI.** In the agent-substrate run at the commit titled
+"The isolation contract's no-namespace test asserts the executor's
+contract" (hosted run 39967655044), the eight mutation shards took
+between 29 and 113 minutes. Their limit is 150. The planner places specs
+longest-first on `WEIGHTS`, which held the seconds each spec took in the
+last serial run, at d633c77. That run had 39 specs. Every later spec was
+weighed at its mutation count times the median rate, and the slowest of
+them, `repository_content.json`, took 53 minutes by itself. Nothing
+failed, but a shard nearer its limit than its plan said was one slower
+runner away from a timeout. A timed-out shard is correctly never a pass.
+
+**THE REPAIR.** `WEIGHTS` now holds the seconds each of 124 specs took in
+that hosted run. They were read from the shard logs as the time from one
+spec's header to the next. The plan, and the workflow matrix generated
+from it, now predict 57 to 58 minutes per shard, against a 77-minute
+bound for longest-first placement.
+
+The section 11 harness spec was not in that run. It stays weighed by its
+mutation count, and `tests/test_mutation_shards.py` still requires an
+unmeasured spec to be weighed and never ignored. The planner's mutation
+spec: 12 of 12 killed.
+
+**WHAT THIS IS NOT.** A weight decides where a spec runs, never whether
+it runs. Every spec still runs in exactly one shard on every cycle.

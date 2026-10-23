@@ -25,7 +25,7 @@
     {
       "filename": ".github/workflows/agent-substrate.yml",
       "size_bytes": 39779,
-      "sha256": "8b1b4df6d558feb782fa8a9c17d2f8e853f62b680c4deed2d44391d566c13431"
+      "sha256": "32050afc5c467b3e97d0a718da570f7f10825f97e8b2539deb7c46a4cdfb2e97"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -439,8 +439,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 646211,
-      "sha256": "8105020fad33e5f6fb7a24d230c28aa568868c8d2babdaa4772faf830c667d7a"
+      "size_bytes": 647715,
+      "sha256": "15da6a58bcbff05a6acd95311065f34ca8ff0ae121add96c79ca76149d3d98be"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -485,7 +485,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5219,
-      "sha256": "93300a4c8aa587b1426a2b4c2306934a966ea9d5f6b37b8d6634784ad28decef"
+      "sha256": "844be570f45e60f59374359ef15080f5be90206351698112b2cc284168902db5"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -2299,8 +2299,8 @@
     },
     {
       "filename": "tools/mutation_shards.py",
-      "size_bytes": 10600,
-      "sha256": "8cb902ed9ce770bd92cef6fb07104704482cd33b0787fc716dc9eb4650981f3e"
+      "size_bytes": 13583,
+      "sha256": "bb64a98c434f37fb949ee6e46867855926e5a324ed66f140f7ce306693203e4c"
     },
     {
       "filename": "tools/mutations/actor_authentication.json",
