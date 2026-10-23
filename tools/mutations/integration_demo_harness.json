@@ -39,6 +39,13 @@
    "find": "            _attempt(\"a release candidate admitted by the gate\", gate is None,",
    "replace": "            _attempt(\"a release candidate admitted by the gate\", False,",
    "rationale": "V12: a release admitted by the gate would go unreported"
+  },
+  {
+   "name": "ID6_creations_are_counted_as_executions",
+   "path": "tools/integration_demo.py",
+   "find": "    executed = sorted({e.target for e in ev if e.action == \"task.execution\"\n                       and e.target in created})",
+   "replace": "    executed = list(created)",
+   "rationale": "V7: an orphan of the idempotency bind race, cancelled before dispatch, is charged as a second execution of the model (D-2026-190)"
   }
  ]
 }

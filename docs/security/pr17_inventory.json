@@ -1473,6 +1473,7 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
+     "tests/test_integration_demo.py",
      "tests/test_refused_fold.py"
     ]
    }

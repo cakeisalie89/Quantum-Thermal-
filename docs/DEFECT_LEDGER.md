@@ -11961,3 +11961,47 @@ spec: 12 of 12 killed.
 
 **WHAT THIS IS NOT.** A weight decides where a spec runs, never whether
 it runs. Every spec still runs in exactly one shard on every cycle.
+
+## D-2026-190 — V7 counted a cancelled orphan of the idempotency race as the model run executing twice
+
+**FOUND BY HOSTED CI.** In the agent-substrate run at the commit titled
+"Gate G: the 50, 100 and 1,000 stages, recorded as they finished", the
+integration demonstration's V7 (concurrent writers) recorded "the model
+run executed twice" as accepted. It had been refused in every local run.
+Every other V7 attempt was still refused:
+
+- no second receipt;
+- no second answer;
+- no step recorded twice;
+- no forked history;
+- the objective concluded.
+
+**THE CAUSE IS THE PREDICATE.** Two controllers on one step can both
+read the recorded answer and submit the same proposal. The governed path
+looks up the proposal's idempotency key before creating a task, and binds
+it afterwards, under the writer lock. Two submissions that both pass the
+lookup each create a task. The one that loses the bind cancels its own
+before anything is queued, and answers with the bound task (D-2026-117).
+That orphan was created and never run. V7 counted `task.create` events
+for the run tool, so it charged the orphan as a second execution of the
+model.
+
+Locally the second controller always arrived while the first still held
+the attempt open, so it stopped at `AttemptOutstanding` and the race was
+never reached. The hosted runner's timing reached it. The substrate did
+what D-2026-117 says it does.
+
+**THE REPAIR.** V7 now counts the run tasks that executed, apart from
+those created (`_run_tasks`), and says how many of each it saw.
+
+`test_an_orphan_of_the_bind_race_is_not_a_second_execution` forces the
+race through the real substrate. A second submission's lookup misses the
+binding, while the bind, decided under the lock, finds it. The test
+requires two run tasks created, one executed, and the orphan CANCELLED
+with the bound task named. `tools/mutations/integration_demo_harness.json`
+gains ID6, which counts creations as executions again, and is killed by
+that test. The demonstration's committed results are unchanged.
+
+**WHAT THIS IS NOT.** The model ran once. Nothing in the substrate
+changed, and no control was relaxed: an execution of a second run task
+would still be counted and reported as accepted.

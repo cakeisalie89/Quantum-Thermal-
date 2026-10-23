@@ -25,7 +25,7 @@
     {
       "filename": ".github/workflows/agent-substrate.yml",
       "size_bytes": 39779,
-      "sha256": "32050afc5c467b3e97d0a718da570f7f10825f97e8b2539deb7c46a4cdfb2e97"
+      "sha256": "020c14d1052b2e5f742ed45616c05302f07f845b80dbe182bd6b832ff6a4333a"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -439,8 +439,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 648804,
-      "sha256": "f724edf24fae7595ff261ee62f71c4195306edc58ad718d3f9dd19a3f76501c1"
+      "size_bytes": 651007,
+      "sha256": "b41c4382df052ab970c0be4108f7c331af92e4184544a96fff16655f3618e5fc"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -490,7 +490,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5219,
-      "sha256": "7797182abb636950a43888196354b68317504ab9dfb01b8d9b19fed1067aa76c"
+      "sha256": "acbddd02a1e99672ccae3887842e7bb8c137f85354c4a340eb508c798aee4520"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -744,8 +744,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 265942,
-      "sha256": "2cc3c85ca7b120b658779fd73fe38c360eb0e4de243eafecd158b09b2415eba6"
+      "size_bytes": 265981,
+      "sha256": "bdf39900f6469cae3941ac6326606ce61213c43c371d83befb10e6bfefc2bc72"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -880,7 +880,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "17740a9e3b7007a2f558c99ea670dd61ec4763a8b1941dd58592d88c8270bc8a"
+      "sha256": "7c01e647b0449284be88cea8a24e29948d095a392f10980287799a3aaf73d8e2"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1754,8 +1754,8 @@
     },
     {
       "filename": "tests/test_integration_demo.py",
-      "size_bytes": 6135,
-      "sha256": "eb8868a0ce8831cf2ec855ead3801900f01dff64e4d8d9ac435050c22195d614"
+      "size_bytes": 7979,
+      "sha256": "c5de694f46ce9b8d97418cfd60128c7b0385b099215b392b3ca2fdd33570f570"
     },
     {
       "filename": "tests/test_isolation_contract.py",
@@ -2269,8 +2269,8 @@
     },
     {
       "filename": "tools/integration_demo.py",
-      "size_bytes": 66196,
-      "sha256": "1c597f85fe90453e288892b1df073817eb1f2b0be3aa714c173940b0855a7eff"
+      "size_bytes": 67052,
+      "sha256": "5fbcb926476b3c7afac4af3bc7936abaada66059df881ff22b089328a51d9a2c"
     },
     {
       "filename": "tools/isolated_runtime.py",
@@ -2674,8 +2674,8 @@
     },
     {
       "filename": "tools/mutations/integration_demo_harness.json",
-      "size_bytes": 2236,
-      "sha256": "ff17857cda3655f4f6dee6a8b1244611ec8b7164a1e111f3433c22a9ec9df3f9"
+      "size_bytes": 2675,
+      "sha256": "2b835c12dcfb5f65430733ea5761f5dcf24fcd4b379c4f779d589d5078206065"
     },
     {
       "filename": "tools/mutations/isolation_contract.json",

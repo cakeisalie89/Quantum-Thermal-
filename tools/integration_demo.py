@@ -901,6 +901,24 @@ def _race(w: Demo, objectives) -> list:
     return got
 
 
+def _run_tasks(ev) -> tuple:
+    """``(created, executed)``: the run tasks the history created, and
+    those of them it executed.
+
+    They differ by design. Two submissions of one proposal can race
+    between the idempotency lookup and the bind. Each then creates a task,
+    and the one that loses the bind cancels its own before anything is
+    queued, answering with the bound task (D-2026-117). That orphan was
+    created and never run. Counting creations charged it as a second
+    execution of the model, which is what the hosted runner's timing
+    produced (D-2026-190)."""
+    created = [e.target for e in ev if e.action == "task.create"
+               and e.payload["tool_id"] == RUN_TOOL]
+    executed = sorted({e.target for e in ev if e.action == "task.execution"
+                       and e.target in created})
+    return created, executed
+
+
 def _intact(w: Demo) -> bool:
     report, _ = EventLog(w.log.path).read_verified()
     return report.ok and not reconstruct_subsystems(
@@ -920,8 +938,7 @@ def concurrent_writers() -> dict:
         dups = H._duplicates(ev)
         steps = [e.payload["step"]["step"] for e in ev
                  if e.action == "research.step"]
-        runs = [e for e in ev if e.action == "task.create"
-                and e.payload["tool_id"] == RUN_TOOL]
+        created, executed = _run_tasks(ev)
 
         two.follow_up()
         apart = _race(two, (OBJECTIVE, AGAIN))
@@ -934,8 +951,9 @@ def concurrent_writers() -> dict:
         undecided = [o for o in (OBJECTIVE, AGAIN)
                      if led2.get(o).status != "CONCLUDED"]
         attempts = [
-            _attempt("the model run executed twice", len(runs) > 1 or
-                     dups["executions"], f"{len(runs)} run task(s), "
+            _attempt("the model run executed twice", len(executed) > 1 or
+                     dups["executions"], f"{len(created)} run task(s) "
+                     f"created, {len(executed)} executed, "
                      f"{dups['executions']} executed twice"),
             _attempt("a proposal received twice", dups["receipts"],
                      "receipts are keyed by the proposal"),

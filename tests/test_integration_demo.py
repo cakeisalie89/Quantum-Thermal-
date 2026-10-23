@@ -37,7 +37,9 @@ from agent_substrate import freshness as F  # noqa: E402
 from agent_substrate import inference as I  # noqa: E402
 from agent_substrate import research as R  # noqa: E402
 from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.governed_model import GovernedModelRuns  # noqa: E402
 from agent_substrate.governed_model import ModelRunRefused  # noqa: E402
+from agent_substrate.idempotency import IdempotencyLedger  # noqa: E402
 from agent_substrate.policy import PolicyStore, document  # noqa: E402
 
 
@@ -90,6 +92,44 @@ def test_what_the_design_cannot_establish_is_reported_as_it_happened(
 def test_the_run_ends_as_the_committed_results_record(report):
     recorded = json.loads(D.RESULTS.read_text(encoding="utf-8"))
     assert D.projection(recorded) == D.projection(report)
+
+
+def test_an_orphan_of_the_bind_race_is_not_a_second_execution(
+        monkeypatch):
+    """Two submissions of one proposal can race between the idempotency
+    lookup and the bind. The loser creates a task and cancels it before
+    anything is queued (D-2026-117). Forced here by hiding the binding
+    from a second submission's lookup. V7 must count one execution, not
+    two creations (D-2026-190). Only the check before the task is created
+    misses the binding; the bind, decided under the writer lock, finds
+    it."""
+    w = D.Demo("orphan-race")
+    try:
+        w.step()
+        w.colleague_hypothesis(E.hypothesis(D.H2, depends_on=[D.H1]))
+        w.step()                              # the run, submitted once
+        (env,) = w.ingress.pending(lambda pid: False)
+        real, missed = IdempotencyLedger.lookup, []
+
+        def first_misses(self, **kw):
+            if not missed:
+                missed.append(kw)
+                return None
+            return real(self, **kw)
+        monkeypatch.setattr(IdempotencyLedger, "lookup", first_misses)
+        runs = GovernedModelRuns(root=ROOT, log=w.log, evidence=w.evidence)
+        w.ingress.submit(env.proposal_id, runs,
+                         out_dir=f"{w.ws}/{D.OBJECTIVE}/step-2/run")
+        events = w.events()
+        created, executed = D._run_tasks(events)
+        assert (len(created), len(executed)) == (2, 1)
+        (orphan,) = set(created) - set(executed)
+        assert any(e.action == "task.transition" and e.target == orphan
+                   and e.payload["dst"] == "CANCELLED"
+                   and "first" in e.payload.get("note", "")
+                   for e in events)
+    finally:
+        w.clean()
 
 
 def test_the_model_is_never_claimed(report):
