@@ -1,0 +1,51 @@
+{
+ "title": "Section 11: the integration demonstration's predicates can see what they look for",
+ "note": "Each makes the demonstration itself vacuous: an attempt never reported as accepted, or one variant's predicate unable to be true. tests/test_integration_demo.py switches each variant's control off and requires the attack to succeed, so a blind predicate is seen.",
+ "suites": [
+  "tests/test_integration_demo.py"
+ ],
+ "mutations": [
+  {
+   "name": "ID1_no_attempt_is_ever_accepted",
+   "path": "tools/integration_demo.py",
+   "find": "    return {\"attempt\": what, \"accepted\": bool(accepted),",
+   "replace": "    return {\"attempt\": what, \"accepted\": False,",
+   "rationale": "section 11: every attack would read as refused, whatever happened"
+  },
+  {
+   "name": "ID2_the_forgery_reading_back_is_not_looked_for",
+   "path": "tools/integration_demo.py",
+   "find": "            _attempt(\"the forged bytes read back as the bundle\", read is None,",
+   "replace": "            _attempt(\"the forged bytes read back as the bundle\", False,",
+   "rationale": "V1: forged bytes served as evidence would go unreported"
+  },
+  {
+   "name": "ID3_an_established_opposite_is_not_looked_for",
+   "path": "tools/integration_demo.py",
+   "find": "            _attempt(\"the opposite comparison established\",\n                     opposite.established,",
+   "replace": "            _attempt(\"the opposite comparison established\",\n                     False,",
+   "rationale": "V2: a contradicted claim established would go unreported"
+  },
+  {
+   "name": "ID4_a_verdict_on_an_expired_reading_is_not_looked_for",
+   "path": "tools/integration_demo.py",
+   "find": "                     verdict in (\"SUPPORTED\", \"REFUTED\"),",
+   "replace": "                     False,",
+   "rationale": "V11: a verdict decided on an outdated reading would go unreported"
+  },
+  {
+   "name": "ID5_an_admitted_release_is_not_looked_for",
+   "path": "tools/integration_demo.py",
+   "find": "            _attempt(\"a release candidate admitted by the gate\", gate is None,",
+   "replace": "            _attempt(\"a release candidate admitted by the gate\", False,",
+   "rationale": "V12: a release admitted by the gate would go unreported"
+  },
+  {
+   "name": "ID6_creations_are_counted_as_executions",
+   "path": "tools/integration_demo.py",
+   "find": "    executed = sorted({e.target for e in ev if e.action == \"task.execution\"\n                       and e.target in created})",
+   "replace": "    executed = list(created)",
+   "rationale": "V7: an orphan of the idempotency bind race, cancelled before dispatch, is charged as a second execution of the model (D-2026-190)"
+  }
+ ]
+}

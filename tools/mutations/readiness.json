@@ -1,0 +1,87 @@
+{
+ "title": "The production-readiness matrix: statuses held to the tree, hosted rows bound to the code their runs tested",
+ "note": "D-2026-150, D-2026-154 and D-2026-155. Each mutation deletes one rule of tools/readiness.py: a check of the matrix, a condition of the verdict, or a guarantee of attach(). tests/test_readiness_matrix.py breaks each rule in a copy of the shipped matrix or in a one-commit throwaway repository, and requires it refused.",
+ "suites": [
+  "tests/test_deployment_evidence.py",
+  "tests/test_readiness_matrix.py"
+ ],
+ "mutations": [
+  {
+   "name": "RM1_a_changed_implementation_keeps_its_evidence",
+   "path": "tools/readiness.py",
+   "find": "            if h.get(\"implementation_sha256\") != tree_digest(r, root):\n",
+   "replace": "            if False:\n",
+   "rationale": "D-2026-154: a HOSTED_TESTED row stays hosted after the code the run tested has changed"
+  },
+  {
+   "name": "RM2_no_implementation_is_named",
+   "path": "tools/readiness.py",
+   "find": "            if not impl:\n                out.append(f\"{rid}: HOSTED_TESTED names no implementation \"",
+   "replace": "            if False:\n                out.append(f\"{rid}: HOSTED_TESTED names no implementation \"",
+   "rationale": "D-2026-154: a hosted row binds itself to nothing"
+  },
+  {
+   "name": "RM3_no_runs_or_commit_needed",
+   "path": "tools/readiness.py",
+   "find": "            if not h.get(\"runs\") or not re.fullmatch(\n",
+   "replace": "            if False and re.fullmatch(\n",
+   "rationale": "a row is HOSTED_TESTED without the runs and commit that make it so"
+  },
+  {
+   "name": "RM4_locally_tested_meets_the_contract",
+   "path": "tools/readiness.py",
+   "find": "        and counts[\"IMPLEMENTED\"] == 0 and not unattested\n",
+   "replace": "        and not unattested\n",
+   "rationale": "a capability tested only locally counts toward production readiness; anchor moved by D-2026-155"
+  },
+  {
+   "name": "RM5_a_blocked_row_meets_the_contract",
+   "path": "tools/readiness.py",
+   "find": "met = counts[\"EXTERNALLY_BLOCKED\"] == 0 and counts[\"UNVERIFIED\"] == 0",
+   "replace": "met = counts[\"UNVERIFIED\"] == 0",
+   "rationale": "an owner action not taken does not hold the verdict back"
+  },
+  {
+   "name": "RM6_attach_digests_the_working_tree",
+   "path": "tools/readiness.py",
+   "find": "    read, _ = AH._at_commit(full, root)\n",
+   "replace": "    def read(p):\n        q = root / p\n        return q.read_bytes() if q.is_file() else None\n",
+   "rationale": "D-2026-154: the digest is taken from what is on disk, not what the run tested"
+  },
+  {
+   "name": "RM7_attach_does_not_check_the_runs",
+   "path": "tools/readiness.py",
+   "find": "    checked = [AH.check_run(r, full, fetch or AH._gh) for r in runs]\n",
+   "replace": "    checked = [{\"id\": str(r)} for r in runs]\n",
+   "rationale": "D-2026-154: a run on another commit, or not green, is recorded as evidence"
+  },
+  {
+   "name": "RM8_a_row_without_implementation_is_attached",
+   "path": "tools/readiness.py",
+   "find": "        if not row.get(\"implementation\"):\n            raise AH.EvidenceRefused(",
+   "replace": "        if False:\n            raise AH.EvidenceRefused(",
+   "rationale": "D-2026-154: attach binds a row to an empty digest"
+  },
+  {
+   "name": "RM9_unattested_deployment_rows_meet_the_contract",
+   "path": "tools/readiness.py",
+   "find": "        and counts[\"IMPLEMENTED\"] == 0 and not unattested\n",
+   "replace": "        and counts[\"IMPLEMENTED\"] == 0\n",
+   "rationale": "D-2026-155: a DEPLOYMENT_REQUIRED row with no deployment evidence counts toward production readiness -- the defect as measured"
+  },
+  {
+   "name": "RM10_a_test_verifier_attests_a_deployment",
+   "path": "tools/readiness.py",
+   "find": "    if deployment is None or deployment.verifier != DE.SIGSTORE:\n",
+   "replace": "    if deployment is None:\n",
+   "rationale": "D-2026-155: evidence whose signature a test verifier accepted satisfies a production deployment row"
+  },
+  {
+   "name": "RM11_a_deployment_row_needs_no_check",
+   "path": "tools/readiness.py",
+   "find": "                and r.get(\"deployment_check\") not in DE.CHECKS:\n",
+   "replace": "                and False:\n",
+   "rationale": "D-2026-155: a deployment row need not name the check that satisfies it, so no attestation could be held to one"
+  }
+ ]
+}

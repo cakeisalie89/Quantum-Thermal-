@@ -1,0 +1,102 @@
+{
+ "checks": [
+  {
+   "check": "expert_parallel_equivalence_ep8",
+   "devices": 8,
+   "experts": 8,
+   "max_abs_difference": 0.0,
+   "passed": true
+  },
+  {
+   "check": "expert_parallel_equivalence_ep4",
+   "devices": 4,
+   "experts": 8,
+   "max_abs_difference": 0.0,
+   "passed": true
+  },
+  {
+   "check": "expert_parallel_equivalence_ep2",
+   "devices": 2,
+   "experts": 8,
+   "max_abs_difference": 0.0,
+   "passed": true
+  },
+  {
+   "check": "fsdp_sharded_gradient_equivalence",
+   "criterion": "gradients agree to 1e-5 of their largest magnitude: the sharded and unsharded computations differ only in reduction order. Parameters after one Adam step are NOT the criterion -- the first Adam step is about lr*sign(g), so a near-zero gradient that differs by one rounding can move a parameter by up to 2*lr; the difference is reported, not hidden",
+   "devices": 8,
+   "loss_difference": 0.0,
+   "max_abs_gradient_difference": 9.685754776000977e-08,
+   "max_relative_gradient_difference": 4.6158619337464744e-07,
+   "one_adam_step_max_parameter_difference": 5.2481889724731445e-05,
+   "passed": true,
+   "sharded_leaves": 27
+  },
+  {
+   "check": "gradient_accumulation_equivalence",
+   "criterion": "with the likelihood alone (a mean over samples) the accumulated gradient equals the full-batch one to 1e-5 of its magnitude. The load-balancing term is a product of batch statistics and changes under accumulation BY DESIGN; that difference is reported separately and is not a defect of the mechanics",
+   "max_abs_gradient_difference": 6.705522537231445e-08,
+   "max_relative_gradient_difference": 3.1618193867588063e-07,
+   "micro_batches": 4,
+   "passed": true,
+   "with_load_balancing_term_relative_difference": 0.0008261328249162256
+  },
+  {
+   "check": "sharded_checkpoint_roundtrip",
+   "passed": true,
+   "shards": 8
+  },
+  {
+   "check": "data_parallel_partition",
+   "passed": true,
+   "ranks": 8,
+   "samples": 1000
+  },
+  {
+   "check": "flagship_plan_validation_symbolic",
+   "executed": false,
+   "experts_per_rank": 8,
+   "note": "validated arithmetically; nothing ran",
+   "passed": true,
+   "plan": {
+    "data": 8,
+    "expert": 8,
+    "pipeline": 1,
+    "tensor": 1
+   }
+  }
+ ],
+ "devices": [
+  "cpu:0",
+  "cpu:1",
+  "cpu:2",
+  "cpu:3",
+  "cpu:4",
+  "cpu:5",
+  "cpu:6",
+  "cpu:7"
+ ],
+ "execution_profile": {
+  "devices": 8,
+  "devices_per_node": 8,
+  "hardware_executed": false,
+  "interconnect": null,
+  "kind": "SIMULATED_MULTI_DEVICE",
+  "memory_per_device_bytes": null
+ },
+ "framework": {
+  "backend": "cpu",
+  "jax": "0.11.2",
+  "jaxlib": "0.11.2",
+  "ml_dtypes": "0.6.0",
+  "numpy": "2.4.4",
+  "python": "3.12.3"
+ },
+ "limitations": [
+  "eight CPU devices of ONE host process: the collectives are exercised, not an interconnect",
+  "no speed, memory, communication-volume or failure-recovery measurement: DISTRIBUTED_HARDWARE_VALIDATED is not claimed",
+  "the flagship plan is validated arithmetically and was not executed"
+ ],
+ "result": "PASS",
+ "schema": "scientific-moe-distributed/1"
+}

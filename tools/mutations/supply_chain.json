@@ -1,0 +1,354 @@
+{
+ "title": "The harness release candidate: every verify layer, the levels and the gate, broken alone",
+ "note": "Killed without a signature runtime: each layer beneath SHA256SUMS has a forgery consistent everywhere else (tests/test_supply_chain.py), so a deleted check cannot hide behind the one above it, and the signature step is exercised through the Sigstore command it builds and an injected checker that the CLI cannot reach (tests/test_offline_verify.py, tests/test_release_admission.py). The real signature path runs in the supply-chain workflow, with GitHub OIDC, offline in a network namespace. SC1-SC20 were anchored in tools/supply_chain.py until D-2026-144 moved the verifier into tools/offline_verify.py; their names and rationales are unchanged. SC21-SC34 attack the non-interchangeable levels and the release gate (D-2026-143); SC35-SC48 the portable verifier's own inputs (D-2026-144).",
+ "suites": [
+  "tests/test_supply_chain.py",
+  "tests/test_offline_verify.py",
+  "tests/test_release_admission.py"
+ ],
+ "mutations": [
+  {
+   "name": "SC1_bytes_need_not_match_the_sums",
+   "path": "tools/offline_verify.py",
+   "find": "        if _sha(blobs[n]) != listed[n]:\n",
+   "replace": "        if False:\n",
+   "rationale": "an artifact whose bytes changed after signing verifies"
+  },
+  {
+   "name": "SC2_the_sums_may_list_anything",
+   "path": "tools/offline_verify.py",
+   "find": "    if set(out) != set(ARTIFACTS):\n",
+   "replace": "    if False:\n",
+   "rationale": "SHA256SUMS can sign a different set of files from the one the release is"
+  },
+  {
+   "name": "SC3_provenance_subjects_are_not_compared",
+   "path": "tools/offline_verify.py",
+   "find": "        if subjects.get(n) != listed[n]:\n",
+   "replace": "        if False:\n",
+   "rationale": "the provenance can describe other bytes than the ones signed"
+  },
+  {
+   "name": "SC4_the_source_commit_is_not_compared",
+   "path": "tools/offline_verify.py",
+   "find": "            commit != index[\"source_commit\"]:\n",
+   "replace": "            False:\n",
+   "rationale": "provenance and index can name different commits"
+  },
+  {
+   "name": "SC5_the_index_digests_are_not_compared",
+   "path": "tools/offline_verify.py",
+   "find": "        if listed.get(n) != digest:\n",
+   "replace": "        if False:\n",
+   "rationale": "the index can state a digest the signature never covered"
+  },
+  {
+   "name": "SC6_the_sbom_is_not_checked",
+   "path": "tools/offline_verify.py",
+   "find": "    if probs:\n        raise Refused(f\"SBOM: {probs}\")\n",
+   "replace": "    if False:\n        raise Refused(f\"SBOM: {probs}\")\n",
+   "rationale": "an SBOM that adds or drops a locked package verifies"
+  },
+  {
+   "name": "SC7_source_members_are_not_compared",
+   "path": "tools/supply_chain.py",
+   "find": "            if want.returncode != 0 or _sha(want.stdout) != _sha(data):",
+   "replace": "            if False:",
+   "rationale": "source.zip can carry a file whose bytes are not the commit's"
+  },
+  {
+   "name": "SC8_the_manifest_digest_is_not_compared",
+   "path": "tools/offline_verify.py",
+   "find": "        if rel not in members or _sha(members[rel]) != index.get(key):",
+   "replace": "        if False:",
+   "rationale": "the index can name a manifest digest other than the archived manifest's"
+  },
+  {
+   "name": "SC9_a_missing_signature_is_skipped",
+   "path": "tools/offline_verify.py",
+   "find": "    if mode != \"digests\":\n        bundle = d / BUNDLE\n",
+   "replace": "    if mode != \"digests\" and (d / BUNDLE).exists():\n        bundle = d / BUNDLE\n",
+   "rationale": "a required signature that is absent is skipped, and the report says only NOT_CHECKED"
+  },
+  {
+   "name": "SC10_a_wildcard_policy_is_accepted",
+   "path": "tools/offline_verify.py",
+   "find": "        if not isinstance(v, str) or not v or \"*\" in v or \"PENDING\" in v:\n",
+   "replace": "        if not isinstance(v, str) or not v:\n",
+   "rationale": "a wildcard signer identity verifies anyone's signature"
+  },
+  {
+   "name": "SC11_any_issuer_is_accepted",
+   "path": "tools/offline_verify.py",
+   "find": "    if p[\"oidc_issuer\"] != GITHUB_ISSUER:\n",
+   "replace": "    if False:\n",
+   "rationale": "a signature from an identity provider other than GitHub Actions' verifies"
+  },
+  {
+   "name": "SC12_the_archive_need_not_hold_the_whole_commit",
+   "path": "tools/supply_chain.py",
+   "find": "        if packed != tracked:",
+   "replace": "        if not packed <= tracked:",
+   "rationale": "D-2026-127: only members outside the commit are refused; an archive that lost files verifies as MATCHES"
+  },
+  {
+   "name": "SC13_the_manifest_may_list_files_the_archive_lacks",
+   "path": "tools/offline_verify.py",
+   "find": "    if absent:\n",
+   "replace": "    if False:\n",
+   "rationale": "D-2026-127: a signed archive missing files its own manifest lists is accepted"
+  },
+  {
+   "name": "SC14_members_the_manifest_does_not_list_are_accepted",
+   "path": "tools/offline_verify.py",
+   "find": "    if unlisted:\n",
+   "replace": "    if False:\n",
+   "rationale": "D-2026-127: the archive carries files outside the release its manifest describes"
+  },
+  {
+   "name": "SC15_the_archive_bytes_are_not_compared_with_the_manifest",
+   "path": "tools/offline_verify.py",
+   "find": "        if _sha(data) != e.get(\"sha256\") or len(data) != e.get(\"size_bytes\"):",
+   "replace": "        if False:",
+   "rationale": "D-2026-127: the manifest describes other bytes than the ones that were signed"
+  },
+  {
+   "name": "SC16_the_detached_manifest_hash_is_not_checked",
+   "path": "tools/offline_verify.py",
+   "find": "    if detached != f\"sha256: {_sha(man_raw)}\":",
+   "replace": "    if False:",
+   "rationale": "D-2026-127: manifest_hash.txt may name another manifest than the one beside it"
+  },
+  {
+   "name": "SC17_a_member_may_be_named_twice",
+   "path": "tools/offline_verify.py",
+   "find": "    if len(names) != len(set(names)):\n",
+   "replace": "    if False:\n",
+   "rationale": "D-2026-127: two copies of one path, and the extractor picks which is the release"
+  },
+  {
+   "name": "SC18_the_member_count_is_not_compared",
+   "path": "tools/offline_verify.py",
+   "find": "    if len(names) != index.get(\"files_in_source_zip\"):",
+   "replace": "    if False:",
+   "rationale": "D-2026-127: the index's file count is printed and never checked"
+  },
+  {
+   "name": "SC19_verify_never_reads_the_archived_manifest",
+   "path": "tools/offline_verify.py",
+   "find": "    manifest = archive_against_manifest(members, index)",
+   "replace": "    manifest = \"NOT_CHECKED\"",
+   "rationale": "D-2026-127: the whole layer removed; the signature binds an archive nobody compared with what it says it is"
+  },
+  {
+   "name": "SC20_an_empty_manifest_describes_any_archive",
+   "path": "tools/offline_verify.py",
+   "find": "    if not entries:\n        raise Refused(",
+   "replace": "    if False:\n        raise Refused(",
+   "rationale": "D-2026-127: without a checkout, an archive holding only the detached files verifies -- every per-file comparison passes over zero files"
+  },
+  {
+   "name": "SC21_a_digest_run_claims_a_signature",
+   "path": "tools/offline_verify.py",
+   "find": "        levels[\"SIGNATURE_VERIFIED\"] = _level(NOT_CHECKED, why)\n        levels[\"SIGNER_TRUSTED\"] = _level(NOT_CHECKED, why)\n",
+   "replace": "        levels[\"SIGNATURE_VERIFIED\"] = _level(ESTABLISHED, why)\n        levels[\"SIGNER_TRUSTED\"] = _level(ESTABLISHED, why)\n",
+   "rationale": "D-2026-143: bytes nobody authenticated are reported as signed by the trusted signer"
+  },
+  {
+   "name": "SC22_the_gate_takes_a_digest_run",
+   "path": "tools/supply_chain.py",
+   "find": "    if mode == \"digests\":\n        raise Refused(\"a digest-only",
+   "replace": "    if False:\n        raise Refused(\"a digest-only",
+   "rationale": "D-2026-143: the release gate runs a verification that authenticates nothing"
+  },
+  {
+   "name": "SC23_a_ci_policy_authorizes_a_release",
+   "path": "tools/offline_verify.py",
+   "find": "        if not is_release_policy(policy):\n            levels[\"RELEASE_AUTHORIZED\"]",
+   "replace": "        if False:\n            levels[\"RELEASE_AUTHORIZED\"]",
+   "rationale": "D-2026-143: the CI validation signer's signature admits a release"
+  },
+  {
+   "name": "SC24_a_release_policy_from_the_checkout_is_trusted",
+   "path": "tools/supply_chain.py",
+   "find": "    if not OV._outside(release_policy, checkout):",
+   "replace": "    if False:",
+   "rationale": "D-2026-143: anyone who can push to the repository writes the policy that authorizes its release"
+  },
+  {
+   "name": "SC25_a_policy_from_the_bundle_is_trusted",
+   "path": "tools/offline_verify.py",
+   "find": "    if bundle_dir is not None and not _outside(path, bundle_dir):",
+   "replace": "    if False:",
+   "rationale": "D-2026-144: the bundle names whose signature it accepts"
+  },
+  {
+   "name": "SC26_a_trust_root_from_the_bundle_is_trusted",
+   "path": "tools/offline_verify.py",
+   "find": "            if not _outside(trust_config, d):",
+   "replace": "            if False:",
+   "rationale": "D-2026-144: the bundle supplies the trusted root its own signature chains to"
+  },
+  {
+   "name": "SC27_a_release_takes_any_trust_root",
+   "path": "tools/offline_verify.py",
+   "find": "                    tc_sha != policy[\"trust_config_sha256\"]:",
+   "replace": "                    False:",
+   "rationale": "D-2026-143: the trusted root a release policy pins is not the one used"
+  },
+  {
+   "name": "SC28_offline_falls_back_to_the_verifiers_own_defaults",
+   "path": "tools/offline_verify.py",
+   "find": "        if mode == \"offline\" and trust_config is None:",
+   "replace": "        if False:",
+   "rationale": "D-2026-144: offline verification trusts whatever root the verifier happened to ship"
+  },
+  {
+   "name": "SC29_a_release_policy_names_a_branch",
+   "path": "tools/offline_verify.py",
+   "find": "        if not p[\"ref\"].startswith(\"refs/tags/\"):",
+   "replace": "        if False:",
+   "rationale": "D-2026-143: a branch anyone with push can move releases"
+  },
+  {
+   "name": "SC30_a_release_policy_names_the_ci_workflow",
+   "path": "tools/offline_verify.py",
+   "find": "        if p[\"workflow_path\"] in NON_RELEASE_WORKFLOWS:",
+   "replace": "        if False:",
+   "rationale": "D-2026-143: the CI validation workflow's identity becomes a release identity"
+  },
+  {
+   "name": "SC31_an_expired_release_policy_authorizes",
+   "path": "tools/offline_verify.py",
+   "find": "        if (today or _dt.date.today()) > not_after:",
+   "replace": "        if False:",
+   "rationale": "D-2026-143: a release policy past its not_after still admits"
+  },
+  {
+   "name": "SC32_a_release_policy_need_not_pin_a_root",
+   "path": "tools/offline_verify.py",
+   "find": "        if not _HEX64.match(str(p.get(\"trust_config_sha256\", \"\"))):",
+   "replace": "        if False:",
+   "rationale": "D-2026-143: a release policy that pins no trusted root loads"
+  },
+  {
+   "name": "SC33_the_levels_need_not_be_in_order",
+   "path": "tools/offline_verify.py",
+   "find": "        if report[\"levels\"][n][\"status\"] != ESTABLISHED:\n            break",
+   "replace": "        if report[\"levels\"][n][\"status\"] != ESTABLISHED:\n            continue",
+   "rationale": "D-2026-143: a level is reported held although one beneath it is not"
+  },
+  {
+   "name": "SC34_the_cli_exits_0_below_the_required_level",
+   "path": "tools/offline_verify.py",
+   "find": "    if not meets(rep, args.require):",
+   "replace": "    if False:",
+   "rationale": "D-2026-143: a digest run satisfies a caller that required a trusted signer"
+  },
+  {
+   "name": "SC35_sha256sums_may_name_a_file_twice",
+   "path": "tools/offline_verify.py",
+   "find": "        if m.group(2) in out:",
+   "replace": "        if False:",
+   "rationale": "D-2026-144: two lines for one artifact, and the later one wins"
+  },
+  {
+   "name": "SC36_the_sbom_is_judged_against_the_checkout",
+   "path": "tools/offline_verify.py",
+   "find": "        want = sbom_from(declared)",
+   "replace": "        want = sbom_from(lambda rel: (Path(__file__).resolve().parent.parent / rel).read_bytes())",
+   "rationale": "D-2026-144: the SBOM is compared with the verifier's checkout, not with the release's own declarations"
+  },
+  {
+   "name": "SC37_the_provenance_may_name_another_builder",
+   "path": "tools/offline_verify.py",
+   "find": "    if (ext.get(\"repository\"), ext.get(\"workflow\"), ext.get(\"ref\")) != (",
+   "replace": "    if False and (ext.get(\"repository\"), ext.get(\"workflow\"), ext.get(\"ref\")) != (",
+   "rationale": "D-2026-144: the provenance's builder is never compared with the policy's"
+  },
+  {
+   "name": "SC38_sigstore_judges_the_files_on_disk",
+   "path": "tools/offline_verify.py",
+   "find": "            sig_call = check(p_bundle, p_sums, policy, mode=mode,",
+   "replace": "            sig_call = check(bundle, d / SIGNED, policy, mode=mode,",
+   "rationale": "D-2026-144: the signature is checked over whatever SHA256SUMS holds by then, not over the list parsed"
+  },
+  {
+   "name": "SC39_offline_is_not_passed_to_sigstore",
+   "path": "tools/offline_verify.py",
+   "find": "    if mode == \"offline\":\n        cmd.append(\"--offline\")",
+   "replace": "    if False:\n        cmd.append(\"--offline\")",
+   "rationale": "D-2026-144: an offline verification reaches the network"
+  },
+  {
+   "name": "SC40_sigstore_inherits_the_callers_environment",
+   "path": "tools/offline_verify.py",
+   "find": "        env = {\"HOME\": home, \"PATH\": \"/usr/bin:/bin\", \"LC_ALL\": \"C.UTF-8\"}",
+   "replace": "        env = dict(os.environ, HOME=home)",
+   "rationale": "D-2026-144: the caller's environment (proxies, SIGSTORE_* settings) reaches the verdict"
+  },
+  {
+   "name": "SC41_a_failing_sigstore_call_passes",
+   "path": "tools/offline_verify.py",
+   "find": "    if proc.returncode != 0:",
+   "replace": "    if False:",
+   "rationale": "D-2026-144: a signature Sigstore rejected is reported verified"
+  },
+  {
+   "name": "SC42_a_link_member_is_extracted",
+   "path": "tools/offline_verify.py",
+   "find": "        if stat.S_ISLNK(i.external_attr >> 16):",
+   "replace": "        if False:",
+   "rationale": "D-2026-144: an archive member that is a symbolic link is accepted"
+  },
+  {
+   "name": "SC43_a_member_has_no_size_bound",
+   "path": "tools/offline_verify.py",
+   "find": "        if i.file_size > MAX_MEMBER:",
+   "replace": "        if False:",
+   "rationale": "D-2026-144: one member may expand without bound"
+  },
+  {
+   "name": "SC44_the_archive_has_no_total_bound",
+   "path": "tools/offline_verify.py",
+   "find": "        if total > MAX_TOTAL:",
+   "replace": "        if False:",
+   "rationale": "D-2026-144: the archive may expand without bound"
+  },
+  {
+   "name": "SC45_a_decompression_bomb_is_read",
+   "path": "tools/offline_verify.py",
+   "find": "        if (i.file_size > (1 << 20) and i.compress_size",
+   "replace": "        if (False and i.compress_size",
+   "rationale": "D-2026-144: a member compressed past any plausible ratio is inflated"
+  },
+  {
+   "name": "SC46_the_archive_has_no_member_bound",
+   "path": "tools/offline_verify.py",
+   "find": "    if len(infos) > MAX_MEMBERS:",
+   "replace": "    if False:",
+   "rationale": "D-2026-144: an archive of millions of empty members is walked"
+  },
+  {
+   "name": "SC47_a_member_may_lie_about_its_size",
+   "path": "tools/offline_verify.py",
+   "find": "        if len(b) != i.file_size:",
+   "replace": "        if False:",
+   "rationale": "D-2026-144: a member's declared size, which the bounds use, is not what it holds"
+  },
+  {
+   "name": "SC48_an_artifact_link_is_followed",
+   "path": "tools/offline_verify.py",
+   "find": "    if stat.S_ISLNK(st.st_mode):",
+   "replace": "    if False:",
+   "rationale": "D-2026-144: an artifact that is a symbolic link is read through it"
+  },
+  {
+   "name": "SC49_the_agents_identity_may_sign_a_release",
+   "path": "tools/offline_verify.py",
+   "find": "NON_RELEASE_WORKFLOWS = CI_VALIDATION_WORKFLOWS | AGENT_WORKFLOWS",
+   "replace": "NON_RELEASE_WORKFLOWS = CI_VALIDATION_WORKFLOWS",
+   "rationale": "D-2026-146: a release policy may name the AI agent's workflow, so the identity that proposes can also release"
+  }
+ ]
+}

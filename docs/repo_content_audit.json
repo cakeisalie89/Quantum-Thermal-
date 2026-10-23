@@ -1,0 +1,82 @@
+{
+ "allowances": {
+  "docs/repo_content_audit.json": {
+   "files_using": 1,
+   "why": "this audit's committed report: it lists the retired roots and names it refuses, and --check requires it to be exactly what the tree produces"
+  },
+  "docs/repository_inventory.json": {
+   "files_using": 2,
+   "why": "the forensic inventory: it records every baseline file by its baseline path, which is what makes the removal reviewable"
+  },
+  "tests/fuzz_corpus/*.json": {
+   "files_using": 6,
+   "why": "recorded fuzzing findings, kept verbatim: their tracebacks name the module path the finding was made in"
+  },
+  "tests/test_repo_content_audit.py": {
+   "files_using": 2,
+   "why": "this audit's controls reintroduce retired content on purpose"
+  },
+  "tests/test_repo_inventory.py": {
+   "files_using": 2,
+   "why": "the inventory's tests assert edges between baseline paths"
+  },
+  "tools/mutations/repository_content.json": {
+   "files_using": 1,
+   "why": "this audit's mutation specification: two of its mutations plant retired content in the learned-model substrate on purpose, to show the boundary tests refuse it"
+  },
+  "tools/repo_content_audit.py": {
+   "files_using": 2,
+   "why": "this audit: its vocabulary is what it looks for"
+  },
+  "tools/repo_inventory.py": {
+   "files_using": 2,
+   "why": "the inventory's rules name the retired paths in order to classify them"
+  }
+ },
+ "by_area": {
+  "AGENT_SUBSTRATE": 53,
+  "CONTAINER": 3,
+  "DOCUMENTATION": 30,
+  "HOSTED_CI": 6,
+  "INTEGRATION_ASSETS": 15,
+  "LEARNED_MODEL_EVIDENCE": 10,
+  "LEARNED_MODEL_SPECIFICATION": 11,
+  "NEURAL_INFRASTRUCTURE": 27,
+  "PACKAGING": 3,
+  "PROVENANCE": 5,
+  "REGISTRY_OR_DERIVED_STATUS": 31,
+  "REPOSITORY_CONFIGURATION": 1,
+  "SCIENTIFIC_COMPUTING": 39,
+  "SOFTWARE_ASSURANCE": 189,
+  "TESTS": 181,
+  "WORKFLOW": 1
+ },
+ "files": 605,
+ "finding_counts": {},
+ "findings": [],
+ "label": "The current tree read for retired content. Zero findings is the transformation's acceptance condition for repository content; it says nothing about scientific correctness.",
+ "ok": true,
+ "protocol_identifiers": [
+  "qta-agent/event-attestation/v1",
+  "qta-agent/test-identity/v1",
+  "qta-agent/key-registry/v1",
+  "qta-agent/key-registry/v2",
+  "qta-agent/reference-ed25519/v1"
+ ],
+ "retired_roots": [
+  "qta_multiphysics/",
+  "qta_agent/",
+  "attic/",
+  "EXPERIMENT_PLAYBOOKS/",
+  "QTA_stage9_release_verification/",
+  "stage7_reports/",
+  "stage8_reports/",
+  "matrix_update_examples/",
+  "docs/legacy/",
+  "reference_backend/",
+  "rust/",
+  "analysis/",
+  "workflow/"
+ ],
+ "schema": "repo-content-audit/1"
+}

@@ -1,0 +1,123 @@
+{
+ "title": "The repository content audit and the forensic inventory: retired content refused, dispositions applied",
+ "note": "RC1-RC9 remove, one at a time, each rule of tools/repo_content_audit.py -- the retired roots, the removed paths, the retired output names, the area classification, the allowance's scope, the stale-allowance report, the protocol identifiers as exact strings, an import matched by its retired package, not only by an inventoried module -- and each is killed by the audit's own reintroduction controls. RI1-RI3 remove the forensic inventory's applied, disposition and classification checks. RC10-RC11 plant retired content into the learned-model substrate -- an import of a retired module, inside a function body so nothing fails at import time, and a machine-mode name -- and the substrate's boundary tests refuse each. This file spells retired names on purpose; tools/repo_content_audit.py allows it by name. RC12-RC13: an import inside a function, and a module named to the built-in __import__, are still dependencies.",
+ "suites": [
+  "tests/test_repo_content_audit.py",
+  "tests/test_repo_inventory.py",
+  "tests/test_neural_boundary.py"
+ ],
+ "mutations": [
+  {
+   "name": "RC1_a_retired_root_is_not_refused",
+   "path": "tools/repo_content_audit.py",
+   "find": "        if path.startswith(RETIRED_ROOTS):\n",
+   "replace": "        if False and path.startswith(RETIRED_ROOTS):\n",
+   "rationale": "a file under a retired root comes back unseen"
+  },
+  {
+   "name": "RC2_a_removed_path_may_return",
+   "path": "tools/repo_content_audit.py",
+   "find": "        elif path in gone:\n",
+   "replace": "        elif False and path in gone:\n",
+   "rationale": "a file the inventory removed comes back at its old path unseen"
+  },
+  {
+   "name": "RC3_a_retired_output_under_a_new_directory",
+   "path": "tools/repo_content_audit.py",
+   "find": "        if path.rsplit(\"/\", 1)[-1] in RETIRED_NAMES:\n",
+   "replace": "        if path in RETIRED_NAMES:\n",
+   "rationale": "a retired output copied into another directory is the same file, and is not seen"
+  },
+  {
+   "name": "RC4_an_unplaced_file_is_not_a_finding",
+   "path": "tools/repo_content_audit.py",
+   "find": "        if a is None:\n",
+   "replace": "        if a is None and False:\n",
+   "rationale": "a file no rule places in the harness passes as classified"
+  },
+  {
+   "name": "RC5_an_allowance_covers_its_neighbours",
+   "path": "tools/repo_content_audit.py",
+   "find": "        if fnmatch.fnmatch(path, pattern):\n            return pattern\n    return None\n",
+   "replace": "        if fnmatch.fnmatch(path, pattern) or path.startswith(\n                pattern.rsplit(\"/\", 1)[0] + \"/\"):\n            return pattern\n    return None\n",
+   "rationale": "an allowance for one file excuses every file beside it"
+  },
+  {
+   "name": "RC6_a_stale_allowance_is_kept_quietly",
+   "path": "tools/repo_content_audit.py",
+   "find": "        if n == 0:\n",
+   "replace": "        if n < 0:\n",
+   "rationale": "an exception that no file needs any more outlives its reason"
+  },
+  {
+   "name": "RC7_a_protocol_identifier_excuses_its_neighbourhood",
+   "path": "tools/repo_content_audit.py",
+   "find": "        text = text.replace(ident, \"\")\n",
+   "replace": "        text = text.replace(ident.split(\"/\")[0], \"\")\n",
+   "rationale": "the declared identifiers stop being exact strings: a new one in the old style is struck too"
+  },
+  {
+   "name": "RC8_only_an_inventoried_module_is_retired",
+   "path": "tools/repo_content_audit.py",
+   "find": "                            for i in range(len(parts), 0, -1)\n",
+   "replace": "                            for i in range(len(parts), len(parts) - 1, -1)\n",
+   "rationale": "an import is matched only by its full name, so a submodule of a retired package that no inventory row names is not seen"
+  },
+  {
+   "name": "RC9_the_report_is_never_stale",
+   "path": "tools/repo_content_audit.py",
+   "find": "        stale = not p.is_file() or p.read_text(encoding=\"utf-8\") != \\\n            render(doc)\n",
+   "replace": "        stale = not p.is_file()\n",
+   "rationale": "a committed report the tree no longer produces passes --check"
+  },
+  {
+   "name": "RI1_pending_dispositions_pass",
+   "path": "tools/repo_inventory.py",
+   "find": "        if applied and now == \"PENDING\":\n",
+   "replace": "        if applied and now == \"NEVER\":\n",
+   "rationale": "a baseline file still waiting for its disposition passes the applied check"
+  },
+  {
+   "name": "RI2_a_disposition_the_tree_contradicts",
+   "path": "tools/repo_inventory.py",
+   "find": "        if f[\"final_disposition\"] != now:\n",
+   "replace": "        if False and f[\"final_disposition\"] != now:\n",
+   "rationale": "the inventory says REMOVED of a file the tree still has, and nothing objects"
+  },
+  {
+   "name": "RI3_a_classification_the_rules_did_not_give",
+   "path": "tools/repo_inventory.py",
+   "find": "        if (f[\"class\"], f[\"rationale\"], f[\"action\"]) != (cls, why, action):\n",
+   "replace": "        if f[\"class\"] not in CLASSES:\n",
+   "rationale": "a file reclassified by hand, with a rationale nobody's rule gave, is accepted"
+  },
+  {
+   "name": "RC10_a_retired_import_planted_in_the_substrate",
+   "path": "scientific_ai/neural/units.py",
+   "find": "import re\nfrom dataclasses import dataclass\n",
+   "replace": "import re\nfrom dataclasses import dataclass\n\n\ndef _never_called():\n    import qta_multiphysics.thermal_1d  # noqa: F401\n",
+   "rationale": "the learned-model substrate imports a retired module (lazily, so only the scan can see it)"
+  },
+  {
+   "name": "RC11_a_machine_mode_planted_in_the_substrate",
+   "path": "scientific_ai/neural/tokens.py",
+   "find": "CONTEXTS = (\"INPUT\", \"CONDITION\", \"RESERVED_2\", \"RESERVED_3\")\n",
+   "replace": "CONTEXTS = (\"INPUT\", \"CONDITION\", \"MODE_B\", \"RESERVED_3\")\n",
+   "rationale": "a machine mode of the retired apparatus becomes a token context"
+  },
+  {
+   "name": "RC12_an_import_inside_a_function_is_not_seen",
+   "path": "tools/repo_content_audit.py",
+   "find": "    for n in ast.walk(tree):\n        if isinstance(n, ast.Import):\n",
+   "replace": "    for n in tree.body:\n        if isinstance(n, ast.Import):\n",
+   "rationale": "only top-level imports are read, so a retired module imported inside a function is a dependency nobody sees"
+  },
+  {
+   "name": "RC13_a_builtin_dynamic_import_is_not_seen",
+   "path": "tools/repo_content_audit.py",
+   "find": "              in (\"import_module\", \"__import__\") and n.args",
+   "replace": "              in (\"import_module\",) and n.args",
+   "rationale": "__import__ with a constant name loads a retired module without an import statement"
+  }
+ ]
+}

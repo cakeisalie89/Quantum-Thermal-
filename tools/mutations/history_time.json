@@ -1,0 +1,158 @@
+{
+ "title": "An expiry is judged at the latest time the history has reached",
+ "note": "D-2026-168. Each mutation puts one reader, writer, snapshot or restatement back on the record's own wall time (or drops the second reader's restated check of a decision's policy). tests/test_history_time.py sets the clock back past an expiry the history had reached, on the write path and as a record a writer without the rule wrote, each with a control; tests/test_policy_binding.py holds the second reader's decision restatements; tests/test_decision_proof.py the proof's policy check.",
+ "suites": [
+  "tests/test_history_time.py",
+  "tests/test_policy_binding.py",
+  "tests/test_decision_proof.py"
+ ],
+ "mutations": [
+  {
+   "name": "HT1_the_rule_is_the_record_s_own_clock",
+   "path": "agent_substrate/events.py",
+   "find": "    return wall_time if latest is None else max(latest, wall_time)",
+   "replace": "    return wall_time",
+   "rationale": "D-2026-168: the shared rule judges at the record's own wall time: every reader is beaten by a clock set back"
+  },
+  {
+   "name": "HT2_the_policy_store_does_not_track_the_history_s_time",
+   "path": "agent_substrate/policy.py",
+   "find": "        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)\n        if ev.action == ACT_POLICY_PUBLISH:",
+   "replace": "        if ev.action == ACT_POLICY_PUBLISH:",
+   "rationale": "D-2026-168: the policy store's replay and writes judge expiry by one clock reading"
+  },
+  {
+   "name": "HT3_a_recorded_decision_is_judged_at_its_own_clock",
+   "path": "agent_substrate/policy.py",
+   "find": "            doc = self.in_force_at(policy_id, ev.seq, at_time=judged_at(\n                self._latest_wall, ev.wall_time))",
+   "replace": "            doc = self.in_force_at(policy_id, ev.seq, at_time=ev.wall_time)",
+   "rationale": "D-2026-168: a decision a writer recorded with its clock set back past the expiry is accepted on replay"
+  },
+  {
+   "name": "HT4_now_is_the_clock_alone",
+   "path": "agent_substrate/policy.py",
+   "find": "        if doc.expired_at(judged_at(self._latest_wall, time.time())\n                          if at_time is None else at_time):",
+   "replace": "        if doc.expired_at(time.time()\n                          if at_time is None else at_time):",
+   "rationale": "D-2026-168: in_force() with the clock set back answers that an expired policy is in force"
+  },
+  {
+   "name": "HT5_a_decision_is_written_at_the_clock_alone",
+   "path": "agent_substrate/policy.py",
+   "find": "            decision = self.evaluate(policy_id, req, at_time=judged_at(\n                self._latest_wall, now))",
+   "replace": "            decision = self.evaluate(policy_id, req, at_time=now)",
+   "rationale": "D-2026-168: a decision is written under an expired policy by a writer whose clock was set back"
+  },
+  {
+   "name": "HT6_the_store_does_not_track_the_history_s_time",
+   "path": "agent_substrate/store.py",
+   "find": "        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)\n        try:\n            kind = actions.require_known(",
+   "replace": "        try:\n            kind = actions.require_known(",
+   "rationale": "D-2026-168: the authority store judges a promotion's policy by one clock reading"
+  },
+  {
+   "name": "HT7_a_recorded_promotion_is_judged_at_its_own_clock",
+   "path": "agent_substrate/store.py",
+   "find": "                    merged_evidence.get(\"policy_id\"), ev.seq,\n                    judged_at(self._latest_wall, ev.wall_time))",
+   "replace": "                    merged_evidence.get(\"policy_id\"), ev.seq,\n                    ev.wall_time)",
+   "rationale": "D-2026-168: a promotion recorded with the clock set back past the expiry is accepted on replay"
+  },
+  {
+   "name": "HT8_a_promotion_is_written_at_the_clock_alone",
+   "path": "agent_substrate/store.py",
+   "find": "                    self._loaded_through + 1,\n                    judged_at(self._latest_wall, now))",
+   "replace": "                    self._loaded_through + 1,\n                    now)",
+   "rationale": "D-2026-168: a promotion under an expired policy is written by a writer whose clock was set back"
+  },
+  {
+   "name": "HT9_a_snapshot_forgets_the_history_s_time",
+   "path": "agent_substrate/store.py",
+   "find": "            \"latest_wall\": self._latest_wall,\n        }",
+   "replace": "        }",
+   "rationale": "D-2026-168: loaded from a checkpoint, the tail's clock alone judges the expiry"
+  },
+  {
+   "name": "HT10_a_restore_drops_the_history_s_time",
+   "path": "agent_substrate/store.py",
+   "find": "        self._latest_wall = latest\n        self._binding = binding",
+   "replace": "        self._latest_wall = None\n        self._binding = binding",
+   "rationale": "D-2026-168: loaded from a checkpoint, the tail's clock alone judges the expiry"
+  },
+  {
+   "name": "HT11_the_gateway_does_not_track_the_history_s_time",
+   "path": "agent_substrate/inference.py",
+   "find": "        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)\n        p = ev.payload if isinstance(ev.payload, dict) else {}\n        a = ev.action\n        if a == _ACT_ROOT:",
+   "replace": "        p = ev.payload if isinstance(ev.payload, dict) else {}\n        a = ev.action\n        if a == _ACT_ROOT:",
+   "rationale": "D-2026-168: the gateway judges the context policy by one clock reading"
+  },
+  {
+   "name": "HT12_a_reservation_is_judged_at_the_clock_alone",
+   "path": "agent_substrate/inference.py",
+   "find": "                pid, at_seq, at_time=judged_at(self._latest_wall, now))",
+   "replace": "                pid, at_seq, at_time=now)",
+   "rationale": "D-2026-168: a reservation under an expired context policy is written, and replayed, at a clock set back"
+  },
+  {
+   "name": "HT13_the_second_reader_judges_promotions_at_their_own_clock",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        latest_wall = judged_at(latest_wall, ev.wall_time)\n        p = ev.payload",
+   "replace": "        latest_wall = ev.wall_time\n        p = ev.payload",
+   "rationale": "D-2026-168: the second reader admits a promotion recorded with the clock set back"
+  },
+  {
+   "name": "HT14_the_second_reader_s_subsystems_forget_the_history_s_time",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)",
+   "replace": "        out.latest_wall = ev.wall_time",
+   "rationale": "D-2026-168: the second reader admits a decision and a reservation recorded with the clock set back"
+  },
+  {
+   "name": "HT15_the_second_reader_ignores_a_decision_s_expiry",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            and out.latest_wall is not None and out.latest_wall > expiry:",
+   "replace": "            and False:",
+   "rationale": "D-2026-168: the second reader does not notice a decision under an expired policy"
+  },
+  {
+   "name": "HT16_the_second_reader_judges_a_reservation_at_its_own_clock",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if expiry is not None and judged_at(out.latest_wall, wall) > expiry:",
+   "replace": "    if expiry is not None and wall > expiry:",
+   "rationale": "D-2026-168: the second reader admits a reservation recorded with the clock set back"
+  },
+  {
+   "name": "HT17_a_proof_ignores_expiry",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    return not withdrawn and not expired and latest is not None and \\\n        str(latest) == ver",
+   "replace": "    return not withdrawn and latest is not None and \\\n        str(latest) == ver",
+   "rationale": "D-2026-168: a decision proof says an expired context policy was in force"
+  },
+  {
+   "name": "HT18_a_proof_judges_at_the_record_s_own_clock",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        wall = judged_at(wall, e.wall_time)\n        if e.seq == at_seq:",
+   "replace": "        wall = e.wall_time\n        if e.seq == at_seq:",
+   "rationale": "D-2026-168: a decision proof judges an expiry at a clock set back"
+  },
+  {
+   "name": "HT19_the_second_reader_ignores_a_withdrawn_decision_policy",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    elif owner.get(\"withdrawn_seq\") is not None:\n        _note(out, ev, f\"a decision under {pid!r}, withdrawn at seq \"",
+   "replace": "    elif False:\n        _note(out, ev, f\"a decision under {pid!r}, withdrawn at seq \"",
+   "rationale": "D-2026-168: the second reader holds a decision under a withdrawn policy"
+  },
+  {
+   "name": "HT20_the_second_reader_ignores_the_cited_digest",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    elif d.get(\"policy_digest\") != versions[-1].get(\"digest\"):",
+   "replace": "    elif False:",
+   "rationale": "D-2026-168: the second reader holds a decision citing a document that is not the one in force"
+  },
+  {
+   "name": "HT21_the_second_reader_ignores_an_unpublished_decision_policy",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if not versions:\n        _note(out, ev, f\"a decision under {pid!r}, which nothing published\")",
+   "replace": "    if False:\n        _note(out, ev, f\"a decision under {pid!r}, which nothing published\")",
+   "rationale": "D-2026-168: the second reader holds a decision under a policy nobody published"
+  }
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "title": "Gate D: the preregistered grounding experiment's conditions are what the protocol says",
+ "note": "D-2026-182. Each breaks a condition's definition or the registration: a gate that passes everything, a state answer from a conflict or a withdrawn record, a gate checking another condition's answer (Tranche G's confound reopened), a run under unregistered parameters. tests/test_grounding_experiment.py holds each.",
+ "suites": [
+  "tests/test_grounding_experiment.py"
+ ],
+ "mutations": [
+  {
+   "name": "GD1_the_semantic_gate_passes_everything",
+   "path": "tools/grounding_experiment.py",
+   "find": "                    gate = rep.verdict is C.Verdict.SUPPORTED",
+   "replace": "                    gate = True",
+   "rationale": "D: an unsupported answer is counted as gated and supported"
+  },
+  {
+   "name": "GD2_the_state_answers_a_conflict",
+   "path": "tools/grounding_experiment.py",
+   "find": "    if len(values) != 1:",
+   "replace": "    if not values:",
+   "rationale": "D: the state picks one of two disagreeing runs"
+  },
+  {
+   "name": "GD3_the_state_ignores_a_withdrawal",
+   "path": "tools/grounding_experiment.py",
+   "find": "        if rec[\"status\"] == \"CURRENT\" and sci.get(\"state\") in (\n                \"VERIFIED\", \"PROMOTED\"):",
+   "replace": "        if True:",
+   "rationale": "D: the state answers from a withdrawn record"
+  },
+  {
+   "name": "GD4_a_gate_substitutes_the_governed_answer",
+   "path": "tools/grounding_experiment.py",
+   "find": "                    ans = asks.get(cond, d1)",
+   "replace": "                    ans = asks.get(cond, asks[\"D7_governed\"])",
+   "rationale": "D: the gates check another condition's answer, the confound reopened"
+  },
+  {
+   "name": "GD5_unregistered_parameters_run",
+   "path": "tools/grounding_experiment.py",
+   "find": "        if registered_digest() != params_digest(CONFIRMATORY):",
+   "replace": "        if False:",
+   "rationale": "D: a confirmatory run starts under parameters the protocol never registered"
+  }
+ ]
+}

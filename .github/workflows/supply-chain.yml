@@ -1,0 +1,277 @@
+# Supply-chain path, executed: release candidate, SBOM, provenance, keyless
+# signature, verification, tamper refusal (Scientific AI Harness).
+#
+# WHAT IT ANSWERS. Does the harness's release candidate -- the commit's tree
+# packed deterministically, a CycloneDX SBOM of every locked environment, an
+# in-toto provenance statement, an index, all bound by SHA256SUMS -- get a
+# real Sigstore keyless signature from THIS workflow's GitHub OIDC identity,
+# does that signature verify against the EXACT identity and issuer pinned in
+# docs/supply_chain_ci_policy.json (online, and offline from the bundle's own
+# transparency-log inclusion proof), and is every tampered copy refused?
+#
+# THREE JOBS, THREE QUESTIONS (D-2026-143/144/145).
+#   sign-and-verify    builds, signs, verifies, runs the tamper suite, and
+#                      requires the release gate (admit) to REFUSE: a CI
+#                      signature is SIGNER_TRUSTED and never
+#                      RELEASE_AUTHORIZED.
+#   offline-verify     on a fresh runner with NO repository checkout -- only
+#                      tools/offline_verify.py, the sigstore lock and the CI
+#                      policy, copied out of a sparse checkout that is then
+#                      deleted -- provisions its own trusted root through
+#                      TUF, removes the network (a new network namespace),
+#                      and verifies the downloaded candidate and every
+#                      hostile copy of it with the system Python and an
+#                      empty environment.
+#   rebuild-elsewhere  builds the same commit on another runner image with
+#                      another Python and holds the two builds to
+#                      docs/security/reproducibility_contract.json.
+#
+# CI_VALIDATION_ONLY. This signs a CI artifact to exercise the mechanism. It
+# creates no tag and no GitHub Release, and the policy it verifies against is
+# not a release trust root: none exists, and creating one needs the owner's
+# authorization. A valid signature attests origin and integrity only, never
+# scientific validity. NO SLSA level is claimed.
+#
+# LEAST PRIVILEGE. contents: read for the checkout; id-token: write -- in
+# the signing job only -- so it can obtain the ephemeral OIDC token Sigstore
+# exchanges for a short-lived certificate. The token is never written
+# anywhere. The other two jobs hold contents: read and nothing else.
+name: supply-chain
+on:
+  push:
+    branches: ["claude/scientific-python-stack-7rsq3m"]
+  workflow_dispatch:
+permissions: {}            # default-deny
+jobs:
+  sign-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - run: uv sync --frozen --all-groups
+      - name: the sigstore runtime, every wheel by hash
+        run: |
+          set -euo pipefail
+          uv run python tools/isolated_runtime.py create sigstore \
+            --prefix "$RUNNER_TEMP/sigstore" | tee sigstore_runtime.json
+      - name: build the release candidate from the commit (not the working tree)
+        run: uv run python tools/supply_chain.py build --out rc
+      - name: digests, provenance, SBOM and tree, before any signature
+        run: uv run python tools/supply_chain.py verify --dir rc --mode digests
+      - name: keyless signature with this job's OIDC identity
+        run: |
+          "$RUNNER_TEMP/sigstore/bin/python" -I -m sigstore sign \
+            --bundle rc/SHA256SUMS.sigstore.json rc/SHA256SUMS
+      - name: a decoy, signed by the same identity over other bytes
+        # A genuine signature that is not this candidate's: substituting it
+        # must be refused even though its certificate is the trusted one.
+        run: |
+          mkdir -p decoy
+          printf 'not the release candidate\n' > decoy/decoy.txt
+          "$RUNNER_TEMP/sigstore/bin/python" -I -m sigstore sign \
+            --bundle decoy/decoy.sigstore.json decoy/decoy.txt
+      - name: the trusted root, provisioned by TUF and not by the bundle
+        # From the Sigstore public-good TUF repository, rooted in the
+        # root.json shipped inside the hash-pinned sigstore wheel. Written
+        # outside the workspace; its digest is printed for the log.
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/trust"
+          "$RUNNER_TEMP/sigstore/bin/python" -I -c '
+          import sys
+          from sigstore.models import ClientTrustConfig
+          open(sys.argv[1], "w").write(
+              ClientTrustConfig.production()._inner.to_json())
+          ' "$RUNNER_TEMP/trust/trust_config.json"
+          sha256sum "$RUNNER_TEMP/trust/trust_config.json"
+      - name: verify online against the exact pinned identity and issuer
+        run: |
+          HARNESS_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+            uv run python tools/supply_chain.py verify --dir rc --mode online \
+            --report verify_online.json
+      - name: verify offline from the bundle's inclusion proof
+        run: |
+          HARNESS_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+            uv run python tools/supply_chain.py verify --dir rc --mode offline \
+            --trust-config "$RUNNER_TEMP/trust/trust_config.json" \
+            --report verify_offline.json
+      - name: the portable verifier, by itself, on the signed candidate
+        run: |
+          python3 -I tools/offline_verify.py verify --bundle rc \
+            --policy docs/supply_chain_ci_policy.json \
+            --trust-config "$RUNNER_TEMP/trust/trust_config.json" \
+            --sigstore-python "$RUNNER_TEMP/sigstore/bin/python" \
+            --mode offline --report verify_portable.json
+      - name: the release gate must refuse a CI signature (exit 3)
+        run: |
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP/policy"
+          cp docs/supply_chain_ci_policy.json "$RUNNER_TEMP/policy/ci.json"
+          # The runner's shell is bash -e: the refusal is captured with ||,
+          # or exit 3 would end the step before it is checked (D-2026-152).
+          code=0
+          HARNESS_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+            uv run python tools/supply_chain.py admit --dir rc \
+            --release-policy "$RUNNER_TEMP/policy/ci.json" \
+            --trust-config "$RUNNER_TEMP/trust/trust_config.json" \
+            --mode offline --report admit_refused.json || code=$?
+          if [ "$code" -ne 3 ]; then
+            echo "admit exited $code; a CI signature must be verified and NOT admitted (3)"
+            exit 1
+          fi
+          python3 -c 'import json,sys; r=json.load(open("admit_refused.json")); sys.exit(0 if r["admitted"] is False and r["levels"]["SIGNER_TRUSTED"]["status"]=="ESTABLISHED" else 1)'
+      - name: tamper suite (every copy must be refused)
+        run: |
+          HARNESS_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+            uv run python tools/supply_chain.py tamper --dir rc --mode online \
+            --report tamper.json
+      - name: record the transparency-log entry
+        run: |
+          python3 - <<'PY'
+          import json
+          b = json.load(open("rc/SHA256SUMS.sigstore.json"))
+          e = b["verificationMaterial"]["tlogEntries"][0]
+          rec = {"logIndex": e.get("logIndex"),
+                 "integratedTime": e.get("integratedTime"),
+                 "logId": e.get("logId"), "kindVersion": e.get("kindVersion")}
+          json.dump(rec, open("rekor_entry.json", "w"), indent=1, sort_keys=True)
+          print(json.dumps(rec, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: supply-chain-release-candidate
+          path: |
+            rc
+            verify_online.json
+            verify_offline.json
+            tamper.json
+            verify_portable.json
+            admit_refused.json
+            rekor_entry.json
+            sigstore_runtime.json
+            decoy
+          if-no-files-found: warn
+
+  offline-verify:
+    needs: sign-and-verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: the verifier kit -- three files, and no checkout left behind
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with:
+          persist-credentials: false
+          path: kit
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            tools/offline_verify.py
+            integrations/supply_chain/sigstore.lock
+            docs/supply_chain_ci_policy.json
+      - name: copy the kit out, delete the checkout, prove what is left
+        run: |
+          set -euo pipefail
+          OV="$RUNNER_TEMP/ov"
+          mkdir -p "$OV"
+          cp kit/tools/offline_verify.py kit/integrations/supply_chain/sigstore.lock \
+             kit/docs/supply_chain_ci_policy.json "$OV/"
+          rm -rf kit
+          ls -la "$OV"
+          test "$(find "$OV" -type f | wc -l)" -eq 3
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -print -quit)"
+          sha256sum "$OV"/*
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093   # v4
+        with:
+          name: supply-chain-release-candidate
+          path: received
+      - name: the sigstore runtime from the lock, with pip and the system Python
+        run: |
+          set -euo pipefail
+          python3 --version
+          python3 -m venv "$RUNNER_TEMP/sig"
+          "$RUNNER_TEMP/sig/bin/pip" install --quiet --require-hashes --no-deps \
+            -r "$RUNNER_TEMP/ov/sigstore.lock"
+          "$RUNNER_TEMP/sig/bin/python" -I -c 'import importlib.metadata as m; print("sigstore", m.version("sigstore"))'
+      - name: the trusted root, provisioned by this verifier's operator
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/trust"
+          "$RUNNER_TEMP/sig/bin/python" -I -c '
+          import sys
+          from sigstore.models import ClientTrustConfig
+          open(sys.argv[1], "w").write(
+              ClientTrustConfig.production()._inner.to_json())
+          ' "$RUNNER_TEMP/trust/trust_config.json"
+          sha256sum "$RUNNER_TEMP/trust/trust_config.json"
+      - name: verify and attack, with the network removed
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out" "$RUNNER_TEMP/ovh"
+          cat > "$RUNNER_TEMP/run.sh" <<'SH'
+          set -u
+          # No interface but a down loopback, and no route anywhere.
+          ip -o link
+          if python3 -I -c 'import socket; socket.create_connection(("140.82.112.3", 443), timeout=5)' 2>/dev/null; then
+            echo "NETWORK STILL REACHABLE"; exit 90
+          fi
+          V="python3 -I $OV/offline_verify.py"
+          ARGS="--bundle $RC/rc --policy $OV/supply_chain_ci_policy.json --trust-config $TC --sigstore-python $SIG --mode offline"
+          $V verify $ARGS --report "$OUT/offline_verify.json"; a=$?
+          $V verify $ARGS --require RELEASE_AUTHORIZED > "$OUT/require_release.txt"; b=$?
+          $V hostile $ARGS --decoy-bundle "$RC/decoy/decoy.sigstore.json" --report "$OUT/hostile.json"; c=$?
+          echo "verify=$a require_release=$b hostile=$c"
+          [ "$a" -eq 0 ] && [ "$b" -eq 3 ] && [ "$c" -eq 0 ]
+          SH
+          sudo unshare --net -- setpriv --reuid="$(id -u)" --regid="$(id -g)" --clear-groups -- \
+            env -i PATH=/usr/bin:/bin HOME="$RUNNER_TEMP/ovh" \
+            OV="$RUNNER_TEMP/ov" RC="$GITHUB_WORKSPACE/received" \
+            TC="$RUNNER_TEMP/trust/trust_config.json" SIG="$RUNNER_TEMP/sig/bin/python" \
+            OUT="$RUNNER_TEMP/out" /bin/bash "$RUNNER_TEMP/run.sh"
+          cp "$RUNNER_TEMP"/out/* .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: offline-verification
+          path: |
+            offline_verify.json
+            require_release.txt
+            hostile.json
+          if-no-files-found: warn
+
+  rebuild-elsewhere:
+    needs: sign-and-verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: build the same commit with Python 3.11 and no project environment
+        run: |
+          set -euo pipefail
+          umask 0077
+          TZ=Pacific/Kiritimati LANG=C uv run --no-project --python 3.11 \
+            python tools/supply_chain.py build --out "$RUNNER_TEMP/rebuilt"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093   # v4
+        with:
+          name: supply-chain-release-candidate
+          path: received
+      - name: the two builds, held to the reproducibility contract
+        run: |
+          uv run --no-project --python 3.11 python tools/supply_chain.py compare \
+            --a received/rc --b "$RUNNER_TEMP/rebuilt" --report reproduction.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: reproduction
+          path: reproduction.json
+          if-no-files-found: warn

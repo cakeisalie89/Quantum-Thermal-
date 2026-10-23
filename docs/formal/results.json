@@ -1,0 +1,1167 @@
+{
+ "results": [
+  {
+   "distinct_states": 1121,
+   "expected": "PASS",
+   "loops_to": null,
+   "outcome": "PASS",
+   "spec": "AuthorityPromotion",
+   "trace": [],
+   "variant": "none",
+   "violated": null
+  },
+  {
+   "distinct_states": 24,
+   "expected": "SeparationOfDuties",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "AuthorityPromotion",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ],
+     "policy": "in_force",
+     "proposer": "none",
+     "state": "NONE"
+    },
+    {
+     "last": [
+      "Create",
+      "a1"
+     ],
+     "policy": "in_force",
+     "proposer": "a1",
+     "state": "PROPOSED"
+    },
+    {
+     "last": [
+      "Transition",
+      "a2",
+      "VERIFIER",
+      "PROPOSED",
+      "UNDER_REVIEW"
+     ],
+     "policy": "in_force",
+     "proposer": "a1",
+     "state": "UNDER_REVIEW"
+    },
+    {
+     "last": [
+      "Transition",
+      "a1",
+      "VERIFIER",
+      "UNDER_REVIEW",
+      "VERIFIED"
+     ],
+     "policy": "in_force",
+     "proposer": "a1",
+     "state": "VERIFIED"
+    }
+   ],
+   "variant": "self_verify",
+   "violated": "SeparationOfDuties"
+  },
+  {
+   "distinct_states": 26,
+   "expected": "SeparationOfDuties",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "AuthorityPromotion",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ],
+     "policy": "in_force",
+     "proposer": "none",
+     "state": "NONE"
+    },
+    {
+     "last": [
+      "Create",
+      "a1"
+     ],
+     "policy": "in_force",
+     "proposer": "a1",
+     "state": "PROPOSED"
+    },
+    {
+     "last": [
+      "Transition",
+      "a2",
+      "VERIFIER",
+      "PROPOSED",
+      "UNDER_REVIEW"
+     ],
+     "policy": "in_force",
+     "proposer": "a1",
+     "state": "UNDER_REVIEW"
+    },
+    {
+     "last": [
+      "Transition",
+      "a2",
+      "VERIFIER",
+      "UNDER_REVIEW",
+      "PROMOTED"
+     ],
+     "policy": "in_force",
+     "proposer": "a1",
+     "state": "PROMOTED"
+    }
+   ],
+   "variant": "review_promotes",
+   "violated": "SeparationOfDuties"
+  },
+  {
+   "distinct_states": 150,
+   "expected": "PromotedUnderAPolicyInForce",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "AuthorityPromotion",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ],
+     "policy": "in_force",
+     "proposer": "none",
+     "state": "NONE"
+    },
+    {
+     "last": [
+      "Create",
+      "a1"
+     ],
+     "policy": "in_force",
+     "proposer": "a1",
+     "state": "PROPOSED"
+    },
+    {
+     "last": [
+      "Transition",
+      "a2",
+      "VERIFIER",
+      "PROPOSED",
+      "UNDER_REVIEW"
+     ],
+     "policy": "in_force",
+     "proposer": "a1",
+     "state": "UNDER_REVIEW"
+    },
+    {
+     "last": [
+      "Transition",
+      "a2",
+      "VERIFIER",
+      "UNDER_REVIEW",
+      "VERIFIED"
+     ],
+     "policy": "in_force",
+     "proposer": "a1",
+     "state": "VERIFIED"
+    },
+    {
+     "last": [
+      "Withdraw"
+     ],
+     "policy": "withdrawn",
+     "proposer": "a1",
+     "state": "VERIFIED"
+    },
+    {
+     "last": [
+      "Transition",
+      "a2",
+      "PROMOTER",
+      "VERIFIED",
+      "PROMOTED"
+     ],
+     "policy": "withdrawn",
+     "proposer": "a1",
+     "state": "PROMOTED"
+    }
+   ],
+   "variant": "withdrawn_policy",
+   "violated": "PromotedUnderAPolicyInForce"
+  },
+  {
+   "distinct_states": 6485,
+   "expected": "PASS",
+   "loops_to": null,
+   "outcome": "PASS",
+   "spec": "LogAppend",
+   "trace": [],
+   "variant": "none",
+   "violated": null
+  },
+  {
+   "distinct_states": 362,
+   "expected": "ChainIntact",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "LogAppend",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ]
+    },
+    {
+     "last": [
+      "Acquire",
+      "p1"
+     ]
+    },
+    {
+     "last": [
+      "Decide",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    },
+    {
+     "last": [
+      "Acquire",
+      "p2"
+     ]
+    },
+    {
+     "last": [
+      "Decide",
+      "p2",
+      [
+       "p2",
+       1
+      ]
+     ]
+    },
+    {
+     "last": [
+      "Write",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    },
+    {
+     "last": [
+      "Write",
+      "p2",
+      [
+       "p2",
+       1
+      ]
+     ]
+    }
+   ],
+   "variant": "no_lock",
+   "violated": "ChainIntact"
+  },
+  {
+   "distinct_states": 196,
+   "expected": "NothingAfterATornLine",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "LogAppend",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ]
+    },
+    {
+     "last": [
+      "Acquire",
+      "p1"
+     ]
+    },
+    {
+     "last": [
+      "Decide",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    },
+    {
+     "last": [
+      "CrashMidWrite",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    },
+    {
+     "last": [
+      "Acquire",
+      "p1"
+     ]
+    },
+    {
+     "last": [
+      "Decide",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    },
+    {
+     "last": [
+      "Write",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    }
+   ],
+   "variant": "append_over_torn",
+   "violated": "NothingAfterATornLine"
+  },
+  {
+   "distinct_states": 191,
+   "expected": "NoDuplicate",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "LogAppend",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ]
+    },
+    {
+     "last": [
+      "Acquire",
+      "p1"
+     ]
+    },
+    {
+     "last": [
+      "Decide",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    },
+    {
+     "last": [
+      "CrashAfterWrite",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    },
+    {
+     "last": [
+      "Acquire",
+      "p1"
+     ]
+    },
+    {
+     "last": [
+      "Decide",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    },
+    {
+     "last": [
+      "Write",
+      "p1",
+      [
+       "p1",
+       1
+      ]
+     ]
+    }
+   ],
+   "variant": "no_idempotent_decide",
+   "violated": "NoDuplicate"
+  },
+  {
+   "distinct_states": null,
+   "expected": "TEMPORAL",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "LogAppend",
+   "trace": [],
+   "variant": "no_repair",
+   "violated": "TEMPORAL"
+  },
+  {
+   "distinct_states": 20574,
+   "expected": "PASS",
+   "loops_to": null,
+   "outcome": "PASS",
+   "spec": "InferenceBudget",
+   "trace": [],
+   "variant": "none",
+   "violated": null
+  },
+  {
+   "distinct_states": 5,
+   "expected": "NeverOverspent",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "InferenceBudget",
+   "trace": [
+    {
+     "held": 0,
+     "last": [
+      "Init"
+     ],
+     "now": 0
+    },
+    {
+     "held": 2,
+     "last": [
+      "Reserve",
+      "r1",
+      1
+     ],
+     "now": 0
+    },
+    {
+     "held": 4,
+     "last": [
+      "Reserve",
+      "r2",
+      1
+     ],
+     "now": 0
+    }
+   ],
+   "variant": "check_held_only",
+   "violated": "NeverOverspent"
+  },
+  {
+   "distinct_states": 14,
+   "expected": "DispatchedOnce",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "InferenceBudget",
+   "trace": [
+    {
+     "held": 0,
+     "last": [
+      "Init"
+     ],
+     "now": 0
+    },
+    {
+     "held": 2,
+     "last": [
+      "Reserve",
+      "r1",
+      1
+     ],
+     "now": 0
+    },
+    {
+     "held": 2,
+     "last": [
+      "Dispatch",
+      "r1",
+      1
+     ],
+     "now": 0
+    },
+    {
+     "held": 2,
+     "last": [
+      "Dispatch",
+      "r1",
+      1
+     ],
+     "now": 0
+    }
+   ],
+   "variant": "double_dispatch",
+   "violated": "DispatchedOnce"
+  },
+  {
+   "distinct_states": 318,
+   "expected": "NothingSettledInFlight",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "InferenceBudget",
+   "trace": [
+    {
+     "held": 0,
+     "last": [
+      "Init"
+     ],
+     "now": 0
+    },
+    {
+     "held": 2,
+     "last": [
+      "Reserve",
+      "r1",
+      1
+     ],
+     "now": 0
+    },
+    {
+     "held": 2,
+     "last": [
+      "Tick"
+     ],
+     "now": 1
+    },
+    {
+     "held": 2,
+     "last": [
+      "Tick"
+     ],
+     "now": 2
+    },
+    {
+     "held": 2,
+     "last": [
+      "Dispatch",
+      "r1",
+      1
+     ],
+     "now": 2
+    },
+    {
+     "held": 2,
+     "last": [
+      "Tick"
+     ],
+     "now": 3
+    },
+    {
+     "held": 2,
+     "last": [
+      "Recover",
+      "r1",
+      1
+     ],
+     "now": 3
+    }
+   ],
+   "variant": "late_dispatch",
+   "violated": "NothingSettledInFlight"
+  },
+  {
+   "distinct_states": 17,
+   "expected": "NothingSettledInFlight",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "InferenceBudget",
+   "trace": [
+    {
+     "held": 0,
+     "last": [
+      "Init"
+     ],
+     "now": 0
+    },
+    {
+     "held": 2,
+     "last": [
+      "Reserve",
+      "r1",
+      1
+     ],
+     "now": 0
+    },
+    {
+     "held": 2,
+     "last": [
+      "Dispatch",
+      "r1",
+      1
+     ],
+     "now": 0
+    },
+    {
+     "held": 2,
+     "last": [
+      "Recover",
+      "r1",
+      1
+     ],
+     "now": 0
+    }
+   ],
+   "variant": "recover_ignores_lease",
+   "violated": "NothingSettledInFlight"
+  },
+  {
+   "distinct_states": null,
+   "expected": "TEMPORAL",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "InferenceBudget",
+   "trace": [],
+   "variant": "no_recovery",
+   "violated": "TEMPORAL"
+  },
+  {
+   "distinct_states": 442,
+   "expected": "PASS",
+   "loops_to": null,
+   "outcome": "PASS",
+   "spec": "CrashRetry",
+   "trace": [],
+   "variant": "none",
+   "violated": null
+  },
+  {
+   "distinct_states": 5,
+   "expected": "OneTaskPerKey",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "CrashRetry",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ]
+    },
+    {
+     "last": [
+      "Submit"
+     ]
+    },
+    {
+     "last": [
+      "Submit"
+     ]
+    }
+   ],
+   "variant": "rebind",
+   "violated": "OneTaskPerKey"
+  },
+  {
+   "distinct_states": 125,
+   "expected": "RecordedByTheLeaseHolder",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "CrashRetry",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ]
+    },
+    {
+     "last": [
+      "Submit"
+     ]
+    },
+    {
+     "last": [
+      "Take",
+      "w1"
+     ]
+    },
+    {
+     "last": [
+      "Tick"
+     ]
+    },
+    {
+     "last": [
+      "Tick"
+     ]
+    },
+    {
+     "last": [
+      "Recover"
+     ]
+    },
+    {
+     "last": [
+      "Take",
+      "w2"
+     ]
+    },
+    {
+     "last": [
+      "Finish",
+      "w1"
+     ]
+    }
+   ],
+   "variant": "no_lease_check",
+   "violated": "RecordedByTheLeaseHolder"
+  },
+  {
+   "distinct_states": 102,
+   "expected": "ExternalEffectsAtMostOnce",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "CrashRetry",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ]
+    },
+    {
+     "last": [
+      "Submit"
+     ]
+    },
+    {
+     "last": [
+      "Take",
+      "w1"
+     ]
+    },
+    {
+     "last": [
+      "Tick"
+     ]
+    },
+    {
+     "last": [
+      "Tick"
+     ]
+    },
+    {
+     "last": [
+      "Recover"
+     ]
+    },
+    {
+     "last": [
+      "Take",
+      "w2"
+     ]
+    }
+   ],
+   "variant": "rerun_external",
+   "violated": "ExternalEffectsAtMostOnce"
+  },
+  {
+   "distinct_states": null,
+   "expected": "TEMPORAL",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "CrashRetry",
+   "trace": [],
+   "variant": "no_recover",
+   "violated": "TEMPORAL"
+  },
+  {
+   "distinct_states": 244,
+   "expected": "PASS",
+   "loops_to": null,
+   "outcome": "PASS",
+   "spec": "Invalidation",
+   "trace": [],
+   "variant": "none",
+   "violated": null
+  },
+  {
+   "distinct_states": 2,
+   "expected": "PlanIsComplete",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "Invalidation",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ],
+     "origin": "VALID",
+     "pending": {
+      "$set": []
+     },
+     "st": {
+      "r1": "VERIFIED",
+      "r2": "PROMOTED",
+      "r3": "SUPERSEDED",
+      "r4": "PROMOTED",
+      "r5": "PROMOTED"
+     }
+    },
+    {
+     "last": [
+      "InvalidateOrigin"
+     ],
+     "origin": "INVALIDATED",
+     "pending": {
+      "$set": [
+       "r1",
+       "r2"
+      ]
+     },
+     "st": {
+      "r1": "VERIFIED",
+      "r2": "PROMOTED",
+      "r3": "SUPERSEDED",
+      "r4": "PROMOTED",
+      "r5": "PROMOTED"
+     }
+    }
+   ],
+   "variant": "direct_only",
+   "violated": "PlanIsComplete"
+  },
+  {
+   "distinct_states": 2,
+   "expected": "PlanIsComplete",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "Invalidation",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ],
+     "origin": "VALID",
+     "pending": {
+      "$set": []
+     },
+     "st": {
+      "r1": "VERIFIED",
+      "r2": "PROMOTED",
+      "r3": "SUPERSEDED",
+      "r4": "PROMOTED",
+      "r5": "PROMOTED"
+     }
+    },
+    {
+     "last": [
+      "InvalidateOrigin"
+     ],
+     "origin": "INVALIDATED",
+     "pending": {
+      "$set": [
+       "r1",
+       "r2"
+      ]
+     },
+     "st": {
+      "r1": "VERIFIED",
+      "r2": "PROMOTED",
+      "r3": "SUPERSEDED",
+      "r4": "PROMOTED",
+      "r5": "PROMOTED"
+     }
+    }
+   ],
+   "variant": "stop_at_skipped",
+   "violated": "PlanIsComplete"
+  },
+  {
+   "distinct_states": null,
+   "expected": "TEMPORAL",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "Invalidation",
+   "trace": [],
+   "variant": "no_settle",
+   "violated": "TEMPORAL"
+  },
+  {
+   "distinct_states": 7,
+   "expected": "JustifiedStaleness",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "Invalidation",
+   "trace": [
+    {
+     "last": [
+      "Init"
+     ],
+     "origin": "VALID",
+     "pending": {
+      "$set": []
+     },
+     "st": {
+      "r1": "VERIFIED",
+      "r2": "PROMOTED",
+      "r3": "SUPERSEDED",
+      "r4": "PROMOTED",
+      "r5": "PROMOTED"
+     }
+    },
+    {
+     "last": [
+      "InvalidateOrigin"
+     ],
+     "origin": "INVALIDATED",
+     "pending": {
+      "$set": [
+       "r1",
+       "r2",
+       "r4",
+       "r5"
+      ]
+     },
+     "st": {
+      "r1": "VERIFIED",
+      "r2": "PROMOTED",
+      "r3": "SUPERSEDED",
+      "r4": "PROMOTED",
+      "r5": "PROMOTED"
+     }
+    },
+    {
+     "last": [
+      "Mark",
+      "r5"
+     ],
+     "origin": "INVALIDATED",
+     "pending": {
+      "$set": [
+       "r1",
+       "r2",
+       "r4"
+      ]
+     },
+     "st": {
+      "r1": "VERIFIED",
+      "r2": "PROMOTED",
+      "r3": "SUPERSEDED",
+      "r4": "PROMOTED",
+      "r5": "STALE"
+     }
+    }
+   ],
+   "variant": "overeager",
+   "violated": "JustifiedStaleness"
+  },
+  {
+   "distinct_states": 91,
+   "expected": "PASS",
+   "loops_to": null,
+   "outcome": "PASS",
+   "spec": "ContextFreshness",
+   "trace": [],
+   "variant": "none",
+   "violated": null
+  },
+  {
+   "distinct_states": 18,
+   "expected": "DecidedOnlyWhenFresh",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "ContextFreshness",
+   "trace": [
+    {
+     "contexts": {
+      "$set": []
+     },
+     "last": [
+      "Init"
+     ],
+     "version": 1,
+     "withdrawn": false
+    },
+    {
+     "contexts": {
+      "$set": []
+     },
+     "last": [
+      "Withdraw",
+      1
+     ],
+     "version": 1,
+     "withdrawn": true
+    },
+    {
+     "contexts": {
+      "$set": [
+       1
+      ]
+     },
+     "last": [
+      "Build",
+      1
+     ],
+     "version": 1,
+     "withdrawn": true
+    },
+    {
+     "contexts": {
+      "$set": [
+       1
+      ]
+     },
+     "last": [
+      "Decide",
+      1
+     ],
+     "version": 1,
+     "withdrawn": true
+    }
+   ],
+   "variant": "check_at_build",
+   "violated": "DecidedOnlyWhenFresh"
+  },
+  {
+   "distinct_states": 41,
+   "expected": "DecidedOnlyWhenFresh",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "ContextFreshness",
+   "trace": [
+    {
+     "contexts": {
+      "$set": []
+     },
+     "last": [
+      "Init"
+     ],
+     "version": 1,
+     "withdrawn": false
+    },
+    {
+     "contexts": {
+      "$set": [
+       1
+      ]
+     },
+     "last": [
+      "Build",
+      1
+     ],
+     "version": 1,
+     "withdrawn": false
+    },
+    {
+     "contexts": {
+      "$set": [
+       1
+      ]
+     },
+     "last": [
+      "Check",
+      1
+     ],
+     "version": 1,
+     "withdrawn": false
+    },
+    {
+     "contexts": {
+      "$set": [
+       1
+      ]
+     },
+     "last": [
+      "Publish",
+      2
+     ],
+     "version": 2,
+     "withdrawn": false
+    },
+    {
+     "contexts": {
+      "$set": [
+       1
+      ]
+     },
+     "last": [
+      "Act",
+      1
+     ],
+     "version": 2,
+     "withdrawn": false
+    }
+   ],
+   "variant": "check_then_act",
+   "violated": "DecidedOnlyWhenFresh"
+  },
+  {
+   "distinct_states": 18,
+   "expected": "DecidedOnlyWhenFresh",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "ContextFreshness",
+   "trace": [
+    {
+     "contexts": {
+      "$set": []
+     },
+     "last": [
+      "Init"
+     ],
+     "version": 1,
+     "withdrawn": false
+    },
+    {
+     "contexts": {
+      "$set": []
+     },
+     "last": [
+      "Withdraw",
+      1
+     ],
+     "version": 1,
+     "withdrawn": true
+    },
+    {
+     "contexts": {
+      "$set": [
+       1
+      ]
+     },
+     "last": [
+      "Build",
+      1
+     ],
+     "version": 1,
+     "withdrawn": true
+    },
+    {
+     "contexts": {
+      "$set": [
+       1
+      ]
+     },
+     "last": [
+      "Decide",
+      1
+     ],
+     "version": 1,
+     "withdrawn": true
+    }
+   ],
+   "variant": "ignore_withdrawal",
+   "violated": "DecidedOnlyWhenFresh"
+  }
+ ],
+ "schema": "formal-results/1",
+ "specs": {
+  "AuthorityPromotion": "c2cecfa5bc77622a11c74ea1386507345fafa691f11d95a5a4ac43adb3a2977a",
+  "ContextFreshness": "b6b9190b8817a3845f403cf8d7e355d9336a811146a2d41ddefe662ef083b264",
+  "CrashRetry": "712ad314e406ecfea58209b14d5916e61187271e16645da6007c96c7a369d80a",
+  "InferenceBudget": "fcbec324b0a371f40bd7f2330ac44bd2f00bc47a4eeb6d733ef4012ce6d765d5",
+  "Invalidation": "9724c39cfdfaf7ae5c1ffc9f891cbec34f74dac25f48e0bf2e3ef647ab806225",
+  "LogAppend": "8bbb26fcbf79173ad42e86872284be5a111636689b45224961a988a4d4a725aa"
+ },
+ "tla2tools": {
+  "sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+  "version": "1.7.4"
+ }
+}

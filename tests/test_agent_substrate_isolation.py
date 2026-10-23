@@ -1,0 +1,1110 @@
+"""The substrate is infrastructure, not science -- asserted, not merely stated.
+
+`authorities.json` and `AGENT_SUBSTRATE.md` state the invariant: agent
+execution cannot directly mutate authoritative scientific state, evidence, or
+acceptance state except through the governed interfaces and event-derived
+authority machinery (`authority_effect = NONE`). Prose cannot enforce
+that. One `import` from a solver would make every one of those sentences
+false while every other test in the repository stayed green.
+
+These tests are the enforcement. They fail the moment the claim stops being
+true, which is the only form in which a claim of this kind is worth making.
+"""
+from __future__ import annotations
+
+import ast
+import json
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools"))
+from repo_scope import repository_files  # noqa: E402
+
+PKG = ROOT / "agent_substrate"
+
+#: The substrate's legitimate consumers: its own test modules, and the
+#: verification TOOLS that exist to attack it. Adding an entry here is a
+#: deliberate act that this list makes visible in review, and the direction
+#: that matters is unchanged -- nothing that computes a scientific result may
+#: appear in this set.
+ALLOWED_IMPORTERS = {
+    # A verification tool, not a test: it fuzzes every parser in the package
+    # and therefore has to import them. It computes nothing.
+    "tools/fuzz_substrate.py",
+    # The end-to-end demonstration (section 48). It DRIVES the governed
+    # path -- a proposal through the ingress, a governed run, a reviewer's
+    # decision, a restart, the second reader -- so it has to import the
+    # substrate; it computes no gate, and its scientific results come from
+    # scientific.models and are decided by the store like any others.
+    "tools/harness_demo.py",
+    # The read-only auditor. It imports the index, the log and the two
+    # reconstructions in order to ASK them questions, opens nothing for
+    # writing, and computes no scientific result -- which is the direction
+    # this list exists to police.
+    "tools/audit_log.py",
+    # The independent verifier. It imports the SECOND reader on purpose and
+    # refuses the primary reducers at runtime -- see its import guard.
+    "tools/independent_verify.py",
+    # The bounded model checker. It imports the two state machines in order
+    # to INTERROGATE them -- deriving what the real gates permit rather than
+    # re-describing it -- and computes no scientific result. Importing them
+    # is the whole point: a checker that read the tables from a copy would
+    # be the drifting model this one exists to avoid.
+    "tools/model_check.py",
+    # The generic consistency verifier. Like the auditor it imports the log,
+    # the evidence store, the two readers and the store's projection in
+    # order to ASK them whether a history is consistent; it writes nothing
+    # and computes no scientific result.
+    "tools/generic_consistency.py",
+    "tests/test_generic_consistency.py",
+    "tests/test_agent_audit_cli.py",
+    "tests/test_agent_substrate.py",
+    "tests/test_agent_substrate_properties.py",
+    "tests/test_agent_machine_properties.py",
+    "tests/test_agent_hostile_campaign.py",
+    "tests/test_agent_collusion.py",
+    "tests/test_agent_differential.py",
+    "tests/test_agent_atomicity.py",
+    "tests/test_agent_readpath.py",
+    "tests/test_agent_evidence.py",
+    "tests/test_agent_checkpoint.py",
+    "tests/test_agent_snapshot_coherence.py",
+    "tests/test_agent_execution.py",
+    "tests/test_agent_governed_tasks.py",
+    "tests/test_agent_governed_breadth.py",
+    "tests/test_agent_idempotency.py",
+    "tests/test_agent_recovery.py",
+    "tests/test_agent_second_reader.py",
+    "tests/test_agent_audit.py",
+    "tests/test_agent_compensation.py",
+    "tests/test_agent_separate_verify.py",
+    "tests/test_agent_delegation.py",
+    "tests/test_agent_policy.py",
+    "tests/test_agent_scheduler.py",
+    "tests/test_agent_netauth.py",
+    "tests/test_agent_secrets.py",
+    "tests/test_agent_secret_provider.py",
+    "tests/test_agent_memory.py",
+    "tests/test_agent_context.py",
+    "tests/test_agent_agents.py",
+    "tests/test_agent_concurrency.py",
+    "tests/test_agent_cross_process.py",
+    "tests/test_agent_incremental.py",
+    "tests/test_generated_mutations.py",
+    "tests/test_model_check.py",
+    "tests/test_agent_crash_recovery.py",
+    "tests/test_checkpoint_recovery.py",
+    "tests/test_proposal_ingress.py",
+    "tests/test_proposal_crash_recovery.py",
+    "tests/test_proposal_concurrency.py",
+    "tests/test_decided_appends.py",
+    "tests/test_agent_fault_injection.py",
+    "tests/test_agent_fuzz.py",
+    "tests/test_agent_performance.py",
+    "tests/test_agent_long_horizon.py",
+    "tests/test_agent_substrate_isolation.py",
+    "tests/test_verified_read_guard.py",
+    "tests/test_scientific_identity.py",
+    "tests/test_governed_model.py",
+    "tests/test_agent_result_rules.py",
+    "tests/test_governed_model_reuse.py",
+    "tests/test_scientific_authority_replay.py",
+    "tests/test_second_reader_audit_actions.py",
+    "tests/test_scientific_invalidation.py",
+    "tests/test_task_execution_phase.py",
+    "tests/test_replay_origin_view.py",
+    "tests/test_actor_authentication.py",
+    "tests/test_authenticated_history.py",
+    "tests/test_signed_append_lifecycle.py",
+    # Tranche F. Writers deciding under the lock (D-2026-147) and promotions
+    # bound to a policy in force (D-2026-148): they drive the stores.
+    "tests/test_agent_toctou.py",
+    "tests/test_policy_binding.py",
+    # D-2026-149: an uncooperative tool against the executor's containment.
+    "tests/test_execution_containment.py",
+    # D-2026-150: hostile Cases A-H, each through the components it crosses.
+    "tests/test_hostile_composition.py",
+    # Tranche G. D-2026-156: every authority writer decides against the
+    # history it appends onto, and never resumes past a refused record.
+    "tests/test_t2_closure.py",
+    "tests/test_refused_fold.py",
+    "tests/test_t2_governed.py",
+    "tests/test_decided_under_lock.py",
+    # D-2026-162: the evidence vocabulary, held to the checks it registers.
+    "tests/test_evidence_terms.py",
+    # Gate B: the inference gateway and its second reading.
+    "tests/test_inference_gateway.py",
+    "tests/test_inference_concurrency.py",
+    "tests/test_inference_second_reader.py",
+    "tests/test_gate_b_acceptance.py",
+    # Gate C: the research ledger and the bounded controller.
+    "tests/test_research_ledger.py",
+    "tests/test_research_loop.py",
+    # Assurance A and B: the deterministic simulations, and the replay of
+    # the TLA+ models' behaviours against the implementation
+    "tests/test_simulation_gateway.py",
+    "tests/test_simulation_research.py",
+    "tests/test_formal_conformance.py",
+    # Assurance C: the label algebra, and the end-to-end noninterference run
+    "tests/test_trust_labels.py",
+    "tests/test_noninterference.py",
+    # Assurance D: decision proofs, derived and attacked
+    "tests/test_decision_proof.py",
+    # D-2026-168: an expiry judged at the time the history reached
+    "tests/test_history_time.py",
+    # Assurance F: freshness and re-observation
+    "tests/test_freshness.py",
+    # Assurance E: independent witnesses to the log's head
+    "tests/test_witness.py",
+    # Section 6.1: the causal assurance graph, and the withdrawal it predicts
+    "tests/test_assurance_graph.py",
+    # Section 6.2: the policy engine against an independent reference model
+    "tests/test_policy_semantics.py",
+    # Section 6.3: semantic claim verification and its benchmark, which
+    # builds its world through the authority store and the research ledger
+    "tests/test_claim_check.py",
+    "tools/claim_bench.py",
+    # Section 7: composed adversarial campaigns across the subsystems
+    "tests/test_composed_campaigns.py",
+    # Assurance J: the PROV export, against the Gate C history
+    "tests/test_prov_export.py",
+    # Assurance G: the offline adversarial evaluation of the research loop,
+    # which builds its worlds through the governed path
+    "tests/test_adversarial_eval.py",
+    "tests/test_adversarial_scenarios.py",
+    "tests/test_adversarial_controls.py",
+    # Gate F: model contracts shown to the loop, and the scientific context
+    # an observation keeps, read from the bundle it cites
+    "tests/test_research_science.py",
+    # Gate G: the long-horizon research campaign and its counters
+    "tests/test_research_horizon.py",
+    "tools/research_horizon.py",
+    # Gate D: the preregistered grounding experiment, whose worlds are
+    # written through the authority store, the ledger and the memory store
+    "tests/test_grounding_experiment.py",
+    "tools/grounding_experiment.py",
+    # Gate E: coordination of several agents on the existing substrate
+    "tests/test_multi_agent_research.py",
+    "tools/multi_agent_research.py",
+    "tools/adversarial_eval.py",
+    # D-2026-185: two runs in one writable scope, at the executor
+    "tests/test_concurrent_scope.py",
+    # Section 11: the integration demonstration and its variants
+    "tests/test_integration_demo.py",
+    "tools/integration_demo.py",
+    # D-2026-157: filesystem confinement, observed, and the deployment probe
+    # that runs it -- a tool that measures the executor and computes no
+    # scientific result.
+    "tests/test_filesystem_confinement.py",
+    "tests/test_confinement_probe.py",
+    "tools/confinement_probe.py",
+    # Assurance I: the deployment isolation contract, probed through the
+    # same executor on the host it runs on
+    "tests/test_isolation_contract.py",
+    "tools/isolation_contract.py",
+    # D-2026-158: the memory trust audit, each property broken alone.
+    "tests/test_memory_trust.py",
+    # D-2026-159: the grounding benchmark. It writes seeded worlds through
+    # the authority store into temporary directories and reads them back
+    # through both readers; it computes no scientific result and is
+    # imported by nothing.
+    "tests/test_grounding_bench.py",
+    "tools/grounding_bench/agents.py",
+    "tools/grounding_bench/world.py",
+    # NF-1T. The learned-record boundary's own tests: the store's live and
+    # replayed refusal, the second reader's, and the lifecycle's links.
+    "tests/test_neural_provenance.py",
+    # Writes the retrieval corpus allowlist from rag_index's own document
+    # function: a reviewed commit, not a library call, approves a corpus.
+    # It computes no scientific result.
+    "tools/corpus_allowlist.py",
+    "tests/test_agent_authority_boundaries.py",
+    "tests/test_agent_retrieval.py",
+    # Runs one real refusal of the authority gate under `python -O`.
+    "tests/test_no_enforcing_asserts.py",
+    # NF-1T. Records ALREADY-WRITTEN learned-model documents in a fresh,
+    # throwaway history and evaluates the claims; it computes no scientific
+    # result and trains nothing. tools/neural.py, which does both, runs it
+    # as a separate process and is deliberately NOT in this set.
+    "tools/neural_ledger.py",
+}
+
+#: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".
+#:
+#: It used to be ``git grep``, which sees tracked files only, with a note
+#: saying the tracked set is the right question and only the timing is a
+#: trap. The trap then fired a THIRD time: a new test importing agent_substrate was
+#: invisible until it was staged, the suite went green locally, and the tree
+#: that got pushed was red.
+#:
+#: "Tracked" was the wrong set. The right one is what git itself calls the
+#: working tree minus ignored files -- ``--cached --others
+#: --exclude-standard`` -- because an untracked, unignored file is not a
+#: scratch file, it is a file that WILL be part of the repository the moment
+#: anybody commits. That is the same rule generate_manifest.py applies, for
+#: the same reason, and it makes this fail on the machine that introduced the
+#: problem rather than on the runner an hour later.
+#:
+#: An ignored file still cannot make the import graph wrong, which is the
+#: invariant the old note was protecting.
+
+#: A linearization of the dependency graph. Each module may import only
+#: modules strictly earlier in this tuple, which keeps the graph a line
+#: rather than a web and makes "the log is the truth" structurally true
+#: instead of aspirational.
+# `reconstruct` sits after `tasks` because it now replays BOTH machines: the
+# authority records it always did, and the task lifecycle, which needs the
+# task transition table. Nothing earlier imports it -- it is a second reader,
+# and second readers belong downstream of everything they read.
+# `safeio` sits directly after `canonical` because it is a PRIMITIVE: it
+# confines a read to a subtree and refuses unsafe objects, and it must be
+# usable by the evidence store and the event log, which read their own storage
+# and have no subject to authorize. `readpath` is the AUTHORITY above it and
+# needs `capability`, so it sits after that. The split is the same one the
+# write side makes: the allowlist lives in the writer, the capability check
+# lives above it.
+# `projection` sits directly after `canonical` and imports nothing internal:
+# it digests SOURCE, and a reducer-identity module that imported the reducers
+# it identifies would be a cycle waiting for its first caller.
+LAYERS = ("canonical", "projection", "hostid",
+          # PID 1 of a tool's namespaces: a standalone script run by path,
+          # importing nothing of the package (D-2026-149).
+          "_ns_init",
+          # Gate B: the provider side of the inference gateway's process
+          # boundary. A standalone script run by path under -I with an empty
+          # environment; it imports nothing of the package.
+          "_inference_worker",
+          "safeio", "actions", "events",
+          "evidence",
+          # Actor authentication: the signature primitive, the provider
+          # seam that says what may stand behind it, then the attestations
+          # and key registry built on it. Nothing below imports them; every
+          # reader is HANDED an authenticator, on the log it reads.
+          "ed25519", "signature", "principals",
+          "capability", "idempotency", "readpath", "tools",
+          "execution", "checkpoint", "authority",
+          # The content rule for scientific results: JSON over canonical
+          # digests, read by the store on the edge into VERIFIED.
+          "result_rules",
+          # NF-1T: no learned record becomes VERIFIED or PROMOTED. Imports
+          # nothing internal; read by the store on the same edge.
+          "learned_rules",
+          "policy", "secrets",
+          "netauth", "store",
+          # NF-1T: a learned model's documents as records, through the
+          # existing record actions. HANDED a store; imports none.
+          "learned_lifecycle",
+          "invalidation", "tasks", "reconstruct",
+          # Sits directly above reconstruct and below everything that
+          # consumes a verdict: it spawns the independent verifier and
+          # reads its answer, and imports no reducer of its own. Placed
+          # here rather than at the top because what it must NOT reach is
+          # the scheduler/policy/capability layer -- the same set the
+          # child's import guard refuses at runtime.
+          "separate_verify",
+          "scheduler", "memory",
+          # D-2026-158: six properties of a remembered statement, each
+          # answered from the log. Reads memory, the chain and the second
+          # reader; nothing imports it, and it writes nothing.
+          "memory_trust",
+          "context", "agents", "audit",
+          "_artifact_tool", "_index_tool", "governed_tasks",
+          # Read-only retrieval over the reviewed corpus. Imports nothing
+          # internal; its one crossing is the workspace guard's read side.
+          "rag_index",
+          # Above governed_tasks, which it drives with its own tool
+          # registry; names the scientific tools by module string and
+          # imports nothing outside the package.
+          "governed_model",
+          # The AI proposal ingress. Imports only canonical: it is HANDED the
+          # log it records receipts on and the governed runs it submits
+          # through, so nothing below can reach it and it can reach no
+          # authority of its own.
+          "proposals",
+          # Gate B: the inference gateway. Above proposals, whose envelope it
+          # extends to /2, and above policy and context, whose records it
+          # reads; nothing below can reach it, and it holds no credential.
+          "inference",
+          # Section 6.1: the causal assurance graph. A projection of the
+          # verified history; imports nothing internal and decides nothing.
+          "assurance_graph",
+          # Assurance J: a read-only W3C PROV export of the verified
+          # history, through the graph above it; nothing imports it.
+          "prov_export",
+          # Assurance E: independent witnesses to the log's head. Imports
+          # the log's record type and the signature seam; nothing else.
+          "witness",
+          # Assurance F: freshness policies and what an observation is now.
+          # Imports nothing internal; the research ledger judges with it.
+          "freshness",
+          # Gate C: research records (imports only the log and freshness),
+          # then the bounded controller, which drives the gateway, the
+          # ingress and the governed path it is handed and reaches nothing
+          # else.
+          "research", "research_loop",
+          # D-2026-162: the evidence vocabulary. Imports nothing internal and
+          # names the checks it registers by string, so it is placed last:
+          # nothing in the package needs it to decide anything.
+          "evidence_terms",
+          # Assurance C: trust labels. Imports only the vocabulary, reads
+          # what it labels by duck typing, and decides nothing: last again.
+          "trust_labels",
+          # Section 6.3: semantic claim verification. Reads the research
+          # ledger, the authority store and the evidence store it is
+          # handed, labels with the two above, writes nothing, and nothing
+          # in the package imports it.
+          "claim_check")
+
+#: The ONLY modules permitted to reach into the scientific tree, and the only
+#: thing they may reach for.
+#:
+#: The direction matters and the two are not symmetric. Science importing the
+#: agent would let a result depend on an authority verdict, which is the
+#: failure this whole package is built to make impossible -- that stays
+#: absolutely forbidden. The agent reaching the workspace guard is what lets
+#: a governed tool write and read exactly where an ungoverned one may.
+#:
+#: So the crossing is allowed, named, and narrow: three modules, one import,
+#: and it is the workspace GUARD (``scientific.workspace``) rather than any
+#: model. A governed run is subject to exactly the same write allowlist as an
+#: ungoverned one -- the substrate adds authority, it does not replace the
+#: guard.
+BRIDGE_MODULES = {
+    "_artifact_tool": {"scientific"},
+    # The second tool, and the same single import. It reaches for the
+    # guard's READ side as well as its write side, which is how a tool that
+    # hashes caller-named paths is stopped from hashing a tracked file.
+    "_index_tool": {"scientific"},
+    # Retrieval writes its index into the workspace and reads only the
+    # reviewed corpus, through the same guard.
+    "rag_index": {"scientific"},
+}
+
+#: The one scientific module a bridge may import.
+BRIDGE_TARGET = "scientific.workspace"
+
+
+def _scientific_imports(path: Path) -> set:
+    """Every ``scientific`` module a file imports, by full dotted name,
+    lazy imports included."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found.update(a.name for a in node.names
+                         if a.name.split(".")[0] == "scientific")
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 \
+                and node.module and node.module.split(".")[0] == "scientific":
+            if node.module == "scientific":
+                found.update(f"scientific.{a.name}" for a in node.names)
+            else:
+                found.add(node.module)
+    return found
+
+
+def _modules():
+    return sorted(p for p in PKG.glob("*.py") if p.name != "__init__.py")
+
+
+def _internal_imports(path: Path) -> set:
+    """Relative imports of sibling modules, including lazy ones inside bodies.
+
+    ``ast.walk`` rather than a scan of module-level statements: several call
+    sites import lazily to avoid an import cycle, and a lazy dependency is
+    still a dependency.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    deps = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.level == 1:
+            if node.module:
+                deps.add(node.module.split(".")[0])
+            else:
+                deps.update(a.name.split(".")[0] for a in node.names)
+    return deps
+
+
+def _all_imported_names(path: Path) -> set:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            names.add(node.module.split(".")[0])
+    return names
+
+
+# --- the substrate does not reach into the science ---------------------------
+
+def test_no_substrate_module_reaches_a_scientific_model():
+    """The direction that would let an authority verdict change a result.
+
+    Absolute, and it applies to the bridge modules too: a bridge may call the
+    workspace guard, and may not import anything that computes.
+    """
+    bad = []
+    for mod in _modules():
+        hit = _scientific_imports(mod) - {BRIDGE_TARGET}
+        if hit:
+            bad.append(f"{mod.name}: {sorted(hit)}")
+    assert not bad, (
+        "agent_substrate reached a scientific module other than the "
+        f"workspace guard; authority_effect=NONE would be false: {bad}")
+
+
+def test_the_scientific_scan_sees_a_model_import(tmp_path):
+    """CONTROL: a planted model import, eager or lazy, is seen."""
+    probe = tmp_path / "probe.py"
+    probe.write_text("from scientific import workspace\n"
+                     "def f():\n"
+                     "    from scientific.models import slab_transient\n"
+                     "    import scientific.catalog\n", encoding="utf-8")
+    assert _scientific_imports(probe) == {
+        "scientific.workspace", "scientific.models",
+        "scientific.catalog"}
+
+
+def test_only_the_declared_bridges_reach_into_the_scientific_tree():
+    """Crossing the boundary is deliberate, named, and narrow.
+
+    A new crossing means editing BRIDGE_MODULES, which puts it in the diff and
+    in review rather than arriving as an incidental import.
+    """
+    stdlib = set(sys.stdlib_module_names)
+    bad = []
+    for mod in _modules():
+        allowed = BRIDGE_MODULES.get(mod.stem, set())
+        for name in _all_imported_names(mod):
+            if name in stdlib or name == "agent_substrate" or name in allowed:
+                continue
+            bad.append(f"{mod.stem}: {name}")
+    assert not bad, (
+        "a module reached outside the standard library and its own package "
+        f"without being a declared bridge: {bad}")
+
+
+def test_the_core_substrate_is_stdlib_only():
+    """Everything that is NOT a bridge must run with no dependency at all.
+
+    An authority layer that stops working when a wheel is unavailable is an
+    authority layer that stops working. Hypothesis appears in its property
+    tests, not in the code under test. Bridges are exempt by definition --
+    calling a workflow is what they are for.
+    """
+    stdlib = set(sys.stdlib_module_names)
+    bad = []
+    for mod in _modules():
+        if mod.stem in BRIDGE_MODULES:
+            continue
+        for name in _all_imported_names(mod):
+            if name in stdlib or name == "agent_substrate":
+                continue
+            bad.append(f"{mod.stem}: {name}")
+    assert not bad, f"non-stdlib dependency in the core substrate: {bad}"
+
+
+def test_a_bridge_may_only_reach_the_workspace_guard():
+    """Named narrowly: the guard, not the package.
+
+    ``scientific`` holds the models. A bridge that may import any of it
+    could import a model tomorrow without changing the allowlist, so the
+    permitted MODULE is pinned too -- and each bridge really does use it,
+    or it would not need to be a bridge.
+    """
+    for stem in BRIDGE_MODULES:
+        found = _scientific_imports(PKG / f"{stem}.py")
+        assert found == {BRIDGE_TARGET}, (stem, found)
+
+
+# --- the science does not reach into the substrate ---------------------------
+
+def _repository_python_files() -> tuple:
+    """Delegates to the ONE place this question is answered.
+
+    It used to be a local helper here. It is shared now because the same
+    question is asked by several guards, each of which got it wrong
+    independently -- see tools/repo_scope.py.
+    """
+    return repository_files("*.py")
+
+
+def test_the_importer_scan_sees_a_file_that_is_not_committed_yet():
+    """The blind spot itself, asserted rather than left as a note.
+
+    Three separate pushes went red because ``git grep`` cannot see an
+    untracked file: the guard passed locally, the file was committed, and
+    the runner found the problem. A file that is untracked and NOT ignored
+    is one commit away from being part of the repository, so it has to be in
+    the set this guard asks about.
+    """
+    probe = ROOT / "tools" / "_isolation_scan_probe.py"
+    assert not probe.exists(), "the probe name is already taken"
+    probe.write_text("from agent_substrate.canonical import digest  # probe\n")
+    try:
+        assert probe.relative_to(ROOT).as_posix() in \
+            _repository_python_files(), (
+            "an untracked, unignored file is invisible to the scan; the "
+            "blind spot is back")
+    finally:
+        probe.unlink()
+
+
+def test_the_importer_scan_ignores_what_git_ignores():
+    """An ignored file cannot make the repository's import graph wrong.
+
+    This is the invariant the git-grep version was protecting, and it has to
+    survive the fix: widening the set to 'everything on disk' would let a
+    quarantined mutation copy or a scratch directory fail this suite.
+    """
+    ignored_dir = ROOT / ".mutation-quarantine" / "_isolation_probe"
+    ignored_dir.mkdir(parents=True, exist_ok=True)
+    probe = ignored_dir / "x.py"
+    probe.write_text("import agent_substrate.store  # probe\n")
+    try:
+        r = subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q",
+                            str(probe)], capture_output=True)
+        assert r.returncode == 0, "the probe is not actually ignored by git"
+        assert probe.relative_to(ROOT).as_posix() not in \
+            _repository_python_files()
+    finally:
+        shutil.rmtree(ignored_dir, ignore_errors=True)
+
+
+def test_nothing_outside_the_package_imports_the_substrate():
+    """The direction that would make a gate depend on an authority verdict."""
+    pattern = re.compile(r"^\s*(from|import)\s+agent_substrate\b", re.MULTILINE)
+    importers = set()
+    for rel in _repository_python_files():
+        path = ROOT / rel
+        try:
+            body = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:                             # pragma: no cover
+            continue
+        if pattern.search(body):
+            importers.add(rel)
+    importers = {p for p in importers if not p.startswith("agent_substrate/")}
+    unexpected = importers - ALLOWED_IMPORTERS
+    assert not unexpected, (
+        "agent_substrate is imported outside its own package and tests, so a "
+        f"scientific result could now depend on an authority verdict: "
+        f"{sorted(unexpected)}")
+
+
+def test_no_scientific_module_imports_the_substrate():
+    """A result must not be computable only when the substrate is importable.
+
+    Read from the parse tree, lazy imports included, over every module of
+    the scientific layer and the learned-model substrate -- the code that
+    computes -- and the manifest generator. Their docstrings may NAME the
+    substrate (several say they do not know it); an import is what counts.
+    """
+    offenders = []
+    for rel in _repository_python_files():
+        if not (rel.startswith(("scientific/", "scientific_ai/"))
+                or rel == "generate_manifest.py"):
+            continue
+        tree = ast.parse((ROOT / rel).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            names = ([a.name for a in node.names]
+                     if isinstance(node, ast.Import) else
+                     [node.module] if isinstance(node, ast.ImportFrom)
+                     and node.level == 0 and node.module else [])
+            if any(n.split(".")[0] == "agent_substrate" for n in names):
+                offenders.append(rel)
+    assert not offenders, (
+        f"a computing module imports agent_substrate: {sorted(offenders)}")
+
+
+#: The Snakemake rules permitted to reference agent_substrate, and the complete
+#: set of them: one workflow emitting a governed artifact, one indexing what
+#: the workflow rules produced, the governed scientific-model path, whose
+#: whole point is that a model result reaches authority only through the
+#: substrate, and the read-only retrieval index the agent side builds over
+#: the reviewed corpus. None of them computes a scientific result, and a
+#: fifth should look as deliberate as this one.
+GOVERNED_RULES = {"governed_tasks", "governed_index", "governed_model",
+                  "retrieval_index"}
+
+
+def test_the_workflow_touches_the_substrate_only_in_the_governed_rules():
+    """The production integration is confined to named rules.
+
+    A rule that computed a result and imported agent_substrate would make a
+    scientific result depend on whether the authority layer is importable,
+    which is exactly what authority_effect=NONE denies. Confining the reference to
+    :data:`GOVERNED_RULES` keeps the integration real and keeps that denial
+    true.
+    """
+    raw = (ROOT / "Snakefile").read_text(encoding="utf-8")
+    # Comment lines are stripped first. A block that ends where the next rule
+    # BEGINS also swallows that rule's preceding comments, so the explanation
+    # above governed_tasks would otherwise be attributed to whatever rule came
+    # before it -- a false positive that says nothing about the code.
+    text = "\n".join(line for line in raw.splitlines()
+                     if not line.lstrip().startswith("#"))
+    offenders = []
+    reached = set()
+    for block in text.split("\nrule ")[1:]:
+        name = block.split(":", 1)[0].strip()
+        body = block.split("\n", 1)[1] if "\n" in block else ""
+        if "agent_substrate" not in body:
+            continue
+        reached.add(name)
+        if name not in GOVERNED_RULES:
+            offenders.append(name)
+    assert not offenders, (
+        f"rules outside {sorted(GOVERNED_RULES)} reference agent_substrate: "
+        f"{offenders}")
+    # AND THE ALLOWLIST IS NOT AHEAD OF THE WORKFLOW. A named rule that does
+    # not exist, or exists and no longer touches the substrate, turns this
+    # from a confinement check into a list of rules somebody once wrote --
+    # which is how an allowlist stops meaning anything.
+    assert reached == GOVERNED_RULES, (
+        f"{sorted(GOVERNED_RULES - reached)} are declared as governed rules "
+        "and do not reference the substrate; the production path they were "
+        "added for is not being exercised")
+
+
+# --- the declared layering is the real layering ------------------------------
+
+def test_every_module_is_placed_in_the_declared_layering():
+    placed = set(LAYERS)
+    actual = {m.stem for m in _modules()}
+    assert actual == placed, (
+        "a module exists that the declared layering does not place; "
+        "an unplaced module has no stated position in the dependency line: "
+        f"{sorted(actual ^ placed)}")
+
+
+@pytest.mark.parametrize("name", LAYERS)
+def test_a_module_imports_only_strictly_earlier_layers(name):
+    """Rejects cycles and back-edges alike, including lazy ones.
+
+    ``authority`` imports ``evidence`` inside a function body to avoid an
+    import cycle at module load. That is still a dependency and is still
+    ordered here -- hiding a back-edge behind a deferred import would defeat
+    the whole point of declaring the order.
+    """
+    earlier = set(LAYERS[:LAYERS.index(name)])
+    deps = _internal_imports(PKG / f"{name}.py")
+    late = deps - earlier
+    assert not late, (
+        f"{name}.py imports {sorted(late)}, which is not strictly earlier "
+        f"than it in the declared layering {LAYERS}")
+
+
+def test_the_layering_makes_canonical_the_only_root():
+    """Everything reduces to one definition of 'the same bytes'."""
+    assert _internal_imports(PKG / "canonical.py") == set()
+    for name in LAYERS[1:]:
+        assert (PKG / f"{name}.py").exists()
+
+
+def test_reconstruct_does_not_import_the_implementation_it_checks():
+    """Differential verification is worthless if both sides share code.
+
+    ``reconstruct.py`` exists to disagree with ``store.py``. If it imported
+    ``AuthorityStore`` it would inherit the same bug and agree anyway -- a
+    green comparison that proves only that one implementation equals itself.
+
+    Docstrings are stripped before the name check, because the module
+    docstring legitimately explains that it does *not* import that class.
+    """
+    assert "store" not in _internal_imports(PKG / "reconstruct.py")
+
+    tree = ast.parse((PKG / "reconstruct.py").read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                             ast.AsyncFunctionDef)) and node.body:
+            first = node.body[0]
+            if (isinstance(first, ast.Expr)
+                    and isinstance(first.value, ast.Constant)
+                    and isinstance(first.value.value, str)):
+                first.value.value = ""
+    code = ast.unparse(tree)
+    assert "AuthorityStore" not in code, (
+        "reconstruct.py names AuthorityStore in executable code, so it is "
+        "not the independent implementation it claims to be")
+
+
+# --- the registry says what the code does ------------------------------------
+
+def test_the_registry_declares_the_substrate_has_no_authority_effect():
+    reg = json.loads((ROOT / "authorities.json").read_text(encoding="utf-8"))
+    entry = reg["authorities"]["agent_authority_substrate"]
+    assert entry["authority_effect"] == "NONE"
+    assert "does_not_mean" in entry, (
+        "the boundary between provenance and physics must be explicit")
+    blob = " ".join(entry["does_not_mean"].split()).lower()
+    # Matched on substance, not typography: a test that breaks when someone
+    # rewraps a paragraph is a test that gets loosened rather than fixed.
+    # The invariant is the generic one (directive 12).
+    assert re.search(r"cannot directly mutate authoritative scientific\s+"
+                     r"state, evidence, or acceptance state", blob), (
+        "the disclaimer does not state the invariant")
+    assert "governed interfaces" in blob
+
+
+def test_every_registered_substrate_module_exists():
+    reg = json.loads((ROOT / "authorities.json").read_text(encoding="utf-8"))
+    entry = reg["authorities"]["agent_authority_substrate"]
+    cited = set(re.findall(r"agent_substrate/(\w+)\.py", entry["authority"]))
+    assert cited, "the registry must name the modules it governs"
+    missing = [c for c in cited if not (PKG / f"{c}.py").exists()]
+    assert not missing, f"registry names modules that do not exist: {missing}"
+
+
+def test_the_narrative_document_mirrors_the_registry():
+    """`AGENT_SUBSTRATE.md` may elaborate; it may not contradict."""
+    doc = (ROOT / "AGENT_SUBSTRATE.md").read_text(encoding="utf-8")
+    flat = " ".join(doc.replace("*", " ").split())
+    assert "authority_effect" in doc and "NONE" in doc
+    assert re.search(r"cannot directly mutate authoritative scientific "
+                     r"state, evidence, or acceptance state except through "
+                     r"the governed interfaces", flat), (
+        "AGENT_SUBSTRATE.md must state the invariant the registry states")
+    for name in LAYERS:
+        assert f"`{name}.py`" in doc, (
+            f"{name}.py is governed but not described in AGENT_SUBSTRATE.md")
+
+
+# ==========================================================================
+# WHO MAY TOUCH THE FILESYSTEM DIRECTLY
+#
+# THE GAP THIS CLOSES, stated as it was found:
+#
+#     "READ paths are gated for the governed workflow and the evidence
+#      store; reads made by code that does not go through GovernedReader are
+#      still ungoverned, and nothing forces a future caller to use it"
+#
+# "Nothing forces" is the operative half. GovernedReader records every read
+# with what was opened, refuses a path outside the grant, and re-checks the
+# file has not changed underneath it -- and all of that is worth exactly as
+# much as the next person's memory unless something refuses when a module
+# opens a file itself.
+# ==========================================================================
+
+#: Modules that may call open()/read_text()/read_bytes() directly, and why.
+#: Everything else in the package reads through GovernedReader, and adding a
+#: name here is a deliberate widening of who touches the filesystem.
+IO_LAYER = {
+    # These ARE the storage. GovernedReader is built on top of them, so
+    # routing them through it would be circular.
+    "events": "the append-only log's own file handling",
+    "evidence": "the content-addressed store's own file handling",
+    # The attestation file is the log's companion, as the head witness is:
+    # appended beside it and read back whole. Its lines are checked by their
+    # signatures, not by who may read the file.
+    "principals": "the attestation file beside the log",
+    "checkpoint": "checkpoint files, written atomically and read back",
+    # Assurance E (D-2026-170): a witness's durable record of what it
+    # cosigned, one file per log, written atomically and read back. The
+    # files are the witness's own, never a governed task's.
+    "witness": "a witness's own state, written atomically and read back",
+    "safeio": "the confinement primitives GovernedReader itself calls",
+    "readpath": "GovernedReader",
+    # The executor reads the stdout and stderr IT created, in a temporary
+    # directory it owns, for a process it started. There is no grant to
+    # check because there is no caller-supplied path.
+    "execution": "its own subprocess capture files",
+    # /proc, for process identity. Not a workspace path and not something a
+    # capability could scope: it is the kernel answering about a pid.
+    "hostid": "/proc, for process identity",
+    # The package's OWN source files, located from sys.modules and the
+    # package directory, never from a caller-supplied path: a reducer's
+    # identity is a digest of the code that folds events (D-2026-71).
+    "projection": "the package's own source, to digest reducer identity",
+    # A TOOL, not a layer of the substrate. It runs in a bounded subprocess
+    # with no log handle, no capability set and no network, and its reads are
+    # confined by the governed workspace read guard. Handing it a
+    # GovernedReader would hand a tool the supervisor's authority, which is
+    # the opposite of what running it in its own process is for.
+    "_index_tool": "a subprocess tool, confined by the workspace "
+                           "read guard rather than by a grant it holds",
+    # Retrieval reads the REVIEWED corpus: every path must be in the
+    # committed allowlist, at the digest the allowlist records, under the
+    # corpus root, and a symlink or traversal is refused before the read.
+    # It holds no grant because it is handed no caller authority; what it
+    # may read is what a reviewed commit declared.
+    "rag_index": "the reviewed corpus, confined by the committed "
+                 "allowlist and its digests",
+    # Gate B. The worker on the far side of the gateway's process boundary
+    # reads the provider credential from the file provider root its operator
+    # names (O_NOFOLLOW, a bounded regular file) and the reply fixture its
+    # caller names. It is a standalone script with no log, no grant and no
+    # package import; reading the credential is what it exists to do, so
+    # that nothing else does.
+    "_inference_worker": "the provider credential and the reply fixture, "
+                         "on the far side of the gateway's process boundary",
+}
+
+_READ_CALLS = {"read_text", "read_bytes"}
+
+
+def test_only_the_io_layer_opens_files_directly():
+    """A read the substrate makes without a grant is an ungoverned read.
+
+    Checked structurally rather than by convention, because a convention is
+    a thing the next person has to know about and this is a thing the suite
+    refuses.
+    """
+    import ast
+
+    offenders = {}
+    inspected = []
+    for path in sorted((ROOT / "agent_substrate").glob("*.py")):
+        if path.stem in IO_LAYER:
+            continue
+        inspected.append(path.stem)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            if isinstance(fn, ast.Name) and fn.id == "open":
+                offenders.setdefault(path.name, []).append(
+                    f"open() at line {node.lineno}")
+            elif isinstance(fn, ast.Attribute) and fn.attr in _READ_CALLS:
+                offenders.setdefault(path.name, []).append(
+                    f"{fn.attr}() at line {node.lineno}")
+
+    # ANTI-VACUITY, ASSERTED IN THE SAME TEST.
+    #
+    # A separate test that only checks the SIZE of the allowlist cannot see a
+    # loop that skips every file: offenders comes back empty, the assertion
+    # below passes, and the guard reports success over zero modules. So this
+    # test states what it examined, and an empty examination is the failure.
+    assert len(inspected) > 10, (
+        f"the read guard examined only {inspected}; a guard that reports "
+        "success over nothing is worse than no guard, because it reads like "
+        "one")
+    assert not offenders, (
+        "these modules read the filesystem without going through "
+        f"GovernedReader: {offenders}. Either route the read through it, or "
+        "add the module to IO_LAYER with a reason -- which is a deliberate "
+        "widening of who may touch the filesystem, and should look like one")
+
+
+def test_the_io_layer_allowlist_is_not_vacuous():
+    """ANTI-VACUITY. An allowlist naming every module would make the check
+    above pass by examining nothing."""
+    modules = {p.stem for p in (ROOT / "agent_substrate").glob("*.py")}
+    governed = modules - set(IO_LAYER)
+    assert len(governed) > len(IO_LAYER), (
+        f"{len(IO_LAYER)} of {len(modules)} modules are exempt from the "
+        "read guard; at that ratio the guard is a list of exceptions with a "
+        "test attached")
+
+
+def test_every_io_layer_entry_names_a_module_that_exists():
+    """A stale exemption is an exemption nobody notices is unused."""
+    modules = {p.stem for p in (ROOT / "agent_substrate").glob("*.py")}
+    stale = sorted(set(IO_LAYER) - modules)
+    assert not stale, (
+        f"IO_LAYER exempts {stale}, which are not modules in this package")
+
+
+# ---- D-2026-43: a definition that is never reached ------------------------
+
+def _owned_python_files(root):
+    """The .py files this repository OWNS, asked of git rather than guessed.
+
+    NOT a list of directory names to skip. That was tried twice and failed
+    twice: the first sweep excluded `.venv`, and the Python 3.13 job builds
+    its environment at `.venv-alt`, so the scan walked scipy's site-packages
+    and reported its property/setter pairs as defects. A skip-list is the
+    same proxy D-2026-52 is about -- it enumerates instead of deciding.
+
+    `git ls-files` IS the definition of what this repository ships, and it
+    answers correctly for every venv name, cache and quarantine directory
+    that will ever exist. Anything untracked becomes tracked the moment it
+    is committed, and the manifest gate already refuses untracked,
+    unignored files.
+    """
+    out = subprocess.run(["git", "ls-files", "-z", "*.py"], cwd=root,
+                         capture_output=True, text=True, check=True).stdout
+    return [root / f for f in out.split("\0") if f]
+
+
+def _shadowed_definitions(root):
+    """Every name defined twice in one scope, as (path, name, first, second).
+
+    A DECORATED redefinition is not one of these. `@x.setter`, `@overload`
+    and `@singledispatch.register` all rebind a name deliberately and are
+    ordinary Python; ruff's F811 knows that and so must this. The tracked
+    tree currently contains none, which is why the distinction is made now
+    rather than after a property setter is written and the gate cries wolf.
+    """
+    out = []
+    for path in sorted(_owned_python_files(root)):
+        if not path.is_file():
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue          # a fixture that is meant to be unparseable
+        scopes = [tree] + [n for n in ast.walk(tree)
+                           if isinstance(n, ast.ClassDef)]
+        for scope in scopes:
+            seen = {}
+            for node in scope.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                     ast.ClassDef)):
+                    if node.name in seen and not getattr(
+                            node, "decorator_list", []):
+                        out.append((str(path.relative_to(root)), node.name,
+                                    seen[node.name], node.lineno))
+                    seen[node.name] = node.lineno
+    return out
+
+
+def test_no_definition_ANYWHERE_is_silently_shadowed():
+    """The rule of the test below, over everything this repository ships.
+
+    That scan was written for `agent_substrate/` after D-2026-43 and pointed at
+    one package. While it guarded the substrate, a package outside it carried
+    two definitions of one function -- 176 lines and 213, DIVERGED, the
+    first dead because Python keeps the last. Ruff had been reporting it as
+    F811 the whole time; CI linted a named list of paths and that package was
+    not on it, so nothing read the finding.
+
+    A rule scoped to a list protects the list, not the property.
+    """
+    root = Path(__file__).resolve().parent.parent
+    found = _shadowed_definitions(root)
+    assert not found, "shadowed definitions:\n" + "\n".join(
+        f"  {p}: {n} at lines {a} and {b}" for p, n, a, b in found)
+
+
+def test_the_sweep_is_not_reporting_on_an_empty_file_list():
+    """ANTI-VACUITY. "Nothing is shadowed" is trivially true of nothing, and
+    a `git ls-files` that returned empty -- no git, wrong directory, a
+    pathspec typo -- would say exactly that, forever."""
+    root = Path(__file__).resolve().parent.parent
+    owned = _owned_python_files(root)
+    assert len(owned) > 200, f"the sweep found only {len(owned)} owned files"
+    assert any("scientific" in str(f) for f in owned)
+    assert any("agent_substrate" in str(f) for f in owned)
+
+
+def test_the_sweep_sees_a_shadowed_definition_in_a_file_the_repo_owns(tmp_path):
+    """The control, exercising the REAL scope resolution.
+
+    The probe is staged with `git add -N` so that `git ls-files` reports it,
+    because a file this repository does not track is a file it does not
+    ship. Planting an untracked file would prove nothing about the path the
+    sweep actually takes.
+    """
+    root = Path(__file__).resolve().parent.parent
+    planted = root / "scientific" / "_shadow_sweep_probe.py"
+    planted.write_text("def f():\n    pass\n\n\ndef f():\n    pass\n",
+                       encoding="utf-8")
+    subprocess.run(["git", "add", "-N", str(planted)], cwd=root, check=True,
+                   capture_output=True)
+    try:
+        found = _shadowed_definitions(root)
+        assert any("_shadow_sweep_probe" in p for p, *_ in found), (
+            f"the sweep did not see a shadowed definition it owns: {found}")
+    finally:
+        subprocess.run(["git", "rm", "--cached", "--force", "--quiet",
+                        str(planted)], cwd=root, capture_output=True)
+        planted.unlink()
+
+
+def test_the_sweep_does_not_police_an_installed_environment(tmp_path):
+    """The other half, and the exact failure that made this necessary.
+
+    A bare environment at `.venv-alt/` is not tracked, so it is not ours and
+    is not scanned -- without `.venv-alt` appearing in any list anywhere.
+    """
+    root = Path(__file__).resolve().parent.parent
+    planted = root / ".venv-alt" / "lib" / "site-packages" / "probe.py"
+    planted.parent.mkdir(parents=True, exist_ok=True)
+    planted.write_text("def f():\n    pass\n\n\ndef f():\n    pass\n",
+                       encoding="utf-8")
+    try:
+        found = _shadowed_definitions(root)
+        assert not any("venv-alt" in p for p, *_ in found), (
+            "the sweep reached into an installed environment")
+    finally:
+        planted.unlink()
+        for d in (planted.parent, planted.parent.parent,
+                  planted.parent.parent.parent):
+            if d.is_dir() and not any(d.iterdir()):
+                d.rmdir()
+
+
+def test_a_decorated_redefinition_is_not_a_shadowed_definition(tmp_path):
+    """`@property` and its setter rebind a name on purpose. Flagging that
+    would make the gate cry wolf on ordinary Python, and a gate that cries
+    wolf is a gate that gets switched off."""
+    root = Path(__file__).resolve().parent.parent
+    planted = root / "scientific" / "_decorated_probe.py"
+    planted.write_text(
+        "class C:\n"
+        "    @property\n"
+        "    def v(self):\n"
+        "        return 1\n\n"
+        "    @v.setter\n"
+        "    def v(self, x):\n"
+        "        pass\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-N", str(planted)], cwd=root, check=True,
+                   capture_output=True)
+    try:
+        found = _shadowed_definitions(root)
+        assert not any("_decorated_probe" in p for p, *_ in found), (
+            f"a property/setter pair was reported as a defect: {found}")
+    finally:
+        subprocess.run(["git", "rm", "--cached", "--force", "--quiet",
+                        str(planted)], cwd=root, capture_output=True)
+        planted.unlink()
+
+
+def test_no_definition_in_the_substrate_is_silently_shadowed():
+    """A name defined twice in one scope: the first is dead and nothing says so.
+
+    Found while diagnosing D-2026-43. agent_substrate/scheduler.py carried TWO
+    byte-identical copies of `_probe_copy` and `_dry_run`, 38 lines apart.
+    Python kept the second and discarded the first, silently. Nothing failed,
+    because the copies agreed.
+
+    What makes it worth a permanent test rather than a one-line deletion is
+    what happens when they STOP agreeing. Someone repairs `_dry_run`, edits
+    the copy their editor jumped to, runs the suite, sees green, and has
+    changed nothing -- the interpreter is running the other one. And a
+    mutation anchored inside such a block matches twice, which this
+    repository's harness reports as ANCHOR DRIFT -- TESTED NOTHING rather
+    than as a kill, so the coverage it looks like is not there either.
+
+    The scan is over the whole substrate, not over the file that had the
+    defect: closing the example would leave the class open.
+    """
+    root = Path(__file__).resolve().parent.parent / "agent_substrate"
+    shadowed = []
+    for path in sorted(root.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        scopes = [tree] + [n for n in ast.walk(tree)
+                           if isinstance(n, ast.ClassDef)]
+        for scope in scopes:
+            seen = {}
+            for node in scope.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if node.name in seen:
+                        where = getattr(scope, "name", "<module>")
+                        shadowed.append(
+                            f"{path.name}: {where}.{node.name} defined at "
+                            f"line {seen[node.name]} is overridden at line "
+                            f"{node.lineno}")
+                    seen[node.name] = node.lineno
+    assert not shadowed, (
+        "a definition in the substrate is dead code the interpreter never "
+        "reaches:\n  " + "\n  ".join(shadowed))

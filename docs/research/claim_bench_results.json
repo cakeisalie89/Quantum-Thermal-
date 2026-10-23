@@ -1,0 +1,1641 @@
+{
+ "checkers": {
+  "combined": {
+   "prose": {
+    "confusion": {
+     "CONFLICTING_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 1,
+      "UNVERIFIABLE": 0
+     },
+     "CONTRADICTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 1,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 1,
+      "UNVERIFIABLE": 0
+     },
+     "INSUFFICIENT_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 1,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 0
+     },
+     "SUPPORTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 1,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 3,
+      "UNVERIFIABLE": 1
+     },
+     "UNVERIFIABLE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 2,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 2,
+      "UNVERIFIABLE": 0
+     }
+    },
+    "established": 0,
+    "established_false_positive": 0,
+    "exact": 5,
+    "false_negative": 2,
+    "false_positive": 4,
+    "false_positive_texts": [
+     "slab-1 peaks at 340 K because radiative losses dominate.",
+     "Two independent runs agree that T_at_half of slab-2 is 307 K.",
+     "T_at_half of slab-1 is 312.4 K according to a reviewer.",
+     "slab-1 is 312.4 K at the hottest point."
+    ],
+    "n": 13,
+    "negatives": 8,
+    "positives": 5
+   },
+   "rows": [
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is below 313 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is above 311.8 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "the T_at_half of slab-1 remains at most 313.2 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is 312.4 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-1 is below 311.8 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-1 is at least 313 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-1 is 313 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_at_half of slab-1 is below 312.5 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_at_half of slab-1 is above 312.3 K"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 is below 313 furlongs"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is below 341.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is above 338.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "the T_max of slab-1 remains at most 342 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is 340 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 is below 338.5 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 is at least 341.5 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 is 341.5 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_max of slab-1 is below 340.25 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_max of slab-1 is above 339.75 K"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "T_max of slab-1 is below 341.5 furlongs"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is below 1215 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is above 1185 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "the q_in of slab-1 remains at most 1220 W/m^2."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is 1200 W/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is below 1185 W/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is at least 1215 W/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is 1215 W/m^2"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "q_in of slab-1 is below 1202.5 W/m^2"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "q_in of slab-1 is above 1197.5 W/m^2"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "q_in of slab-1 is below 1215 furlongs"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_edge of slab-1 is below 400 K"
+    },
+    {
+     "answer": "CONFLICTING_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONFLICTING_EVIDENCE",
+     "text": "T_at_half of slab-2 is below 307 K"
+    },
+    {
+     "answer": "CONFLICTING_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONFLICTING_EVIDENCE",
+     "text": "T_at_half of slab-2 is above 307 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-2 is below 310 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-2 is above 310 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_probe of probe-1 is below 300 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_at_half of slab-9 is below 300 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is below 1.215 kW/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is above 1.215 kW/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is above 338500 mK"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "q_in of slab-1 is below 2 kg"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 is below 350 K, so the panel is safe."
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 stays below 350 K under every load."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "slab-1 peaks at 340 K because radiative losses dominate."
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 was confirmed below 330 K by two independent runs."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "CONFLICTING_EVIDENCE",
+     "text": "Two independent runs agree that T_at_half of slab-2 is 307 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "The measured mid-plane temperature of slab-1 is about 312 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is 1.2 kW/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "slab-1 absorbs about 1200 W/m^2 at its surface."
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "The probe read 290 K, well within limits."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 is 312.4 K according to a reviewer."
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "slab-1 runs hotter than slab-2 at mid-plane."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "CONTRADICTED",
+     "text": "slab-1 is 312.4 K at the hottest point."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is below 40 degC"
+    }
+   ],
+   "structured": {
+    "confusion": {
+     "CONFLICTING_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 2,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 0
+     },
+     "CONTRADICTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 11,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 0
+     },
+     "INSUFFICIENT_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 9,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 0
+     },
+     "SUPPORTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 15,
+      "UNVERIFIABLE": 0
+     },
+     "UNVERIFIABLE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 4
+     }
+    },
+    "established": 14,
+    "established_false_positive": 0,
+    "exact": 41,
+    "false_negative": 0,
+    "false_positive": 0,
+    "false_positive_texts": [],
+    "n": 41,
+    "negatives": 26,
+    "positives": 15
+   }
+  },
+  "deterministic": {
+   "prose": {
+    "confusion": {
+     "CONFLICTING_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 1
+     },
+     "CONTRADICTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 2
+     },
+     "INSUFFICIENT_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 1
+     },
+     "SUPPORTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 1,
+      "UNVERIFIABLE": 4
+     },
+     "UNVERIFIABLE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 4
+     }
+    },
+    "established": 0,
+    "established_false_positive": 0,
+    "exact": 5,
+    "false_negative": 4,
+    "false_positive": 0,
+    "false_positive_texts": [],
+    "n": 13,
+    "negatives": 8,
+    "positives": 5
+   },
+   "rows": [
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is below 313 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is above 311.8 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "the T_at_half of slab-1 remains at most 313.2 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is 312.4 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-1 is below 311.8 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-1 is at least 313 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-1 is 313 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_at_half of slab-1 is below 312.5 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_at_half of slab-1 is above 312.3 K"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 is below 313 furlongs"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is below 341.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is above 338.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "the T_max of slab-1 remains at most 342 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is 340 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 is below 338.5 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 is at least 341.5 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 is 341.5 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_max of slab-1 is below 340.25 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_max of slab-1 is above 339.75 K"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "T_max of slab-1 is below 341.5 furlongs"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is below 1215 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is above 1185 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "the q_in of slab-1 remains at most 1220 W/m^2."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is 1200 W/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is below 1185 W/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is at least 1215 W/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is 1215 W/m^2"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "q_in of slab-1 is below 1202.5 W/m^2"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "q_in of slab-1 is above 1197.5 W/m^2"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "q_in of slab-1 is below 1215 furlongs"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_edge of slab-1 is below 400 K"
+    },
+    {
+     "answer": "CONFLICTING_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONFLICTING_EVIDENCE",
+     "text": "T_at_half of slab-2 is below 307 K"
+    },
+    {
+     "answer": "CONFLICTING_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONFLICTING_EVIDENCE",
+     "text": "T_at_half of slab-2 is above 307 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-2 is below 310 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-2 is above 310 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_probe of probe-1 is below 300 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_at_half of slab-9 is below 300 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is below 1.215 kW/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is above 1.215 kW/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is above 338500 mK"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "q_in of slab-1 is below 2 kg"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 is below 350 K, so the panel is safe."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 stays below 350 K under every load."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "slab-1 peaks at 340 K because radiative losses dominate."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 was confirmed below 330 K by two independent runs."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "CONFLICTING_EVIDENCE",
+     "text": "Two independent runs agree that T_at_half of slab-2 is 307 K."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "The measured mid-plane temperature of slab-1 is about 312 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is 1.2 kW/m^2"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "slab-1 absorbs about 1200 W/m^2 at its surface."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "The probe read 290 K, well within limits."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 is 312.4 K according to a reviewer."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "slab-1 runs hotter than slab-2 at mid-plane."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "NONE",
+     "established": false,
+     "family": "prose",
+     "label": "CONTRADICTED",
+     "text": "slab-1 is 312.4 K at the hottest point."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is below 40 degC"
+    }
+   ],
+   "structured": {
+    "confusion": {
+     "CONFLICTING_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 2,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 0
+     },
+     "CONTRADICTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 11,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 0
+     },
+     "INSUFFICIENT_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 9,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 0
+     },
+     "SUPPORTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 15,
+      "UNVERIFIABLE": 0
+     },
+     "UNVERIFIABLE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 4
+     }
+    },
+    "established": 14,
+    "established_false_positive": 0,
+    "exact": 41,
+    "false_negative": 0,
+    "false_positive": 0,
+    "false_positive_texts": [],
+    "n": 41,
+    "negatives": 26,
+    "positives": 15
+   }
+  },
+  "lexical": {
+   "prose": {
+    "confusion": {
+     "CONFLICTING_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 1,
+      "UNVERIFIABLE": 0
+     },
+     "CONTRADICTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 1,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 1,
+      "UNVERIFIABLE": 0
+     },
+     "INSUFFICIENT_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 1,
+      "SUPPORTED": 0,
+      "UNVERIFIABLE": 0
+     },
+     "SUPPORTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 3,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 2,
+      "UNVERIFIABLE": 0
+     },
+     "UNVERIFIABLE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 2,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 2,
+      "UNVERIFIABLE": 0
+     }
+    },
+    "established": 0,
+    "established_false_positive": 0,
+    "exact": 4,
+    "false_negative": 3,
+    "false_positive": 4,
+    "false_positive_texts": [
+     "slab-1 peaks at 340 K because radiative losses dominate.",
+     "Two independent runs agree that T_at_half of slab-2 is 307 K.",
+     "T_at_half of slab-1 is 312.4 K according to a reviewer.",
+     "slab-1 is 312.4 K at the hottest point."
+    ],
+    "n": 13,
+    "negatives": 8,
+    "positives": 5
+   },
+   "rows": [
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is below 313 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is above 311.8 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "the T_at_half of slab-1 remains at most 313.2 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is 312.4 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-1 is below 311.8 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-1 is at least 313 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-1 is 313 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_at_half of slab-1 is below 312.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_at_half of slab-1 is above 312.3 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 is below 313 furlongs"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is below 341.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is above 338.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "the T_max of slab-1 remains at most 342 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is 340 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 is below 338.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 is at least 341.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 is 341.5 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_max of slab-1 is below 340.25 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_max of slab-1 is above 339.75 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "T_max of slab-1 is below 341.5 furlongs"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is below 1215 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is above 1185 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "the q_in of slab-1 remains at most 1220 W/m^2."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is 1200 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is below 1185 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is at least 1215 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is 1215 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "q_in of slab-1 is below 1202.5 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "q_in of slab-1 is above 1197.5 W/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "q_in of slab-1 is below 1215 furlongs"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_edge of slab-1 is below 400 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONFLICTING_EVIDENCE",
+     "text": "T_at_half of slab-2 is below 307 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONFLICTING_EVIDENCE",
+     "text": "T_at_half of slab-2 is above 307 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-2 is below 310 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "T_at_half of slab-2 is above 310 K"
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_probe of probe-1 is below 300 K"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "T_at_half of slab-9 is below 300 K"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is below 1.215 kW/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is above 1.215 kW/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is above 338500 mK"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "q_in of slab-1 is below 2 kg"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 is below 350 K, so the panel is safe."
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 stays below 350 K under every load."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "slab-1 peaks at 340 K because radiative losses dominate."
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "CONTRADICTED",
+     "text": "T_max of slab-1 was confirmed below 330 K by two independent runs."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "CONFLICTING_EVIDENCE",
+     "text": "Two independent runs agree that T_at_half of slab-2 is 307 K."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "The measured mid-plane temperature of slab-1 is about 312 K."
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is 1.2 kW/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "slab-1 absorbs about 1200 W/m^2 at its surface."
+    },
+    {
+     "answer": "INSUFFICIENT_EVIDENCE",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "INSUFFICIENT_EVIDENCE",
+     "text": "The probe read 290 K, well within limits."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "UNVERIFIABLE",
+     "text": "T_at_half of slab-1 is 312.4 K according to a reviewer."
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "slab-1 runs hotter than slab-2 at mid-plane."
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "CONTRADICTED",
+     "text": "slab-1 is 312.4 K at the hottest point."
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is below 40 degC"
+    }
+   ],
+   "structured": {
+    "confusion": {
+     "CONFLICTING_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 0,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 2,
+      "UNVERIFIABLE": 0
+     },
+     "CONTRADICTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 1,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 10,
+      "UNVERIFIABLE": 0
+     },
+     "INSUFFICIENT_EVIDENCE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 1,
+      "INSUFFICIENT_EVIDENCE": 1,
+      "SUPPORTED": 7,
+      "UNVERIFIABLE": 0
+     },
+     "SUPPORTED": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 2,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 13,
+      "UNVERIFIABLE": 0
+     },
+     "UNVERIFIABLE": {
+      "CONFLICTING_EVIDENCE": 0,
+      "CONTRADICTED": 1,
+      "INSUFFICIENT_EVIDENCE": 0,
+      "SUPPORTED": 3,
+      "UNVERIFIABLE": 0
+     }
+    },
+    "established": 0,
+    "established_false_positive": 0,
+    "exact": 15,
+    "false_negative": 2,
+    "false_positive": 22,
+    "false_positive_texts": [
+     "T_at_half of slab-1 is below 311.8 K",
+     "T_at_half of slab-1 is at least 313 K",
+     "T_at_half of slab-1 is 313 K",
+     "T_at_half of slab-1 is below 312.5 K",
+     "T_at_half of slab-1 is above 312.3 K",
+     "T_at_half of slab-1 is below 313 furlongs",
+     "T_max of slab-1 is below 338.5 K",
+     "T_max of slab-1 is at least 341.5 K",
+     "T_max of slab-1 is 341.5 K",
+     "T_max of slab-1 is below 340.25 K",
+     "T_max of slab-1 is above 339.75 K",
+     "T_max of slab-1 is below 341.5 furlongs",
+     "q_in of slab-1 is below 1185 W/m^2",
+     "q_in of slab-1 is at least 1215 W/m^2",
+     "q_in of slab-1 is 1215 W/m^2",
+     "q_in of slab-1 is below 1202.5 W/m^2",
+     "q_in of slab-1 is above 1197.5 W/m^2",
+     "q_in of slab-1 is below 1215 furlongs",
+     "T_at_half of slab-2 is below 307 K",
+     "T_at_half of slab-2 is above 307 K",
+     "T_at_half of slab-2 is above 310 K",
+     "T_at_half of slab-9 is below 300 K"
+    ],
+    "n": 41,
+    "negatives": 26,
+    "positives": 15
+   }
+  }
+ },
+ "claims": 54,
+ "label_sources": {
+  "prose": "AUTHOR",
+  "structured": "CONSTRUCTION"
+ },
+ "model": "NOT_RUN",
+ "note": "A development benchmark. Structured labels are established by construction; prose labels were assigned by the checker's author and are NOT human labels. A confirmatory benchmark needs independent human labels (owner decision).",
+ "schema": "claim-bench-results/1"
+}

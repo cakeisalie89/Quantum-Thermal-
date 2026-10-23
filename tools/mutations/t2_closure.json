@@ -1,0 +1,299 @@
+{
+  "title": "T-2 closure: every authority decision against the history it is appended onto",
+  "note": "D-2026-156. Each mutation removes one part of the closure: a refused fold remembered and never resumed past; a decision taken inside the writer lock, against the head, by the capability, egress and secret writers, the execution record, the compensation authorization and the governed read; one answer consuming one undo on replay; and the second reader's restatement of each. Five move a decision out of the lock (TC5, TC23, TC27, TC33) or off the head (TC26), and are killed by tests/test_decided_under_lock.py, which holds a decision open while another writer competes.",
+  "suites": [
+    "tests/test_refused_fold.py",
+    "tests/test_t2_closure.py",
+    "tests/test_t2_governed.py",
+    "tests/test_decided_under_lock.py"
+  ],
+  "mutations": [
+    {
+      "name": "TC1_a_refused_fold_is_resumed",
+      "path": "agent_substrate/events.py",
+      "find": "        check_projection(self)\n        try:\n            return fold(self, *args, **kwargs)\n",
+      "replace": "        try:\n            return fold(self, *args, **kwargs)\n",
+      "rationale": "a catch-up after a refused one starts past the refused record and decides against a projection that skipped it"
+    },
+    {
+      "name": "TC2_a_refused_fold_is_forgotten",
+      "path": "agent_substrate/events.py",
+      "find": "            self._fold_refused = exc\n            raise\n    return run\n\n\ndef check_projection",
+      "replace": "            raise\n    return run\n\n\ndef check_projection",
+      "rationale": "the refusal is not remembered, so the next call resumes from the anchor that already moved past it"
+    },
+    {
+      "name": "TC3_a_refused_load_is_forgotten",
+      "path": "agent_substrate/events.py",
+      "find": "        self._fold_refused = None\n        try:\n            return load(self, *args, **kwargs)\n        except BaseException as exc:\n            self._fold_refused = exc\n            raise\n",
+      "replace": "        self._fold_refused = None\n        return load(self, *args, **kwargs)\n",
+      "rationale": "a load that raised leaves an emptied projection and its old anchor, and the next catch-up folds new records onto nothing"
+    },
+    {
+      "name": "TC4_a_successful_load_does_not_clear_a_refusal",
+      "path": "agent_substrate/events.py",
+      "find": "        self._fold_refused = None\n        try:\n            return load(",
+      "replace": "        try:\n            return load(",
+      "rationale": "a refusal outlives the full rebuild that answered it: a projection is refused forever by a fault that has gone"
+    },
+    {
+      "name": "TC5_the_mixin_decides_outside_the_lock",
+      "path": "agent_substrate/events.py",
+      "find": "        ev = self.log.append_decided(under_lock)\n        self.apply(ev)\n        return ev\n",
+      "replace": "        ev = self.log.append(**under_lock(self.log.verify().head_seq))\n        self.apply(ev)\n        return ev\n",
+      "rationale": "the capability, egress and secret writers re-read and decide, then append without the lock: another writer lands in the gap"
+    },
+    {
+      "name": "TC6_the_mixin_decides_without_reading",
+      "path": "agent_substrate/events.py",
+      "find": "            self._fold_new()\n            return decide(head_seq)\n",
+      "replace": "            return decide(head_seq)\n",
+      "rationale": "a writer decides against the projection it loaded, not the history it appends onto"
+    },
+    {
+      "name": "TC7_in_force_answers_after_a_refusal",
+      "path": "agent_substrate/capability.py",
+      "find": "        check_projection(self)\n        if at_seq is not None and at_seq > self._folded_through:\n",
+      "replace": "        if at_seq is not None and at_seq > self._folded_through:\n",
+      "rationale": "a ledger that refused a later record still names a set for a position it already read"
+    },
+    {
+      "name": "TC8_in_force_answers_from_a_stale_ledger",
+      "path": "agent_substrate/capability.py",
+      "find": "        if at_seq is not None and at_seq > self._folded_through:\n            self._fold_new()\n",
+      "replace": "        if False:\n            self._fold_new()\n",
+      "rationale": "a grant revoked by another process is in force for a ledger that loaded before the revocation"
+    },
+    {
+      "name": "TC9_agents_resume_past_a_refusal",
+      "path": "agent_substrate/agents.py",
+      "find": "    @projection_fold\n    def _fold_new(self) -> None:",
+      "replace": "    def _fold_new(self) -> None:",
+      "rationale": "the agent directory decides against a projection that skipped a record it refused"
+    },
+    {
+      "name": "TC10_memory_resumes_past_a_refusal",
+      "path": "agent_substrate/memory.py",
+      "find": "    @projection_fold\n    def _fold_new(self) -> None:",
+      "replace": "    def _fold_new(self) -> None:",
+      "rationale": "the memory store writes onto a history its own replay refuses (measured at b9b2187)"
+    },
+    {
+      "name": "TC11_policy_resumes_past_a_refusal",
+      "path": "agent_substrate/policy.py",
+      "find": "    @projection_fold\n    def _fold_new(self) -> None:",
+      "replace": "    def _fold_new(self) -> None:",
+      "rationale": "the policy store records a decision against a projection that skipped a forged one"
+    },
+    {
+      "name": "TC12_scheduler_resumes_past_a_refusal",
+      "path": "agent_substrate/scheduler.py",
+      "find": "    @projection_fold\n    def _fold_new(self) -> None:",
+      "replace": "    def _fold_new(self) -> None:",
+      "rationale": "the scheduler enqueues onto a history its replay refuses"
+    },
+    {
+      "name": "TC13_agents_load_leaves_a_projection_to_resume",
+      "path": "agent_substrate/agents.py",
+      "find": "    @projection_load\n    def load(self) -> \"AgentDirectory\":",
+      "replace": "    def load(self) -> \"AgentDirectory\":",
+      "rationale": "a refused load empties the directory and keeps its anchor; the next write decides against nothing"
+    },
+    {
+      "name": "TC14_capability_load_leaves_a_projection_to_resume",
+      "path": "agent_substrate/capability.py",
+      "find": "    @projection_load\n    def load(self) -> \"CapabilityLedger\":",
+      "replace": "    def load(self) -> \"CapabilityLedger\":",
+      "rationale": "a refused load empties the ledger and keeps its anchor"
+    },
+    {
+      "name": "TC15_a_grant_is_revoked_twice",
+      "path": "agent_substrate/capability.py",
+      "find": "            if capability_id in self._revoked:\n                raise CapabilityRevoked(",
+      "replace": "            if False:\n                raise CapabilityRevoked(",
+      "rationale": "a revocation from a stale view is written again; the second record says a person withdrew a grant nobody held"
+    },
+    {
+      "name": "TC16_a_capability_id_issued_elsewhere_is_reissued",
+      "path": "agent_substrate/capability.py",
+      "find": "            if cap.capability_id in self._issued:\n                raise CapabilityError(",
+      "replace": "            if False:\n                raise CapabilityError(",
+      "rationale": "two grants under one id: every later load refuses the history (measured at b9b2187)"
+    },
+    {
+      "name": "TC17_a_service_is_registered_twice_with_other_terms",
+      "path": "agent_substrate/netauth.py",
+      "find": "            if existing is not None and existing.digest() != svc.digest():\n                raise NetworkError(\n                    f\"service {svc.service_id!r} is already registered with \"",
+      "replace": "            if False:\n                raise NetworkError(\n                    f\"service {svc.service_id!r} is already registered with \"",
+      "rationale": "a stale registration rewrites a service contract; every later load refuses the history (measured at b9b2187)"
+    },
+    {
+      "name": "TC18_an_egress_grant_id_is_reused",
+      "path": "agent_substrate/netauth.py",
+      "find": "        def unused() -> None:\n            if g.grant_id in self._grants:",
+      "replace": "        def unused() -> None:\n            if False:",
+      "rationale": "two egress grants under one id (measured at b9b2187)"
+    },
+    {
+      "name": "TC19_an_egress_grant_is_revoked_twice",
+      "path": "agent_substrate/netauth.py",
+      "find": "            if grant_id in self._revoked:\n                raise NetworkError(",
+      "replace": "            if False:\n                raise NetworkError(",
+      "rationale": "a revocation from a stale view is written again"
+    },
+    {
+      "name": "TC20_an_egress_request_is_recorded_as_first_decided",
+      "path": "agent_substrate/netauth.py",
+      "find": "                if not fresh.allowed:",
+      "replace": "                if False:",
+      "rationale": "a request allowed against a stale view is recorded allowed after the grant was revoked or the budget spent"
+    },
+    {
+      "name": "TC21_a_secret_is_provisioned_from_two_sources",
+      "path": "agent_substrate/secrets.py",
+      "find": "                if first is not None and first != desc:\n                    raise SecretError(",
+      "replace": "                if False:\n                    raise SecretError(",
+      "rationale": "one secret id loaded from two providers; which value a grant reveals depends on the process"
+    },
+    {
+      "name": "TC22_a_secret_grant_is_revoked_twice",
+      "path": "agent_substrate/secrets.py",
+      "find": "            if grant_id in self._revoked:\n                raise SecretRevoked(",
+      "replace": "            if False:\n                raise SecretRevoked(",
+      "rationale": "a revocation from a stale view is written again"
+    },
+    {
+      "name": "TC23_the_execution_record_is_decided_outside_the_lock",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "        self.log.append_decided(decide_execution)\n",
+      "replace": "        self.log.append(**decide_execution(self._head_seq()))\n",
+      "rationale": "a recovery that lands between the decision and the write leaves an execution record for a task that is not running"
+    },
+    {
+      "name": "TC24_the_execution_record_ignores_the_lease",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                if cur is None or held != lease.lease_id:",
+      "replace": "                if cur is None:",
+      "rationale": "a task let again to the same worker identity is credited with the first attempt's result"
+    },
+    {
+      "name": "TC25_the_execution_record_ignores_the_lifecycle",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                check_execution(cur, worker, at_seq=head_seq + 1)\n",
+      "replace": "                pass\n",
+      "rationale": "a task finished under the same lease is given an executor after its outcome"
+    },
+    {
+      "name": "TC26_the_execution_record_is_decided_against_a_stale_view",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "            cur = self._projection_at_head().tasks.get(task_id)\n",
+      "replace": "            cur = (self._after_move[0] if self._after_move else self.projection()).tasks.get(task_id)\n",
+      "rationale": "the decision reads the projection from before the tool ran, not the head it is written onto"
+    },
+    {
+      "name": "TC27_the_compensation_is_authorized_outside_the_lock",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "        authorization = self.log.append_decided(prepare)\n",
+      "replace": "        authorization = self.log.append(**prepare(self._head_seq()))\n",
+      "rationale": "two supervisors holding one answer each authorize and run the undo"
+    },
+    {
+      "name": "TC28_an_answer_is_not_consumed",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "            prior = self.projection().compensations.get(escalation_id)\n            if prior is not None:",
+      "replace": "            prior = self.projection().compensations.get(escalation_id)\n            if False:",
+      "rationale": "one COMPENSATE answer runs the external undo once per call (measured at b9b2187)"
+    },
+    {
+      "name": "TC29_the_answer_is_read_from_the_loaded_view",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "            self.agents._fold_new()\n            esc = self.agents.escalation(escalation_id)\n",
+      "replace": "            esc = self.agents.escalation(escalation_id)\n",
+      "rationale": "an answer given after this supervisor loaded is refused as unanswered"
+    },
+    {
+      "name": "TC30_replay_accepts_a_second_authorization",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                prior = comps.get(eid)\n                if prior is not None:",
+      "replace": "                prior = comps.get(eid)\n                if False:",
+      "rationale": "a forged second authorization of one answer replays as a second undo nobody decided"
+    },
+    {
+      "name": "TC31_replay_accepts_an_outcome_with_no_authorization",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                    if granted is None or \\\n                            granted[\"authorized_seq\"] != \\\n                            p.get(\"authorization_seq\") or \\\n                            granted[\"task_id\"] != p.get(\"task_id\"):",
+      "replace": "                    if granted is None:\n                        granted = {\"task_id\": p.get(\"task_id\"), \"authorized_seq\": None, \"ran_seq\": None}\n                    if False:",
+      "rationale": "an undo recorded against no authorization replays as one a person decided"
+    },
+    {
+      "name": "TC41_replay_accepts_an_authorization_of_an_answer_to_leave_it",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                        or esc.state is not EscalationState.ANSWERED\n                        or esc.answer != \"COMPENSATE\"):",
+      "replace": "                        or esc.state is not EscalationState.ANSWERED):",
+      "rationale": "a forged authorization citing a person's ACCEPT_AS_DONE replays as an undo that person decided"
+    },
+    {
+      "name": "TC32_replay_accepts_a_second_outcome",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                    if granted[\"ran_seq\"] is not None:\n                        raise TaskTransitionError(",
+      "replace": "                    if False:\n                        raise TaskTransitionError(",
+      "rationale": "two outcomes recorded for one authorized undo"
+    },
+    {
+      "name": "TC33_an_allowed_read_is_decided_outside_the_lock",
+      "path": "agent_substrate/readpath.py",
+      "find": "        self.log.append_decided(decide)\n        if refused:",
+      "replace": "        self.log.append(**decide(self.log.verify().head_seq))\n        if refused:",
+      "rationale": "a revocation landing between the decision and the write leaves an allowed read under a revoked grant"
+    },
+    {
+      "name": "TC34_an_allowed_read_is_not_decided_again",
+      "path": "agent_substrate/readpath.py",
+      "find": "            try:\n                self._check(req, capability_id, self._grants(head_seq))\n            except ReadDenied as exc:\n                refused.append(",
+      "replace": "            try:\n                pass\n            except ReadDenied as exc:\n                refused.append(",
+      "rationale": "a read is recorded allowed under a grant revoked while it ran (measured at b9b2187)"
+    },
+    {
+      "name": "TC35_the_verifier_reads_with_a_snapshot",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                            capabilities=self.capabilities) as reader:",
+      "replace": "                            capabilities=self.capabilities.in_force(self._head_seq())) as reader:",
+      "rationale": "the verifier's reads are decided against a set taken before they began"
+    },
+    {
+      "name": "TC36_second_reader_misses_allowed_egress_under_a_revoked_grant",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if why:\n        _note(out, ev, f\"egress grant {gid!r} {why}, and a request under it ",
+      "replace": "    if False:\n        _note(out, ev, f\"egress grant {gid!r} {why}, and a request under it ",
+      "rationale": "the independent reader does not see an allowed request under a grant revoked before it"
+    },
+    {
+      "name": "TC37_second_reader_misses_two_provisioning_sources",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if first is not None and first != p.get(\"provider\"):",
+      "replace": "    if False:",
+      "rationale": "the independent reader does not see one secret provisioned from two sources"
+    },
+    {
+      "name": "TC38_second_reader_misses_a_second_authorization",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    prior = out.compensation_authorizations.get(eid)\n    if prior is not None:",
+      "replace": "    prior = out.compensation_authorizations.get(eid)\n    if False:",
+      "rationale": "the independent reader does not see one answer authorizing two undos"
+    },
+    {
+      "name": "TC39_second_reader_misses_an_unauthorized_outcome",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if granted is None or granted[\"authorized_seq\"] != \\\n            p.get(\"authorization_seq\") or granted[\"task_id\"] != tid:",
+      "replace": "    if False:",
+      "rationale": "the independent reader does not see an undo recorded against no authorization"
+    },
+    {
+      "name": "TC40_second_reader_accepts_an_answer_to_leave_it",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if esc is None or esc.get(\"state\") != \"ANSWERED\" or \\\n            esc.get(\"answer\") != \"COMPENSATE\" or \\",
+      "replace": "    if esc is None or esc.get(\"state\") != \"ANSWERED\" or \\\n            False or \\",
+      "rationale": "the independent reader accepts an authorization citing an answer that was not COMPENSATE"
+    }
+  ]
+}

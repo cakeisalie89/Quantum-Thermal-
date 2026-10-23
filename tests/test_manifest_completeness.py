@@ -11,7 +11,7 @@ negative tests mutate a copy of the manifest one property at a time and require
 the verifier to reject it -- a completeness check that accepts a truncated
 manifest is not a completeness check.
 
-MODEL-ONLY / FORECAST-ONLY. Software verification only.
+Software verification only.
 """
 import copy
 import hashlib
@@ -210,3 +210,12 @@ if __name__ == "__main__":
         if _n.startswith("test_") and callable(_f):
             _f()
     print("RESULT: manifest completeness holds under mutation")
+
+
+def test_repository_manifest_is_in_sync():
+    """The generator's own --check over the real tree. Byte-sensitive by
+    design -- the manifest hashes the generator too -- which is why it lives
+    here and not in the fixture-based suite the mutation specification runs."""
+    result = subprocess.run([sys.executable, "generate_manifest.py", "--check"],
+                            cwd=ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

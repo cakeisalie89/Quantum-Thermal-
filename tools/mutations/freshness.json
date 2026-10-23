@@ -1,0 +1,291 @@
+{
+ "title": "Freshness: an authentic but outdated observation is not a current fact",
+ "note": "Assurance F (D-2026-169). Each mutation deletes or inverts one rule of the freshness policies, the standing they give, the research ledger's decision-time checks, expiry and renewal, or the second reader's restatement. tests/test_freshness.py holds each with a control; tests/test_research_ledger.py and tests/test_simulation_research.py hold that nothing changed for a source with no policy.",
+ "suites": [
+  "tests/test_freshness.py",
+  "tests/test_research_ledger.py",
+  "tests/test_decision_proof.py"
+ ],
+ "mutations": [
+  {
+   "name": "FR1_a_withdrawn_source_still_counts",
+   "path": "agent_substrate/freshness.py",
+   "find": "    if not source_stands:\n        return Standing.WITHDRAWN",
+   "replace": "    if False:\n        return Standing.WITHDRAWN",
+   "rationale": "Assurance F: a reading whose source was replaced or invalidated still decides"
+  },
+  {
+   "name": "FR2_no_policy_means_fresh",
+   "path": "agent_substrate/freshness.py",
+   "find": "        return Standing.HISTORICAL, f\"{named}: a record of what was \" \\",
+   "replace": "        return Standing.FRESH, f\"{named}: a record of what was \" \\",
+   "rationale": "Assurance F: a reading with no policy is presented as current: a universal 'forever' TTL"
+  },
+  {
+   "name": "FR3_the_named_event_ends_nothing",
+   "path": "agent_substrate/freshness.py",
+   "find": "        if event_seq is not None:\n            return Standing.UNKNOWN",
+   "replace": "        if False:\n            return Standing.UNKNOWN",
+   "rationale": "Assurance F: valid-until-an-event never ends"
+  },
+  {
+   "name": "FR4_a_reading_with_no_time_is_fresh",
+   "path": "agent_substrate/freshness.py",
+   "find": "    if observed_at is None:\n        return Standing.UNKNOWN",
+   "replace": "    if observed_at is None:\n        return Standing.FRESH",
+   "rationale": "Assurance F: a timed policy over a source that states no time holds it current"
+  },
+  {
+   "name": "FR5_a_re_observation_replaces_nothing",
+   "path": "agent_substrate/freshness.py",
+   "find": "    if kind is Kind.PERIODIC and replaced_by is not None:",
+   "replace": "    if False:",
+   "rationale": "Assurance F: a periodic series' superseded readings stay current"
+  },
+  {
+   "name": "FR6_the_interval_never_runs_out",
+   "path": "agent_substrate/freshness.py",
+   "find": "    if at > until:\n        return Standing.UNKNOWN",
+   "replace": "    if False:\n        return Standing.UNKNOWN",
+   "rationale": "Assurance F: an interval or period never ends"
+  },
+  {
+   "name": "FR7_a_policy_s_parameters_are_not_checked",
+   "path": "agent_substrate/freshness.py",
+   "find": "    if not isinstance(params, dict) or set(params) != PARAMS[kind]:",
+   "replace": "    if not isinstance(params, dict):",
+   "rationale": "Assurance F: a policy with missing or extra parameters is recorded"
+  },
+  {
+   "name": "FR8_a_duration_may_be_anything",
+   "path": "agent_substrate/freshness.py",
+   "find": "                not math.isfinite(s) or s <= 0:",
+   "replace": "                False:",
+   "rationale": "Assurance F: a zero, negative or infinite duration is recorded"
+  },
+  {
+   "name": "FR9_a_policy_needs_no_reason",
+   "path": "agent_substrate/freshness.py",
+   "find": "    if not isinstance(body[\"rationale\"], str) or \\\n            not 0 < len(body[\"rationale\"].strip()) <= 500:",
+   "replace": "    if not isinstance(body[\"rationale\"], str):",
+   "rationale": "Assurance F: a policy nobody explained is recorded"
+  },
+  {
+   "name": "FR10_any_iso_form_is_read",
+   "path": "agent_substrate/freshness.py",
+   "find": "    if not isinstance(text, str) or not _INSTANT.match(text):",
+   "replace": "    if not isinstance(text, str):",
+   "rationale": "Assurance F: basic formats and week dates are read by the first reader and not the second"
+  },
+  {
+   "name": "FR11_an_unknown_kind_is_recorded",
+   "path": "agent_substrate/freshness.py",
+   "find": "        kind = Kind(body[\"kind\"])\n    except ValueError:\n        raise",
+   "replace": "        kind = Kind(body[\"kind\"]) if body[\"kind\"] in Kind._value2member_map_ else Kind.HISTORICAL\n    except ValueError:\n        raise",
+   "rationale": "Assurance F: a policy of a kind nobody defined is read as HISTORICAL"
+  },
+  {
+   "name": "FR12_a_verdict_may_rest_on_lapsed_evidence",
+   "path": "agent_substrate/research.py",
+   "find": "                if standing not in F.USABLE:\n                    return (f\"a verdict rests on",
+   "replace": "                if False:\n                    return (f\"a verdict rests on",
+   "rationale": "Assurance F: a verdict is recorded on a reading whose freshness ran out"
+  },
+  {
+   "name": "FR13_a_verdict_is_renewed_on_the_same_basis",
+   "path": "agent_substrate/research.py",
+   "find": "                if set(basis) == set(rec.basis):\n                    return \"decided again on the same basis records nothing\"",
+   "replace": "                if False:\n                    return \"decided again on the same basis records nothing\"",
+   "rationale": "Assurance F: the same verdict is recorded again on nothing new"
+  },
+  {
+   "name": "FR14_a_verdict_is_renewed_with_nothing_lapsed",
+   "path": "agent_substrate/research.py",
+   "find": "                if all(self._usable(o, at) for o in rec.basis):\n                    return (\"a verdict is decided again only once evidence \"",
+   "replace": "                if False:\n                    return (\"a verdict is decided again only once evidence \"",
+   "rationale": "Assurance F: a verdict is re-based while its evidence still holds"
+  },
+  {
+   "name": "FR15_a_conclusion_may_rest_on_lapsed_evidence",
+   "path": "agent_substrate/research.py",
+   "find": "            if lapsed:\n                return (f\"a conclusion rests on {basis[0]!r}, whose evidence \"",
+   "replace": "            if False:\n                return (f\"a conclusion rests on {basis[0]!r}, whose evidence \"",
+   "rationale": "Assurance F: an objective is concluded on evidence that ran out"
+  },
+  {
+   "name": "FR16_expired_needs_no_justification",
+   "path": "agent_substrate/research.py",
+   "find": "            if standing not in F.LAPSED:\n                return (f\"it is {standing.value} at {at}, not lapsed: {why}\")",
+   "replace": "            if False:\n                return (f\"it is {standing.value} at {at}, not lapsed: {why}\")",
+   "rationale": "Assurance F: a fresh reading is declared EXPIRED"
+  },
+  {
+   "name": "FR17_anyone_sets_freshness",
+   "path": "agent_substrate/research.py",
+   "find": "        if ev.actor != obj.body[\"owner\"]:\n            raise ResearchError(\n                f\"seq {ev.seq}: {ev.actor!r} set how fresh \"",
+   "replace": "        if False:\n            raise ResearchError(\n                f\"seq {ev.seq}: {ev.actor!r} set how fresh \"",
+   "rationale": "Assurance F: the controller or an agent decides how long evidence stays current"
+  },
+  {
+   "name": "FR18_a_policy_is_rewritten",
+   "path": "agent_substrate/research.py",
+   "find": "        if key in self._freshness:\n            raise ResearchError(",
+   "replace": "        if False:\n            raise ResearchError(",
+   "rationale": "Assurance F: a stricter policy is replaced by a looser one"
+  },
+  {
+   "name": "FR19_a_reading_from_the_future_is_recorded",
+   "path": "agent_substrate/research.py",
+   "find": "        if t > now:\n            raise ResearchError(",
+   "replace": "        if False:\n            raise ResearchError(",
+   "rationale": "Assurance F: a reading stamped later than the history is recorded and stays fresh longer"
+  },
+  {
+   "name": "FR20_the_time_is_not_the_bundle_s",
+   "path": "agent_substrate/research.py",
+   "find": "                    bundle.get(\"observed_at\") != b.get(\"observed_at\") or \\",
+   "replace": "                    False or \\",
+   "rationale": "Assurance F: a recorder's time is accepted in place of the source's"
+  },
+  {
+   "name": "FR21_observe_drops_the_source_s_time",
+   "path": "agent_substrate/research.py",
+   "find": "        for key in sorted(_OBSERVATION_OPTIONAL):\n",
+   "replace": "        for key in sorted(_OBSERVATION_OPTIONAL - {\"observed_at\"}):\n",
+   "rationale": "Assurance F: a reading is recorded without the time its source gave"
+  },
+  {
+   "name": "FR22_propagation_expires_nothing",
+   "path": "agent_substrate/research.py",
+   "find": "            if lapsed:\n                oid = lapsed[0]",
+   "replace": "            if False:\n                oid = lapsed[0]",
+   "rationale": "Assurance F: a lapsed reading stays CURRENT and what rests on it stands"
+  },
+  {
+   "name": "FR23_propagation_renews_nothing",
+   "path": "agent_substrate/research.py",
+   "find": "            if renewals:\n                hid = min(renewals)",
+   "replace": "            if False:\n                hid = min(renewals)",
+   "rationale": "Assurance F: a verdict a re-observation supports is ended anyway"
+  },
+  {
+   "name": "FR24_evaluation_uses_lapsed_evidence",
+   "path": "agent_substrate/research.py",
+   "find": "        obs_ids = [o for o in self.of(rec.body[\"objective_id\"], \"observation\")\n                   if self._usable(o, at)]\n        verdict, reason = evaluate(rec.body[\"prediction\"],\n                                   [self._recs[o].body for o in obs_ids])\n        if rec.status",
+   "replace": "        obs_ids = [o for o in self.of(rec.body[\"objective_id\"], \"observation\")\n                   if self.current(o)]\n        verdict, reason = evaluate(rec.body[\"prediction\"],\n                                   [self._recs[o].body for o in obs_ids])\n        if rec.status",
+   "rationale": "Assurance F: evaluation decides on readings that ran out"
+  },
+  {
+   "name": "FR25_an_event_before_the_reading_ends_it",
+   "path": "agent_substrate/research.py",
+   "find": "            event_seq = seen if seen is not None and seen > rec.seq else None",
+   "replace": "            event_seq = seen",
+   "rationale": "Assurance F: a reading taken after the named event is ended by it"
+  },
+  {
+   "name": "FR26_an_earlier_reading_supersedes",
+   "path": "agent_substrate/research.py",
+   "find": "                           and self._observed_at[o] > t)",
+   "replace": "                           and self._observed_at[o] != t)",
+   "rationale": "Assurance F: a late-arriving older reading supersedes the latest"
+  },
+  {
+   "name": "FR27_the_ledger_judges_at_the_record_s_own_clock",
+   "path": "agent_substrate/research.py",
+   "find": "        why = self._status_problem(rec, status, basis,\n                                   judged_at(self._latest_wall, ev.wall_time))",
+   "replace": "        why = self._status_problem(rec, status, basis, ev.wall_time)",
+   "rationale": "Assurance F: a verdict written with the clock set back rests on an expired reading"
+  },
+  {
+   "name": "FR28_currency_reports_the_strongest",
+   "path": "agent_substrate/research.py",
+   "find": "                \"evidence\": min(used, key=weakest.index).value",
+   "replace": "                \"evidence\": max(used, key=weakest.index).value",
+   "rationale": "Assurance F: a verdict with one outdated reading is reported current"
+  },
+  {
+   "name": "FR29_the_event_is_seen_before_it_is_judged",
+   "path": "agent_substrate/research.py",
+   "find": "        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)\n        folded = self._dispatch(ev)\n        # After the record itself is judged, so a writer -- which judges\n        # against the history before its record -- and a replay agree.\n        self._last_seen[(ev.action, ev.target)] = ev.seq\n        return folded",
+   "replace": "        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)\n        self._last_seen[(ev.action, ev.target)] = ev.seq\n        return self._dispatch(ev)",
+   "rationale": "Assurance F: replay sees a record's own event before judging it, and refuses a verdict its writer judged correctly"
+  },
+  {
+   "name": "FR30_the_second_reader_ignores_lapsed_verdicts",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if lapsed:\n            _note(out, ev, f\"a verdict resting on {lapsed}, whose freshness \"",
+   "replace": "        if False:\n            _note(out, ev, f\"a verdict resting on {lapsed}, whose freshness \"",
+   "rationale": "Assurance F: the second reader holds a verdict on an expired reading"
+  },
+  {
+   "name": "FR31_the_second_reader_allows_any_renewal",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            _note(out, ev, f\"{rid!r} decided {status} again with nothing \"\n                           \"in its basis lapsed\")\n            return",
+   "replace": "            pass",
+   "rationale": "Assurance F: the second reader holds a renewal on nothing new"
+  },
+  {
+   "name": "FR32_the_second_reader_ignores_a_lapsed_conclusion",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            _note(out, ev, \"a conclusion resting on evidence whose \"\n                           \"freshness had run out\")\n            return",
+   "replace": "            pass",
+   "rationale": "Assurance F: the second reader holds a conclusion on expired evidence"
+  },
+  {
+   "name": "FR33_the_second_reader_takes_expired_on_trust",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if status == \"EXPIRED\" and \\\n            _rs_standing(out, rid, out.latest_wall) not in _RS_LAPSED:",
+   "replace": "    if False:",
+   "rationale": "Assurance F: the second reader holds a fresh reading declared EXPIRED"
+  },
+  {
+   "name": "FR34_the_second_reader_lets_anyone_set_freshness",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if obj is None or obj[\"kind\"] != \"objective\" or \\\n            ev.actor != obj[\"body\"].get(\"owner\"):",
+   "replace": "    if obj is None or obj[\"kind\"] != \"objective\":",
+   "rationale": "Assurance F: the second reader holds a policy an agent set"
+  },
+  {
+   "name": "FR35_the_second_reader_s_intervals_never_end",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    return \"UNKNOWN\" if at > t + pol[\"params\"][\"seconds\"] else \"FRESH\"",
+   "replace": "    return \"FRESH\"",
+   "rationale": "Assurance F: the second reader holds every timed reading current"
+  },
+  {
+   "name": "FR36_the_second_reader_reads_offsets_backwards",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        offset = (int(rest[1:3]) * 60 + int(rest[4:6])) * 60 * \\\n            (1 if rest[0] == \"+\" else -1)",
+   "replace": "        offset = (int(rest[1:3]) * 60 + int(rest[4:6])) * 60 * \\\n            (-1 if rest[0] == \"+\" else 1)",
+   "rationale": "Assurance F: the second reader reads a time zone the wrong way"
+  },
+  {
+   "name": "FR37_the_second_reader_accepts_any_day",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if not (1 <= mo <= 12 and 1 <= d <= days_in[mo - 1] and h <= 23",
+   "replace": "    if not (1 <= mo <= 12 and 1 <= d <= 31 and h <= 23",
+   "rationale": "Assurance F: the second reader reads 30 February"
+  },
+  {
+   "name": "FR38_a_proof_ignores_freshness",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if b[\"freshness\"] not in _RS_USABLE:",
+   "replace": "            if False:",
+   "rationale": "Assurance F: a verdict's proof verifies though the evidence had run out at the decision"
+  },
+  {
+   "name": "FR39_a_proof_judges_after_the_decision",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    before = reconstruct_subsystems(_at(report, events, ev.seq - 1))",
+   "replace": "    before = reconstruct_subsystems(_at(report, events, ev.seq))",
+   "rationale": "Assurance F: a verdict's proof judges freshness with the decision itself already in the history"
+  },
+  {
+   "name": "FR40_a_proof_omits_freshness",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "                      \"freshness\": _rs_standing(before, oid, at)\n                      if known else None})",
+   "replace": "                      \"freshness\": \"FRESH\"})",
+   "rationale": "Assurance F: a verdict's proof says every basis was fresh"
+  }
+ ]
+}

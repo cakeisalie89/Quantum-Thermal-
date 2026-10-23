@@ -1,0 +1,72 @@
+{
+  "title": "The bounded model checker's own reach",
+  "note": "Every invariant this tool asserts has the form 'no path does X', and an empty graph satisfies all of them -- so the guards that keep the graph non-empty and the search complete are the ones holding the whole thing up, and they are invisible while everything is healthy. K1-K2 attack the anti-vacuity floors. K3 attacks the path search's refusal to answer from a truncated exploration. K4-K7 attack the invariants themselves, one at a time: I1 over paths rather than edges, I2 terminality, I4 separation of duties, I6 evidence. K8 attacks the interrogation's coverage of evidence subsets, which is what makes I6 an exhaustive claim rather than a spot check.",
+  "suites": [
+    "tests/test_model_check.py"
+  ],
+  "mutations": [
+    {
+      "name": "K1_an_empty_authority_graph_is_accepted",
+      "path": "tools/model_check.py",
+      "find": "    if len(auth) < len(A.EDGES):",
+      "replace": "    if False:",
+      "rationale": "a derivation that stopped reaching check() reports that every path invariant holds, which is true of no paths and says nothing about this machine"
+    },
+    {
+      "name": "K2_an_empty_scheduler_graph_is_accepted",
+      "path": "tools/model_check.py",
+      "find": "    if len(sched) < len(S.EDGES):",
+      "replace": "    if False:",
+      "rationale": "the same, on the other machine"
+    },
+    {
+      "name": "K3_a_truncated_path_search_answers_anyway",
+      "path": "tools/model_check.py",
+      "find": "    if truncated:\n        raise AssertionError(",
+      "replace": "    if False:\n        raise AssertionError(",
+      "rationale": "'no violations' from a search that hit its bound is a statement about the search, and it reads identically to a statement about the machine"
+    },
+    {
+      "name": "K4_review_is_not_required_on_the_path_to_promotion",
+      "path": "tools/model_check.py",
+      "find": "    for path in paths_into(succ, A.INITIAL, A.State.PROMOTED):\n        if A.State.UNDER_REVIEW not in path:",
+      "replace": "    for path in paths_into(succ, A.INITIAL, A.State.PROMOTED):\n        if False:",
+      "rationale": "'PROMOTED is entered only from VERIFIED' is a claim about one edge and says nothing about how VERIFIED was reached. An edge straight from STALE to VERIFIED would satisfy every edge check while letting an invalidated record become canonical again with nobody looking at it"
+    },
+    {
+      "name": "K5_terminal_states_may_have_successors",
+      "path": "tools/model_check.py",
+      "find": "    for state in A.TERMINAL:\n        if succ.get(state):",
+      "replace": "    for state in A.TERMINAL:\n        if False:",
+      "rationale": "I2 is the invariant that stops a revoked record being brought back, and it stops being asked"
+    },
+    {
+      "name": "K6_separation_of_duties_is_not_checked",
+      "path": "tools/model_check.py",
+      "find": "            if any(w[\"same_actor\"] for w in ways):",
+      "replace": "            if False:",
+      "rationale": "a transition permitted to the record's own proposer stops being a finding, and I4 is exactly the invariant a real system loses quietly"
+    },
+    {
+      "name": "K7_verification_evidence_is_not_required",
+      "path": "tools/model_check.py",
+      "find": "            if any(\"verification_report\" not in w[\"evidence\"] for w in ways):",
+      "replace": "            if False:",
+      "rationale": "a permitted route into VERIFIED carrying no report stops being a finding"
+    },
+    {
+      "name": "K8_only_one_evidence_subset_is_tried",
+      "path": "tools/model_check.py",
+      "find": "                for r in range(len(EVIDENCE_KEYS) + 1):",
+      "replace": "                for r in range(len(EVIDENCE_KEYS), len(EVIDENCE_KEYS) + 1):",
+      "rationale": "the I6 invariants become 'the FULL evidence set is accepted', which every edge satisfies; the question was whether a SMALLER set is also accepted and it stops being asked"
+    },
+    {
+      "name": "K9_the_graph_is_re_described_rather_than_derived",
+      "path": "tools/model_check.py",
+      "find": "                        try:\n                            A.check(req)\n                        except Exception:      # noqa: BLE001 - a refusal\n                            continue",
+      "replace": "                        if A.find_edge(src, dst) is None:\n                            continue",
+      "rationale": "the graph becomes the EDGE TABLE rather than what the gate permits, so every rule check() adds on top -- roles, distinct actors, evidence -- disappears from the model while it still reports on 'the machine'"
+    }
+  ]
+}

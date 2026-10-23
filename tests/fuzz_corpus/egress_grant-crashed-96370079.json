@@ -1,0 +1,8 @@
+{
+  "detail": "AttributeError: 'list' object has no attribute 'lower'",
+  "input_b64": "eyJncmFudF9pZCI6ICJnIiwgInN1YmplY3QiOiAicyIsICJ0YXNrX2lkIjogInQiLCAidG9vbF9pZCI6ICJ4IiwgInNjaGVtZXMiOiBbW10sIFtdLCBbXSwgW10sIFtdXSwgImhvc3RzIjogWyJhcGkuZXhhbXBsZS5jb20iXSwgInBvcnRzIjogWzQ0M10sICJtZXRob2RzIjogWyJHRVQiXX0=",
+  "kind": "CRASHED",
+  "seed": 65537,
+  "target": "egress_grant",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/user/Quantum-Thermal-/tools/fuzz_substrate.py\", line 329, in run_case\n    fn(data)\n  File \"/home/user/Quantum-Thermal-/tools/fuzz_substrate.py\", line 133, in run\n    return builder(rec)\n           ^^^^^^^^^^^^\n  File \"/home/user/Quantum-Thermal-/qta_agent/netauth.py\", line 510, in grant_from_record\n    return grant(\n           ^^^^^^\n  File \"/home/user/Quantum-Thermal-/qta_agent/netauth.py\", line 437, in grant\n    schemes = tuple(sorted({s.lower() for s in schemes}))\n                            ^^^^^^^\nAttributeError: 'list' object has no attribute 'lower'\n"
+}

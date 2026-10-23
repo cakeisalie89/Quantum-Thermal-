@@ -1,0 +1,150 @@
+{
+ "title": "Feature tokens, units, governed datasets, OOD classes and constraints (NF-1T)",
+ "note": "NT1-NT20: a feature's identity or dimension dropped, NaN or infinity or a missing value turned into a number, a domain or a dimension not enforced, a unit not converted, statistics from beyond the training split, splits that depend on order, leakage checks disabled, the OOD and constraint findings silenced.",
+ "suites": [
+  "tests/test_neural_features.py",
+  "tests/test_neural_data.py"
+ ],
+ "mutations": [
+  {
+   "name": "NT1_feature_identity_dropped",
+   "path": "scientific_ai/neural/features.py",
+   "find": "    feat = np.tile(np.arange(nf, dtype=np.int32), (b, 1))\n",
+   "replace": "    feat = np.zeros((b, nf), dtype=np.int32)\n",
+   "rationale": "every feature shares one identity"
+  },
+  {
+   "name": "NT2_dimension_dropped",
+   "path": "scientific_ai/neural/features.py",
+   "find": "        dims[:, j, :] = f.dimension.exponents\n",
+   "replace": "        dims[:, j, :] = 0\n",
+   "rationale": "0.01 K and 0.01 Pa become the same token"
+  },
+  {
+   "name": "NT3_nan_accepted",
+   "path": "scientific_ai/neural/features.py",
+   "find": "    if math.isnan(x):\n",
+   "replace": "    if False:\n",
+   "rationale": "NaN read as a number"
+  },
+  {
+   "name": "NT4_infinity_accepted",
+   "path": "scientific_ai/neural/features.py",
+   "find": "    if math.isinf(x):\n",
+   "replace": "    if False:\n",
+   "rationale": "infinity read as a number"
+  },
+  {
+   "name": "NT5_required_value_may_be_missing",
+   "path": "scientific_ai/neural/features.py",
+   "find": "        if not spec.missing_allowed:\n",
+   "replace": "        if False:\n",
+   "rationale": "a required feature silently absent"
+  },
+  {
+   "name": "NT6_lower_domain_unchecked",
+   "path": "scientific_ai/neural/features.py",
+   "find": "    if spec.lower is not None and x < spec.lower or \\\n",
+   "replace": "    if False and x < 0 or \\\n",
+   "rationale": "a value below the physical domain accepted"
+  },
+  {
+   "name": "NT7_unit_not_converted",
+   "path": "scientific_ai/neural/features.py",
+   "find": "        x = x * given.si_factor / want.si_factor\n",
+   "replace": "        x = x\n",
+   "rationale": "a value given in another unit of the same dimension is not converted: 10 mK is read as 10 K"
+  },
+  {
+   "name": "NT8_dimension_mismatch_accepted",
+   "path": "scientific_ai/neural/features.py",
+   "find": "        if (given.dimension_class, given.exponents) != (\n",
+   "replace": "        if False and (given.dimension_class, given.exponents) != (\n",
+   "rationale": "a pressure accepted for a temperature"
+  },
+  {
+   "name": "NT9_log_magnitude_wrong_base",
+   "path": "scientific_ai/neural/features.py",
+   "find": "            log_mag = 0.0 if si == 0 else math.log10(abs(si)) \\\n",
+   "replace": "            log_mag = 0.0 if si == 0 else math.log(abs(si)) \\\n",
+   "rationale": "the magnitude channel in the wrong base"
+  },
+  {
+   "name": "NT10_exact_zero_not_flagged",
+   "path": "scientific_ai/neural/features.py",
+   "find": "            vals[i, j] = (z, sign, log_mag, 1.0 if si == 0 else 0.0)\n",
+   "replace": "            vals[i, j] = (z, sign, log_mag, 0.0)\n",
+   "rationale": "an exact zero indistinguishable from a tiny value"
+  },
+  {
+   "name": "NT11_statistics_from_every_split",
+   "path": "scientific_ai/neural/datasets.py",
+   "find": "    train = split_members(samples)[\"train\"]\n",
+   "replace": "    train = list(samples)\n",
+   "rationale": "normalisation fitted on test and OOD data too"
+  },
+  {
+   "name": "NT12_split_ignores_the_family",
+   "path": "scientific_ai/neural/datasets.py",
+   "find": "    h = hashlib.sha256(f\"{seed}:{family_key}\".encode()).digest()\n",
+   "replace": "    h = hashlib.sha256(f\"{seed}\".encode()).digest()\n",
+   "rationale": "every sample lands in one split"
+  },
+  {
+   "name": "NT13_split_crossing_unchecked",
+   "path": "scientific_ai/neural/datasets.py",
+   "find": "                if k in seen and seen[k][0] != split:\n",
+   "replace": "                if False:\n",
+   "rationale": "duplicates across splits go unreported"
+  },
+  {
+   "name": "NT14_digest_binds_ids_only",
+   "path": "scientific_ai/neural/datasets.py",
+   "find": "                   \"samples\": [s.content() for s in ordered]})\n",
+   "replace": "                   \"samples\": [s.sample_id for s in ordered]})\n",
+   "rationale": "a changed value keeps the dataset digest"
+  },
+  {
+   "name": "NT15_target_copy_unchecked",
+   "path": "scientific_ai/neural/datasets.py",
+   "find": "            if samples and all(s.inputs[f] == s.targets[t]\n",
+   "replace": "            if not samples and all(s.inputs[f] == s.targets[t]\n",
+   "rationale": "a feature that copies a target goes unreported"
+  },
+  {
+   "name": "NT16_extrapolation_not_reported",
+   "path": "scientific_ai/neural/ood.py",
+   "find": "        if outside:\n",
+   "replace": "        if False:\n",
+   "rationale": "outside the training range reported as in distribution"
+  },
+  {
+   "name": "NT17_violation_not_recorded",
+   "path": "scientific_ai/neural/constraints.py",
+   "find": "            if m < 0:\n",
+   "replace": "            if m < -1e300:\n",
+   "rationale": "a violated constraint counted as held"
+  },
+  {
+   "name": "NT18_feature_target_overlap_accepted",
+   "path": "scientific_ai/neural/features.py",
+   "find": "        if set(fn) & set(tn):\n",
+   "replace": "        if False:\n",
+   "rationale": "a target allowed as its own input"
+  },
+  {
+   "name": "NT19_unknown_unit_guessed",
+   "path": "scientific_ai/neural/units.py",
+   "find": "    raise UnitError(f\"unknown unit symbol {sym!r}\")\n",
+   "replace": "    return (_ZERO, 1.0)\n",
+   "rationale": "an unreadable unit guessed dimensionless"
+  },
+  {
+   "name": "NT20_missing_value_carries_number",
+   "path": "scientific_ai/neural/features.py",
+   "find": "                valid[i, j] = missing\n                continue\n",
+   "replace": "                valid[i, j] = missing\n                vals[i, j] = (1.0, 1.0, 0.0, 0.0)\n                continue\n",
+   "rationale": "an absent value encoded as if measured"
+  }
+ ]
+}

@@ -1,0 +1,521 @@
+{
+ "schema": "harness-readiness/1",
+ "label": "PRODUCTION_READINESS -- states what is built, what hosted CI has run, what a deployment must provide, and what the owner must do; no compliance or production claim",
+ "statuses": {
+  "IMPLEMENTED": "built and tested locally at this commit; hosted CI at this tranche's head has not yet run it",
+  "HOSTED_TESTED": "IMPLEMENTED, and a hosted run at a commit whose implementation is this one passed (runs cited)",
+  "DEPLOYMENT_REQUIRED": "this code cannot provide it alone; the deployment must, and DEPLOYMENT.md says how to check. Counts toward readiness only when the deployment attests its deployment_check passed there; hosted CI does not",
+  "EXTERNALLY_BLOCKED": "needs an owner action, credentials or settings outside this repository",
+  "UNVERIFIED": "not established either way"
+ },
+ "production_ready_when": "every row is HOSTED_TESTED, or DEPLOYMENT_REQUIRED and attested by the deployment itself: a signed harness-deployment-attestation/1, validated by tools/deployment_evidence.py against the owner's harness-deployment-policy/1, reporting that row's deployment_check as PASS (D-2026-155); no row EXTERNALLY_BLOCKED or UNVERIFIED",
+ "rows": [
+  {
+   "id": "REL-1",
+   "capability": "release verification reports five non-interchangeable levels; admit is the only gate and refuses digest-only runs",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_release_admission.py",
+    "tests/test_supply_chain.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/supply_chain.json"
+   ],
+   "ledger": "D-2026-143",
+   "note": "hosted at the commit named; what ran is in hosted.what",
+   "implementation": [
+    "tools/supply_chain.py",
+    "tools/offline_verify.py",
+    "docs/supply_chain_ci_policy.json",
+    ".github/workflows/supply-chain.yml"
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033",
+     "39092564447"
+    ],
+    "implementation_sha256": "2525f1ab8c3374ddbd74a8d62eb56890a15f652e864b13cca476bd0a2cc6d99e",
+    "what": "supply-chain sign-and-verify: admit took the signed candidate to SIGNER_TRUSTED and refused it (exit 3) under the CI policy; the admission tests ran in agent-substrate"
+   }
+  },
+  {
+   "id": "REL-2",
+   "capability": "portable offline verifier: stdlib only, no checkout, provisioned trust root, hostile inputs refused",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_offline_verify.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/supply_chain.json"
+   ],
+   "ledger": "D-2026-144",
+   "note": "hosted at the commit named; what ran is in hosted.what",
+   "implementation": [
+    "tools/offline_verify.py",
+    "integrations/supply_chain/sigstore.lock",
+    "docs/supply_chain_ci_policy.json",
+    ".github/workflows/supply-chain.yml"
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033",
+     "39092564447"
+    ],
+    "implementation_sha256": "a2b50ad439a34ea680ea8c0f5a8c77cea6b2a552cbbda3479d3b1f0fdf490b00",
+    "what": "supply-chain offline-verify: a three-file kit with the network removed (loopback down); verify exit 0 to SIGNER_TRUSTED, --require RELEASE_AUTHORIZED exit 3, and 17 hostile cases all as expected with a real decoy signature"
+   }
+  },
+  {
+   "id": "REL-3",
+   "capability": "reproducibility contract: which release bytes are identical across builds",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_release_reproducibility.py"
+   ],
+   "mutation_specs": [],
+   "ledger": "D-2026-145",
+   "note": "hosted at the commit named; what ran is in hosted.what",
+   "implementation": [
+    "tools/supply_chain.py",
+    "docs/security/reproducibility_contract.json",
+    ".github/workflows/supply-chain.yml"
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033",
+     "39092564447"
+    ],
+    "implementation_sha256": "08c67f4a30be3794e2a3896d4874c16bbb8938e8041abda1b6d84134375d0ac5",
+    "what": "supply-chain rebuild-elsewhere: ubuntu-22.04 with Python 3.11 rebuilt the candidate and compared it under the reproducibility contract"
+   }
+  },
+  {
+   "id": "REL-4",
+   "capability": "a release trust root (harness-release-policy/1) and a release workflow signing in a protected environment",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner action O-8; no release policy exists and none is created here"
+  },
+  {
+   "id": "REL-5",
+   "capability": "release revocation channel",
+   "status": "UNVERIFIED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "not designed: there is no release yet (DEPLOYMENT.md section 8)"
+  },
+  {
+   "id": "CI-1",
+   "capability": "the deployed AI agent is started only by owners, members and collaborators",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner actions O-1, O-2: the default branch's claude.yml has no author gate"
+  },
+  {
+   "id": "CI-2",
+   "capability": "the default branch is protected: required review by someone other than the last pusher, required checks, no bypass",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner actions O-4, O-5"
+  },
+  {
+   "id": "CI-3",
+   "capability": "no workflow on the default branch mints OIDC tokens except the stated signer",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner action O-6: release.yml and identity-discovery.yml are active there"
+  },
+  {
+   "id": "CI-4",
+   "capability": "every workflow on this branch holds no more than its stated authority; the agent's and the CI signer's identities cannot sign a release",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_ci_authority.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/ci_authority.json"
+   ],
+   "ledger": "D-2026-146",
+   "note": "hosted evidence at 40440ce predates this implementation: the agent-substrate workflow gained the deployment-evidence step (D-2026-155); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "implementation": [
+    "tools/workflow_contract.py",
+    ".github/workflows/agent-substrate.yml",
+    ".github/workflows/claude.yml",
+    ".github/workflows/container-verify.yml",
+    ".github/workflows/harness-integrations.yml",
+    ".github/workflows/stack-verify.yml",
+    ".github/workflows/supply-chain.yml"
+   ],
+   "last_hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "663ec20b5e210f373844b3c3711fbf845a609dc562f148de9b88f433e815759e",
+    "what": "agent-substrate: the workflow contract, with its authority rules and exit-capture rule, and tests/test_ci_authority.py in the full suite"
+   },
+   "hosted_before": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "657ba6f44e535cf4ca3911ed810956f2b8c61db08ab122df9f2279586e813913",
+    "what": "agent-substrate: the workflow contract, with its authority rules and exit-capture rule, and tests/test_ci_authority.py in the full suite"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874",
+     "40008852132",
+     "40008862775",
+     "40008852081",
+     "40008862807",
+     "40008852061",
+     "40008852103"
+    ],
+    "implementation_sha256": "65f17cf5929ef97e5857a68b02539d0eb0511a1fa6c72ab457fc20620fb1a286",
+    "what": "every workflow at 927b69c, push and pull_request: agent-substrate (whose full suite runs tests/test_ci_authority.py and whose shards run ci_authority.json), harness-integrations, stack-verify, container-verify and supply-chain, 44 jobs, every one succeeded"
+   }
+  },
+  {
+   "id": "CI-5",
+   "capability": "repository Actions defaults (read-only token, no PR approval by Actions, allowed-actions list)",
+   "status": "UNVERIFIED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-146",
+   "note": "owner action O-7; the settings API is not readable from this session"
+  },
+  {
+   "id": "SUB-1",
+   "capability": "authority-bearing writers decide under the writer lock against the history they append onto",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_agent_toctou.py",
+    "tests/test_decided_appends.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/agent_toctou.json",
+    "tools/mutations/agent_agents.json"
+   ],
+   "ledger": "D-2026-147",
+   "note": "the agent directory, memory and policy stores; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the event log's fold, the agent directory and memory (a refused fold is never resumed past); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by D-2026-168: the policy store's decision path, the authority store and the event log changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "implementation": [
+    "agent_substrate/agents.py",
+    "agent_substrate/memory.py",
+    "agent_substrate/events.py"
+   ],
+   "last_hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "98056f22745c5e0bc52aa57fed788d92f2637cbc22000bc8866250460938e613",
+    "what": "agent-substrate: full suite and mutation shards"
+   },
+   "hosted_before": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "8164c761bf000d9c7112c531233d3edc0fed0de54c79bc739591897306aa11b7",
+    "what": "agent-substrate: full suite and mutation shards"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "c0e00fbfea1267b42244ba46d40105b70b3bf29cd5e894662772d5f42a23e727",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
+   }
+  },
+  {
+   "id": "SUB-2",
+   "capability": "every other authority writer decides under the writer lock against the history it appends onto -- capability, egress and secret writers, the execution record, the compensation authorization, governed reads -- and no projection resumes past a record it refused",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_t2_closure.py",
+    "tests/test_refused_fold.py",
+    "tests/test_t2_governed.py",
+    "tests/test_decided_under_lock.py",
+    "tests/test_authority_inventory.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/t2_closure.json",
+    "tools/mutations/authority_inventory.json"
+   ],
+   "ledger": "D-2026-156",
+   "note": "finding T-2 FIXED; every durable write is classified and measured by tools/authority_inventory.py, which CI runs. Hosted at 1586322; attached in Tranche H Gate A, having been missed in the Tranche G evidence commit (D-2026-161). Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "implementation": [
+    "agent_substrate/events.py",
+    "agent_substrate/capability.py",
+    "agent_substrate/netauth.py",
+    "agent_substrate/secrets.py",
+    "agent_substrate/governed_tasks.py",
+    "agent_substrate/readpath.py",
+    "agent_substrate/reconstruct.py",
+    "tools/authority_inventory.py",
+    "docs/security/authority_inventory.json"
+   ],
+   "hosted_before": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "5e501474e79a43e5a4ddf1118513340a72324f011be054858fdd0159fe876e03",
+    "what": "agent-substrate: full suite (tests/test_t2_closure.py, test_refused_fold.py, test_t2_governed.py, test_decided_under_lock.py, test_authority_inventory.py) and mutation shards (t2_closure, authority_inventory), and the authority-inventory step"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "91f86dea081937a529e6e8e6c3301aee664ae68ea476774fecfc382473fe88a2",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
+   }
+  },
+  {
+   "id": "SUB-3",
+   "capability": "promotions bound to a policy published by a named authority, not withdrawn, not expired; restated by the second reader",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_policy_binding.py",
+    "tests/test_scientific_authority_replay.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/policy_binding.json"
+   ],
+   "ledger": "D-2026-148",
+   "note": "the governed path declares the binding; an unbound history does not have it; the governed path refuses a history whose binding names any other authority (D-2026-151); hosted evidence at 40440ce predates this implementation: D-2026-156 changed the policy store and authority store folds and the second reader; re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "implementation": [
+    "agent_substrate/policy.py",
+    "agent_substrate/store.py",
+    "agent_substrate/reconstruct.py",
+    "agent_substrate/governed_model.py",
+    "agent_substrate/audit.py"
+   ],
+   "last_hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "ef07b3032b920413d20d3bb74552f70bf50c695485d945a0f662decd2163ece5",
+    "what": "agent-substrate: full suite and mutation shards"
+   },
+   "hosted_before": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "5263950f050372f8bda9cd193d7af578c5e00523e41c0625623cca90253867b5",
+    "what": "agent-substrate: full suite and mutation shards"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "fbc431d8077746a85b609613b9d42af44f8783d875e9cc051ed58fc4053a55ff",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
+   }
+  },
+  {
+   "id": "SUB-4",
+   "capability": "hostile Cases A-H refused end to end",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_hostile_composition.py"
+   ],
+   "mutation_specs": [],
+   "ledger": "D-2026-150",
+   "note": "each case through the real components with a control; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the agent directory, policy and store folds and the second reader; re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "implementation": [
+    "agent_substrate/store.py",
+    "agent_substrate/reconstruct.py",
+    "agent_substrate/agents.py",
+    "agent_substrate/policy.py",
+    "agent_substrate/governed_model.py",
+    "tools/offline_verify.py"
+   ],
+   "last_hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "e41e344d84dfd6a1645e8077a84bace1c95c45fa4041ad6eb72edf58a8346506",
+    "what": "agent-substrate: full suite"
+   },
+   "hosted_before": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "8b7ea80fee2e93c0169fdb7deb7394e11a10d62250e192a5d3e94a886aa6b477",
+    "what": "agent-substrate: full suite"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "36fe9111be7453d32f3cedf281aa9c0e826fe5a0b24aafbd47d1e6b9cb7d7d9c",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
+   }
+  },
+  {
+   "id": "SUB-5",
+   "capability": "actor authentication with production keys and a VETTED signature provider",
+   "status": "EXTERNALLY_BLOCKED",
+   "tests": [
+    "tests/test_actor_authentication.py"
+   ],
+   "mutation_specs": [],
+   "ledger": "D-2026-150",
+   "note": "production_registry() refuses; no provider is configured (DEPLOYMENT.md section 3)"
+  },
+  {
+   "id": "RUN-1",
+   "capability": "tool resource bounds: wall, CPU, address space, output, tasks, descriptors, environment",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_agent_execution.py",
+    "tests/test_execution_containment.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/execution_containment.json"
+   ],
+   "ledger": "D-2026-149",
+   "note": "rlimits apply on every host; hosted evidence at 40440ce predates this implementation: D-2026-157 changed the executor and its namespace init (filesystem confinement); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "implementation": [
+    "agent_substrate/execution.py",
+    "agent_substrate/_ns_init.py"
+   ],
+   "last_hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033"
+    ],
+    "implementation_sha256": "5a170fbb678c90b1a53247e0e0a338e353d406443a00782b3f802ed9747f2c2e",
+    "what": "agent-substrate: full suite and mutation shards with HARNESS_ISOLATION_REQUIRED=1 on the runner"
+   },
+   "hosted_before": {
+    "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
+    "runs": [
+     "39354155571",
+     "39354161849"
+    ],
+    "implementation_sha256": "0be062c5e8faa22db3d4b66d672989787934f1f2b46b9b791e15b98247a8848c",
+    "what": "agent-substrate: full suite and mutation shards with HARNESS_ISOLATION_REQUIRED=1 on the runner, the confinement probe, and the agent suites on a second interpreter installed outside /usr"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "069aef798d98bf528e7ebca7170d355bcaec7da9cfdbef23d23a72c1e2ec6cc1",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
+   }
+  },
+  {
+   "id": "RUN-2",
+   "capability": "kernel containment of a tool's process tree and network (user, PID, net namespaces)",
+   "status": "DEPLOYMENT_REQUIRED",
+   "tests": [
+    "tests/test_execution_containment.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/execution_containment.json"
+   ],
+   "ledger": "D-2026-149",
+   "note": "implemented and measured where unprivileged namespaces exist; a deployment must check namespace_isolation() or supply container isolation (DEPLOYMENT.md section 5); at 40440ce the containment tests and mutations ran with namespaces on GitHub's ubuntu-latest runners after the job relaxed kernel.apparmor_restrict_unprivileged_userns, which a production host should not do (DEPLOYMENT.md section 5)",
+   "deployment_check": "namespace_isolation"
+  },
+  {
+   "id": "RUN-3",
+   "capability": "confinement of a tool's filesystem reads and writes",
+   "status": "DEPLOYMENT_REQUIRED",
+   "tests": [
+    "tests/test_filesystem_confinement.py",
+    "tests/test_confinement_probe.py",
+    "tests/test_execution_containment.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/filesystem_confinement.json"
+   ],
+   "ledger": "D-2026-157",
+   "note": "implemented: Landlock applied by the namespace's init before the tool runs, proven by a probe the ruleset does not grant; high_assurance refuses to run a tool it cannot confine. Still DEPLOYMENT_REQUIRED: the deployment must run on a host with Landlock and unprivileged namespaces, construct its runner with confine='high_assurance', and attest tools/confinement_probe.py (DEPLOYMENT.md sections 5 and 9). Measured here on the development host only.",
+   "deployment_check": "filesystem_confinement"
+  },
+  {
+   "id": "RUN-4",
+   "capability": "GPU, disk-space and bandwidth quotas for tools",
+   "status": "DEPLOYMENT_REQUIRED",
+   "tests": [],
+   "mutation_specs": [],
+   "ledger": "D-2026-149",
+   "note": "cgroups or the container runtime",
+   "deployment_check": "resource_quotas"
+  },
+  {
+   "id": "DEMO-1",
+   "capability": "end-to-end demonstration: proposal, policy and capability, model run, independent check, HDF5 and provenance, authority decision, reconstruction, a release candidate built and verified, hostile inputs refused",
+   "status": "HOSTED_TESTED",
+   "tests": [
+    "tests/test_harness_demo.py"
+   ],
+   "mutation_specs": [
+    "tools/mutations/harness_demo.json"
+   ],
+   "ledger": "D-2026-150",
+   "note": "the live signing provider is UNTESTED in the demonstration (the hosted supply-chain job carries it)",
+   "implementation": [
+    "tools/harness_demo.py",
+    "tools/supply_chain.py",
+    "tools/offline_verify.py"
+   ],
+   "hosted": {
+    "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
+    "runs": [
+     "39092564444",
+     "39092568033",
+     "39092564434",
+     "39092567950"
+    ],
+    "implementation_sha256": "245e65234ec5a268dcfc1476378165a987ad7639acc5c237a1fc8d2865678ad0",
+    "what": "harness-integrations end-to-end: the demonstration with both runtimes, including the release leg and the hostile inputs; the live signing provider is exercised by supply-chain, not by the demonstration"
+   }
+  }
+ ]
+}

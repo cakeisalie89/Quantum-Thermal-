@@ -1,0 +1,162 @@
+{
+ "agent": "SCRIPTED: every decision counted here is a scripted decision of the governed loop, never a model's",
+ "complete": false,
+ "invalidations": [
+  {
+   "memories_stale": 0,
+   "moved": 0,
+   "objectives_stale": 0,
+   "origin": "task:task-c650147b798b",
+   "results_kept": 96,
+   "results_stale": 0,
+   "seconds": 8.242,
+   "tasks_invalidated": 1,
+   "withdrawn": "one task"
+  },
+  {
+   "memories_stale": 96,
+   "moved": 960,
+   "objectives_stale": 96,
+   "origin": "evidence:f6bf17e1b684bc4310d752559ab0703c56268875375b7d2c1c5cd52524aa5838",
+   "results_kept": 0,
+   "results_stale": 96,
+   "seconds": 183.855,
+   "tasks_invalidated": 95,
+   "withdrawn": "its bytes"
+  }
+ ],
+ "plan": {
+  "abstain_every": 17,
+  "alternatives_per_objective": 7,
+  "crash_every": 7,
+  "crash_points": [
+   "before_infer",
+   "after_infer",
+   "after_receive",
+   "after_run",
+   "after_check",
+   "after_decide",
+   "before_step_record"
+  ],
+  "no_proposal_every": 23
+ },
+ "requested_decisions": 10000,
+ "schema": "research-horizon/1",
+ "stages": [
+  {
+   "checkpoint": {
+    "equal_state": true,
+    "prefix_verified": false
+   },
+   "counters": {
+    "conclusions": 5,
+    "events": 659,
+    "governed_operations": 10,
+    "inference_calls": 50,
+    "objectives": 5,
+    "resets": 6,
+    "restarts": 1,
+    "scripted_decisions": 50,
+    "verified_records": 5
+   },
+   "duplicates": {
+    "executions": 0,
+    "inference_results": 0,
+    "receipts": 0
+   },
+   "elapsed_seconds": 28.2,
+   "ledger_load_peak_bytes": 3073803,
+   "log_bytes": 594063,
+   "log_verifies": true,
+   "objective_states": {
+    "CONCLUDED": 5
+   },
+   "recovery_failures": 0,
+   "replay_seconds": {
+    "research_ledger": 0.173,
+    "second_reader": 0.036,
+    "verify": 0.021
+   },
+   "second_reader_anomalies": 0,
+   "seconds_per_decision_in_stage": 0.5648,
+   "target_decisions": 50
+  },
+  {
+   "checkpoint": {
+    "equal_state": true,
+    "prefix_verified": false
+   },
+   "counters": {
+    "conclusions": 10,
+    "events": 1305,
+    "governed_operations": 20,
+    "inference_calls": 100,
+    "objectives": 10,
+    "resets": 11,
+    "restarts": 1,
+    "scripted_decisions": 100,
+    "verified_records": 10
+   },
+   "duplicates": {
+    "executions": 0,
+    "inference_results": 0,
+    "receipts": 0
+   },
+   "elapsed_seconds": 64.2,
+   "ledger_load_peak_bytes": 6106681,
+   "log_bytes": 1180450,
+   "log_verifies": true,
+   "objective_states": {
+    "CONCLUDED": 10
+   },
+   "recovery_failures": 0,
+   "replay_seconds": {
+    "research_ledger": 0.426,
+    "second_reader": 0.082,
+    "verify": 0.058
+   },
+   "second_reader_anomalies": 0,
+   "seconds_per_decision_in_stage": 0.7192,
+   "target_decisions": 100
+  },
+  {
+   "checkpoint": {
+    "equal_state": true,
+    "prefix_verified": false
+   },
+   "counters": {
+    "conclusions": 96,
+    "events": 13989,
+    "governed_operations": 192,
+    "inference_calls": 1009,
+    "objectives": 101,
+    "resets": 115,
+    "restarts": 14,
+    "scripted_decisions": 1009,
+    "verified_records": 96
+   },
+   "duplicates": {
+    "executions": 0,
+    "inference_results": 0,
+    "receipts": 0
+   },
+   "elapsed_seconds": 2180.5,
+   "ledger_load_peak_bytes": 63028223,
+   "log_bytes": 12245793,
+   "log_verifies": true,
+   "objective_states": {
+    "ABSTAINED": 5,
+    "STALE": 96
+   },
+   "recovery_failures": 0,
+   "replay_seconds": {
+    "research_ledger": 4.344,
+    "second_reader": 0.86,
+    "verify": 0.728
+   },
+   "second_reader_anomalies": 0,
+   "seconds_per_decision_in_stage": 2.3281,
+   "target_decisions": 1000
+  }
+ ]
+}

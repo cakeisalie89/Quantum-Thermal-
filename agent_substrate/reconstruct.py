@@ -1,0 +1,4505 @@
+"""Independent reconstruction of durable state from the event log alone.
+
+This module exists to answer one question without trusting the running
+system: *given only the log, what is canonical?*
+
+It is written as a SECOND implementation on purpose. It does not import
+:class:`~agent_substrate.store.AuthorityStore` and does not share its reducer,
+and it does not import the modules whose decisions it re-checks -- not their
+enums, not their tables, and above all not their ``check`` functions. If both
+agree, that is differential evidence: two implementations reading the same
+evidence reached the same verdict. Reusing the store's reducer, or calling
+the gate to ask whether the gate would have allowed something, would make the
+comparison circular and worthless, which is why the duplication is deliberate
+rather than an oversight.
+
+That duplication was, for a long time, only HALF true here. The nine
+subsystems below restated every rule in plain strings; the two machines at
+the top of this file -- authority records and tasks -- imported
+``authority.check`` and ``tasks.check`` and handed each replayed record
+straight back to them. A weakened production gate would have been reproduced
+faithfully by the reader that exists to notice it, and the differential
+comparison would have come back empty: the most reassuring possible output
+from two readers that never disagreed about anything. Both are restated now,
+in the block under the imports.
+
+Where the store folds events into dataclasses through ``dataclasses.replace``,
+this walks the log with plain dictionaries and re-derives each field from
+scratch. The two disagree loudly if either has a bug.
+
+It trusts NOTHING except the log's bytes:
+  * not the live process,
+  * not any snapshot,
+  * not the store's projection,
+  * not conversation history or a model's recollection.
+
+Every transition is re-authorized during replay against THIS module's own
+statement of the rules. An event those rules would refuse today is reported
+rather than applied -- which is how a log written by a compromised or older
+writer, or under a since changed policy, becomes visible instead of being
+silently absorbed. Whether this module's statement of the rules still matches
+production's is a question for the conformance tests, which can name a
+difference; it is not a question a reader that called production could ever
+have asked.
+
+TWO MACHINES, THE SAME TREATMENT
+
+:func:`reconstruct` covers authority records. :func:`reconstruct_tasks` covers
+the task lifecycle, and it exists for a reason that is not symmetry: the task
+projection is the one on the PRODUCTION path, and it is the one that turned
+out to re-authorize forged records against a starting state the record itself
+declared. A second implementation is the defence against that class -- not
+because the second one is more careful, but because two readers that disagree
+say so, and a single reader with a hole says nothing at all.
+
+Both now judge records the same way as well: against restated rules, with a
+refusal recorded as a string rather than raised as somebody else's exception
+type.
+
+The two replays differ in what they do about a refusal, and deliberately.
+``governed_tasks.projection`` is ENFORCEMENT: it raises, because a reader
+that cannot tell which records went through the gate must not hand back a
+state. This module is DIAGNOSIS: it records the problem and keeps going, so
+one bad record does not hide the twenty after it.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import TypeGuard, cast
+
+from . import actions
+from .events import EventLog, judged_at
+
+# ---------------------------------------------------------------------------
+# THE RULES, RESTATED.
+#
+# This module used to import ``authority.check`` and ``tasks.check`` and hand
+# each replayed record to them. That made the "independent" re-authorization a
+# call back into the implementation it exists to check: if the production gate
+# was wrong, this reader was wrong in the same way and the differential
+# comparison came back empty -- the most reassuring possible output from two
+# readers that never actually disagreed about anything.
+#
+# The docstring on :class:`SubsystemReconstruction` below already said so, in
+# those words, about the nine subsystems it covers. The two machines at the
+# TOP of this file -- authority records and tasks -- were the ones still doing
+# it, which is the shape of defect this whole module exists to find: the rule
+# was written down, the rule was right, and the code beside it did the other
+# thing.
+#
+# So: everything a replayed record is judged against is spelled out here, in
+# plain strings and plain dicts, derived from nothing. That has a cost -- two
+# statements of the same rule can drift -- and the cost is paid deliberately:
+#
+#   * drift is a TEST failure, not a silent agreement. The conformance tests
+#     in tests/test_agent_differential.py compare these tables element by
+#     element against the production ones and name the difference.
+#   * agreement by construction is not recoverable by any test at all. A
+#     reader that calls the gate agrees with a broken gate perfectly, and
+#     there is no assertion that can see it from outside.
+#
+# A restatement that is merely a copy of the table is still worth having for
+# the second reason. It is not worth pretending it is more than that: two
+# statements can share a MISUNDERSTANDING that the log cannot reveal, so an
+# empty diff here is evidence, not proof.
+# ---------------------------------------------------------------------------
+
+#: Every authority state this reader knows. A record naming anything else is
+#: reported rather than applied: a state this reader cannot reason about is
+#: not a state it may silently carry forward.
+_AUTH_STATES = frozenset({
+    "PROPOSED", "UNDER_REVIEW", "VERIFIED", "PROMOTED", "STALE",
+    "SUPERSEDED", "REVOKED", "REJECTED",
+})
+
+#: Who may act on an authority record.
+_AUTH_ROLES = frozenset({"PROPOSER", "VERIFIER", "PROMOTER", "SYSTEM"})
+
+#: Where a record is born.
+_AUTH_INITIAL = "PROPOSED"
+
+#: States nothing may leave (I2). Leaving one is a revival, and recovery is a
+#: NEW record with new evidence, which leaves a trail.
+_AUTH_TERMINAL = frozenset({"REVOKED", "REJECTED"})
+
+#: The one state carrying canonical authority.
+_AUTH_PROMOTED = "PROMOTED"
+
+
+@dataclass(frozen=True)
+class _Rule:
+    """One permitted authority transition, as this reader states it."""
+
+    #: Roles permitted to trigger it. Empty would mean nobody.
+    roles: frozenset
+    #: Evidence keys that must be present, and digest-shaped unless the key
+    #: is an identity rather than content.
+    evidence: frozenset = frozenset()
+    #: True when the actor must differ from the record's proposer (I4).
+    distinct_actor: bool = False
+
+
+#: The authority transition graph. (src, dst) -> the rule that permits it.
+#: Any pair absent from this table is forbidden, which is what makes the
+#: forbidden states unreachable rather than merely unwritten.
+_AUTH_EDGES = {
+    # D-2026-105: picking a claim up for review is not the proposer's.
+    ("PROPOSED", "UNDER_REVIEW"): _Rule(frozenset({"VERIFIER"}),
+                                        distinct_actor=True),
+    ("PROPOSED", "REJECTED"): _Rule(
+        frozenset({"VERIFIER"}), frozenset({"rejection_reason"}), True),
+    ("UNDER_REVIEW", "VERIFIED"): _Rule(
+        frozenset({"VERIFIER"}), frozenset({"verification_report"}), True),
+    ("UNDER_REVIEW", "REJECTED"): _Rule(
+        frozenset({"VERIFIER"}), frozenset({"rejection_reason"}), True),
+    # I1: the ONLY edge into PROMOTED, and it needs a different actor.
+    ("VERIFIED", "PROMOTED"): _Rule(
+        frozenset({"PROMOTER"}),
+        frozenset({"verification_report", "policy_id"}), True),
+    ("VERIFIED", "STALE"): _Rule(
+        frozenset({"SYSTEM"}), frozenset({"invalidated_by"})),
+    ("PROMOTED", "STALE"): _Rule(
+        frozenset({"SYSTEM"}), frozenset({"invalidated_by"})),
+    ("PROMOTED", "SUPERSEDED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"superseded_by"})),
+    ("PROMOTED", "REVOKED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"revocation_reason"})),
+    ("VERIFIED", "REVOKED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"revocation_reason"})),
+    # I3: STALE returns only through re-verification.
+    ("STALE", "UNDER_REVIEW"): _Rule(frozenset({"VERIFIER"}),
+                                     distinct_actor=True),
+    ("STALE", "SUPERSEDED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"superseded_by"})),
+    ("STALE", "REVOKED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"revocation_reason"})),
+    ("SUPERSEDED", "REVOKED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"revocation_reason"})),
+}
+
+#: Evidence keys that name an IDENTITY rather than a piece of content, and so
+#: are required to be present and non-empty rather than digest-shaped. Stated
+#: as a set rather than as a special case buried in a loop so that adding a
+#: second such key is a decision somebody makes on purpose.
+_AUTH_IDENTITY_EVIDENCE = frozenset({"policy_id"})
+
+_HEX = frozenset("0123456789abcdef")
+
+
+def _is_digest(value: object) -> TypeGuard[str]:
+    """True for a lowercase 64-character sha256 hex digest, and nothing else.
+
+    Restated rather than imported for the same reason as everything else
+    here. Uppercase is rejected deliberately: one logical digest with two
+    spellings makes a set of digests contain duplicates that compare unequal.
+    """
+    return (isinstance(value, str) and len(value) == 64
+            and all(c in _HEX for c in value))
+
+
+def _create_refusal(p: dict, actor: str, recs: dict) -> str | None:
+    """Why the store would refuse this create, restated (D-2026-140).
+
+    A create introduces a CLAIM: it is born in the initial state, proposed
+    by whoever appended it, citing evidence by digest, depending only on
+    records already held. The store refused every other create on load; this
+    reader folded each of them, so a record born PROMOTED was canonical here
+    and nowhere else -- and the second reader is the only reader of a log the
+    store will not load.
+    """
+    state = p.get("state", _AUTH_INITIAL)
+    if state != _AUTH_INITIAL:
+        return (f"is created directly in {state!r}; every state after "
+                f"{_AUTH_INITIAL} is reached by a transition authorized on "
+                "its own terms")
+    if p.get("proposer") != actor:
+        return (f"names {p.get('proposer')!r} as its proposer but was "
+                f"appended by {actor!r}; separation of duties is measured "
+                "from who proposed it")
+    evidence = p.get("evidence", {})
+    if not isinstance(evidence, dict):
+        return "carries evidence that is not a mapping"
+    for k, v in evidence.items():
+        if not _is_digest(v):
+            return (f"cites evidence {k!r} that is not a sha256 digest, so "
+                    "what was cited could be altered after the fact")
+    deps = p.get("depends_on", [])
+    if not isinstance(deps, list):
+        return "carries dependencies that are not a list"
+    for dep in deps:
+        if dep not in recs:
+            return (f"depends on {dep!r}, which nothing has recorded")
+    return None
+
+
+def _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,
+                  policy_id):
+    """Why this authority transition would be refused, or None if it stands.
+
+    A STRING rather than an exception, because this reader diagnoses instead
+    of enforcing: one bad record must not hide the twenty after it.
+    """
+    if src not in _AUTH_STATES:
+        return (f"{src!r} is not an authority state this reader knows, so it "
+                "cannot say what may follow it")
+    if dst not in _AUTH_STATES:
+        return (f"{dst!r} is not an authority state this reader knows; a "
+                "record may not invent one")
+    if role not in _AUTH_ROLES:
+        return (f"{role!r} is not a role this reader knows; a record may not "
+                "invent the authority it acts under")
+
+    if src in _AUTH_TERMINAL:
+        return (f"I2: {src} is terminal; {record_id} cannot leave it. Create "
+                "a new record with new evidence instead.")
+
+    rule = _AUTH_EDGES.get((src, dst))
+    if rule is None:
+        return (f"no edge {src} -> {dst}; permitted targets are "
+                f"{sorted(d for (s, d) in _AUTH_EDGES if s == src)}")
+
+    if role not in rule.roles:
+        return (f"role {role} may not perform {src} -> {dst}; requires one "
+                f"of {sorted(rule.roles)}")
+
+    if rule.distinct_actor:
+        if proposer is None:
+            return (f"I4: {src} -> {dst} requires a distinct actor, but the "
+                    "record's proposer is unknown; refusing rather than "
+                    "assuming separation of duties")
+        if actor == proposer:
+            return (f"I4: {actor!r} proposed {record_id} and may not also "
+                    f"perform {src} -> {dst}")
+
+    missing = sorted(rule.evidence - set(evidence))
+    if missing:
+        return f"I6: {src} -> {dst} requires evidence {missing}"
+
+    for key in sorted(rule.evidence):
+        val = evidence.get(key)
+        if key in _AUTH_IDENTITY_EVIDENCE:
+            if not isinstance(val, str) or not val:
+                return f"I5: {key} must be a non-empty id"
+            continue
+        if not _is_digest(val):
+            return (f"I6: evidence {key!r} must be a sha256 digest, got "
+                    f"{type(val).__name__}; evidence is referenced by content "
+                    "so it cannot be altered after being cited")
+
+    if dst == _AUTH_PROMOTED and policy_id is None:
+        return "I5: promotion requires an explicit policy identity in force"
+    return None
+
+
+#: Every task state this reader knows.
+_TASK_STATES = frozenset({
+    "CREATED", "VALIDATED", "QUEUED", "LEASED", "EXECUTING", "COMPLETED",
+    "FAILED", "TIMED_OUT", "CANCELLED", "VERIFIED", "REJECTED", "INVALIDATED",
+})
+
+#: Who may move a task.
+_TASK_ROLES = frozenset({"SUBMITTER", "SCHEDULER", "WORKER", "VERIFIER",
+                         "SYSTEM"})
+
+_TASK_INITIAL = "CREATED"
+
+#: Finished work. No further PROGRESS is possible from these -- which is not
+#: the same as sealed: VERIFIED -> INVALIDATED records a fact ABOUT finished
+#: work, and is in the table below for exactly that reason.
+_TASK_TERMINAL = frozenset({"VERIFIED", "REJECTED", "CANCELLED",
+                            "INVALIDATED"})
+
+_TASK_LEASED = "LEASED"
+_TASK_EXECUTING = "EXECUTING"
+_TASK_QUEUED = "QUEUED"
+_TASK_COMPLETED = "COMPLETED"
+_TASK_VERIFIED = "VERIFIED"
+
+
+@dataclass(frozen=True)
+class _TaskRule:
+    """One permitted task transition, as this reader states it."""
+
+    roles: frozenset
+    #: True when the actor must differ from the one that executed the task.
+    distinct_actor: bool = False
+    #: True when the mover must hold the task's current, unexpired lease.
+    lease: bool = False
+
+
+#: States a task may be cancelled from: every pre-terminal one.
+_TASK_CANCELLABLE = ("CREATED", "VALIDATED", "QUEUED", "LEASED", "EXECUTING")
+
+#: The task transition graph.
+_TASK_EDGES = {
+    ("CREATED", "VALIDATED"): _TaskRule(
+        frozenset({"SUBMITTER", "SCHEDULER"})),
+    ("CREATED", "REJECTED"): _TaskRule(
+        frozenset({"SUBMITTER", "SCHEDULER"})),
+    ("VALIDATED", "QUEUED"): _TaskRule(frozenset({"SCHEDULER"})),
+    ("QUEUED", "LEASED"): _TaskRule(frozenset({"SCHEDULER", "WORKER"})),
+    ("LEASED", "EXECUTING"): _TaskRule(frozenset({"WORKER"}), lease=True),
+    ("EXECUTING", "COMPLETED"): _TaskRule(frozenset({"WORKER"}), lease=True),
+    ("EXECUTING", "FAILED"): _TaskRule(frozenset({"WORKER"}), lease=True),
+    ("EXECUTING", "TIMED_OUT"): _TaskRule(frozenset({"WORKER", "SYSTEM"})),
+    # The ONLY edge into VERIFIED, and it needs a different actor.
+    ("COMPLETED", "VERIFIED"): _TaskRule(
+        frozenset({"VERIFIER"}), distinct_actor=True),
+    ("COMPLETED", "REJECTED"): _TaskRule(
+        frozenset({"VERIFIER"}), distinct_actor=True),
+    **{(s, "CANCELLED"): _TaskRule(
+        frozenset({"SUBMITTER", "SCHEDULER", "SYSTEM"}))
+       for s in _TASK_CANCELLABLE},
+    # A lapsed lease returns the work to the queue rather than stranding it.
+    ("LEASED", "QUEUED"): _TaskRule(frozenset({"SCHEDULER", "SYSTEM"})),
+    ("EXECUTING", "QUEUED"): _TaskRule(frozenset({"SCHEDULER", "SYSTEM"})),
+    # Retry paths for the outcomes that are retryable.
+    ("FAILED", "QUEUED"): _TaskRule(frozenset({"SCHEDULER"})),
+    ("TIMED_OUT", "QUEUED"): _TaskRule(frozenset({"SCHEDULER"})),
+    # An input changed, so a prior verification no longer describes it.
+    ("VERIFIED", "INVALIDATED"): _TaskRule(frozenset({"SYSTEM"})),
+}
+
+#: The fields a lease record must carry, and the one it may. Restated so that
+#: a lease shape this build cannot interpret is a finding rather than a
+#: TypeError from somebody else's constructor.
+_LEASE_REQUIRED = frozenset({"lease_id", "holder", "granted_seq",
+                             "expires_after_seq"})
+_LEASE_OPTIONAL = frozenset({"holder_process"})
+
+
+def _parse_lease(raw):
+    """The lease as plain fields, or None if this reader cannot read it."""
+    if not isinstance(raw, dict) or not raw:
+        return None
+    keys = set(raw)
+    if not _LEASE_REQUIRED <= keys:
+        return None
+    if not keys <= (_LEASE_REQUIRED | _LEASE_OPTIONAL):
+        return None
+    return dict(raw)
+
+
+def _task_refusal(*, task_id, src, dst, actor, role, at_seq, lease, lease_id,
+                  executed_by, result_digest):
+    """Why this task transition would be refused, or None if it stands."""
+    if src not in _TASK_STATES:
+        return (f"{src!r} is not a task state this reader knows, so it "
+                "cannot say what may follow it")
+    if dst not in _TASK_STATES:
+        return (f"{dst!r} is not a task state this reader knows; a record "
+                "may not invent one")
+    if role not in _TASK_ROLES:
+        return (f"{role!r} is not a task role this reader knows; a record "
+                "may not invent the authority it acts under")
+
+    rule = _TASK_EDGES.get((src, dst))
+    if rule is None:
+        if src in _TASK_TERMINAL:
+            return (f"{src} is terminal; task {task_id} cannot leave it. "
+                    "Recovery is a NEW task, which leaves a trail; reviving "
+                    "this one would not.")
+        return (f"no edge {src} -> {dst}; permitted targets are "
+                f"{sorted(d for (s, d) in _TASK_EDGES if s == src)}")
+
+    if role not in rule.roles:
+        return (f"role {role} may not perform {src} -> {dst}; requires one "
+                f"of {sorted(rule.roles)}")
+
+    if rule.lease:
+        if not lease:
+            return (f"{src} -> {dst} requires the task's lease, and it holds "
+                    "none")
+        if lease_id != lease.get("lease_id"):
+            return (f"lease {lease_id!r} is not this task's lease "
+                    f"({lease.get('lease_id')!r}); a worker reporting on work "
+                    "it does not own is reporting on work someone else may "
+                    "have redone")
+        if lease.get("holder") != actor:
+            return (f"lease {lease.get('lease_id')!r} is held by "
+                    f"{lease.get('holder')!r}, not {actor!r}")
+        end = lease.get("expires_after_seq")
+        # Not a special case for bools, deliberately: production compares
+        # ``at_seq <= expires_after_seq`` and Python's True IS 1 there, so a
+        # reader that refused booleans would disagree with the gate about an
+        # input the gate accepts. The check is for a value nothing can order
+        # against a sequence number at all -- where production raises a
+        # TypeError out of the middle of a replay and this reader says so.
+        if not isinstance(end, int):
+            return (f"lease {lease.get('lease_id')!r} names no sequence it "
+                    "expires after, so nothing can say whether it is live")
+        if at_seq > end:
+            return (f"lease {lease.get('lease_id')!r} lapsed after seq "
+                    f"{end}; the log is at {at_seq}. A worker back from the "
+                    "dead does not get to report success.")
+
+    if rule.distinct_actor:
+        if executed_by is None:
+            return (f"{src} -> {dst} requires an actor distinct from the "
+                    "executor, but no executor is recorded; refusing rather "
+                    "than assuming independence")
+        if actor == executed_by:
+            return (f"{actor!r} executed {task_id} and may not also perform "
+                    f"{src} -> {dst}. An agent that verifies its own work "
+                    "has not verified anything.")
+
+    if dst == _TASK_COMPLETED and not _is_digest(result_digest or ""):
+        return ("COMPLETED requires the digest of the execution result; a "
+                "completion with no result to point at is an assertion")
+    return None
+
+
+# ---------------------------------------------------------------------------
+# SCIENTIFIC ADMISSION, RESTATED.
+#
+# For a record of kind scientific_result, the edge into VERIFIED or PROMOTED
+# is not authority because the table above permits it. The cited bundle and
+# report are read, held to the admission policy the transition names, and
+# bound to the governed tasks that produced them. Production decides this in
+# agent_substrate.result_rules and the origin view of
+# agent_substrate.governed_model; this reader decides it again from the log and
+# the evidence bytes, in its own code, importing neither -- nor
+# agent_substrate.canonical: the digest a report must name is recomputed below
+# from its definition.
+#
+# Three outcomes, and they are not two:
+#   ADMITTED      the evidence resolves here and supports the transition;
+#   refused       it resolves and does NOT -- reported as unauthorized and
+#                 not applied, like any transition the rules refuse;
+#   UNVERIFIABLE  it cannot be read here (no evidence store given, or a cited
+#                 digest that does not resolve): the record keeps the state
+#                 the log walked it to, and is not canonical.
+# ---------------------------------------------------------------------------
+
+_SCI_KIND = "scientific_result"
+
+#: The states whose entry is an admission.
+_SCI_ADMITTING = frozenset({"VERIFIED", "PROMOTED"})
+#: NF-1T: a record whose kind begins with this has NO admission policy, so
+#: no edge into VERIFIED or PROMOTED (agent_substrate.learned_rules, restated).
+_LEARNED_PREFIX = "learned_"
+
+#: Admission policies this reader can decide under. A transition naming any
+#: other -- or none -- is refused: old authority is not re-read under a rule
+#: it was never admitted by.
+_SCI_POLICIES = frozenset({"scientific_result.admission/1"})
+
+_SCI_ADMITTED = "ADMITTED"
+_SCI_UNVERIFIABLE = "UNVERIFIABLE"
+
+#: The fields of a ResultBundle and of a VerificationResult record, as this
+#: reader states them. Sorted tuples rather than sets, so a conformance test
+#: that finds them different can print the difference in order.
+_SCI_BUNDLE_FIELDS = (
+    "artifacts", "convergence", "environment_digest",
+    "implementation_digest", "invariants", "model_id", "model_version",
+    "observation_kind", "outputs", "parameter_digest", "parameters",
+    "provenance", "schema_version", "seeds", "solver_config", "warnings")
+_SCI_REPORT_FIELDS = (
+    "check_id", "check_type", "criterion", "criterion_derivation",
+    "establishes", "evidence", "independence", "limitations", "measured",
+    "observations", "producer_implementation_digest", "shared_components",
+    "status", "subject_digest", "subject_model", "threshold", "verifier_id",
+    "verifier_implementation_digest")
+
+#: Governed tools whose captured artefacts count, by what they are. A report
+#: from any other tool -- or from no tool -- is not a governed verification.
+_SCI_CHECK_TOOLS = frozenset({"model.independent_check"})
+#: The last two are run tools of models this repository no longer carries:
+#: no task can be created under them, and they are recognised so that a
+#: history which used them replays to what it recorded.
+_SCI_RUN_TOOLS = frozenset({"model.thermal.slab_transient.run",
+                            "model.thermal.rc2_network.run",
+                            "model.surface.langmuir_capture.run",
+                            "model.fmi.thermal_rc2.run",
+                            "model.thermal.conduction_1d.run",
+                            "model.thermal.conduction_2d_axisymmetric.run"})
+
+
+class _SciUnreadable(Exception):
+    """A cited digest does not resolve to its own bytes here."""
+
+
+def _sci_json_digest(obj) -> str:
+    """The digest a report names its subject by: sha256 of the one canonical
+    JSON text (sorted keys, ASCII, no whitespace, no NaN)."""
+    import hashlib
+    import json
+    text = json.dumps(obj, sort_keys=True, ensure_ascii=True,
+                      separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _sci_fetch(evidence, sha: str):
+    """The parsed document ``sha`` names, or the string ``"not JSON"``.
+
+    Raises :class:`_SciUnreadable` when the store does not give back bytes
+    that hash to ``sha`` -- re-hashed HERE rather than trusted to the store,
+    which is production code this reader does not lean on."""
+    import hashlib
+    import json
+    try:
+        raw = evidence.get(sha)
+    except Exception as exc:                             # noqa: BLE001
+        raise _SciUnreadable(
+            f"{sha[:12]} does not resolve ({type(exc).__name__})") from None
+    if not isinstance(raw, (bytes, bytearray)) \
+            or hashlib.sha256(raw).hexdigest() != sha:
+        raise _SciUnreadable(f"{sha[:12]} did not come back as its own bytes")
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return "not JSON"
+
+
+def _sci_invariants_hold(bundle) -> bool:
+    inv = bundle.get("invariants")
+    return (isinstance(inv, list) and len(inv) > 0
+            and all(isinstance(i, dict) and i.get("holds") is True
+                    for i in inv))
+
+
+#: The content rule as a table: (what is asked, the question). Each question
+#: takes the bundle, the report, and the digest of the bundle.
+_SCI_CONTENT = (
+    ("the bundle has exactly a ResultBundle's fields",
+     lambda b, r, d: tuple(sorted(b)) == _SCI_BUNDLE_FIELDS),
+    ("the report has exactly a VerificationResult's fields",
+     lambda b, r, d: tuple(sorted(r)) == _SCI_REPORT_FIELDS),
+    ("the report is about this bundle",
+     lambda b, r, d: r.get("subject_digest") == d),
+    ("the check passed",
+     lambda b, r, d: r.get("status") == "PASS"),
+    ("the check is an independent implementation",
+     lambda b, r, d: r.get("check_type") == "INDEPENDENT_IMPLEMENTATION"),
+    ("the check establishes independent numerical agreement and nothing "
+     "more -- not experimental validation",
+     lambda b, r, d: r.get("establishes")
+     == "INDEPENDENT_NUMERICAL_AGREEMENT"),
+    ("the check declares an independence",
+     lambda b, r, d: r.get("independence") not in (None, "NONE")),
+    ("the report names this bundle's producer",
+     lambda b, r, d: r.get("producer_implementation_digest")
+     == b.get("implementation_digest")),
+    ("the verifying code is not the producer's",
+     lambda b, r, d: _is_digest(r.get("verifier_implementation_digest"))
+     and r.get("verifier_implementation_digest")
+     != b.get("implementation_digest")),
+    ("the bundle is a simulation result",
+     lambda b, r, d: b.get("observation_kind") == "SIMULATION_RESULT"),
+    ("the bundle ran invariants and every one holds",
+     lambda b, r, d: _sci_invariants_hold(b)),
+)
+
+
+def _sci_task_producers(tasks: dict, sha: str, tools: frozenset,
+                        at_seq: int) -> list:
+    """``(task_id, executor)`` for every task of ``tools`` that captured
+    ``sha`` before its own VERIFIED verdict and was still VERIFIED at
+    ``at_seq``. ``executor`` is whoever the last execution record before the
+    verdict names."""
+    found = []
+    for tid, t in sorted(tasks.items()):
+        if t.get("tool_id") not in tools:
+            continue
+        state_then = None
+        verdict = None
+        for seq, state in t.get("history", ()):
+            if seq >= at_seq:
+                break
+            state_then = state
+            if state == "VERIFIED" and verdict is None:
+                verdict = seq
+        if state_then != "VERIFIED" or verdict is None:
+            continue
+        if not any(seq < verdict and dg == sha
+                   for seq, dg in t.get("captured", ())):
+            continue
+        before = [actor for seq, actor in t.get("executions", ())
+                  if seq < verdict]
+        found.append((tid, before[-1] if before else None))
+    return found
+
+
+def _sci_admission(*, record_id, evidence, policy, proposer, actor, at_seq,
+                   store, tasks):
+    """``(verdict, why)`` for a scientific_result entering VERIFIED or
+    PROMOTED at ``at_seq``. ``verdict`` is ADMITTED, UNVERIFIABLE, or None
+    for refused. ``tasks`` is a zero-argument callable returning this
+    module's own task replay of the same log."""
+    if policy not in _SCI_POLICIES:
+        return None, (f"admission policy {policy!r} is not one this reader "
+                      f"decides under ({sorted(_SCI_POLICIES)})")
+    bundle_sha = evidence.get("result_bundle")
+    report_sha = evidence.get("verification_report")
+    for name, sha in (("result_bundle", bundle_sha),
+                      ("verification_report", report_sha)):
+        if not _is_digest(sha):
+            return None, f"{record_id} cites no {name} digest"
+    if store is None:
+        return _SCI_UNVERIFIABLE, ("no evidence store was given to this "
+                                   "reader, so nothing it cites can be read")
+    try:
+        bundle = _sci_fetch(store, bundle_sha)
+        report = _sci_fetch(store, report_sha)
+    except _SciUnreadable as exc:
+        return _SCI_UNVERIFIABLE, str(exc)
+    if not isinstance(bundle, dict) or not isinstance(report, dict):
+        return None, "the cited bundle or report is not a JSON object"
+    try:
+        subject = _sci_json_digest(bundle)
+    except ValueError:
+        return None, "the cited bundle has no canonical form"
+    failed = [asked for asked, question in _SCI_CONTENT
+              if not question(bundle, report, subject)]
+    if failed:
+        return None, "not so: " + "; ".join(failed)
+    view = tasks()
+    checks = _sci_task_producers(view, report_sha, _SCI_CHECK_TOOLS, at_seq)
+    runs = _sci_task_producers(view, bundle_sha, _SCI_RUN_TOOLS, at_seq)
+    if not checks:
+        return None, (f"report {report_sha[:12]} was captured by no governed "
+                      "verification task standing VERIFIED before this "
+                      "transition")
+    if not runs:
+        return None, (f"bundle {bundle_sha[:12]} was captured by no governed "
+                      "model run standing VERIFIED before this transition")
+    ran_it = {who for _, who in runs}
+    independent = [tid for tid, who in checks
+                   if who is not None and who != proposer and who != actor
+                   and who not in ran_it]
+    if not independent:
+        return None, ("no verification of this report was executed by "
+                      "someone other than the proposer, the decider and "
+                      "the model run's executor")
+    return _SCI_ADMITTED, f"checked by {', '.join(independent)}"
+
+
+
+
+@dataclass
+class Reconstruction:
+    """The verdict, plus everything needed to argue with it."""
+    #: record_id -> plain dict of reconstructed fields
+    records: dict = field(default_factory=dict)
+    #: Transitions the state machine would refuse if replayed today.
+    unauthorized: list = field(default_factory=list)
+    #: Structural problems in the log that did not stop replay.
+    anomalies: list = field(default_factory=list)
+    #: Scientific results the log walked into VERIFIED or PROMOTED whose
+    #: admission this reader could not decide, and why. Applied -- the state
+    #: is where the log put them -- and never canonical.
+    unverifiable: list = field(default_factory=list)
+    #: Scientific admissions decided here, and the task replays built to
+    #: decide them -- one per reconstruction however many there are. A
+    #: counter, so the guard counts work instead of timing it.
+    admissions_decided: int = 0
+    task_replays: int = 0
+    events_replayed: int = 0
+    #: Events belonging to another subsystem on the same log. Counted so a
+    #: reader can tell "this reconstruction saw a mixed log and ignored the
+    #: parts that are not authority records" from "this log had 3 events".
+    foreign_events: int = 0
+    head_seq: int = -1
+    head_hash: str = ""
+
+    def canonical_ids(self) -> tuple:
+        """Records carrying canonical authority, foundations included.
+
+        Restated here in this reader's own terms, and it is worth saying
+        what the rule is rather than only that it is duplicated: a record is
+        canonical when its own state says so AND everything it rests on is
+        canonical too. Transitive, because excluding only the immediate
+        children leaves the grandchild standing on the same withdrawn input.
+
+        A cycle resolves to not canonical. The fail-closed answer to "is
+        this authority sound" when the graph cannot say is no.
+        """
+        verdict: dict = {}
+
+        def sound(rid, seen) -> bool:
+            if rid in verdict:
+                return verdict[rid]
+            if rid in seen:
+                return False
+            rec = self.records.get(rid)
+            if rec is None or rec["state"] != _AUTH_PROMOTED:
+                return False
+            if rec["kind"] == _SCI_KIND and rec["admission"] != _SCI_ADMITTED:
+                return False
+            ok = all(sound(dep, seen | {rid})
+                     for dep in rec.get("depends_on") or ())
+            verdict[rid] = ok
+            return ok
+
+        return tuple(sorted(rid for rid in self.records
+                            if sound(rid, frozenset())))
+
+    def states(self) -> dict:
+        return {rid: r["state"] for rid, r in self.records.items()}
+
+
+#: Actions this function interprets. Everything else this package writes is
+#: another subsystem's and is counted rather than treated as damage.
+_AUTHORITY_ACTIONS = frozenset({"record.create", "record.transition",
+                                "record.depend"})
+
+
+#: THE SECURITY PROFILE, RESTATED from :mod:`agent_substrate.events` as data
+#: and not imported: the read primitive refuses an AUTHENTICATED_REQUIRED
+#: history to a reader with no authenticator, and this reader refuses it in its
+#: own code as well, so a primitive that stopped refusing is disagreed with.
+_PROFILE_ACTION = "history.security_profile"
+_PROFILE_REQUIRED = "AUTHENTICATED_REQUIRED"
+_PROFILES = frozenset({"UNAUTHENTICATED_LEGACY", _PROFILE_REQUIRED})
+
+
+#: D-2026-148, RESTATED. A history may declare, once, that every later
+#: promotion names a policy published on it by an authority the declaration
+#: names, not withdrawn and not expired at the promotion. Folded here from
+#: the policy records themselves and judged by this module's own rule, not
+#: by asking the store: a second reader that asked the store would agree
+#: with a broken store. The action is dispatched on by its literal below,
+#: as every other action here is: tools/identity_inventory.py measures
+#: coverage from comparisons against literals, and a named constant would
+#: read there as mentioned, not dispatched.
+
+
+def _bound_promotion_refusal(binding: dict, policies: dict, policy_ids,
+                             seq: int, wall_time) -> str | None:
+    named = [x for x in policy_ids if x is not None]
+    if not named:
+        return "a bound promotion names no policy"
+    for pid in dict.fromkeys(named):
+        entry = policies.get(pid)
+        before = [] if entry is None else entry["versions"]
+        if entry is None or not before:
+            return f"policy {pid!r} was not published on this history by {seq}"
+        if entry["by"] not in binding["publishers"]:
+            return (f"policy {pid!r} was published by {entry['by']!r}, not a "
+                    "policy authority the history names")
+        if entry["withdrawn"] is not None and entry["withdrawn"] <= seq:
+            return f"policy {pid!r} was withdrawn at seq {entry['withdrawn']}"
+        limit = before[-1][2]
+        if limit is not None and wall_time > limit:
+            return f"policy {pid!r} expired at {limit}"
+    return None
+
+
+def reconstruct(log: EventLog, *, reauthorize: bool = True,
+                evidence=None, authenticator=None) -> Reconstruction:
+    """Rebuild authority state from a verified log.
+
+    Verification comes first and is fatal: reconstructing from a chain that
+    does not verify would produce a confident answer from untrusted bytes.
+
+    ``evidence`` is anything with ``get(digest) -> bytes``. Without it, a
+    scientific result's admission cannot be decided and reads UNVERIFIABLE;
+    with it, the admission is decided here -- see SCIENTIFIC ADMISSION,
+    RESTATED, above.
+    """
+    report, events = log.read_verified()
+    report.raise_if_bad()
+
+    out = Reconstruction(head_seq=report.head_seq, head_hash=report.head_hash)
+    # Deliberately dict-of-dicts rather than the store's dataclasses.
+    recs: dict = out.records
+    # This module's own task replay, for origin -- built once, and only if a
+    # scientific admission is actually asked.
+    held: list = []
+
+    # WHO WROTE EACH EVENT, when an authenticator is given: an event whose
+    # actor is not attested is refused and not folded, like a transition
+    # the machine refuses. The verdict is the authenticator's -- one
+    # signature check, not restated -- and the refusal is this reader's.
+    unattested: set = set()
+    if authenticator is not None:
+        auth = authenticator(events)
+        out.unauthorized.extend(f"unauthenticated: {line}"
+                                for line in auth.lines())
+        unattested = auth.refused
+    elif (events and events[0].action == _PROFILE_ACTION
+          and events[0].payload.get("profile") == _PROFILE_REQUIRED):
+        out.unauthorized.append(
+            f"the history is {_PROFILE_REQUIRED} and no authenticator was "
+            "given: none of its events is folded")
+        events = []
+
+    def task_view() -> dict:
+        if not held:
+            held.append(reconstruct_tasks(log).tasks)
+            out.task_replays += 1
+        return held[0]
+
+    binding: dict | None = None
+    policies: dict = {}
+    #: the latest wall time folded: a policy's expiry is judged against it,
+    #: not against a record's own wall time (D-2026-168), restated
+    latest_wall: float | None = None
+
+    for ev in events:
+        out.events_replayed += 1
+        if ev.seq in unattested:
+            continue
+        latest_wall = judged_at(latest_wall, ev.wall_time)
+        p = ev.payload
+        action = ev.action
+        rid = p.get("record_id")
+
+        if action == "history.security_profile":
+            if ev.seq != 0 or p.get("profile") not in _PROFILES:
+                out.unauthorized.append(
+                    f"seq {ev.seq}: a security profile is declared once, by "
+                    "a history's first event, and must be a known one")
+            continue
+
+        if action == "authority.policy_binding":
+            named = p.get("publishers")
+            if binding is not None:
+                out.unauthorized.append(
+                    f"seq {ev.seq}: a second policy binding; the first, at "
+                    f"seq {binding['seq']}, stands")
+            elif (not isinstance(named, list) or not named
+                  or not all(isinstance(x, str) and x for x in named)):
+                out.unauthorized.append(
+                    f"seq {ev.seq}: a policy binding that names no policy "
+                    "authority; not applied")
+            else:
+                binding = {"seq": ev.seq, "publishers": set(named)}
+            continue
+
+        if action in ("policy.publish", "policy.withdraw"):
+            doc = p.get("document") if action == "policy.publish" else None
+            if isinstance(doc, dict) and isinstance(doc.get("policy_id"),
+                                                    str):
+                limit = doc.get("not_after")
+                entry = policies.setdefault(
+                    doc["policy_id"], {"by": ev.actor, "versions": [],
+                                       "withdrawn": None})
+                entry["versions"].append(
+                    (ev.seq, doc.get("version"),
+                     limit if isinstance(limit, (int, float))
+                     and not isinstance(limit, bool) else None))
+            elif action == "policy.withdraw":
+                entry = policies.get(p.get("policy_id"))
+                if entry is not None and entry["withdrawn"] is None:
+                    entry["withdrawn"] = ev.seq
+            out.foreign_events += 1
+            continue
+
+        if action == "record.create":
+            if rid in recs:
+                out.anomalies.append(
+                    f"seq {ev.seq}: duplicate create for {rid!r}")
+                continue
+            refused = _create_refusal(p, ev.actor, recs)
+            if refused is not None:
+                # Not folded, like a job enqueued past its start: a create
+                # the store refuses is not a record.
+                out.anomalies.append(f"seq {ev.seq}: {rid!r} {refused}")
+                continue
+            recs[rid] = {
+                "record_id": rid,
+                "kind": p.get("kind"),
+                "proposer": p.get("proposer"),
+                "state": _AUTH_INITIAL,
+                "revision": 1,
+                "evidence": dict(p.get("evidence", {})),
+                "depends_on": list(p.get("depends_on", [])),
+                "policy_id": p.get("policy_id"),
+                "created_seq": ev.seq,
+                "updated_seq": ev.seq,
+                "stale_reason": None,
+                "admission": None,
+                "history": [(ev.seq, _AUTH_INITIAL)],
+            }
+
+        elif action == "record.transition":
+            cur = recs.get(rid)
+            if cur is None:
+                out.anomalies.append(
+                    f"seq {ev.seq}: transition for unknown record {rid!r}")
+                continue
+            src_claimed = p.get("src")
+            if cur["state"] != src_claimed:
+                out.anomalies.append(
+                    f"seq {ev.seq}: {rid} claims src {src_claimed} but replay "
+                    f"has it in {cur['state']}")
+            if reauthorize:
+                # Judged against THIS module's restatement of the rules, not
+                # by calling authority.check. A second reader that asks the
+                # gate whether the gate would have allowed something agrees
+                # with a broken gate perfectly.
+                refusal = _auth_refusal(
+                    record_id=rid,
+                    src=cur["state"],
+                    dst=p.get("dst"),
+                    actor=ev.actor,
+                    role=p.get("role"),
+                    evidence={**cur["evidence"], **p.get("evidence", {})},
+                    proposer=cur["proposer"],
+                    policy_id=p.get("policy_id") or cur["policy_id"])
+                if refusal is not None:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {rid} {cur['state']} -> "
+                        f"{p.get('dst')} "
+                        f"would be refused today: {refusal}")
+                    # Do NOT apply. An unauthorized transition must not become
+                    # canonical merely because it is present in the log.
+                    continue
+            if (reauthorize and binding is not None
+                    and p.get("dst") == _AUTH_PROMOTED):
+                refusal = _bound_promotion_refusal(
+                    binding, policies,
+                    (p.get("policy_id") or cur["policy_id"],
+                     {**cur["evidence"],
+                      **p.get("evidence", {})}.get("policy_id")),
+                    ev.seq, latest_wall)
+                if refusal is not None:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {rid} {cur['state']} -> PROMOTED "
+                        f"would be refused today: {refusal}")
+                    continue
+            if (reauthorize and isinstance(cur["kind"], str)
+                    and cur["kind"].startswith(_LEARNED_PREFIX)
+                    and p.get("dst") in _SCI_ADMITTING):
+                # restated here, not imported from learned_rules: a second
+                # reader that asked the gate would agree with a broken gate
+                out.unauthorized.append(
+                    f"seq {ev.seq}: {rid} {cur['state']} -> {p.get('dst')} "
+                    "would be refused today: a learned record has no "
+                    "admission policy")
+                continue
+            admission = None
+            if (reauthorize and cur["kind"] == _SCI_KIND
+                    and p.get("dst") in _SCI_ADMITTING):
+                out.admissions_decided += 1
+                admission, why = _sci_admission(
+                    record_id=rid,
+                    evidence={**cur["evidence"], **p.get("evidence", {})},
+                    policy=p.get("admission_policy"),
+                    proposer=cur["proposer"], actor=ev.actor,
+                    at_seq=ev.seq, store=evidence, tasks=task_view)
+                if admission is None:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {rid} {cur['state']} -> "
+                        f"{p.get('dst')} would be refused today: {why}")
+                    continue
+                if admission == _SCI_UNVERIFIABLE:
+                    out.unverifiable.append(
+                        f"seq {ev.seq}: {rid} -> {p.get('dst')}: {why}")
+            if p.get("dst") not in _AUTH_STATES:
+                # Reachable only with reauthorize=False, which is a DIAGNOSTIC
+                # mode and not a permissive one: a state this reader cannot
+                # name is not a state it may carry forward as though it had
+                # understood it.
+                out.anomalies.append(
+                    f"seq {ev.seq}: {rid} moves to {p.get('dst')!r}, which is "
+                    "not an authority state this reader knows; not applied")
+                continue
+            cur["state"] = p["dst"]
+            cur["revision"] += 1
+            cur["evidence"].update(p.get("evidence", {}))
+            cur["updated_seq"] = ev.seq
+            cur["admission"] = admission
+            if p.get("stale_reason") is not None:
+                cur["stale_reason"] = p["stale_reason"]
+            if p.get("policy_id") is not None:
+                cur["policy_id"] = p["policy_id"]
+            cur["history"].append((ev.seq, p["dst"]))
+
+        elif action == "record.depend":
+            cur = recs.get(rid)
+            if cur is None:
+                out.anomalies.append(
+                    f"seq {ev.seq}: dependency for unknown record {rid!r}")
+                continue
+            # The store refuses a dependency on a record nobody created: it
+            # is one nothing will ever resolve (D-2026-140, restated).
+            deps = p.get("depends_on", [])
+            unrecorded = ([d for d in deps if d not in recs]
+                          if isinstance(deps, list) else [deps])
+            if unrecorded:
+                out.anomalies.append(
+                    f"seq {ev.seq}: {rid!r} is made to depend on "
+                    f"{unrecorded[0]!r}, which nothing has recorded; not "
+                    "applied")
+                continue
+            for dep in deps:
+                if dep not in cur["depends_on"]:
+                    cur["depends_on"].append(dep)
+            cur["revision"] += 1
+            cur["updated_seq"] = ev.seq
+
+        elif actions.classify(action, mine=_AUTHORITY_ACTIONS) \
+                == actions.FOREIGN:
+            # Another subsystem's event. Counted, not applied, and NOT an
+            # anomaly: the authority records this function rebuilds are not
+            # affected by it. What IS an anomaly is the case below.
+            out.foreign_events += 1
+        else:
+            out.anomalies.append(
+                f"seq {ev.seq}: unknown action {action!r}; not applied. "
+                "Nothing in this package writes it, so this reconstruction "
+                "is missing whatever it recorded.")
+    return out
+
+
+@dataclass(frozen=True)
+class Divergence:
+    """A disagreement between the live projection and the reconstruction."""
+    record_id: str
+    field_name: str
+    live: object
+    reconstructed: object
+
+    def __str__(self) -> str:
+        return (f"{self.record_id}.{self.field_name}: live={self.live!r} "
+                f"reconstructed={self.reconstructed!r}")
+
+
+@dataclass
+class TaskReconstruction:
+    """The task lifecycle as a second reader sees it."""
+    #: task_id -> plain dict of reconstructed fields
+    tasks: dict = field(default_factory=dict)
+    #: (owner, tool_id, key) -> plain dict of binding fields.
+    #:
+    #: Keyed by the TUPLE, deliberately, rather than by the digest
+    #: IdempotencyLedger uses for the same scope. Sharing that digest would
+    #: make the two readers agree by construction about the one thing worth
+    #: checking independently -- whether two submissions occupy the same
+    #: namespace. A collision or a mis-derived scope on either side shows up
+    #: here as a disagreement instead of being reproduced faithfully.
+    bindings: dict = field(default_factory=dict)
+    #: Transitions the machine would refuse if replayed today.
+    unauthorized: list = field(default_factory=list)
+    #: Structural problems that did not stop replay.
+    anomalies: list = field(default_factory=list)
+    events_replayed: int = 0
+    foreign_events: int = 0
+    head_seq: int = -1
+    head_hash: str = ""
+
+    def states(self) -> dict:
+        return {tid: t["state"] for tid, t in sorted(self.tasks.items())}
+
+    def verified_ids(self) -> tuple:
+        return tuple(sorted(tid for tid, t in self.tasks.items()
+                            if t["state"] == _TASK_VERIFIED))
+
+
+def reconstruct_tasks(log: EventLog, *,
+                      reauthorize: bool = True) -> TaskReconstruction:
+    """Replay the task lifecycle from the log alone. Never raises on content.
+
+    A SECOND implementation, in plain dictionaries, sharing no reducer with
+    ``governed_tasks.projection``. See the module docstring for why that
+    duplication is the point rather than an oversight.
+    """
+    report, events = log.read_verified()
+    report.raise_if_bad()
+    out = TaskReconstruction(head_seq=report.head_seq,
+                             head_hash=report.head_hash)
+    tasks: dict = {}
+    bindings: dict = {}
+    owned = {"task.create", "task.transition", "task.execution",
+             "task.evidence", "idempotency.bind", "task.reexecution",
+             "task.separate_verification"}
+
+    for ev in events:
+        out.events_replayed += 1
+        action = ev.action
+        if action not in owned:
+            kind = actions.classify(action, mine=owned)
+            if kind == actions.UNKNOWN:
+                out.anomalies.append(
+                    f"seq {ev.seq}: unknown action {action!r}; no module in "
+                    "this package writes it, so this reconstruction cannot "
+                    "say what it meant")
+            else:
+                out.foreign_events += 1
+            continue
+        p = ev.payload
+
+        if action == "idempotency.bind":
+            _replay_binding(ev, p, bindings, out)
+            continue
+
+        tid = p.get("task_id", ev.target)
+
+        if action == "task.create":
+            if tid in tasks:
+                out.anomalies.append(
+                    f"seq {ev.seq}: task {tid!r} created twice; the second "
+                    "record would silently replace the first one's history")
+                continue
+            if p.get("submitter") != ev.actor:
+                # Restated here for the reason every rule in this module is:
+                # the primary refuses such a record, so a log carrying one
+                # never reaches the comparison between the two readers.
+                out.anomalies.append(
+                    f"seq {ev.seq}: task {tid!r} names submitter "
+                    f"{p.get('submitter')!r} and was appended by "
+                    f"{ev.actor!r}; whoever asked for the work is whoever "
+                    "wrote the request")
+                continue
+            tasks[tid] = {
+                "task_id": tid, "tool_id": p.get("tool_id"),
+                "submitter": p.get("submitter"),
+                "inputs_digest": p.get("inputs_digest"),
+                "state": _TASK_INITIAL, "revision": 1,
+                "executed_by": None, "result_digest": None,
+                "lease": None, "depends_on": list(p.get("depends_on") or ()),
+                "created_seq": ev.seq, "updated_seq": ev.seq,
+                "artifacts": {}, "history": [(ev.seq, _TASK_INITIAL)],
+                # (seq, digest) of every artefact captured, and (seq, actor)
+                # of every execution record: WHEN matters to a scientific
+                # admission, which asks what had been captured and who had
+                # run the task at the moment of its verdict.
+                "captured": [], "executions": [],
+                # (seq, action, actor) of every check record this reader
+                # accepted: a re-execution or a separate-process verification
+                # made while the task stood COMPLETED.
+                "checks": [],
+            }
+            continue
+
+        cur = tasks.get(tid)
+        if cur is None:
+            out.anomalies.append(
+                f"seq {ev.seq}: {action} for unknown task {tid!r}; nothing "
+                "records what was being asked for")
+            continue
+
+        if action == "task.evidence":
+            arts = p.get("artifacts") or {}
+            cur["artifacts"].update(arts)
+            cur["captured"].extend((ev.seq, dg) for dg in arts.values())
+            continue
+        if action == "task.execution":
+            # Restated, not imported: the tool runs in EXECUTING, under the
+            # lease, and only the holder runs it. Folded anywhere else, a
+            # record appended after the verdict renamed the executor of work
+            # already judged -- and this reader agreed with the primary,
+            # which had the same defect.
+            if reauthorize:
+                held = _lease_of(cur)
+                holder = held.get("holder") if held else None
+                if cur["state"] != _TASK_EXECUTING:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {tid} execution record while "
+                        f"{cur['state']}; a tool runs between EXECUTING and "
+                        "its outcome, so this would rename the executor of "
+                        "work that is not running")
+                    continue
+                if ev.actor != holder:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {tid} execution recorded by "
+                        f"{ev.actor!r}, and the lease is held by "
+                        f"{holder!r}; only the holder runs the task")
+                    continue
+            cur["executed_by"] = ev.actor
+            cur["result_digest"] = p.get("result_digest")
+            cur["executions"].append((ev.seq, ev.actor))
+            continue
+        if action in ("task.reexecution", "task.separate_verification"):
+            why = _task_check_record(action, ev, p, cur)
+            if why:
+                out.anomalies.append(f"seq {ev.seq}: {tid} {why}")
+            else:
+                cur["checks"].append((ev.seq, action, ev.actor))
+            continue
+
+        # task.transition
+        claimed = p.get("src")
+        if cur["state"] != claimed:
+            out.anomalies.append(
+                f"seq {ev.seq}: {tid} claims src {claimed} but replay has it "
+                f"in {cur['state']}")
+        # The same question about the OTHER field the record gets to name.
+        # Who executed the task decides who is allowed to verify it, and only
+        # a task.execution record establishes it. A transition may repeat
+        # that answer; it may not supply one, and it may not change it.
+        claimed_by = p.get("executed_by")
+        if claimed_by is not None and claimed_by != cur["executed_by"]:
+            out.anomalies.append(
+                f"seq {ev.seq}: {tid} names {claimed_by!r} as its executor, "
+                f"but replay has {cur['executed_by']!r}; the executor comes "
+                "from the execution record, so this record is naming the "
+                "actor that verification has to differ from")
+        lease = None
+        if p.get("lease"):
+            lease = _parse_lease(p["lease"])
+            if lease is None:
+                out.anomalies.append(
+                    f"seq {ev.seq}: {tid} carries a lease record this build "
+                    "cannot interpret")
+        if reauthorize:
+            # From the state THIS replay reached, never from the claim. A
+            # forger who names a convenient src would otherwise have every
+            # pair in the table available, which is exactly the defect the
+            # production projection had.
+            #
+            # And judged by _task_refusal above rather than by tasks.check:
+            # the executor the separation-of-duties rule measures against
+            # comes from the execution record this replay saw, and the rule
+            # itself is stated here so that weakening the production one does
+            # not quietly weaken this reader too.
+            held = _lease_of(cur) or lease
+            refusal = _task_refusal(
+                task_id=tid, src=cur["state"], dst=p.get("dst"),
+                actor=ev.actor, role=p.get("role"), at_seq=ev.seq,
+                lease=held,
+                lease_id=(p.get("lease_id")
+                          or (held.get("lease_id") if held else None)),
+                executed_by=cur["executed_by"],
+                result_digest=p.get("result_digest"))
+            if refusal is not None:
+                out.unauthorized.append(
+                    f"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} "
+                    f"would be refused today: {refusal}")
+                # Do NOT apply. Presence in the log is not authority.
+                continue
+
+        # The lease follows the task, not the record. Only the move INTO
+        # LEASED carries one; the moves that need it afterwards cite its id
+        # and rely on the task still holding it. Replacing the lease on every
+        # transition drops it at the next step and then refuses the
+        # completion -- which is what this replay did until the differential
+        # test compared it against the live projection and disagreed.
+        dst = p.get("dst")
+        if dst not in _TASK_STATES:
+            # Reachable only with reauthorize=False. See the authority replay
+            # for why this is an anomaly rather than a silent application.
+            out.anomalies.append(
+                f"seq {ev.seq}: {tid} moves to {dst!r}, which is not a task "
+                "state this reader knows; not applied")
+            continue
+        if dst == _TASK_LEASED:
+            cur["lease"] = dict(p["lease"]) if p.get("lease") else None
+        elif dst == _TASK_QUEUED or dst in _TASK_TERMINAL:
+            # Requeued or finished work holds nothing: a lease that outlives
+            # the work it owned is a lease somebody else has to wait out.
+            cur["lease"] = None
+        cur["state"] = p["dst"]
+        cur["revision"] += 1
+        cur["updated_seq"] = ev.seq
+        if p.get("result_digest") is not None:
+            cur["result_digest"] = p["result_digest"]
+        # cur["executed_by"] is NOT updated here. It was, and that single
+        # line put this reader back underneath the bypass the production
+        # projection had already been fixed for: the reauthorization above
+        # correctly used the replayed executor, and then the payload
+        # overwrote it in time for the NEXT transition to be checked against
+        # the forger's choice.
+        cur["history"].append((ev.seq, p["dst"]))
+
+    out.tasks = tasks
+    out.bindings = bindings
+    return out
+
+
+@dataclass
+class SubsystemReconstruction:
+    """Authority state of the subsystems that had no second reader.
+
+    WHY THESE ARE HERE AND NOT IN THEIR OWN MODULES
+
+    Because a second reader that lives beside the first, imports the
+    first's enums and calls the first's helpers is not a second reader --
+    it is the same decision run twice, agreeing with itself. This module
+    sits BELOW scheduler, policy, capability, agents, memory, netauth,
+    secrets and context in the declared layering, so it cannot import any
+    of them even by accident. Everything below is plain strings and plain
+    dicts, and every rule is restated rather than called.
+
+    That restatement is the point and also the cost: two implementations
+    can still share a misunderstanding the log cannot reveal, which is why
+    an empty diff is evidence rather than proof.
+    """
+
+    jobs: dict = field(default_factory=dict)
+    policies: dict = field(default_factory=dict)
+    #: policy_id -> {"by": owner, "withdrawn_seq": seq or None}
+    #: (D-2026-148): who may withdraw a policy, and whether one did.
+    policy_owners: dict = field(default_factory=dict)
+    decisions: dict = field(default_factory=dict)
+    capabilities: dict = field(default_factory=dict)
+    agents: dict = field(default_factory=dict)
+    memory: dict = field(default_factory=dict)
+    net_grants: dict = field(default_factory=dict)
+    secret_grants: dict = field(default_factory=dict)
+    contexts: dict = field(default_factory=dict)
+    #: The one actor this log permits to mint grants, or None if none yet.
+    root_issuer: "str | None" = None
+    #: The latest wall time folded: a policy's expiry is judged against it
+    #: (events.judged_at, D-2026-168).
+    latest_wall: "float | None" = None
+    #: escalation_id -> the question, its state and who decided it.
+    escalations: dict = field(default_factory=dict)
+    #: proposal_id -> what the ingress received: digest, agent, kind.
+    #:
+    #: A proposal permits nothing, so a forged receipt changes no decision;
+    #: but it is the record of what an AI asked for, and an investigation
+    #: reads it -- so it is read twice, under rules restated here.
+    proposals: dict = field(default_factory=dict)
+    #: manifest digest -> ``{"seq", "policy_identity"}`` of the first
+    #: context.build whose stated digest is its manifest's (Gate B). A model
+    #: call names one of these, and one that names none is a call nobody can
+    #: reconstruct.
+    context_manifests: dict = field(default_factory=dict)
+    #: budget_id -> spending authority as this reader rebuilt it: issuer,
+    #: terms, withdrawal, and what is held against it.
+    inference_budgets: dict = field(default_factory=dict)
+    #: (request_id, attempt) -> one granted attempt: what it reserved, its
+    #: lease, its dispatch and its settlement.
+    inference_attempts: dict = field(default_factory=dict)
+    #: idempotency key -> the request first granted under it
+    inference_keys: dict = field(default_factory=dict)
+    #: research id -> ``{"kind", "status", "body", "basis"}`` (Gate C):
+    #: objectives, hypotheses and observations as this reader rebuilt them.
+    research: dict = field(default_factory=dict)
+    #: objective id -> steps recorded
+    research_steps: dict = field(default_factory=dict)
+    #: (objective id, model id) -> ``{"body", "seq", "by"}``: a source's
+    #: freshness policy (Assurance F), as this reader rebuilt it
+    research_freshness: dict = field(default_factory=dict)
+    #: (action, target) -> the latest seq it was recorded at, for a policy
+    #: that lasts until an event
+    last_seen: dict = field(default_factory=dict)
+    #: record id -> ``{"state", "result_bundle"}``: what a research
+    #: observation may be read from, as the record transitions leave it.
+    sci_states: dict = field(default_factory=dict)
+    #: claim_id -> what one instance asserted about one subject.
+    #:
+    #: Claims are the input to conflict resolution, so a claim attributable
+    #: to anyone is a way to manufacture or suppress a disagreement between
+    #: two parties the system is about to call independent.
+    claims: dict = field(default_factory=dict)
+    #: through_seq -> what a checkpoint anchor claimed about that position.
+    #:
+    #: A checkpoint FILE is authenticated by nothing; the claim it makes
+    #: about a projection is only evidence when the log carries it too. This
+    #: reader is where that claim is read back from the log by something
+    #: that is not the store.
+    checkpoints: dict = field(default_factory=dict)
+    #: task_id -> the compensations recorded against it, in order.
+    #:
+    #: A compensation does not move the task -- it is a fact ABOUT one --
+    #: which is why it is kept as a list beside the tasks rather than folded
+    #: into them. What it carries that needs a second reader is the name of
+    #: the PERSON who authorized destroying something.
+    compensations: dict = field(default_factory=dict)
+    #: escalation_id -> ``{"task_id", "authorized_seq", "ran_seq"}``: the
+    #: undo each answer authorized (D-2026-156). ``ran_seq`` None is an
+    #: authorization with no recorded outcome -- an undo whose effect is not
+    #: known, which is a state to report rather than an anomaly.
+    compensation_authorizations: dict = field(default_factory=dict)
+    #: service_id -> its contract as this reader rebuilt it.
+    services: dict = field(default_factory=dict)
+    #: "service_id/task_id" -> permitted calls counted from the log.
+    service_calls: dict = field(default_factory=dict)
+    #: The audit trail, read a second time (ledger follow-up A): message id
+    #: -> the dimensions it names; governed reads and secret uses that a
+    #: live grant covered; egress results answering an allowed request of
+    #: their own; secrets provisioned, by id -> seq.
+    messages: dict = field(default_factory=dict)
+    reads: int = 0
+    secret_uses: int = 0
+    provisioned: dict = field(default_factory=dict)
+    #: secret_id -> the provider its first provisioning named (D-2026-156)
+    provision_sources: dict = field(default_factory=dict)
+    net_results: int = 0
+    #: (actor, task, target) -> allowed requests not yet answered.
+    egress_open: dict = field(default_factory=dict)
+    anomalies: list = field(default_factory=list)
+    events_replayed: int = 0
+    head_seq: int = -1
+
+
+#: Job states a job may be BORN in. Restated here rather than imported: a
+#: forged enqueue naming SUCCEEDED or DISPATCHED is the attack, and a second
+#: reader that asks the scheduler what counts as initial would inherit the
+#: scheduler's answer along with any mistake in it.
+#:
+#: ONE state, not two. This read ``{"WAITING", "READY"}`` until D-2026-38,
+#: while the scheduler admits ``WAITING`` alone and refuses anything else at
+#: enqueue. A job born READY has skipped the check that its dependencies
+#: hold, and this reader folded one without a word.
+_JOB_INITIAL = {"WAITING"}
+
+#: Every move the job machine has, restated here in this module's own terms
+#: for the same reason the authority and task edges are.
+#:
+#: This table did not exist until D-2026-38, and its absence was not a
+#: cosmetic gap. The only structural check on a job transition was that the
+#: source state agreed with the replay and was not in a hand-listed terminal
+#: set -- so `WAITING -> SUCCEEDED`, a move the scheduler does not have,
+#: replayed clean and left the job reading SUCCEEDED. A job that was never
+#: dispatched cannot have been verified, and the reader that exists to say
+#: so said nothing.
+_JOB_EDGES = frozenset({
+    ("WAITING", "READY"),
+    ("WAITING", "BLOCKED"),
+    ("READY", "DISPATCHED"),
+    ("READY", "BLOCKED"),
+    ("READY", "WAITING"),
+    ("DISPATCHED", "SUCCEEDED"),
+    ("DISPATCHED", "RETRY_WAIT"),
+    ("DISPATCHED", "FAILED"),
+    ("DISPATCHED", "READY"),
+    ("DISPATCHED", "BLOCKED"),
+    ("RETRY_WAIT", "READY"),
+    ("RETRY_WAIT", "FAILED"),
+    ("RETRY_WAIT", "BLOCKED"),
+    ("SUCCEEDED", "INVALIDATED"),
+    ("WAITING", "CANCELLED"),
+    ("READY", "CANCELLED"),
+    ("DISPATCHED", "CANCELLED"),
+    ("RETRY_WAIT", "CANCELLED"),
+})
+
+#: States nothing leaves, DERIVED from the table above rather than listed
+#: beside it -- a summary maintained by hand next to the thing it summarises
+#: is a second statement that can drift from the first, which is exactly how
+#: the set this replaces came to call SUCCEEDED terminal while
+#: ``SUCCEEDED -> INVALIDATED`` is a move the machine has.
+_JOB_SEALED = ({d for _, d in _JOB_EDGES} - {s for s, _ in _JOB_EDGES})
+
+#: Leaving DISPATCHED with a verdict on the attempt that was running. Named
+#: here, in strings, for the same reason as the sets above: a second reader
+#: that asked the scheduler which edges are verdicts would agree with it by
+#: construction, including where the scheduler is wrong.
+_JOB_OUTCOME = {"SUCCEEDED", "RETRY_WAIT", "FAILED"}
+
+#: The out-of-band sentinel a log's first humans are admitted under. Spelled
+#: out here rather than imported, like everything else in this module: if the
+#: directory's sentinel and this one ever drift apart, the divergence is the
+#: finding rather than something both readers agree about by construction.
+_BOOTSTRAP = "out-of-band-bootstrap"
+
+#: Where a question for a human can be. Spelled out rather than imported,
+#: like every other vocabulary in this module.
+_ESC_OPEN = "OPEN"
+_ESC_TERMINAL = {"ANSWERED", "WITHDRAWN"}
+
+#: What an instance may be doing when it makes a claim. Spelled out rather
+#: than imported, like every other vocabulary in this module: if the
+#: directory's roles and these drift apart, the divergence is the finding.
+_AGENT_ROLES = {"PROPOSER", "EXECUTOR", "VERIFIER", "AUDITOR", "REVIEWER",
+                "SCHEDULER"}
+
+#: The fewest options an escalation may offer. A question with one answer is
+#: a notification and should not block anything; a question with none cannot
+#: be answered at all. Restated: if the directory's bound and this one drift
+#: apart, the divergence is the finding.
+_ESC_MIN_OPTIONS = 2
+
+
+def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
+    """Replay every remaining authority subsystem, independently.
+
+    Never raises on content: a hostile history produces findings, not an
+    exception that hides the rest of the log.
+    """
+    report, events = log.read_verified()
+    report.raise_if_bad()
+    out = SubsystemReconstruction(head_seq=report.head_seq)
+    # The record immediately before the one being folded, as (seq, hash).
+    #
+    # Held rather than a full seq -> hash index, deliberately: an index over
+    # every record would be memory proportional to the log for the sake of
+    # one check, and the honest writer anchors the position it just left. A
+    # claim about an older position is REPORTED as unchecked rather than
+    # treated as checked, which is the difference between a reader that
+    # knows its limits and one that implies it verified more than it did.
+    prev = (-1, "")
+    for ev in events:
+        out.events_replayed += 1
+        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)
+        p = ev.payload if isinstance(ev.payload, dict) else {}
+        a = ev.action
+        if a == "scheduler.enqueue":
+            _sub_enqueue(ev, p, out)
+        elif a == "scheduler.transition":
+            _sub_job_transition(ev, p, out)
+        elif a == "scheduler.lease_renew":
+            _sub_lease_renew(ev, p, out)
+        elif a == "scheduler.priority":
+            _sub_priority(ev, p, out)
+        elif a == "policy.publish":
+            _sub_policy_publish(ev, p, out)
+        elif a == "policy.withdraw":
+            _sub_policy_withdraw(ev, p, out)
+        elif a == "policy.decision":
+            _sub_policy_decision(ev, p, out)
+        elif a == "capability.root":
+            _sub_capability_root(ev, p, out)
+        elif a == "capability.issue":
+            _sub_capability_issue(ev, p, out)
+        elif a == "capability.revoke":
+            _sub_capability_revoke(ev, p, out)
+        elif a == "agent.register":
+            _sub_agent_register(ev, p, out)
+        elif a == "agent.retire":
+            _sub_agent_retire(ev, p, out)
+        elif a == "checkpoint.state":
+            _sub_checkpoint(ev, p, out, prev)
+        elif a == "agent.claim":
+            _sub_claim(ev, p, out)
+        elif a == "task.compensation":
+            _sub_compensation(ev, p, out)
+        elif a == "task.compensation.authorize":
+            _sub_compensation_authorize(ev, p, out)
+        elif a == "agent.escalation":
+            _sub_escalation(ev, p, out)
+        elif a == "agent.escalation.answer":
+            _sub_escalation_answer(ev, p, out)
+        elif a == "memory.write":
+            _sub_memory_write(ev, p, out)
+        elif a == "memory.status":
+            _sub_memory_status(ev, p, out)
+        elif a == "network.service":
+            _sub_service(ev, p, out)
+        elif a == "network.request":
+            _sub_service_call(ev, p, out)
+            _sub_egress_use(ev, p, out)
+            _sub_net_request_seen(ev, p, out)
+        elif a == "network.result":
+            _sub_network_result(ev, p, out)
+        elif a == "agent.message":
+            _sub_message(ev, p, out)
+        elif a == "file.read":
+            _sub_file_read(ev, p, out)
+        elif a == "secret.access":
+            _sub_secret_access(ev, p, out)
+        elif a == "secret.provision":
+            _sub_secret_provision(ev, p, out)
+        elif a == "network.grant":
+            _sub_grant(ev, p, out, out.net_grants, "network")
+        elif a == "secret.grant":
+            _sub_grant(ev, p, out, out.secret_grants, "secret")
+        elif a == "context.build":
+            _sub_context(ev, p, out)
+        elif a == "proposal.receive":
+            _sub_proposal(ev, p, out)
+        elif a == "inference.budget":
+            _sub_inference_budget(ev, p, out)
+        elif a == "inference.reserve":
+            _sub_inference_reserve(ev, p, out)
+        elif a == "inference.dispatch":
+            _sub_inference_dispatch(ev, p, out)
+        elif a == "inference.result":
+            _sub_inference_result(ev, p, out)
+        elif a == "record.create":
+            out.sci_states[p.get("record_id")] = {
+                "state": "PROPOSED",
+                "result_bundle": (p.get("evidence") or {}).get(
+                    "result_bundle")}
+        elif a == "record.transition":
+            cur = out.sci_states.get(p.get("record_id"))
+            if cur is not None:
+                cur["state"] = p.get("dst")
+                cur["result_bundle"] = (p.get("evidence") or {}).get(
+                    "result_bundle", cur["result_bundle"])
+        elif a.startswith("research."):
+            _sub_research(ev, p, out)
+        out.last_seen[(a, ev.target)] = ev.seq
+        prev = (ev.seq, ev.hash)
+    return out
+
+
+def _note(out, ev, text: str) -> None:
+    out.anomalies.append(f"seq {ev.seq}: {text}")
+
+
+# ---------------------------------------------------------------------------
+# AUDIT RECORDS, READ A SECOND TIME (ledger follow-up A).
+#
+# Five durable actions here, and two task actions in reconstruct_tasks,
+# record what HAPPENED rather than change what is permitted: a message, a
+# governed read, an egress result, a secret's use, a secret's provisioning.
+# Each is classified NOT authority-changing in docs/identity_inventory.json,
+# with its reason, and tests/test_second_reader_audit_actions.py shows that a
+# forged one moves no primary projection. That is exactly why they need a
+# second reader: they are the trail an investigation reads, and nothing
+# consults them afterwards to notice they are false. A record the writer
+# could not have produced is a finding here.
+#
+# Stricter than the primaries in places, deliberately and said so beside
+# each rule: several of these have no reducer at all, and where one exists
+# it checks only what it needs in order to fold.
+# ---------------------------------------------------------------------------
+
+#: Every field a message record may carry, and the ones its id NAMES. A
+#: redelivery repeats all of the latter; a record that changes one is a
+#: rewrite wearing the same id.
+_MSG_FIELDS = frozenset({"message_id", "sender_instance", "recipient_agent",
+                         "task_id", "subject", "body_digest", "sent_seq",
+                         "in_reply_to", "delivered_to"})
+_MSG_NAMED = ("message_id", "sender_instance", "recipient_agent", "task_id",
+              "subject", "body_digest", "in_reply_to")
+_MSG_REQUIRED = frozenset(_MSG_NAMED) - {"in_reply_to"}
+_MSG_SUBJECT_MAX = 200
+
+
+def _sub_message(ev, p: dict, out) -> None:
+    rec = p.get("message")
+    if not isinstance(rec, dict):
+        _note(out, ev, "agent.message carries no message record")
+        return
+    unknown = sorted(set(rec) - _MSG_FIELDS)
+    missing = sorted(_MSG_REQUIRED - set(rec))
+    if unknown or missing:
+        _note(out, ev, f"message record is malformed (unknown {unknown}, "
+                       f"missing {missing})")
+        return
+    mid = rec["message_id"]
+    # Who sent it is who appended it -- the primary's own rule.
+    if rec["sender_instance"] != ev.actor:
+        _note(out, ev, f"message {mid!r} says it was sent by "
+                       f"{rec['sender_instance']!r} and was appended by "
+                       f"{ev.actor!r}")
+        return
+    prior = out.messages.get(mid)
+    if prior is not None:
+        changed = [k for k in _MSG_NAMED if prior.get(k) != rec.get(k)]
+        if changed:
+            _note(out, ev, f"message {mid!r} is re-sent with {changed} "
+                           "changed; a redelivery repeats a message and "
+                           "this one says something else")
+        return
+    # What send() refuses and the replay does not ask: the body is carried
+    # by digest, the subject is bounded, and a reply answers a message that
+    # was sent. Stricter than the primary's replay, which only folds.
+    if not _is_digest(rec["body_digest"]):
+        _note(out, ev, f"message {mid!r} carries its body as something "
+                       "other than a digest")
+        return
+    if not isinstance(rec["subject"], str) \
+            or len(rec["subject"]) > _MSG_SUBJECT_MAX:
+        _note(out, ev, f"message {mid!r} has a subject send() refuses")
+        return
+    reply = rec.get("in_reply_to")
+    if reply is not None and reply not in out.messages:
+        _note(out, ev, f"message {mid!r} replies to {reply!r}, which was "
+                       "never sent")
+        return
+    out.messages[mid] = {**{k: rec.get(k) for k in _MSG_NAMED},
+                         "sent_seq": ev.seq}
+
+
+def _sub_grant_live(entry: dict, at_seq: int) -> str:
+    """Why ``entry`` (a capability or grant this reader holds) authorizes
+    nothing at ``at_seq``; empty when it is in force there."""
+    issued = entry.get("issued_seq")
+    if not isinstance(issued, int) or at_seq < issued:
+        return f"was not yet issued at seq {at_seq}"
+    revoked = entry.get("revoked_seq")
+    if revoked is not None and revoked <= at_seq:
+        return f"was revoked at seq {revoked}"
+    end = entry.get("expires_after_seq")
+    if isinstance(end, int) and end != -1 and at_seq > end:
+        return f"expired after seq {end}"
+    return ""
+
+
+def _sub_file_read(ev, p: dict, out) -> None:
+    req = p.get("request")
+    if not isinstance(req, dict):
+        _note(out, ev, "file.read carries no request")
+        return
+    if req.get("actor") != ev.actor:
+        _note(out, ev, f"a read by {req.get('actor')!r} was appended by "
+                       f"{ev.actor!r}; the reader is who recorded it")
+        return
+    allowed = p.get("allowed")
+    if not isinstance(allowed, bool):
+        _note(out, ev, "file.read does not say whether it was allowed")
+        return
+    result = p.get("result")
+    if not allowed:
+        if result is not None:
+            _note(out, ev, "a refused read carries a result: bytes were read "
+                           "that nothing authorized")
+        return
+    if not isinstance(result, dict) or not _is_digest(result.get("digest")):
+        _note(out, ev, "an allowed read records no digest of what it read")
+        return
+    cid = p.get("capability_id")
+    cap = out.capabilities.get(cid)
+    if cap is None:
+        _note(out, ev, f"an allowed read cites capability {cid!r}, which "
+                       "this log never issued")
+        return
+    why = _sub_grant_live(cap, ev.seq)
+    if why:
+        _note(out, ev, f"an allowed read cites capability {cid!r}, which "
+                       f"{why}")
+        return
+    scoped = f"{req.get('root_id')}/{req.get('resource')}"
+    if (cap.get("subject") != ev.actor or cap.get("action") != "READ_PATHS"
+            or cap.get("task_id") != req.get("task_id")
+            or not _sub_covers(cap.get("scope"), scoped)):
+        _note(out, ev, f"capability {cid!r} does not permit {ev.actor!r} to "
+                       f"read {scoped!r} for task {req.get('task_id')!r}")
+        return
+    out.reads += 1
+
+
+def _sub_egress_use(ev, p: dict, out) -> None:
+    """An ALLOWED request names the grant that allowed it; was that grant in
+    force at the position the request was recorded? (D-2026-156)
+
+    This reader held every egress grant -- issued where, revoked where,
+    expiring where -- and consulted none of it for a use. A request recorded
+    as allowed after its grant's revocation read as ordinary traffic.
+    """
+    if not p.get("allowed"):
+        return
+    raw = p.get("decision")
+    decision = raw if isinstance(raw, dict) else {}
+    gid = decision.get("grant_id")
+    g = out.net_grants.get(gid)
+    if g is None:
+        _note(out, ev, f"an egress request was allowed under grant {gid!r}, "
+                       "which this log never issued")
+        return
+    why = _sub_grant_live({**g, "expires_after_seq":
+                           (g.get("body") or {}).get("expires_after_seq")},
+                          ev.seq)
+    if why:
+        _note(out, ev, f"egress grant {gid!r} {why}, and a request under it "
+                       "was recorded as allowed")
+
+
+def _sub_net_request_seen(ev, p: dict, out) -> None:
+    """Remember an ALLOWED egress, so its result has something to answer."""
+    req = p.get("request")
+    if not p.get("allowed") or not isinstance(req, dict):
+        return
+    key = (ev.actor, p.get("task_id"), _sub_target_key(req.get("target")))
+    out.egress_open[key] = out.egress_open.get(key, 0) + 1
+
+
+def _sub_target_key(target) -> str:
+    import json
+    try:
+        return json.dumps(target, sort_keys=True)
+    except (TypeError, ValueError):
+        return repr(target)
+
+
+def _sub_network_result(ev, p: dict, out) -> None:
+    rd = p.get("response_digest")
+    if rd is not None and not _is_digest(rd):
+        _note(out, ev, "network.result carries a response digest that is "
+                       "not a digest")
+        return
+    key = (ev.actor, ev.target, _sub_target_key(p.get("target")))
+    if out.egress_open.get(key, 0) < 1:
+        _note(out, ev, f"{ev.actor!r} records a network result for task "
+                       f"{ev.target!r} with no allowed request of its own "
+                       "to that target; a response to egress nobody "
+                       "authorized")
+        return
+    out.egress_open[key] -= 1
+    out.net_results += 1
+
+
+def _sub_secret_access(ev, p: dict, out) -> None:
+    gid = p.get("grant_id")
+    g = out.secret_grants.get(gid)
+    if g is None:
+        _note(out, ev, f"secret {p.get('secret_id')!r} was used under grant "
+                       f"{gid!r}, which this log never issued")
+        return
+    if p.get("grant_digest") != g.get("digest"):
+        _note(out, ev, f"a use of grant {gid!r} cites other terms than the "
+                       "grant this log holds")
+        return
+    why = _sub_grant_live({**g, "expires_after_seq":
+                           (g.get("body") or {}).get("expires_after_seq")},
+                          ev.seq)
+    if why:
+        _note(out, ev, f"secret grant {gid!r} {why}, and was used")
+        return
+    body = g.get("body") or {}
+    purposes = body.get("purposes") or ()
+    wrong = [name for name, ok in (
+        ("secret", body.get("secret_id") == p.get("secret_id")),
+        ("subject", body.get("subject") == ev.actor),
+        ("task", body.get("task_id") == ev.target),
+        ("tool", body.get("tool_id") == p.get("tool_id")),
+        ("purpose", "*" in purposes or p.get("purpose") in purposes),
+    ) if not ok]
+    if wrong:
+        _note(out, ev, f"secret grant {gid!r} does not cover this use "
+                       f"({', '.join(wrong)})")
+        return
+    out.secret_uses += 1
+
+
+#: The only fields a provisioning record carries: which secret, the
+#: provider's description, and a byte COUNT. Anything else is a place a
+#: value could have been written.
+_PROVISION_FIELDS = frozenset({"secret_id", "provider", "bytes"})
+
+
+def _sub_secret_provision(ev, p: dict, out) -> None:
+    extra = sorted(set(p) - _PROVISION_FIELDS)
+    if extra:
+        _note(out, ev, f"secret.provision carries {extra}; a provisioning "
+                       "record names a secret and a length, never content")
+        return
+    n = p.get("bytes")
+    if not isinstance(n, int) or isinstance(n, bool) or n < 1:
+        _note(out, ev, f"secret {p.get('secret_id')!r} was provisioned with "
+                       f"{n!r} bytes; an empty secret is a refusal, not a "
+                       "value")
+        return
+    sid = p.get("secret_id")
+    if not isinstance(sid, str) or not sid:
+        _note(out, ev, "secret.provision names no secret")
+        return
+    # One id, one source (D-2026-156), restated: a second provisioning from a
+    # different provider would give holders two credentials under one name.
+    first = out.provision_sources.get(sid)
+    if first is not None and first != p.get("provider"):
+        _note(out, ev, f"secret {sid!r} is provisioned from "
+                       f"{p.get('provider')!r} and was provisioned from "
+                       f"{first!r}; one id, two credentials")
+        return
+    out.provision_sources.setdefault(sid, p.get("provider"))
+    out.provisioned[sid] = ev.seq
+
+
+def _sub_enqueue(ev, p: dict, out) -> None:
+    job = p.get("job")
+    if not isinstance(job, dict):
+        _note(out, ev, "enqueue carries no job record")
+        return
+    jid = job.get("job_id")
+    if not isinstance(jid, str) or not jid:
+        _note(out, ev, "enqueue names no job_id")
+        return
+    if jid in out.jobs:
+        _note(out, ev, f"job {jid!r} enqueued twice; the second would "
+                       "replace the first one's state and history")
+        return
+    state = job.get("state")
+    if state not in _JOB_INITIAL:
+        # A create introduces WORK, never a verdict and never a position
+        # further along than the start. A job born SUCCEEDED was never run;
+        # one born DISPATCHED arrives holding the lease that the ownership
+        # check on its outcome edges would otherwise demand; and one born
+        # READY -- which this reader used to admit, until D-2026-38 --
+        # arrives past the check that its dependencies hold.
+        _note(out, ev, f"job {jid!r} is enqueued directly in {state!r}; work "
+                       f"is introduced in {sorted(_JOB_INITIAL)[0]!r} and "
+                       "reaches anything else by a transition that is "
+                       "recorded")
+        return
+    if job.get("submitter") != ev.actor:
+        _note(out, ev, f"job {jid!r} names submitter "
+                       f"{job.get('submitter')!r} but was appended by "
+                       f"{ev.actor!r}")
+        return
+    if job.get("attempts"):
+        _note(out, ev, f"job {jid!r} is enqueued with "
+                       f"{job.get('attempts')} attempts already spent")
+        return
+    if job.get("lease_holder") or job.get("lease_id"):
+        _note(out, ev, f"job {jid!r} is enqueued already holding a lease")
+        return
+    # The retry budget arrives here or nowhere. A job whose enqueue does not
+    # state a whole, positive bound has no bound this reader can hold it to,
+    # and saying so is better than quietly substituting a default that the
+    # scheduler happens to use today.
+    budget = job.get("max_attempts")
+    if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:
+        _note(out, ev, f"job {jid!r} is enqueued with a retry budget of "
+                       f"{budget!r}; the count has nothing to be measured "
+                       "against")
+        budget = None
+    out.jobs[jid] = {
+        "job_id": jid, "state": state,
+        "work_digest": job.get("work_digest"),
+        "submitter": ev.actor, "priority": job.get("priority"),
+        "attempts": job.get("attempts") or 0,
+        "max_attempts": budget,
+        "lease_holder": job.get("lease_holder") or "",
+        "lease_expires_after_seq": job.get("lease_expires_after_seq", -1),
+        "idempotency_key": job.get("idempotency_key"),
+        "enqueued_seq": ev.seq,
+    }
+
+
+def _sub_job_transition(ev, p: dict, out) -> None:
+    jid = p.get("job_id")
+    cur = out.jobs.get(jid)
+    if cur is None:
+        _note(out, ev, f"transition for unknown job {jid!r}")
+        return
+    src, dst = p.get("src"), p.get("dst")
+    if cur["state"] != src:
+        _note(out, ev, f"job {jid!r} claims src {src!r} but replay has it "
+                       f"in {cur['state']!r}")
+        return
+    if (src, dst) not in _JOB_EDGES:
+        # THE STRUCTURAL CHECK, AND IT USED TO BE A SUMMARY OF ONE.
+        #
+        # Until D-2026-38 this asked only whether the source was in a
+        # hand-listed terminal set, which let every move the machine does
+        # not have through: `WAITING -> SUCCEEDED` replayed clean and left
+        # the job reading SUCCEEDED, with no anomaly recorded.
+        if src in _JOB_SEALED:
+            _note(out, ev, f"job {jid!r} leaves terminal state {src!r}, "
+                           "which nothing leaves; the work is over")
+        else:
+            _note(out, ev, f"job {jid!r} moves {src!r} -> {dst!r}, which is "
+                           "not a move this machine has")
+        return
+
+    # WHO IS ALLOWED TO SAY THIS, AND WHAT MAY IT SAY ABOUT THE BUDGET.
+    #
+    # Everything above this point checks the SHAPE of the move: that the
+    # job exists, that it is where the record says it is, that it is not
+    # coming back from the dead. None of that asks who wrote the record or
+    # what the record does to the retry count -- so a hand-written line
+    # naming a job's outcome on behalf of a worker that never reported,
+    # or one that quietly sets attempts back to zero, replayed clean here
+    # and this reader said it had no findings.
+    #
+    # That is worse than it sounds. The scheduler's own reducer refuses all
+    # of these, so a log carrying one cannot be loaded by the primary at
+    # all -- which means the comparison of the two readers never runs, and
+    # THIS reader is the only one left looking at the history. A second
+    # opinion that accepts a wider language than the first is not a second
+    # opinion on the logs that matter.
+    #
+    # Restated below in this module's own terms, from the event header and
+    # the state this replay has built, never from the payload's own claims.
+    end = cur.get("lease_expires_after_seq", -1)
+    # The writer decided at the head and its record landed one past it, so
+    # possession is judged at the position the decision was taken from.
+    # Judging it at ev.seq would reject a report written at the last legal
+    # moment.
+    holds = bool(cur.get("lease_id")) and isinstance(end, int) and (
+        (ev.seq - 1) <= end)
+    grants = bool(p.get("lease_holder")) or bool(p.get("lease_id"))
+
+    # Two ways out of DISPATCHED are nobody's to sign but the supervisor's,
+    # because the party who ought to sign them is the worker that stopped
+    # answering: the work goes back on the queue, or the queue gives up on
+    # it. They are legitimate exactly when the thing they assert is true --
+    # that possession has run out -- and when they hand ownership to no one.
+    handover = (src == "DISPATCHED" and dst in {"READY", "FAILED"}
+                and not holds and not grants)
+    if src == "DISPATCHED" and dst in _JOB_OUTCOME and not handover:
+        if cur.get("lease_holder") != ev.actor:
+            _note(out, ev, f"job {jid!r} is held by "
+                           f"{cur.get('lease_holder')!r} and {ev.actor!r} "
+                           f"records its outcome as {dst!r}; an attempt is "
+                           "answered for by whoever was running it")
+            return
+        if not holds:
+            _note(out, ev, f"job {jid!r} had possession only to seq {end!r} "
+                           f"and the log is at {ev.seq}; an outcome arriving "
+                           "after that decides work somebody else may "
+                           "already have redone")
+            return
+    if (src == "DISPATCHED" and dst in {"READY", "FAILED"}
+            and cur.get("lease_holder") != ev.actor and holds):
+        _note(out, ev, f"job {jid!r} is taken back as though possession had "
+                       f"run out, but it runs to seq {end!r}; the same work "
+                       "would be handed to a second worker")
+        return
+    if "attempts" in p:
+        want = p.get("attempts")
+        # A retry is counted where one is handed out, and nowhere else. Any
+        # other record that names the count is rewriting the only number
+        # the budget is measured against.
+        charge = src == "READY" and dst == "DISPATCHED"
+        have = cur.get("attempts") or 0
+        allowed = have + 1 if charge else have
+        if want != allowed:
+            _note(out, ev, f"job {jid!r} has {have} attempt(s) and this "
+                           f"record sets {want!r}; only the hand-out edge "
+                           "moves that count, and only by one")
+            return
+    if grants and not (src == "READY" and dst == "DISPATCHED"):
+        _note(out, ev, f"job {jid!r} {src!r} -> {dst!r} carries possession; "
+                       "it is taken when the work is handed out and dropped "
+                       "on the way back, never granted in passing")
+        return
+
+    cur["state"] = dst
+    if "lease_holder" in p:
+        cur["lease_holder"] = p.get("lease_holder") or ""
+    if "lease_id" in p:
+        cur["lease_id"] = p.get("lease_id") or ""
+    if "lease_expires_after_seq" in p:
+        cur["lease_expires_after_seq"] = p.get("lease_expires_after_seq", -1)
+    if "lease_renewals" in p:
+        cur["lease_renewals"] = p.get("lease_renewals", 0)
+    if "attempts" in p:
+        cur["attempts"] = p.get("attempts")
+    if dst != "DISPATCHED":
+        # Leaving DISPATCHED drops the lease AND its renewal budget. A count
+        # carried across would limit the next worker for reasons belonging to
+        # a lease that no longer exists.
+        cur["lease_id"] = ""
+        cur["lease_holder"] = ""
+        cur["lease_expires_after_seq"] = -1
+        cur["lease_renewals"] = 0
+    # The bound the count exists to be measured against. Checked here rather
+    # than only on the hand-out edge so that a budget overrun is a finding
+    # about the HISTORY, whatever combination of records produced it.
+    budget = cur.get("max_attempts")
+    if isinstance(budget, int) and (cur.get("attempts") or 0) > budget:
+        _note(out, ev, f"job {jid!r} has spent {cur.get('attempts')} "
+                       f"attempt(s) against a budget of {budget}")
+
+
+#: A lease may be extended this many times before the work has to be
+#: reconsidered. Restated rather than imported: if the scheduler's bound and
+#: this one drifted apart, the divergence is the finding.
+_MAX_LEASE_RENEWALS = 16
+
+
+def _sub_lease_renew(ev, p: dict, out) -> None:
+    """Extend a live lease, in this reader's own words.
+
+    The rule this exists to check independently is that a renewal EXTENDS
+    possession and never re-acquires it. A lapsed lease may already have been
+    reconciled away and the work given to somebody else, so renewing one
+    would restore ownership the scheduler had taken -- and the job record
+    would look ordinary afterwards.
+
+    The new end is computed from ``ev.seq``, never read from the payload, for
+    the same reason a capability may not name its own issued_seq.
+    """
+    jid = p.get("job_id")
+    cur = out.jobs.get(jid)
+    if cur is None:
+        _note(out, ev, f"lease renewal for unknown job {jid!r}")
+        return
+    if cur["state"] != "DISPATCHED":
+        _note(out, ev, f"job {jid!r} is {cur['state']!r}; only a DISPATCHED "
+                       "job holds a lease that could be renewed")
+        return
+    if cur.get("lease_holder") != ev.actor:
+        _note(out, ev, f"{ev.actor!r} renews a lease held by "
+                       f"{cur.get('lease_holder')!r}")
+        return
+    if p.get("lease_id") != cur.get("lease_id"):
+        _note(out, ev, f"renewal cites lease {p.get('lease_id')!r} and job "
+                       f"{jid!r} holds {cur.get('lease_id')!r}")
+        return
+    end = cur.get("lease_expires_after_seq")
+    if not isinstance(end, int) or ev.seq > end:
+        _note(out, ev, f"lease on {jid!r} lapsed after {end!r} and the log is "
+                       f"at {ev.seq}; a lapsed lease is lost, not renewed")
+        return
+    if cur.get("lease_renewals", 0) >= _MAX_LEASE_RENEWALS:
+        _note(out, ev, f"lease on {jid!r} is at the "
+                       f"{_MAX_LEASE_RENEWALS}-renewal bound")
+        return
+    seqs = p.get("lease_seqs")
+    if not isinstance(seqs, int) or isinstance(seqs, bool) or seqs < 1:
+        _note(out, ev, f"lease_seqs on {jid!r} is {seqs!r}")
+        return
+    new_end = ev.seq + seqs
+    if new_end <= end:
+        _note(out, ev, f"renewing {jid!r} to {new_end} would not extend a "
+                       f"lease running to {end}")
+        return
+    cur["lease_expires_after_seq"] = new_end
+    cur["lease_renewals"] = cur.get("lease_renewals", 0) + 1
+
+
+def _sub_priority(ev, p: dict, out) -> None:
+    jid = p.get("job_id")
+    cur = out.jobs.get(jid)
+    if cur is None:
+        _note(out, ev, f"priority change for unknown job {jid!r}")
+        return
+    cur["priority"] = p.get("priority")
+
+
+def _sub_policy_publish(ev, p: dict, out) -> None:
+    doc = p.get("document")
+    if not isinstance(doc, dict):
+        _note(out, ev, "policy.publish carries no document")
+        return
+    pid = doc.get("policy_id")
+    owner = out.policy_owners.setdefault(pid, {"by": ev.actor,
+                                               "withdrawn_seq": None})
+    if owner["withdrawn_seq"] is not None:
+        _note(out, ev, f"policy {pid!r} is republished after its withdrawal "
+                       f"at seq {owner['withdrawn_seq']}")
+        return
+    versions = out.policies.setdefault(pid, [])
+    version = doc.get("version")
+    if any(v["version"] == version for v in versions):
+        _note(out, ev, f"policy {pid!r} publishes version {version!r} twice")
+        return
+    if versions and version is not None and \
+            versions[-1]["version"] is not None and \
+            version < versions[-1]["version"]:
+        # A downgrade republished later would answer questions about the
+        # intervening range with rules that were superseded.
+        _note(out, ev, f"policy {pid!r} publishes version {version!r} after "
+                       f"{versions[-1]['version']!r}")
+        return
+    versions.append({"version": version, "digest": p.get("policy_digest"),
+                     "effective_seq": ev.seq,
+                     "not_after": doc.get("not_after"),
+                     "rules": doc.get("rules") or []})
+
+
+def _sub_policy_withdraw(ev, p: dict, out) -> None:
+    """Restated, D-2026-148: a policy is withdrawn once, by its owner (the
+    publisher of its first version), and only if it was published."""
+    pid = p.get("policy_id")
+    owner = out.policy_owners.get(pid)
+    if owner is None:
+        _note(out, ev, f"policy.withdraw names {pid!r}, which nothing "
+                       "published")
+    elif owner["withdrawn_seq"] is not None:
+        _note(out, ev, f"policy {pid!r} is withdrawn again (first at seq "
+                       f"{owner['withdrawn_seq']})")
+    elif ev.actor != owner["by"]:
+        _note(out, ev, f"{ev.actor!r} withdraws {pid!r}, which "
+                       f"{owner['by']!r} published")
+    else:
+        owner["withdrawn_seq"] = ev.seq
+
+
+def _sub_policy_decision(ev, p: dict, out) -> None:
+    d = p.get("decision")
+    if not isinstance(d, dict):
+        _note(out, ev, "policy.decision carries no decision")
+        return
+    # Restated: a decision is taken under the version in force at its
+    # position -- published, not withdrawn, not expired at the latest time
+    # the history has reached (D-2026-168) -- and cites that version.
+    pid = d.get("policy_id")
+    versions = out.policies.get(pid) or []
+    owner = out.policy_owners.get(pid) or {}
+    expiry = versions[-1].get("not_after") if versions else None
+    if not versions:
+        _note(out, ev, f"a decision under {pid!r}, which nothing published")
+    elif owner.get("withdrawn_seq") is not None:
+        _note(out, ev, f"a decision under {pid!r}, withdrawn at seq "
+                       f"{owner['withdrawn_seq']}")
+    elif isinstance(expiry, (int, float)) and not isinstance(expiry, bool) \
+            and out.latest_wall is not None and out.latest_wall > expiry:
+        _note(out, ev, f"a decision under {pid!r}, expired at {expiry} "
+                       f"(the history had reached {out.latest_wall})")
+    elif d.get("policy_digest") != versions[-1].get("digest"):
+        _note(out, ev, f"a decision citing a digest of {pid!r} other than "
+                       "the version in force")
+    else:
+        req = d.get("request")
+        want = _sub_policy_verdict(versions[-1].get("rules") or [],
+                                   req if isinstance(req, dict) else {})
+        got = (d.get("allowed"), d.get("effect"), d.get("rule_id"),
+               list(d.get("obligations") or []))
+        if got != want:
+            _note(out, ev, f"a decision the rules of {pid!r} do not give: "
+                           f"recorded {got}, the rules give {want}")
+    out.decisions[ev.seq] = {
+        "allowed": d.get("allowed"), "policy_id": d.get("policy_id"),
+        "policy_digest": d.get("policy_digest"), "actor": ev.actor,
+        "subject": d.get("subject"), "action": d.get("action"),
+    }
+
+
+def _sub_policy_verdict(rules: list, req: dict) -> tuple:
+    """``(allowed, effect, rule_id, obligations)`` for ``req``, restated
+    (section 6.2): every field of a rule must hold, ``*`` holding of
+    anything; a holding DENY overrides every ALLOW and the first DENY in
+    document order decides; otherwise the first holding ALLOW decides, and
+    the obligations are those of every holding ALLOW; with none holding,
+    the answer is DENY, decided by no rule."""
+    def holds(r) -> bool:
+        return all("*" in (r.get(f) or ()) or req.get(k) in (r.get(f) or ())
+                   for f, k in (("actions", "action"),
+                                ("subjects", "subject"), ("roles", "role"),
+                                ("resources", "resource")))
+    held = [r for r in rules if isinstance(r, dict) and holds(r)]
+    deny = next((r for r in held if r.get("effect") == "DENY"), None)
+    if deny is not None:
+        return (False, "DENY", deny.get("rule_id"), [])
+    allow = [r for r in held if r.get("effect") == "ALLOW"]
+    if allow:
+        return (True, "ALLOW", allow[0].get("rule_id"),
+                sorted({o for r in allow for o in r.get("obligations") or ()}))
+    return (False, "DENY", None, [])
+
+
+def _sub_capability_root(ev, p: dict, out) -> None:
+    """Who may mint. Restated: the writer of the record IS the root.
+
+    A record anointing a third party, or a second root after a first, is the
+    forgery this reducer exists to notice independently of the ledger that
+    would also notice it.
+    """
+    issuer = p.get("issuer")
+    if not isinstance(issuer, str) or not issuer:
+        _note(out, ev, "capability.root names no issuer")
+        return
+    if issuer != ev.actor:
+        _note(out, ev, f"{ev.actor!r} anoints {issuer!r} as root issuer; "
+                       "the root is whoever establishes it, and nominating "
+                       "somebody else is a delegation wearing a root's name")
+        return
+    if out.root_issuer is not None and out.root_issuer != issuer:
+        _note(out, ev, f"{issuer!r} claims root issuer, but "
+                       f"{out.root_issuer!r} already holds it; a log with "
+                       "two roots has no root")
+        return
+    out.root_issuer = issuer
+
+
+def _sub_covers(scope, rel: str) -> bool:
+    """Does one of ``scope``'s prefixes cover ``rel``, by path components?
+
+    Restated rather than imported. A string prefix test would say
+    ``a/stage10x`` is under ``a/stage10``, and this reducer exists so that a
+    mistake in the capability module is visible rather than shared.
+    """
+    if not isinstance(rel, str) or not rel or rel.startswith("/"):
+        return False
+    target = tuple(x for x in rel.split("/") if x)
+    if any(x in ("..", ".") for x in target):
+        return False
+    for allowed in scope or ():
+        if not isinstance(allowed, str):
+            return False
+        a = tuple(x for x in allowed.split("/") if x)
+        if a and target[:len(a)] == a:
+            return True
+    return False
+
+
+def _sub_attenuates(child: dict, parent: dict) -> str:
+    """"" when ``child`` is no wider than ``parent``, else why it is wider."""
+    if child.get("action") != parent.get("action"):
+        return (f"delegation grants {child.get('action')!r} from a parent "
+                f"granting {parent.get('action')!r}")
+    if child.get("task_id") != parent.get("task_id"):
+        return (f"delegation is for task {child.get('task_id')!r} from a "
+                f"parent confined to {parent.get('task_id')!r}")
+    if (child.get("tool_id") or "") != (parent.get("tool_id") or ""):
+        return (f"delegation names tool {child.get('tool_id')!r}, its parent "
+                f"names {parent.get('tool_id')!r}")
+    outside = [x for x in (child.get("scope") or ())
+               if not _sub_covers(parent.get("scope"), x)]
+    if outside:
+        return (f"delegation covers {sorted(outside)}, outside its parent's "
+                f"scope {list(parent.get('scope') or ())}")
+    pexp = parent.get("expires_after_seq")
+    cexp = child.get("expires_after_seq")
+    if pexp != -1:
+        if cexp == -1 or (isinstance(cexp, int) and isinstance(pexp, int)
+                          and cexp > pexp):
+            return (f"delegation expires after {cexp}, its parent after "
+                    f"{pexp}; a child cannot outlive its source")
+    ciss, piss = child.get("issued_seq"), parent.get("issued_seq")
+    if isinstance(ciss, int) and isinstance(piss, int) and ciss < piss:
+        return (f"delegation is issued at {ciss}, before its parent at "
+                f"{piss}")
+    return ""
+
+
+def _sub_capability_issue(ev, p: dict, out) -> None:
+    cid = p.get("capability_id")
+    if not isinstance(cid, str) or not cid:
+        _note(out, ev, "capability.issue names no capability_id")
+        return
+    issued = p.get("issued_seq")
+    prior = out.capabilities.get(cid)
+    if prior is not None:
+        if prior["body"] == {k: v for k, v in p.items()
+                             if k != "task_id"}:
+            return                          # a retried append of the same
+        _note(out, ev, f"capability {cid!r} is issued twice with different "
+                       "terms; two grants sharing an id cannot be told apart")
+        return
+    if issued != ev.seq:
+        # WHERE a grant starts is the log's to say. One appended at seq 90
+        # claiming seq 5 reads as authority in force for 5..89.
+        _note(out, ev, f"capability {cid!r} claims issued_seq {issued!r} at "
+                       f"seq {ev.seq}; it would predate its own record")
+        return
+    cap = {
+        "capability_id": cid, "subject": p.get("subject"),
+        "action": p.get("action"), "task_id": p.get("task_id"),
+        "tool_id": p.get("tool_id"), "scope": tuple(p.get("scope") or ()),
+        "issued_seq": issued,
+        "expires_after_seq": p.get("expires_after_seq"),
+        # Who minted it. Kept out of "body" so the grant's identity does not
+        # depend on who recorded it -- and kept at all so a revocation has
+        # something to be checked against.
+        "issued_by": ev.actor,
+        "parent_id": p.get("parent_id") or "",
+        "revoked_seq": None,
+        "body": {k: v for k, v in p.items() if k != "task_id"},
+    }
+    # MAY THIS ACTOR MINT? Restated from the same three cases the ledger
+    # applies, and reached without asking it. A grant nobody was authorized
+    # to create is not recorded here at all, so a divergence between the two
+    # readers shows up as a missing capability rather than as agreement.
+    if out.root_issuer is None:
+        _note(out, ev, f"capability {cid!r} is minted with no root issuer "
+                       "established; authority answering to nobody")
+        return
+    parent_id = cap["parent_id"]
+    if parent_id:
+        parent = out.capabilities.get(parent_id)
+        if parent is None:
+            _note(out, ev, f"capability {cid!r} is delegated from "
+                           f"{parent_id!r}, which this log has not issued")
+            return
+        if ev.actor != parent.get("subject"):
+            _note(out, ev, f"{ev.actor!r} delegated {parent_id!r}, granted to "
+                           f"{parent.get('subject')!r}; delegating a grant "
+                           "you do not hold is minting")
+            return
+        why = _sub_attenuates(cap, parent)
+        if why:
+            _note(out, ev, why)
+            return
+    elif ev.actor != out.root_issuer:
+        _note(out, ev, f"{ev.actor!r} minted {cid!r}; the root issuer is "
+                       f"{out.root_issuer!r}")
+        return
+    out.capabilities[cid] = cap
+
+
+def _sub_capability_revoke(ev, p: dict, out) -> None:
+    """Withdraw a grant, checking who is entitled to.
+
+    The mint side of this reader has always asked whether the actor could
+    create the grant. Nothing asked whether it could destroy one, so an
+    arbitrary actor could revoke authority the root issued and this reader
+    reported no finding.
+    """
+    cid = p.get("capability_id")
+    cur = out.capabilities.get(cid)
+    if cur is None:
+        _note(out, ev, f"revoke for unknown capability {cid!r}")
+        return
+    if ev.actor != cur.get("issued_by") and ev.actor != out.root_issuer:
+        _note(out, ev, f"{ev.actor!r} revokes {cid!r}, granted by "
+                       f"{cur.get('issued_by')!r}; a grant is withdrawn by "
+                       f"whoever made it or by the root issuer "
+                       f"({out.root_issuer!r})")
+        return
+    if cur["revoked_seq"] is None:
+        cur["revoked_seq"] = ev.seq
+
+
+def _sub_agent_register(ev, p: dict, out) -> None:
+    ident = p.get("identity")
+    if not isinstance(ident, dict):
+        _note(out, ev, "agent.register carries no identity")
+        return
+    iid = ident.get("instance_id")
+    if not isinstance(iid, str) or not iid:
+        _note(out, ev, "agent.register names no instance_id")
+        return
+    if iid in out.agents:
+        _note(out, ev, f"instance {iid!r} registered twice")
+        return
+    kind = ident.get("kind")
+    by = ev.actor
+    registrar = out.agents.get(by)
+    if kind == "HUMAN" and registrar is not None and \
+            registrar.get("kind") != "HUMAN":
+        # An agent that can mint a HUMAN is one step from answering its own
+        # escalation, which is both halves of the human gate at once.
+        _note(out, ev, f"{by!r} is not HUMAN and registers {iid!r} as HUMAN")
+        return
+    out.agents[iid] = {
+        "instance_id": iid, "agent_id": ident.get("agent_id"),
+        "kind": kind, "roles": tuple(sorted(ident.get("roles") or ())),
+        "registered_by": by, "registered_seq": ev.seq, "retired_seq": None,
+    }
+
+
+def _sub_agent_retire(ev, p: dict, out) -> None:
+    """Remove a principal, checking who is entitled to.
+
+    Admission was checked here -- a non-human registering a human is a
+    finding. Removal was not checked at all, so anything could retire
+    anybody, including every human in the log. Admission and removal are
+    the same authority reached from two directions, and only one of them
+    was guarded.
+    """
+    iid = p.get("instance_id")
+    cur = out.agents.get(iid)
+    if cur is None:
+        _note(out, ev, f"retire for unknown instance {iid!r}")
+        return
+    by = ev.actor
+    actor = out.agents.get(by)
+    live_human = (actor is not None and actor.get("kind") == "HUMAN"
+                  and actor.get("retired_seq") is None)
+    if by != _BOOTSTRAP and by != iid:
+        if cur.get("kind") == "HUMAN" and not live_human:
+            _note(out, ev, f"{by!r} retires the HUMAN {iid!r} and is not an "
+                           "active human itself; subtracting people is how "
+                           "the set the human gate draws from is emptied")
+            return
+        if cur.get("registered_by") != by and not live_human:
+            _note(out, ev, f"{by!r} retires {iid!r}, admitted by "
+                           f"{cur.get('registered_by')!r}; a principal is "
+                           "retired by whoever admitted it, by itself, or "
+                           "by an active human")
+            return
+    if cur["retired_seq"] is None:
+        cur["retired_seq"] = ev.seq
+
+
+def _sub_escalation(ev, p: dict, out) -> None:
+    """Open a question for a human, in this reader's own words.
+
+    WHY THIS EXISTS. The mutation campaign was described as covering "the
+    second reader for every subsystem" while escalations had no independent
+    reconstruction at all. Those two cannot both be true, and the honest
+    resolutions are to build the reader or to weaken the claim. This is the
+    reader.
+
+    It shares no code with AgentDirectory. Every rule below is restated from
+    plain dictionaries, which is the whole value: two implementations can
+    still share a misunderstanding, and one implementation cannot disagree
+    with itself.
+    """
+    esc = p.get("escalation")
+    if not isinstance(esc, dict):
+        _note(out, ev, "agent.escalation carries no escalation")
+        return
+    eid = esc.get("escalation_id")
+    if not isinstance(eid, str) or not eid:
+        _note(out, ev, "agent.escalation names no escalation_id")
+        return
+    if eid in out.escalations:
+        _note(out, ev, f"escalation {eid!r} raised twice; the second record "
+                       "would replace a question somebody may already have "
+                       "answered")
+        return
+    # WHO RAISED IT IS THE EVENT'S ACTOR. The raiser may not answer their own
+    # escalation, so a forged raiser is not only false attribution -- it is a
+    # way to stop the named party answering.
+    if esc.get("raised_by") != ev.actor:
+        _note(out, ev, f"escalation {eid!r} says it was raised by "
+                       f"{esc.get('raised_by')!r} and was appended by "
+                       f"{ev.actor!r}; a question is attributed to whoever "
+                       "asked it")
+        return
+    state = esc.get("state")
+    if state != _ESC_OPEN:
+        # An escalation is a question. One born ANSWERED was never asked,
+        # and carries a decision nobody is recorded as having made.
+        _note(out, ev, f"escalation {eid!r} is raised directly in "
+                       f"{state!r}; raising a question is not answering it")
+        return
+    options = esc.get("options")
+    if not isinstance(options, (list, tuple)):
+        _note(out, ev, f"escalation {eid!r} offers {type(options).__name__} "
+                       "rather than a list of options")
+        return
+    if len(set(options)) < _ESC_MIN_OPTIONS:
+        _note(out, ev, f"escalation {eid!r} offers "
+                       f"{len(set(options))} distinct option(s); an answer "
+                       "that cannot be checked against what was asked is a "
+                       "conversation, not a decision")
+        return
+    if not str(esc.get("question") or "").strip():
+        _note(out, ev, f"escalation {eid!r} asks nothing")
+        return
+    if esc.get("answer") is not None or esc.get("answered_by") is not None:
+        _note(out, ev, f"escalation {eid!r} is raised already carrying an "
+                       "answer")
+        return
+    out.escalations[eid] = {
+        "escalation_id": eid, "task_id": esc.get("task_id"),
+        "raised_by": ev.actor, "state": _ESC_OPEN,
+        "options": tuple(options), "answer": None, "answered_by": None,
+        "raised_seq": ev.seq, "answered_seq": None,
+    }
+
+
+def _sub_escalation_answer(ev, p: dict, out) -> None:
+    """Answer or withdraw, checking who is entitled to which."""
+    eid = p.get("escalation_id")
+    cur = out.escalations.get(eid)
+    if cur is None:
+        _note(out, ev, f"answer for escalation {eid!r}, which this history "
+                       "never opened")
+        return
+    if cur["state"] != _ESC_OPEN:
+        _note(out, ev, f"escalation {eid!r} is {cur['state']!r}; deciding it "
+                       "again would rewrite a decision already recorded")
+        return
+    dst = p.get("state")
+    if dst not in _ESC_TERMINAL:
+        _note(out, ev, f"escalation {eid!r} is moved to {dst!r}, which is "
+                       "neither answered nor withdrawn")
+        return
+
+    if dst == "WITHDRAWN":
+        # A withdrawal is a different act from an answer: the ASKER says they
+        # no longer need the decision, and no human is claimed to have made
+        # one. Only the asker may do it -- otherwise a third party can retire
+        # a question somebody was waiting on.
+        if ev.actor != cur["raised_by"]:
+            _note(out, ev, f"escalation {eid!r} was raised by "
+                           f"{cur['raised_by']!r} and {ev.actor!r} withdraws "
+                           "it; retiring somebody else's question is not "
+                           "theirs to do")
+            return
+        cur["state"] = "WITHDRAWN"
+        cur["answered_seq"] = ev.seq
+        return
+
+    answered_by = p.get("answered_by")
+    # The payload names the decider; the header names the writer. Every check
+    # below interrogates `answered_by`, so without this they all pass on a
+    # borrowed name.
+    if answered_by != ev.actor:
+        _note(out, ev, f"escalation {eid!r} names {answered_by!r} as its "
+                       f"answerer and was appended by {ev.actor!r}; an agent "
+                       "that can write a person's name can sign their "
+                       "decision")
+        return
+    ident = out.agents.get(answered_by)
+    if ident is None:
+        _note(out, ev, f"{answered_by!r} answered escalation {eid!r} and is "
+                       "not a registered principal")
+        return
+    if ident.get("retired_seq") is not None:
+        _note(out, ev, f"{answered_by!r} was retired after seq "
+                       f"{ident['retired_seq']} and may not answer "
+                       f"{eid!r}; a principal that has left cannot be the "
+                       "person a decision is attributed to")
+        return
+    if ident.get("kind") != "HUMAN":
+        # The strongest claim the directory makes, restated independently:
+        # an escalation exists because the decision was not the agent's to
+        # make, and no arrangement of roles substitutes for a person.
+        _note(out, ev, f"{answered_by!r} is a {ident.get('kind')!r} "
+                       f"principal and may not answer {eid!r}; holding a "
+                       "role does not change what kind of thing is deciding")
+        return
+    if answered_by == cur["raised_by"]:
+        _note(out, ev, f"{answered_by!r} raised escalation {eid!r} and may "
+                       "not also answer it")
+        return
+    if p.get("answer") not in cur["options"]:
+        _note(out, ev, f"answer {p.get('answer')!r} to {eid!r} is not one of "
+                       f"{list(cur['options'])}")
+        return
+    cur["state"] = "ANSWERED"
+    cur["answer"] = p.get("answer")
+    cur["answered_by"] = answered_by
+    cur["answered_seq"] = ev.seq
+
+
+def _sub_checkpoint(ev, p: dict, out, prev) -> None:
+    """Replay one checkpoint anchor: a claim about a projection's state.
+
+    WHY A SNAPSHOT NEEDS A RECORD AT ALL
+
+    A checkpoint file says "the state at seq K is blob D", and the checkpoint
+    module is explicit that nothing authenticates the file: its self-hash is
+    recomputable by whoever can write it. So the file alone could name any
+    blob, and a rewritten one restored a forged projection while the log went
+    on verifying perfectly -- because the forgery was never in the log.
+
+    Putting the claim in the log puts it under the hash chain. This reader is
+    the part that reads it back without asking the store what it meant.
+
+    WHAT THIS READER CAN AND CANNOT CHECK, SAID PLAINLY
+
+    It can check the shape, the ordering, and that one position is not given
+    two different states. It can check the claimed head hash only when the
+    claim names the position immediately before it, which is where an honest
+    writer puts it; for an older position it records that the hash was NOT
+    checked rather than leaving a reader to assume it was.
+    """
+    through = p.get("through_seq")
+    if not isinstance(through, int) or isinstance(through, bool):
+        _note(out, ev, "checkpoint anchor names no through_seq this reader "
+                       "can read")
+        return
+    if through >= ev.seq:
+        # The snapshot cannot contain the record announcing it, so a claim
+        # at or after its own position describes a projection that did not
+        # exist when it was written.
+        _note(out, ev, f"checkpoint anchor at seq {ev.seq} claims the state "
+                       f"through seq {through}; a snapshot cannot cover the "
+                       "record that announces it")
+        return
+
+    dg = p.get("state_digest")
+    if not _is_digest(dg):
+        _note(out, ev, f"checkpoint anchor for seq {through} names its "
+                       f"snapshot as {dg!r}; a snapshot is cited by digest "
+                       "or it is not cited")
+        return
+    hh = p.get("head_hash")
+    if not _is_digest(hh):
+        _note(out, ev, f"checkpoint anchor for seq {through} names head hash "
+                       f"{hh!r}, which is not a digest")
+        return
+
+    checked = False
+    if prev[0] == through:
+        if prev[1] != hh:
+            _note(out, ev, f"checkpoint anchor for seq {through} names head "
+                           f"hash {hh[:12]} and the record there hashes to "
+                           f"{str(prev[1])[:12]}; the claim is about a "
+                           "history this log does not have")
+            return
+        checked = True
+
+    seen = out.checkpoints.get(through)
+    if seen is not None and seen["state_digest"] != dg:
+        _note(out, ev, f"seq {through} is given two different states: "
+                       f"{seen['state_digest'][:12]} at seq "
+                       f"{seen['at_seq']} and {dg[:12]} here. One position "
+                       "has one projection, and a reader handed both has no "
+                       "way to say which a checkpoint file means")
+        return
+
+    out.checkpoints[through] = {
+        "through_seq": through, "state_digest": dg, "head_hash": hh,
+        "recorded_by": ev.actor, "at_seq": ev.seq,
+        "head_hash_checked": checked,
+    }
+
+
+def _sub_claim(ev, p: dict, out) -> None:
+    """Replay one claim, and ask whether whoever made it could have.
+
+    WHY A CLAIM NEEDS A SECOND READER AT ALL
+
+    A claim is not a state change, and for a long time that was treated as
+    the same thing as not being authority. It is the INPUT to conflict
+    resolution: quorum counts claims, PREFER_ROLE selects among them by
+    role, and REQUIRE_HUMAN decides that a disagreement is not an agent's to
+    settle. So a claim attributable to anyone, or made in a role its author
+    does not hold, is a way to manufacture a quorum or to invent the
+    disagreement that sends a decision to a person -- or to suppress one.
+
+    Every rule below is restated in this module's own terms, from the event
+    header and the identities THIS replay admitted, never from the payload's
+    own account of who made it.
+    """
+    cid = p.get("claim_id")
+    if not isinstance(cid, str) or not cid:
+        _note(out, ev, "claim names no claim_id")
+        return
+    if cid in out.claims:
+        _note(out, ev, f"claim {cid!r} recorded twice; the second would "
+                       "replace an assertion somebody may already have "
+                       "counted")
+        return
+
+    by = p.get("by_instance")
+    if by != ev.actor:
+        _note(out, ev, f"claim {cid!r} says it was made by {by!r} and was "
+                       f"appended by {ev.actor!r}; a claim is attributed to "
+                       "the instance that recorded it")
+        return
+
+    role = p.get("role")
+    if role not in _AGENT_ROLES:
+        _note(out, ev, f"claim {cid!r} is made in role {role!r}, which is "
+                       "not a role this reader knows")
+        return
+
+    ident = out.agents.get(ev.actor)
+    if ident is None:
+        _note(out, ev, f"{ev.actor!r} makes claim {cid!r} and is not a "
+                       "registered principal")
+        return
+    retired = ident.get("retired_seq")
+    if retired is not None and ev.seq >= retired:
+        _note(out, ev, f"{ev.actor!r} was retired after seq {retired} and "
+                       f"makes claim {cid!r} at seq {ev.seq}; a party that "
+                       "has left does not get one more opinion")
+        return
+    if role not in (ident.get("roles") or ()):
+        _note(out, ev, f"{ev.actor!r} holds "
+                       f"{list(ident.get('roles') or ())} and claims "
+                       f"{cid!r} as {role!r}; a role nobody granted is a "
+                       "role conflict resolution would weigh anyway")
+        return
+
+    if not _is_digest(p.get("value_digest")):
+        _note(out, ev, f"claim {cid!r} names its value as "
+                       f"{p.get('value_digest')!r}; a claim carries a digest "
+                       "so two of them can be compared without comparing "
+                       "prose, and one that does not can never disagree "
+                       "with anything")
+        return
+
+    out.claims[cid] = {
+        "claim_id": cid, "task_id": p.get("task_id"),
+        "subject": p.get("subject"), "value_digest": p.get("value_digest"),
+        "by_instance": ev.actor, "role": role, "claimed_seq": ev.seq,
+    }
+
+
+def _sub_compensation(ev, p: dict, out) -> None:
+    """Replay one compensation, and check the name it puts on the undo.
+
+    A compensation does not move the task and is not folded into one here
+    either: "was compensated" and "did not happen" must not become the same
+    answer. What it carries is ``answered_by`` -- a copy of the escalation's
+    answerer, so an auditor can see who authorized destroying something
+    without joining two tables.
+
+    A convenience nothing checks is a field a forged record sets freely, and
+    it names a PERSON. The primary compares it against the escalation it
+    cites; until now nothing else did, so a log the primary refuses -- which
+    is every log carrying one of these -- was read by no second opinion at
+    all.
+
+    This reader is stricter than the primary in one place, deliberately. The
+    primary looks the escalation up and, if the lookup fails, checks
+    nothing: a compensation citing an escalation that does not exist passes
+    it silently. Here that is a finding. The reader's job is to say what the
+    log does not support, and "authorized by a question nobody asked" is
+    exactly that.
+    """
+    tid = p.get("task_id", ev.target)
+    eid = p.get("authorized_by_escalation")
+    named = p.get("answered_by")
+    record = {
+        "task_id": tid, "compensating_tool": p.get("compensating_tool"),
+        "compensated_tool": p.get("compensated_tool"),
+        "authorized_by_escalation": eid, "answered_by": named,
+        "outcome": p.get("outcome"), "at_seq": ev.seq,
+    }
+    out.compensations.setdefault(tid, []).append(record)
+
+    granted = out.compensation_authorizations.get(eid) if eid else None
+    if granted is None or granted["authorized_seq"] != \
+            p.get("authorization_seq") or granted["task_id"] != tid:
+        _note(out, ev, f"compensation of {tid!r} cites authorization "
+                       f"{p.get('authorization_seq')!r} of escalation "
+                       f"{eid!r}, which this log does not hold; an undo is "
+                       "recorded against the authorization it ran under")
+    elif granted["ran_seq"] is not None:
+        _note(out, ev, f"the outcome of the compensation authorized at seq "
+                       f"{granted['authorized_seq']} was already recorded, "
+                       f"at seq {granted['ran_seq']}")
+    else:
+        granted["ran_seq"] = ev.seq
+
+    if not eid:
+        _note(out, ev, f"compensation of {tid!r} names no escalation; an "
+                       "undo nobody authorized is an undo that authorized "
+                       "itself")
+        return
+    esc = out.escalations.get(eid)
+    if esc is None:
+        _note(out, ev, f"compensation of {tid!r} cites escalation {eid!r}, "
+                       "which this log never carried")
+        return
+    if esc.get("state") != "ANSWERED":
+        _note(out, ev, f"compensation of {tid!r} cites escalation {eid!r}, "
+                       f"which is {esc.get('state')!r}; a question nobody "
+                       "answered authorizes nothing")
+        return
+    if named != esc.get("answered_by"):
+        _note(out, ev, f"compensation of {tid!r} says escalation {eid!r} was "
+                       f"answered by {named!r}; that escalation was answered "
+                       f"by {esc.get('answered_by')!r}. A record naming who "
+                       "authorized an undo may repeat the escalation and may "
+                       "not disagree with it")
+
+
+def _sub_compensation_authorize(ev, p: dict, out) -> None:
+    """One answer, one undo (D-2026-156), restated from the log alone.
+
+    The primary refuses a second authorization citing one escalation. Here
+    it is a finding, and so is an authorization citing an escalation that
+    was not answered COMPENSATE about this task: the answer is the
+    authority, and the record that consumes it must be able to point at it.
+    """
+    tid = p.get("task_id", ev.target)
+    eid = p.get("authorized_by_escalation")
+    if not eid:
+        _note(out, ev, f"compensation authorization for {tid!r} names no "
+                       "escalation")
+        return
+    prior = out.compensation_authorizations.get(eid)
+    if prior is not None:
+        _note(out, ev, f"escalation {eid!r} already authorized a "
+                       f"compensation, at seq {prior['authorized_seq']}; one "
+                       "answer authorizes one undo")
+        return
+    esc = out.escalations.get(eid)
+    if esc is None or esc.get("state") != "ANSWERED" or \
+            esc.get("answer") != "COMPENSATE" or \
+            esc.get("task_id") != tid:
+        _note(out, ev, f"compensation of {tid!r} is authorized by "
+                       f"escalation {eid!r}, which this log does not hold "
+                       "answered COMPENSATE about that task")
+    elif p.get("answered_by") != esc.get("answered_by"):
+        _note(out, ev, f"compensation authorization for {tid!r} says "
+                       f"{eid!r} was answered by {p.get('answered_by')!r}; "
+                       f"it was answered by {esc.get('answered_by')!r}")
+    out.compensation_authorizations[eid] = {
+        "task_id": tid, "authorized_seq": ev.seq, "ran_seq": None}
+
+
+def _sub_memory_write(ev, p: dict, out) -> None:
+    entry = p.get("entry")
+    if not isinstance(entry, dict):
+        _note(out, ev, "memory.write carries no entry; a record this reader "
+                       "cannot read is refused rather than projected")
+        return
+    mid = entry.get("memory_id")
+    if not isinstance(mid, str) or not mid:
+        _note(out, ev, "memory.write names no memory_id")
+        return
+    if mid in out.memory:
+        _note(out, ev, f"memory {mid!r} written twice")
+        return
+    if entry.get("author") != ev.actor:
+        _note(out, ev, f"memory {mid!r} names author {entry.get('author')!r} "
+                       f"but was appended by {ev.actor!r}")
+        return
+    status = entry.get("status") or "ACTIVE"
+    if status not in _MEMORY_EDGES:
+        _note(out, ev, f"memory {mid!r} is written with unknown status "
+                       f"{status!r}")
+        return
+    out.memory[mid] = {"memory_id": mid, "author": ev.actor,
+                       "status": status, "written_seq": ev.seq}
+
+
+#: Where a memory's status may move, and which moves are its author's alone.
+#: RESTATED from the memory store's rules rather than imported: this reader
+#: imports no reducer, and a second opinion that called the first one's code
+#: would be the first opinion twice (D-2026-158, finding M-2).
+_MEMORY_EDGES = {
+    "ACTIVE": frozenset({"STALE", "SUPERSEDED", "RETRACTED"}),
+    "STALE": frozenset({"SUPERSEDED", "RETRACTED"}),
+    "SUPERSEDED": frozenset({"RETRACTED"}),
+    "RETRACTED": frozenset(),
+}
+_MEMORY_AUTHORS_OWN = frozenset({"RETRACTED", "SUPERSEDED"})
+
+
+def _sub_memory_status(ev, p: dict, out) -> None:
+    mid = p.get("memory_id")
+    cur = out.memory.get(mid)
+    if cur is None:
+        _note(out, ev, f"status change for unknown memory {mid!r}")
+        return
+    new = p.get("status")
+    if cur["status"] == "RETRACTED" and new != "RETRACTED":
+        # A withdrawn note that can be un-withdrawn is a note whose author
+        # never really withdrew it.
+        _note(out, ev, f"memory {mid!r} is un-retracted to {new!r}")
+        return
+    # M-2. Only un-retraction was refused here, so this reader took a
+    # retraction or a supersession by somebody other than the author, a
+    # STALE note made ACTIVE again, and a status no store has -- each of
+    # which the primary refuses -- and reported the result as the memory's
+    # state, with no anomaly.
+    if new not in _MEMORY_EDGES:
+        _note(out, ev, f"memory {mid!r} is moved to unknown status {new!r}")
+        return
+    if new != cur["status"] and new not in _MEMORY_EDGES[cur["status"]]:
+        _note(out, ev, f"memory {mid!r} may not move from {cur['status']} "
+                       f"to {new}")
+        return
+    if new in _MEMORY_AUTHORS_OWN and ev.actor != cur["author"]:
+        _note(out, ev, f"{ev.actor!r} moves memory {mid!r} to {new}; it was "
+                       f"written by {cur['author']!r}, and withdrawing or "
+                       "replacing a statement is its author's alone")
+        return
+    cur["status"] = new
+
+
+def _sub_grant(ev, p: dict, out, table: dict, what: str) -> None:
+    if p.get("revoke"):
+        gid = p.get("grant_id")
+        cur = table.get(gid)
+        if cur is None:
+            _note(out, ev, f"revoke for unknown {what} grant {gid!r}")
+            return
+        # WHO MAY TAKE IT AWAY. Issuing a grant was checked here and
+        # withdrawing one was not, in this reader and in both of the
+        # ledgers it reads after -- so one appended line removed authority
+        # somebody else granted, and every reader agreed it was gone,
+        # because a revocation is exactly as durable as a grant.
+        #
+        # This matters more for secrets than anywhere else: that store has
+        # no reducer at all, so a secret.grant revocation appended around
+        # its write path was re-read by NOTHING except this function. It has
+        # one now -- the store reconstructs grant authority from the log and
+        # refuses a forged revocation itself -- so this is a second opinion
+        # again rather than the only one. The rule stays here because that is
+        # what a second opinion is.
+        if ev.actor != cur.get("granted_by"):
+            _note(out, ev, f"{ev.actor!r} revokes {what} grant {gid!r}, "
+                           f"granted by {cur.get('granted_by')!r}; a grant "
+                           "is withdrawn by whoever made it")
+            return
+        if cur["revoked_seq"] is None:
+            cur["revoked_seq"] = ev.seq
+        return
+    grant = p.get("grant")
+    if not isinstance(grant, dict):
+        _note(out, ev, f"{what}.grant carries no grant body")
+        return
+    # WHERE A GRANT STARTS IS THE LOG'S TO SAY.
+    #
+    # Restated here for secrets in particular: that store had no reducer at
+    # all until recently, so for a long time this reader was the ONLY thing
+    # that would have looked at a secret.grant record. It is a second opinion
+    # again rather than the sole one, and the rule belongs in both.
+    issued = grant.get("issued_seq")
+    if issued is not None and issued != ev.seq:
+        _note(out, ev, f"{what} grant {grant.get('grant_id')!r} claims "
+                       f"issued_seq {issued!r} at seq {ev.seq}; it would "
+                       "predate its own record")
+        return
+    gid = grant.get("grant_id") or p.get("grant_id")
+    if not isinstance(gid, str) or not gid:
+        _note(out, ev, f"{what} grant names no grant_id")
+        return
+    prior = table.get(gid)
+    if prior is not None:
+        if prior["digest"] == p.get("grant_digest"):
+            return                          # a retried append of the same
+        _note(out, ev, f"{what} grant {gid!r} is re-issued with different "
+                       "terms; the live grant would be replaced by one "
+                       "nobody reviewed")
+        return
+    table[gid] = {"grant_id": gid, "digest": p.get("grant_digest"),
+                  "issued_seq": ev.seq, "revoked_seq": None,
+                  "granted_by": ev.actor, "body": grant}
+
+
+def _sub_service(ev, p: dict, out) -> None:
+    """A service contract, in this reader's own words.
+
+    The rule restated is that a contract in force may not be replaced by one
+    nobody reviewed: every decision recorded under the old terms would
+    afterwards read as though it had been made under the new.
+    """
+    rec = p.get("service")
+    if not isinstance(rec, dict):
+        _note(out, ev, "network.service carries no service")
+        return
+    sid = rec.get("service_id")
+    if not isinstance(sid, str) or not sid:
+        _note(out, ev, "network.service names no service_id")
+        return
+    prior = out.services.get(sid)
+    if prior is not None:
+        if prior["digest"] != p.get("service_digest"):
+            _note(out, ev, f"service {sid!r} is registered again with "
+                           "different terms; the contract in force would be "
+                           "replaced by one nobody reviewed")
+        return
+    out.services[sid] = {
+        "service_id": sid, "digest": p.get("service_digest"),
+        "hosts": tuple(rec.get("hosts") or ()),
+        "quota_per_task": rec.get("quota_per_task"),
+        "operations": tuple(sorted(
+            f"{o.get('method')} {o.get('path')}"
+            for o in (rec.get("operations") or [])
+            if isinstance(o, dict))),
+        "registered_seq": ev.seq,
+    }
+
+
+def _sub_service_call(ev, p: dict, out) -> None:
+    """Count a PERMITTED call against a service's per-task budget.
+
+    Counted here rather than trusted from the primary, so a budget the
+    scheduler believes is spent and one the log actually shows are two
+    numbers that can be compared. Only ALLOWED calls count: a refusal cost
+    the caller nothing and must not cost it a call it never made.
+    """
+    sid, task = p.get("service_id"), p.get("task_id")
+    if not sid or not p.get("allowed"):
+        return
+    key = f"{sid}/{task}"
+    cur = out.service_calls.get(key, 0)
+    out.service_calls[key] = cur + 1
+    svc = out.services.get(sid)
+    if svc is not None and isinstance(svc.get("quota_per_task"), int) \
+            and out.service_calls[key] > svc["quota_per_task"]:
+        _note(out, ev, f"service {sid!r} has now been called "
+                       f"{out.service_calls[key]} time(s) for task {task!r}, "
+                       f"past its {svc['quota_per_task']}-call budget")
+
+
+def _sub_context(ev, p: dict, out) -> None:
+    manifest = p.get("manifest")
+    digest_ = p.get("manifest_digest")
+    task = (manifest or {}).get("task_id") if isinstance(manifest, dict) \
+        else None
+    out.contexts.setdefault(task or ev.target, []).append(
+        {"digest": digest_, "seq": ev.seq})
+    # Indexed by digest only where the digest is the manifest's own, so a
+    # record that states one digest and carries another cannot be cited.
+    if isinstance(manifest, dict):
+        try:
+            own = _sci_json_digest(manifest)
+        except (TypeError, ValueError):
+            return
+        if own == digest_:
+            out.context_manifests.setdefault(own, {
+                "seq": ev.seq,
+                "policy_identity": manifest.get("policy_identity")})
+
+
+#: The proposal envelope, restated rather than imported from
+#: agent_substrate.proposals: its closed field set, the one authority value it
+#: may carry, how its id is derived, and the keys that would make it a claim
+#: about authority. If the ingress and this reader drift apart, the
+#: divergence is the finding.
+_PROP_FIELDS = frozenset({
+    "schema", "proposal_id", "kind", "agent_id", "source", "context",
+    "request", "rationale_sha256", "parent_proposal_id", "iteration",
+    "created_by", "authority"})
+_PROP_KINDS = frozenset({"MODEL_RUN", "SIMULATION_PLAN", "RETRY",
+                         "DIAGNOSTIC", "CODE_PATCH", "HYPOTHESIS",
+                         "CONCLUDE", "ABSTAIN"})
+_PROP_AUTHORITY = "NON_AUTHORITATIVE"
+#: A proposal a model produced through the inference gateway.
+_PROP_SCHEMA_V2 = "proposal-envelope/2"
+_PROP_FORBIDDEN = frozenset({
+    "state", "status", "verdict", "verified", "promoted", "approved",
+    "decision", "transition", "signature", "signed", "evidence",
+    "verification", "authority_state", "out_dir", "output_path",
+    "write_path", "canonical"})
+
+
+def _prop_keys(obj, found: set) -> None:
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(k, str) and k.lower() in _PROP_FORBIDDEN:
+                found.add(k)
+            _prop_keys(v, found)
+    elif isinstance(obj, list):
+        for v in obj:
+            _prop_keys(v, found)
+
+
+def _sub_proposal(ev, p: dict, out) -> None:
+    env = p.get("envelope")
+    if not isinstance(env, dict):
+        _note(out, ev, "proposal.receive carries no envelope")
+        return
+    want_fields = (_PROP_FIELDS | {"inference"}
+                   if env.get("schema") == _PROP_SCHEMA_V2 else _PROP_FIELDS)
+    if set(env) != want_fields:
+        _note(out, ev, f"proposal envelope fields differ: unknown "
+                       f"{sorted(set(env) - want_fields)}, missing "
+                       f"{sorted(want_fields - set(env))}")
+        return
+    if env.get("schema") == _PROP_SCHEMA_V2:
+        _sub_proposal_inference(ev, env, out)
+    if env.get("authority") != _PROP_AUTHORITY:
+        _note(out, ev, f"a proposal claiming authority "
+                       f"{env.get('authority')!r}")
+    if env.get("kind") not in _PROP_KINDS:
+        _note(out, ev, f"proposal kind {env.get('kind')!r} is not one "
+                       "this reader knows")
+    bad: set = set()
+    _prop_keys(env, bad)
+    if bad:
+        _note(out, ev, f"a proposal carrying authority-bearing keys "
+                       f"{sorted(bad)}")
+    body = {k: v for k, v in env.items() if k != "proposal_id"}
+    try:
+        want = "prop-" + _sci_json_digest(body)
+        whole = _sci_json_digest(env)
+    except (TypeError, ValueError):
+        _note(out, ev, "a proposal envelope that is not canonical JSON")
+        return
+    pid = env.get("proposal_id")
+    if pid != want:
+        _note(out, ev, f"proposal id {str(pid)[:20]} is not the digest of "
+                       "its content")
+    if ev.target != pid:
+        _note(out, ev, "a receipt filed under another proposal's id")
+    if p.get("envelope_digest") != whole:
+        _note(out, ev, "a receipt whose stated digest is not its "
+                       "envelope's")
+    if p.get("received_by") != ev.actor:
+        _note(out, ev, f"received_by {p.get('received_by')!r} is not the "
+                       f"writer {ev.actor!r}")
+    if ev.actor == env.get("agent_id"):
+        _note(out, ev, "the proposing agent wrote its own receipt; only "
+                       "the ingress receives")
+    prior = out.proposals.get(pid)
+    if prior is not None and prior["digest"] != whole:
+        _note(out, ev, f"{pid} received again with different content")
+        return
+    out.proposals.setdefault(pid, {"digest": whole,
+                                   "agent_id": env.get("agent_id"),
+                                   "kind": env.get("kind")})
+
+
+def _sub_proposal_inference(ev, env: dict, out) -> None:
+    """A /2 proposal names the inference it came from. Restated: that
+    attempt was granted, settled OK on this log before the receipt, with the
+    response the proposal names, for the context it names, at the request of
+    the agent that proposes. What the response SAID is in the transcript
+    store, which this reader does not hold; the ingress checked it."""
+    inf = env.get("inference")
+    src = env.get("source")
+    if not isinstance(src, dict) or src.get("adapter") != "inference-gateway":
+        _note(out, ev, "a /2 proposal not from the inference gateway")
+    if not isinstance(inf, dict):
+        _note(out, ev, "a /2 proposal names no inference")
+        return
+    n = inf.get("attempt")
+    att = (out.inference_attempts.get((inf.get("request_id"), n))
+           if isinstance(n, int) and not isinstance(n, bool) else None)
+    if att is None:
+        _note(out, ev, f"a proposal names inference {inf.get('request_id')!r}"
+                       f" attempt {n!r}, which this log never granted")
+        return
+    res = att.get("result")
+    if res is None or res.get("outcome") != "OK":
+        _note(out, ev, "a proposal names an inference that did not end OK")
+        return
+    if res.get("response_sha256") != inf.get("response_sha256"):
+        _note(out, ev, "a proposal names a response its inference did not "
+                       "record")
+    req = att["request"]
+    if req.get("context_manifest_digest") != \
+            inf.get("context_manifest_digest"):
+        _note(out, ev, "a proposal names another context than its inference")
+    if req.get("caller") != env.get("agent_id"):
+        _note(out, ev, f"{env.get('agent_id')!r} proposes what "
+                       f"{req.get('caller')!r} asked a model")
+
+
+# ---------------------------------------------------------------------------
+# THE INFERENCE GATEWAY, READ A SECOND TIME (Gate B).
+#
+# Spending authority and model calls, restated rather than imported from
+# agent_substrate.inference. The budget is the root issuer's to grant. A
+# reservation is the request's WORST case, within every total and the rate
+# window, for a recorded context whose policy is still the newest in force.
+# A dispatch falls inside its lease. Each attempt is settled once, at the
+# cost the settlement rule gives. Where the gateway and this reader disagree,
+# the disagreement is the finding.
+# ---------------------------------------------------------------------------
+
+_INF_FRAMING_TOKENS = 256
+_INF_LEASE_GRACE_S = 30.0
+_INF_REFUSALS = frozenset({
+    "BUDGET_UNKNOWN", "BUDGET_WITHDRAWN", "CALLER_NOT_ALLOWED",
+    "MODEL_NOT_ALLOWED", "OVER_REQUEST_LIMIT", "BUDGET_EXHAUSTED",
+    "RATE_LIMITED", "ATTEMPTS_EXHAUSTED", "CONTEXT_UNKNOWN",
+    "CONTEXT_STALE"})
+_INF_OUTCOMES = frozenset({"OK", "SCHEMA_REFUSED", "OUTPUT_TOO_LARGE",
+                           "PROVIDER_ERROR", "TIMEOUT", "RATE_LIMITED",
+                           "CANCELLED", "NOT_SENT", "LOST"})
+#: outcomes that say the request left, and the one that says it did not
+_INF_SENT = frozenset({"OK", "SCHEMA_REFUSED", "OUTPUT_TOO_LARGE",
+                       "PROVIDER_ERROR", "TIMEOUT", "RATE_LIMITED", "LOST"})
+_INF_RECOVERY = frozenset({"NOT_SENT", "LOST"})
+_INF_REQUEST_FIELDS = frozenset({
+    "schema", "budget_id", "caller", "purpose", "model", "prompt_sha256",
+    "prompt_bytes", "context_manifest_digest", "max_output_tokens",
+    "max_output_bytes", "timeout_s", "max_attempts", "idempotency_key",
+    "response_schema"})
+
+
+def _inf_int(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def _inf_cost(prices: dict, model, tin: int, tout: int) -> int:
+    pr = prices.get(model) or {}
+    total = tin * pr.get("input", 0) + tout * pr.get("output", 0)
+    return -(-total // 1_000_000)
+
+
+def _sub_inference_budget(ev, p: dict, out) -> None:
+    if p.get("withdraw"):
+        bid = p.get("budget_id")
+        cur = out.inference_budgets.get(bid)
+        if cur is None:
+            _note(out, ev, f"inference budget {bid!r} withdrawn, never "
+                           "issued")
+        elif ev.actor != cur["issued_by"]:
+            _note(out, ev, f"{ev.actor!r} withdraws inference budget {bid!r}"
+                           f", which {cur['issued_by']!r} issued")
+        elif cur["withdrawn_seq"] is None:
+            cur["withdrawn_seq"] = ev.seq
+        return
+    body = p.get("budget")
+    if not isinstance(body, dict) or body.get("schema") != \
+            "inference-budget/1":
+        _note(out, ev, "inference.budget carries no budget")
+        return
+    try:
+        whole = _sci_json_digest(body)
+    except (TypeError, ValueError):
+        _note(out, ev, "an inference budget that is not canonical JSON")
+        return
+    if p.get("budget_digest") != whole:
+        _note(out, ev, "an inference budget whose stated digest is not its "
+                       "own")
+        return
+    if out.root_issuer is None or ev.actor != out.root_issuer:
+        _note(out, ev, f"{ev.actor!r} grants spending, and the root issuer "
+                       f"is {out.root_issuer!r}")
+        return
+    bid = body.get("budget_id")
+    prior = out.inference_budgets.get(bid)
+    if prior is not None:
+        if prior["digest"] != whole:
+            _note(out, ev, f"inference budget {bid!r} re-issued with other "
+                           "terms")
+        return
+    out.inference_budgets[bid] = {
+        "issued_by": ev.actor, "digest": whole, "body": body,
+        "withdrawn_seq": None, "calls": 0, "cost": 0, "in": 0, "out": 0,
+        "times": []}
+
+
+def _inf_policy_current(identity, out, wall: float) -> bool:
+    """Is ``identity`` (``policy_id@version``) the newest version of its
+    policy, published, not withdrawn and not expired at ``wall``?"""
+    if not isinstance(identity, str) or "@" not in identity:
+        return False
+    pid, _, ver = identity.rpartition("@")
+    versions = out.policies.get(pid) or []
+    owner = out.policy_owners.get(pid) or {}
+    if not versions or owner.get("withdrawn_seq") is not None:
+        return False
+    newest = versions[-1]
+    expiry = newest.get("not_after")
+    if expiry is not None and judged_at(out.latest_wall, wall) > expiry:
+        return False
+    return str(newest.get("version")) == ver
+
+
+def _inf_grant_problem(req: dict, attempt: int, wall: float, out) -> str:
+    """Why the budget would refuse this attempt, or ''."""
+    b = out.inference_budgets.get(req.get("budget_id"))
+    if b is None:
+        return "no such budget"
+    if b["withdrawn_seq"] is not None:
+        return "a withdrawn budget"
+    body = b["body"]
+    lim, per = body.get("limits") or {}, body.get("per_request") or {}
+    if req.get("caller") not in (body.get("callers") or ()):
+        return "a caller the budget does not name"
+    if req.get("model") not in (body.get("models") or ()):
+        return "a model the budget does not cover"
+    for k, cap in (("prompt_bytes", "max_input_bytes"),
+                   ("max_output_tokens", "max_output_tokens"),
+                   ("max_output_bytes", "max_output_bytes"),
+                   ("timeout_s", "timeout_s"),
+                   ("max_attempts", "max_attempts")):
+        if not _inf_int(req.get(k)) or req[k] > per.get(cap, -1):
+            return f"{k} over the per-request bound"
+    ctx = out.context_manifests.get(req.get("context_manifest_digest"))
+    if ctx is None:
+        return "a context no context.build on this log records"
+    if not _inf_policy_current(ctx.get("policy_identity"), out, wall):
+        return "a context built under a policy no longer in force"
+    if attempt > req["max_attempts"]:
+        return "more attempts than the request allows"
+    tin = req["prompt_bytes"] + _INF_FRAMING_TOKENS
+    tout = req["max_output_tokens"]
+    cost = _inf_cost(body.get("prices") or {}, req.get("model"), tin, tout)
+    for held, add, cap in ((b["calls"], 1, lim.get("max_calls", -1)),
+                           (b["cost"], cost, lim.get("max_cost_micro", -1)),
+                           (b["in"], tin, lim.get("max_input_tokens", -1)),
+                           (b["out"], tout, lim.get("max_output_tokens", -1))):
+        if held + add > cap:
+            return "over the budget's totals"
+    window = lim.get("window_s", 0)
+    if sum(1 for t in b["times"] if t > wall - window) >= \
+            lim.get("max_calls_per_window", 0):
+        return "over the budget's rate window"
+    return ""
+
+
+def _sub_inference_reserve(ev, p: dict, out) -> None:
+    req = p.get("request")
+    if not isinstance(req, dict) or set(req) != _INF_REQUEST_FIELDS or \
+            req.get("schema") != "inference-request/1":
+        _note(out, ev, "an inference reservation carrying no request")
+        return
+    try:
+        rid = "infer-" + _sci_json_digest(req)
+    except (TypeError, ValueError):
+        _note(out, ev, "an inference request that is not canonical JSON")
+        return
+    if p.get("request_id") != rid or ev.target != rid:
+        _note(out, ev, "an inference reservation filed under another id")
+        return
+    if ev.actor == req.get("caller"):
+        _note(out, ev, f"{ev.actor!r} reserved spending for its own request")
+        return
+    mine = [a for (r, _), a in out.inference_attempts.items() if r == rid]
+    nxt = 1 + max((a["attempt"] for a in mine), default=0)
+    n = p.get("attempt")
+    if not _inf_int(n) or n != nxt:
+        _note(out, ev, f"inference attempt {n!r} where {nxt} is next")
+        return
+    if not p.get("granted"):
+        if p.get("refusal") not in _INF_REFUSALS:
+            _note(out, ev, f"inference refusal {p.get('refusal')!r} is not "
+                           "one the gateway gives")
+        return
+    if any(a["result"] is None or a["result"].get("outcome") == "OK"
+           for a in mine):
+        _note(out, ev, f"{rid} reserved again while an attempt is open or "
+                       "after it was answered")
+        return
+    key = req.get("idempotency_key")
+    if out.inference_keys.get(key, rid) != rid:
+        _note(out, ev, f"{rid} granted under {key!r}, which "
+                       f"{out.inference_keys[key]} holds: a second question "
+                       "for one key")
+        return
+    why = _inf_grant_problem(req, n, ev.wall_time, out)
+    if why:
+        _note(out, ev, f"a granted inference reservation the budget "
+                       f"refuses: {why}")
+        return
+    b = out.inference_budgets[req["budget_id"]]
+    tin = req["prompt_bytes"] + _INF_FRAMING_TOKENS
+    tout = req["max_output_tokens"]
+    cost = _inf_cost(b["body"].get("prices") or {}, req.get("model"),
+                     tin, tout)
+    if p.get("reserved") != {"input_tokens": tin, "output_tokens": tout,
+                             "cost_micro": cost}:
+        _note(out, ev, "an inference reservation for less than its worst "
+                       "case")
+        return
+    lease = ev.wall_time + req["timeout_s"] + _INF_LEASE_GRACE_S
+    if p.get("lease_until") != lease:
+        _note(out, ev, "an inference lease that is not the timeout and "
+                       "grace past its reservation")
+        return
+    out.inference_keys.setdefault(key, rid)
+    out.inference_attempts[(rid, n)] = {
+        "attempt": n, "actor": ev.actor, "request": req, "in": tin,
+        "out": tout, "cost": cost, "lease_until": lease,
+        "dispatch_seq": None, "result": None}
+    b["calls"] += 1
+    b["cost"] += cost
+    b["in"] += tin
+    b["out"] += tout
+    b["times"].append(ev.wall_time)
+
+
+def _inf_attempt(ev, p: dict, out):
+    n = p.get("attempt")
+    att = (out.inference_attempts.get((p.get("request_id"), n))
+           if _inf_int(n) else None)
+    if att is None:
+        _note(out, ev, f"{ev.action} for an attempt no reservation granted")
+        return None
+    if ev.actor != att["actor"]:
+        _note(out, ev, f"{ev.actor!r} acts on an inference attempt "
+                       f"{att['actor']!r} reserved")
+        return None
+    return att
+
+
+def _sub_inference_dispatch(ev, p: dict, out) -> None:
+    att = _inf_attempt(ev, p, out)
+    if att is None:
+        return
+    if att["dispatch_seq"] is not None or att["result"] is not None:
+        _note(out, ev, "an inference attempt dispatched twice or after its "
+                       "result")
+        return
+    if ev.wall_time + att["request"]["timeout_s"] > att["lease_until"]:
+        _note(out, ev, "an inference dispatch outside its lease")
+        return
+    att["dispatch_seq"] = ev.seq
+
+
+def _sub_inference_result(ev, p: dict, out) -> None:
+    att = _inf_attempt(ev, p, out)
+    if att is None:
+        return
+    if att["result"] is not None:
+        _note(out, ev, "an inference attempt settled twice")
+        return
+    outcome = p.get("outcome")
+    sent = att["dispatch_seq"] is not None
+    if outcome not in _INF_OUTCOMES:
+        _note(out, ev, f"inference outcome {outcome!r}")
+        return
+    if p.get("dispatched") is not sent or (outcome in _INF_SENT
+                                           and not sent) or \
+            (outcome == "NOT_SENT" and sent):
+        _note(out, ev, f"an inference {outcome} that the dispatch record "
+                       "contradicts")
+        return
+    if outcome in _INF_RECOVERY and ev.wall_time <= att["lease_until"]:
+        _note(out, ev, f"inference {outcome} written inside the lease")
+        return
+    usage = p.get("usage")
+    good_usage = (isinstance(usage, dict)
+                  and set(usage) == {"input_tokens", "output_tokens"}
+                  and all(_inf_int(v) and v >= 0 for v in usage.values()))
+    if outcome == "OK" and (not good_usage or not isinstance(
+            p.get("response_sha256"), str)):
+        _note(out, ev, "an OK inference without usage or a response")
+        return
+    req = att["request"]
+    b = out.inference_budgets[req["budget_id"]]
+    if not sent:
+        cost, tin, tout, over = 0, 0, 0, False
+    elif outcome == "OK" and isinstance(usage, dict):
+        tin, tout = usage["input_tokens"], usage["output_tokens"]
+        cost = _inf_cost(b["body"].get("prices") or {}, req.get("model"),
+                         tin, tout)
+        over = cost > att["cost"] or tin > att["in"] or tout > att["out"]
+    else:
+        cost, tin, tout, over = att["cost"], att["in"], att["out"], False
+    if p.get("cost_micro") != cost or p.get("overrun") is not over:
+        _note(out, ev, f"an inference settled at {p.get('cost_micro')!r} "
+                       f"where the rule gives {cost}")
+        return
+    b["cost"] += cost - att["cost"]
+    b["in"] += tin - att["in"]
+    b["out"] += tout - att["out"]
+    att["result"] = {"outcome": outcome,
+                     "response_sha256": p.get("response_sha256"),
+                     "cost": cost}
+
+
+# ---------------------------------------------------------------------------
+# RESEARCH RECORDS, READ A SECOND TIME (Gate C).
+#
+# Restated rather than imported from agent_substrate.research: who may
+# register an objective, what a hypothesis must cite, what an observation
+# may be read from, which moves a status may make, how a verdict is
+# COMPUTED from observations (never asserted), and how steps are bounded.
+# ---------------------------------------------------------------------------
+
+_RS_MOVES = {
+    "hypothesis": {"OPEN": {"SUPPORTED", "REFUTED", "INCONCLUSIVE",
+                            "RETRACTED", "SUPERSEDED", "STALE"},
+                   "INCONCLUSIVE": {"INCONCLUSIVE", "SUPPORTED", "REFUTED",
+                                    "RETRACTED", "SUPERSEDED", "STALE"},
+                   "SUPPORTED": {"SUPPORTED", "INCONCLUSIVE", "RETRACTED",
+                                 "SUPERSEDED", "STALE"},
+                   "REFUTED": {"REFUTED", "INCONCLUSIVE", "RETRACTED",
+                               "SUPERSEDED", "STALE"}},
+    "observation": {"CURRENT": {"STALE", "EXPIRED"}},
+    "objective": {"OPEN": {"CONCLUDED", "ABSTAINED", "EXHAUSTED", "BLOCKED"},
+                  "BLOCKED": {"OPEN", "ABSTAINED", "EXHAUSTED"},
+                  "CONCLUDED": {"STALE"}},
+}
+_RS_CURRENT = {"hypothesis": {"OPEN", "SUPPORTED", "REFUTED",
+                              "INCONCLUSIVE"},
+               "observation": {"CURRENT"},
+               "objective": {"OPEN", "BLOCKED", "CONCLUDED"}}
+
+
+def _rs_current(out, rid) -> bool:
+    r = out.research.get(rid)
+    return r is not None and r["status"] in _RS_CURRENT[r["kind"]]
+
+
+# Freshness (Assurance F), restated from the policy kinds rather than
+# imported: what an observation is now, at time ``at``.
+_RS_SECONDS = {"INTERVAL", "PERIODIC"}
+_RS_USABLE = ("FRESH", "HISTORICAL")
+_RS_LAPSED = ("UNKNOWN", "SUPERSEDED")
+_RS_PARAMS = {"HISTORICAL": set(), "SOURCE_WITHDRAWAL": set(),
+              "UNTIL_EVENT": {"action", "target"}, "INTERVAL": {"seconds"},
+              "PERIODIC": {"seconds"}}
+
+
+def _rs_instant(text):
+    """Seconds since the epoch of ``YYYY-MM-DDTHH:MM:SS[.ffffff]`` with
+    ``Z`` or ``+HH:MM``, or None when ``text`` is not one. Restated without
+    the datetime module the first reader parses it with."""
+    if not isinstance(text, str) or not text.isascii() or len(text) < 20:
+        return None
+    head, rest = text[:19], text[19:]
+    if [head[i] for i in (4, 7, 10, 13, 16)] != ["-", "-", "T", ":", ":"]:
+        return None
+    parts = (head[0:4], head[5:7], head[8:10], head[11:13], head[14:16],
+             head[17:19])
+    if not all(x.isdigit() for x in parts):
+        return None
+    y, mo, d, h, mi, sec = (int(x) for x in parts)
+    frac = 0.0
+    if rest.startswith("."):
+        n = 1
+        while n < len(rest) and rest[n].isdigit():
+            n += 1
+        if not 2 <= n <= 7:
+            return None
+        frac = int(rest[1:n]) / 10 ** (n - 1)
+        rest = rest[n:]
+    if rest == "Z":
+        offset = 0
+    elif len(rest) == 6 and rest[0] in "+-" and rest[3] == ":" and \
+            rest[1:3].isdigit() and rest[4:6].isdigit() and \
+            int(rest[1:3]) <= 23 and int(rest[4:6]) <= 59:
+        offset = (int(rest[1:3]) * 60 + int(rest[4:6])) * 60 * \
+            (1 if rest[0] == "+" else -1)
+    else:
+        return None
+    leap = y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)
+    days_in = (31, 29 if leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30,
+               31)
+    if not (1 <= mo <= 12 and 1 <= d <= days_in[mo - 1] and h <= 23
+            and mi <= 59 and sec <= 59):
+        return None
+    # days since 1970-01-01, by the civil-from-days identity
+    yy = y - (mo <= 2)
+    era = yy // 400
+    yoe = yy - era * 400
+    doy = (153 * (mo + (-3 if mo > 2 else 9)) + 2) // 5 + d - 1
+    days = era * 146097 + yoe * 365 + yoe // 4 - yoe // 100 + doy - 719468
+    return days * 86400 + h * 3600 + mi * 60 + sec + frac - offset
+
+
+def _rs_standing(out, oid, at: float) -> str:
+    rec = out.research[oid]
+    b = rec["body"]
+    if (out.sci_states.get(b.get("record_id")) or {}).get("state") not in \
+            ("VERIFIED", "PROMOTED"):
+        return "WITHDRAWN"
+    entry = out.research_freshness.get((b.get("objective_id"),
+                                        b.get("model_id")))
+    if entry is None or entry["body"]["kind"] == "HISTORICAL":
+        return "HISTORICAL"
+    pol = entry["body"]
+    kind = pol["kind"]
+    if kind == "SOURCE_WITHDRAWAL":
+        return "FRESH"
+    if kind == "UNTIL_EVENT":
+        seen = out.last_seen.get((pol["params"]["action"],
+                                  pol["params"]["target"]))
+        return "UNKNOWN" if seen is not None and seen > rec["seq"] \
+            else "FRESH"
+    t = rec.get("observed_at")
+    if t is None:
+        return "UNKNOWN"
+    if kind == "PERIODIC" and any(
+            r["kind"] == "observation" and r.get("observed_at") is not None
+            and r["observed_at"] > t
+            and r["body"].get("objective_id") == b.get("objective_id")
+            and r["body"].get("model_id") == b.get("model_id")
+            for r in out.research.values()):
+        return "SUPERSEDED"
+    return "UNKNOWN" if at > t + pol["params"]["seconds"] else "FRESH"
+
+
+def _rs_verdict(pred: dict, observations: list) -> str:
+    """The verdict on a prediction, in this reader's words: matching model,
+    quantity by name and unit, and the output's resolution counted against
+    the claim. Disagreement, a unit mismatch, or no matching output decides
+    nothing."""
+    found = []
+    for o in observations:
+        if o.get("model_id") != pred.get("model_id"):
+            continue
+        v = (o.get("values") or {}).get(pred.get("quantity"))
+        if v is None:
+            continue
+        if v.get("unit") != pred.get("unit"):
+            return "INCONCLUSIVE"
+        found.append(v)
+    if not found:
+        return "INCONCLUSIVE"
+    seen = set()
+    t, op = pred.get("value"), pred.get("op")
+    for v in found:
+        lo, hi = v["value"] - v["resolution"], v["value"] + v["resolution"]
+        if op == "<":
+            seen.add("SUPPORTED" if hi < t else "REFUTED" if lo >= t
+                     else "INCONCLUSIVE")
+        elif op == "<=":
+            seen.add("SUPPORTED" if hi <= t else "REFUTED" if lo > t
+                     else "INCONCLUSIVE")
+        elif op == ">":
+            seen.add("SUPPORTED" if lo > t else "REFUTED" if hi <= t
+                     else "INCONCLUSIVE")
+        elif op == ">=":
+            seen.add("SUPPORTED" if lo >= t else "REFUTED" if hi < t
+                     else "INCONCLUSIVE")
+        else:
+            return "INCONCLUSIVE"
+    return seen.pop() if len(seen) == 1 else "INCONCLUSIVE"
+
+
+def _sub_research(ev, p: dict, out) -> None:
+    a = ev.action
+    if a == "research.objective":
+        b = p.get("objective")
+        if not isinstance(b, dict) or not isinstance(b.get("limits"), dict):
+            _note(out, ev, "research.objective carries no objective")
+            return
+        if ev.actor != b.get("owner"):
+            _note(out, ev, f"{ev.actor!r} registers an objective in "
+                           f"{b.get('owner')!r}'s name")
+            return
+        oid = b.get("objective_id")
+        if oid in out.research:
+            _note(out, ev, f"research id {oid!r} recorded twice")
+            return
+        q = b.get("question")
+        if "question" in b and not (
+                isinstance(q, dict) and set(q) == {"prediction", "parameters"}
+                and isinstance(q["prediction"], dict)
+                and isinstance(q["parameters"], dict)):
+            _note(out, ev, "an objective whose question is not a prediction "
+                           "and a documented point")
+            return
+        who = b.get("assignees")
+        if "assignees" in b and not (
+                isinstance(who, list) and who and len(set(who)) == len(who)
+                and all(isinstance(a, str) and a for a in who)):
+            _note(out, ev, "an objective whose assignees are not a list of "
+                           "distinct agents")
+            return
+        out.research[oid] = {"kind": "objective", "status": "OPEN",
+                             "body": b, "basis": []}
+    elif a == "research.hypothesis":
+        b = p.get("hypothesis")
+        if not isinstance(b, dict):
+            _note(out, ev, "research.hypothesis carries no hypothesis")
+            return
+        obj = out.research.get(b.get("objective_id"))
+        if obj is None or obj["kind"] != "objective" or \
+                obj["status"] != "OPEN":
+            _note(out, ev, "a hypothesis for an objective that is not open")
+            return
+        if any(not _rs_current(out, d) for d in b.get("depends_on") or ()):
+            _note(out, ev, "a hypothesis depending on something not current")
+            return
+        prop = out.proposals.get(b.get("proposal_id"))
+        if prop is None or prop.get("agent_id") != b.get("proposed_by") or \
+                prop.get("kind") != "HYPOTHESIS":
+            _note(out, ev, "a hypothesis citing no received HYPOTHESIS of "
+                           "its proposer")
+            return
+        if ev.actor == b.get("proposed_by"):
+            _note(out, ev, "an agent recording its own hypothesis")
+            return
+        who = obj["body"].get("assignees")
+        if who is not None and b.get("proposed_by") not in who:
+            _note(out, ev, "a hypothesis from an agent not assigned to its "
+                           "objective")
+            return
+        if b.get("hypothesis_id") in out.research:
+            _note(out, ev, "research id recorded twice")
+            return
+        out.research[b.get("hypothesis_id")] = {
+            "kind": "hypothesis", "status": "OPEN", "body": b, "basis": []}
+    elif a == "research.freshness":
+        _sub_research_freshness(ev, p, out)
+    elif a == "research.observation":
+        b = p.get("observation")
+        if not isinstance(b, dict):
+            _note(out, ev, "research.observation carries no observation")
+            return
+        when = None
+        if "observed_at" in b:
+            when = _rs_instant(b["observed_at"])
+            if when is None or when > out.latest_wall:
+                _note(out, ev, f"an observation observed at "
+                               f"{b['observed_at']!r}: not an instant with "
+                               "an offset, or later than the history has "
+                               "reached")
+                return
+        # Restated: an objective that states its question is observed only
+        # at its documented point, from the model it asks about.
+        q = ((out.research.get(b.get("objective_id")) or {}).get("body")
+             or {}).get("question")
+        if q is not None and (
+                b.get("model_id") != q["prediction"].get("model_id") or
+                b.get("parameter_digest") !=
+                _sci_json_digest(q["parameters"])):
+            _note(out, ev, "an observation of an objective's question read "
+                           "from another model or another point")
+            return
+        sci = out.sci_states.get(b.get("record_id")) or {}
+        if sci.get("state") not in ("VERIFIED", "PROMOTED"):
+            _note(out, ev, f"an observation read from a record that is "
+                           f"{sci.get('state')!r}")
+            return
+        if sci.get("result_bundle") != b.get("result_bundle"):
+            _note(out, ev, "an observation naming a bundle its record does "
+                           "not cite")
+            return
+        if b.get("observation_id") in out.research:
+            _note(out, ev, "research id recorded twice")
+            return
+        out.research[b.get("observation_id")] = {
+            "kind": "observation", "status": "CURRENT", "body": b,
+            "basis": [], "seq": ev.seq, "observed_at": when}
+    elif a == "research.status":
+        _sub_research_status(ev, p, out)
+    elif a == "research.step":
+        b = p.get("step")
+        if not isinstance(b, dict):
+            _note(out, ev, "research.step carries no step")
+            return
+        obj = out.research.get(b.get("objective_id"))
+        have = out.research_steps.get(b.get("objective_id"), 0)
+        if obj is None or b.get("step") != have + 1 or \
+                b.get("step") > obj["body"]["limits"].get("max_steps", 0):
+            _note(out, ev, f"research step {b.get('step')!r} out of order "
+                           "or past its objective's limit")
+            return
+        out.research_steps[b.get("objective_id")] = have + 1
+
+
+def _sub_research_freshness(ev, p: dict, out) -> None:
+    """Restated: an objective's owner sets, once per source, how long its
+    observations stay current -- a known kind with exactly its parameters,
+    and a reason."""
+    b = p.get("freshness")
+    keys = {"policy_id", "objective_id", "model_id", "kind", "params",
+            "rationale"}
+    if not isinstance(b, dict) or set(b) != keys or \
+            b.get("kind") not in _RS_PARAMS or \
+            not isinstance(b.get("params"), dict) or \
+            set(b["params"]) != _RS_PARAMS[b["kind"]] or \
+            not str(b.get("rationale") or "").strip():
+        _note(out, ev, "research.freshness carries no well-formed policy")
+        return
+    if b["kind"] in _RS_SECONDS:
+        sec = b["params"]["seconds"]
+        if isinstance(sec, bool) or not isinstance(sec, (int, float)) or \
+                not sec > 0 or sec == float("inf"):
+            _note(out, ev, "a freshness interval that is not a positive "
+                           "number of seconds")
+            return
+    obj = out.research.get(b["objective_id"])
+    if obj is None or obj["kind"] != "objective" or \
+            ev.actor != obj["body"].get("owner"):
+        _note(out, ev, f"{ev.actor!r} sets the freshness of evidence for "
+                       f"{b['objective_id']!r}, which is not its objective")
+        return
+    key = (b["objective_id"], b["model_id"])
+    if key in out.research_freshness or any(
+            f["body"]["policy_id"] == b["policy_id"]
+            for f in out.research_freshness.values()):
+        _note(out, ev, f"a second freshness policy for {key!r}, or a "
+                       "policy id recorded twice")
+        return
+    out.research_freshness[key] = {"body": b, "seq": ev.seq,
+                                   "by": ev.actor}
+
+
+def _sub_research_status(ev, p: dict, out) -> None:
+    rid, status = p.get("target_id"), p.get("status")
+    rec = out.research.get(rid)
+    if rec is None:
+        _note(out, ev, f"a research status for unrecorded {rid!r}")
+        return
+    if status not in _RS_MOVES[rec["kind"]].get(rec["status"], set()):
+        _note(out, ev, f"research {rec['kind']} {rec['status']} -> "
+                       f"{status!r} is not a move")
+        return
+    basis = p.get("basis") or []
+    if rec["kind"] == "hypothesis" and status in ("SUPPORTED", "REFUTED",
+                                                  "INCONCLUSIVE"):
+        obs = [out.research[o]["body"] for o in basis
+               if o in out.research
+               and out.research[o]["kind"] == "observation"
+               and _rs_current(out, o)]
+        if not basis or len(obs) != len(basis) or \
+                _rs_verdict(rec["body"].get("prediction") or {}, obs) \
+                != status:
+            _note(out, ev, f"a hypothesis verdict {status} the cited "
+                           "observations do not give")
+            return
+        lapsed = [o for o in basis
+                  if _rs_standing(out, o, out.latest_wall) not in _RS_USABLE]
+        if lapsed:
+            _note(out, ev, f"a verdict resting on {lapsed}, whose freshness "
+                           "had run out")
+            return
+        if status == rec["status"] and (
+                set(basis) == set(rec["basis"]) or all(
+                    _rs_current(out, o) and _rs_standing(
+                        out, o, out.latest_wall) in _RS_USABLE
+                    for o in rec["basis"])):
+            _note(out, ev, f"{rid!r} decided {status} again with nothing "
+                           "in its basis lapsed")
+            return
+    if rec["kind"] == "objective" and status == "CONCLUDED":
+        h = out.research.get(basis[0]) if len(basis) == 1 else None
+        if h is None or h["kind"] != "hypothesis" or \
+                h["status"] not in ("SUPPORTED", "REFUTED") or \
+                h["body"].get("objective_id") != rid:
+            _note(out, ev, "a conclusion resting on no decided hypothesis "
+                           "of its objective")
+            return
+        q = rec["body"].get("question")
+        if q is not None and h["body"].get("prediction") != q["prediction"]:
+            _note(out, ev, "a conclusion on a hypothesis that does not make "
+                           "the prediction its objective asks about")
+            return
+        if any(not _rs_current(out, o) or _rs_standing(
+                out, o, out.latest_wall) not in _RS_USABLE
+               for o in h["basis"]):
+            _note(out, ev, "a conclusion resting on evidence whose "
+                           "freshness had run out")
+            return
+    if status == "EXPIRED" and \
+            _rs_standing(out, rid, out.latest_wall) not in _RS_LAPSED:
+        _note(out, ev, f"{rid!r} declared EXPIRED while its freshness held "
+                       "(or its source was withdrawn, which is STALE)")
+        return
+    if status == "STALE":
+        if rec["kind"] == "observation":
+            lost = (out.sci_states.get(rec["body"].get("record_id"))
+                    or {}).get("state") not in ("VERIFIED", "PROMOTED")
+        elif rec["kind"] == "objective":
+            lost = any(d not in out.research or out.research[d]["status"]
+                       not in ("SUPPORTED", "REFUTED") for d in rec["basis"])
+        else:
+            lost = any(not _rs_current(out, d) for d in
+                       list(rec["basis"]) + list(rec["body"].get(
+                           "depends_on") or []))
+        if not lost:
+            _note(out, ev, f"{rid!r} declared STALE with nothing lost")
+            return
+    rec["status"] = status
+    if status in ("SUPPORTED", "REFUTED", "INCONCLUSIVE", "CONCLUDED"):
+        rec["basis"] = list(basis)
+
+
+def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:
+    """Divergences between a primary projection and the second reader.
+
+    ``primary`` is a mapping of subsystem name -> {id: {field: value}},
+    extracted by the caller from the live projections. The extraction is
+    the caller's because reconstruct.py may not import those layers, which
+    is what keeps the two readers independent in the first place.
+    """
+    out: list = []
+    tables = {"jobs": recon.jobs, "capabilities": recon.capabilities,
+              "agents": recon.agents, "memory": recon.memory,
+              "net_grants": recon.net_grants, "services": recon.services,
+              "secret_grants": recon.secret_grants,
+              "escalations": recon.escalations,
+              "claims": recon.claims,
+              "checkpoints": recon.checkpoints,
+              "proposals": recon.proposals}
+    for name, theirs in tables.items():
+        mine = primary.get(name)
+        if mine is None:
+            continue
+        for key in sorted(set(mine) | set(theirs)):
+            a, b = mine.get(key), theirs.get(key)
+            if a is None:
+                out.append(Divergence(f"{name}/{key}", "presence", None,
+                                      "present in the second reader"))
+                continue
+            if b is None:
+                out.append(Divergence(f"{name}/{key}", "presence",
+                                      "present in the projection", None))
+                continue
+            for fld, want in sorted(a.items()):
+                got = b.get(fld)
+                if got != want:
+                    out.append(Divergence(f"{name}/{key}", fld, want, got))
+    return tuple(out)
+
+
+def _replay_binding(ev, p: dict, bindings: dict, out) -> None:
+    """Project one idempotency.bind, in this reader's own words.
+
+    Shares no code with
+    :class:`~agent_substrate.idempotency.IdempotencyLedger`. The rules are
+    restated rather than imported, because a second reader that calls the first
+    one's reducer is not a second reader -- it is the same decision, run twice,
+    agreeing with itself.
+
+    Records anomalies rather than raising: this module's contract is that a
+    hostile history produces findings, not an exception that hides the rest
+    of the log.
+    """
+    if not isinstance(p, dict):
+        out.anomalies.append(
+            f"seq {ev.seq}: idempotency binding payload is not an object")
+        return
+    key, tool_id = p.get("key"), p.get("tool_id")
+    task_id, request_digest = p.get("task_id"), p.get("request_digest")
+    for name, value in (("key", key), ("tool_id", tool_id),
+                        ("task_id", task_id),
+                        ("request_digest", request_digest)):
+        if not isinstance(value, str) or not value:
+            out.anomalies.append(
+                f"seq {ev.seq}: idempotency binding has no usable {name!r}")
+            return
+    # The owner is the EVENT'S actor. A payload naming its own owner chose
+    # whose namespace to write into.
+    claimed_owner = p.get("owner")
+    if claimed_owner is not None and claimed_owner != ev.actor:
+        out.anomalies.append(
+            f"seq {ev.seq}: binding names owner {claimed_owner!r} but was "
+            f"appended by {ev.actor!r}; a lookup answered for the claimed "
+            "owner would hand one actor another's task")
+        return
+    claimed_seq = p.get("bound_seq")
+    if claimed_seq is not None and claimed_seq != ev.seq:
+        out.anomalies.append(
+            f"seq {ev.seq}: binding claims bound_seq {claimed_seq!r}, which "
+            "backdates the moment a duplicate would first have been caught")
+        return
+
+    scope = (ev.actor, tool_id, key)
+    prior = bindings.get(scope)
+    if prior is not None:
+        if (prior["task_id"] == task_id
+                and prior["request_digest"] == request_digest):
+            return                       # a retried append of the same bind
+        out.anomalies.append(
+            f"seq {ev.seq}: idempotency key {key!r} for {tool_id!r} is "
+            f"rebound from task {prior['task_id']!r} to {task_id!r}; every "
+            "later resubmission of the original request would resolve to "
+            "the new work")
+        return
+    bindings[scope] = {
+        "key": key, "owner": ev.actor, "tool_id": tool_id,
+        "task_id": task_id, "request_digest": request_digest,
+        "job_id": p.get("job_id", ""), "bound_seq": ev.seq,
+    }
+
+
+def compare_bindings(ledger, recon) -> tuple:
+    """Divergences between the ledger's bindings and the second reader's.
+
+    The interesting direction is a binding one reader holds and the other
+    does not: that is a namespace the two disagree about, and the ledger is
+    what decides whether work re-runs.
+    """
+    out: list = []
+    mine = {(b.owner, b.tool_id, b.key): b
+            for b in ledger.bindings().values()}
+    theirs = recon.bindings
+    for scope in sorted(set(mine) | set(theirs)):
+        a, b = mine.get(scope), theirs.get(scope)
+        label = f"{scope[0]}/{scope[1]}/{scope[2]}"
+        if a is None:
+            out.append(Divergence(label, "binding", None, b["task_id"]))
+            continue
+        if b is None:
+            out.append(Divergence(label, "binding", a.task_id, None))
+            continue
+        for fld, x, y in (("task_id", a.task_id, b["task_id"]),
+                          ("request_digest", a.request_digest,
+                           b["request_digest"]),
+                          ("bound_seq", a.bound_seq, b["bound_seq"])):
+            if x != y:
+                out.append(Divergence(label, fld, x, y))
+    return tuple(out)
+
+
+def _task_check_record(action: str, ev, p: dict, cur: dict) -> str:
+    """Why a ``task.reexecution`` or ``task.separate_verification`` record
+    is not one the governed runner could have written; empty when it is.
+
+    Both are facts about HOW a result was checked, made by the verifier
+    between the task's completion and its verdict. Neither moves the task --
+    the verdict is a transition, re-authorized above -- which is why the
+    identity inventory classifies them as not authority-changing. They are
+    what an auditor reads to learn how the verdict was reached, so a record
+    made by the executor itself, after the verdict, or saying a failed check
+    passed, is a finding.
+    """
+    if cur["state"] != _TASK_COMPLETED:
+        return (f"{action} recorded while the task is {cur['state']}; a "
+                "check is made between completion and the verdict")
+    if cur["executed_by"] is None or ev.actor == cur["executed_by"]:
+        return (f"{action} recorded by {ev.actor!r}, the task's executor "
+                f"({cur['executed_by']!r}); a check is not the checked "
+                "party's to record")
+    if action == "task.reexecution":
+        compared = p.get("compared")
+        if p.get("tool_id") != cur["tool_id"]:
+            return (f"re-executed {p.get('tool_id')!r}, and the task ran "
+                    f"{cur['tool_id']!r}")
+        if p.get("determinism") != "BYTE_IDENTICAL":
+            return ("claims a byte-for-byte re-execution of a tool not "
+                    "declared BYTE_IDENTICAL")
+        if not isinstance(compared, list) or not compared \
+                or not all(isinstance(c, str) and c for c in compared):
+            return "re-execution compared nothing"
+        return ""
+    ok, findings = p.get("ok"), p.get("findings")
+    if not isinstance(ok, bool) or not isinstance(findings, list):
+        return "separate verification records no verdict"
+    if ok == bool(findings):
+        return (f"separate verification says ok={ok} with "
+                f"{len(findings)} finding(s)")
+    head = p.get("head_seq")
+    completed = max((seq for seq, st in cur["history"]
+                     if st == _TASK_COMPLETED), default=None)
+    if not isinstance(head, int) or isinstance(head, bool) \
+            or completed is None or not completed <= head < ev.seq:
+        return (f"separate verification read the log through {head!r}; "
+                "it must cover the task's completion and precede itself")
+    return ""
+
+
+def _lease_of(cur: dict):
+    """The lease this replay is currently holding, if any.
+
+    Plain fields rather than a :class:`~agent_substrate.tasks.Lease`:
+    constructing the production dataclass here would import the layer this
+    reader exists to second-guess, and would inherit its idea of what a lease
+    record even looks like.
+    """
+    return _parse_lease(cur.get("lease"))
+
+
+def compare_tasks(projection, recon: TaskReconstruction) -> tuple:
+    """Diff the live task projection against the independent replay.
+
+    Empty means two implementations reading the same bytes reached the same
+    verdict. Anything else is a divergence one of them has to answer for.
+    """
+    diffs: list = []
+    live = dict(projection.tasks)
+    for tid in sorted(set(live) | set(recon.tasks)):
+        if tid not in live:
+            diffs.append(Divergence(tid, "<presence>", "ABSENT", "present"))
+            continue
+        if tid not in recon.tasks:
+            diffs.append(Divergence(tid, "<presence>", "present", "ABSENT"))
+            continue
+        lv, rc = live[tid], recon.tasks[tid]
+        for name, lval, rval in (
+            ("state", lv.state.value, rc["state"]),
+            ("tool_id", lv.tool_id, rc["tool_id"]),
+            ("submitter", lv.submitter, rc["submitter"]),
+            ("inputs_digest", lv.inputs_digest, rc["inputs_digest"]),
+            ("executed_by", lv.executed_by, rc["executed_by"]),
+            ("result_digest", lv.result_digest, rc["result_digest"]),
+            # The lease is state, not decoration. A replay that keeps a
+            # finished task's lease says the work is still owned by a worker
+            # that has stopped, and nothing else in this diff would notice.
+            ("lease", lv.lease.to_record() if lv.lease else None,
+             rc["lease"]),
+        ):
+            if lval != rval:
+                diffs.append(Divergence(tid, name, lval, rval))
+    return tuple(diffs)
+
+
+def compare(store, recon: Reconstruction) -> tuple:
+    """Diff a live store against an independent reconstruction.
+
+    Returns a tuple of :class:`Divergence`. Empty means the two implementations
+    agree -- the only outcome that should ever occur in a healthy system.
+    """
+    diffs: list = []
+    live = store.all_records()
+    for rid in sorted(set(live) | set(recon.records)):
+        if rid not in live:
+            diffs.append(Divergence(rid, "<presence>", "ABSENT", "present"))
+            continue
+        if rid not in recon.records:
+            diffs.append(Divergence(rid, "<presence>", "present", "ABSENT"))
+            continue
+        lv, rc = live[rid], recon.records[rid]
+        for name, lval, rval in (
+            ("state", lv.state.value, rc["state"]),
+            ("kind", lv.kind, rc["kind"]),
+            ("proposer", lv.proposer, rc["proposer"]),
+            ("revision", lv.revision, rc["revision"]),
+            ("evidence", dict(lv.evidence), rc["evidence"]),
+            ("depends_on", list(lv.depends_on), rc["depends_on"]),
+            ("policy_id", lv.policy_id, rc["policy_id"]),
+            # Decided by two implementations from the same bytes: the store
+            # through result_rules and its origin view, this reader through
+            # its own restatement. A weakened rule on either side is a
+            # disagreement here.
+            ("admission", lv.admission, rc["admission"]),
+        ):
+            if lval != rval:
+                diffs.append(Divergence(rid, name, lval, rval))
+    return tuple(diffs)
+
+
+# ================================================ proof-carrying decisions
+#
+# Assurance D. A decision's JUSTIFICATION -- the proposal it answered, the
+# context and policy it was decided under, the budget that paid for the
+# model call, who decided and who proposed, the evidence it cites and
+# whether those bytes are held, the state of what it depends on, and what
+# the decision changed -- derived HERE, from the verified history as it
+# stood at the decision, by this module's own replay. Nothing in it is read
+# from the proof being checked: a proof is a CLAIM about a decision, and
+# verify_decision_proof() recalculates every field and every condition and
+# reports where the claim and the history part.
+#
+# It is not an authority engine. It decides nothing that the gates did not
+# already decide; it restates what they checked so a reader who trusts
+# neither the decider nor the proof's author can check it, in a process
+# that cannot reach the primary reducers (tools/independent_verify.py).
+
+PROOF_SCHEMA = "decision-proof/1"
+_DECIDED_STATES = ("VERIFIED", "PROMOTED")
+_VERDICTS = ("SUPPORTED", "REFUTED", "INCONCLUSIVE")
+
+
+class _Prefix:
+    """The verified history as it stood at ``upto``: a log-shaped view over
+    the first records of a chain verified whole. A prefix of a verified
+    chain is a verified chain."""
+
+    def __init__(self, report, events: list, upto: int):
+        import dataclasses
+        self._events = [e for e in events if e.seq <= upto]
+        last = self._events[-1] if self._events else None
+        self._report = dataclasses.replace(
+            report, head_seq=last.seq if last else -1,
+            head_hash=last.hash if last else "")
+
+    def read_verified(self):
+        return self._report, list(self._events)
+
+
+def _at(report, events: list, upto: int) -> EventLog:
+    """The history at ``upto``, for readers that take a log: they call
+    nothing on it but ``read_verified``."""
+    return cast(EventLog, _Prefix(report, events, upto))
+
+
+def _resolves(evidence, digest_) -> bool:
+    """``evidence`` holds bytes for ``digest_`` that re-hash to it. Re-hashed
+    HERE: whatever ``evidence`` is, it is not trusted to say so."""
+    import hashlib
+    if evidence is None or not isinstance(digest_, str) or \
+            len(digest_) != 64:
+        return False
+    try:
+        data = evidence.get(digest_)
+    except Exception:                                   # noqa: BLE001
+        return False
+    return isinstance(data, bytes) and \
+        hashlib.sha256(data).hexdigest() == digest_
+
+
+def _policy_in_force(events: list, identity: str, at_seq: int) -> bool:
+    """``identity`` (``id@version``) is the latest published version of its
+    policy before ``at_seq``, the policy is not withdrawn by then, and it had
+    not expired by the latest time the history had reached at ``at_seq``
+    (events.judged_at, D-2026-168)."""
+    pid, sep, ver = (identity or "").rpartition("@")
+    if not sep:
+        return False
+    latest, withdrawn, expiry, wall = None, False, None, None
+    for e in events:
+        if e.seq > at_seq:
+            break
+        wall = judged_at(wall, e.wall_time)
+        if e.seq == at_seq:
+            continue
+        p = e.payload if isinstance(e.payload, dict) else {}
+        if e.action == "policy.publish":
+            doc = p.get("document") or p.get("policy") or {}
+            if isinstance(doc, dict) and doc.get("policy_id") == pid:
+                latest, expiry = doc.get("version"), doc.get("not_after")
+        elif e.action == "policy.withdraw" and p.get("policy_id") == pid:
+            withdrawn = True
+    expired = (isinstance(expiry, (int, float)) and
+               not isinstance(expiry, bool) and wall is not None and
+               wall > expiry)
+    return not withdrawn and not expired and latest is not None and \
+        str(latest) == ver
+
+
+def _proposal_chain(events: list, proposal_id, before: int) -> dict | None:
+    """The received proposal, the inference that produced it and the
+    context it was asked under -- or None if nothing was received."""
+    rec = next((e for e in events if e.action == "proposal.receive"
+                and e.target == proposal_id and e.seq < before), None)
+    if rec is None:
+        return None
+    env = rec.payload.get("envelope") or {}
+    out: dict = {"proposal_id": proposal_id, "agent_id": env.get("agent_id"),
+                 "kind": env.get("kind"),
+                 "envelope_digest": rec.payload.get("envelope_digest"),
+                 "received_seq": rec.seq, "inference": None,
+                 "context": None}
+    inf = env.get("inference")
+    if not isinstance(inf, dict):
+        return out
+    rid = inf.get("request_id")
+    reserve = next((e for e in events if e.action == "inference.reserve"
+                    and e.target == rid and e.seq < rec.seq
+                    and e.payload.get("attempt") == inf.get("attempt")),
+                   None)
+    result = next((e for e in events if e.action == "inference.result"
+                   and e.target == rid and e.seq < rec.seq
+                   and e.payload.get("attempt") == inf.get("attempt")),
+                  None)
+    req = (reserve.payload.get("request") or {}) if reserve else {}
+    out["inference"] = {
+        "request_id": rid, "attempt": inf.get("attempt"),
+        "budget_id": req.get("budget_id"),
+        "reserve_seq": reserve.seq if reserve else None,
+        "granted": bool(reserve and reserve.payload.get("granted") is True),
+        "outcome": result.payload.get("outcome") if result else None}
+    md = inf.get("context_manifest_digest")
+    built = next((e for e in events if e.action == "context.build"
+                  and e.payload.get("manifest_digest") == md
+                  and e.seq < rec.seq), None)
+    manifest = (built.payload.get("manifest") or {}) if built else {}
+    identity = manifest.get("policy_identity", "")
+    at = reserve.seq if reserve else rec.seq
+    out["context"] = {
+        "manifest_digest": md,
+        "recorded_seq": built.seq if built else None,
+        "policy_identity": identity,
+        "policy_in_force": _policy_in_force(events, identity, at)}
+    return out
+
+
+def _execution(events: list, bundle, before: int) -> dict | None:
+    """The governed task that captured ``bundle``: who executed it, who
+    verified it, under which capabilities, and the proposal it answered."""
+    cap = None
+    for e in events:
+        if e.seq >= before:
+            break
+        if e.action == "task.evidence" and bundle in (
+                (e.payload.get("artifacts") or {}).values()):
+            cap = e
+    if cap is None:
+        return None
+    tid = cap.payload.get("task_id")
+    mine = [e for e in events if e.seq < before
+            and (e.payload or {}).get("task_id") == tid]
+    executor = next((e.actor for e in reversed(mine)
+                     if e.action == "task.execution"), None)
+    verifier = next((e.actor for e in reversed(mine)
+                     if e.action == "task.transition"
+                     and e.payload.get("dst") == "VERIFIED"), None)
+    bind = next((e for e in mine if e.action == "idempotency.bind"), None)
+    out: dict = {"task_id": tid, "captured_seq": cap.seq,
+                 "executor": executor, "task_verifier": verifier,
+                 "capabilities": sorted(
+                     e.payload.get("capability_id") for e in mine
+                     if e.action == "capability.issue"),
+                 "proposal": None}
+    if bind is not None:
+        chain = _proposal_chain(events, bind.payload.get("key"), bind.seq)
+        if chain is not None:
+            chain["bound_by"] = bind.payload.get("owner")
+        out["proposal"] = chain
+    return out
+
+
+def derive_decision_proof(log, seq: int, *, evidence=None) -> dict:
+    """The justification of the decision recorded at ``seq``, as this
+    reader derives it from the verified history alone. ``evidence`` is
+    anything with ``get(digest) -> bytes``; what it returns is re-hashed
+    here, and without it no cited bytes are held."""
+    report, events = log.read_verified()
+    report.raise_if_bad()
+    ev = next((e for e in events if e.seq == seq), None)
+    if ev is None:
+        raise ValueError(f"no record at seq {seq}")
+    prev = next((e for e in events if e.seq == seq - 1), None)
+    p = ev.payload if isinstance(ev.payload, dict) else {}
+    base = {"schema": PROOF_SCHEMA,
+            "decision": {"seq": seq, "hash": ev.hash, "actor": ev.actor,
+                         "action": ev.action, "subject": ev.target},
+            "head": {"seq": seq - 1, "hash": prev.hash if prev else ""}}
+    if ev.action == "record.transition":
+        return _record_proof(base, report, events, ev, p, evidence)
+    if ev.action == "research.status" and p.get("status") in _VERDICTS:
+        return _research_proof(base, report, events, ev, p, evidence)
+    raise ValueError(f"seq {seq} is {ev.action}, not a decision this "
+                     "reader proves")
+
+
+def _record_proof(base, report, events, ev, p, evidence):
+    rid, outcome = p.get("record_id"), p.get("dst")
+    after = reconstruct(_at(report, events, ev.seq), evidence=evidence)
+    rec = after.records.get(rid) or {}
+    cited = dict(rec.get("evidence") or {})
+    base["decision"].update(kind="record", outcome=outcome,
+                            role=p.get("role"))
+    base["accepted"] = (rec.get("state") == outcome
+                        and rec.get("updated_seq") == ev.seq)
+    base["record"] = {
+        "record_id": rid, "kind": rec.get("kind"),
+        "proposer": rec.get("proposer"),
+        "created_seq": rec.get("created_seq"),
+        "policy_id": rec.get("policy_id"), "evidence": cited,
+        "admission": rec.get("admission"),
+        "depends_on": {d: (after.records.get(d) or {}).get("state")
+                       for d in rec.get("depends_on") or ()}}
+    base["separation_of_duties"] = {
+        "proposer": rec.get("proposer"), "decider": ev.actor,
+        "distinct": rec.get("proposer") != ev.actor}
+    base["evidence_held"] = {k: _resolves(evidence, v)
+                             for k, v in sorted(cited.items())}
+    base["execution"] = _execution(events, cited.get("result_bundle"),
+                                   rec.get("created_seq") or ev.seq)
+    return base
+
+
+def _research_proof(base, report, events, ev, p, evidence):
+    hid, outcome = ev.target, p.get("status")
+    sub = reconstruct_subsystems(_at(report, events, ev.seq))
+    recs = reconstruct(_at(report, events, ev.seq)).records
+    hyp = next((e.payload.get("hypothesis") or {} for e in events
+                if e.action == "research.hypothesis" and e.target == hid
+                and e.seq < ev.seq), {})
+    observed = {e.target: e.payload.get("observation") or {}
+                for e in events
+                if e.action == "research.observation" and e.seq < ev.seq}
+    base["decision"].update(kind="research", outcome=outcome)
+    base["accepted"] = ((sub.research.get(hid) or {}).get("status")
+                        == outcome and not any(
+                            a.startswith(f"seq {ev.seq}:")
+                            for a in sub.anomalies))
+    base["hypothesis"] = {
+        "hypothesis_id": hid, "prediction": hyp.get("prediction"),
+        "proposal_id": hyp.get("proposal_id"),
+        "proposed_by": hyp.get("proposed_by")}
+    # what each observation was AT the decision: judged against the history
+    # before it, at the time the decision record carries (Assurance F)
+    before = reconstruct_subsystems(_at(report, events, ev.seq - 1))
+    at = judged_at(before.latest_wall, ev.wall_time)
+    basis = []
+    for oid in p.get("basis") or ():
+        o = observed.get(oid) or {}
+        r = recs.get(o.get("record_id")) or {}
+        known = (before.research.get(oid) or {}).get("kind") == "observation"
+        basis.append({"observation_id": oid,
+                      "record_id": o.get("record_id"),
+                      "record_state": r.get("state"),
+                      "result_bundle": o.get("result_bundle"),
+                      "bundle_held": _resolves(evidence,
+                                               o.get("result_bundle")),
+                      "values": o.get("values"),
+                      "freshness": _rs_standing(before, oid, at)
+                      if known else None})
+    base["basis"] = basis
+    base["proposal"] = _proposal_chain(events, hyp.get("proposal_id"),
+                                       ev.seq)
+    return base
+
+
+def _differences(claim, derived, path: str = "") -> list:
+    if isinstance(claim, dict) and isinstance(derived, dict):
+        out = []
+        for k in sorted(set(claim) | set(derived), key=str):
+            where = f"{path}.{k}" if path else str(k)
+            if k not in claim:
+                out.append(f"{where}: missing from the proof")
+            elif k not in derived:
+                out.append(f"{where}: in the proof, and nowhere in the "
+                           "history")
+            else:
+                out.extend(_differences(claim[k], derived[k], where))
+        return out
+    if isinstance(claim, list) and isinstance(derived, list) and \
+            len(claim) == len(derived):
+        out = []
+        for i, (c, d) in enumerate(zip(claim, derived)):
+            out.extend(_differences(c, d, f"{path}[{i}]"))
+        return out
+    if claim != derived:
+        return [f"{path}: the proof says {claim!r}; the history says "
+                f"{derived!r}"]
+    return []
+
+
+def _conditions(d: dict) -> list:
+    """What must hold of a decision, by this reader's own derivation."""
+    out = []
+    if not d.get("accepted"):
+        out.append("the decision is not one this reader accepted: the "
+                   "history does not reach the outcome it records")
+    kind = d["decision"].get("kind")
+    if kind == "record":
+        decided = d["decision"].get("outcome") in _DECIDED_STATES
+        if decided and not d["separation_of_duties"]["distinct"]:
+            out.append("the decider is the record's proposer")
+        if not all(d["evidence_held"].values()):
+            missing = sorted(k for k, v in d["evidence_held"].items()
+                             if not v)
+            out.append(f"cited evidence is not held: {missing}")
+        if decided and d["record"]["kind"] == "scientific_result" and \
+                d["record"]["admission"] != "ADMITTED":
+            out.append(f"the result is {d['record']['admission']}, not "
+                       "ADMITTED")
+        if decided and any(s not in _DECIDED_STATES for s in
+                           d["record"]["depends_on"].values()):
+            out.append("a dependency is not standing at the decision")
+        chain = (d.get("execution") or {}).get("proposal")
+    else:
+        if not d["basis"]:
+            out.append("a verdict with no basis")
+        for b in d["basis"]:
+            if b["record_state"] not in _DECIDED_STATES:
+                out.append(f"{b['observation_id']} rests on a record "
+                           f"{b['record_state']}")
+            if not b["bundle_held"]:
+                out.append(f"{b['observation_id']}'s bundle is not held")
+            if b["freshness"] not in _RS_USABLE:
+                out.append(f"{b['observation_id']} was {b['freshness']} at "
+                           "the decision: its freshness had run out")
+        chain = d.get("proposal")
+    if chain and chain.get("inference"):
+        inf = chain["inference"]
+        if not inf["granted"] or inf["outcome"] != "OK":
+            out.append("the proposal's model call was not granted and "
+                       "answered")
+        if not (chain.get("context") or {}).get("policy_in_force"):
+            out.append("the proposal's context names a policy not in force "
+                       "when its call was granted")
+    return out
+
+
+def verify_decision_proof(log, proof, *, evidence=None) -> list:
+    """Every way ``proof`` departs from the history, and every condition
+    the decision does not meet -- [] when the proof is the history's own
+    account of a decision that holds. The proof's claims are compared,
+    never used."""
+    if not isinstance(proof, dict) or proof.get("schema") != PROOF_SCHEMA:
+        return [f"not a {PROOF_SCHEMA} proof"]
+    seq = (proof.get("decision") or {}).get("seq")
+    if isinstance(seq, bool) or not isinstance(seq, int):
+        return ["the proof names no decision position"]
+    try:
+        derived = derive_decision_proof(log, seq, evidence=evidence)
+    except ValueError as exc:
+        return [str(exc)]
+    return _differences(proof, derived) + _conditions(derived)

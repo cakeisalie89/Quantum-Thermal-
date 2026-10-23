@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "label": "corpus membership for read-only retrieval",
+  "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
+  "entries_digest": "071e43c8e9f972bac0c2c58a0d9462479f98c46c6035af3bf7c4930afee4b6e9",
+  "entries": [
+    {
+      "path": "AGENT_SUBSTRATE.md",
+      "sha256": "0acf1dc1511620ce7bb02c842da9cfe5058cab7e5a68aeef1a019c3b03126141"
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "sha256": "144c733ebe86a7468e34fd997a9410fb522c780bcb169c442e7cbfb381c7a941"
+    },
+    {
+      "path": "AUTHORITIES.md",
+      "sha256": "740f8d9a3b001d317189630590bd74eecf2caf7ec03b982df5684e9ffd19ede8"
+    },
+    {
+      "path": "CLAIMS_BOUNDARY.md",
+      "sha256": "377efaeddb37f140413c905f505c809d1c94dc7ab7bc47c7e7aa824e276e398e"
+    },
+    {
+      "path": "DEPLOYMENT.md",
+      "sha256": "2428393e931fc4cd58c73b08f4da6ae36f2a367b4ac9925596346e3417aff309"
+    },
+    {
+      "path": "HARNESS_STATUS.md",
+      "sha256": "f9930b71ce1705ec4e321a732665bf7369ff2aea188b472ca66d16f4f208468c"
+    },
+    {
+      "path": "HDF5_DATA_MODEL.md",
+      "sha256": "f8c40c1cb99ef6e6130d5641abfb2e1fb01e559af4da5e58f7061f34c70650f3"
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "7d374db358c5ffbdc22d1dcbb0ce1166284867944c9121769dfb2449f5bbc75e"
+    },
+    {
+      "path": "MANIFEST_BOUNDARY.md",
+      "sha256": "45a2014b46b923a61d9e3dcae86db617e922dff17555bcc5f76aa9a2ab818e82"
+    },
+    {
+      "path": "NEURAL_SUBSTRATE.md",
+      "sha256": "344d11c63502bc3182d8e68c60ee0cd87a6314a865ecdd8723af1c66646e34d1"
+    },
+    {
+      "path": "README.md",
+      "sha256": "e5f50da344c78c3578b7bb161221f21de48aee9bc185661ce0e8b7b418e25d67"
+    },
+    {
+      "path": "RO_CRATE_PROFILE.md",
+      "sha256": "3f6c34f590874b3fe26cafd89d09b1be401fff567c5a311992542ed99eacd845"
+    },
+    {
+      "path": "SCIENTIFIC_AI_STATUS.md",
+      "sha256": "9c9e2b6ebb191dbbdd6e11c7e7e1d3c4e0a7ac01f7f494e6778f1daf74baa692"
+    },
+    {
+      "path": "SIGNING_BOOTSTRAP.md",
+      "sha256": "afbf4f7831b595bdc288755433bda84220ea6abc36bd337457ec60bbf5edf7ac"
+    },
+    {
+      "path": "STACK.md",
+      "sha256": "b001c4198deb82ac3a962c3573e1dc63c16dc26c91e0549182c7d76349efccfc"
+    },
+    {
+      "path": "SUPPLY_CHAIN_THREAT_MODEL.md",
+      "sha256": "ecbabf4a465d54d8211b40531f00c8e14256e2586a0b91097cf5dc69f4222291"
+    },
+    {
+      "path": "TESTING.md",
+      "sha256": "63f450aa9bba96e3b1f88fa9a16598646b76c2e518125d9038947676b3a2679c"
+    },
+    {
+      "path": "container_verification.md",
+      "sha256": "ba4aa6850d30b184d2ad8a93d89ccf2c9a0a9d0862cf6df321eba5a5c71ac295"
+    },
+    {
+      "path": "docs/DEFECT_LEDGER.md",
+      "sha256": "ee964065f82df1ed2b369cb82b2a834047b795cb0b781d078e531cef40635cdb"
+    },
+    {
+      "path": "docs/EVIDENCE_TERMS.md",
+      "sha256": "f99ab888854389c1bd0f84f7f5a158f8029df56ae9bf9b1f6a05949b0c5da44c"
+    },
+    {
+      "path": "docs/assurance/ADVERSARIAL_EVAL.md",
+      "sha256": "5fd1e87359bf495d1fda0ce5890ef2bc137792c426a0e08d41079a74efbc2e42"
+    },
+    {
+      "path": "docs/formal/README.md",
+      "sha256": "b8fb17e1e11b144eb5a93357625dc10da2862a11de006c96a1f509f7044c3878"
+    },
+    {
+      "path": "docs/neural/ROADMAP.md",
+      "sha256": "624ddc29442047fdf8059138ca66d324f752ed093d8481804484106077fe1a1d"
+    },
+    {
+      "path": "docs/research/CLAIM_CHECK.md",
+      "sha256": "5f0b9fffb5289fc8d3f81ba8c7bd17c2062c864dd20eee809fe442c4318056af"
+    },
+    {
+      "path": "docs/research/GATE_D_PROTOCOL.md",
+      "sha256": "b5edc124100fb0e3c91d6d4b1e16ac20ef93c454787f896b42ad806cdb001c4c"
+    },
+    {
+      "path": "docs/research/GROUNDING_BENCHMARK.md",
+      "sha256": "cc3d87770f8291c1d4a95df87d1537c8c56dc73a8875c2569e3ad6ee0e45b05a"
+    },
+    {
+      "path": "docs/research/GROUNDING_REVIEW.md",
+      "sha256": "03529cc9c871b65fc29f8e747577ffc9196cb4299feda2731be345ba8825152f"
+    },
+    {
+      "path": "docs/security/owner_actions.md",
+      "sha256": "0a5bf73d4b61a17c238a85859c3211187bd0662a4525c3cdbf2feceb990adf1c"
+    },
+    {
+      "path": "docs/security/standards_matrix.md",
+      "sha256": "682c8dbc508ce5c56930ad0173e66b2d461df8e1d84adf790426a45d1f659ee4"
+    },
+    {
+      "path": "docs/tranche_h/FINAL_REPORT.md",
+      "sha256": "5d895bc173f398f13a22d44e8624790828e4fa9b638e4d3fd41977f08e8d7eba"
+    },
+    {
+      "path": "docs/tranche_h/GATE_A_AUDIT.md",
+      "sha256": "5646a2a6dd9ef359ac365a1aed3a98d363036f68480ea60fe43c60b9d9c1b3de"
+    },
+    {
+      "path": "docs/tranche_h/PROGRESS.md",
+      "sha256": "fbf81b098688ad0a81313e8aa905427c2c2522421989a0228cecc8d3e561ce85"
+    },
+    {
+      "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",
+      "sha256": "87d654ef1602042c46d240872f142c401291ac3da65ef1a9345717208c060939"
+    },
+    {
+      "path": "tests/fuzz_corpus/README.md",
+      "sha256": "65b755fa5995ab85c021d11c0ac163de3ee1e80aea312c3dd622298b79695be7"
+    }
+  ]
+}
