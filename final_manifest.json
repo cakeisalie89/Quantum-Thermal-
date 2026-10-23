@@ -439,8 +439,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 640943,
-      "sha256": "99670a0b9c8d1e3ab90a9fd46d2b60ebce61a8282558bfc06273601645de9d34"
+      "size_bytes": 642954,
+      "sha256": "d0bc7199e14771f7025914898e6803d22b120e1d97c1df1cfa672d8e97c9540c"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -485,7 +485,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5219,
-      "sha256": "9e41e242818ead8aed2990fe06565754cc60ef05fe13aadc0205519d492259cc"
+      "sha256": "35c608ab1d7c8ee11581f88f0d8d77ecc11fe4fd7908d5e0fa70f60161125ea5"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -764,8 +764,8 @@
     },
     {
       "filename": "docs/tranche_h/FINAL_REPORT.md",
-      "size_bytes": 21282,
-      "sha256": "ad1e579369a9f22f6d6247cf6534b5a56f80b233084e82adaca176d15a07f12c"
+      "size_bytes": 21616,
+      "sha256": "6db803401b66438824df490bc446a33e889915d04fc474d99cbc8ec1962ec763"
     },
     {
       "filename": "docs/tranche_h/GATE_A_AUDIT.md",
@@ -774,8 +774,8 @@
     },
     {
       "filename": "docs/tranche_h/PROGRESS.md",
-      "size_bytes": 12961,
-      "sha256": "4bb5e075541d4f2996eb4b69497e6d83dc3b4e3540425418c0f8098724ee548b"
+      "size_bytes": 13068,
+      "sha256": "0bdbc32f28ad3da25f104d391efa1bc8df4282ef52ba279fd332fd0ad14cc229"
     },
     {
       "filename": "docs/tranche_h/capability_matrix.json",
@@ -875,7 +875,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "466d4a52d0ba4fada4402a280b3c74639395415c840677fe0bd1d2409f041426"
+      "sha256": "05270e235af54ba5274985c51142c1ba5007193f8283f02f4323b8d0ff518e0e"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1754,8 +1754,8 @@
     },
     {
       "filename": "tests/test_isolation_contract.py",
-      "size_bytes": 5862,
-      "sha256": "64371f7f1b912577c980ade4bcdfb948aad137a630371dc83356cf729f173d68"
+      "size_bytes": 6671,
+      "sha256": "8faa9d70cb8d67b1200bd020558b914252422ce22e4658f5dc22a58d1ce16567"
     },
     {
       "filename": "tests/test_manifest_completeness.py",

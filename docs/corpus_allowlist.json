@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "95f7116544b640da4f9d86d3e465474875d897c2d769dc0e1854cc2f37681341",
+  "entries_digest": "afc7b0e5e5c345faca88edb8ba8ca32e1629266cb54d1002c2a3599b8c6bdcc8",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -78,7 +78,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "99670a0b9c8d1e3ab90a9fd46d2b60ebce61a8282558bfc06273601645de9d34"
+      "sha256": "d0bc7199e14771f7025914898e6803d22b120e1d97c1df1cfa672d8e97c9540c"
     },
     {
       "path": "docs/EVIDENCE_TERMS.md",
@@ -122,7 +122,7 @@
     },
     {
       "path": "docs/tranche_h/FINAL_REPORT.md",
-      "sha256": "ad1e579369a9f22f6d6247cf6534b5a56f80b233084e82adaca176d15a07f12c"
+      "sha256": "6db803401b66438824df490bc446a33e889915d04fc474d99cbc8ec1962ec763"
     },
     {
       "path": "docs/tranche_h/GATE_A_AUDIT.md",
@@ -130,7 +130,7 @@
     },
     {
       "path": "docs/tranche_h/PROGRESS.md",
-      "sha256": "4bb5e075541d4f2996eb4b69497e6d83dc3b4e3540425418c0f8098724ee548b"
+      "sha256": "0bdbc32f28ad3da25f104d391efa1bc8df4282ef52ba279fd332fd0ad14cc229"
     },
     {
       "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",

@@ -15,6 +15,8 @@ Three things are checked:
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -31,7 +33,25 @@ from agent_substrate.execution import namespace_isolation  # noqa: E402
 
 CONTRACT = json.loads(IC.CONTRACT.read_text(encoding="utf-8"))
 BY_ID = {d["id"]: d for d in CONTRACT["dimensions"]}
-NAMESPACED = bool(namespace_isolation()[0])
+
+
+def _host_has_namespaces() -> bool:
+    """Asked of unshare(1) here, never of the executor. A test that took
+    the executor's word would skip every probe exactly when the executor
+    stopped entering namespaces, and pass (D-2026-187)."""
+    unshare = shutil.which("unshare")
+    if unshare is None:
+        return False
+    try:
+        return subprocess.run(
+            [unshare, "--user", "--map-root-user", "--pid", "--fork",
+             "--net", "--", "true"], capture_output=True, timeout=10,
+            env={"PATH": "/usr/bin:/bin"}).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+NAMESPACED = _host_has_namespaces()
 
 
 def test_the_contract_names_every_dimension_and_what_enforces_it():
@@ -51,6 +71,10 @@ def test_what_nothing_enforces_is_not_labelled_as_if_something_did():
     assert BY_ID["audit"]["enforcement"] == "APPLICATION"
     assert "not production attestation" in BY_ID["audit"]["does_not_cover"]
     assert CONTRACT["stronger_isolation"]["gvisor"] == "NOT_ADOPTED"
+
+
+def test_the_executor_enters_namespaces_where_the_host_has_them():
+    assert bool(namespace_isolation()[0]) is NAMESPACED, namespace_isolation()
 
 
 @pytest.mark.skipif(not NAMESPACED, reason="this host refuses unprivileged "

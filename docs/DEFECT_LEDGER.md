@@ -11805,3 +11805,40 @@ by V7. Three findings are recorded and not repaired:
 scripted, the real-model condition is NOT_RUN (OD-1, OD-6), and the
 demonstration proves the composition behaves as its rules say on these
 histories, not that the rules are complete.
+
+## D-2026-187 — A mutant killed only by a wrong assertion: the isolation test asked the executor whether the host had namespaces
+
+**FOUND BY HOSTED CI.** The agent-substrate mutation shard at the commit
+titled "The isolation contract's no-namespace test asserts the executor's
+contract" failed: `IS1_namespaces_are_never_entered` survived
+(`tools/mutations/isolation_contract.json`). It survives here too, on a
+host with unprivileged namespaces. Neither run of the spec was taken
+before that push. That was a gap in this work: the spec covers the test
+that commit changed.
+
+**THE DEFECT.** `tests/test_isolation_contract.py` decided whether the
+host had namespaces by asking `namespace_isolation()`, which is the code
+IS1 mutates. Under the mutant, the executor reports no namespaces. The
+test then skipped every host probe and ran the fail-closed test, which
+passes, because high_assurance without namespaces does fail closed. IS1
+used to be killed only because that test asserted DENIED. The executor's
+contract says FAILED, and D-2026-176's hosted addendum corrected the
+assertion. That correction removed the kill. No control was weakened.
+What the correction exposed is that the mutation had never been detected
+for the reason its rationale states.
+
+**THE REPAIR.** The test now asks unshare(1) itself, with the executor's
+arguments and without the executor. A new test,
+`test_the_executor_enters_namespaces_where_the_host_has_them`, requires
+the executor's probe to agree with the host. IS1 is now killed by that
+test (10 of 10, run here).
+
+`tests/test_filesystem_confinement.py` and
+`tests/test_execution_containment.py` also skip on the executor's probe.
+They are not affected: each asserts that the prefix is present wherever
+`HARNESS_ISOLATION_REQUIRED=1`, which every hosted job running their
+mutations sets.
+
+**WHAT THIS IS NOT.** On a host that refuses namespaces, IS1 changes
+nothing and cannot be detected there. The spec's note already says it is
+held on a host with unprivileged namespaces.

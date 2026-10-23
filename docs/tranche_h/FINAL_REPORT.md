@@ -5,7 +5,7 @@ and integrate"). It is written by hand from the evidence it cites, and the
 evidence is the authority where they disagree:
 
 - `git log` names every commit;
-- `docs/DEFECT_LEDGER.md` (D-2026-162 to D-2026-186) says what each found
+- `docs/DEFECT_LEDGER.md` (D-2026-162 to D-2026-187) says what each found
   and what it did not;
 - the results files under `docs/assurance/` and `docs/research/` hold the
   measurements;
@@ -58,7 +58,7 @@ rewritten.
 | Assurance E: a witness protocol for the log's head | 5 (E) | D-2026-170 |
 | Assurance G: an offline adversarial evaluation of the research loop | 5 (G) | D-2026-178, D-2026-179 |
 | Assurance H: units, quantity kinds, dimensional statements | 5 (H) | D-2026-177 |
-| Assurance I: a deployment isolation contract held to the host | 5 (I) | D-2026-176 |
+| Assurance I: a deployment isolation contract held to the host | 5 (I) | D-2026-176, D-2026-187 |
 | Assurance J: a read-only W3C PROV export | 5 (J) | D-2026-175 |
 | The causal assurance graph, derived from the history | 6.1 | D-2026-171 |
 | An independent policy reference model | 6.2 | D-2026-172 |
@@ -241,6 +241,12 @@ demonstration was committed:
 - **D-2026-185.** Two runs in one writable scope were each charged with
   the other's writes, which made concurrent research in one deployment
   impossible.
+
+**Found by hosted mutation testing, D-2026-187.** The isolation test asked
+the executor whether the host had namespaces. A mutant that stopped the
+executor entering them therefore made the test skip its own probes. That
+mutant had been killed only by an assertion D-2026-176 corrected. The
+test now asks the host itself.
 
 **Defence in depth, measured.** With the gateway's policy-freshness check
 removed, the stale call is granted. The independent process then finds
