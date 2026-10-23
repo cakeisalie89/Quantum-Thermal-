@@ -262,7 +262,11 @@ class Campaign:
             "elapsed_seconds": round(now - self.started, 1),
         }
 
-    def run(self, decisions: int, *, invalidate_at=(1000,)) -> dict:
+    def run(self, decisions: int, *, invalidate_at=(1000,),
+            on_stage=None) -> dict:
+        """Every stage up to ``decisions``. ``on_stage(report)`` is called
+        as each stage is measured, so a long campaign that is stopped keeps
+        the stages it finished."""
         targets = [s for s in STAGES if s <= decisions] or [decisions]
         for target in targets:
             while _decisions(self.w) < target:
@@ -270,6 +274,8 @@ class Campaign:
             if target in invalidate_at:
                 self.invalidate_one()
             self.stages.append(self.measure(target))
+            if on_stage is not None:
+                on_stage(self.report())
         return self.report()
 
     def report(self) -> dict:
@@ -316,16 +322,21 @@ def main(argv=None) -> int:
     ap.add_argument("--decisions", type=int, default=100)
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args(argv)
+    def record(out: dict, complete: bool) -> str:
+        out["requested_decisions"] = args.decisions
+        out["complete"] = complete
+        text = json.dumps(out, indent=1, sort_keys=True) + "\n"
+        if args.write:
+            RESULTS.write_text(text, encoding="utf-8")
+        return text
+
     c = Campaign()
     try:
-        out = c.run(args.decisions)
+        out = c.run(args.decisions,
+                    on_stage=lambda partial: record(partial, False))
     finally:
         c.clean()
-    out["requested_decisions"] = args.decisions
-    text = json.dumps(out, indent=1, sort_keys=True) + "\n"
-    if args.write:
-        RESULTS.write_text(text, encoding="utf-8")
-    print(text)
+    print(record(out, True))
     return 0 if all(not any(s["duplicates"].values())
                     and s["recovery_failures"] == 0
                     and s["second_reader_anomalies"] == 0

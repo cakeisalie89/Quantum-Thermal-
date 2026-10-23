@@ -870,7 +870,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "34ecb5daab25560495411671bfe833726508f48d35a530f2687ac0b77729bb24"
+      "sha256": "d0a1cd00ec1e5afa5deaf13dc47cdf6d8e76f89c7762d861c992e366c8b0abd1"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -2969,8 +2969,8 @@
     },
     {
       "filename": "tools/research_horizon.py",
-      "size_bytes": 14133,
-      "sha256": "edc75caf0ffbfa1f9f0deac76b156cee54d8002df2cb932cee6d3623fb0b6e0e"
+      "size_bytes": 14627,
+      "sha256": "d8e79cbd3766443814e0c9f15e8995c0822e34b13e5ac309a90bc7c39ec1099b"
     },
     {
       "filename": "tools/ro_crate_conformance.py",
