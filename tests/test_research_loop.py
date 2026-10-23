@@ -296,6 +296,26 @@ def test_an_answer_that_is_no_proposal_is_a_refused_step(kind, request_):
         w.clean()
 
 
+def test_an_unassigned_agent_asks_nothing_and_writes_nothing():
+    """Gate E: an objective that names its assignees is not stepped by any
+    other agent's controller -- refused before a context is built or a
+    call is made, so it spends neither the objective's steps nor its
+    calls."""
+    w = World("unassigned", L.scripted_agent(hypothesis=hypothesis(),
+                                             run=SLAB["request"]))
+    try:
+        R.ResearchLedger(w.log).load().register(
+            objective_id="theirs", statement="someone else's",
+            owner="owner", max_steps=3, max_inference_calls=3,
+            assignees=["ai-colleague"])
+        before = w.log.head().seq
+        with pytest.raises(R.ResearchError, match="not assigned"):
+            w.controller().step("theirs")
+        assert w.log.head().seq == before and w.calls == 0
+    finally:
+        w.clean()
+
+
 def test_a_question_for_a_person_blocks_the_objective():
     w = World("blocked", _always("DIAGNOSTIC", {
         "question": "which boundary condition did the owner intend?",

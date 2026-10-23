@@ -11444,3 +11444,87 @@ The confirmatory run is recorded by its own commit.
 - **Truth.** Every log-reading condition inherits the log's errors, and
   the negative controls measure that.
 - **Generality.** The rates hold for this error process and question mix.
+
+## D-2026-183 — Gate E: several agents on the existing substrate, and an objective's assignees
+
+**INSPECTED FIRST.** The substrate already had what Gate E asks to reuse:
+
+- **The agent directory:** registered instances with roles, role
+  incompatibilities, append-only messages with duplicate and stale
+  delivery handled, claims with a DECLARED resolution rule (never last
+  writer wins), and escalations only a human answers.
+- **The inference gateway:** budgets spendable only by their callers, and
+  withdrawable.
+- **The research ledger:** dependency propagation across records.
+
+What was missing was a binding between an objective and the agents working
+on it. Any agent's controller could step any objective, and the ledger
+recorded a hypothesis from any agent that had a received proposal. So an
+agent could spend another's objective's steps, and propose on work it was
+never given.
+
+**REPAIR.**
+
+- **`ResearchLedger.register(..., assignees=[...])`.** The owner names
+  the agents assigned to an objective. A hypothesis from any other is
+  refused, and the second reader notes one that was forged.
+- **The controller.** An unassigned agent's controller refuses before it
+  builds a context or makes a call, writing nothing. It spends neither the
+  objective's steps nor its calls.
+- **The snapshot** shows the assignees.
+
+**WHAT WAS ADDED.** `tools/multi_agent_research.py`: one world with a
+coordinator, two researchers, an independent challenger and an adversary,
+each registered with its own role and, where it calls a model, its own
+budget published by the scheduler. Spending authority answers to the
+capability root; the coordinator only plans.
+
+- **Assignment and duplicates.** The coordinator assigns by message, and
+  a resend is the same message.
+- **Disagreement.** On a shared objective two researchers hold
+  contradictory hypotheses, and the challenger's run decides them:
+  SUPPORTED and REFUTED. One researcher concludes on its own. The
+  researchers' claims are recorded and resolved under REQUIRE_QUORUM:
+  unresolved, and no record changed.
+- **Lineage.** Each agent's inference is attributed to its model from the
+  log. All share one fixture model, so a quorum among them is one opinion
+  (`independent_quorum`).
+- **Cancellation.** The coordinator sends cancel and the scheduler
+  withdraws the cancelled researcher's budget. Nothing was dispatched or
+  executed for it afterwards.
+- **The adversary.** Four attempts, each refused by the mechanism that
+  holds it:
+  - stepping an objective assigned to another: the controller;
+  - recording a hypothesis there: the ledger;
+  - spending another's budget: the gateway, CALLER_NOT_ALLOWED;
+  - claiming as REVIEWER: the directory's roles.
+- **Matched budget.** Six objectives, one agent against two, on the same
+  total budget. Both conclude all six with the same inference calls and
+  governed operations.
+
+**WHAT IT FOUND.**
+
+- **The missing assignment binding**, repaired above.
+- **Content-addressed standing.** Withdrawing the challenger's TASK left
+  its result standing. The researchers' own runs at the same documented
+  point had produced byte-identical bundles, and other verified tasks still
+  captured those bytes. This is the design (an origin holds while any
+  verified task captured the bytes), and it is recorded, not changed.
+  Withdrawing the BYTES (`withdraw_evidence`) invalidated every task that
+  captured them, and every objective resting on them went STALE, both
+  researchers' conclusions among them.
+
+**MUTATION.** `research.json` gains RS25, RS26, RL7 and RR9. They admit an
+unassigned agent's hypothesis, accept malformed assignees, let an
+unassigned controller ask, or let the second reader accept an unassigned
+hypothesis.
+
+**WHAT THIS DOES NOT ESTABLISH.**
+
+- **Anything about a team of models.** The agents are scripts. With
+  scripted agents, two agents do exactly what one does on a matched budget.
+  A difference would have to come from models (OD-1, OD-6).
+- **Independence.** Every agent here shares one lineage, so none is
+  independent of another.
+- **Authenticated identities.** Impersonation is refused only on an
+  authenticated history (`principals`), not on these unsigned test logs.

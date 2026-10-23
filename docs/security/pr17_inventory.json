@@ -1,14 +1,14 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 562,
+   "ADDED": 565,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 201,
-   "MEDIUM": 311
+   "LOW": 202,
+   "MEDIUM": 313
   },
   "by_subsystem": {
    "agent-substrate": 31,
@@ -20,7 +20,7 @@
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 47,
+   "evidence": 48,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 177,
-   "tooling": 46,
+   "tests": 178,
+   "tooling": 47,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 594
+  "files": 597
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -2482,6 +2482,19 @@
     "tests": [
      "tests/test_composed_campaigns.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/multi_agent_results.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {
@@ -6882,6 +6895,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_multi_agent_research.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_mutation_harness.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8540,6 +8570,22 @@
     ],
     "tests": [
      "tests/test_model_evidence.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/multi_agent_research.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_multi_agent_research.py"
     ]
    }
   },

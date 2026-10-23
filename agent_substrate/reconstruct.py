@@ -3669,6 +3669,13 @@ def _sub_research(ev, p: dict, out) -> None:
             _note(out, ev, "an objective whose question is not a prediction "
                            "and a documented point")
             return
+        who = b.get("assignees")
+        if "assignees" in b and not (
+                isinstance(who, list) and who and len(set(who)) == len(who)
+                and all(isinstance(a, str) and a for a in who)):
+            _note(out, ev, "an objective whose assignees are not a list of "
+                           "distinct agents")
+            return
         out.research[oid] = {"kind": "objective", "status": "OPEN",
                              "body": b, "basis": []}
     elif a == "research.hypothesis":
@@ -3692,6 +3699,11 @@ def _sub_research(ev, p: dict, out) -> None:
             return
         if ev.actor == b.get("proposed_by"):
             _note(out, ev, "an agent recording its own hypothesis")
+            return
+        who = obj["body"].get("assignees")
+        if who is not None and b.get("proposed_by") not in who:
+            _note(out, ev, "a hypothesis from an agent not assigned to its "
+                           "objective")
             return
         if b.get("hypothesis_id") in out.research:
             _note(out, ev, "research id recorded twice")

@@ -1,6 +1,6 @@
 {
  "title": "Gate C: research records decided from verified results, and a bounded, resumable controller",
- "note": "Every mutation here would let a research record say more than its evidence: a verdict asserted rather than computed, an observation of an unadmitted result, a conclusion on an undecided hypothesis, a quantity read at the wrong place or in the wrong unit, a resumed controller asking its question again, or a kind with no tool contract executed; or (D-2026-178, D-2026-179) an answer that is no proposal raised, the agent's words recorded as the ledger's reason, or an objective's question answered at another point, by another model or by another prediction.",
+ "note": "Every mutation here would let a research record say more than its evidence: a verdict asserted rather than computed, an observation of an unadmitted result, a conclusion on an undecided hypothesis, a quantity read at the wrong place or in the wrong unit, a resumed controller asking its question again, or a kind with no tool contract executed; or (D-2026-178, D-2026-179) an answer that is no proposal raised, the agent's words recorded as the ledger's reason, or an objective's question answered at another point, by another model or by another prediction; or (Gate E) an unassigned agent heard.",
  "suites": [
   "tests/test_research_ledger.py",
   "tests/test_research_loop.py"
@@ -271,6 +271,34 @@
    "find": "        if \"question\" in b and not (",
    "replace": "        if False and not (",
    "rationale": "D-2026-179: the second reader takes an objective whose question is not one"
+  },
+  {
+   "name": "RS25_an_unassigned_agent_s_hypothesis",
+   "path": "agent_substrate/research.py",
+   "find": "        if who is not None and b[\"proposed_by\"] not in who:",
+   "replace": "        if False:",
+   "rationale": "E: an agent the owner did not assign records a hypothesis on the objective"
+  },
+  {
+   "name": "RS26_assignees_are_not_checked",
+   "path": "agent_substrate/research.py",
+   "find": "            if not isinstance(who, list) or not who or \\\n                    len(set(who)) != len(who):",
+   "replace": "            if False:",
+   "rationale": "E: an objective is assigned to an empty or repeated list"
+  },
+  {
+   "name": "RL7_an_unassigned_controller_asks",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        if who is not None and self.agent_id not in who:",
+   "replace": "        if False:",
+   "rationale": "E: an unassigned agent's controller spends the objective's steps and calls"
+  },
+  {
+   "name": "RR9_second_reader_accepts_an_unassigned_hypothesis",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if who is not None and b.get(\"proposed_by\") not in who:",
+   "replace": "        if False:",
+   "rationale": "E: the second reader takes a hypothesis from an agent not assigned"
   }
  ]
 }

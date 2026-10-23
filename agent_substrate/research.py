@@ -6,6 +6,8 @@ WHAT IS RECORDED
 ``research.objective``
     A question an owner asks, with the limits the work on it runs under:
     steps and model calls. Registered by its owner, in its owner's name.
+    It may name the agents ASSIGNED to it; a hypothesis from any other is
+    refused, and a controller of any other asks nothing (Gate E).
     It may state its QUESTION as data -- the prediction it asks about and
     the documented point (the run parameters) it asks it at. Then an
     observation of it is read only at that point, from that model, and it
@@ -141,8 +143,10 @@ EVALUATED = frozenset({"SUPPORTED", "REFUTED", "INCONCLUSIVE"})
 _ID = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 _OBJECTIVE_KEYS = {"objective_id", "statement", "owner", "parent_id",
                    "limits"}
-#: An objective that states its question as data carries it too; one that
-#: does not keeps the original key set.
+#: Keys an objective carries when its owner states them: its question as
+#: data, and the agents assigned to it. One with neither keeps the original
+#: key set.
+_OBJECTIVE_OPTIONAL = {"question", "assignees"}
 _QUESTION_KEYS = {"prediction", "parameters"}
 _LIMIT_KEYS = {"max_steps", "max_inference_calls"}
 _HYPOTHESIS_KEYS = {"hypothesis_id", "objective_id", "statement",
@@ -420,8 +424,17 @@ class ResearchLedger(DecidedWriter):
 
     def _apply_objective(self, ev, p: dict, commit: bool = True) -> None:
         raw = p.get("objective")
-        b = _exact(raw, _OBJECTIVE_KEYS | ({"question"} if isinstance(
-            raw, dict) and "question" in raw else set()), "objective")
+        b = _exact(raw, _OBJECTIVE_KEYS | (
+            _OBJECTIVE_OPTIONAL & set(raw) if isinstance(raw, dict)
+            else set()), "objective")
+        if "assignees" in b:
+            who = b["assignees"]
+            if not isinstance(who, list) or not who or \
+                    len(set(who)) != len(who):
+                raise ResearchError("objective.assignees: a non-empty list "
+                                    "of distinct agents")
+            for a in who:
+                _id(a, "objective.assignees")
         if "question" in b:
             q = _exact(b["question"], _QUESTION_KEYS, "objective.question")
             check_prediction(q["prediction"])
@@ -469,6 +482,11 @@ class ResearchLedger(DecidedWriter):
                     f"seq {ev.seq}: {hid!r} depends on {dep!r}, which is "
                     "not current; a hypothesis built on a withdrawn or "
                     "stale one inherits nothing but the withdrawal")
+        who = obj.body.get("assignees")
+        if who is not None and b["proposed_by"] not in who:
+            raise ResearchError(f"seq {ev.seq}: {hid!r} is proposed by "
+                                f"{b['proposed_by']!r}, who is not assigned "
+                                f"to {b['objective_id']!r}")
         got = self._proposals.get(b["proposal_id"])
         if got is None or got != (b["proposed_by"], "HYPOTHESIS"):
             raise ResearchError(f"seq {ev.seq}: {hid!r} cites proposal "
@@ -804,8 +822,8 @@ class ResearchLedger(DecidedWriter):
         return {"objective": {"id": objective_id, "status": obj.status,
                               "statement": obj.body["statement"],
                               "basis": list(obj.basis),
-                              **({"question": obj.body["question"]}
-                                 if "question" in obj.body else {})},
+                              **{k: obj.body[k] for k in sorted(
+                                  _OBJECTIVE_OPTIONAL) if k in obj.body}},
                 "hypotheses": [row(h) for h in self.of(objective_id,
                                                        "hypothesis")],
                 "observations": [row(o) for o in self.of(objective_id,
@@ -816,13 +834,16 @@ class ResearchLedger(DecidedWriter):
     def register(self, *, objective_id: str, statement: str, owner: str,
                  max_steps: int, max_inference_calls: int,
                  parent_id: str | None = None,
-                 question: dict | None = None) -> None:
-        body = {"objective_id": objective_id, "statement": statement,
-                "owner": owner, "parent_id": parent_id,
-                "limits": {"max_steps": max_steps,
-                           "max_inference_calls": max_inference_calls}}
+                 question: dict | None = None,
+                 assignees: list | None = None) -> None:
+        body: dict = {"objective_id": objective_id, "statement": statement,
+                      "owner": owner, "parent_id": parent_id,
+                      "limits": {"max_steps": max_steps,
+                                 "max_inference_calls": max_inference_calls}}
         if question is not None:
             body["question"] = question
+        if assignees is not None:
+            body["assignees"] = list(assignees)
 
         def decide(head_seq: int) -> dict:
             now = self.clock()

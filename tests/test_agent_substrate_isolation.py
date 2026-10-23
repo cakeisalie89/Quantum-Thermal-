@@ -191,6 +191,9 @@ ALLOWED_IMPORTERS = {
     # written through the authority store, the ledger and the memory store
     "tests/test_grounding_experiment.py",
     "tools/grounding_experiment.py",
+    # Gate E: coordination of several agents on the existing substrate
+    "tests/test_multi_agent_research.py",
+    "tools/multi_agent_research.py",
     "tools/adversarial_eval.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no

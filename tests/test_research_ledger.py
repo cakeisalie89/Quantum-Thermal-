@@ -456,6 +456,28 @@ def test_the_snapshot_shows_the_question_and_whose_hypothesis_is_whose(w):
     assert snap["hypotheses"][0]["proposed_by"] == "agent-b"
 
 
+# ------------------------------------------------ assigned agents (Gate E)
+
+def test_a_hypothesis_comes_only_from_an_assigned_agent(w):
+    w.led.register(objective_id="oa", statement="assigned", owner="owner",
+                   max_steps=5, max_inference_calls=5,
+                   assignees=["agent-a"])
+    w.hypothesis("h1", "prop-1", agent="agent-a", objective="oa")
+    pid = w.proposal("prop-2", agent="agent-b")
+    refused(w, lambda: w.led.hypothesize(
+        hypothesis_id="h2", objective_id="oa", statement="s",
+        prediction=dict(PRED), depends_on=[], proposal_id=pid,
+        proposed_by="agent-b"), "not assigned")
+    assert w.led.snapshot("oa")["objective"]["assignees"] == ["agent-a"]
+
+
+@pytest.mark.parametrize("bad", [[], ["agent-a", "agent-a"], ["bad id!"]])
+def test_assignees_are_distinct_agents_or_refused(w, bad):
+    refused(w, lambda: w.led.register(
+        objective_id="oa", statement="s", owner="owner", max_steps=1,
+        max_inference_calls=1, assignees=bad), "assignees|id")
+
+
 def _second(w) -> list:
     from agent_substrate.reconstruct import reconstruct_subsystems
     return reconstruct_subsystems(w.log).anomalies
@@ -531,6 +553,18 @@ def _second(w) -> list:
             "limits": {"max_steps": 1, "max_inference_calls": 1},
             "question": {"prediction": dict(PRED)}}}),
      "not a prediction and a documented point"),
+    (lambda w: (w.led.register(objective_id="oa", statement="s",
+                               owner="owner", max_steps=2,
+                               max_inference_calls=2,
+                               assignees=["agent-a"]),
+                w.log.append(
+        actor=R.CONTROLLER_ID, action=R.ACT_HYPOTHESIS, target="h9",
+        payload={"hypothesis": {
+            "hypothesis_id": "h9", "objective_id": "oa", "statement": "s",
+            "prediction": dict(PRED), "depends_on": [],
+            "proposal_id": w.proposal("prop-9", agent="agent-b"),
+            "proposed_by": "agent-b"}})),
+     "not assigned to its objective"),
 ])
 def test_the_second_reader_notes_each_forgery_too(w, forge, note):
     forge(w)

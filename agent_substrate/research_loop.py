@@ -159,6 +159,12 @@ class ResearchController:
         obj = self.ledger.get(objective_id)
         if obj.status != "OPEN":
             return None
+        who = obj.body.get("assignees")
+        if who is not None and self.agent_id not in who:
+            # refused before anything is asked or written: an unassigned
+            # agent spends neither the objective's steps nor its calls
+            raise ResearchError(f"{self.agent_id!r} is not assigned to "
+                                f"{objective_id!r}")
         n = len(self.ledger.steps(objective_id)) + 1
         lim = obj.body["limits"]
         key = f"{objective_id}/step-{n}"
