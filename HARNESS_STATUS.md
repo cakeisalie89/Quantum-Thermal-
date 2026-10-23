@@ -37,7 +37,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * repository_content: clean (files 604, findings 0, committed_report_current True)
 * repository_inventory: clean (problems 0, baseline_files 874)
 * claims_boundary: clean (problems 0)
-* workflow_contract: FINDING (problems 1)
+* workflow_contract: clean (problems 0)
 
 ## Facts
 
@@ -45,7 +45,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * flagship_not_allocated_or_trained: holds
 * flagship_architecture_as_declared: holds
 
-## Unsatisfied (34)
+## Unsatisfied (33)
 
 * stack authority-substrate: ADOPTED
 * stack generic-scientific-layer: ADOPTED
@@ -80,7 +80,6 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * row R66: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R70: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R71: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
-* audit workflow_contract: finding
 
 ## Outside this software-completion claim
 

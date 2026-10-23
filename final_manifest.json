@@ -25,7 +25,7 @@
     {
       "filename": ".github/workflows/agent-substrate.yml",
       "size_bytes": 39779,
-      "sha256": "2323f88c3020d936adb8dedcf57302bddc71053c7b1666073708c8dd54d832fe"
+      "sha256": "8b1b4df6d558feb782fa8a9c17d2f8e853f62b680c4deed2d44391d566c13431"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -89,8 +89,8 @@
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 6449,
-      "sha256": "603ea92d55c8f1223e9225ce56fdb8359c30c395ee0baf24522f287613b1ba15"
+      "size_bytes": 6412,
+      "sha256": "51f3a51e8d96f93d1de94b88e1378b8a6bb42668bb6900e13d6691c7bff06533"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -485,7 +485,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5219,
-      "sha256": "00705b1022fef47965b4db767bb57ea99672f549bad8ab99d9643f3b1a5c7dac"
+      "sha256": "93300a4c8aa587b1426a2b4c2306934a966ea9d5f6b37b8d6634784ad28decef"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -549,8 +549,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 15413,
-      "sha256": "dfe0ed46b2cbf32b8983dc71ef27b96b3116742b6cbeec57698db77e0efdabad"
+      "size_bytes": 15308,
+      "sha256": "4da7a4793d2bb573fe1428f963e4f29666779e8f10a95bb7ff382a89c31f28b8"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -875,7 +875,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "c813a894548f980b15d81ee9ea11a7de612b7ac399f400ca39b83932d08efa62"
+      "sha256": "05270e235af54ba5274985c51142c1ba5007193f8283f02f4323b8d0ff518e0e"
     },
     {
       "filename": "ro_crate_tools.py",
