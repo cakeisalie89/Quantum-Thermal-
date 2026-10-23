@@ -372,13 +372,17 @@ class ResearchLedger(DecidedWriter):
         if a == "record.create":
             self._sci[p.get("record_id")] = {
                 "state": "PROPOSED", "evidence": dict(p.get("evidence")
-                                                      or {})}
+                                                      or {}),
+                "depends_on": list(p.get("depends_on") or ()),
+                "history": [("PROPOSED", ev.actor, None)]}
             return False
         if a == "record.transition":
             cur = self._sci.get(p.get("record_id"))
             if cur is not None:
                 cur["state"] = p.get("dst")
                 cur["evidence"].update(p.get("evidence") or {})
+                cur.setdefault("history", []).append(
+                    (p.get("dst"), ev.actor, p.get("admission_policy")))
             return False
         if a == "proposal.receive":
             raw = p.get("envelope")
@@ -725,6 +729,63 @@ class ResearchLedger(DecidedWriter):
     def steps(self, objective_id: str) -> dict:
         self._fold_new()
         return dict(self._steps.get(objective_id, {}))
+
+    def scientific_context(self, observation_id: str) -> dict:
+        """What an observation's scientific result was, read from the bundle
+        bytes it cites and the record's own transitions (Gate F): the model,
+        its version and implementation, the parameters and their digest,
+        the solver configuration, convergence, invariants, warnings, every
+        output with its unit and resolution, the run's provenance; who
+        verified the record, under which admission policy, citing which
+        report, and that report's own criterion, tolerance, measured
+        agreement, independence and limitations; and what would end its
+        standing. Nothing is summarized, and
+        nothing here decides anything."""
+        if self.evidence is None:
+            raise ResearchError("the scientific context is read from the "
+                                "bundle; this ledger has no evidence store")
+        self._fold_new()
+        obs = self._recs.get(observation_id)
+        if obs is None or obs.kind != "observation":
+            raise ResearchError(f"no observation {observation_id!r}")
+        b = obs.body
+        bundle = json.loads(self.evidence.get(b["result_bundle"]))
+        sci = self._sci.get(b["record_id"]) or {}
+        at = judged_at(self._latest_wall, self.clock())
+        standing, why = self._standing(observation_id, at)
+        report_sha = (sci.get("evidence") or {}).get("verification_report")
+        report = json.loads(self.evidence.get(report_sha)) \
+            if report_sha else {}
+        run = {k: bundle.get(k) for k in (
+            "model_id", "model_version", "implementation_digest",
+            "environment_digest", "parameters", "parameter_digest", "seeds",
+            "solver_config", "convergence", "invariants", "warnings",
+            "outputs", "provenance")}
+        return {
+            "observation": {"id": observation_id, "status": obs.status,
+                            "result_bundle": b["result_bundle"],
+                            "values": b["values"]},
+            "run": run,
+            "verification": {
+                "record_id": b["record_id"], "state": sci.get("state"),
+                "report": report_sha,
+                # the check's own statement: what it compared, against
+                # which tolerance, how independent it is, what it cannot show
+                "check": {k: report.get(k) for k in (
+                    "check_id", "check_type", "status", "establishes",
+                    "criterion", "criterion_derivation", "threshold",
+                    "measured", "independence", "shared_components",
+                    "limitations", "verifier_id")},
+                "transitions": [{"state": st, "by": who, "policy": pol}
+                                for st, who, pol in sci.get("history", ())]},
+            "invalidation": {
+                "standing": standing.value, "why": why,
+                "record_depends_on": sci.get("depends_on", []),
+                "ends_when": [
+                    "the record leaves VERIFIED or PROMOTED (STALE)",
+                    "its source's freshness policy runs out (EXPIRED)",
+                    "a dependency of the record is withdrawn (STALE)"]},
+        }
 
     def snapshot(self, objective_id: str) -> dict:
         """The research state of one objective, as plain data: what a

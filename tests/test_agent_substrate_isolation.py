@@ -181,6 +181,9 @@ ALLOWED_IMPORTERS = {
     "tests/test_adversarial_eval.py",
     "tests/test_adversarial_scenarios.py",
     "tests/test_adversarial_controls.py",
+    # Gate F: model contracts shown to the loop, and the scientific context
+    # an observation keeps, read from the bundle it cites
+    "tests/test_research_science.py",
     "tools/adversarial_eval.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no

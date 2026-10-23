@@ -11180,3 +11180,97 @@ new dependency, and running either against a model is a live evaluation
     it.
   - Sources are supplied by a deployment. The evaluation's sources are
     fixtures, not an allowlisted corpus.
+
+## D-2026-180 — Gate F: the scientific tools, connected to the governed research loop
+
+**INSPECTED FIRST.**
+
+- **What the model was shown.** The research controller showed the model
+  the owner's instruction, the policy and the research state, and nothing
+  of the models it could ask to run. A real model would have had to guess
+  every parameter name, unit and bound. The scripted agent was handed a
+  run it never had to compose.
+- **What was preserved.** Bundles already carried the run's provenance,
+  solver configuration, convergence estimate, invariants, warnings, and
+  outputs with unit and resolution. Verification reports carried the
+  check's criterion, its derivation, the measured agreement, the
+  independence class, the shared components and the limitations. But
+  nothing in the research records read any of it back: an observation kept
+  only the values and the bundle's digest.
+- **What a model's claim does.** A result is admitted only by the governed
+  reviewer from the independent check. `test_a_result_that_is_not_admitted`
+  held that with an analytic check; nothing held it against a model
+  claiming success in its own words.
+
+**WHAT WAS ADDED.**
+
+- **`scientific/contracts.py`.** A model-facing contract derived from what
+  each model declares to the governed path:
+  - its applicability: the statement, bounds and exclusions it is valid
+    under;
+  - its parameter schema, with units, bounds and defaults;
+  - its invariants;
+  - the independent check the loop will ask, in that check's own words:
+    method, independence class, shared components, limitations;
+  - how many dimensional statements hold its equations (Assurance H);
+  - a digest.
+
+  A contract is refused for a check the model does not declare.
+- **`ResearchController(contracts=...)`.** The contracts are shown at the
+  policy tier, each re-digested and held to the check this loop asks for
+  that model. A run of a model no contract offers is refused before it
+  runs.
+- **`ResearchLedger.scientific_context(observation_id)`.** It reads, from
+  the bundle bytes the observation cites (re-hashed by the store), the
+  model, version and implementation digest, parameters and their digest,
+  seeds, solver configuration, convergence, invariants, warnings, every
+  output with unit and resolution, and the provenance. From the record's
+  own transitions it reads who proposed and who verified, under which
+  admission policy, citing which report, together with that report's
+  criterion, threshold, measured agreement, independence and limitations.
+  It also gives the observation's standing and what ends it.
+
+  It writes nothing and summarizes nothing. When the record is withdrawn,
+  the context says STALE.
+- **`docs/neural/ROADMAP.md`.** The NF-1T scaling and integration roadmap.
+  It is a plan, not evidence, and restates what `current_status.json`
+  says:
+  - the flagship is an architecture, untrained, with no weights allocated;
+  - only a development model of one law is trained.
+
+  Each stage is behind an owner decision. A test holds its numbers to the
+  evidence, and holds that no claim cites it and no runnable model is
+  learned.
+
+**WHAT IT FOUND.** No defect. What the slab's context shows:
+
+- the bundle's estimate ("Richardson against n/2, m/2") and method
+  ("cell-centred finite volume, Crank-Nicolson");
+- the check's criterion: a factor of safety 3 on the sum of the two
+  stated second-order Richardson estimates;
+- the measured ratio, 0.333 of the threshold;
+- the check's limitation: "a wrong model of the physics is invisible to
+  this check";
+- the bundle's warning: "MODEL-ONLY: a forecast from declared inputs, not
+  a measured temperature".
+
+**MUTATION** (`tools/mutations/research_science.json`, 11):
+
+- a contract for an undeclared check, without its assumptions, or without
+  the check's limitations;
+- a tampered contract shown, a contract naming another check, a model no
+  contract offers run, or no contracts shown;
+- a context without the convergence estimate, without the check's
+  limitations, without who verified it, or keeping a withdrawn result
+  standing.
+
+**WHAT THIS DOES NOT DO.**
+
+- **Install the integrations the plan listed.** No new tool is connected
+  beyond the two models with independent checks. FEniCSx and FMI run as
+  their own governed checks and tools elsewhere; OpenMDAO and SALib are
+  not wired to the loop.
+- **Retrieve externally.** That is OD-3, not built.
+- **Check a derivation.** That is OD-5; see D-2026-177.
+- **Make a contract evidence.** It is what the model is told, and the
+  check and the reviewer still decide.

@@ -187,6 +187,9 @@ class World:
         self.ingress = PR.ProposalIngress(
             log, inference_check=self.gateway().binding_problems)
         self.sources: Callable | None = None
+        #: the model contracts a deployment offers; the evaluation offers
+        #: none, so each scenario meets the loop's own refusals
+        self.contracts: list | None = None
 
     def _provider(self, req, prompt, n):
         self.prompts.append(bytes(prompt))
@@ -212,7 +215,8 @@ class World:
             agent_id=AGENT, model=MODEL, out_dir=self.ws,
             retrieval=PR.assemble_context(
                 "slab", retrieve=lambda q, k: {"hits": []}),
-            sources=self.sources, redactor=self.redactor)
+            sources=self.sources, redactor=self.redactor,
+            contracts=self.contracts)
 
     def received(self, agent_id: str, kind: str, request: dict) -> str:
         """A proposal of ``agent_id``'s, recorded by the ingress as a

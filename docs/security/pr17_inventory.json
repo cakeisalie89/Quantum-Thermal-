@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 551,
+   "ADDED": 555,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 198,
-   "MEDIUM": 303
+   "LOW": 199,
+   "MEDIUM": 306
   },
   "by_subsystem": {
    "agent-substrate": 31,
    "ai-ingress": 3,
-   "assurance": 121,
+   "assurance": 122,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -24,20 +24,20 @@
    "execution": 1,
    "identity": 5,
    "integrations": 14,
-   "learned-outputs": 49,
+   "learned-outputs": 50,
    "manifest": 3,
    "packaging": 2,
    "scientific-authority": 2,
-   "scientific-core": 31,
+   "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 174,
+   "tests": 175,
    "tooling": 44,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 583
+  "files": 587
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -587,6 +587,7 @@
      "tests/test_repo_contract.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
+     "tests/test_research_science.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
@@ -1148,6 +1149,7 @@
      "tests/test_replay_origin_view.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
+     "tests/test_research_science.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
@@ -1353,6 +1355,7 @@
      "tests/test_proposal_ingress.py",
      "tests/test_replay_origin_view.py",
      "tests/test_research_loop.py",
+     "tests/test_research_science.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py"
@@ -1492,6 +1495,7 @@
      "tests/test_inference_second_reader.py",
      "tests/test_noninterference.py",
      "tests/test_research_loop.py",
+     "tests/test_research_science.py",
      "tests/test_simulation_gateway.py"
     ]
    }
@@ -1959,6 +1963,7 @@
      "tools/mutations/composed_campaigns.json",
      "tools/mutations/freshness.json",
      "tools/mutations/research.json",
+     "tools/mutations/research_science.json",
      "tools/mutations/simulation.json"
     ],
     "tests": [
@@ -1973,6 +1978,7 @@
      "tests/test_prov_export.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
+     "tests/test_research_science.py",
      "tests/test_simulation_research.py"
     ]
    }
@@ -1988,7 +1994,8 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/adversarial_eval.json",
-     "tools/mutations/research.json"
+     "tools/mutations/research.json",
+     "tools/mutations/research_science.json"
     ],
     "tests": [
      "tests/test_adversarial_controls.py",
@@ -1997,7 +2004,8 @@
      "tests/test_decision_proof.py",
      "tests/test_noninterference.py",
      "tests/test_prov_export.py",
-     "tests/test_research_loop.py"
+     "tests/test_research_loop.py",
+     "tests/test_research_science.py"
     ]
    }
   },
@@ -2706,6 +2714,19 @@
     "tests": [
      "tests/test_agent_second_reader.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/neural/ROADMAP.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "learned-outputs",
+   "trust_boundary": "learned-model evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {
@@ -3699,6 +3720,7 @@
      "tests/test_repo_inventory.py",
      "tests/test_reproduction_verdict.py",
      "tests/test_research_loop.py",
+     "tests/test_research_science.py",
      "tests/test_run_identity_backend.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
@@ -3819,6 +3841,7 @@
      "tests/test_neural_reidentification.py",
      "tests/test_ranking_equivalence.py",
      "tests/test_repo_inventory.py",
+     "tests/test_research_science.py",
      "tests/test_surface_adsorption.py",
      "tests/test_typecheck_scope.py"
     ]
@@ -3936,6 +3959,23 @@
   },
   {
    "change": "ADDED",
+   "path": "scientific/contracts.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "scientific-core",
+   "trust_boundary": "model execution, identity, results",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/research_science.json"
+    ],
+    "tests": [
+     "tests/test_research_science.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "scientific/dimensional_statements.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -4040,6 +4080,7 @@
      "tests/test_neural_meta.py",
      "tests/test_neural_provenance.py",
      "tests/test_neural_training.py",
+     "tests/test_research_science.py",
      "tests/test_run_identity_backend.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_interfaces.py",
@@ -7410,6 +7451,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_research_science.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_ro_crate_conformance.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -7863,7 +7921,8 @@
      "tests/test_adversarial_controls.py",
      "tests/test_adversarial_eval.py",
      "tests/test_adversarial_scenarios.py",
-     "tests/test_agent_substrate_isolation.py"
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_research_science.py"
     ]
    }
   },
@@ -9754,6 +9813,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/research.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/research_science.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

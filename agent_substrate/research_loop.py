@@ -31,13 +31,18 @@ anything else  refused and recorded, as is an answer that is no proposal.
 =============  ===========================================================
 
 WHAT THE MODEL IS SHOWN. The owner's instruction, the policy in force and
-the research state, always. A deployment's ``sources`` may add retrieved
-text, tool output, prior model output, notes or memory, each shown in its
-own tier (:data:`SOURCE_TIERS`) and never as the owner, the policy or the
-state; a registered secret in any of it, or anything credential-shaped,
-refuses the context before anything is sent. What a source says is
-material the model may be persuaded by, and nothing in this table reads
-it.
+the research state, always. Where a deployment offers ``contracts``
+(:mod:`scientific.contracts`: each model's applicability, parameters with
+units and bounds, invariants, and the independent check with its own
+statement of what it shares and cannot show), they are shown beside the
+policy, each re-digested and held to the check this loop asks for, and a
+run of a model none of them offers is refused. A deployment's ``sources``
+may add retrieved text, tool output, prior model output, notes or memory,
+each shown in its own tier (:data:`SOURCE_TIERS`) and never as the owner,
+the policy or the state; a registered secret in any of it, or anything
+credential-shaped, refuses the context before anything is sent. What a
+source says is material the model may be persuaded by, and nothing in this
+table reads it.
 
 BOUNDED. An objective names its own step and model-call ceilings, and the
 gateway's budget bounds what any call costs. A step past either ceiling
@@ -74,7 +79,8 @@ INSTRUCTION = (
     "Advance the research objective in TASK_STATE. Answer with exactly one "
     "proposal: HYPOTHESIS (a structured prediction about one named output "
     "of one model), MODEL_RUN (a run of a model the harness can check "
-    "independently), CONCLUDE (on a hypothesis the record shows decided), "
+    "independently, as the contracts in SYSTEM_POLICY state where they are "
+    "shown), CONCLUDE (on a hypothesis the record shows decided), "
     "ABSTAIN, or DIAGNOSTIC (a question for a person). You cannot decide "
     "whether a hypothesis holds: the record decides it from verified "
     "results.")
@@ -114,6 +120,7 @@ class ResearchController:
                  max_output_bytes: int = 8000, timeout_s: int = 30,
                  max_attempts: int = 2, context_bytes: int = 20_000,
                  sources: Callable | None = None, redactor=None,
+                 contracts: list | None = None,
                  fault: Callable[[str], None] | None = None):
         self.log = log
         self.ledger = ledger
@@ -133,6 +140,7 @@ class ResearchController:
         self.context_bytes = context_bytes
         self.sources = sources
         self.redactor = redactor
+        self.contracts = _offered(contracts)
         self.fault = fault or (lambda point: None)
 
     # ---- the loop -------------------------------------------------------
@@ -232,6 +240,11 @@ class ResearchController:
               text=INSTRUCTION)
         b.add(item_id="policy", tier=Tier.SYSTEM_POLICY,
               text=self.policy_identity)
+        if self.contracts is not None:
+            b.add(item_id="contracts", tier=Tier.SYSTEM_POLICY,
+                  text=canonical_bytes(
+                      [self.contracts[m] for m in sorted(self.contracts)]
+                  ).decode("utf-8"))
         b.add(item_id="state", tier=Tier.TASK_STATE,
               text=canonical_bytes(snap).decode("utf-8"))
         for item_id, tier, text in (self.sources(objective_id, n)
@@ -272,6 +285,9 @@ class ResearchController:
 
     def _do_model_run(self, objective_id, n, env):
         model_id = env.request["model_id"]
+        if self.contracts is not None and model_id not in self.contracts:
+            return "REFUSED", (f"no contract offers {model_id}: the loop "
+                               "runs only what it showed the model")
         check_id = CHECKS.get(model_id)
         if check_id is None:
             return "REFUSED", (f"{model_id} has no independent check the "
@@ -334,6 +350,28 @@ class ResearchController:
     def _do_refused(self, objective_id, n, env):
         return "REFUSED", (f"{env.kind} maps to no tool contract in the "
                            "research loop")
+
+
+def _offered(contracts) -> dict | None:
+    """model id -> contract, each re-digested and held to the check this
+    loop will ask for it; None when the deployment offers none."""
+    if contracts is None:
+        return None
+    out: dict = {}
+    for c in contracts:
+        body = {k: v for k, v in c.items() if k != "digest"}
+        if digest(body) != c.get("digest"):
+            raise ValueError(f"the contract for {c.get('model_id')!r} is "
+                             "not what its digest says")
+        check = (c.get("independent_check") or {}).get("check_id")
+        if CHECKS.get(c.get("model_id")) != check or check is None:
+            raise ValueError(f"the contract for {c.get('model_id')!r} names "
+                             f"check {check!r}; this loop asks "
+                             f"{CHECKS.get(c.get('model_id'))!r}")
+        if c["model_id"] in out:
+            raise ValueError(f"two contracts for {c['model_id']!r}")
+        out[c["model_id"]] = c
+    return out
 
 
 def scripted_agent(*, hypothesis: dict, run: dict) -> Callable:

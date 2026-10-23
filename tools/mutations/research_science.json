@@ -1,0 +1,86 @@
+{
+ "title": "Gate F: the scientific tools connected to the governed research loop",
+ "note": "D-2026-180. GF1-GF3 derive a contract that hides an assumption, a limitation or the check; GF4-GF7 show a tampered contract, one naming another check, run a model no contract offers, or show none; GF8-GF11 report a scientific context that is not the bundle's, omits what the check cannot show, forgets who verified it, or keeps a withdrawn result standing. tests/test_research_science.py holds each.",
+ "suites": [
+  "tests/test_research_science.py"
+ ],
+ "mutations": [
+  {
+   "name": "GF1_a_contract_for_any_check",
+   "path": "scientific/contracts.py",
+   "find": "    if spec is None:\n        raise ContractError(f\"{model_id} declares no independent check \"",
+   "replace": "    if False:\n        raise ContractError(f\"{model_id} declares no independent check \"",
+   "rationale": "F: a model is offered with a check it never declared"
+  },
+  {
+   "name": "GF2_a_contract_without_its_assumptions",
+   "path": "scientific/contracts.py",
+   "find": "        \"applicability\": {\"statement\": app.statement,",
+   "replace": "        \"applicability\": {\"statement\": \"\",",
+   "rationale": "F: the model is shown without the assumptions it is valid under"
+  },
+  {
+   "name": "GF3_a_contract_without_the_check_s_limits",
+   "path": "scientific/contracts.py",
+   "find": "            \"limitations\": list(spec.limitations)},",
+   "replace": "            \"limitations\": []},",
+   "rationale": "F: the check is offered without what it cannot show"
+  },
+  {
+   "name": "GF4_a_tampered_contract_is_shown",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        if digest(body) != c.get(\"digest\"):",
+   "replace": "        if False:",
+   "rationale": "F: a contract altered after it was derived is shown to the model as the system's"
+  },
+  {
+   "name": "GF5_a_contract_names_another_check",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        if CHECKS.get(c.get(\"model_id\")) != check or check is None:",
+   "replace": "        if check is None:",
+   "rationale": "F: the model is told of one check while the loop asks another"
+  },
+  {
+   "name": "GF6_a_model_no_contract_offers_runs",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        if self.contracts is not None and model_id not in self.contracts:",
+   "replace": "        if False:",
+   "rationale": "F: the loop runs a model it never showed the model"
+  },
+  {
+   "name": "GF7_the_contracts_are_not_shown",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        if self.contracts is not None:\n            b.add(item_id=\"contracts\", tier=Tier.SYSTEM_POLICY,",
+   "replace": "        if False:\n            b.add(item_id=\"contracts\", tier=Tier.SYSTEM_POLICY,",
+   "rationale": "F: a real model is asked to run models it was never told the parameters of"
+  },
+  {
+   "name": "GF8_the_context_drops_the_convergence",
+   "path": "agent_substrate/research.py",
+   "find": "            \"solver_config\", \"convergence\", \"invariants\", \"warnings\",",
+   "replace": "            \"solver_config\", \"invariants\", \"warnings\",",
+   "rationale": "F: the context omits how the run's convergence was estimated"
+  },
+  {
+   "name": "GF9_the_check_s_statement_is_dropped",
+   "path": "agent_substrate/research.py",
+   "find": "                    \"limitations\", \"verifier_id\")},",
+   "replace": "                    \"verifier_id\")},",
+   "rationale": "F: the context omits what the verification cannot show"
+  },
+  {
+   "name": "GF10_who_verified_is_forgotten",
+   "path": "agent_substrate/research.py",
+   "find": "                    (p.get(\"dst\"), ev.actor, p.get(\"admission_policy\")))",
+   "replace": "                    (p.get(\"dst\"), \"\", p.get(\"admission_policy\")))",
+   "rationale": "F: the context cannot say who verified the record"
+  },
+  {
+   "name": "GF11_the_standing_is_not_the_record_s",
+   "path": "agent_substrate/research.py",
+   "find": "            \"observation\": {\"id\": observation_id, \"status\": obs.status,",
+   "replace": "            \"observation\": {\"id\": observation_id, \"status\": \"CURRENT\",",
+   "rationale": "F: a withdrawn result's context still reads as standing"
+  }
+ ]
+}
