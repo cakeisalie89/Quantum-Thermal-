@@ -6,6 +6,13 @@ WHAT IS RECORDED
 ``research.objective``
     A question an owner asks, with the limits the work on it runs under:
     steps and model calls. Registered by its owner, in its owner's name.
+    It may state its QUESTION as data -- the prediction it asks about and
+    the documented point (the run parameters) it asks it at. Then an
+    observation of it is read only at that point, from that model, and it
+    is CONCLUDED only on a hypothesis making exactly that prediction: an
+    agent's hypothesis that is easier to support, or a run somewhere easier
+    to win, answers a different question (D-2026-179). An objective that
+    states none is answered by any decided hypothesis of it.
 ``research.hypothesis``
     A statement under investigation, with a STRUCTURED prediction: a named
     output of a named model, a comparison, a value and its unit. Proposed by
@@ -79,7 +86,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from . import freshness as F
-from .canonical import digest_bytes, is_digest
+from .canonical import digest, digest_bytes, is_digest
 from .events import DecidedWriter, judged_at, projection_load
 
 ACT_OBJECTIVE = "research.objective"
@@ -134,6 +141,9 @@ EVALUATED = frozenset({"SUPPORTED", "REFUTED", "INCONCLUSIVE"})
 _ID = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 _OBJECTIVE_KEYS = {"objective_id", "statement", "owner", "parent_id",
                    "limits"}
+#: An objective that states its question as data carries it too; one that
+#: does not keeps the original key set.
+_QUESTION_KEYS = {"prediction", "parameters"}
 _LIMIT_KEYS = {"max_steps", "max_inference_calls"}
 _HYPOTHESIS_KEYS = {"hypothesis_id", "objective_id", "statement",
                     "prediction", "depends_on", "proposal_id", "proposed_by"}
@@ -144,6 +154,9 @@ _OBSERVATION_KEYS = {"observation_id", "objective_id", "record_id",
 #: too. One whose source does not keeps the original key set, so every
 #: record written before Assurance F reads exactly as it did.
 _OBSERVATION_TIMED = _OBSERVATION_KEYS | {"observed_at"}
+#: Keys an observation carries when its bundle has them: when it was
+#: observed, and the digest of the parameters it was run at.
+_OBSERVATION_OPTIONAL = {"observed_at", "parameter_digest"}
 _STEP_KEYS = {"objective_id", "step", "proposal_id", "act", "outcome",
               "detail"}
 
@@ -237,6 +250,26 @@ def evaluate(prediction: dict, observations: list) -> tuple:
     return (verdict, f"{pred['quantity']} {pred['op']} {pred['value']} "
             f"{pred['unit']}: {verdict.lower()} by "
             f"{len(usable)} observation(s), resolution included")
+
+
+def _said(pred: dict) -> str:
+    return (f"{pred.get('model_id')} {pred.get('quantity')} "
+            f"{pred.get('op')} {pred.get('value')} {pred.get('unit')}")
+
+
+def _off_question(objective: dict, obs: dict) -> str:
+    """Why ``obs`` cannot be an observation of ``objective``'s question, or
+    "": it is of another model, or of a run at another point."""
+    q = objective.get("question")
+    if q is None:
+        return ""
+    if obs["model_id"] != q["prediction"]["model_id"]:
+        return (f"is of {obs['model_id']!r}; the objective asks about "
+                f"{q['prediction']['model_id']!r}")
+    if obs.get("parameter_digest") != digest(q["parameters"]):
+        return ("was run at parameters other than the documented point the "
+                "objective asks about")
+    return ""
 
 
 def values_of(bundle: dict) -> dict:
@@ -382,7 +415,15 @@ class ResearchLedger(DecidedWriter):
             self._recs[rid] = _Rec(kind, body, status, ev.seq)
 
     def _apply_objective(self, ev, p: dict, commit: bool = True) -> None:
-        b = _exact(p.get("objective"), _OBJECTIVE_KEYS, "objective")
+        raw = p.get("objective")
+        b = _exact(raw, _OBJECTIVE_KEYS | ({"question"} if isinstance(
+            raw, dict) and "question" in raw else set()), "objective")
+        if "question" in b:
+            q = _exact(b["question"], _QUESTION_KEYS, "objective.question")
+            check_prediction(q["prediction"])
+            if not isinstance(q["parameters"], dict):
+                raise ResearchError("objective.question.parameters must be "
+                                    "an object: the documented point")
         oid = _id(b["objective_id"], "objective_id")
         _text(b["statement"], "objective.statement")
         _id(b["owner"], "objective.owner")
@@ -438,8 +479,9 @@ class ResearchLedger(DecidedWriter):
 
     def _apply_observation(self, ev, p: dict, commit: bool = True) -> None:
         raw = p.get("observation")
-        b = _exact(raw, _OBSERVATION_TIMED if isinstance(raw, dict) and
-                   "observed_at" in raw else _OBSERVATION_KEYS, "observation")
+        b = _exact(raw, _OBSERVATION_KEYS | (
+            _OBSERVATION_OPTIONAL & set(raw) if isinstance(raw, dict)
+            else set()), "observation")
         oid = _id(b["observation_id"], "observation_id")
         observed = self._observed_time(ev, b)
         obj = self._recs.get(b["objective_id"])
@@ -447,6 +489,9 @@ class ResearchLedger(DecidedWriter):
             raise ResearchError(f"seq {ev.seq}: an observation for "
                                 f"{b['objective_id']!r}, which is no "
                                 "objective")
+        why = _off_question(obj.body, b)
+        if why:
+            raise ResearchError(f"seq {ev.seq}: {oid!r} {why}")
         sci = self._sci.get(b["record_id"])
         if sci is None or sci["state"] not in STANDING:
             raise ResearchError(
@@ -461,7 +506,9 @@ class ResearchLedger(DecidedWriter):
             bundle = json.loads(self.evidence.get(b["result_bundle"]))
             if values_of(bundle) != b["values"] or \
                     bundle.get("model_id") != b["model_id"] or \
-                    bundle.get("observed_at") != b.get("observed_at"):
+                    bundle.get("observed_at") != b.get("observed_at") or \
+                    bundle.get("parameter_digest") != \
+                    b.get("parameter_digest"):
                 raise ResearchError(f"seq {ev.seq}: {oid!r} reports values "
                                     "or a time its bundle does not hold")
         self._new(ev, oid, "observation", b, "CURRENT", commit)
@@ -586,6 +633,12 @@ class ResearchLedger(DecidedWriter):
                     rec.body["objective_id"]:
                 return ("a conclusion rests on one current, decided "
                         "hypothesis of this objective")
+            asked = (rec.body.get("question") or {}).get("prediction")
+            made = self._recs[basis[0]].body["prediction"]
+            if asked is not None and made != asked:
+                return (f"a conclusion answers the question the objective "
+                        f"asks: {basis[0]!r} predicts {_said(made)}, and "
+                        f"the objective asks whether {_said(asked)}")
             lapsed = [o for o in self._recs[basis[0]].basis
                       if not self._usable(o, at)]
             if lapsed:
@@ -684,11 +737,14 @@ class ResearchLedger(DecidedWriter):
             return {"id": rid, "status": r.status, "basis": list(r.basis),
                     **{k: v for k, v in r.body.items()
                        if k in ("statement", "prediction", "depends_on",
-                                "model_id", "values", "record_id")}}
+                                "model_id", "values", "record_id",
+                                "proposed_by")}}
 
         return {"objective": {"id": objective_id, "status": obj.status,
                               "statement": obj.body["statement"],
-                              "basis": list(obj.basis)},
+                              "basis": list(obj.basis),
+                              **({"question": obj.body["question"]}
+                                 if "question" in obj.body else {})},
                 "hypotheses": [row(h) for h in self.of(objective_id,
                                                        "hypothesis")],
                 "observations": [row(o) for o in self.of(objective_id,
@@ -698,11 +754,14 @@ class ResearchLedger(DecidedWriter):
     # ---- writes ---------------------------------------------------------
     def register(self, *, objective_id: str, statement: str, owner: str,
                  max_steps: int, max_inference_calls: int,
-                 parent_id: str | None = None) -> None:
+                 parent_id: str | None = None,
+                 question: dict | None = None) -> None:
         body = {"objective_id": objective_id, "statement": statement,
                 "owner": owner, "parent_id": parent_id,
                 "limits": {"max_steps": max_steps,
                            "max_inference_calls": max_inference_calls}}
+        if question is not None:
+            body["question"] = question
 
         def decide(head_seq: int) -> dict:
             now = self.clock()
@@ -745,8 +804,9 @@ class ResearchLedger(DecidedWriter):
                 "result_bundle": digest_bytes(bundle_bytes),
                 "model_id": bundle.get("model_id"),
                 "values": values_of(bundle)}
-        if "observed_at" in bundle:
-            body["observed_at"] = bundle["observed_at"]
+        for key in sorted(_OBSERVATION_OPTIONAL):
+            if key in bundle:
+                body[key] = bundle[key]
 
         def decide(head_seq: int) -> dict:
             now = self.clock()

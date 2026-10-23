@@ -2,11 +2,11 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "d2a679f377e61582a5d692eae2ff1c6fb50f99139cceaa5dcbadba394e7890cc",
+  "entries_digest": "ebc51aa2cc10d279f2bf2c37962ba38c19e454458096510b2b1d1416a62b679e",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "75e9a6a3765e3310c2fd941545b655cd7ae1a7377cc0fbd6eb089fd32412dfd5"
+      "sha256": "e6d573539f994f119e15fce4c32250402bfddfccc567799e9a3d3b90d4e53b44"
     },
     {
       "path": "ARCHITECTURE.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "972c8ac04fcfc2c6947b0621998d7a0ba4eda1da69510cf224680526d61ae9de"
+      "sha256": "f6529c8ad7ca18bbbfd8678029232af9e8b69d4c9f6b63c7d32a7282c5998249"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -78,11 +78,15 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "8888cdf093022cbef9095e03415f95f6b560672746355462a9b2c9c1edfb30c8"
+      "sha256": "b062367f169857b8c36ffddd4662cb512aeb284bcf68164a176a518b0032ef9c"
     },
     {
       "path": "docs/EVIDENCE_TERMS.md",
       "sha256": "f99ab888854389c1bd0f84f7f5a158f8029df56ae9bf9b1f6a05949b0c5da44c"
+    },
+    {
+      "path": "docs/assurance/ADVERSARIAL_EVAL.md",
+      "sha256": "5fd1e87359bf495d1fda0ce5890ef2bc137792c426a0e08d41079a74efbc2e42"
     },
     {
       "path": "docs/formal/README.md",
@@ -114,7 +118,7 @@
     },
     {
       "path": "docs/tranche_h/PROGRESS.md",
-      "sha256": "94f716b2a02388dcf6dca98057580c31c124619ac08bb7442ede39f014a1bcbd"
+      "sha256": "7a8511c3a6c5712bd12f942af6d3f0c33d78ada256f15a96f98627dd58be5d3d"
     },
     {
       "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",

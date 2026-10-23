@@ -176,6 +176,12 @@ ALLOWED_IMPORTERS = {
     "tests/test_composed_campaigns.py",
     # Assurance J: the PROV export, against the Gate C history
     "tests/test_prov_export.py",
+    # Assurance G: the offline adversarial evaluation of the research loop,
+    # which builds its worlds through the governed path
+    "tests/test_adversarial_eval.py",
+    "tests/test_adversarial_scenarios.py",
+    "tests/test_adversarial_controls.py",
+    "tools/adversarial_eval.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.

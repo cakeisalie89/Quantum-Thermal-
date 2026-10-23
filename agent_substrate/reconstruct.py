@@ -3661,6 +3661,14 @@ def _sub_research(ev, p: dict, out) -> None:
         if oid in out.research:
             _note(out, ev, f"research id {oid!r} recorded twice")
             return
+        q = b.get("question")
+        if "question" in b and not (
+                isinstance(q, dict) and set(q) == {"prediction", "parameters"}
+                and isinstance(q["prediction"], dict)
+                and isinstance(q["parameters"], dict)):
+            _note(out, ev, "an objective whose question is not a prediction "
+                           "and a documented point")
+            return
         out.research[oid] = {"kind": "objective", "status": "OPEN",
                              "body": b, "basis": []}
     elif a == "research.hypothesis":
@@ -3706,6 +3714,17 @@ def _sub_research(ev, p: dict, out) -> None:
                                "an offset, or later than the history has "
                                "reached")
                 return
+        # Restated: an objective that states its question is observed only
+        # at its documented point, from the model it asks about.
+        q = ((out.research.get(b.get("objective_id")) or {}).get("body")
+             or {}).get("question")
+        if q is not None and (
+                b.get("model_id") != q["prediction"].get("model_id") or
+                b.get("parameter_digest") !=
+                _sci_json_digest(q["parameters"])):
+            _note(out, ev, "an observation of an objective's question read "
+                           "from another model or another point")
+            return
         sci = out.sci_states.get(b.get("record_id")) or {}
         if sci.get("state") not in ("VERIFIED", "PROMOTED"):
             _note(out, ev, f"an observation read from a record that is "
@@ -3820,6 +3839,11 @@ def _sub_research_status(ev, p: dict, out) -> None:
                 h["body"].get("objective_id") != rid:
             _note(out, ev, "a conclusion resting on no decided hypothesis "
                            "of its objective")
+            return
+        q = rec["body"].get("question")
+        if q is not None and h["body"].get("prediction") != q["prediction"]:
+            _note(out, ev, "a conclusion on a hypothesis that does not make "
+                           "the prediction its objective asks about")
             return
         if any(not _rs_current(out, o) or _rs_standing(
                 out, o, out.latest_wall) not in _RS_USABLE

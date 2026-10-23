@@ -1,199 +1,276 @@
 {
-  "title": "Gate C: research records decided from verified results, and a bounded, resumable controller",
-  "note": "Every mutation here would let a research record say more than its evidence: a verdict asserted rather than computed, an observation of an unadmitted result, a conclusion on an undecided hypothesis, a quantity read at the wrong place or in the wrong unit, a resumed controller asking its question again, or a kind with no tool contract executed.",
-  "suites": [
-    "tests/test_research_ledger.py",
-    "tests/test_research_loop.py"
-  ],
-  "mutations": [
-    {
-      "name": "RS1_anyone_registers_an_objective",
-      "path": "agent_substrate/research.py",
-      "find": "        if ev.actor != b[\"owner\"]:",
-      "replace": "        if False:",
-      "rationale": "an agent could register a question in its owner's name, with limits the owner never set"
-    },
-    {
-      "name": "RS2_a_withdrawn_hypothesis_can_be_built_on",
-      "path": "agent_substrate/research.py",
-      "find": "            if not self.current(dep):\n                raise ResearchError(\n                    f\"seq {ev.seq}: {hid!r} depends on",
-      "replace": "            if False:\n                raise ResearchError(\n                    f\"seq {ev.seq}: {hid!r} depends on",
-      "rationale": "a retraction would be undone by citing what it retracted"
-    },
-    {
-      "name": "RS3_any_proposal_backs_a_hypothesis",
-      "path": "agent_substrate/research.py",
-      "find": "        if got is None or got != (b[\"proposed_by\"], \"HYPOTHESIS\"):",
-      "replace": "        if got is None:",
-      "rationale": "one agent's proposal, or a proposal of another kind, would stand as another agent's hypothesis"
-    },
-    {
-      "name": "RS4_an_agent_records_its_own_hypothesis",
-      "path": "agent_substrate/research.py",
-      "find": "        if ev.actor == b[\"proposed_by\"]:",
-      "replace": "        if False:",
-      "rationale": "the agent proposing and the controller recording would be the same party"
-    },
-    {
-      "name": "RS5_an_observation_from_an_unverified_result",
-      "path": "agent_substrate/research.py",
-      "find": "        if sci is None or sci[\"state\"] not in STANDING:",
-      "replace": "        if sci is None:",
-      "rationale": "a rejected or unreviewed result would become an observation a verdict can rest on"
-    },
-    {
-      "name": "RS6_an_observation_names_any_bundle",
-      "path": "agent_substrate/research.py",
-      "find": "        if not is_digest(b[\"result_bundle\"]) or \\\n                sci[\"evidence\"].get(\"result_bundle\") != b[\"result_bundle\"]:",
-      "replace": "        if not is_digest(b[\"result_bundle\"]):",
-      "rationale": "an observation could cite a bundle its verified record never cited"
-    },
-    {
-      "name": "RS7_observed_values_are_not_reread",
-      "path": "agent_substrate/research.py",
-      "find": "        if self.evidence is not None:\n            bundle = json.loads(self.evidence.get(b[\"result_bundle\"]))",
-      "replace": "        if False:\n            bundle = json.loads(self.evidence.get(b[\"result_bundle\"]))",
-      "rationale": "an observation could report values its bundle does not hold"
-    },
-    {
-      "name": "RS8_a_verdict_may_be_asserted",
-      "path": "agent_substrate/research.py",
-      "find": "            if verdict != status:",
-      "replace": "            if False:",
-      "rationale": "a hypothesis could be declared supported whatever the verified results say"
-    },
-    {
-      "name": "RS9_a_verdict_may_rest_on_stale_observations",
-      "path": "agent_substrate/research.py",
-      "find": "            if len(obs) != len(basis) or not basis:",
-      "replace": "            if not basis:",
-      "rationale": "a verdict could cite observations whose results have lost their standing"
-    },
-    {
-      "name": "RS10_a_conclusion_on_an_undecided_hypothesis",
-      "path": "agent_substrate/research.py",
-      "find": "                    self._recs[basis[0]].status not in (\"SUPPORTED\",\n                                                        \"REFUTED\") or \\",
-      "replace": "                    False or \\",
-      "rationale": "an objective could be concluded on a hypothesis nothing has decided"
-    },
-    {
-      "name": "RS11_staleness_without_cause",
-      "path": "agent_substrate/research.py",
-      "find": "        if status == \"STALE\" and not self._lost_currency(rec):",
-      "replace": "        if False:",
-      "rationale": "any record could be declared stale, silently retiring evidence that still stands"
-    },
-    {
-      "name": "RS12_a_conclusion_survives_an_undecided_hypothesis",
-      "path": "agent_substrate/research.py",
-      "find": "                       self._recs[d].status not in (\"SUPPORTED\", \"REFUTED\")",
-      "replace": "                       self._recs[d].status not in (\"SUPPORTED\", \"REFUTED\",\n                                                    \"INCONCLUSIVE\")",
-      "rationale": "a conclusion would stand after the evidence for its hypothesis began to disagree"
-    },
-    {
-      "name": "RS13_a_verdict_flips_in_one_move",
-      "path": "agent_substrate/research.py",
-      "find": "    \"SUPPORTED\": {\"SUPPORTED\", \"INCONCLUSIVE\", \"RETRACTED\", \"SUPERSEDED\",\n                  \"STALE\"},",
-      "replace": "    \"SUPPORTED\": {\"SUPPORTED\", \"INCONCLUSIVE\", \"REFUTED\", \"RETRACTED\",\n                  \"SUPERSEDED\", \"STALE\"},",
-      "rationale": "the latest observation would overturn a verdict without the disagreement ever being recorded"
-    },
-    {
-      "name": "RS14_steps_past_the_limit",
-      "path": "agent_substrate/research.py",
-      "find": "        if n > obj.body[\"limits\"][\"max_steps\"]:",
-      "replace": "        if False:",
-      "rationale": "an objective's step ceiling would bound nothing"
-    },
-    {
-      "name": "RS15_resolution_ignored",
-      "path": "agent_substrate/research.py",
-      "find": "        lo = got[\"value\"] - got[\"resolution\"]\n        hi = got[\"value\"] + got[\"resolution\"]",
-      "replace": "        lo = got[\"value\"]\n        hi = got[\"value\"]",
-      "rationale": "a value within its own numerical error of the threshold would decide the hypothesis"
-    },
-    {
-      "name": "RS16_units_are_ignored",
-      "path": "agent_substrate/research.py",
-      "find": "        if got.get(\"unit\") != pred[\"unit\"]:",
-      "replace": "        if False:",
-      "rationale": "a value in another unit would be compared as if it were in the predicted one"
-    },
-    {
-      "name": "RS17_disagreement_is_resolved_arbitrarily",
-      "path": "agent_substrate/research.py",
-      "find": "    if len(verdicts) > 1:",
-      "replace": "    if False:",
-      "rationale": "disagreeing verified results would decide a hypothesis by whichever came out of a set first"
-    },
-    {
-      "name": "RS18_any_output_of_the_model_answers",
-      "path": "agent_substrate/research.py",
-      "find": "        got = obs.get(\"values\", {}).get(pred[\"quantity\"])",
-      "replace": "        got = next(iter(obs.get(\"values\", {}).values()), None)",
-      "rationale": "a temperature at one place would decide a prediction about another: same unit, different quantity"
-    },
-    {
-      "name": "RL1_resume_asks_a_new_question",
-      "path": "agent_substrate/research_loop.py",
-      "find": "        req = self.gateway.request_for(key)",
-      "replace": "        req = None",
-      "rationale": "a restarted controller would build a new context that already contains its own step's effects, and ask the model again"
-    },
-    {
-      "name": "RL2_the_step_ceiling_is_ignored",
-      "path": "agent_substrate/research_loop.py",
-      "find": "                n > lim[\"max_steps\"] or self.gateway.attempts_under(",
-      "replace": "                False or self.gateway.attempts_under(",
-      "rationale": "the controller would keep asking past the objective's ceiling until the ledger refused it"
-    },
-    {
-      "name": "RL3_unadmitted_results_are_observed",
-      "path": "agent_substrate/research_loop.py",
-      "find": "        if rec.state.value not in (\"VERIFIED\", \"PROMOTED\"):",
-      "replace": "        if False:",
-      "rationale": "a rejected result would be offered to the ledger as an observation"
-    },
-    {
-      "name": "RL4_unmapped_kinds_execute",
-      "path": "agent_substrate/research_loop.py",
-      "find": "            outcome, detail = getattr(self, f\"_do_{kind.lower()}\",\n                                      self._do_refused)(objective_id, n, env)",
-      "replace": "            outcome, detail = getattr(self, f\"_do_{kind.lower()}\",\n                                      self._do_model_run)(objective_id, n, env)",
-      "rationale": "a kind with no tool contract would be sent to execution"
-    },
-    {
-      "name": "RR1_second_reader_ignores_the_owner",
-      "path": "agent_substrate/reconstruct.py",
-      "find": "        if ev.actor != b.get(\"owner\"):",
-      "replace": "        if False:",
-      "rationale": "the second reader would agree with an objective registered in someone else's name"
-    },
-    {
-      "name": "RR2_second_reader_accepts_asserted_verdicts",
-      "path": "agent_substrate/reconstruct.py",
-      "find": "        if not basis or len(obs) != len(basis) or \\\n                _rs_verdict(rec[\"body\"].get(\"prediction\") or {}, obs) \\\n                != status:",
-      "replace": "        if not basis or len(obs) != len(basis):",
-      "rationale": "the second reader would agree with a verdict the observations do not give"
-    },
-    {
-      "name": "RR3_second_reader_observes_unverified_results",
-      "path": "agent_substrate/reconstruct.py",
-      "find": "        if sci.get(\"state\") not in (\"VERIFIED\", \"PROMOTED\"):",
-      "replace": "        if False:",
-      "rationale": "the second reader would accept an observation of a rejected result"
-    },
-    {
-      "name": "RR4_second_reader_accepts_any_conclusion",
-      "path": "agent_substrate/reconstruct.py",
-      "find": "        if h is None or h[\"kind\"] != \"hypothesis\" or \\\n                h[\"status\"] not in (\"SUPPORTED\", \"REFUTED\") or \\",
-      "replace": "        if h is None or h[\"kind\"] != \"hypothesis\" or \\",
-      "rationale": "the second reader would agree with a conclusion on an undecided hypothesis"
-    },
-    {
-      "name": "RR5_second_reader_ignores_own_hypotheses",
-      "path": "agent_substrate/reconstruct.py",
-      "find": "        if ev.actor == b.get(\"proposed_by\"):",
-      "replace": "        if False:",
-      "rationale": "the second reader would agree with an agent recording its own hypothesis"
-    }
-  ]
+ "title": "Gate C: research records decided from verified results, and a bounded, resumable controller",
+ "note": "Every mutation here would let a research record say more than its evidence: a verdict asserted rather than computed, an observation of an unadmitted result, a conclusion on an undecided hypothesis, a quantity read at the wrong place or in the wrong unit, a resumed controller asking its question again, or a kind with no tool contract executed; or (D-2026-178, D-2026-179) an answer that is no proposal raised, the agent's words recorded as the ledger's reason, or an objective's question answered at another point, by another model or by another prediction.",
+ "suites": [
+  "tests/test_research_ledger.py",
+  "tests/test_research_loop.py"
+ ],
+ "mutations": [
+  {
+   "name": "RS1_anyone_registers_an_objective",
+   "path": "agent_substrate/research.py",
+   "find": "        if ev.actor != b[\"owner\"]:",
+   "replace": "        if False:",
+   "rationale": "an agent could register a question in its owner's name, with limits the owner never set"
+  },
+  {
+   "name": "RS2_a_withdrawn_hypothesis_can_be_built_on",
+   "path": "agent_substrate/research.py",
+   "find": "            if not self.current(dep):\n                raise ResearchError(\n                    f\"seq {ev.seq}: {hid!r} depends on",
+   "replace": "            if False:\n                raise ResearchError(\n                    f\"seq {ev.seq}: {hid!r} depends on",
+   "rationale": "a retraction would be undone by citing what it retracted"
+  },
+  {
+   "name": "RS3_any_proposal_backs_a_hypothesis",
+   "path": "agent_substrate/research.py",
+   "find": "        if got is None or got != (b[\"proposed_by\"], \"HYPOTHESIS\"):",
+   "replace": "        if got is None:",
+   "rationale": "one agent's proposal, or a proposal of another kind, would stand as another agent's hypothesis"
+  },
+  {
+   "name": "RS4_an_agent_records_its_own_hypothesis",
+   "path": "agent_substrate/research.py",
+   "find": "        if ev.actor == b[\"proposed_by\"]:",
+   "replace": "        if False:",
+   "rationale": "the agent proposing and the controller recording would be the same party"
+  },
+  {
+   "name": "RS5_an_observation_from_an_unverified_result",
+   "path": "agent_substrate/research.py",
+   "find": "        if sci is None or sci[\"state\"] not in STANDING:",
+   "replace": "        if sci is None:",
+   "rationale": "a rejected or unreviewed result would become an observation a verdict can rest on"
+  },
+  {
+   "name": "RS6_an_observation_names_any_bundle",
+   "path": "agent_substrate/research.py",
+   "find": "        if not is_digest(b[\"result_bundle\"]) or \\\n                sci[\"evidence\"].get(\"result_bundle\") != b[\"result_bundle\"]:",
+   "replace": "        if not is_digest(b[\"result_bundle\"]):",
+   "rationale": "an observation could cite a bundle its verified record never cited"
+  },
+  {
+   "name": "RS7_observed_values_are_not_reread",
+   "path": "agent_substrate/research.py",
+   "find": "        if self.evidence is not None:\n            bundle = json.loads(self.evidence.get(b[\"result_bundle\"]))",
+   "replace": "        if False:\n            bundle = json.loads(self.evidence.get(b[\"result_bundle\"]))",
+   "rationale": "an observation could report values its bundle does not hold"
+  },
+  {
+   "name": "RS8_a_verdict_may_be_asserted",
+   "path": "agent_substrate/research.py",
+   "find": "            if verdict != status:",
+   "replace": "            if False:",
+   "rationale": "a hypothesis could be declared supported whatever the verified results say"
+  },
+  {
+   "name": "RS9_a_verdict_may_rest_on_stale_observations",
+   "path": "agent_substrate/research.py",
+   "find": "            if len(obs) != len(basis) or not basis:",
+   "replace": "            if not basis:",
+   "rationale": "a verdict could cite observations whose results have lost their standing"
+  },
+  {
+   "name": "RS10_a_conclusion_on_an_undecided_hypothesis",
+   "path": "agent_substrate/research.py",
+   "find": "                    self._recs[basis[0]].status not in (\"SUPPORTED\",\n                                                        \"REFUTED\") or \\",
+   "replace": "                    False or \\",
+   "rationale": "an objective could be concluded on a hypothesis nothing has decided"
+  },
+  {
+   "name": "RS11_staleness_without_cause",
+   "path": "agent_substrate/research.py",
+   "find": "        if status == \"STALE\" and not self._lost_currency(rec):",
+   "replace": "        if False:",
+   "rationale": "any record could be declared stale, silently retiring evidence that still stands"
+  },
+  {
+   "name": "RS12_a_conclusion_survives_an_undecided_hypothesis",
+   "path": "agent_substrate/research.py",
+   "find": "                       self._recs[d].status not in (\"SUPPORTED\", \"REFUTED\")",
+   "replace": "                       self._recs[d].status not in (\"SUPPORTED\", \"REFUTED\",\n                                                    \"INCONCLUSIVE\")",
+   "rationale": "a conclusion would stand after the evidence for its hypothesis began to disagree"
+  },
+  {
+   "name": "RS13_a_verdict_flips_in_one_move",
+   "path": "agent_substrate/research.py",
+   "find": "    \"SUPPORTED\": {\"SUPPORTED\", \"INCONCLUSIVE\", \"RETRACTED\", \"SUPERSEDED\",\n                  \"STALE\"},",
+   "replace": "    \"SUPPORTED\": {\"SUPPORTED\", \"INCONCLUSIVE\", \"REFUTED\", \"RETRACTED\",\n                  \"SUPERSEDED\", \"STALE\"},",
+   "rationale": "the latest observation would overturn a verdict without the disagreement ever being recorded"
+  },
+  {
+   "name": "RS14_steps_past_the_limit",
+   "path": "agent_substrate/research.py",
+   "find": "        if n > obj.body[\"limits\"][\"max_steps\"]:",
+   "replace": "        if False:",
+   "rationale": "an objective's step ceiling would bound nothing"
+  },
+  {
+   "name": "RS15_resolution_ignored",
+   "path": "agent_substrate/research.py",
+   "find": "        lo = got[\"value\"] - got[\"resolution\"]\n        hi = got[\"value\"] + got[\"resolution\"]",
+   "replace": "        lo = got[\"value\"]\n        hi = got[\"value\"]",
+   "rationale": "a value within its own numerical error of the threshold would decide the hypothesis"
+  },
+  {
+   "name": "RS16_units_are_ignored",
+   "path": "agent_substrate/research.py",
+   "find": "        if got.get(\"unit\") != pred[\"unit\"]:",
+   "replace": "        if False:",
+   "rationale": "a value in another unit would be compared as if it were in the predicted one"
+  },
+  {
+   "name": "RS17_disagreement_is_resolved_arbitrarily",
+   "path": "agent_substrate/research.py",
+   "find": "    if len(verdicts) > 1:",
+   "replace": "    if False:",
+   "rationale": "disagreeing verified results would decide a hypothesis by whichever came out of a set first"
+  },
+  {
+   "name": "RS18_any_output_of_the_model_answers",
+   "path": "agent_substrate/research.py",
+   "find": "        got = obs.get(\"values\", {}).get(pred[\"quantity\"])",
+   "replace": "        got = next(iter(obs.get(\"values\", {}).values()), None)",
+   "rationale": "a temperature at one place would decide a prediction about another: same unit, different quantity"
+  },
+  {
+   "name": "RL1_resume_asks_a_new_question",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        req = self.gateway.request_for(key)",
+   "replace": "        req = None",
+   "rationale": "a restarted controller would build a new context that already contains its own step's effects, and ask the model again"
+  },
+  {
+   "name": "RL2_the_step_ceiling_is_ignored",
+   "path": "agent_substrate/research_loop.py",
+   "find": "                n > lim[\"max_steps\"] or self.gateway.attempts_under(",
+   "replace": "                False or self.gateway.attempts_under(",
+   "rationale": "the controller would keep asking past the objective's ceiling until the ledger refused it"
+  },
+  {
+   "name": "RL3_unadmitted_results_are_observed",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        if rec.state.value not in (\"VERIFIED\", \"PROMOTED\"):",
+   "replace": "        if False:",
+   "rationale": "a rejected result would be offered to the ledger as an observation"
+  },
+  {
+   "name": "RL4_unmapped_kinds_execute",
+   "path": "agent_substrate/research_loop.py",
+   "find": "            outcome, detail = getattr(self, f\"_do_{kind.lower()}\",\n                                      self._do_refused)(objective_id, n, env)",
+   "replace": "            outcome, detail = getattr(self, f\"_do_{kind.lower()}\",\n                                      self._do_model_run)(objective_id, n, env)",
+   "rationale": "a kind with no tool contract would be sent to execution"
+  },
+  {
+   "name": "RR1_second_reader_ignores_the_owner",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if ev.actor != b.get(\"owner\"):",
+   "replace": "        if False:",
+   "rationale": "the second reader would agree with an objective registered in someone else's name"
+  },
+  {
+   "name": "RR2_second_reader_accepts_asserted_verdicts",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if not basis or len(obs) != len(basis) or \\\n                _rs_verdict(rec[\"body\"].get(\"prediction\") or {}, obs) \\\n                != status:",
+   "replace": "        if not basis or len(obs) != len(basis):",
+   "rationale": "the second reader would agree with a verdict the observations do not give"
+  },
+  {
+   "name": "RR3_second_reader_observes_unverified_results",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if sci.get(\"state\") not in (\"VERIFIED\", \"PROMOTED\"):",
+   "replace": "        if False:",
+   "rationale": "the second reader would accept an observation of a rejected result"
+  },
+  {
+   "name": "RR4_second_reader_accepts_any_conclusion",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if h is None or h[\"kind\"] != \"hypothesis\" or \\\n                h[\"status\"] not in (\"SUPPORTED\", \"REFUTED\") or \\",
+   "replace": "        if h is None or h[\"kind\"] != \"hypothesis\" or \\",
+   "rationale": "the second reader would agree with a conclusion on an undecided hypothesis"
+  },
+  {
+   "name": "RR5_second_reader_ignores_own_hypotheses",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if ev.actor == b.get(\"proposed_by\"):",
+   "replace": "        if False:",
+   "rationale": "the second reader would agree with an agent recording its own hypothesis"
+  },
+  {
+   "name": "RS19_an_observation_at_another_point",
+   "path": "agent_substrate/research.py",
+   "find": "    if obs.get(\"parameter_digest\") != digest(q[\"parameters\"]):",
+   "replace": "    if False:",
+   "rationale": "D-2026-179: a run at another point observes the owner's question"
+  },
+  {
+   "name": "RS20_an_observation_of_another_model",
+   "path": "agent_substrate/research.py",
+   "find": "    if obs[\"model_id\"] != q[\"prediction\"][\"model_id\"]:",
+   "replace": "    if False:",
+   "rationale": "D-2026-179: another model's run observes the owner's question"
+  },
+  {
+   "name": "RS21_a_conclusion_on_another_prediction",
+   "path": "agent_substrate/research.py",
+   "find": "            if asked is not None and made != asked:",
+   "replace": "            if False:",
+   "rationale": "D-2026-179: an easier hypothesis concludes the owner's objective"
+  },
+  {
+   "name": "RS22_a_question_is_not_checked",
+   "path": "agent_substrate/research.py",
+   "find": "            check_prediction(q[\"prediction\"])",
+   "replace": "            pass",
+   "rationale": "D-2026-179: an objective asks an unstructured question"
+  },
+  {
+   "name": "RS23_the_point_is_not_reread_from_the_bundle",
+   "path": "agent_substrate/research.py",
+   "find": "                    bundle.get(\"parameter_digest\") != \\\n                    b.get(\"parameter_digest\"):",
+   "replace": "                    False:",
+   "rationale": "D-2026-179: a forged parameter digest moves a run to the documented point"
+  },
+  {
+   "name": "RS24_observe_drops_the_point",
+   "path": "agent_substrate/research.py",
+   "find": "        for key in sorted(_OBSERVATION_OPTIONAL):\n",
+   "replace": "        for key in sorted(_OBSERVATION_OPTIONAL - {\"parameter_digest\"}):\n",
+   "rationale": "D-2026-179: an observation is recorded without the point it was run at"
+  },
+  {
+   "name": "RL5_an_answer_that_is_no_proposal_raises",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        except P.ProposalRefused as exc:\n            return self._done(objective_id, n, None, \"PROPOSAL\", \"REFUSED\",\n                              str(exc))",
+   "replace": "        except P.ProposalRefused:\n            raise",
+   "rationale": "D-2026-178: one answer of an unknown kind holds the objective open for good"
+  },
+  {
+   "name": "RL6_the_reason_is_the_agent_s_summary",
+   "path": "agent_substrate/research_loop.py",
+   "find": "                               reason=f\"{hid} is {status} on the verified \"\n                                      \"record\", basis=[hid])",
+   "replace": "                               reason=env.request[\"summary\"], basis=[hid])",
+   "rationale": "D-2026-178: the agent's words stand as the ledger's reason"
+  },
+  {
+   "name": "RR6_second_reader_observes_any_point",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if q is not None and (\n                b.get(\"model_id\") != q[\"prediction\"].get(\"model_id\") or",
+   "replace": "        if False and (\n                b.get(\"model_id\") != q[\"prediction\"].get(\"model_id\") or",
+   "rationale": "D-2026-179: the second reader takes an observation from any model or point"
+  },
+  {
+   "name": "RR7_second_reader_accepts_any_prediction",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if q is not None and h[\"body\"].get(\"prediction\") != q[\"prediction\"]:",
+   "replace": "        if False:",
+   "rationale": "D-2026-179: the second reader takes a conclusion on another prediction"
+  },
+  {
+   "name": "RR8_second_reader_accepts_any_question",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if \"question\" in b and not (",
+   "replace": "        if False and not (",
+   "rationale": "D-2026-179: the second reader takes an objective whose question is not one"
+  }
+ ]
 }

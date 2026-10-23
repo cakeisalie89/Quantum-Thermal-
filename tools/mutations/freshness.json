@@ -143,15 +143,15 @@
   {
    "name": "FR20_the_time_is_not_the_bundle_s",
    "path": "agent_substrate/research.py",
-   "find": "                    bundle.get(\"observed_at\") != b.get(\"observed_at\"):",
-   "replace": "                    False:",
+   "find": "                    bundle.get(\"observed_at\") != b.get(\"observed_at\") or \\",
+   "replace": "                    False or \\",
    "rationale": "Assurance F: a recorder's time is accepted in place of the source's"
   },
   {
    "name": "FR21_observe_drops_the_source_s_time",
    "path": "agent_substrate/research.py",
-   "find": "        if \"observed_at\" in bundle:\n            body[\"observed_at\"] = bundle[\"observed_at\"]\n",
-   "replace": "\n",
+   "find": "        for key in sorted(_OBSERVATION_OPTIONAL):\n",
+   "replace": "        for key in sorted(_OBSERVATION_OPTIONAL - {\"observed_at\"}):\n",
    "rationale": "Assurance F: a reading is recorded without the time its source gave"
   },
   {

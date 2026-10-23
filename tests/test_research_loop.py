@@ -169,6 +169,10 @@ def test_a_scripted_agent_completes_a_multi_step_objective(reference):
     assert s["h1"] == "SUPPORTED" and s["basis"] == ("h1",)
     assert s["observations"] == 1
     assert w.calls == 3
+    # the reason is the record's verdict, not the agent's summary
+    # (D-2026-178): the summary stays in the agent's receipt
+    assert R.ResearchLedger(w.log).load().get("slab-q").reason == \
+        "h1 is SUPPORTED on the verified record"
 
 
 def test_the_verdict_comes_from_the_verified_bundle(reference):
@@ -261,6 +265,33 @@ def test_a_kind_with_no_tool_contract_executes_nothing():
         assert [s.outcome for s in report.steps] == ["REFUSED", "REFUSED"]
         assert report.status == "EXHAUSTED"
         assert w.executions() == {}
+    finally:
+        w.clean()
+
+
+@pytest.mark.parametrize("kind, request_", [
+    ("POLICY_UPDATE", {"policy_id": "research.default", "allow": "*"}),
+    ("CONCLUDE", {"hypothesis_id": "h1"}),            # a key missing
+])
+def test_an_answer_that_is_no_proposal_is_a_refused_step(kind, request_):
+    """D-2026-178. Raised instead of recorded, the answer was re-read from
+    the record on every restart and held the objective open for good. The
+    first answer is not a proposal; the rest are the reference script's."""
+    legit = L.scripted_agent(hypothesis=hypothesis(), run=SLAB["request"])
+    bad = _always(kind, request_)
+
+    def script(req, prompt, n):
+        return (bad if w.calls == 1 else legit)(req, prompt, n)
+
+    w = World(f"noproposal-{kind}", script)
+    try:
+        report = w.controller().run("slab-q")
+        first = report.steps[0]
+        assert (first.action, first.outcome) == ("PROPOSAL", "REFUSED")
+        assert report.status == "CONCLUDED"
+        assert w.controller().run("slab-q").steps == []      # restart: done
+        assert R.ResearchLedger(w.log).load().steps("slab-q")[1][
+            "proposal_id"] is None
     finally:
         w.clean()
 

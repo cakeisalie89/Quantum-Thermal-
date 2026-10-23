@@ -18,14 +18,26 @@ MODEL_RUN      submits it to the governed model path as the agent's run;
                ledger evaluate every open hypothesis. The model's account of
                the result is never read.
 CONCLUDE       asks the ledger to conclude on the named hypothesis, which it
-               does only if that hypothesis is current and decided.
+               does only if that hypothesis is current and decided. The
+               reason recorded is the record's verdict; the agent's summary
+               stays in its receipt, as the agent's.
 ABSTAIN        closes the objective as ABSTAINED.
 DIAGNOSTIC     a question for a person: the objective is BLOCKED, with the
                question as its reason, until someone answers it.
-anything else  refused and recorded. SIMULATION_PLAN, RETRY and CODE_PATCH
-               map to no tool contract here. Nothing a model writes reaches a
-               shell, the repository, or a grant.
+anything else  refused and recorded, as is an answer that is no proposal.
+               SIMULATION_PLAN, RETRY and CODE_PATCH map to no tool contract
+               here. Nothing a model writes reaches a shell, the repository,
+               or a grant.
 =============  ===========================================================
+
+WHAT THE MODEL IS SHOWN. The owner's instruction, the policy in force and
+the research state, always. A deployment's ``sources`` may add retrieved
+text, tool output, prior model output, notes or memory, each shown in its
+own tier (:data:`SOURCE_TIERS`) and never as the owner, the policy or the
+state; a registered secret in any of it, or anything credential-shaped,
+refuses the context before anything is sent. What a source says is
+material the model may be persuaded by, and nothing in this table reads
+it.
 
 BOUNDED. An objective names its own step and model-call ceilings, and the
 gateway's budget bounds what any call costs. A step past either ceiling
@@ -50,7 +62,7 @@ from typing import Callable
 from . import inference as I
 from . import proposals as P
 from .canonical import canonical_bytes, digest
-from .context import ContextBuilder, Tier, record_context
+from .context import ContextBuilder, ContextError, Tier, record_context
 from .research import ResearchError, ResearchLedger
 
 #: model id -> the independent check the controller asks for it. A model
@@ -66,6 +78,10 @@ INSTRUCTION = (
     "ABSTAIN, or DIAGNOSTIC (a question for a person). You cannot decide "
     "whether a hypothesis holds: the record decides it from verified "
     "results.")
+#: The tiers a deployment's sources may fill: material shown to the model as
+#: what it is, never as the owner's instruction, the policy or the state.
+SOURCE_TIERS = frozenset({Tier.RETRIEVED_EVIDENCE, Tier.TOOL_RESULT,
+                          Tier.PRIOR_MODEL_OUTPUT, Tier.SCRATCH, Tier.MEMORY})
 
 
 class Crash(Exception):
@@ -97,6 +113,7 @@ class ResearchController:
                  retrieval: dict, max_output_tokens: int = 500,
                  max_output_bytes: int = 8000, timeout_s: int = 30,
                  max_attempts: int = 2, context_bytes: int = 20_000,
+                 sources: Callable | None = None, redactor=None,
                  fault: Callable[[str], None] | None = None):
         self.log = log
         self.ledger = ledger
@@ -114,6 +131,8 @@ class ResearchController:
                            max_output_bytes=max_output_bytes,
                            timeout_s=timeout_s, max_attempts=max_attempts)
         self.context_bytes = context_bytes
+        self.sources = sources
+        self.redactor = redactor
         self.fault = fault or (lambda point: None)
 
     # ---- the loop -------------------------------------------------------
@@ -144,7 +163,12 @@ class ResearchController:
                                           " step or model-call ceiling")
             return None
         if req is None:
-            ctx = self._context(objective_id, n)
+            try:
+                ctx = self._context(objective_id, n)
+            except ContextError as exc:
+                # nothing was shown or sent; the step is the refusal
+                return self._done(objective_id, n, None, "CONTEXT",
+                                  "REFUSED", str(exc))
             prompt = I.render_prompt(ctx)
             if not self.gateway.context_recorded(ctx.manifest.digest()):
                 record_context(self.log, ctx.manifest, actor=self.ledger.actor)
@@ -164,10 +188,19 @@ class ResearchController:
         if not out.ok:
             return self._done(objective_id, n, None, "INFER", out.outcome,
                               out.error)
-        rec = I.envelope_from_inference(
-            out, context=self.retrieval, agent_id=self.agent_id,
-            manifest_digest=req.context_manifest_digest)
-        receipt = self.ingress.receive(rec)
+        # What the model wrote may still not be a proposal (a kind or a
+        # request no contract names). That is the model's step, refused and
+        # recorded like any other: raised instead, it would be re-read from
+        # the recorded answer on every restart and hold the objective open
+        # for good, with nothing in the record to say why (D-2026-178).
+        try:
+            rec = I.envelope_from_inference(
+                out, context=self.retrieval, agent_id=self.agent_id,
+                manifest_digest=req.context_manifest_digest)
+            receipt = self.ingress.receive(rec)
+        except P.ProposalRefused as exc:
+            return self._done(objective_id, n, None, "PROPOSAL", "REFUSED",
+                              str(exc))
         env = receipt.envelope
         self.fault("after_receive")
         kind = env.kind
@@ -201,7 +234,25 @@ class ResearchController:
               text=self.policy_identity)
         b.add(item_id="state", tier=Tier.TASK_STATE,
               text=canonical_bytes(snap).decode("utf-8"))
-        return b.build(budget_bytes=self.context_bytes)
+        for item_id, tier, text in (self.sources(objective_id, n)
+                                    if self.sources else ()):
+            if tier not in SOURCE_TIERS:
+                raise ContextError(
+                    f"source item {item_id!r} would be shown as {tier}: a "
+                    "source is shown as what it is, never as the owner, the "
+                    "policy or the state")
+            # The redactor knows the secrets registered with it. Something
+            # credential-shaped that nobody registered would still reach
+            # the provider, and a proposal echoing it is refused only after
+            # the provider has it (D-2026-179).
+            if P._CREDENTIAL.search(text):
+                raise ContextError(
+                    f"source item {item_id!r} carries what looks like a "
+                    "credential; nothing is shown or sent")
+            b.add(item_id=f"source/{item_id}", tier=tier, text=text,
+                  source=item_id)
+        return b.build(budget_bytes=self.context_bytes,
+                       redactor=self.redactor)
 
     # ---- actions ---------------------------------------------------------
     def _do_hypothesis(self, objective_id, n, env):
@@ -256,9 +307,16 @@ class ResearchController:
         hid = env.request["hypothesis_id"]
         if self.ledger.get(objective_id).status == "CONCLUDED":
             return "CONCLUDED", hid
+        # The reason is what the record decided, in the ledger's words. The
+        # agent's summary stays in its receipt, as the agent's: recorded as
+        # the reason, it would stand under the ledger's name and could say
+        # "refuted" of a hypothesis the record supports (D-2026-178).
+        status = self.ledger.get(hid).status
         self.ledger.set_status(objective_id, "CONCLUDED",
-                               reason=env.request["summary"], basis=[hid])
+                               reason=f"{hid} is {status} on the verified "
+                                      "record", basis=[hid])
         return "CONCLUDED", hid
+
 
     def _do_abstain(self, objective_id, n, env):
         if self.ledger.get(objective_id).status != "ABSTAINED":
@@ -286,7 +344,10 @@ def scripted_agent(*, hypothesis: dict, run: dict) -> Callable:
         doc = json.loads(prompt)
         state = next(json.loads(i["text"]) for i in doc["items"]
                      if i["tier"] == "TASK_STATE")
-        hyps = state["hypotheses"]
+        # its own hypothesis, by id: another agent's in the shared state is
+        # not the one this script set out to test
+        hyps = [h for h in state["hypotheses"]
+                if h["id"] == hypothesis["hypothesis_id"]]
         resp: dict
         if not hyps:
             resp = {"kind": "HYPOTHESIS", "request": dict(hypothesis)}

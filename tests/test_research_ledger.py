@@ -19,12 +19,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from agent_substrate import research as R  # noqa: E402
-from agent_substrate.canonical import digest_bytes  # noqa: E402
+from agent_substrate.canonical import digest, digest_bytes  # noqa: E402
 from agent_substrate.events import EventLog  # noqa: E402
 from agent_substrate.evidence import EvidenceStore  # noqa: E402
 
 PRED = {"model_id": "thermal.slab_transient", "quantity": "T_at_half",
         "op": "<", "value": 400.0, "unit": "K"}
+POINT = {"L_m": 0.05, "q_W_m3": 200000.0}
 
 
 def _obs(value, resolution=0.5, unit="K", quantity="T_at_half",
@@ -108,23 +109,23 @@ class World:
         return env.proposal_id
 
     def hypothesis(self, hid="h1", label="prop-1", agent="agent-a",
-                   depends_on=(), prediction=None):
+                   depends_on=(), prediction=None, objective="o1"):
         pid = self.proposal(label, agent)
-        self.led.hypothesize(hypothesis_id=hid, objective_id="o1",
+        self.led.hypothesize(hypothesis_id=hid, objective_id=objective,
                              statement="T_at_half stays below 400 K",
                              prediction=prediction or dict(PRED),
                              depends_on=list(depends_on), proposal_id=pid,
                              proposed_by=agent)
 
     def verified(self, rid="rec-1", value=350.0, resolution=0.5, state=
-                 "VERIFIED"):
-        bundle = json.dumps({"model_id": "thermal.slab_transient",
-                             "outputs": [{"name": "T_at_half", "status": "OK",
-                                          "quantity": {"value": value,
-                                                       "unit": "K",
-                                                       "resolution":
-                                                           resolution}}]}
-                            ).encode()
+                 "VERIFIED", parameters=None, model="thermal.slab_transient"):
+        doc = {"model_id": model,
+               "outputs": [{"name": "T_at_half", "status": "OK",
+                            "quantity": {"value": value, "unit": "K",
+                                         "resolution": resolution}}]}
+        if parameters is not None:
+            doc["parameter_digest"] = digest(parameters)
+        bundle = json.dumps(doc).encode()
         dg = self.evidence.put(bundle)
         self.bundles[rid] = bundle
         self.log.append(actor="governed", action="record.create", target=rid,
@@ -134,9 +135,17 @@ class World:
                         target=rid, payload={"record_id": rid, "dst": state})
         return dg
 
-    def observe(self, oid="obs-1", rid="rec-1"):
-        return self.led.observe(observation_id=oid, objective_id="o1",
+    def observe(self, oid="obs-1", rid="rec-1", objective="o1"):
+        return self.led.observe(observation_id=oid, objective_id=objective,
                                 record_id=rid, bundle_bytes=self.bundles[rid])
+
+    def asking(self, oid="oq"):
+        """An objective that states its question as data."""
+        self.led.register(objective_id=oid, statement="is it below 400 K "
+                          "at the documented point?", owner="owner",
+                          max_steps=5, max_inference_calls=5,
+                          question={"prediction": dict(PRED),
+                                    "parameters": POINT})
 
     def reload(self):
         return R.ResearchLedger(self.log, evidence=self.evidence).load()
@@ -363,6 +372,90 @@ def test_a_decided_hypothesis_does_not_flip_in_one_move(w):
 
 # ------------------------------------------- the second reader agrees
 
+# ------------------------------------- the question an objective asks
+# D-2026-179: a run somewhere easier to win, or a hypothesis easier to
+# support, answers a different question.
+
+def test_an_objective_s_question_fixes_the_point_and_the_model(w):
+    w.asking()
+    w.verified("rec-1", parameters=POINT)
+    w.observe("obs-1", "rec-1", objective="oq")
+    w.verified("rec-2", parameters=dict(POINT, q_W_m3=2.0e7))
+    refused(w, lambda: w.observe("obs-2", "rec-2", objective="oq"),
+            "documented point")
+    w.verified("rec-3", parameters=POINT, model="thermal.rc2_network")
+    refused(w, lambda: w.observe("obs-3", "rec-3", objective="oq"),
+            "the objective asks about")
+    w.verified("rec-4")                           # says no point at all
+    refused(w, lambda: w.observe("obs-4", "rec-4", objective="oq"),
+            "documented point")
+    # an objective that asks nothing as data observes any of them
+    w.observe("obs-5", "rec-2")
+
+
+def test_a_conclusion_answers_the_question_the_objective_asks(w):
+    w.asking()
+    w.hypothesis("h1", "prop-1", objective="oq")
+    w.hypothesis("h-easy", "prop-2", objective="oq",
+                 prediction=dict(PRED, value=1e9))
+    w.verified("rec-1", parameters=POINT)
+    w.observe("obs-1", "rec-1", objective="oq")
+    assert w.led.evaluate_hypothesis("h-easy") == "SUPPORTED"
+    assert w.led.evaluate_hypothesis("h1") == "SUPPORTED"
+    refused(w, lambda: w.led.set_status("oq", "CONCLUDED", reason="r",
+                                        basis=["h-easy"]),
+            "answers the question")
+    w.led.set_status("oq", "CONCLUDED", reason="r", basis=["h1"])
+    assert w.reload().get("oq").basis == ("h1",)
+
+
+def test_an_observation_s_point_is_the_bundle_s(w):
+    """The recorded parameter digest is re-read from the bundle, as its
+    values are: a forged one does not move a run to the documented
+    point."""
+    w.asking()
+    dg = w.verified(parameters={"L_m": 9.0})
+    w.log.append(actor=R.CONTROLLER_ID, action=R.ACT_OBSERVATION,
+                 target="obs-1", payload={"observation": {
+                     "observation_id": "obs-1", "objective_id": "oq",
+                     "record_id": "rec-1", "result_bundle": dg,
+                     "model_id": "thermal.slab_transient",
+                     "values": R.values_of(json.loads(w.bundles["rec-1"])),
+                     "parameter_digest": digest(POINT)}})
+    with pytest.raises(R.ResearchError, match="does not hold"):
+        w.reload()
+
+
+def test_an_objective_asking_nothing_as_data_takes_any_decided_hypothesis(w):
+    """The rule binds only an objective that states its question; this is
+    the stated limit, held so the docs cannot outgrow it."""
+    w.hypothesis("h-easy", "prop-1", prediction=dict(PRED, value=1e9))
+    w.verified()
+    w.observe()
+    assert w.led.evaluate_hypothesis("h-easy") == "SUPPORTED"
+    w.led.set_status("o1", "CONCLUDED", reason="r", basis=["h-easy"])
+
+
+@pytest.mark.parametrize("question, match", [
+    ({"prediction": dict(PRED)}, "exactly"),
+    ({"prediction": dict(PRED, op="about"), "parameters": {}}, "op"),
+    ({"prediction": dict(PRED), "parameters": [1, 2]}, "documented point"),
+])
+def test_a_question_is_a_prediction_and_a_point_or_refused(w, question,
+                                                           match):
+    refused(w, lambda: w.led.register(
+        objective_id="oq", statement="s", owner="owner", max_steps=1,
+        max_inference_calls=1, question=question), match)
+
+
+def test_the_snapshot_shows_the_question_and_whose_hypothesis_is_whose(w):
+    w.asking()
+    w.hypothesis("h1", "prop-1", objective="oq", agent="agent-b")
+    snap = w.led.snapshot("oq")
+    assert snap["objective"]["question"]["parameters"] == POINT
+    assert snap["hypotheses"][0]["proposed_by"] == "agent-b"
+
+
 def _second(w) -> list:
     from agent_substrate.reconstruct import reconstruct_subsystems
     return reconstruct_subsystems(w.log).anomalies
@@ -409,6 +502,35 @@ def _second(w) -> list:
                           "outcome": "OK", "detail": ""}})
         for n in range(1, 7)],
      "past its objective's limit"),
+    (lambda w: (w.asking(), w.verified(parameters={"L_m": 9.0}),
+                w.log.append(
+        actor=R.CONTROLLER_ID, action=R.ACT_OBSERVATION, target="obs-1",
+        payload={"observation": {
+            "observation_id": "obs-1", "objective_id": "oq",
+            "record_id": "rec-1",
+            "result_bundle": digest_bytes(w.bundles["rec-1"]),
+            "model_id": "thermal.slab_transient",
+            "values": R.values_of(json.loads(w.bundles["rec-1"])),
+            "parameter_digest": digest({"L_m": 9.0})}})),
+     "another model or another point"),
+    (lambda w: (w.asking(), w.hypothesis("h-easy", objective="oq",
+                                         prediction=dict(PRED, value=1e9)),
+                w.verified(parameters=POINT),
+                w.observe(objective="oq"),
+                w.led.evaluate_hypothesis("h-easy"),
+                w.log.append(actor=R.CONTROLLER_ID, action=R.ACT_STATUS,
+                             target="oq", payload={
+                                 "target_id": "oq", "status": "CONCLUDED",
+                                 "reason": "forged", "basis": ["h-easy"]})),
+     "does not make the prediction"),
+    (lambda w: w.log.append(
+        actor="owner", action=R.ACT_OBJECTIVE, target="oq",
+        payload={"objective": {
+            "objective_id": "oq", "statement": "s", "owner": "owner",
+            "parent_id": None,
+            "limits": {"max_steps": 1, "max_inference_calls": 1},
+            "question": {"prediction": dict(PRED)}}}),
+     "not a prediction and a documented point"),
 ])
 def test_the_second_reader_notes_each_forgery_too(w, forge, note):
     forge(w)
