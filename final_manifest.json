@@ -24,8 +24,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 38697,
-      "sha256": "6eab0649660d3610844c7b52fe65c8563971b30a9e7b6341d2003a4319e884fd"
+      "size_bytes": 39192,
+      "sha256": "a62c30c6a9d278e766ce15bacfd3ff06ea895bac03374730634fccde350df70b"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -90,7 +90,7 @@
     {
       "filename": "HARNESS_STATUS.md",
       "size_bytes": 5869,
-      "sha256": "516beff95456d5fac51eb264ad517659d7bba7b96b23d17b4b480154e3e23935"
+      "sha256": "3ca986ac2a68cf38f7ac8364ff46968173e0441f3196754a48c18e38e3f6a750"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -439,8 +439,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 618633,
-      "sha256": "db939dda445808b93bf154b7213a5c893e9348f7cae1b62a85f144243a60eaaf"
+      "size_bytes": 622132,
+      "sha256": "c508b2e2f6d11f8920e7e67f83d1f9337452131bb67ee8830a8bd9ec5c2f4fc6"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -469,13 +469,13 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 253243,
-      "sha256": "45ec7a5af2bbc9ea285ee0effc226c4dce576d1e7b8bcfdf92444c8a96510b71"
+      "size_bytes": 253301,
+      "sha256": "b80b40341f62d8208020137085d3420cd7e64ffcf72fb299ea9042fa18ea2ad9"
     },
     {
       "filename": "docs/corpus_allowlist.json",
-      "size_bytes": 4929,
-      "sha256": "1b2d8fc091410c2fdac57499b5de23f9df307f80ade4a3d0661e0f38c9e117b8"
+      "size_bytes": 5075,
+      "sha256": "2458ab5becefa093562af9c064578864ed54409c876d63d208fdb4a27ec00dee"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -540,7 +540,7 @@
     {
       "filename": "docs/harness_status.json",
       "size_bytes": 14349,
-      "sha256": "b7aec6f6c9d9616a2f74f64d2e750af82177f5e922a7b17efccaf5569fac628c"
+      "sha256": "ce4dc71898c5babf1c414a9a35a8aacd7bc45fd8cca02e3ba08850362d2b68bf"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -660,7 +660,7 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2589,
-      "sha256": "4f6c22f6597c0ea98d956e952a6d4a2718af1646baadfd50f84bfbf899529b51"
+      "sha256": "95cd0ffa9f8c3b6aebeec134ad064950d17c26e50b074c0373e0858071cb1ca1"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -671,6 +671,11 @@
       "filename": "docs/research/CLAIM_CHECK.md",
       "size_bytes": 6563,
       "sha256": "5f0b9fffb5289fc8d3f81ba8c7bd17c2062c864dd20eee809fe442c4318056af"
+    },
+    {
+      "filename": "docs/research/GATE_D_PROTOCOL.md",
+      "size_bytes": 9182,
+      "sha256": "a2d92764fa1b352ecba48e399eb0c6154c3bad947d464a976ab9b5c9a9f59cc1"
     },
     {
       "filename": "docs/research/GROUNDING_BENCHMARK.md",
@@ -719,8 +724,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 260103,
-      "sha256": "2674b815edc732afec4681acd7fc71b169e041f3767ef973d56a30570d703640"
+      "size_bytes": 261495,
+      "sha256": "ff5a2e101f34f3ce7d1f2b0b754f561e7ae839c565a52eb895e12499a3e7bb85"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -749,8 +754,8 @@
     },
     {
       "filename": "docs/tranche_h/PROGRESS.md",
-      "size_bytes": 10247,
-      "sha256": "9e500ed845ea4030a219efed6a06cc2b603acb46ab0330649d89bea768da931b"
+      "size_bytes": 10651,
+      "sha256": "1e0e8d53fab24ad4efc890954324ba49c5e14222d20280a09d2526e7817193bc"
     },
     {
       "filename": "docs/tranche_h/capability_matrix.json",
@@ -760,7 +765,7 @@
     {
       "filename": "docs/typing_scope.json",
       "size_bytes": 772,
-      "sha256": "308d5b22def85ca027f26fe4c196bd37154b585eea5385bb43e564649114d1d5"
+      "sha256": "2828c821163f07dafa29aa0e7d1a81080d8d3f88c301c23143e2a331b9dd4513"
     },
     {
       "filename": "generate_manifest.py",
@@ -850,7 +855,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "d826b299e1e0b663116da8aeaa36a5802eedb499433bd26c47ef1f7896a8fb58"
+      "sha256": "91dded09d430a9f944dd727f90d66568f0a1c088bb262d660245c7cd9204f845"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1484,8 +1489,8 @@
     },
     {
       "filename": "tests/test_agent_substrate_isolation.py",
-      "size_bytes": 52518,
-      "sha256": "dddf4d88d55b88424d39e91efa1ba5c384219ac6a0aa0c8e7c52f7a35a6dd75d"
+      "size_bytes": 52743,
+      "sha256": "79b6c8add96aa89ef568937517f3e0edafbca30bf78e66bb567a2598844f0ccf"
     },
     {
       "filename": "tests/test_agent_substrate_properties.py",
@@ -1661,6 +1666,11 @@
       "filename": "tests/test_grounding_bench.py",
       "size_bytes": 17573,
       "sha256": "4d133abc1cb8df87817dba186fbfe9b0e8bf5ff18fbca78d8876b52c0a92f733"
+    },
+    {
+      "filename": "tests/test_grounding_experiment.py",
+      "size_bytes": 4237,
+      "sha256": "c6561d9f94517a130d5419dd715df7a8a98493f2c5790e7231a06c6432521118"
     },
     {
       "filename": "tests/test_harness_demo.py",
@@ -2193,6 +2203,11 @@
       "sha256": "70fdbd4c0d964d143ced77545c1b3f8c74c5964dfb376bc31c55808c2f0b6e5e"
     },
     {
+      "filename": "tools/grounding_experiment.py",
+      "size_bytes": 28445,
+      "sha256": "7e3caf36c56ea08a6e48109fe9786b9e529dc65c98e729392b5711800cad0c18"
+    },
+    {
       "filename": "tools/harness_demo.py",
       "size_bytes": 27490,
       "sha256": "3f2f49a01374ff79dcff47677dfebc329de1e440dc9b8a99f7e508d059b3d1aa"
@@ -2566,6 +2581,11 @@
       "filename": "tools/mutations/grounding_bench.json",
       "size_bytes": 7106,
       "sha256": "c5898b3aa3b61b85ba524e9e6d5d87b7c571f6128974731f536d9721af9ddde1"
+    },
+    {
+      "filename": "tools/mutations/grounding_experiment.json",
+      "size_bytes": 2025,
+      "sha256": "f247ec593b04b8215b484f2f283bed97b51c1013422329a5fee07551e032c820"
     },
     {
       "filename": "tools/mutations/harness_demo.json",

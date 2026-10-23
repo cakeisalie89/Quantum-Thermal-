@@ -153,10 +153,10 @@
   {
    "@id": "docs/completion_matrix.json",
    "@type": "File",
-   "contentSize": "253243",
+   "contentSize": "253301",
    "description": "the completion matrix",
    "name": "completion_matrix.json",
-   "sha256": "45ec7a5af2bbc9ea285ee0effc226c4dce576d1e7b8bcfdf92444c8a96510b71"
+   "sha256": "b80b40341f62d8208020137085d3420cd7e64ffcf72fb299ea9042fa18ea2ad9"
   },
   {
    "@id": "docs/equivalence_contracts.json",
@@ -180,7 +180,7 @@
    "contentSize": "14349",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "b7aec6f6c9d9616a2f74f64d2e750af82177f5e922a7b17efccaf5569fac628c"
+   "sha256": "ce4dc71898c5babf1c414a9a35a8aacd7bc45fd8cca02e3ba08850362d2b68bf"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -204,7 +204,7 @@
    "contentSize": "2589",
    "description": "the repository content audit of the current tree",
    "name": "repo_content_audit.json",
-   "sha256": "4f6c22f6597c0ea98d956e952a6d4a2718af1646baadfd50f84bfbf899529b51"
+   "sha256": "95cd0ffa9f8c3b6aebeec134ad064950d17c26e50b074c0373e0858071cb1ca1"
   },
   {
    "@id": "docs/repository_inventory.json",
@@ -217,7 +217,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "103943",
+   "contentSize": "105182",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"

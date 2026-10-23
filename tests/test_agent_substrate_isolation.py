@@ -187,6 +187,10 @@ ALLOWED_IMPORTERS = {
     # Gate G: the long-horizon research campaign and its counters
     "tests/test_research_horizon.py",
     "tools/research_horizon.py",
+    # Gate D: the preregistered grounding experiment, whose worlds are
+    # written through the authority store, the ledger and the memory store
+    "tests/test_grounding_experiment.py",
+    "tools/grounding_experiment.py",
     "tools/adversarial_eval.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no

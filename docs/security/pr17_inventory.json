@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 558,
+   "ADDED": 562,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 200,
-   "MEDIUM": 308
+   "LOW": 201,
+   "MEDIUM": 311
   },
   "by_subsystem": {
    "agent-substrate": 31,
    "ai-ingress": 3,
-   "assurance": 123,
+   "assurance": 124,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 46,
+   "evidence": 47,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 176,
-   "tooling": 45,
+   "tests": 177,
+   "tooling": 46,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 590
+  "files": 594
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -3079,6 +3079,19 @@
     "tests": [
      "tests/test_claim_check.py"
     ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/research/GATE_D_PROTOCOL.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
    }
   },
   {
@@ -6598,6 +6611,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_grounding_experiment.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_harness_demo.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8349,6 +8379,24 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/grounding_experiment.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/grounding_experiment.json"
+    ],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_grounding_experiment.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/harness_demo.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -9388,6 +9436,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/grounding_bench.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/grounding_experiment.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

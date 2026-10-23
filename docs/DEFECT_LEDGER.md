@@ -11367,3 +11367,80 @@ a duplicate.
 - **Exercise more than one agent.** That is Gate E.
 - **Cover other workloads.** One model and one point were run. The
   campaign measures the loop's accumulation, not the science.
+
+## D-2026-182 — Gate D: a preregistered grounding experiment, offline
+
+**INSPECTED FIRST.** Tranche G's benchmark (`tools/grounding_bench`) is
+scripted-only, and its review (threat 3) found its treatment confounded:
+answering from the reconstructed state was mixed with checking the
+agent's claim. Its 10.2% and 7.8% are preserved, unchanged, as historical
+scripted research. Nothing measured:
+
+- the separate contributions of retrieval and memory;
+- an evidence check that never replaces the answer;
+- a semantic check that never replaces the answer;
+- claim-extraction failures apart from verification errors;
+- calibration;
+- a path to a live run through the real gateway.
+
+**WHAT WAS ADDED.**
+
+- **`docs/research/GATE_D_PROTOCOL.md`.** The protocol, committed with the
+  code and before the confirmatory run. It fixes:
+  - the world, the oracle and the error process;
+  - seven conditions, each one intervention from its parent;
+  - the metrics, seeds and statistics;
+  - nine hypotheses with falsification criteria.
+
+  It registers the digest of the confirmatory parameters, and a run whose
+  parameters differ refuses to start.
+- **`tools/grounding_experiment.py`.**
+  - **The world.** Seeded and written through the authority store, the
+    research ledger and the memory store, with admitted, withdrawn,
+    conflicting and absent subjects. Two negative controls are included: a
+    world that moved while its log did not, and a wrong value the reviewer
+    admitted. Poisoned notes and outdated documents are added on top.
+  - **The answerer.** A fixture error process reached through the real
+    inference gateway, with the same context builder, budget, transcripts
+    and accounting a live model would get. Its own behaviour is paired
+    across conditions, and only context adoption varies.
+  - **The conditions.** D1 alone; D2 with retrieval; D3 with memory; D4 an
+    evidence-presence gate on D1's answer; D5 a semantic gate (`claim_check`)
+    on D1's answer; D6 answering from the independent reader's state; D7
+    the governed context with the semantic gate. A paired bootstrap per
+    contrast.
+- **`tests/test_grounding_experiment.py`.**
+  - The registration, and the refusal of other parameters.
+  - The answerer's isolation from the oracle, by object graph.
+  - Each condition's definition:
+    - gates never replace an answer;
+    - D5 to D7 assert nothing unsupported;
+    - a gate never asserts what the grammar cannot read;
+    - D6 asks no model.
+  - The negative control defeating the state.
+  - Every model answer accounted by the gateway.
+  - Reproduction of the committed confirmatory seed, once committed.
+
+**PILOT (exploratory, seeds 0 to 4; not evidence).** One defect was fixed
+during the pilot: the answerer drew its own behaviour per condition, so
+conditions differed in more than their context. After the fix:
+
+| condition | false acceptance | coverage |
+|---|---|---|
+| D1 model alone | 0.485 | 0.820 |
+| D2 + retrieval | 0.615 | |
+| D3 + memory | 0.520 | |
+| D4 evidence gate | 0.295 | |
+| D5 semantic gate | 0.085 | 0.310 |
+| D6 state answer | 0.190 | 0.685 |
+| D7 governed | 0.160 | 0.585 |
+
+The confirmatory run is recorded by its own commit.
+
+**WHAT THIS DOES NOT ESTABLISH.**
+
+- **Anything about a language model.** The real-model rows are NOT_RUN
+  (OD-1, OD-6).
+- **Truth.** Every log-reading condition inherits the log's errors, and
+  the negative controls measure that.
+- **Generality.** The rates hold for this error process and question mix.
