@@ -10773,6 +10773,12 @@ unencoded identifiers.
 - **Represent every field.** It represents the graph's fields, losslessly
   for those, and says so.
 
+**ADDENDUM — FOUND BY THE FULL SUITE, BEFORE THE PUSH.** `export_log` reads
+the log, and was not in `principals.READER_COVERAGE`:
+`tests/test_authenticated_history.py` named it. It is now listed as GATED
+and held by the reader-by-reader test: over an AUTHENTICATED_REQUIRED
+history it refuses on a log with no authenticator, and exports with one.
+
 ## D-2026-176 — Assurance I: a deployment isolation contract, held to the host
 
 **INSPECTED FIRST.** The executor already confines every governed tool. It
@@ -10857,6 +10863,13 @@ if a tool ever executes code it did not ship.
   under its own identity. CI containment is not production attestation.
 - **Make the uncovered dimensions covered.** Syscall filtering, tree-wide
   and GPU quotas, and egress filtering are stated as absent.
+
+**ADDENDUM — FOUND BY THE FULL SUITE, BEFORE THE PUSH.** The tool carried a
+mutation specification and no workflow step ran it, so its verdict on a
+real runner would never have been taken (`tests/test_repo_contract.py`).
+The agent-substrate job now runs it wherever the runner offers
+unprivileged namespaces, as it runs the confinement probe. As with that
+probe, a pass there says what the runner does.
 
 ## D-2026-177 — Assurance H: units, quantity kinds and the dimensional statements of the equations
 

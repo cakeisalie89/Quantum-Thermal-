@@ -44,6 +44,7 @@ from agent_substrate.netauth import NetworkAuthority  # noqa: E402
 from agent_substrate.policy import PolicyStore  # noqa: E402
 from agent_substrate.inference import InferenceGateway  # noqa: E402
 from agent_substrate.proposals import received  # noqa: E402
+from agent_substrate.prov_export import export_log  # noqa: E402
 from agent_substrate.research import ResearchLedger  # noqa: E402
 from agent_substrate.reconstruct import reconstruct, reconstruct_tasks  # noqa: E402
 from agent_substrate.scheduler import Scheduler  # noqa: E402
@@ -432,6 +433,7 @@ BEHAVIOUR = {
                          provider=None).load(),
     "agent_substrate.research.ResearchLedger":
         lambda log: ResearchLedger(log).load(),
+    "agent_substrate.prov_export.export_log": lambda log: export_log(log),
 }
 STRUCTURAL_ONLY = {"agent_substrate.governed_tasks.GovernedTasks",
                    "agent_substrate.governed_model.GovernedOrigins",

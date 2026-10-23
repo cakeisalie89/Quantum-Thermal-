@@ -852,4 +852,7 @@ READER_COVERAGE = {
     # the research ledger (D-2026-164); both read through read_verified.
     "agent_substrate.inference.InferenceGateway": GATED,
     "agent_substrate.research.ResearchLedger": GATED,
+    # Assurance J: the PROV export reads the history through read_verified
+    # and refuses one that does not verify.
+    "agent_substrate.prov_export.export_log": GATED,
 }

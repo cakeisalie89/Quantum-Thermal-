@@ -1791,6 +1791,7 @@
      "tools/mutations/prov_export.json"
     ],
     "tests": [
+     "tests/test_authenticated_history.py",
      "tests/test_prov_export.py"
     ]
    }

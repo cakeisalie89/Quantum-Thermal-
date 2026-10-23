@@ -141,6 +141,17 @@ jobs:
           else
             echo "this runner allows no unprivileged namespaces; the probe is not run"
           fi
+      - name: the isolation contract holds on this runner, dimension by dimension (D-2026-176)
+        # tools/isolation_contract.py probes the eight dimensions
+        # docs/security/isolation_contract.json names. As with the probe
+        # above, a pass says what THIS runner does and attests nothing about
+        # a deployment (RUN-3).
+        run: |
+          if [ "${HARNESS_ISOLATION_REQUIRED:-0}" = "1" ]; then
+            uv run python tools/isolation_contract.py
+          else
+            echo "this runner allows no unprivileged namespaces; the contract is not probed"
+          fi
       - name: nothing folds an event it did not verify
         # D-2026-76. The snapshot-coherence tests prove the twenty repaired
         # reducers by name; this walks every production file for the next

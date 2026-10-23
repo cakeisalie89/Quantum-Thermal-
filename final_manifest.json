@@ -24,8 +24,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 36927,
-      "sha256": "5d849c9968b2c353df438b3f8aedc590d9c5d3f5f9a6a7f1aa2eae2bce5217f9"
+      "size_bytes": 37524,
+      "sha256": "324cdaa5ad124c10175c9e2683225d9d76e73eb22dcb8edff31b01707b3573a2"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -89,8 +89,8 @@
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 5906,
-      "sha256": "c1bf9f0ffe8e5fa595909fc28ff27f5121704187b0167f7bbf7a148038f8da1e"
+      "size_bytes": 5869,
+      "sha256": "972c8ac04fcfc2c6947b0621998d7a0ba4eda1da69510cf224680526d61ae9de"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -319,8 +319,8 @@
     },
     {
       "filename": "agent_substrate/principals.py",
-      "size_bytes": 38728,
-      "sha256": "64f8cc6e6b7380d23a0b6b19ea8a4070715e98fa70cb12e9ffa744b9bd68efc2"
+      "size_bytes": 38900,
+      "sha256": "b0d76748d1cb53905bbb875027b2c6233231cf5ed1221030f6bb5d0b10cdd978"
     },
     {
       "filename": "agent_substrate/projection.py",
@@ -465,7 +465,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 4645,
-      "sha256": "cb03d2f2f47dac1a6e2ede8f1cd22f2c5c9ca04829f58c5f7020f72668a97f34"
+      "sha256": "933852bb5ade6d2b10749711ef393c9cf2ecda654b346755290870c83a61d83e"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -529,8 +529,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 14454,
-      "sha256": "6b75ac1b766c4de6bfa5a6c16e17c87e4f9b180643a127aa8e87dd959e8732f9"
+      "size_bytes": 14349,
+      "sha256": "8837e769932a240ea56296aea2f21643ea4ccb3dc950b90c27ffce10900a22df"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -704,8 +704,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 253515,
-      "sha256": "63f2081142dded9c81022eeb9ae7b7653eb6a84e3e61738d085ef86a0fddf736"
+      "size_bytes": 253559,
+      "sha256": "3450a9ea2fa2046ea45d9cc388adf7d0156732d30afcec41d6fa2ad8a0b6d9ba"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -835,7 +835,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "72111d5110c797c544cdb0c00bd1231ebb5eb3c3948973c593109dc90d7b3e8c"
+      "sha256": "9685ff047bd52a10322bd5461cd8bcef8e9acb50f0429e93a1bc324b2aea8d89"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1469,8 +1469,8 @@
     },
     {
       "filename": "tests/test_authenticated_history.py",
-      "size_bytes": 25317,
-      "sha256": "03b6230ef5fe535483b8e9c7c7f362d4c36d0a2479449b58b80e1792044d489d"
+      "size_bytes": 25457,
+      "sha256": "9eb90cca3dfe7af9e551eb9aeb7a5c05e21dc827fdbcceef95ae56665b0e2f8e"
     },
     {
       "filename": "tests/test_authority_inventory.py",
