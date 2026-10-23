@@ -102,6 +102,27 @@
       "find": "        if not tasks:\n            raise ModelRunRefused(\n                f\"no governed task standing VERIFIED captured",
       "replace": "        if False:\n            raise ModelRunRefused(\n                f\"no governed task standing VERIFIED captured",
       "rationale": "withdrawing bytes nothing vouched for is accepted as though it withdrew authority"
+    },
+    {
+      "name": "SI15_what_was_remembered_is_left_current",
+      "path": "agent_substrate/governed_model.py",
+      "find": "            if not self.origins.captured_by(sha):\n                memories.extend(",
+      "replace": "            if False:\n                memories.extend(",
+      "rationale": "D-2026-171: a withdrawn run's note stays ACTIVE and keeps reaching the next model's context"
+    },
+    {
+      "name": "SI16_a_second_origin_does_not_keep_the_note",
+      "path": "agent_substrate/governed_model.py",
+      "find": "            if not self.origins.captured_by(sha):\n                memories.extend(",
+      "replace": "            if True:\n                memories.extend(",
+      "rationale": "D-2026-171: a note derived from bytes another governed task still produced goes STALE with the task invalidated"
+    },
+    {
+      "name": "SI17_settle_ignores_memory",
+      "path": "agent_substrate/governed_model.py",
+      "find": "            if inv.plan.affected or inv.memories:\n                out.append(inv)",
+      "replace": "            if inv.plan.affected:\n                out.append(inv)",
+      "rationale": "D-2026-171: settle reports nothing when it carried only memory"
     }
   ]
 }

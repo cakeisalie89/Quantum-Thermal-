@@ -164,6 +164,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_freshness.py",
     # Assurance E: independent witnesses to the log's head
     "tests/test_witness.py",
+    # Section 6.1: the causal assurance graph, and the withdrawal it predicts
+    "tests/test_assurance_graph.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.
@@ -293,6 +295,9 @@ LAYERS = ("canonical", "projection", "hostid",
           # extends to /2, and above policy and context, whose records it
           # reads; nothing below can reach it, and it holds no credential.
           "inference",
+          # Section 6.1: the causal assurance graph. A projection of the
+          # verified history; imports nothing internal and decides nothing.
+          "assurance_graph",
           # Assurance E: independent witnesses to the log's head. Imports
           # the log's record type and the signature seam; nothing else.
           "witness",

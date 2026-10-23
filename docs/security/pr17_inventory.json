@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 518,
+   "ADDED": 521,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 54,
-   "LOW": 188,
-   "MEDIUM": 283
+   "HIGH": 55,
+   "LOW": 189,
+   "MEDIUM": 284
   },
   "by_subsystem": {
-   "agent-substrate": 28,
+   "agent-substrate": 29,
    "ai-ingress": 3,
-   "assurance": 112,
+   "assurance": 113,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 164,
+   "tests": 165,
    "tooling": 41,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 550
+  "files": 553
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -538,6 +538,7 @@
      "tests/test_agent_substrate_isolation.py",
      "tests/test_agent_substrate_properties.py",
      "tests/test_agent_toctou.py",
+     "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_authority_inventory.py",
      "tests/test_checkpoint_recovery.py",
@@ -722,6 +723,23 @@
   },
   {
    "change": "ADDED",
+   "path": "agent_substrate/assurance_graph.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/assurance_graph.json"
+    ],
+    "tests": [
+     "tests/test_assurance_graph.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "agent_substrate/audit.py",
    "risk": "HIGH",
    "runtime_dependencies": [],
@@ -784,6 +802,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
+     "tests/test_assurance_graph.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
@@ -1147,6 +1166,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_substrate.py",
+     "tests/test_assurance_graph.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
@@ -1273,6 +1293,7 @@
     ],
     "tests": [
      "tests/test_agent_long_horizon.py",
+     "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
@@ -1510,12 +1531,14 @@
      "tests/test_agent_second_reader.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_toctou.py",
+     "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_completion_matrix.py",
      "tests/test_evidence_terms.py",
      "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
      "tests/test_refused_fold.py",
+     "tests/test_scientific_invalidation.py",
      "tests/test_trust_labels.py"
     ]
    }
@@ -1805,6 +1828,7 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
+     "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
@@ -1855,6 +1879,7 @@
      "tools/mutations/simulation.json"
     ],
     "tests": [
+     "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_decision_proof.py",
      "tests/test_freshness.py",
@@ -1878,6 +1903,7 @@
      "tools/mutations/research.json"
     ],
     "tests": [
+     "tests/test_assurance_graph.py",
      "tests/test_decision_proof.py",
      "tests/test_noninterference.py",
      "tests/test_research_loop.py"
@@ -2092,6 +2118,7 @@
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_isolation.py",
      "tests/test_agent_substrate_properties.py",
+     "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_decided_appends.py",
@@ -5715,6 +5742,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_assurance_graph.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_authenticated_history.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8365,6 +8409,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/agent_toctou.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/assurance_graph.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

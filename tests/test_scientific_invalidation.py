@@ -283,6 +283,103 @@ def test_a_second_origin_keeps_the_result_standing(world):
     assert _replayed(base, a.record_id) == {a.record_id: State.STALE}
 
 
+# ---- what was remembered of it (D-2026-171) --------------------------------
+
+def _memory(base: Path):
+    from agent_substrate.memory import MemoryStore
+    return MemoryStore(EventLog(base / "log.jsonl"),
+                       evidence=EvidenceStore(base / "evidence")).load()
+
+
+def _second_reader_memory(base: Path) -> dict:
+    sub = rc.reconstruct_subsystems(EventLog(base / "log.jsonl"))
+    assert sub.anomalies == [], sub.anomalies
+    return {m: v.get("status") for m, v in sub.memory.items()}
+
+
+def test_an_invalidated_run_s_note_goes_stale_and_leaves_the_context(world):
+    """Every governed task files a note derived from its artefacts, and the
+    next run is shown three current notes. Before D-2026-171 the note about
+    a withdrawn task stayed ACTIVE and kept reaching the next model as
+    current."""
+    (a, ac), (b, bc) = world["a"], world["b"]
+    base = _copy("memory")
+    tasks = {g.memory_id: g.task_id
+             for g in (a.governed, ac.governed, b.governed, bc.governed)}
+    shown_before = [e.memory_id for e in _memory(base).current()[-3:]]
+    # a note the next run WOULD be shown, so the case is not vacuous
+    note = next(m for m in shown_before if m in tasks)
+    inv = _open(base).invalidate_task(tasks[note],
+                                      reason="the solver was wrong")
+    assert inv.memories == (note,)
+    mem = _memory(base)
+    assert mem.get(note).status.value == "STALE"
+    others = set(tasks) - {note}
+    assert others <= {e.memory_id for e in mem.current()}     # control
+    assert _second_reader_memory(base)[note] == "STALE"
+    # the next governed run is shown three current notes -- not this one
+    nxt = _open(base).propose(**MODEL, parameters={**PARAMS, "n_cells": 48},
+                              out_dir=f"{WS}/memory/next-run")
+    shown = [i[len("memory-"):] for i in
+             _context_items(base, nxt.governed.context_digest)
+             if i.startswith("memory-")]
+    after = _memory(base)
+    assert len(shown) == 3 and note not in shown
+    assert all(after.get(m).status.value == "ACTIVE" for m in shown)
+
+
+def _context_items(base: Path, manifest_digest: str) -> list:
+    _, events = EventLog(base / "log.jsonl").read_verified()
+    (rec,) = [e.payload["manifest"] for e in events
+              if e.action == "context.build"
+              and e.payload.get("manifest_digest") == manifest_digest]
+    return [i["item_id"] for i in rec["items"]]
+
+
+def test_a_history_invalidated_before_the_repair_has_its_notes_settled(
+        world, monkeypatch):
+    """A history written before D-2026-171: the task invalidated and its
+    result made STALE, its note left ACTIVE. ``settle`` finishes it, and
+    reports that it did though no record moved."""
+    from agent_substrate.memory import MemoryStore
+    (a, _) = world["a"]
+    base = _copy("memory-settle")
+    with monkeypatch.context() as m:
+        m.setattr(MemoryStore, "invalidate_source",
+                  lambda self, *a, **k: ())
+        _open(base).invalidate_task(a.governed.task_id, reason="r")
+    assert _memory(base).get(a.governed.memory_id).status.value == "ACTIVE"
+    (inv,) = _open(base).settle()
+    assert inv.plan.affected == () and inv.memories == (
+        a.governed.memory_id,)
+    assert _memory(base).get(a.governed.memory_id).status.value == "STALE"
+    assert _open(base).settle() == ()
+
+
+def test_bytes_another_task_still_produced_keep_what_was_remembered(world):
+    """The report's bytes have a second governed origin, so a note derived
+    only from them keeps it, as the result citing them is kept."""
+    (a, chk) = world["a"]
+    base = _copy("memory-second-origin")
+    g = _open(base)
+    run = ModelRun(None, a.bundle_path, a.bundle_sha256, a.bundle_digest,
+                   a.record_id, a.submitter, a.worker)
+    again = g.check(run, check_id=CHECK,
+                    out_dir=f"{WS}/memory-second-origin/chk2")
+    assert again.report_sha256 == chk.report_sha256
+    sha = chk.report_sha256
+    g.gov.memory.remember(memory_id="report-note", author="analyst",
+                          derived_from=(sha,),
+                          text="the check's report says the run converged")
+    inv = _open(base).invalidate_task(chk.governed.task_id, reason="r")
+    assert "report-note" not in inv.memories
+    assert _memory(base).get("report-note").status.value == "ACTIVE"
+    # withdrawing the bytes themselves takes it
+    inv = _open(base).withdraw_evidence(sha, reason="the report was wrong")
+    assert "report-note" in inv.memories
+    assert _memory(base).get("report-note").status.value == "STALE"
+
+
 # ---- records that cannot go stale -------------------------------------------
 
 def test_revoked_and_rejected_results_are_left_as_they_are(world):
@@ -389,6 +486,9 @@ def test_an_interrupted_invalidation_is_settled(world):
     assert inv.plan.affected == (a.record_id,)
     assert _replayed(base, a.record_id, b.record_id) == {
         a.record_id: State.STALE, b.record_id: State.VERIFIED}
+    # the check's note is carried too (D-2026-171)
+    assert inv.memories == (chk.governed.memory_id,)
+    assert _memory(base).get(chk.governed.memory_id).status.value == "STALE"
     head = (base / "log.jsonl").read_bytes()
     assert _open(base).settle() == ()
     assert (base / "log.jsonl").read_bytes() == head

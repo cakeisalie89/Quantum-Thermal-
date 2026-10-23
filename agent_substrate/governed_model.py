@@ -424,6 +424,9 @@ class Invalidation:
     #: Results citing an artefact of those tasks whose origin still holds:
     #: another governed task standing VERIFIED produced the same bytes.
     kept: tuple
+    #: Memory entries made STALE because what they were derived from lost
+    #: its last governed origin (D-2026-171), in the order they moved.
+    memories: tuple = ()
 
 
 class GovernedModelRuns:
@@ -719,7 +722,7 @@ class GovernedModelRuns:
                 f"task:{task.task_id}", (task.task_id,), actor=actor,
                 reason="an invalidation not followed through when it was "
                        "made")
-            if inv.plan.affected:
+            if inv.plan.affected or inv.memories:
                 out.append(inv)
         return tuple(out)
 
@@ -765,7 +768,21 @@ class GovernedModelRuns:
             roots.append(rid)
         plan = plan_from(self.authority.all_records(), roots, origin=origin)
         apply_plan(self.authority, plan, reason=reason, actor=actor)
-        return Invalidation(origin, tuple(task_ids), plan, tuple(kept))
+        # What was REMEMBERED of the withdrawn bytes goes the same way
+        # (D-2026-171). Every governed run files a note derived from its
+        # artefacts, and later runs are shown the current notes; left
+        # ACTIVE, a note about a withdrawn run kept reaching the next model
+        # as current. Bytes another governed task standing VERIFIED also
+        # produced keep their origin, as a result citing them does.
+        memories: list = []
+        for sha in sorted(withdrawn):
+            if not self.origins.captured_by(sha):
+                memories.extend(m.memory_id for m in
+                                self.gov.memory.invalidate_source(
+                                    sha, actor=actor,
+                                    reason=f"{origin}: {reason}"))
+        return Invalidation(origin, tuple(task_ids), plan, tuple(kept),
+                            tuple(memories))
 
     def check(self, run: ModelRun, *, check_id: str, out_dir: str,
               worker: str = CHECK_WORKER_ID,

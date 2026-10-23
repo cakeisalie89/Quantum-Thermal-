@@ -10291,3 +10291,118 @@ Both tests now make the case the check exists for.
 (`tests/test_agent_substrate_isolation.py`). It reads and writes its own
 state files, atomically, as checkpoint files are, and never a governed
 task's.
+
+## D-2026-171 — Section 6.1: the causal assurance graph, and the notes a withdrawn run left current
+
+**INSPECTED FIRST, AS THE DIRECTIVE ASKS.** The machinery already present
+answers per-subsystem questions:
+
+- `audit.py` explains a task's chain, a record's chain and a policy
+  decision;
+- `invalidation.py` cascades STALE across authority records;
+- the research ledger propagates lost currency to hypotheses and
+  conclusions;
+- memory cascades STALE through what it summarized.
+
+Nothing joined them. No query crosses from a withdrawn governed run to the
+notes, contexts, observations and conclusions resting on it, and nothing
+checks that the cascades together carry a withdrawal as far as they
+should.
+
+**WHAT WAS ADDED** (`agent_substrate/assurance_graph.py`). A disposable
+projection of the verified history: rebuilt on every call, never written,
+deciding nothing. Its edges come only from recorded fields: a record's
+cited evidence and dependencies, an observation's source, a verdict's
+basis, a memory's sources, a context's items, an inference's context, a
+proposal's citations, and the task a proposal asked for. Nothing is joined
+for occurring together. The edges carry the directive's nine types. Two
+more are kept apart on purpose, MODEL_OUTPUT and REQUEST, so that a model's
+answer or an agent's request never reads as support.
+
+- `explain(node)` answers the auditor's questions: the observations it
+  rests on, the source bytes and whether they are held, what the model was
+  shown, the assumptions (admission and context policies), the policies in
+  force, who verified and who authorized it, its dependents, and what a
+  withdrawal would make stale or expose.
+- `withdrawal(roots)` predicts what loses currency. Currency travels only
+  along evidence, verification, derivation, dependency and summary edges.
+  Bytes keep it while any task that produced them stands. A context, a
+  proposal or a task that was shown or asked for withdrawn content is
+  EXPOSED, not stale.
+
+**THE DEMONSTRATION** (`tests/test_assurance_graph.py`). The Gate C
+objective runs end to end, and an analyst files a note derived from the
+result and a summary of that note. The model run is then declared wrong,
+which makes its result the deliberately incorrect observation. The graph
+predicts seven stateful nodes lose currency:
+
+- the result record;
+- the observation;
+- the hypothesis;
+- the conclusion;
+- the governed path's own note about the run;
+- the analyst's note;
+- the analyst's summary.
+
+It also predicts one context is exposed: the check's run was shown the
+run's note. The governed system is then left to do what it does (the
+governed path's invalidation, the research ledger's propagation). The
+SECOND reader, which shares no code with either, reconstructs exactly
+those seven nodes, plus the withdrawn task, as no longer standing. Four
+ways of relying on the withdrawn result are then refused:
+
+- a new verdict on it;
+- a promotion of it;
+- a second conclusion on it;
+- the withdrawn notes reaching the next model's context.
+
+No byte of the earlier history changed.
+
+**WHAT IT FOUND (THE DEFECT).** On its first run the graph predicted the
+governed path's note about the run going stale, and the system left it
+ACTIVE. Every governed run files a note derived from its artefacts, and
+the next run is shown three current notes. `GovernedModelRuns` invalidated
+the task and the result, and never told memory. `MemoryStore` has
+`invalidate_source`, and its docstring says an entry goes STALE "without
+anyone having to remember to do it". But only tests ever called
+`invalidate_source`. Reproduced: after `invalidate_task`, the record was
+STALE, the note ACTIVE and among the current notes.
+
+**THE REPAIR.** The governed path's follower (`_follow_shared`, which
+`invalidate_task`, `withdraw_evidence` and `settle` all reach) carries the
+withdrawal to memory. Every artefact of the withdrawn tasks that no
+governed task standing VERIFIED still produced has its derived notes made
+STALE through memory's own cascade. The rule is the same one that keeps a
+result standing when a second origin produced its bytes.
+`Invalidation.memories` reports what moved, and `settle` reports an
+invalidation that carried only memory. That covers a history invalidated
+before this repair.
+
+**TESTS** (`tests/test_scientific_invalidation.py`):
+
+- the note goes stale and leaves the next run's context, with a control
+  among the other notes;
+- a note on bytes a second origin still produced is kept, until the bytes
+  themselves are withdrawn;
+- a history invalidated before the repair has its notes settled, and
+  settling twice changes nothing;
+- the interrupted-invalidation test now also covers the check's note.
+
+All three new tests fail without the repair. Mutation:
+
+- `scientific_invalidation.json` gains SI15 to SI17;
+- `assurance_graph.json` holds 16 mutations over the recorded edges, the
+  currency rules, the auditor's answers and the unread count.
+
+**WHAT THIS DOES NOT DO.**
+
+- Cover every action. The graph reads the record, task, research, memory,
+  context, inference, proposal, policy-decision and binding records, and
+  counts the rest (`Graph.unread`). Its answers are complete only for what
+  it reads.
+- Replace any cascade. It predicts, and the cascades it predicts for are
+  still the only writers.
+- Make a memory written AFTER a withdrawal born stale across a restart,
+  when the withdrawal moved nothing. Memory keeps that only in process
+  (`_invalidated`). It is a pre-existing gap, recorded here, not repaired.
+

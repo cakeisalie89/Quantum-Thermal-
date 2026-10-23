@@ -43,7 +43,7 @@ Where this file and those disagree, they are right and this file is stale.
 | Assurance G: adversarial evaluation harnesses | 5 (G) | PENDING; live evaluation is BLOCKED on OD-1 | | |
 | Assurance I: deployment isolation contract | 5 (I) | PENDING | | |
 | Assurance J: provenance export | 5 (J) | PENDING | | |
-| Causal assurance graph | 6.1 | PENDING | | |
+| Causal assurance graph | 6.1 | COMMITTED: projection with typed recorded edges and an auditor's explain; the Gate C history withdrawn and the system's cascades, reconstructed by the second reader, agree with the graph's prediction exactly; found that a withdrawn run's notes stayed current (repaired) | Assurance graph | D-2026-171 |
 | Independent policy reference model | 6.2 | PENDING | | |
 | Semantic claim verdicts | 6.3 | PENDING | | |
 | Composed adversarial campaigns | 7 | PENDING | | |
@@ -58,4 +58,5 @@ Where this file and those disagree, they are right and this file is stale.
 `Assurance D` is the commit titled "Assurance D: proof-carrying decisions";
 `Clock rollback` is the commit titled "An expiry is judged at the time the history reached";
 `Assurance F` is the commit titled "Assurance F: freshness and re-observation";
-`Assurance E` is the commit titled "Assurance E: independent witnesses to the log's head".
+`Assurance E` is the commit titled "Assurance E: independent witnesses to the log's head";
+`Assurance graph` is the commit titled "The causal assurance graph; a withdrawn run's notes go stale".

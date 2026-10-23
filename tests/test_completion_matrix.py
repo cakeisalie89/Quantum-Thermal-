@@ -919,7 +919,10 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: history reached, in the event log, the policy and authority stores and
 #: the second reader, so R39, R40, R46 and R49 predate their
 #: implementation until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 32
+#: 32 -> 30 in the causal assurance graph commit (D-2026-171): the
+#: governed path now carries a withdrawal to memory, so R43 and R61 predate
+#: their implementation until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 30
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
