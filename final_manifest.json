@@ -439,8 +439,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 598907,
-      "sha256": "712041f9594310026e4a72a818d3b29254a09ac5d85fc4482760b3dfd9809f39"
+      "size_bytes": 599663,
+      "sha256": "8888cdf093022cbef9095e03415f95f6b560672746355462a9b2c9c1edfb30c8"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -465,7 +465,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 4645,
-      "sha256": "933852bb5ade6d2b10749711ef393c9cf2ecda654b346755290870c83a61d83e"
+      "sha256": "8fff0d497fc2bda7fa216c5c55979d9932542631a9aab0c143ccaa9cd7740cfb"
     },
     {
       "filename": "docs/dependency_inventory.json",
