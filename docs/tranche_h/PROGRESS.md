@@ -50,6 +50,7 @@ Where this file and those disagree, they are right and this file is stale.
 | Composed adversarial campaigns | 7 | COMMITTED: ten campaigns registered with all seven fields; four new compositions (old evidence, poisoned memory, policy change, forged history with its checkpoint) measure 11 attempts, none accepted; seven crossed controls mutated, all killed | Campaigns | D-2026-174 |
 | Concurrent controllers and concurrent runs (found by section 11) | 11 | COMMITTED: one idempotency key, one question, in the gateway's writer, its replay fold and the second reader; one run at a time in a writable scope, the verifier's scratch inside the hold, the gateway's transcripts a supervisor store | Concurrency | D-2026-184, D-2026-185 |
 | Final integration demonstration | 11 | COMMITTED: `tools/integration_demo.py`, the twenty lifecycle steps each checked against the verified history (all hold) and twelve adversarial variants, one per category (36 attempts, none accepted); nine cases the design cannot establish or prevent reported with their outcomes; five variants' controls switched off and their attacks seen to succeed; `--check` in CI. Scripted agent; the withdrawal is staged; the real-model condition is NOT_RUN (OD-1, OD-6) | Integration demo | D-2026-184, D-2026-185, D-2026-186 |
+| Final report | 12 | COMMITTED: `docs/tranche_h/FINAL_REPORT.md`, written from the evidence it cites; updated as Gate G's stages and the hosted evidence for the newest heads land | Final report | |
 | Gate H: operational and release assurance | 4 (H) | BLOCKED: every deployment control is the owner's (O-1 to O-9, OD-7) | | |
 
 `M1` is the commit titled "Security and test-quality repairs before Gate B";
@@ -75,4 +76,5 @@ Where this file and those disagree, they are right and this file is stale.
 `Gate E` is the commit titled "Gate E: several agents on the existing substrate, and an objective's assignees";
 `Gate D results` is the commit titled "Gate D: the confirmatory run's results, recorded after the protocol";
 `Concurrency` is the commit titled "Concurrent controllers: one question per step, one run per writable scope";
-`Integration demo` is the commit titled "Section 11: the integration demonstration and twelve adversarial variants".
+`Integration demo` is the commit titled "Section 11: the integration demonstration and twelve adversarial variants";
+`Final report` is the commit titled "The master directive's report: what was built, measured and left to the owner".
