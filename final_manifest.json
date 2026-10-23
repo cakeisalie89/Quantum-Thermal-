@@ -89,8 +89,8 @@
     },
     {
       "filename": "HARNESS_STATUS.md",
-      "size_bytes": 6412,
-      "sha256": "4eadae24724a9f8f8f15df216471962a2b5286b143247513cfeda2691e266d1b"
+      "size_bytes": 3500,
+      "sha256": "f9930b71ce1705ec4e321a732665bf7369ff2aea188b472ca66d16f4f208468c"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -484,13 +484,13 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 253351,
-      "sha256": "4843d206d5b71620ad9975d619e583c333ef08f93cd2d47f69b633fe9ab1eb73"
+      "size_bytes": 254267,
+      "sha256": "a34fe8428505f893c702e8dfb0b49e6c4cc2d17d74d44098b45eeef74bf0cc45"
     },
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5219,
-      "sha256": "3d2b86d536af07bb418bced4a5297483f3e210bdcba8dff2a68f30d80ffdefd5"
+      "sha256": "b2fe7e89fd4308470112758a4ab95fa10d7fdf66e7b6f320091aea9d15adf3b9"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -554,8 +554,8 @@
     },
     {
       "filename": "docs/harness_status.json",
-      "size_bytes": 15308,
-      "sha256": "f899063212e1df1909402893c63c51e0ce13bb6ee96f1fa1fb29d8c95f2d3175"
+      "size_bytes": 10092,
+      "sha256": "54afa69dce1f73dce5353ffac3401f3f01e629dd12a0a3a15cf8e81b15fac116"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -749,8 +749,8 @@
     },
     {
       "filename": "docs/security/readiness_matrix.json",
-      "size_bytes": 20430,
-      "sha256": "a27ab3f4b590209215a6034480236e1b0452d2f2cd5dd5a786b061c3b4377f6a"
+      "size_bytes": 23349,
+      "sha256": "c6284ef72f697d8a35ee8b89da4f44e9b73c258d3fddc6c3cd2f478baa3793c7"
     },
     {
       "filename": "docs/security/reproducibility_contract.json",
@@ -880,7 +880,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "7c01e647b0449284be88cea8a24e29948d095a392f10980287799a3aaf73d8e2"
+      "sha256": "fbc5c14644c4baac323fe12f1080bba4f318e61dbfafb0f16bbca2438949ae3d"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1579,8 +1579,8 @@
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 49844,
-      "sha256": "10917b72caa206f7295af160c8cc29dd58bfd61029487e946968e72a8bacfb5b"
+      "size_bytes": 50060,
+      "sha256": "1daef893794e19bb0cfc2dc405c09e38655233c226342ad1c5de0369def309c4"
     },
     {
       "filename": "tests/test_composed_campaigns.py",

@@ -931,7 +931,10 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: governed path holds a tool's scope over the verifier's re-execution, so
 #: R24, R26, R28, R54 and R55, which cite agent_substrate/governed_tasks.py,
 #: predate it until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 23
+#: 23 -> 49 in the evidence commit at 927b69c: every hosted run there (8
+#: workflow runs, 44 jobs) succeeded, and the 26 rows whose evidence
+#: predated their implementation now cite runs of the code they describe.
+EXPECTED_EVIDENCE_COVERS = 49
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

@@ -65,12 +65,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "01961c8646355622855afaa7a85032fcc632fbd55e44e480549b31f77c9f3e98",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "4d3a6faf105bfaf09fbb0ed3eed7ed51fdd9eb48fb6a94d2a1f0253e875c19b3",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -193,12 +193,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "8e4bccc53ac8a736ad11487b4a1022e9eb7ad58b7243545086cbeca4576c0c8d",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "b09ccdfd61950815c5b6fb8fed287b9daad6a908e196a7d524519fca062680b0",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -252,12 +252,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "ed08fa8b98016abf32ac452fa8ccfd3bce6bb151996f80ebccacb36ee2240680",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "b1977ae30a4a8c2baedede299e84657eab954854870d0c1c633a455efa3262d6",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -375,12 +375,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "6708c6892efe527e0258a4dc4216e43834441a8b9a08d0f77c748e5fd909db7c",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "540ef0ad2c576599f3055c45b997dd5569cd7679fd14eef9ae3956a9ad39ab91",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -444,12 +444,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "65b6bb4dfee743dd47b4213a3e733ead04f186df88bda61638a36d90a5e9bedb",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "b2fc278bbfcbfdc725693619423179910e08bc794c4ddc687c2bc1671834470f",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -504,12 +504,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "671711230ed192ef3102ed7f6d900f466c1d2b88e305440ccbedba0a354e9866",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "ab65260125ecd991dfa60f8d32e16f6e4083003a1454a0a5c2d08486ad6b8a16",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -565,12 +565,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "8b7fa5254812ba7eb4de5ac5a6e73f58eeac960f9dd59be67ae8555f182140c7",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "752f9a534ea761c5399082db95f81928d9d6f69dd99c35ae5640043f7455330a",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -635,12 +635,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "576f7d3fb9aaf3fbcb568ae274f51f373abf1e345c7684300fc70bfd7d057a7d",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "81871427c2ab4866882054399f068dc66720b6a9637815671d12688391ea47b8",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -1150,12 +1150,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "091f98abb1c8a2e9b4c4f221e343162c7172b0d34e8a48d2c44ab3108f6c1b4c",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "ecf97c6ec9434e9e3b1d037b5814a1fd4db316554491b5d88fef86d633305dd2",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -1217,12 +1217,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "69da9cb46cfaf3d72d035f43a0a6a52ef4bc51011189611c687c2e4cfbb43715",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "7c7d0f68e137a95910eff2d49b3161dc62bb2743f2911df124194afa07b329fc",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -1283,12 +1283,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "4037d28c6829efebd32f3121374b92a247a34b719e382d6cbabdeabf99a83507",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "acf84f1477d7bc972c23b7897be9c6bf6feb0b7570ce21726023e4d639780d69",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -1399,12 +1399,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "cd89cd01850cf58fd711eb17005a9d70e99404124275b752fd60eb60bd1c48c9",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "de7df57c2ffb78e49998f8d14fd42ef5453e27820c0bdc41832e851f95403aa2",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -1456,12 +1456,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39092564444",
-          "39092568033"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
-        "implementation_sha256": "4469f9a1e1088ae22db8cca97c6d4d2feb88a8806e6154444d9752e8227a7053",
-        "note": "agent-substrate push 39092564444: 13 jobs succeeded; agent-substrate pull_request 39092568033: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "0edf1e8515f3dccb84b0bd837dbb46dbfcd4ac1b71e00e27014ae3f1780d4c45",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -1643,12 +1643,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "6ea0f5a74f2502552b492cd8c503beeee7dd9619225c58df52fde88db73abc40",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "ba7520598ea1e2f3b8c7719657967a9f828092e8a38c332197b5040b7c6d2ab5",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -1718,12 +1718,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "ebac5c7849f0b09cf67f71d93952d9e12498ce6baf2ac340f4de57750b7d8390",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "1d3d85cef7a4c9f26105cae7efa2885efa691f2e8d349ec930ba9acbb89d748e",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -1792,12 +1792,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "f6f977150b0708615a9aa81cf7c81d90a39c98f4c323720881c711bc9f79ebb3",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "4db57da045ee6562501fdcd4eac202b450d39de3fd6948939c71a0a5f5965fa8",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -1871,14 +1871,14 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155530",
-          "39354155571",
-          "39354161846",
-          "39354161849"
+          "40008852132",
+          "40008862775",
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "9af9b1481f0e702973a63ec95ac6614110f2ef50fbbab51acc96480c4eb3b670",
-        "note": "harness-integrations push 39354155530: 5 jobs succeeded; agent-substrate push 39354155571: 13 jobs succeeded; harness-integrations pull_request 39354161846: 5 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "f1ec30aa7504bede82fb4a83ba45a85dcf9d5d3e1266efe93e64d946be8faa7c",
+        "note": "harness-integrations push and pull_request (40008852132,40008862775) and agent-substrate push and pull_request (40008852181,40008862874), every job succeeded at 927b69c"
       }
     },
     {
@@ -2005,12 +2005,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "e53b76734e575e53e049daa1da4866992b2ab093cd5cfacb06e9af40a0651376",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "42117f56e21663ec11293aa5d9cbd5ada160eb4e3c364c816e6362df5687e4e2",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -2146,12 +2146,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "cd89cd01850cf58fd711eb17005a9d70e99404124275b752fd60eb60bd1c48c9",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "de7df57c2ffb78e49998f8d14fd42ef5453e27820c0bdc41832e851f95403aa2",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -2219,12 +2219,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "8ad4eb65b642b63a5e5140f3f0de6d8d475eddac93ec9a55351670067e9cfd19",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "c78291c1cce4fb449b4bb3833cc0373dd786a231ab4acd25e5f36a4b96b688cc",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -2298,14 +2298,14 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155530",
-          "39354155571",
-          "39354161846",
-          "39354161849"
+          "40008852132",
+          "40008862775",
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "38a35efe65692f4552d19b472f13640b5e0a3f7e30e8487906e21d5408a8f444",
-        "note": "harness-integrations push 39354155530: 5 jobs succeeded; agent-substrate push 39354155571: 13 jobs succeeded; harness-integrations pull_request 39354161846: 5 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "8f0e84f10db89e3528abb14acd86cb4f4014829f0bfb867f4a9baaf4179f47b0",
+        "note": "harness-integrations push and pull_request (40008852132,40008862775) and agent-substrate push and pull_request (40008852181,40008862874), every job succeeded at 927b69c"
       }
     },
     {
@@ -2424,12 +2424,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "39354155571",
-          "39354161849"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "84ae71e5f7f3e70c61ec0655c59e33dd4b4a07e25144fa6c58e90e34b78c62c1",
-        "note": "agent-substrate push 39354155571: 13 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "3a102c30f0fd8f04d021525c5a8969963d0f5408542e6b1d9b11b2c9f0b1ef83",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       }
     },
     {
@@ -2633,12 +2633,12 @@
       "hosted_ci": "hosted runs 37997302565, 37997307170 at efaf08a, every job of the workflows as they then stood green; whether they cover this row's current implementation is derived from its implementation digest, not stated here",
       "hosted_evidence": {
         "runs": [
-          "39092564444",
-          "39092568033"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "40440ced49c5e47d201c0fd039fe5774c2f4443f",
-        "implementation_sha256": "e8fb46e495da8514b33f32311072c768c379a3fca5c5dfeeebca24f670510ae0",
-        "note": "agent-substrate push 39092564444: 13 jobs succeeded; agent-substrate pull_request 39092568033: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "98ea32deffc0676c84bb03cb96db6179cf22490e594cb83acf7659c1407a6e1a",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -2959,14 +2959,14 @@
       "hosted_ci": "hosted runs 37997302565, 37997307170, 37997302367, 37997307194 at efaf08a, every job of the workflows as they then stood green; whether they cover this row's current implementation is derived from its implementation digest, not stated here",
       "hosted_evidence": {
         "runs": [
-          "39354155530",
-          "39354155571",
-          "39354161846",
-          "39354161849"
+          "40008852132",
+          "40008862775",
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
-        "implementation_sha256": "39b0a82ce4b2c2f34a865e939f67e1e2083f980d43f8392f151263561065e4a6",
-        "note": "harness-integrations push 39354155530: 5 jobs succeeded; agent-substrate push 39354155571: 13 jobs succeeded; harness-integrations pull_request 39354161846: 5 jobs succeeded; agent-substrate pull_request 39354161849: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "6a48f53fe591143513cea39ad60b34e1696fcffaaa8f8965d15ea879526f405a",
+        "note": "harness-integrations push and pull_request (40008852132,40008862775) and agent-substrate push and pull_request (40008852181,40008862874), every job succeeded at 927b69c"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3142,12 +3142,12 @@
       "hosted_ci": "hosted runs 37997302565, 37997307170 at efaf08a, every job of the workflows as they then stood green; whether they cover this row's current implementation is derived from its implementation digest, not stated here",
       "hosted_evidence": {
         "runs": [
-          "39476512794",
-          "39476526706"
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "7b6cfba224aad094fbe897c48e36ed7046be9ff4",
-        "implementation_sha256": "6de4ca241ad8115e080eb8cabd39327e72d7fb95a4d080b9cc9c165b7a23cb0b",
-        "note": "agent-substrate push 39476512794: 13 jobs succeeded; agent-substrate pull_request 39476526706: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "aa6de44991e24adbaa5ae6bd9f40ad9b2b68d67c46b575bcba0d5e4d31daf24a",
+        "note": "agent-substrate push 40008852181,40008862874: 13 jobs each, including the eight mutation shards, the full suite and the second interpreter, all succeeded at 927b69c"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3199,13 +3199,13 @@
       "hosted_ci": "never run on a hosted runner at a commit carrying this row's implementation",
       "hosted_evidence": {
         "runs": [
-          "39476512674",
-          "39476512794",
-          "39476526706"
+          "40008852061",
+          "40008852181",
+          "40008862874"
         ],
-        "commit": "7b6cfba224aad094fbe897c48e36ed7046be9ff4",
-        "implementation_sha256": "bcac8133bfb00cccdbbddf61983f5603844979e42603056bf84fa4d9b9860b98",
-        "note": "container-verify push 39476512674: 1 jobs succeeded; agent-substrate push 39476512794: 13 jobs succeeded; agent-substrate pull_request 39476526706: 13 jobs succeeded"
+        "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+        "implementation_sha256": "616f507f4c82f81c450aac88d9a220c4a8ceb4053206b0939e2321b1a390b77f",
+        "note": "container-verify push (40008852061) and agent-substrate push and pull_request (40008852181,40008862874), every job succeeded at 927b69c"
       },
       "residual_gaps": [],
       "boundaries": [

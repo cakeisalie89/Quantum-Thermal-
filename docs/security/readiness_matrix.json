@@ -143,7 +143,7 @@
   {
    "id": "CI-4",
    "capability": "every workflow on this branch holds no more than its stated authority; the agent's and the CI signer's identities cannot sign a release",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_ci_authority.py"
    ],
@@ -178,6 +178,21 @@
     ],
     "implementation_sha256": "657ba6f44e535cf4ca3911ed810956f2b8c61db08ab122df9f2279586e813913",
     "what": "agent-substrate: the workflow contract, with its authority rules and exit-capture rule, and tests/test_ci_authority.py in the full suite"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874",
+     "40008852132",
+     "40008862775",
+     "40008852081",
+     "40008862807",
+     "40008852061",
+     "40008852103"
+    ],
+    "implementation_sha256": "65f17cf5929ef97e5857a68b02539d0eb0511a1fa6c72ab457fc20620fb1a286",
+    "what": "every workflow at 927b69c, push and pull_request: agent-substrate (whose full suite runs tests/test_ci_authority.py and whose shards run ci_authority.json), harness-integrations, stack-verify, container-verify and supply-chain, 44 jobs, every one succeeded"
    }
   },
   {
@@ -192,7 +207,7 @@
   {
    "id": "SUB-1",
    "capability": "authority-bearing writers decide under the writer lock against the history they append onto",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_agent_toctou.py",
     "tests/test_decided_appends.py"
@@ -225,12 +240,21 @@
     ],
     "implementation_sha256": "8164c761bf000d9c7112c531233d3edc0fed0de54c79bc739591897306aa11b7",
     "what": "agent-substrate: full suite and mutation shards"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "c0e00fbfea1267b42244ba46d40105b70b3bf29cd5e894662772d5f42a23e727",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
    }
   },
   {
    "id": "SUB-2",
    "capability": "every other authority writer decides under the writer lock against the history it appends onto -- capability, egress and secret writers, the execution record, the compensation authorization, governed reads -- and no projection resumes past a record it refused",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_t2_closure.py",
     "tests/test_refused_fold.py",
@@ -263,12 +287,21 @@
     ],
     "implementation_sha256": "5e501474e79a43e5a4ddf1118513340a72324f011be054858fdd0159fe876e03",
     "what": "agent-substrate: full suite (tests/test_t2_closure.py, test_refused_fold.py, test_t2_governed.py, test_decided_under_lock.py, test_authority_inventory.py) and mutation shards (t2_closure, authority_inventory), and the authority-inventory step"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "91f86dea081937a529e6e8e6c3301aee664ae68ea476774fecfc382473fe88a2",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
    }
   },
   {
    "id": "SUB-3",
    "capability": "promotions bound to a policy published by a named authority, not withdrawn, not expired; restated by the second reader",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_policy_binding.py",
     "tests/test_scientific_authority_replay.py"
@@ -302,12 +335,21 @@
     ],
     "implementation_sha256": "5263950f050372f8bda9cd193d7af578c5e00523e41c0625623cca90253867b5",
     "what": "agent-substrate: full suite and mutation shards"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "fbc431d8077746a85b609613b9d42af44f8783d875e9cc051ed58fc4053a55ff",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
    }
   },
   {
    "id": "SUB-4",
    "capability": "hostile Cases A-H refused end to end",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_hostile_composition.py"
    ],
@@ -339,6 +381,15 @@
     ],
     "implementation_sha256": "8b7ea80fee2e93c0169fdb7deb7394e11a10d62250e192a5d3e94a886aa6b477",
     "what": "agent-substrate: full suite"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "36fe9111be7453d32f3cedf281aa9c0e826fe5a0b24aafbd47d1e6b9cb7d7d9c",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
    }
   },
   {
@@ -355,7 +406,7 @@
   {
    "id": "RUN-1",
    "capability": "tool resource bounds: wall, CPU, address space, output, tasks, descriptors, environment",
-   "status": "IMPLEMENTED",
+   "status": "HOSTED_TESTED",
    "tests": [
     "tests/test_agent_execution.py",
     "tests/test_execution_containment.py"
@@ -386,6 +437,15 @@
     ],
     "implementation_sha256": "0be062c5e8faa22db3d4b66d672989787934f1f2b46b9b791e15b98247a8848c",
     "what": "agent-substrate: full suite and mutation shards with HARNESS_ISOLATION_REQUIRED=1 on the runner, the confinement probe, and the agent suites on a second interpreter installed outside /usr"
+   },
+   "hosted": {
+    "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
+    "runs": [
+     "40008852181",
+     "40008862874"
+    ],
+    "implementation_sha256": "069aef798d98bf528e7ebca7170d355bcaec7da9cfdbef23d23a72c1e2ec6cc1",
+    "what": "agent-substrate push and pull_request at 927b69c, 13 jobs each, every one succeeded: the full suite (these rows' tests), the eight mutation shards (their mutation specifications) and the second interpreter"
    }
   },
   {

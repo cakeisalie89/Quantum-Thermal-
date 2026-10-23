@@ -153,10 +153,10 @@
   {
    "@id": "docs/completion_matrix.json",
    "@type": "File",
-   "contentSize": "253351",
+   "contentSize": "254267",
    "description": "the completion matrix",
    "name": "completion_matrix.json",
-   "sha256": "4843d206d5b71620ad9975d619e583c333ef08f93cd2d47f69b633fe9ab1eb73"
+   "sha256": "a34fe8428505f893c702e8dfb0b49e6c4cc2d17d74d44098b45eeef74bf0cc45"
   },
   {
    "@id": "docs/equivalence_contracts.json",
@@ -177,10 +177,10 @@
   {
    "@id": "docs/harness_status.json",
    "@type": "File",
-   "contentSize": "15308",
+   "contentSize": "10092",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "f899063212e1df1909402893c63c51e0ce13bb6ee96f1fa1fb29d8c95f2d3175"
+   "sha256": "54afa69dce1f73dce5353ffac3401f3f01e629dd12a0a3a15cf8e81b15fac116"
   },
   {
    "@id": "docs/neural/claims.json",

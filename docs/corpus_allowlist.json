@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "1af05d80f2dad9f8f83e7a64a1e089c71d11e42b4fc46da1550150a455735184",
+  "entries_digest": "d85e96c6ba94e210db6c9fc46a7e4ca069bb6ec7d8fc2c4d85ea1ef01f981b9b",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "4eadae24724a9f8f8f15df216471962a2b5286b143247513cfeda2691e266d1b"
+      "sha256": "f9930b71ce1705ec4e321a732665bf7369ff2aea188b472ca66d16f4f208468c"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
