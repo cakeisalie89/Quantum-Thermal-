@@ -29,17 +29,19 @@ def test_the_tree_has_no_unverified_read():
     assert not violations, violations
 
 
-def test_the_scan_sees_the_one_site_it_allows():
-    """ANTI-VACUITY for the scope: the fuzz harness's parser target is in
-    tools/, and the scan must reach it -- a scan that skipped tools/ would
-    be green over a directory full of raw reads."""
+def test_the_scan_sees_the_sites_it_allows():
+    """ANTI-VACUITY for the scope: the fuzz harness's parser target and the
+    integration demonstration's history forger are in tools/, and the scan
+    must reach both -- a scan that skipped tools/ would be green over a
+    directory full of raw reads."""
     _, allowed, _ = guard.scan()
     assert {(h[0], h[1], h[2]) for h in allowed} == set(guard.ALLOWED)
 
 
 def test_the_allowlist_is_pinned_and_reasoned():
     """Widening it is a reviewed change: the count is pinned here."""
-    assert len(guard.ALLOWED) == 1
+    # 2: the fuzz harness's parser target, and V10's forger (D-2026-186)
+    assert len(guard.ALLOWED) == 2
     for key, why in guard.ALLOWED.items():
         assert len(why) >= 40, f"{key}: say why, not that"
 

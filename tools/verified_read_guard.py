@@ -60,6 +60,10 @@ ALLOWED = {
     ("tools/fuzz_substrate.py", "_log_reader", "RAW_READ"):
         "the fuzz harness's parser target: the unverified parse IS the "
         "subject under test, and nothing is folded into state",
+    ("tools/integration_demo.py", "_rechain", "FILE_READ"):
+        "section 11's V10 attacker: it reads the raw records only to forge "
+        "a re-chained history, which is then read back through "
+        "read_verified and the witnesses; nothing is folded into state",
 }
 
 

@@ -11806,6 +11806,20 @@ scripted, the real-model condition is NOT_RUN (OD-1, OD-6), and the
 demonstration proves the composition behaves as its rules say on these
 histories, not that the rules are complete.
 
+**ADDENDUM — FOUND BY THE FULL SUITE, BEFORE THE PUSH.**
+`tests/test_verified_read_guard.py` found that V10's forger,
+`_rechain` in `tools/integration_demo.py`, reads the event log's raw
+bytes. The structural guard refuses any unverified log read outside
+`agent_substrate/events.py` unless it is allowlisted with a reason, and
+the allowlist's size is pinned.
+
+The read is the attack itself. It forges a re-chained history, which is
+then read back through `read_verified` and the witnesses, and nothing is
+folded into state. It is allowlisted on those terms beside the fuzz
+harness's parser target, and the pin goes from one to two. Renaming the
+variable would have hidden the read from the guard. That would be
+evading a control, so it was not done.
+
 ## D-2026-187 — A mutant killed only by a wrong assertion: the isolation test asked the executor whether the host had namespaces
 
 **FOUND BY HOSTED CI.** The agent-substrate mutation shard at the commit

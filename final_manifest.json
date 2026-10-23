@@ -439,8 +439,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 642954,
-      "sha256": "d0bc7199e14771f7025914898e6803d22b120e1d97c1df1cfa672d8e97c9540c"
+      "size_bytes": 643707,
+      "sha256": "b54c6e5d101423f6bda24fa5a62d2e405a82ef49e8ffc47007c1a4e3e6661d3e"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -485,7 +485,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5219,
-      "sha256": "35c608ab1d7c8ee11581f88f0d8d77ecc11fe4fd7908d5e0fa70f60161125ea5"
+      "sha256": "c604beb89457e12e26f6d34636c61712be214de2a441b74cc3cdca700dc24666"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -2099,8 +2099,8 @@
     },
     {
       "filename": "tests/test_verified_read_guard.py",
-      "size_bytes": 7204,
-      "sha256": "26db5ba3ded11f364f506173dea407ae3921f87f2e1dda3c5975e0589f020d7b"
+      "size_bytes": 7332,
+      "sha256": "19b7e04ed9d8641b5ba3818a94998ad8cc896f868e7eca8b87865b16019c6c37"
     },
     {
       "filename": "tests/test_witness.py",
@@ -3004,8 +3004,8 @@
     },
     {
       "filename": "tools/verified_read_guard.py",
-      "size_bytes": 9158,
-      "sha256": "5e1477b294c35ea7fdf712a88a78fd903d1201879e03ed9da9da19e0ad04400b"
+      "size_bytes": 9433,
+      "sha256": "61e64f43d97057cc77338d7b3ae91e6a25b57a9749da69e37e334eaac712c65b"
     },
     {
       "filename": "tools/verify.sh",
