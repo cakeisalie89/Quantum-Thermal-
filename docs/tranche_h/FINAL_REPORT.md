@@ -39,13 +39,15 @@ writing, the newest engineering commits are:
   (D-2026-189);
 - `8f53500`, the Gate G stages recorded to 1,000;
 - `3fa6072`, V7 counting executed run tasks rather than created ones
-  (D-2026-190).
+  (D-2026-190);
+- `927b69c`, the Gate G stages beyond 1,000 recorded as not reached;
+- `93cfeb9`, the hosted evidence at `927b69c` (evidence only).
 
 PR #17 stays open and unmerged. `main` was not touched, and no history was
 rewritten.
 
-**Files changed.** 160 files, +44,519 / −2,367 lines from `aa0c413` to
-`8f53500`, over 38 commits.
+**Files changed.** 160 files, +44,617 / −2,463 lines from `aa0c413` to
+`93cfeb9`, the evidence commit at `927b69c`, over 41 commits.
 
 ### Capabilities completed
 
@@ -156,16 +158,33 @@ already remove them and see their tests fail.
   job ran, for the first time, a test that only runs where namespaces
   are refused. The test was wrong, and the executor was right (D-2026-176
   addendum); `e07d991` corrects the test.
-- **`e07d991`**, pushed with Gates F, G, D and E: harness-integrations and
-  stack-verify succeeded. Agent-substrate, container-verify and
-  supply-chain were running when this was written.
-- **The heads after it** are recorded by the evidence commit after their
-  hosted runs.
+- **`e07d991`**, pushed with Gates F, G, D and E. Every workflow
+  succeeded except one agent-substrate mutation shard. IS1 survived
+  there, because the isolation test asked the code under test whether
+  the host had namespaces (D-2026-187). `e33eeb4` repairs it.
+- **`51cb01c`.** All 8 workflow runs succeeded.
+- **`8f53500`.** Every run succeeded except V7 in the pull_request run of
+  agent-substrate. The hosted timing reached the idempotency race, and
+  V7 counted the cancelled orphan as a second execution (D-2026-190).
+  `3fa6072` repairs it. The same job in the push run succeeded.
+- **`927b69c`.** All 8 workflow runs, 44 jobs, succeeded. The eight
+  mutation shards ran on the measured weights (D-2026-189).
 
-**The evidence pin.** It moved from 28 to 23 rows whose hosted evidence
-covers the current implementation (R24, R26, R28, R54, R55). This is
-honest: the concurrency repair changed `governed_tasks.py`, and the pin
-rises only when hosted evidence is attached again.
+**The evidence pin.** The evidence commit at `927b69c` attached those
+runs to the 26 rows whose evidence predated their implementation, so the
+pin moved from 23 to 49 rows whose hosted evidence covers the current
+implementation. `tools/readiness.py attach` returned SUB-1 to SUB-4,
+RUN-1 and CI-4 to HOSTED_TESTED.
+
+The derived status is COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT,
+with 0 unsatisfied. Readiness is PRODUCTION_READINESS_CONTRACT_NOT_MET:
+
+- 10 HOSTED_TESTED;
+- 3 DEPLOYMENT_REQUIRED;
+- 5 EXTERNALLY_BLOCKED;
+- 2 UNVERIFIED.
+
+A commit after the evidence that changes no implementation file keeps it.
 
 ## Formal and adversarial assurance
 
@@ -517,8 +536,8 @@ criteria, with these exceptions:
    while the session is active, and the campaign cannot resume across the
    death of its process. The two changes that would remove the limit are
    named above. The run reached 1,547 decisions, clean.
-2. **Hosted evidence for the newest heads.** It is attached after their
-   hosted runs, which raises the evidence pin again.
+2. **Hosted evidence** is attached at `927b69c`, the last head that
+   changed implementation. Every hosted run there succeeded.
 
 **What is externally blocked.** Every live-model result (OD-1, OD-6), the
 human principal (OD-4), external retrieval (OD-3), symbolic checks

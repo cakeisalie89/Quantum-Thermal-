@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "d85e96c6ba94e210db6c9fc46a7e4ca069bb6ec7d8fc2c4d85ea1ef01f981b9b",
+  "entries_digest": "071e43c8e9f972bac0c2c58a0d9462479f98c46c6035af3bf7c4930afee4b6e9",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -122,7 +122,7 @@
     },
     {
       "path": "docs/tranche_h/FINAL_REPORT.md",
-      "sha256": "947bdc022c73ea9cab57c07f07a21b0ecef297fa58c7b1f6a12195836a877ef4"
+      "sha256": "5d895bc173f398f13a22d44e8624790828e4fa9b638e4d3fd41977f08e8d7eba"
     },
     {
       "path": "docs/tranche_h/GATE_A_AUDIT.md",
@@ -130,7 +130,7 @@
     },
     {
       "path": "docs/tranche_h/PROGRESS.md",
-      "sha256": "bd0d475d7e30f629de29559c605478b54fa6d682d607868a6d2ea6602b9a62d9"
+      "sha256": "fbf81b098688ad0a81313e8aa905427c2c2522421989a0228cecc8d3e561ce85"
     },
     {
       "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",

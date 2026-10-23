@@ -490,7 +490,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5219,
-      "sha256": "b2fe7e89fd4308470112758a4ab95fa10d7fdf66e7b6f320091aea9d15adf3b9"
+      "sha256": "3fc90be79333bd7d5f6f9dcbf26d7d0f5d71a7a45bdaf90d142c6e62d711db33"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -769,8 +769,8 @@
     },
     {
       "filename": "docs/tranche_h/FINAL_REPORT.md",
-      "size_bytes": 25579,
-      "sha256": "947bdc022c73ea9cab57c07f07a21b0ecef297fa58c7b1f6a12195836a877ef4"
+      "size_bytes": 26548,
+      "sha256": "5d895bc173f398f13a22d44e8624790828e4fa9b638e4d3fd41977f08e8d7eba"
     },
     {
       "filename": "docs/tranche_h/GATE_A_AUDIT.md",
@@ -779,8 +779,8 @@
     },
     {
       "filename": "docs/tranche_h/PROGRESS.md",
-      "size_bytes": 13643,
-      "sha256": "bd0d475d7e30f629de29559c605478b54fa6d682d607868a6d2ea6602b9a62d9"
+      "size_bytes": 13827,
+      "sha256": "fbf81b098688ad0a81313e8aa905427c2c2522421989a0228cecc8d3e561ce85"
     },
     {
       "filename": "docs/tranche_h/capability_matrix.json",
