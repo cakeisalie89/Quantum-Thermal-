@@ -121,6 +121,43 @@ def test_each_verdict_for_the_reason_it_states(w):
     assert w.check("slab-1 is cool enough").verdict is V.UNVERIFIABLE
 
 
+# ------------------------------------------- units (D-2026-177)
+
+def test_a_claim_in_another_unit_of_the_quantity_is_rescaled_exactly(w):
+    text = "q_in of slab-1 is below 1.215 kW/m^2"        # 1215 W/m^2
+    plain = w.check(text, cites=["o-slab-1-a"])
+    assert plain.verdict is V.UNVERIFIABLE                # nothing converted
+    assert "nothing is converted" in plain.why
+    scaled = w.check(text, cites=["o-slab-1-a"], convert=B.units)
+    assert (scaled.verdict, scaled.established) == (V.SUPPORTED, True)
+    over = w.check("q_in of slab-1 is above 1.215 kW/m^2",
+                   cites=["o-slab-1-a"], convert=B.units)
+    assert over.verdict is V.CONTRADICTED
+
+
+@pytest.mark.parametrize("text, why", [
+    ("T_at_half of slab-1 is below 40 degC", "temperature difference"),
+    ("q_in of slab-1 is below 2 kg", "differ in dimension"),
+    ("q_in of slab-1 is below 2 furlongs", "no unit 'furlongs'"),
+])
+def test_a_conversion_that_cannot_be_made_soundly_decides_nothing(w, text,
+                                                                  why):
+    r = w.check(text, cites=["o-slab-1-a"], convert=B.units)
+    assert r.verdict is V.UNVERIFIABLE and why in r.why, r.why
+    assert not r.established
+
+
+def test_the_substrate_holds_no_unit_semantics_of_its_own():
+    """Units are the scientific layer's; the substrate reaches it only
+    through the workspace guard, and is handed a converter."""
+    src = (ROOT / "agent_substrate" / "claim_check.py").read_text(
+        encoding="utf-8")
+    tree = ast.parse(src)
+    mods = {getattr(n, "module", "") or "" for n in ast.walk(tree)} | {
+        a.name for n in ast.walk(tree) for a in getattr(n, "names", ())}
+    assert not any(m.split(".")[0] == "scientific" for m in mods)
+
+
 # ------------------------------------------- three questions, kept apart
 
 def test_a_contradiction_cannot_be_avoided_by_leaving_it_out(w):

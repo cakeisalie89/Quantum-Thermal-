@@ -73,6 +73,7 @@ from agent_substrate.authority import Role, State  # noqa: E402
 from agent_substrate.events import EventLog  # noqa: E402
 from agent_substrate.evidence import EvidenceStore  # noqa: E402
 from agent_substrate.store import AuthorityStore  # noqa: E402
+from scientific.dimensions import convert as units  # noqa: E402
 
 SCHEMA = "claim-bench-results/1"
 RESULTS = ROOT / "docs" / "research" / "claim_bench_results.json"
@@ -135,8 +136,9 @@ class World:
                             objective_id=OBJECTIVE, record_id=rid,
                             bundle_bytes=bundle)
 
-    def check(self, text, cites=(), checker=None):
+    def check(self, text, cites=(), checker=None, convert=None):
         return C.check(text, cites=cites, objective_id=OBJECTIVE,
+                       convert=convert,
                        ledger=self.ledger, store=self.store,
                        evidence=self.evidence, checker=checker)
 
@@ -195,6 +197,20 @@ def structured_claims() -> list:
     add("T_probe of probe-1 is below 300 K", INS,
         "its only observation was withdrawn", ["o-probe-1-a"])
     add("T_at_half of slab-9 is below 300 K", INS, "a model nothing ran")
+    # the same quantities in other units: a scale is exact, so the label
+    # still follows from the arithmetic
+    flux, f_res = RUNS["slab-1"]["a"]["q_in"][0], \
+        RUNS["slab-1"]["a"]["q_in"][2]
+    add(f"q_in of slab-1 is below {_n((flux + 3 * f_res) / 1000)} kW/m^2",
+        SUP, "three resolutions above the value, in kW/m^2", ["o-slab-1-a"])
+    add(f"q_in of slab-1 is above {_n((flux + 3 * f_res) / 1000)} kW/m^2",
+        CON, "three resolutions above the value, in kW/m^2", ["o-slab-1-a"])
+    peak, p_res = RUNS["slab-1"]["a"]["T_max"][0], \
+        RUNS["slab-1"]["a"]["T_max"][2]
+    add(f"T_max of slab-1 is above {_n((peak - 3 * p_res) * 1000)} mK", SUP,
+        "three resolutions below the value, in mK", ["o-slab-1-a"])
+    add("q_in of slab-1 is below 2 kg", UNV,
+        "a mass is not a heat flux in any unit", ["o-slab-1-a"])
     return out
 
 
@@ -225,6 +241,9 @@ PROSE = [
      "312.4 K against 305 K and 309 K"),
     ("slab-1 is 312.4 K at the hottest point.", "CONTRADICTED",
      "the hottest point is T_max, 340 K"),
+    ("T_at_half of slab-1 is below 40 degC", "SUPPORTED",
+     "40 degC is 313.15 K; but nothing recorded says T_at_half is a "
+     "temperature and not a difference, which the conversion needs"),
 ]
 
 
@@ -272,7 +291,8 @@ def _answer(world: World, claim: dict, mode: str):
         verdict, _ = C.assess_with(lexical, claim["text"], admitted)
         return verdict.value, False, "ASSESSED"
     r = world.check(claim["text"], cites=claim["cites"],
-                    checker=lexical if mode == "combined" else None)
+                    checker=lexical if mode == "combined" else None,
+                    convert=units)
     return r.verdict.value, r.established, r.basis.value
 
 

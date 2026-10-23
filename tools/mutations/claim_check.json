@@ -1,6 +1,6 @@
 {
  "title": "Semantic claim verification: three questions apart, no more than the ledger says, an opinion granted nothing",
- "note": "Section 6.3 (D-2026-173). Each mutation lets the grammar read more than the sentence says, weighs evidence it should not (another model's, another unit's, a withdrawn record's, only what was cited), turns doubt or a failed checker into support, or grants an assessed or badly cited claim the property. tests/test_claim_check.py holds each, against real authority records read into the research ledger.",
+ "note": "Section 6.3 (D-2026-173). Each mutation lets the grammar read more than the sentence says, weighs evidence it should not (another model's, another unit's, a withdrawn record's, only what was cited), turns doubt or a failed checker into support, or grants an assessed or badly cited claim the property. tests/test_claim_check.py holds each, against real authority records read into the research ledger. CC17-CC18 (D-2026-177) hold the unit conversion a caller supplies.",
  "suites": [
   "tests/test_claim_check.py"
  ],
@@ -29,15 +29,15 @@
   {
    "name": "CC4_units_are_not_compared",
    "path": "agent_substrate/claim_check.py",
-   "find": "    if units != {claim.unit}:",
-   "replace": "    if False:",
-   "rationale": "6.3: a value in one unit is compared with a number claimed in another"
+   "find": "        if unit != claim.unit:",
+   "replace": "        if False:",
+   "rationale": "6.3: a value in one unit is compared with a number claimed in another, unconverted"
   },
   {
    "name": "CC5_equality_ignores_resolution",
    "path": "agent_substrate/claim_check.py",
-   "find": "            each.add(\"SUPPORTED\" if lo <= claim.value <= hi else \"REFUTED\")",
-   "replace": "            each.add(\"SUPPORTED\" if claim.value == got[\"value\"] else \"REFUTED\")",
+   "find": "            each.add(\"SUPPORTED\" if lo <= value <= hi else \"REFUTED\")",
+   "replace": "            each.add(\"SUPPORTED\" if value == got[\"value\"] else \"REFUTED\")",
    "rationale": "6.3: a value within an output's resolution is called a contradiction"
   },
   {
@@ -57,15 +57,15 @@
   {
    "name": "CC8_only_what_the_claim_cites_is_weighed",
    "path": "agent_substrate/claim_check.py",
-   "find": "        verdict, why, used = judge(structured, admitted)",
-   "replace": "        verdict, why, used = judge(structured, [o for o in admitted\n                                                if o['observation_id'] in cites])",
+   "find": "        verdict, why, used = judge(structured, admitted, convert=convert)",
+   "replace": "        verdict, why, used = judge(structured, [o for o in admitted\n                                                if o['observation_id'] in cites],\n                                   convert=convert)",
    "rationale": "6.3: a claim avoids a contradicting run by not citing it"
   },
   {
    "name": "CC9_a_checker_overrules_the_grammar",
    "path": "agent_substrate/claim_check.py",
-   "find": "    if structured is not None:\n        verdict, why, used = judge(structured, admitted)",
-   "replace": "    if structured is not None and checker is None:\n        verdict, why, used = judge(structured, admitted)",
+   "find": "    if structured is not None:\n        verdict, why, used = judge(structured, admitted, convert=convert)",
+   "replace": "    if structured is not None and checker is None:\n        verdict, why, used = judge(structured, admitted, convert=convert)",
    "rationale": "6.3: an opinion replaces a deterministic verdict"
   },
   {
@@ -116,6 +116,20 @@
    "find": "        return Verdict.UNVERIFIABLE, f\"the checker gave no usable answer \" \\",
    "replace": "        return Verdict.SUPPORTED, f\"the checker gave no usable answer \" \\",
    "rationale": "6.3: a checker that answered nothing is read as support"
+  },
+  {
+   "name": "CC17_the_converted_value_is_not_used",
+   "path": "agent_substrate/claim_check.py",
+   "find": "                value = convert(claim.value, claim.unit, unit)",
+   "replace": "                convert(claim.value, claim.unit, unit)",
+   "rationale": "H: a claim in kW/m^2 is judged as if its number were in W/m^2"
+  },
+  {
+   "name": "CC18_an_unsound_conversion_is_support",
+   "path": "agent_substrate/claim_check.py",
+   "find": "            except ValueError as exc:\n                return (Verdict.UNVERIFIABLE,",
+   "replace": "            except ValueError as exc:\n                return (Verdict.SUPPORTED,",
+   "rationale": "H: a Celsius value whose kind nobody knows, or a mass for a heat flux, is called support"
   }
  ]
 }

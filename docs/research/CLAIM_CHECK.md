@@ -17,7 +17,9 @@ The semantic answer is one of five verdicts:
 - **INSUFFICIENT_EVIDENCE**: none reports it, or a resolution straddles the
   claimed value.
 - **UNVERIFIABLE**: the grammar does not read the text in full, or the claim
-  uses a unit the evidence is not in. Nothing is converted.
+  uses a unit that cannot soundly be converted to the evidence's. A
+  different dimension cannot. A Celsius value cannot either, without knowing
+  whether it is a temperature or a difference.
 - **CONFLICTING_EVIDENCE**: admitted observations decide it both ways.
 
 The answer is judged against every admitted observation of the objective,
@@ -32,7 +34,11 @@ in the sentence, nothing is read. "T_at_half of slab-1 is below 350 K, so
 the panel is safe" is not read as "T_at_half of slab-1 is below 350 K".
 
 Each claim the grammar reads is judged by the evaluation the research ledger
-records verdicts with. The deterministic route therefore never says more
+records verdicts with. A claim in another unit of the same quantity is
+first rescaled exactly, by a converter the caller passes in
+(`scientific.dimensions.convert`, D-2026-177). The substrate holds no unit
+semantics of its own: without a converter, nothing is converted. The
+deterministic route therefore never says more
 than the ledger would. A Hypothesis test holds it there: its SUPPORTED is
 the ledger's SUPPORTED, and its CONTRADICTED is the ledger's REFUTED.
 
@@ -58,11 +64,13 @@ It then scores three checkers. The results are in
 
 **Where the labels come from.**
 
-- *Structured* claims (37) are labelled by construction. The label is chosen
+- *Structured* claims (41) are labelled by construction. The label is chosen
   first, and the claim is then written to have it: three resolutions clear,
-  half a resolution in, between two runs, or a foreign unit. The label
-  follows from the generator's arithmetic, not from the checker.
-- *Prose* claims (12) were labelled by the checker's author, with a reason
+  half a resolution in, between two runs, or a foreign unit. Four are in
+  another unit of the same quantity (kW/m^2, mK) or of another dimension
+  (kg). The label follows from the generator's arithmetic, not from the
+  checker, and a scale is exact.
+- *Prose* claims (13) were labelled by the checker's author, with a reason
   each. **They are not human labels.** The prose scores are a development
   measurement. A confirmatory benchmark needs labels from people who did
   not write the checker, and recruiting them is the owner's decision.
@@ -72,12 +80,12 @@ another answer to a claim labelled SUPPORTED.
 
 | Checker | Family | Exact | FP | FN | Established | Established and wrong |
 |---|---|---|---|---|---|---|
-| deterministic | structured | 37/37 | 0/24 | 0/13 | 12 | 0 |
-| deterministic | prose | 4/12 | 0/8 | 4/4 | 0 | 0 |
-| lexical (stand-in for a fallible checker) | structured | 14/37 | 22/24 | 0/13 | 0 | 0 |
-| lexical | prose | 4/12 | 4/8 | 2/4 | 0 | 0 |
-| combined (deterministic, then lexical for unread text) | structured | 37/37 | 0/24 | 0/13 | 12 | 0 |
-| combined | prose | 4/12 | 4/8 | 2/4 | 0 | 0 |
+| deterministic | structured | 41/41 | 0/26 | 0/15 | 14 | 0 |
+| deterministic | prose | 5/13 | 0/8 | 4/5 | 0 | 0 |
+| lexical (stand-in for a fallible checker) | structured | 15/41 | 22/26 | 2/15 | 0 | 0 |
+| lexical | prose | 4/13 | 4/8 | 3/5 | 0 | 0 |
+| combined (deterministic, then lexical for unread text) | structured | 41/41 | 0/26 | 0/15 | 14 | 0 |
+| combined | prose | 5/13 | 4/8 | 2/5 | 0 | 0 |
 | a real model | - | NOT_RUN | | | | |
 
 **What it shows.**
@@ -85,18 +93,20 @@ another answer to a claim labelled SUPPORTED.
 1. **The deterministic route trades recall for precision.** It let no
    unsupported claim through in either family. It also missed every
    supported paraphrase: "about 312 K", "1200 W/m^2 at its surface",
-   "hotter than slab-2". It also missed "1.2 kW/m^2", because it converts no
-   unit.
+   "hotter than slab-2". It reads "1.2 kW/m^2" now that units are
+   converted (D-2026-177). It still misses "below 40 degC": a Celsius value
+   must be known as a temperature and not a difference, and nothing
+   records which.
 2. **The fluent checker fails on plausible but unsupported claims.**
    - It passed a cause it had no evidence for: "peaks at 340 K because
      radiative losses dominate".
    - It passed an attribution nobody recorded: "according to a reviewer".
    - It passed agreement between two runs that disagree.
    - It passed the wrong output: "312.4 K at the hottest point".
-   - It passed 22 of 24 wrong structured claims, because each threshold
+   - It passed 22 of 26 wrong structured claims, because each threshold
      sits within 2% of the true value.
 3. **The combination reports those passes, with basis ASSESSED, and
-   establishes none of them.** Of the 12 claims established, none is wrong.
+   establishes none of them.** Of the 14 claims established, none is wrong.
    The guarantee is the established property, not the verdict field. A
    reader that ignores `basis` is misled by the combined route exactly as
    often as by the lexical checker alone.

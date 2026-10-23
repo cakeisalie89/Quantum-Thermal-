@@ -152,10 +152,18 @@ def read_claim(text: str) -> Structured | None:
                       value=value, unit=m["unit"])
 
 
-def judge(claim: Structured, observations: list) -> tuple:
+def judge(claim: Structured, observations: list, *, convert=None) -> tuple:
     """``(Verdict, why, used)``: ``claim`` against admitted ``observations``
     (research observation bodies). ``used`` names the observations that
-    report the quantity."""
+    report the quantity.
+
+    ``convert(value, from_unit, to_unit)`` expresses the claimed value in
+    an observation's unit when the two differ, or raises ``ValueError``
+    when it cannot be done soundly (the dimensions differ; the Celsius
+    scale needs to know a temperature from a difference). Without it,
+    nothing is converted. The substrate supplies none of its own: unit
+    semantics are the scientific layer's (``scientific.dimensions``), and a
+    caller that wants them passes them in."""
     usable = [o for o in observations
               if o.get("model_id") == claim.model_id
               and claim.quantity in (o.get("values") or {})]
@@ -164,23 +172,30 @@ def judge(claim: Structured, observations: list) -> tuple:
                 f"no admitted observation of {claim.model_id} reports "
                 f"{claim.quantity}", ())
     used = tuple(o["observation_id"] for o in usable)
-    units = {o["values"][claim.quantity].get("unit") for o in usable}
-    if units != {claim.unit}:
-        return (Verdict.UNVERIFIABLE,
-                f"{claim.quantity} is reported in {sorted(map(str, units))} "
-                f"and claimed in {claim.unit!r}; nothing is converted", used)
     each = set()
     for o in usable:
+        got = o["values"][claim.quantity]
+        unit, value = got.get("unit"), claim.value
+        if unit != claim.unit:
+            if convert is None:
+                return (Verdict.UNVERIFIABLE,
+                        f"{claim.quantity} is reported in {unit!r} and "
+                        f"claimed in {claim.unit!r}; nothing is converted",
+                        used)
+            try:
+                value = convert(claim.value, claim.unit, unit)
+            except ValueError as exc:
+                return (Verdict.UNVERIFIABLE,
+                        f"{claim.quantity} is reported in {unit!r} and "
+                        f"claimed in {claim.unit!r}: {exc}", used)
         if claim.op == "=":
-            got = o["values"][claim.quantity]
             lo = got["value"] - got["resolution"]
             hi = got["value"] + got["resolution"]
-            each.add("SUPPORTED" if lo <= claim.value <= hi else "REFUTED")
+            each.add("SUPPORTED" if lo <= value <= hi else "REFUTED")
         else:
             each.add(evaluate({"model_id": claim.model_id,
                                "quantity": claim.quantity, "op": claim.op,
-                               "value": claim.value, "unit": claim.unit},
-                              [o])[0])
+                               "value": value, "unit": unit}, [o])[0])
     if {"SUPPORTED", "REFUTED"} <= each:
         return (Verdict.CONFLICTING_EVIDENCE,
                 f"admitted observations decide it both ways ({len(used)})",
@@ -236,7 +251,8 @@ class Report:
 
 
 def check(text: str, *, cites=(), objective_id: str, ledger, store,
-          evidence, checker=None, claimant: Origin = Origin.MODEL_OUTPUT,
+          evidence, checker=None, convert=None,
+          claimant: Origin = Origin.MODEL_OUTPUT,
           source: str = "claimant") -> Report:
     """Answer the three questions for ``text``, which cites the research
     observations ``cites``, under ``objective_id``.
@@ -244,7 +260,7 @@ def check(text: str, *, cites=(), objective_id: str, ledger, store,
     ``ledger`` is the research ledger, ``store`` the authority store,
     ``evidence`` the evidence store the bundles are held in. ``checker`` is
     consulted only for text the grammar does not read, and its answer is
-    ASSESSED."""
+    ASSESSED. ``convert`` is :func:`judge`'s."""
     cites = tuple(cites)
     known = set(ledger.of(objective_id, "observation"))
     problems = []
@@ -267,7 +283,7 @@ def check(text: str, *, cites=(), objective_id: str, ledger, store,
 
     structured = read_claim(text)
     if structured is not None:
-        verdict, why, used = judge(structured, admitted)
+        verdict, why, used = judge(structured, admitted, convert=convert)
         basis = Basis.DETERMINISTIC
     elif checker is not None:
         verdict, why = assess_with(checker, text, admitted)

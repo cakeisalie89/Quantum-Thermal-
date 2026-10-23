@@ -38,7 +38,8 @@ Where this file and those disagree, they are right and this file is stale.
 | Assurance E: transparency witnesses | 5 (E) | COMMITTED: checkpoint and cosignature protocol, a witness that cosigns only extensions (rollback and fork refused, persist before answer, no trust on first use), verification against a trust root with reach and staleness; closes M-3 in protocol. Fixture witnesses with TEST keys only; an independent witness is the owner's (O-series) | Assurance E | D-2026-170 |
 | Gate D: real-model grounding experiment, offline | 4 (D) | PENDING; the live run is BLOCKED on OD-1 and OD-6 | | |
 | Gate E: multi-agent coordination | 4 (E) | PENDING | | |
-| Gate F and Assurance H: scientific integration, symbolic checks | 4 (F), 5 (H) | PENDING; new dependencies are OD-5 | | |
+| Assurance H: units, quantity kinds, dimensional statements | 5 (H) | COMMITTED: exact dimensions and scales for the units the layer writes, agreeing with the FMI table; quantity kinds kept apart from dimensions; degC refused without a kind; thirteen statements of the three models' equations hold for their declared units; the claim checker converts units through a converter it is handed; SymPy, Z3 and Pint not adopted (new dependencies, no demonstrated need beyond this) | Dimensions | D-2026-177 |
+| Gate F: scientific research integration | 4 (F) | PENDING | | |
 | Gate G: long-horizon reliability | 4 (G) | PENDING | | |
 | Assurance G: adversarial evaluation harnesses | 5 (G) | PENDING; live evaluation is BLOCKED on OD-1 | | |
 | Assurance I: deployment isolation contract | 5 (I) | COMMITTED: eight dimensions, each KERNEL, APPLICATION or NOT_PROVIDED with what it does not cover; probed through the executor on this host (all hold), each probe shown to see its boundary gone; a stale network claim corrected; gVisor not adopted (no untrusted code runs); attestation stays the deployment's (RUN-3) | Isolation contract | D-2026-176 |
@@ -64,4 +65,5 @@ Where this file and those disagree, they are right and this file is stale.
 `Claim check` is the commit titled "Semantic claim verification: three questions apart, an opinion granted nothing";
 `Campaigns` is the commit titled "Composed adversarial campaigns across the subsystems";
 `PROV export` is the commit titled "A read-only W3C PROV export of the verified history";
-`Isolation contract` is the commit titled "A deployment isolation contract, held to the host".
+`Isolation contract` is the commit titled "A deployment isolation contract, held to the host";
+`Dimensions` is the commit titled "Units, quantity kinds and the dimensional statements of the equations".

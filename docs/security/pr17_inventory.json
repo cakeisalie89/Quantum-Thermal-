@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 539,
+   "ADDED": 543,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 194,
-   "MEDIUM": 295
+   "LOW": 195,
+   "MEDIUM": 298
   },
   "by_subsystem": {
    "agent-substrate": 31,
    "ai-ingress": 3,
-   "assurance": 118,
+   "assurance": 119,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -28,16 +28,16 @@
    "manifest": 3,
    "packaging": 2,
    "scientific-authority": 2,
-   "scientific-core": 29,
+   "scientific-core": 31,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 170,
+   "tests": 171,
    "tooling": 43,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 571
+  "files": 575
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -3626,6 +3626,7 @@
      "tests/test_completion_matrix.py",
      "tests/test_container_workflow_contract.py",
      "tests/test_decision_proof.py",
+     "tests/test_dimensions.py",
      "tests/test_external_models.py",
      "tests/test_filesystem_confinement.py",
      "tests/test_generic_consistency.py",
@@ -3894,6 +3895,40 @@
   },
   {
    "change": "ADDED",
+   "path": "scientific/dimensional_statements.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "scientific-core",
+   "trust_boundary": "model execution, identity, results",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/dimensions.json"
+    ],
+    "tests": [
+     "tests/test_dimensions.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "scientific/dimensions.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "scientific-core",
+   "trust_boundary": "model execution, identity, results",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/dimensions.json"
+    ],
+    "tests": [
+     "tests/test_dimensions.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "scientific/equivalence.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -3922,6 +3957,7 @@
      "tools/mutations/harness_integrations.json"
     ],
     "tests": [
+     "tests/test_dimensions.py",
      "tests/test_harness_integrations.py"
     ]
    }
@@ -4065,6 +4101,7 @@
      "tests/test_agent_result_rules.py",
      "tests/test_agent_substrate_isolation.py",
      "tests/test_backend_identity.py",
+     "tests/test_dimensions.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_harness_integrations.py",
      "tests/test_hdf5_bundle.py",
@@ -4093,6 +4130,7 @@
     "tests": [
      "tests/test_agent_result_rules.py",
      "tests/test_agent_substrate_isolation.py",
+     "tests/test_dimensions.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_harness_integrations.py",
      "tests/test_hdf5_bundle.py",
@@ -4125,6 +4163,7 @@
     ],
     "tests": [
      "tests/test_agent_result_rules.py",
+     "tests/test_dimensions.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_harness_integrations.py",
      "tests/test_hdf5_bundle.py",
@@ -4147,6 +4186,7 @@
      "tools/mutations/surface_adsorption.json"
     ],
     "tests": [
+     "tests/test_dimensions.py",
      "tests/test_neural_reidentification.py",
      "tests/test_surface_adsorption.py",
      "tests/test_typecheck_scope.py"
@@ -4164,6 +4204,7 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
+     "tests/test_dimensions.py",
      "tests/test_harness_integrations.py",
      "tests/test_hdf5_bundle.py",
      "tests/test_ranking_equivalence.py",
@@ -6190,6 +6231,22 @@
    "path": "tests/test_deployment_evidence.py",
    "risk": "LOW",
    "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_dimensions.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "hypothesis",
     "pytest"
    ],
    "subsystem": "tests",
@@ -8910,6 +8967,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/deployment_evidence.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/dimensions.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

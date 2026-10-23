@@ -34,7 +34,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 ## Audits
 
-* repository_content: clean (files 571, findings 0, committed_report_current True)
+* repository_content: clean (files 575, findings 0, committed_report_current True)
 * repository_inventory: clean (problems 0, baseline_files 874)
 * claims_boundary: clean (problems 0)
 * workflow_contract: FINDING (problems 1)

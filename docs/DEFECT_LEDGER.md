@@ -10857,3 +10857,102 @@ if a tool ever executes code it did not ship.
   under its own identity. CI containment is not production attestation.
 - **Make the uncovered dimensions covered.** Syscall filtering, tree-wide
   and GPU quotas, and egress filtering are stated as absent.
+
+## D-2026-177 — Assurance H: units, quantity kinds and the dimensional statements of the equations
+
+**INSPECTED FIRST.** Units were strings, and nothing checked them.
+
+- `scientific.quantity.Quantity` keeps a value, its unit and its resolution
+  apart. It compares two quantities only in the same unit, and converts
+  nothing.
+- The models declare parameter units ("W m^-1 K^-1", "J m^-3 K^-1", "u"),
+  and nothing checked that they parse, or that the equations each model
+  solves combine them consistently.
+- The FMI boundary held its own small SI table, and the FMU description
+  names each variable's kind (HeatCapacity, ThermalConductance).
+- The claim checker answered UNVERIFIABLE whenever a claim's unit differed
+  from the evidence's (D-2026-173). It missed "1.2 kW/m^2" for a reading of
+  1200 W/m^2.
+
+**WHAT WAS ADDED.**
+
+- `scientific/dimensions.py`:
+  - **Grammar.** It reads the unit grammar the layer writes (spaces or `*`,
+    signed and fractional powers, one `/`, a parenthesized denominator,
+    prefixes). A symbol it does not define is refused, never guessed at.
+  - **Dimensions.** Units have SI dimensions and exact scales (fractions),
+    and agree with the FMI boundary's table.
+  - **Celsius.** The Celsius scale is affine. Converting a degC value
+    requires knowing whether it is a temperature or a temperature
+    difference, and without that it is refused.
+  - **Kinds.** A small registry of quantity kinds: dimensional
+    compatibility is not identity. Heat capacity and entropy share J/K,
+    energy and torque share kg m^2 s^-2, and a temperature and a difference
+    share K. `convert` refuses across kinds.
+- `scientific/dimensional_statements.py` holds thirteen statements, from
+  the equations the three models' docstrings state:
+  - slab: storage against conduction, source against conduction,
+    conduction against convection;
+  - RC network: storage against delivered power and conductance terms;
+  - Langmuir capture: number density, impingement flux, a dimensionless
+    capture exponent.
+
+  Each is a product of declared parameters (and k_B) with the dimension it
+  must have, checked against the units in each model's `parameter_schema`.
+  The models themselves are not changed, so no implementation digest or
+  run identity moves.
+- `claim_check.judge` and `check` accept a converter. The substrate holds no
+  unit semantics of its own and still reaches the scientific tree only
+  through the workspace guard. `tools/claim_bench.py` passes
+  `scientific.dimensions.convert`.
+
+**WHAT IT FOUND.** Every unit the three models declare parses, and all
+thirteen statements hold. No declaration was wrong. The tests show a wrong
+one would be caught: a conductivity declared per square metre, a
+capacitance per kelvin squared, a mass in metres. Each breaks the
+statement it enters.
+
+**THE BENCHMARK, AGAIN** (`docs/research/claim_bench_results.json`):
+
+- Four structured claims are added, labelled by construction: kW/m^2 and mK
+  either side of the value, and a mass offered for a heat flux. The
+  deterministic route stays exact on all 41, with FP 0/26 and FN 0/15.
+- One prose claim is added, "below 40 degC". The deterministic route
+  answers UNVERIFIABLE, because nothing records that T_at_half is a
+  temperature and not a difference. That is a false negative, kept and
+  reported (prose FN 4/5).
+- "1.2 kW/m^2" is now read and supported.
+
+**NOT ADOPTED: SymPy, Z3, Pint.** None is installed, and each would be a new
+dependency (an owner decision).
+
+- **Pint.** The units this layer uses are a closed set this module defines
+  exactly. It is cross-checked against the FMI boundary, mutated, and its
+  limits stated. Pint would add a large registry this repository does not
+  need.
+- **SymPy.** Algebraic equivalence and calculus transformations are not
+  checked anywhere here. A derivation nothing checked stays UNCHECKED, and
+  the claim checker answers UNVERIFIABLE for any statement its grammar does
+  not read.
+- **Z3.** The parameter domains are bounds the schema enforces directly.
+
+These decisions are recorded, to be revisited if a model's derivation ever
+needs checking.
+
+**MUTATION.**
+
+- `tools/mutations/dimensions.json` (11) converts across a dimension, a
+  kind or the Celsius scale it must not; loses a prefix, a power, a
+  denominator or an offset; guesses at an unknown symbol; or lets a unit
+  declared wrong pass the statement it enters.
+- `claim_check.json` gains CC17 (the converted value unused) and CC18 (an
+  unsound conversion read as support), and is re-anchored where the unit
+  handling moved.
+
+**WHAT THIS DOES NOT DO.**
+
+- **Prove an equation right.** A dimensionally consistent equation can be
+  wrong. The code is held to its equations by its invariants and its
+  independent checks, not here.
+- **Know an output's kind.** Bundles record a unit, not a kind, so
+  absolute-temperature conversions are refused.

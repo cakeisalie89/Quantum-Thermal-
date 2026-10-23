@@ -28,7 +28,7 @@
       "CONFLICTING_EVIDENCE": 0,
       "CONTRADICTED": 1,
       "INSUFFICIENT_EVIDENCE": 0,
-      "SUPPORTED": 2,
+      "SUPPORTED": 3,
       "UNVERIFIABLE": 1
      },
      "UNVERIFIABLE": {
@@ -41,7 +41,7 @@
     },
     "established": 0,
     "established_false_positive": 0,
-    "exact": 4,
+    "exact": 5,
     "false_negative": 2,
     "false_positive": 4,
     "false_positive_texts": [
@@ -50,9 +50,9 @@
      "T_at_half of slab-1 is 312.4 K according to a reviewer.",
      "slab-1 is 312.4 K at the hottest point."
     ],
-    "n": 12,
+    "n": 13,
     "negatives": 8,
-    "positives": 4
+    "positives": 5
    },
    "rows": [
     {
@@ -352,6 +352,38 @@
      "text": "T_at_half of slab-9 is below 300 K"
     },
     {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is below 1.215 kW/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is above 1.215 kW/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is above 338500 mK"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "q_in of slab-1 is below 2 kg"
+    },
+    {
      "answer": "CONTRADICTED",
      "basis": "ASSESSED",
      "established": false,
@@ -400,7 +432,7 @@
      "text": "The measured mid-plane temperature of slab-1 is about 312 K."
     },
     {
-     "answer": "UNVERIFIABLE",
+     "answer": "SUPPORTED",
      "basis": "DETERMINISTIC",
      "established": false,
      "family": "prose",
@@ -446,6 +478,14 @@
      "family": "prose",
      "label": "CONTRADICTED",
      "text": "slab-1 is 312.4 K at the hottest point."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is below 40 degC"
     }
    ],
    "structured": {
@@ -459,7 +499,7 @@
      },
      "CONTRADICTED": {
       "CONFLICTING_EVIDENCE": 0,
-      "CONTRADICTED": 10,
+      "CONTRADICTED": 11,
       "INSUFFICIENT_EVIDENCE": 0,
       "SUPPORTED": 0,
       "UNVERIFIABLE": 0
@@ -475,7 +515,7 @@
       "CONFLICTING_EVIDENCE": 0,
       "CONTRADICTED": 0,
       "INSUFFICIENT_EVIDENCE": 0,
-      "SUPPORTED": 13,
+      "SUPPORTED": 15,
       "UNVERIFIABLE": 0
      },
      "UNVERIFIABLE": {
@@ -483,18 +523,18 @@
       "CONTRADICTED": 0,
       "INSUFFICIENT_EVIDENCE": 0,
       "SUPPORTED": 0,
-      "UNVERIFIABLE": 3
+      "UNVERIFIABLE": 4
      }
     },
-    "established": 12,
+    "established": 14,
     "established_false_positive": 0,
-    "exact": 37,
+    "exact": 41,
     "false_negative": 0,
     "false_positive": 0,
     "false_positive_texts": [],
-    "n": 37,
-    "negatives": 24,
-    "positives": 13
+    "n": 41,
+    "negatives": 26,
+    "positives": 15
    }
   },
   "deterministic": {
@@ -525,7 +565,7 @@
       "CONFLICTING_EVIDENCE": 0,
       "CONTRADICTED": 0,
       "INSUFFICIENT_EVIDENCE": 0,
-      "SUPPORTED": 0,
+      "SUPPORTED": 1,
       "UNVERIFIABLE": 4
      },
      "UNVERIFIABLE": {
@@ -538,13 +578,13 @@
     },
     "established": 0,
     "established_false_positive": 0,
-    "exact": 4,
+    "exact": 5,
     "false_negative": 4,
     "false_positive": 0,
     "false_positive_texts": [],
-    "n": 12,
+    "n": 13,
     "negatives": 8,
-    "positives": 4
+    "positives": 5
    },
    "rows": [
     {
@@ -844,6 +884,38 @@
      "text": "T_at_half of slab-9 is below 300 K"
     },
     {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is below 1.215 kW/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is above 1.215 kW/m^2"
+    },
+    {
+     "answer": "SUPPORTED",
+     "basis": "DETERMINISTIC",
+     "established": true,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is above 338500 mK"
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "q_in of slab-1 is below 2 kg"
+    },
+    {
      "answer": "UNVERIFIABLE",
      "basis": "NONE",
      "established": false,
@@ -892,7 +964,7 @@
      "text": "The measured mid-plane temperature of slab-1 is about 312 K."
     },
     {
-     "answer": "UNVERIFIABLE",
+     "answer": "SUPPORTED",
      "basis": "DETERMINISTIC",
      "established": false,
      "family": "prose",
@@ -938,6 +1010,14 @@
      "family": "prose",
      "label": "CONTRADICTED",
      "text": "slab-1 is 312.4 K at the hottest point."
+    },
+    {
+     "answer": "UNVERIFIABLE",
+     "basis": "DETERMINISTIC",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is below 40 degC"
     }
    ],
    "structured": {
@@ -951,7 +1031,7 @@
      },
      "CONTRADICTED": {
       "CONFLICTING_EVIDENCE": 0,
-      "CONTRADICTED": 10,
+      "CONTRADICTED": 11,
       "INSUFFICIENT_EVIDENCE": 0,
       "SUPPORTED": 0,
       "UNVERIFIABLE": 0
@@ -967,7 +1047,7 @@
       "CONFLICTING_EVIDENCE": 0,
       "CONTRADICTED": 0,
       "INSUFFICIENT_EVIDENCE": 0,
-      "SUPPORTED": 13,
+      "SUPPORTED": 15,
       "UNVERIFIABLE": 0
      },
      "UNVERIFIABLE": {
@@ -975,18 +1055,18 @@
       "CONTRADICTED": 0,
       "INSUFFICIENT_EVIDENCE": 0,
       "SUPPORTED": 0,
-      "UNVERIFIABLE": 3
+      "UNVERIFIABLE": 4
      }
     },
-    "established": 12,
+    "established": 14,
     "established_false_positive": 0,
-    "exact": 37,
+    "exact": 41,
     "false_negative": 0,
     "false_positive": 0,
     "false_positive_texts": [],
-    "n": 37,
-    "negatives": 24,
-    "positives": 13
+    "n": 41,
+    "negatives": 26,
+    "positives": 15
    }
   },
   "lexical": {
@@ -1015,7 +1095,7 @@
      },
      "SUPPORTED": {
       "CONFLICTING_EVIDENCE": 0,
-      "CONTRADICTED": 2,
+      "CONTRADICTED": 3,
       "INSUFFICIENT_EVIDENCE": 0,
       "SUPPORTED": 2,
       "UNVERIFIABLE": 0
@@ -1031,7 +1111,7 @@
     "established": 0,
     "established_false_positive": 0,
     "exact": 4,
-    "false_negative": 2,
+    "false_negative": 3,
     "false_positive": 4,
     "false_positive_texts": [
      "slab-1 peaks at 340 K because radiative losses dominate.",
@@ -1039,9 +1119,9 @@
      "T_at_half of slab-1 is 312.4 K according to a reviewer.",
      "slab-1 is 312.4 K at the hottest point."
     ],
-    "n": 12,
+    "n": 13,
     "negatives": 8,
-    "positives": 4
+    "positives": 5
    },
    "rows": [
     {
@@ -1344,6 +1424,38 @@
      "answer": "CONTRADICTED",
      "basis": "ASSESSED",
      "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "q_in of slab-1 is below 1.215 kW/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "CONTRADICTED",
+     "text": "q_in of slab-1 is above 1.215 kW/m^2"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "SUPPORTED",
+     "text": "T_max of slab-1 is above 338500 mK"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "structured",
+     "label": "UNVERIFIABLE",
+     "text": "q_in of slab-1 is below 2 kg"
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
      "family": "prose",
      "label": "UNVERIFIABLE",
      "text": "T_at_half of slab-1 is below 350 K, so the panel is safe."
@@ -1435,6 +1547,14 @@
      "family": "prose",
      "label": "CONTRADICTED",
      "text": "slab-1 is 312.4 K at the hottest point."
+    },
+    {
+     "answer": "CONTRADICTED",
+     "basis": "ASSESSED",
+     "established": false,
+     "family": "prose",
+     "label": "SUPPORTED",
+     "text": "T_at_half of slab-1 is below 40 degC"
     }
    ],
    "structured": {
@@ -1448,7 +1568,7 @@
      },
      "CONTRADICTED": {
       "CONFLICTING_EVIDENCE": 0,
-      "CONTRADICTED": 0,
+      "CONTRADICTED": 1,
       "INSUFFICIENT_EVIDENCE": 0,
       "SUPPORTED": 10,
       "UNVERIFIABLE": 0
@@ -1462,14 +1582,14 @@
      },
      "SUPPORTED": {
       "CONFLICTING_EVIDENCE": 0,
-      "CONTRADICTED": 0,
+      "CONTRADICTED": 2,
       "INSUFFICIENT_EVIDENCE": 0,
       "SUPPORTED": 13,
       "UNVERIFIABLE": 0
      },
      "UNVERIFIABLE": {
       "CONFLICTING_EVIDENCE": 0,
-      "CONTRADICTED": 0,
+      "CONTRADICTED": 1,
       "INSUFFICIENT_EVIDENCE": 0,
       "SUPPORTED": 3,
       "UNVERIFIABLE": 0
@@ -1477,8 +1597,8 @@
     },
     "established": 0,
     "established_false_positive": 0,
-    "exact": 14,
-    "false_negative": 0,
+    "exact": 15,
+    "false_negative": 2,
     "false_positive": 22,
     "false_positive_texts": [
      "T_at_half of slab-1 is below 311.8 K",
@@ -1504,13 +1624,13 @@
      "T_at_half of slab-2 is above 310 K",
      "T_at_half of slab-9 is below 300 K"
     ],
-    "n": 37,
-    "negatives": 24,
-    "positives": 13
+    "n": 41,
+    "negatives": 26,
+    "positives": 15
    }
   }
  },
- "claims": 49,
+ "claims": 54,
  "label_sources": {
   "prose": "AUTHOR",
   "structured": "CONSTRUCTION"
