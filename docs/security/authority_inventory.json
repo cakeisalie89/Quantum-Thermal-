@@ -472,6 +472,14 @@
     },
     {
       "module": "research.py",
+      "function": "ResearchLedger.record_freshness",
+      "action": "ACT_FRESHNESS",
+      "mode": "DECIDED",
+      "class": "FACT",
+      "why": "an objective owner's determination of how long one source's observations stay current; decided under the lock against the head it is written onto, so a second policy for the same source, or one set by anyone but the owner, is never appended"
+    },
+    {
+      "module": "research.py",
       "function": "ResearchLedger.record_step",
       "action": "ACT_STEP",
       "mode": "DECIDED",

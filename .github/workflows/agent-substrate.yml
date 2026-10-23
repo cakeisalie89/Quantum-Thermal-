@@ -200,7 +200,7 @@ jobs:
         run: |
           uv run python -m pytest tests/test_agent_*.py \
             tests/test_mutation_harness.py -q
-      - name: identity inventory agrees with the code -- the second reader covers 52 of 52
+      - name: identity inventory agrees with the code -- the second reader covers 53 of 53
         # Every durable action classified, every ACTOR field bound and
         # defended by a named test that exists, and the independent-reader
         # coverage MEASURED rather than claimed. A new action fails this

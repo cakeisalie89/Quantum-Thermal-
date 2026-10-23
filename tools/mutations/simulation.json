@@ -51,8 +51,8 @@
     {
       "name": "SM7_a_decided_hypothesis_flips_in_one_move",
       "path": "agent_substrate/research.py",
-      "find": "    \"SUPPORTED\": {\"INCONCLUSIVE\", \"RETRACTED\", \"SUPERSEDED\", \"STALE\"},",
-      "replace": "    \"SUPPORTED\": {\"INCONCLUSIVE\", \"REFUTED\", \"RETRACTED\", \"SUPERSEDED\", \"STALE\"},",
+      "find": "    \"SUPPORTED\": {\"SUPPORTED\", \"INCONCLUSIVE\", \"RETRACTED\", \"SUPERSEDED\",\n                  \"STALE\"},",
+      "replace": "    \"SUPPORTED\": {\"SUPPORTED\", \"INCONCLUSIVE\", \"REFUTED\", \"RETRACTED\", \"SUPERSEDED\", \"STALE\"},",
       "rationale": "the latest observation, or an agent's assertion, would overturn a verdict instead of recording the disagreement"
     },
     {
@@ -79,7 +79,7 @@
     {
       "name": "SM11_the_status_writer_checks_a_copy_of_the_rule",
       "path": "agent_substrate/research.py",
-      "find": "            self._apply_status(_Draft(head_seq + 1, self.actor), payload,\n                               commit=False)",
+      "find": "            self._apply_status(_Draft(head_seq + 1, self.actor, now),\n                               payload, commit=False)",
       "replace": "            pass",
       "rationale": "an asserted verdict would be appended and every later load of the history refused"
     },

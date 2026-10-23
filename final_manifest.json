@@ -25,7 +25,7 @@
     {
       "filename": ".github/workflows/agent-substrate.yml",
       "size_bytes": 36576,
-      "sha256": "de6bda49cd10cd161a706ed4058b0622bad82dbd9aef30ba8e9ba18a1c180cf7"
+      "sha256": "61bcafb6a098a345b113851fdedfc1f5e79b1d595bfd7bdfe5dfbcffcd22a435"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -424,8 +424,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 565074,
-      "sha256": "4cb23d052a836d26514c83349ee9fc8cdc32c7d9c81bf54a681e58f0503c6d83"
+      "size_bytes": 567306,
+      "sha256": "c11041f8f7d063a16391552e0ed82ff0eba4cfeb372c4032f95c0e69fae87e3c"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -445,7 +445,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 4503,
-      "sha256": "2c77e3cf5b3da5044e8e4ada039ab706b79fda83f8a25919e2db51a6c83d9698"
+      "sha256": "653e6c1d927ca05d6a177a065deb8c2becc14d8b7ecd95dd4d6f74eb33e7761d"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -514,8 +514,8 @@
     },
     {
       "filename": "docs/identity_inventory.json",
-      "size_bytes": 38466,
-      "sha256": "17fa30bd924fb46bd85dad8c6347b2ed89abb76cc62adbc55e9303fe42206197"
+      "size_bytes": 39353,
+      "sha256": "fcf939c833a50e0502b6ac4120b7261af5b4d467bfee4cc0aa8b12a570dee64c"
     },
     {
       "filename": "docs/neural/architecture_family.json",
@@ -654,8 +654,8 @@
     },
     {
       "filename": "docs/security/authority_inventory.json",
-      "size_bytes": 16811,
-      "sha256": "835540089823237ba27279c05a2bab934c0e7b15f3a25f35dc9b84d9963283a1"
+      "size_bytes": 17245,
+      "sha256": "1d83a82e24cf89d87a5c284dc84ed8a16435e823e779aea8f3e1027b6f2c2175"
     },
     {
       "filename": "docs/security/findings.json",
@@ -669,8 +669,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 242281,
-      "sha256": "f339edb8cae9283c1dd7add46ec5a6c89a08679a1ea82eb2e25f304365192d11"
+      "size_bytes": 242295,
+      "sha256": "18ded1b9c256609eff4deff9b8ce28248536e4e2e9d7030449d5cd4c09ec96bb"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -1874,8 +1874,8 @@
     },
     {
       "filename": "tests/test_simulation_research.py",
-      "size_bytes": 18024,
-      "sha256": "8dd9f858af46f457f83f260d032ffb3e55b17f86e94759fa48a309bfd4695783"
+      "size_bytes": 19312,
+      "sha256": "b6705bc2ea40d71dab391a5bfaf0e3c6a413ebcc4b454d8cbb713235e9a27458"
     },
     {
       "filename": "tests/test_stack_registry.py",
@@ -2210,7 +2210,7 @@
     {
       "filename": "tools/mutations/agent_second_reader.json",
       "size_bytes": 51613,
-      "sha256": "f8f5032de3189e655e65ef997d02c639464f697b37c858557eeb8b7e03130f72"
+      "sha256": "7014e79432f6ee3ab10a71a8a96f289983b99bcce65ff3f0abd95cad1b95f246"
     },
     {
       "filename": "tools/mutations/agent_secret_provider.json",
@@ -2549,8 +2549,8 @@
     },
     {
       "filename": "tools/mutations/research.json",
-      "size_bytes": 10677,
-      "sha256": "d33932925083723d33e750317cabce051a381aa7dc5796a023c2f9005dc6743c"
+      "size_bytes": 10726,
+      "sha256": "5a3b3c299b2e972020eed57a2c3b8d8f9c5204396345530e652d983b301a8e4b"
     },
     {
       "filename": "tools/mutations/ro_crate_conformance.json",
@@ -2604,8 +2604,8 @@
     },
     {
       "filename": "tools/mutations/simulation.json",
-      "size_bytes": 6048,
-      "sha256": "764f16a3169e6ba8f99ba7fb3346a0758a82a6bb8be6d04ed079ba234d2c6c5c"
+      "size_bytes": 6102,
+      "sha256": "b869f3b8edaf38420842726f02e7166081b64b7aa09425b2848b4193df8e5f27"
     },
     {
       "filename": "tools/mutations/stress_campaign_coverage.json",

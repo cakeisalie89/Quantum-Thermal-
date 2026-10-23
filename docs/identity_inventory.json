@@ -857,6 +857,21 @@
       "authority_note": "What became of a research record. A conclusion is a research conclusion, not an authority state: nothing promotes on it."
     },
     {
+      "action": "research.freshness",
+      "module": "research.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "ids, a kind and its parameters, and the owner's rationale; no identity"
+        }
+      ],
+      "note": "Assurance F. The setter is ev.actor and must be the objective's owner: refused otherwise on write and on replay (ResearchLedger._apply_freshness; test_freshness_is_the_owner_s_determination), once per objective and source, and restated by reconstruct.py's _sub_research_freshness.",
+      "authority_changing": false,
+      "authority_note": "Says how long observations of one source stay current for one objective. Which observations a verdict may rest on follows from it, and a verdict is a research verdict: no authority gate reads it, and nothing promotes on it."
+    },
+    {
       "action": "research.step",
       "module": "research.py",
       "independent_reader": "YES",

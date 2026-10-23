@@ -7182,7 +7182,8 @@
    "path": "tests/test_simulation_research.py",
    "risk": "LOW",
    "runtime_dependencies": [
-    "hypothesis"
+    "hypothesis",
+    "pytest"
    ],
    "subsystem": "tests",
    "trust_boundary": "verification only",

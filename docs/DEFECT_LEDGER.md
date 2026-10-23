@@ -10151,6 +10151,49 @@ Each now has a test.
   A). That state machine has no clock or policies yet. The composed
   campaigns (section 7) are where time meets the other controls.
 
+**FOUND BY THE FULL SUITE BEFORE THE PUSH.** The Assurance F commit
+(`372397e`) was checked with the suites it touched, not the whole suite.
+The full suite at `aa6d920`, run before either commit was pushed, failed
+11 tests in three places, all from this entry's new action:
+
+- `research.freshness` was in no identity inventory. Five tests in
+  `test_identity_inventory.py` refused it. The second reader already
+  restated it, so its measured coverage is 53 of 53, not the 52 the
+  workflow's step title said.
+- `ResearchLedger.record_freshness` writes to the log and was not
+  classified in `docs/security/authority_inventory.json` (two tests).
+- Three mutation anchors in `research.py` matched nothing, after the
+  verdict table gained self-moves and the status writer's draft gained a
+  wall time: RS13 in `research.json`, and SM7 and SM11 in
+  `simulation.json` (four tests).
+
+All three are repaired in the commit after `aa6d920`. The action is
+classified: the setter is `ev.actor` and must be the objective's owner,
+and it changes no authority. The writer is classified DECIDED, as a FACT.
+The step title says 53 of 53. The three anchors are re-anchored, and both
+specifications are re-run in full.
+
+**THE RE-RUN FOUND A FOURTH.** With its anchor repaired, SM7 (a decided
+hypothesis flipping to the opposite verdict in one move) SURVIVED
+`simulation.json`. `research.json` still killed the same mutation (RS13).
+The simulation has a rule written for exactly that corner,
+`the_evidence_turns`, and it kills SM7 whenever it runs. The derandomized
+search no longer reached it. A derandomized search explores whatever its
+seed and the code it drives lead it to, and Assurance F moved that. The
+simulation's coverage of the corner had depended on where the search
+happened to go.
+
+The repair does not tune the search. `test_each_corner_on_a_fixed_path`
+drives the same machine, its rules and its invariant along one fixed path
+to each corner the search was given a rule for:
+
+- a decided verdict met by opposing evidence (SM7);
+- a decided verdict whose evidence goes (SM10).
+
+Each path kills its mutation on its own. The search stays as it was.
+`simulation.json` is re-run in full with the new test. Nothing was pushed
+in between.
+
 ## D-2026-170 — Assurance E: a head held where the writer cannot reach (M-3)
 
 **THE LIMIT.** M-3 (D-2026-158) was recorded as accepted: the log's head

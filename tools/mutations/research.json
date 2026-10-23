@@ -93,8 +93,8 @@
     {
       "name": "RS13_a_verdict_flips_in_one_move",
       "path": "agent_substrate/research.py",
-      "find": "    \"SUPPORTED\": {\"INCONCLUSIVE\", \"RETRACTED\", \"SUPERSEDED\", \"STALE\"},",
-      "replace": "    \"SUPPORTED\": {\"INCONCLUSIVE\", \"REFUTED\", \"RETRACTED\", \"SUPERSEDED\",\n                  \"STALE\"},",
+      "find": "    \"SUPPORTED\": {\"SUPPORTED\", \"INCONCLUSIVE\", \"RETRACTED\", \"SUPERSEDED\",\n                  \"STALE\"},",
+      "replace": "    \"SUPPORTED\": {\"SUPPORTED\", \"INCONCLUSIVE\", \"REFUTED\", \"RETRACTED\",\n                  \"SUPERSEDED\", \"STALE\"},",
       "rationale": "the latest observation would overturn a verdict without the disagreement ever being recorded"
     },
     {

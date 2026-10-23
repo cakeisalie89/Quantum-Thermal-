@@ -33,6 +33,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
 from hypothesis import HealthCheck, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import (
@@ -385,3 +386,37 @@ ResearchSimulation.TestCase.settings = settings(
     suppress_health_check=[HealthCheck.too_slow,
                            HealthCheck.filter_too_much])
 test_research_simulation = ResearchSimulation.TestCase
+
+
+def _decided_on_one_result(m):
+    m.setup()
+    m.hypothesize(0, "h1", [])
+    m.a_result_is_verified(350.0)
+    m.observe(0, 0)
+    m.evaluate(1, "h1")
+    m.the_record_holds()
+    assert m.status["h1"] == "SUPPORTED"
+
+
+@pytest.mark.parametrize("corner", ["the_evidence_turns",
+                                    "a_verdict_s_evidence_goes"])
+def test_each_corner_on_a_fixed_path(corner):
+    """The corners the search was given rules for (SM7, SM10), each reached
+    on one fixed path through the same machine, its rules and its invariant.
+
+    A derandomized search explores whatever its seed and the code it drives
+    lead it to, and a change to that code moves it: after Assurance F the
+    search stopped reaching a decided verdict met by opposing evidence, and
+    a flip in one move went unseen by this file (D-2026-169). The search
+    stays; these paths do not depend on it."""
+    m = ResearchSimulation()
+    try:
+        _decided_on_one_result(m)
+        if corner == "the_evidence_turns":
+            m.the_evidence_turns(1, 0)       # no flip in one move
+        else:
+            m.a_verdict_s_evidence_goes(0)   # no verdict without its basis
+        m.the_record_holds()
+        assert m.status["h1"] not in DECIDED
+    finally:
+        m.teardown()
