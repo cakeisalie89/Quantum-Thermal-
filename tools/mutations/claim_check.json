@@ -1,0 +1,121 @@
+{
+ "title": "Semantic claim verification: three questions apart, no more than the ledger says, an opinion granted nothing",
+ "note": "Section 6.3 (D-2026-173). Each mutation lets the grammar read more than the sentence says, weighs evidence it should not (another model's, another unit's, a withdrawn record's, only what was cited), turns doubt or a failed checker into support, or grants an assessed or badly cited claim the property. tests/test_claim_check.py holds each, against real authority records read into the research ledger.",
+ "suites": [
+  "tests/test_claim_check.py"
+ ],
+ "mutations": [
+  {
+   "name": "CC1_a_rider_is_read_as_part_of_the_claim",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    m = _GRAMMAR.fullmatch(text)",
+   "replace": "    m = _GRAMMAR.match(text)",
+   "rationale": "6.3: 'below 350 K, so the panel is safe' is judged as 'below 350 K'"
+  },
+  {
+   "name": "CC2_below_is_read_as_at_most",
+   "path": "agent_substrate/claim_check.py",
+   "find": "(\"under\", \"<\"), (\"greater than\", \">\")",
+   "replace": "(\"under\", \"<=\"), (\"greater than\", \">\")",
+   "rationale": "6.3: a strict claim is read as a weaker one"
+  },
+  {
+   "name": "CC3_another_model_s_output_counts",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    usable = [o for o in observations\n              if o.get(\"model_id\") == claim.model_id\n              and claim.quantity",
+   "replace": "    usable = [o for o in observations\n              if claim.quantity",
+   "rationale": "6.3: a run of one model is read as evidence about another"
+  },
+  {
+   "name": "CC4_units_are_not_compared",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    if units != {claim.unit}:",
+   "replace": "    if False:",
+   "rationale": "6.3: a value in one unit is compared with a number claimed in another"
+  },
+  {
+   "name": "CC5_equality_ignores_resolution",
+   "path": "agent_substrate/claim_check.py",
+   "find": "            each.add(\"SUPPORTED\" if lo <= claim.value <= hi else \"REFUTED\")",
+   "replace": "            each.add(\"SUPPORTED\" if claim.value == got[\"value\"] else \"REFUTED\")",
+   "rationale": "6.3: a value within an output's resolution is called a contradiction"
+  },
+  {
+   "name": "CC6_disagreement_is_not_reported",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    if {\"SUPPORTED\", \"REFUTED\"} <= each:",
+   "replace": "    if False:",
+   "rationale": "6.3: runs that disagree read as whichever verdict comes next"
+  },
+  {
+   "name": "CC7_the_doubtful_case_is_support",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    return (Verdict.INSUFFICIENT_EVIDENCE,\n            \"an output's resolution straddles the claimed value\", used)",
+   "replace": "    return (Verdict.SUPPORTED,\n            \"an output's resolution straddles the claimed value\", used)",
+   "rationale": "6.3: a value the resolution cannot decide is called support"
+  },
+  {
+   "name": "CC8_only_what_the_claim_cites_is_weighed",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        verdict, why, used = judge(structured, admitted)",
+   "replace": "        verdict, why, used = judge(structured, [o for o in admitted\n                                                if o['observation_id'] in cites])",
+   "rationale": "6.3: a claim avoids a contradicting run by not citing it"
+  },
+  {
+   "name": "CC9_a_checker_overrules_the_grammar",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    if structured is not None:\n        verdict, why, used = judge(structured, admitted)",
+   "replace": "    if structured is not None and checker is None:\n        verdict, why, used = judge(structured, admitted)",
+   "rationale": "6.3: an opinion replaces a deterministic verdict"
+  },
+  {
+   "name": "CC10_an_opinion_is_established",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    if basis is Basis.DETERMINISTIC and verdict is Verdict.SUPPORTED and \\\n            citation == \"INTACT\":\n        label = establish(label, Property.SEMANTICALLY_SUPPORTED,\n                          check=JUDGE,",
+   "replace": "    if verdict is Verdict.SUPPORTED and \\\n            citation == \"INTACT\":\n        label = establish(label, Property.SEMANTICALLY_SUPPORTED,\n                          check=JUDGE,",
+   "rationale": "6.3: a checker's SUPPORTED is granted the property"
+  },
+  {
+   "name": "CC11_a_broken_citation_does_not_matter",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    if basis is Basis.DETERMINISTIC and verdict is Verdict.SUPPORTED and \\\n            citation == \"INTACT\":",
+   "replace": "    if basis is Basis.DETERMINISTIC and verdict is Verdict.SUPPORTED:",
+   "rationale": "6.3: a claim with a forged citation, or none, would be established; the registry's requirement (CITED_BYTES_VERIFY first) refuses it as well"
+  },
+  {
+   "name": "CC12_altered_bytes_are_not_rehashed",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        if not evidence.contains(dg):",
+   "replace": "        if not evidence.contains(dg, verify=False):",
+   "rationale": "6.3: bytes changed on disk after observation still count as cited"
+  },
+  {
+   "name": "CC13_a_citation_to_nothing_is_intact",
+   "path": "agent_substrate/claim_check.py",
+   "find": "            problems.append(f\"{oid}: no observation of {objective_id}\")\n            continue",
+   "replace": "            continue",
+   "rationale": "6.3: a citation of an observation that does not exist passes"
+  },
+  {
+   "name": "CC14_a_withdrawn_source_is_admitted",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    if Standing(currency[\"standing\"]) not in USABLE:\n        return",
+   "replace": "    if Standing(currency[\"standing\"]) is Standing.UNKNOWN:\n        return",
+   "rationale": "6.3: an observation whose record no longer stands is weighed"
+  },
+  {
+   "name": "CC15_a_lost_admission_is_not_read",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    if record.admission not in (None, ADMITTED):",
+   "replace": "    if False:",
+   "rationale": "6.3: a scientific result whose admission no longer holds here is weighed"
+  },
+  {
+   "name": "CC16_a_failed_checker_is_a_verdict",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        return Verdict.UNVERIFIABLE, f\"the checker gave no usable answer \" \\",
+   "replace": "        return Verdict.SUPPORTED, f\"the checker gave no usable answer \" \\",
+   "rationale": "6.3: a checker that answered nothing is read as support"
+  }
+ ]
+}

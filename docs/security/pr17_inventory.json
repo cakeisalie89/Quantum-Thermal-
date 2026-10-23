@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 523,
+   "ADDED": 529,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 55,
-   "LOW": 190,
-   "MEDIUM": 285
+   "HIGH": 56,
+   "LOW": 191,
+   "MEDIUM": 289
   },
   "by_subsystem": {
-   "agent-substrate": 29,
+   "agent-substrate": 30,
    "ai-ingress": 3,
-   "assurance": 114,
+   "assurance": 115,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 40,
+   "evidence": 42,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 29,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 166,
-   "tooling": 41,
+   "tests": 167,
+   "tooling": 42,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 555
+  "files": 561
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -542,6 +542,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_authority_inventory.py",
      "tests/test_checkpoint_recovery.py",
+     "tests/test_claim_check.py",
      "tests/test_completion_matrix.py",
      "tests/test_confinement_probe.py",
      "tests/test_decided_appends.py",
@@ -976,6 +977,24 @@
   },
   {
    "change": "ADDED",
+   "path": "agent_substrate/claim_check.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/claim_check.json"
+    ],
+    "tests": [
+     "tests/test_claim_check.py",
+     "tests/test_trust_labels.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "agent_substrate/context.py",
    "risk": "HIGH",
    "runtime_dependencies": [],
@@ -1171,6 +1190,7 @@
      "tests/test_agent_substrate.py",
      "tests/test_assurance_graph.py",
      "tests/test_checkpoint_recovery.py",
+     "tests/test_claim_check.py",
      "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
      "tests/test_evidence_terms.py",
@@ -1216,6 +1236,7 @@
      "tools/mutations/evidence_terms.json"
     ],
     "tests": [
+     "tests/test_claim_check.py",
      "tests/test_evidence_terms.py",
      "tests/test_trust_labels.py"
     ]
@@ -1888,6 +1909,7 @@
     "tests": [
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
+     "tests/test_claim_check.py",
      "tests/test_decision_proof.py",
      "tests/test_freshness.py",
      "tests/test_noninterference.py",
@@ -2230,6 +2252,7 @@
      "tools/mutations/trust_labels.json"
     ],
     "tests": [
+     "tests/test_claim_check.py",
      "tests/test_trust_labels.py"
     ]
    }
@@ -2917,6 +2940,21 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/research/CLAIM_CHECK.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_claim_check.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/research/GROUNDING_BENCHMARK.md",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -2941,6 +2979,21 @@
     "findings": [],
     "mutation_specs": [],
     "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/research/claim_bench_results.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_claim_check.py"
+    ]
    }
   },
   {
@@ -3485,6 +3538,7 @@
      "tests/test_agent_retrieval.py",
      "tests/test_agent_substrate_isolation.py",
      "tests/test_backend_identity.py",
+     "tests/test_claim_check.py",
      "tests/test_claim_hygiene.py",
      "tests/test_claims_boundary.py",
      "tests/test_claude_workflow_prompt.py",
@@ -5849,6 +5903,24 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_claim_check.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "hypothesis",
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_claim_hygiene.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -7544,6 +7616,22 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/claim_bench.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_claim_check.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/claims_enforcement.py",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -8525,6 +8613,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/ci_authority.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/claim_check.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

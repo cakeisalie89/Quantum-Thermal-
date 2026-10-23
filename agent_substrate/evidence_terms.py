@@ -180,6 +180,22 @@ CHECKS: tuple = (
           "output's resolution counted against it. Only for structured "
           "claims; a prose claim is not evaluated here",
           (P.CURRENT_WORLD,), (P.SCIENTIFICALLY_VERIFIED,)),
+    Check("agent_substrate.claim_check:judge",
+          P.SEMANTICALLY_SUPPORTED, S.DETERMINISTIC,
+          "a claim the closed grammar reads in FULL -- one output of one "
+          "model, a comparison or a value, a unit -- judged by "
+          "research.evaluate against every admitted observation of its "
+          "objective, cited or not; SUPPORTED only when every one reporting "
+          "the output supports it, resolution included. Prose it does not "
+          "read is not judged",
+          (P.CURRENT_WORLD, P.SCIENTIFICALLY_VERIFIED),
+          (P.CITED_BYTES_VERIFY,)),
+    Check("agent_substrate.claim_check:assess_with",
+          P.SEMANTICALLY_SUPPORTED, S.ASSESSED,
+          "a checker's opinion -- a model's or a heuristic's -- of text the "
+          "grammar does not read. Reported with its basis, and never "
+          "established: an assessed check grants nothing",
+          (P.CURRENT_WORLD, P.SCIENTIFICALLY_VERIFIED)),
     Check("tools.grounding_bench.claims:verify",
           P.HISTORY_RECORDS, S.DETERMINISTIC,
           "a structured claim matches the state reconstructed from the "

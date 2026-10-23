@@ -10495,3 +10495,115 @@ killed).
   implementation is run, and adding one would be a new dependency (OD-5).
 - Cover conditions. The engine has none: attributes reach the record and
   never the verdict, and the generated requests check that.
+
+## D-2026-173 — Section 6.3: semantic claim verification, three questions apart
+
+**INSPECTED FIRST.** The vocabulary already kept the questions apart
+(`evidence_terms`):
+
+- CITATION_EXISTS;
+- CITED_BYTES_VERIFY;
+- CITATION_RELEVANT;
+- SEMANTICALLY_SUPPORTED;
+- SCIENTIFICALLY_VERIFIED.
+
+Only a DETERMINISTIC check may grant a property. `research.evaluate` was
+already registered as establishing SEMANTICALLY_SUPPORTED for STRUCTURED
+predictions. Nothing read a claim written as a sentence. Nothing returned
+the five answers the directive names. Nothing said, for one claim, whether
+its citations held, whether its evidence was admitted, and whether that
+evidence supported it.
+
+**WHAT WAS ADDED** (`agent_substrate/claim_check.py`). The three questions
+are answered separately and never merged:
+
+- **citation**: the cited observations exist, and their result bytes
+  re-hash and still say what was recorded;
+- **admission**: the ledger's status and freshness standing, and the
+  authority store's re-derived admission of a scientific result;
+- **semantics**: one of SUPPORTED, CONTRADICTED, INSUFFICIENT_EVIDENCE,
+  UNVERIFIABLE or CONFLICTING_EVIDENCE.
+
+The semantic answer comes from one of two routes.
+
+- **DETERMINISTIC.** A closed grammar reads a sentence only IN FULL: an
+  output of a model, a comparison or a bare value, a number and a unit.
+  "Below 350 K, so the panel is safe" is not read. What it reads is judged
+  by `research.evaluate`, one observation at a time.
+- **ASSESSED.** Text the grammar does not read may be given to a checker.
+  Its answer is reported with its basis and is never established.
+  `assess_with` is registered as ASSESSED, so `trust_labels.establish`
+  refuses it.
+
+The semantic answer is judged against EVERY admitted observation of the
+objective, so a claim cannot avoid a contradicting run by not citing it.
+The claim's label gains SEMANTICALLY_SUPPORTED only on the deterministic
+route, and only with every citation verified (the registered check
+requires CITED_BYTES_VERIFY). CURRENT_WORLD is never established. Nothing
+in the substrate imports the module, and checking a claim writes nothing.
+
+**THE BENCHMARK** (`tools/claim_bench.py`, results in
+`docs/research/claim_bench_results.json`, discussed in
+`docs/research/CLAIM_CHECK.md`). The world is built from real authority
+records, verified by a second actor and read into the research ledger
+through its gates:
+
+- one run with three outputs;
+- two runs that disagree;
+- one run whose record was later withdrawn.
+
+There are 37 structured claims, each labelled by construction: the label is
+chosen first and the claim written to have it. There are 12 prose claims,
+labelled by the checker's author. **Those are not human labels.** A
+confirmatory benchmark needs labels from people who did not write the
+checker, and that is the owner's decision.
+
+| Checker | Family | FP | FN | Established and wrong |
+|---|---|---|---|---|
+| deterministic | structured | 0/24 | 0/13 | 0 |
+| deterministic | prose | 0/8 | 4/4 | 0 |
+| lexical stand-in | structured | 22/24 | 0/13 | 0 |
+| lexical stand-in | prose | 4/8 | 2/4 | 0 |
+| combined | prose | 4/8 (ASSESSED) | 2/4 | 0 |
+
+The real-model checker is NOT_RUN.
+
+The deterministic route let nothing unsupported through. It also missed
+every supported paraphrase, and a value in other units, because it converts
+nothing. The fluent stand-in passed four plausible but unsupported claims:
+
+- a cause;
+- an attribution nobody recorded;
+- agreement between runs that disagree;
+- the wrong output.
+
+It also passed 22 of 24 wrong numeric claims within 2% of the truth. The
+combined route reports those four, marked ASSESSED, and establishes none
+of them.
+
+**WHAT THE MUTATION RUN FOUND.** Two of the first 16 mutations survived.
+
+- **CC2: the grammar test was vacuous for the comparator table.** It took
+  its expected comparator from the table it was checking. The test now
+  states what each phrase means on its own.
+- **CC15: a check was redundant.** The authority store's record-state check
+  restated the ledger's standing, which reads the same log. It was removed.
+  The store is now read only for what the ledger does not re-derive: whether
+  a scientific result's admission still holds here. That is tested (a lost
+  report, D-2026-150) and mutated.
+
+`tools/mutations/claim_check.json` holds 16 mutations, all killed.
+
+**THE FIRST CHECK REGISTERED AS ASSESSED.** `test_trust_labels` asked every
+registered check to grant what it establishes, which assumed every check
+was deterministic. It is split. Deterministic checks must grant. A check
+that is not deterministic must be refused with its prerequisites met. A
+third test keeps the second from being vacuous.
+
+**WHAT THIS DOES NOT DO.**
+
+- **Judge prose.** The grammar reads one sentence form. Everything else is
+  UNVERIFIABLE, or an opinion.
+- **Convert units, or read tables or figures.**
+- **Say anything about how a real model checker behaves** (NOT_RUN, OD-1).
+- **Establish that the world is so.**

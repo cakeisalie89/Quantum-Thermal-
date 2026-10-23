@@ -168,6 +168,10 @@ ALLOWED_IMPORTERS = {
     "tests/test_assurance_graph.py",
     # Section 6.2: the policy engine against an independent reference model
     "tests/test_policy_semantics.py",
+    # Section 6.3: semantic claim verification and its benchmark, which
+    # builds its world through the authority store and the research ledger
+    "tests/test_claim_check.py",
+    "tools/claim_bench.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.
@@ -317,7 +321,12 @@ LAYERS = ("canonical", "projection", "hostid",
           "evidence_terms",
           # Assurance C: trust labels. Imports only the vocabulary, reads
           # what it labels by duck typing, and decides nothing: last again.
-          "trust_labels")
+          "trust_labels",
+          # Section 6.3: semantic claim verification. Reads the research
+          # ledger, the authority store and the evidence store it is
+          # handed, labels with the two above, writes nothing, and nothing
+          # in the package imports it.
+          "claim_check")
 
 #: The ONLY modules permitted to reach into the scientific tree, and the only
 #: thing they may reach for.

@@ -97,18 +97,41 @@ def _bare(origin=T.Origin.EVIDENCE):
     return T.Label(origin=origin, source="x", digest=DIG)
 
 
-@pytest.mark.parametrize("check, prop", [
-    (c.target, p) for c in CHECKS for p in Property
-    if c in establishing(p)])
-def test_every_registered_check_establishes_what_it_says(check, prop):
-    c = next(x for x in CHECKS if x.target == check)
+def _prepared(c):
     label = _bare()
     for need in c.requires:          # what the check requires, first
         label = T.Label(origin=label.origin, source="x", digest=DIG,
                         proofs=label.proofs | {T.Proof(need, "given", "r")})
-    got = T.establish(label, prop, check=check, ref="seq 7")
+    return label
+
+
+@pytest.mark.parametrize("check, prop", [
+    (c.target, p) for c in CHECKS for p in Property
+    if c in establishing(p) and c.strength is Strength.DETERMINISTIC])
+def test_every_registered_check_establishes_what_it_says(check, prop):
+    c = next(x for x in CHECKS if x.target == check)
+    got = T.establish(_prepared(c), prop, check=check, ref="seq 7")
     assert prop in got.properties
     assert T.Proof(prop, check, "seq 7") in got.proofs
+
+
+ASSESSED_CHECKS = [c.target for c in CHECKS
+                   if c.strength is not Strength.DETERMINISTIC]
+
+
+@pytest.mark.parametrize("check", ASSESSED_CHECKS)
+def test_a_registered_check_that_is_not_deterministic_grants_nothing(check):
+    """Registered and fallible (D-2026-173: a checker's opinion of a
+    claim). Its prerequisites met, it is still refused: the registry says
+    what it answers, not that its answer is a property."""
+    c = next(x for x in CHECKS if x.target == check)
+    with pytest.raises(T.TrustError, match=c.strength.value):
+        T.establish(_prepared(c), c.establishes, check=check, ref="seq 7")
+
+
+def test_the_registry_holds_a_check_that_is_not_deterministic():
+    """So the test above is not vacuous."""
+    assert "agent_substrate.claim_check:assess_with" in ASSESSED_CHECKS
 
 
 @pytest.mark.parametrize("check, prop, why", [

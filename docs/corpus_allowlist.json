@@ -2,11 +2,11 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "29a6044b10510a381eb35a5e3eb1cce422a9ba6bce666193deb3498c3b01435a",
+  "entries_digest": "b07b9181cfca88adc7122052d3a2c61db61c450ba404e5ec92680a2556e6749c",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "702c48e0781282e5e66e3b8fc821f9995a5e62785d505093c5c3a608d9e2e61e"
+      "sha256": "7b5c36bc03f14c963d96de924d70a782fbf843284837f0cfc3b91a5a78055589"
     },
     {
       "path": "ARCHITECTURE.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "e8e49692a6f2038e68d1f38c49f143af952c07c17a67abd886eed921bd580b48"
+      "sha256": "8030da07223a504a71a2ba4b98165dbb902fae671cf929b898be97b3cf7c4c43"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -78,15 +78,19 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "a00061193465a7acf192927ac27d51f572aa49db47baeee664ac4b6174cec066"
+      "sha256": "8d207c53910cb1da268c2a025598d34e155cbbb306bb5c586dcabd8ca0f9ebed"
     },
     {
       "path": "docs/EVIDENCE_TERMS.md",
-      "sha256": "fad1d7c1228dfdd9b806edbb670cc206dd7b8f6c3b505ed976e0300b1cada8ce"
+      "sha256": "f99ab888854389c1bd0f84f7f5a158f8029df56ae9bf9b1f6a05949b0c5da44c"
     },
     {
       "path": "docs/formal/README.md",
       "sha256": "b8fb17e1e11b144eb5a93357625dc10da2862a11de006c96a1f509f7044c3878"
+    },
+    {
+      "path": "docs/research/CLAIM_CHECK.md",
+      "sha256": "7fa6f8a263632b0539cc0aa49bc192f02725c37be1643e3c4e127f58e50aabb2"
     },
     {
       "path": "docs/research/GROUNDING_BENCHMARK.md",
@@ -110,7 +114,7 @@
     },
     {
       "path": "docs/tranche_h/PROGRESS.md",
-      "sha256": "868a44b569bf70dc108c3b6f77bfb32a5af6cbbce1f977e5d34ed338a45ade7e"
+      "sha256": "c3c863d620106a8c0ef234a3f9c870a08e916d8e549035d95759984ffcc83f6d"
     },
     {
       "path": "integrations/fmi/third_party/fmi3/LICENSE.txt",
