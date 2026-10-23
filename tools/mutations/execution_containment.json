@@ -3,7 +3,9 @@
  "note": "D-2026-149 (findings R-1, R-2). Each mutation removes one piece of kernel containment or of its reporting. tests/test_execution_containment.py pairs each isolated case with an isolate=False control that shows the threat on this host. Run with HARNESS_ISOLATION_REQUIRED=1, so a host without unprivileged namespaces fails instead of skipping (the shard job sets it only where the runner allows namespaces; see DEPLOYMENT.md).",
  "suites": [
   "tests/test_execution_containment.py",
-  "tests/test_agent_execution.py"
+  "tests/test_agent_execution.py",
+  "tests/test_concurrent_scope.py",
+  "tests/test_agent_governed_tasks.py"
  ],
  "mutations": [
   {
@@ -54,6 +56,27 @@
    "find": "        full_argv = [*prefix, sys.executable, \"-I\", \"-S\", str(_NS_INIT),\n                     str(status_w), \"--confine\", limits.confine,\n                     json.dumps(policy, sort_keys=True), \"--\", *argv]\n",
    "replace": "        full_argv = [*prefix, *argv]\n",
    "rationale": "D-2026-149: the tool is PID 1 of its namespace: its own SIGTERM is ignored and its signal deaths are lost"
+  },
+  {
+   "name": "SC1_a_run_does_not_hold_its_scope",
+   "path": "agent_substrate/execution.py",
+   "find": "    with scopes_held(Path(cwd), spec.writable_scope):\n        return _bounded(",
+   "replace": "    with contextlib.nullcontext():\n        return _bounded(",
+   "rationale": "D-2026-185: two runs in one scope are each charged with the other's declared outputs"
+  },
+  {
+   "name": "SC2_the_scope_is_held_shared",
+   "path": "agent_substrate/execution.py",
+   "find": "                fcntl.flock(mine[key][0], fcntl.LOCK_EX)",
+   "replace": "                fcntl.flock(mine[key][0], fcntl.LOCK_SH)",
+   "rationale": "D-2026-185: a lock every run can take at once serializes nothing"
+  },
+  {
+   "name": "SC3_the_reexecution_scratch_is_made_outside_the_hold",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "        held.enter_context(scopes_held(self.root, spec.writable_scope))",
+   "replace": "        held.enter_context(contextlib.nullcontext())",
+   "rationale": "D-2026-185: another run's inventory sees the verifier's scratch directory come and go, and refuses that run"
   }
  ]
 }

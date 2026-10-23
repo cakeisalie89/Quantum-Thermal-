@@ -1,13 +1,13 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 566,
+   "ADDED": 567,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 202,
+   "LOW": 203,
    "MEDIUM": 314
   },
   "by_subsystem": {
@@ -31,13 +31,13 @@
    "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 178,
+   "tests": 179,
    "tooling": 47,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 598
+  "files": 599
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -548,6 +548,7 @@
      "tests/test_claim_check.py",
      "tests/test_completion_matrix.py",
      "tests/test_composed_campaigns.py",
+     "tests/test_concurrent_scope.py",
      "tests/test_confinement_probe.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
@@ -1294,6 +1295,7 @@
      "tests/test_agent_performance.py",
      "tests/test_agent_recovery.py",
      "tests/test_completion_matrix.py",
+     "tests/test_concurrent_scope.py",
      "tests/test_confinement_probe.py",
      "tests/test_decided_appends.py",
      "tests/test_execution_containment.py",
@@ -1385,6 +1387,7 @@
      "tools/mutations/agent_separate_verify.json",
      "tools/mutations/agent_tasks.json",
      "tools/mutations/decided_appends.json",
+     "tools/mutations/execution_containment.json",
      "tools/mutations/governed_breadth.json",
      "tools/mutations/governed_tasks_authority.json",
      "tools/mutations/proposal_crash_recovery.json",
@@ -1410,6 +1413,7 @@
      "tests/test_agent_secret_provider.py",
      "tests/test_agent_separate_verify.py",
      "tests/test_authenticated_history.py",
+     "tests/test_completion_matrix.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_governed_model.py",
@@ -2305,6 +2309,7 @@
      "tests/test_agent_governed_tasks.py",
      "tests/test_agent_idempotency.py",
      "tests/test_agent_performance.py",
+     "tests/test_concurrent_scope.py",
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py"
     ]
@@ -6282,6 +6287,21 @@
    "runtime_dependencies": [
     "pytest"
    ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_concurrent_scope.py",
+   "risk": "LOW",
+   "runtime_dependencies": [],
    "subsystem": "tests",
    "trust_boundary": "verification only",
    "verification": {

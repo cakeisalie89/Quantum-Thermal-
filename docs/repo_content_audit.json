@@ -48,10 +48,10 @@
   "REPOSITORY_CONFIGURATION": 1,
   "SCIENTIFIC_COMPUTING": 39,
   "SOFTWARE_ASSURANCE": 187,
-  "TESTS": 179,
+  "TESTS": 180,
   "WORKFLOW": 1
  },
- "files": 598,
+ "files": 599,
  "finding_counts": {},
  "findings": [],
  "label": "The current tree read for retired content. Zero findings is the transformation's acceptance condition for repository content; it says nothing about scientific correctness.",

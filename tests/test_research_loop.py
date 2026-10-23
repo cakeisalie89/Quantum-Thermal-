@@ -234,6 +234,21 @@ def test_a_crash_anywhere_in_a_step_resumes_without_doing_anything_twice(
         w.clean()
 
 
+def test_the_gateway_s_transcripts_are_not_charged_to_a_tool():
+    """D-2026-185. The gateway writes its transcript store while another
+    controller's tool runs. Inside the tool's scope, a change there was
+    charged to that tool and its run refused. The controller registers the
+    store as a supervisor's, as the log and the evidence store are."""
+    w = World("transcripts-store", L.scripted_agent(
+        hypothesis=hypothesis(), run=SLAB["request"]))
+    try:
+        c = w.controller()
+        rel = (w.base / "transcripts").resolve().relative_to(ROOT.resolve())
+        assert str(rel) in c.runs.gov._supervisor_paths()
+    finally:
+        w.clean()
+
+
 def test_the_loop_is_bounded_by_the_objective_s_ceilings():
     w = World("bounded", L.scripted_agent(hypothesis=hypothesis(),
                                           run=SLAB["request"]),

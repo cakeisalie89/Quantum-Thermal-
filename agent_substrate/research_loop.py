@@ -57,6 +57,14 @@ idempotent, keyed by the proposal or the step: the receipt, the governed
 submission, the check, the decision, the observation and the step record.
 So a crash anywhere in a step, followed by a restart with no memory, ends
 where an uninterrupted run would have, with nothing done twice.
+
+ONE STEP, ONE QUESTION. Two controllers on one objective at once may both
+find no request for a step and each build one. The gateway grants the
+first under the step's key and refuses the other (``KeyHeld``), so a step
+is never asked twice or acted on twice (D-2026-184). The refused
+controller stops without recording anything, as it does when it finds the
+step's call still open (``AttemptOutstanding``). The objective goes on
+under the other.
 """
 from __future__ import annotations
 
@@ -127,6 +135,14 @@ class ResearchController:
         self.gateway = gateway
         self.ingress = ingress
         self.runs = runs
+        # The gateway is a supervisor of this history too. What its
+        # transcript store gains while another controller's tool runs is
+        # not that tool's, and the store re-hashes whatever it serves
+        # (D-2026-185).
+        gov = getattr(runs, "gov", None)
+        if gov is not None and \
+                gateway.transcripts.root not in gov.supervisor_stores:
+            gov.supervisor_stores.append(gateway.transcripts.root)
         self.policy_identity = policy_identity
         self.policy_digest = policy_digest
         self.budget_id = budget_id

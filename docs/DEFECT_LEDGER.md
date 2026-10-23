@@ -11571,3 +11571,128 @@ hypothesis.
   independent of another.
 - **Authenticated identities.** Impersonation is refused only on an
   authenticated history (`principals`), not on these unsigned test logs.
+
+## D-2026-184 — Two questions under one step's key: concurrent controllers acted on one step twice
+
+**FOUND BY** the section 11 integration demonstration's concurrent-writers
+variant (`tools/integration_demo.py`, V7). Two controllers, in two
+processes, stepped one objective at once.
+
+**WHAT HAPPENED.** Each controller found no request for the step, and
+each built a context of its own. The two contexts differed (each was
+built at its own head), so the two requests had different ids under the
+same idempotency key, `<objective>/step-<n>`. The gateway decides a
+reservation per request id. It granted both, both were answered, and the
+ingress received two different proposals for one step. Each proposal
+became its own governed run into the step's one output directory. In 12
+races:
+
+- 4 executed the model run twice;
+- 3 failed both runs and left the objective OPEN;
+- the rest ended with one controller stopping on the open attempt, which
+  was the existing protection against the SAME question asked twice.
+
+The step's key was documented as "the durable statement of what that step
+asked" and was enforced nowhere.
+
+**REPAIRED.** One idempotency key, one question.
+
+- **The writer.** The first request granted under a key holds it. Another
+  request under that key is refused with `KeyHeld`, under the writer lock.
+  Nothing is recorded and nothing is sent, as with `AttemptOutstanding`.
+  So a racing controller stops without recording a refused step over the
+  step its rival is working on.
+- **The replay fold.** It refuses a history that grants a second question
+  under a held key.
+- **The second reader.** It restates the rule independently and notes the
+  same history.
+- **The loop's documentation** says what a refused controller does.
+
+**HELD BY.**
+
+- `tests/test_inference_gateway.py`:
+  - the writer refuses another question under a held key, with nothing
+    written and the provider not called;
+  - control: the step's own question, asked again, is its recorded
+    answer;
+  - a hand-written history with a second grant is refused by the fold and
+    noted by the second reader.
+- `tests/test_inference_concurrency.py`: four processes, each with its own
+  question for one step, call the provider once.
+- `tests/test_simulation_gateway.py`: the simulation gains a second
+  controller's question under a held key, and asserts it is never granted
+  and never written.
+- **Mutations.** KH1 to KH4 (`inference_gateway.json`: the writer's check,
+  the fold's, the key record both read, and the second reader's) and SM15
+  (`simulation.json`). All are killed.
+
+**NOT MODELLED.** `docs/formal/InferenceBudget.tla` models attempts and
+budgets, not idempotency keys. The rule is held by the writer, the fold,
+the second reader and the simulation, not by TLC.
+
+## D-2026-185 — Two runs in one writable scope were each charged with the other's writes
+
+**FOUND BY** following D-2026-184 to its end. After that repair, one race
+in twelve still failed a run. The cause was the demonstration's own
+harness: a racer wrote its result file inside the tools' writable scope,
+and the governed path rightly refused the run for an undeclared write.
+The harness now reports through a queue.
+
+Following that showed the general case. Two governed runs of one
+deployment, such as two agents on two objectives sharing one log, run at
+the same time in the same writable scope (`verification/stage10`). The
+executor inventories the scope before and after a run and charges every
+change to the tool. Each run was charged with the other's declared
+outputs, and refused for writes it never made: 6 of 8 runs in 4 races.
+That breaks the inventory's own stated principle, that a change made by
+somebody else is not the tool's (`execution._inventory`). It failed
+closed, and no wrong result was admitted, but it ruled out concurrent
+research in one deployment. Gate E ran its agents one after another, so
+it never met the case.
+
+**REPAIRED, IN THREE PARTS.**
+
+- **One run at a time in a writable scope.** `run_bounded` holds an
+  exclusive `flock` on each of its scope directories from the first
+  inventory to the last. A second run in the scope waits; it is not
+  refused. The lock is on the directory, so no file appears in the scope.
+  It is taken in sorted order, reentrant within a thread, and released
+  when its holder exits.
+- **The verifier's scratch directory** is made, run in and removed with
+  the scope held. Its coming and going had been charged to a concurrent
+  run.
+- **The gateway's transcript store** is registered by the research
+  controller as a supervisor store of its governed path, as the log, the
+  evidence store and the checkpoint store already were (D-2026-118). A
+  concurrent controller's transcripts were charged to a running tool. The
+  store re-hashes whatever it serves, so a tool writing there is still
+  caught on read.
+
+**MEASURED AFTER.** Two objectives raced in one deployment: 16 of 16 runs
+concluded (8 races). V7 now runs both races (one objective, and two
+objectives of one deployment), 8 of 8 times with no attempt accepted.
+
+**HELD BY.**
+
+- `tests/test_concurrent_scope.py`:
+  - two processes run tools in one scope with overlapping lifetimes, each
+    is charged only with its own writes, and the second waits for the
+    first;
+  - control: without the lock, each is charged with the other's file.
+- `tests/test_agent_governed_tasks.py`: the re-execution's scratch comes
+  and goes inside one exclusive hold of the tool's scope.
+- `tests/test_research_loop.py`: the controller's transcripts are a
+  supervisor's.
+- **Mutations.** SC1 to SC3 (`execution_containment.json`) and RL8
+  (`research.json`). All are killed.
+
+**WHAT REMAINS.**
+
+- **Serialized runs.** Runs in one scope are serialized, so throughput in
+  a scope is one tool at a time. A deployment wanting parallel runs gives
+  them disjoint scopes.
+- **Unknown writers.** A writer the governed path does not know of still
+  fails a run if it writes inside the scope while a tool runs. That
+  includes another deployment sharing the directory, or a person editing
+  there. This is the intended answer: the sweep cannot tell such a writer
+  from the tool.

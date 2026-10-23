@@ -299,6 +299,13 @@
    "find": "        if who is not None and b.get(\"proposed_by\") not in who:",
    "replace": "        if False:",
    "rationale": "E: the second reader takes a hypothesis from an agent not assigned"
+  },
+  {
+   "name": "RL8_the_gateway_s_transcripts_are_charged_to_a_tool",
+   "path": "agent_substrate/research_loop.py",
+   "find": "            gov.supervisor_stores.append(gateway.transcripts.root)",
+   "replace": "            pass",
+   "rationale": "D-2026-185: a concurrent controller's transcripts, written while a tool runs, refuse that tool's run"
   }
  ]
 }

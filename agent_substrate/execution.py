@@ -66,6 +66,8 @@ different thing from this module retrying.
 """
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import fnmatch
 import hashlib
 import json
@@ -77,6 +79,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -811,7 +814,68 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
     happens in the caller rather than here because it is a contract question
     and this function's job is the process; passing triples keeps this
     testable without constructing a whole spec.
+
+    ONE RUN AT A TIME IN A WRITABLE SCOPE (D-2026-185). The inventories
+    before and after a run charge every change inside the scope to the tool.
+    Two tools running at once in one scope would each be charged with the
+    other's declared outputs, and both refused for writes they never made.
+    So a run holds an exclusive lock on each of its scope directories from
+    the first inventory to the last, and another run in the same scope
+    waits. The lock is advisory (``flock`` on the directory, so no file
+    appears in the scope), taken in a fixed order, and released when its
+    holder exits, however it exits.
     """
+    with scopes_held(Path(cwd), spec.writable_scope):
+        return _bounded(argv, spec=spec, cwd=cwd, limits=limits, env=env,
+                        cancel=cancel, collect=collect,
+                        ignore_writes=ignore_writes)
+
+
+#: this thread's held scopes: resolved directory -> [descriptor, depth]
+_HELD = threading.local()
+
+
+@contextlib.contextmanager
+def scopes_held(cwd: Path, scopes):
+    """An exclusive ``flock`` on each existing scope directory, in sorted
+    order so that two holders naming the same scopes cannot deadlock.
+
+    Reentrant within a thread. A supervisor holding a scope around work of
+    its own in it (a re-execution's scratch directory) runs the tool inside
+    without waiting on itself. Another thread, or another process, waits:
+    each opens its own descriptor, and ``flock`` locks conflict between
+    descriptors."""
+    mine = getattr(_HELD, "scopes", None)
+    if mine is None:
+        mine = _HELD.scopes = {}
+    taken: list = []
+    try:
+        for scope in sorted(set(scopes)):
+            root = cwd / scope
+            if not root.is_dir():
+                continue
+            key = str(root.resolve())
+            if key not in mine:
+                mine[key] = [os.open(root, os.O_RDONLY | os.O_DIRECTORY), 0]
+                taken.append(key)
+                fcntl.flock(mine[key][0], fcntl.LOCK_EX)
+                mine[key][1] = 1
+            else:
+                taken.append(key)
+                mine[key][1] += 1
+        yield
+    finally:
+        for key in reversed(taken):
+            entry = mine[key]
+            entry[1] -= 1
+            if entry[1] <= 0:
+                os.close(entry[0])           # closing releases the flock
+                del mine[key]
+
+
+def _bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits, env,
+             cancel, collect, ignore_writes) -> ExecutionResult:
+    """:func:`run_bounded`, with its scopes held."""
     started = time.time()
     # BEFORE anything runs, and before the early-return paths below: a
     # cancelled run wrote nothing, and comparing against an inventory taken

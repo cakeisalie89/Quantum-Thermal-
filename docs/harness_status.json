@@ -6,7 +6,7 @@
   },
   "repository_content": {
    "committed_report_current": true,
-   "files": 598,
+   "files": 599,
    "findings": 0,
    "ok": true
   },
@@ -50,8 +50,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 28,
-   "PREDATES_CURRENT_IMPLEMENTATION": 21
+   "COVERS_CURRENT_IMPLEMENTATION": 23,
+   "PREDATES_CURRENT_IMPLEMENTATION": 26
   },
   "rows": 49
  },
@@ -392,7 +392,7 @@
    "rows": {
     "R55": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     },
@@ -403,7 +403,7 @@
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "uv": {
@@ -461,6 +461,12 @@
   },
   {
    "external": false,
+   "id": "snakemake",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
    "id": "R21",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
@@ -473,7 +479,25 @@
   },
   {
    "external": false,
+   "id": "R24",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R26",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
    "id": "R27",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R28",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },
@@ -552,6 +576,18 @@
   {
    "external": false,
    "id": "R53",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R54",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R55",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },

@@ -1,6 +1,6 @@
 """Four processes, one budget: spending decided under the writer lock.
 
-Two races, each lined up so every process is past spawning, importing and
+Three races, each lined up so every process is past spawning, importing and
 opening the log before any of them starts:
 
 * four processes each issue five distinct requests against a budget that
@@ -8,9 +8,13 @@ opening the log before any of them starts:
   one is refused and the refusal recorded, and nothing held exceeds the
   budget;
 * four processes ask ONE question at once. The provider is called once. The
-  others find the attempt open, or find it answered, and call nothing.
+  others find the attempt open, or find it answered, and call nothing;
+* four processes each ask their OWN question under one idempotency key, as
+  controllers resuming one step do when each builds its own context. One is
+  granted and answered; the others are refused (KeyHeld) and record
+  nothing (D-2026-184).
 
-Both histories replay, and the second reader agrees with the gateway about
+Every history replays, and the second reader agrees with the gateway about
 what is held against the budget.
 """
 from __future__ import annotations
@@ -144,6 +148,43 @@ def _same_question_worker(args):
         return ("outstanding", "")
 
 
+def _own_question_worker(args):
+    go, base, i = args
+    base = Path(base)
+    gw = _gateway(base, delay=0.5)
+    prompt = (base / f"prompt-{i}.bin").read_bytes()
+    req = I.InferenceRequest.from_body(json.loads(
+        (base / f"request-{i}.json").read_text()))
+    XP._wait_for_start(go)
+    try:
+        return ("answered", gw.infer(req, prompt).request_id)
+    except I.KeyHeld:
+        return ("key_held", "")
+    except I.AttemptOutstanding:
+        return ("outstanding", "")
+
+
+def _own_questions(base: Path) -> None:
+    """One context and one request per racer, every request under the one
+    key "step": distinct questions for one step."""
+    log = EventLog(base / "log.jsonl")
+    for i in range(RACERS):
+        b = ContextBuilder(task_id=f"t-{i}", purpose="ask",
+                           at_seq=log.head().seq,
+                           policy_identity="inference.default@1")
+        b.add(item_id="instr", tier=Tier.OWNER_INSTRUCTION,
+              text=f"ask, as controller {i}")
+        ctx = b.build(budget_bytes=1000)
+        record_context(log, ctx.manifest, actor="context-builder")
+        prompt = I.render_prompt(ctx)
+        (base / f"prompt-{i}.bin").write_bytes(prompt)
+        req = I.InferenceRequest.for_prompt(
+            prompt, context=ctx, budget_id="b1", caller=CALLER, model=MODEL,
+            idempotency_key="step", max_output_tokens=50,
+            max_output_bytes=5000, timeout_s=10, max_attempts=1)
+        (base / f"request-{i}.json").write_text(json.dumps(req.body()))
+
+
 def _race(worker, args, tmp_path) -> list:
     with mp.get_context("spawn").Pool(RACERS) as pool:
         pending = pool.map_async(worker, args)
@@ -196,5 +237,25 @@ def test_four_processes_asking_one_question_call_the_provider_once(tmp_path):
     assert (base / "calls.txt").read_text().split() == ["same"], got
     _, events = EventLog(base / "log.jsonl").read_verified()
     assert sum(e.action == I.ACT_RESERVE for e in events) == 1
+    assert sum(e.action == I.ACT_RESULT for e in events) == 1
+    _agree(base)
+
+
+def test_four_processes_with_their_own_questions_for_one_step_ask_one(
+        tmp_path):
+    base = tmp_path / "w"
+    base.mkdir()
+    _build(base)
+    _own_questions(base)
+    go = XP._go(tmp_path)
+    got = _race(_own_question_worker,
+                [(go, str(base), i) for i in range(RACERS)], tmp_path)
+    answered = [r for r in got if r[0] == "answered"]
+    assert len(answered) == 1, got
+    assert {r[0] for r in got} <= {"answered", "key_held"}, got
+    assert (base / "calls.txt").read_text().split() == ["step"], got
+    _, events = EventLog(base / "log.jsonl").read_verified()
+    reserves = [e for e in events if e.action == I.ACT_RESERVE]
+    assert [e.target for e in reserves] == [answered[0][1]], got
     assert sum(e.action == I.ACT_RESULT for e in events) == 1
     _agree(base)

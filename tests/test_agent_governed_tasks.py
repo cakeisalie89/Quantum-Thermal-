@@ -7,7 +7,10 @@ it that the chain should have refused.
 """
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -103,6 +106,43 @@ def _read_cap(gov, task_id="t-direct", cap_id="cap-direct-read"):
                 issued_seq=gov.log.verify().head_seq + 1)
     gov.capabilities.issue(cap, actor="scheduler")
     return cap_id
+
+
+def test_the_reexecution_scratch_comes_and_goes_with_the_scope_held(
+        gov, monkeypatch):
+    """D-2026-185. The verifier re-runs the tool into a scratch directory
+    inside the tool's writable scope. Another run's inventory must not see
+    it come and go, so it is made and removed with the scope held, and held
+    exclusively."""
+    import agent_substrate.governed_tasks as GT
+    real, seen = GT.scopes_held, []
+    out = ROOT / gov.out_rel
+
+    def scratch():
+        return sorted(p.name for p in out.glob(".reverify-*")) \
+            if out.exists() else []
+
+    @contextlib.contextmanager
+    def watched(cwd, scopes):
+        with real(cwd, scopes):
+            entered = scratch()
+            probe = os.open(Path(cwd) / scopes[0],
+                            os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                exclusive = False
+            except BlockingIOError:
+                exclusive = True
+            finally:
+                os.close(probe)
+            yield
+            seen.append((tuple(scopes), entered, scratch(), exclusive))
+    monkeypatch.setattr(GT, "scopes_held", watched)
+    _run(gov)
+    spec = governed_registry().get("stage10.emit_artifact")
+    # one hold, over the tool's scope; the scratch is not there when it
+    # begins and is gone before it ends
+    assert seen == [(tuple(spec.writable_scope), [], [], True)], seen
 
 
 # --- the whole chain --------------------------------------------------------

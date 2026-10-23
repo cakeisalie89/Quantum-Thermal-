@@ -12,6 +12,8 @@ model of the protocol (the one ``docs/formal/InferenceBudget.tla`` states):
 * nothing held against the budget ever exceeds it, and nothing the provider
   was asked to do was asked without a dispatch record before it;
 * a request has at most one open attempt and at most one OK attempt;
+* another question under a key a granted request holds is never granted,
+  and nothing is written for it (D-2026-184);
 * every attempt is settled at most once;
 * a fresh replay agrees with each live process, and the second reader agrees
   with the replay and finds nothing;
@@ -61,10 +63,12 @@ class Abstract:
         self.dispatched: set = set()
         self.ok: set = set()
         self.settled: set = set()
+        self.keys: set = set()         # keys a granted request holds
 
     def reserve(self, key, n, cost):
         self.held += cost
         self.open[(key, n)] = cost
+        self.keys.add(key)
 
     def settle(self, key, n, ok, usage_cost):
         """The settlement rule, stated here and NOT read from the
@@ -98,6 +102,8 @@ class GatewaySimulation(RuleBasedStateMachine):
         self.max_cost = self.cost * budget_calls
         world.gw.publish_budget(G.budget(max_cost_micro=self.max_cost,
                                          max_attempts=3), actor="owner")
+        #: another context: a second controller's own question for a step
+        self.other = world.build_context(task="t-other")
         self.procs = [world.gateway(), world.gateway()]
         self.model = Abstract(self.max_cost)
         self.calls: list = []
@@ -123,6 +129,21 @@ class GatewaySimulation(RuleBasedStateMachine):
             return
         assert not self.stale, "a stale context was granted a reservation"
         self.model.reserve(key, att.attempt, att.reserved_cost)
+
+    @rule(p=st.integers(0, 1), key=st.sampled_from(KEYS))
+    def another_question(self, p, key):
+        """A second controller resuming one step with its own context."""
+        if key not in self.model.keys:
+            return
+        before = self.world.log.head().seq
+        try:
+            self.procs[p]._reserve(self.world.request(
+                key, context=self.other, max_attempts=3))
+        except I.KeyHeld:
+            assert self.world.log.head().seq == before, \
+                "a refused question was written"
+            return
+        raise AssertionError("another question was granted under a held key")
 
     def _open(self, p):
         gw = self.procs[p]

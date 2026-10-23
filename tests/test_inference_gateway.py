@@ -528,6 +528,58 @@ def test_a_v1_proposal_still_parses_and_v2_is_the_gateway_s_alone(tmp_path):
         PR.ProposalEnvelope.parse(PR.seal(forged))
 
 
+# --------------------------------------------------------- one key, one question
+
+def test_a_second_question_under_a_held_key_is_not_asked(tmp_path):
+    """D-2026-184. Two controllers resuming one step each built a context of
+    their own: the first request granted under the step's key is the
+    step's, and the other is refused before anything is recorded or
+    sent."""
+    calls: list = []
+    w = World(tmp_path, lambda req, prompt, n: calls.append(n) or ok())
+    first = w.infer(w.request(key="obj/step-2"))
+    ctx = w.build_context(task="t2")
+    other = w.request(key="obj/step-2", context=ctx)
+    assert other.request_id != first.request_id
+    head = w.log.head().seq
+    with pytest.raises(I.KeyHeld, match="obj/step-2"):
+        w.gw.infer(other, I.render_prompt(ctx))
+    assert w.log.head().seq == head and calls == [1]
+    assert w.gateway().request_for("obj/step-2").request_id == \
+        first.request_id
+    # control: the step's own question, asked again, is its recorded answer
+    again = w.infer(w.request(key="obj/step-2"))
+    assert (again.request_id, again.outcome) == (first.request_id, I.OK)
+    assert calls == [1]
+
+
+def test_a_history_granting_two_questions_under_one_key_is_refused(tmp_path):
+    """The rule holds on replay, and the second reader restates it: a
+    second grant under a held key, written past the writer, is refused by
+    the gateway's fold and noted by the second reader."""
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    w = World(tmp_path)
+    w.infer(w.request(key="obj/step-2"))
+    ctx = w.build_context(task="t2")
+    req = w.request(key="obj/step-2", context=ctx)
+    tin, tout = I.input_bound(req.prompt_bytes), req.max_output_tokens
+    wall = w.clock()
+    w.log.append(actor=I.GATEWAY_ID, action=I.ACT_RESERVE,
+                 target=req.request_id, wall_time=wall, payload={
+                     "request_id": req.request_id, "request": req.body(),
+                     "attempt": 1, "granted": True, "refusal": None,
+                     "reason": "", "reserved": {
+                         "input_tokens": tin, "output_tokens": tout,
+                         "cost_micro": I.cost_micro(budget().prices, MODEL,
+                                                    tin, tout)},
+                     "lease_until": wall + req.timeout_s +
+                     I.LEASE_GRACE_S})
+    with pytest.raises(I.InferenceError, match="one key, one question"):
+        w.gateway()
+    assert any("a second question for one key" in a
+               for a in reconstruct_subsystems(w.log).anomalies)
+
+
 # ---------------------------------------------------------------- recovery
 
 def test_a_crash_after_reservation_settles_not_sent_at_no_cost(tmp_path):

@@ -1355,6 +1355,8 @@ class SubsystemReconstruction:
     #: (request_id, attempt) -> one granted attempt: what it reserved, its
     #: lease, its dispatch and its settlement.
     inference_attempts: dict = field(default_factory=dict)
+    #: idempotency key -> the request first granted under it
+    inference_keys: dict = field(default_factory=dict)
     #: research id -> ``{"kind", "status", "body", "basis"}`` (Gate C):
     #: objectives, hypotheses and observations as this reader rebuilt them.
     research: dict = field(default_factory=dict)
@@ -3374,6 +3376,12 @@ def _sub_inference_reserve(ev, p: dict, out) -> None:
         _note(out, ev, f"{rid} reserved again while an attempt is open or "
                        "after it was answered")
         return
+    key = req.get("idempotency_key")
+    if out.inference_keys.get(key, rid) != rid:
+        _note(out, ev, f"{rid} granted under {key!r}, which "
+                       f"{out.inference_keys[key]} holds: a second question "
+                       "for one key")
+        return
     why = _inf_grant_problem(req, n, ev.wall_time, out)
     if why:
         _note(out, ev, f"a granted inference reservation the budget "
@@ -3394,6 +3402,7 @@ def _sub_inference_reserve(ev, p: dict, out) -> None:
         _note(out, ev, "an inference lease that is not the timeout and "
                        "grace past its reservation")
         return
+    out.inference_keys.setdefault(key, rid)
     out.inference_attempts[(rid, n)] = {
         "attempt": n, "actor": ev.actor, "request": req, "in": tin,
         "out": tout, "cost": cost, "lease_until": lease,

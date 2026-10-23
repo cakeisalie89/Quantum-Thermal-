@@ -103,6 +103,13 @@
       "find": "        if n > obj.body[\"limits\"][\"max_steps\"]:",
       "replace": "        if False:",
       "rationale": "a controller would run past the steps its owner allowed"
+    },
+    {
+      "name": "SM15_a_second_question_under_a_held_key_is_asked",
+      "path": "agent_substrate/inference.py",
+      "find": "            held = self._keys.get(req.idempotency_key)\n            if held not in (None, rid):\n                # two callers",
+      "replace": "            held = self._keys.get(req.idempotency_key)\n            if False:\n                # two callers",
+      "rationale": "D-2026-184: a second controller's own question for a step is granted under the step's key"
     }
   ]
 }

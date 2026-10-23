@@ -96,6 +96,7 @@ decided by the authority store and re-decided on every replay.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import signal
@@ -118,7 +119,7 @@ from .capability import Action, CapabilityLedger, issue
 from .context import ACT_CONTEXT_BUILD, ContextBuilder, Tier, record_context
 from .events import Anchor, EventLog, EventLogError
 from .evidence import EvidenceStore
-from .execution import Executor, Limits, Outcome
+from .execution import Executor, Limits, Outcome, scopes_held
 from .memory import MemoryStore
 from .netauth import NetworkAuthority, socket_guard
 from .readpath import (
@@ -2532,6 +2533,10 @@ class GovernedTasks:
                            "itself")
         scratch_rel = f"{out_dir}/.reverify-{task_id[-8:]}"
         scratch = self.root / scratch_rel
+        # made, run in and removed with the tool's scope held, so that no
+        # other run's inventory sees it come and go (D-2026-185)
+        held = contextlib.ExitStack()
+        held.enter_context(scopes_held(self.root, spec.writable_scope))
         try:
             scratch.mkdir(parents=True, exist_ok=True)
             again = dict(inputs)
@@ -2628,6 +2633,7 @@ class GovernedTasks:
                           "by re-running the tool from its declared inputs")
         finally:
             shutil.rmtree(scratch, ignore_errors=True)
+            held.close()
 
     def _verify_artifacts(self, artifacts: dict, *,
                           verifier: str = VERIFIER_ID,

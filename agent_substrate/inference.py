@@ -48,6 +48,10 @@ WHAT IS BOUNDED, AND HOW
 * Attempts are bounded per request, and only one attempt of a request is open
   at a time. A second process asking the same question finds the first
   attempt outstanding and does not call the provider.
+* An idempotency key names one question. Take two processes resuming one
+  step, each having built its own context: the first request granted under
+  the step's key is the step's. The second is refused with
+  :class:`KeyHeld`, nothing is recorded, and nothing is sent (D-2026-184).
 
 WHAT A RESPONSE IS
 
@@ -186,6 +190,13 @@ class InferenceRefused(InferenceError):
 class AttemptOutstanding(InferenceError):
     """Another gateway holds this request's open attempt. Nothing is
     recorded and nothing is sent: the question is already being asked."""
+
+
+class KeyHeld(InferenceError):
+    """Another request was granted under this request's idempotency key.
+    The key names one question (a step's), and it has been asked: a second
+    question under it would be a second answer to one step. Nothing is
+    recorded and nothing is sent."""
 
 
 def _count(value, name: str, *, minimum: int = 0) -> int:
@@ -758,6 +769,8 @@ class InferenceGateway(DecidedWriter):
         self._budgets: dict = {}
         self._requests: dict = {}
         self._attempts: dict = {}
+        #: idempotency key -> the request first granted under it
+        self._keys: dict = {}
         self._contexts: dict = {}
         #: the latest wall time folded: what the context policy's expiry is
         #: judged against (events.judged_at, D-2026-168)
@@ -935,6 +948,11 @@ class InferenceGateway(DecidedWriter):
             raise InferenceError(f"seq {ev.seq}: {rid} reserved while "
                                  + ("an attempt is open" if open_ else
                                     "it already has an answer"))
+        held = self._keys.get(req.idempotency_key)
+        if held not in (None, rid):
+            raise InferenceError(f"seq {ev.seq}: {rid} granted under "
+                                 f"{req.idempotency_key!r}, which {held} "
+                                 "holds: one key, one question")
         why = self.grant_problem(req, nxt, ev.wall_time, ev.seq - 1)
         if why is not None:
             raise InferenceError(f"seq {ev.seq}: a reservation the budget "
@@ -957,6 +975,7 @@ class InferenceGateway(DecidedWriter):
                        req.timeout_s)
         self._requests.setdefault(rid, {})[nxt] = att
         self._attempts[(rid, nxt)] = (att, req)
+        self._keys.setdefault(req.idempotency_key, rid)
         st = self._budgets[req.budget_id]
         st.calls += 1
         st.held_cost += cost
@@ -1152,6 +1171,13 @@ class InferenceGateway(DecidedWriter):
 
         def decide(head_seq: int) -> dict:
             rid = req.request_id
+            held = self._keys.get(req.idempotency_key)
+            if held not in (None, rid):
+                # two callers resuming one step each built a question; the
+                # first granted is the step's, and the second is not asked
+                raise KeyHeld(f"{req.idempotency_key!r} is held by {held}: "
+                              "the question it names was asked by another "
+                              "request")
             nxt, open_, done = self._next_attempt(rid)
             if done is not None:
                 made["done"] = done
@@ -1315,7 +1341,8 @@ class InferenceGateway(DecidedWriter):
 
         Returns the recorded :class:`Outcome` of the last attempt. Raises
         :class:`InferenceRefused` when the budget refuses (and records it),
-        and :class:`AttemptOutstanding` when another gateway is asking."""
+        :class:`AttemptOutstanding` when another gateway is asking, and
+        :class:`KeyHeld` when another request holds the idempotency key."""
         if self.provider.name != self._budget_provider(req.budget_id):
             raise InferenceError(
                 f"this gateway dispatches to {self.provider.name!r} and "

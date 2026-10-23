@@ -195,6 +195,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_multi_agent_research.py",
     "tools/multi_agent_research.py",
     "tools/adversarial_eval.py",
+    # D-2026-185: two runs in one writable scope, at the executor
+    "tests/test_concurrent_scope.py",
     # D-2026-157: filesystem confinement, observed, and the deployment probe
     # that runs it -- a tool that measures the executor and computes no
     # scientific result.

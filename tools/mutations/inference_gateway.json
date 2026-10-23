@@ -293,6 +293,34 @@
       "find": "         \"status\": \"RECORDED_NOT_VERIFIED\" if runs else \"NOT_RUN\",",
       "replace": "         \"status\": \"VERIFIED\" if runs else \"NOT_RUN\",",
       "rationale": "a recorded run would be reported as a verified result"
+    },
+    {
+      "name": "KH1_a_second_question_under_a_held_key_is_asked",
+      "path": "agent_substrate/inference.py",
+      "find": "            held = self._keys.get(req.idempotency_key)\n            if held not in (None, rid):\n                # two callers",
+      "replace": "            held = self._keys.get(req.idempotency_key)\n            if False:\n                # two callers",
+      "rationale": "D-2026-184: two controllers resuming one step each get their own question granted, and the step is acted on twice"
+    },
+    {
+      "name": "KH2_the_fold_accepts_two_questions_under_one_key",
+      "path": "agent_substrate/inference.py",
+      "find": "        held = self._keys.get(req.idempotency_key)\n        if held not in (None, rid):\n            raise InferenceError(",
+      "replace": "        held = self._keys.get(req.idempotency_key)\n        if False:\n            raise InferenceError(",
+      "rationale": "D-2026-184: a history granting two questions under one key, written past the writer, replays as valid"
+    },
+    {
+      "name": "KH3_no_key_is_ever_held",
+      "path": "agent_substrate/inference.py",
+      "find": "        self._keys.setdefault(req.idempotency_key, rid)\n",
+      "replace": "        pass\n",
+      "rationale": "D-2026-184: the writer and the fold both consult a record nothing writes"
+    },
+    {
+      "name": "KH4_second_reader_ignores_a_second_question_for_one_key",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if out.inference_keys.get(key, rid) != rid:",
+      "replace": "    if False:",
+      "rationale": "D-2026-184: the independent reader does not restate one key, one question"
     }
   ]
 }

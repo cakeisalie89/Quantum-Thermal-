@@ -927,7 +927,11 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: and R23, which cite agent_substrate/execution.py, predate it until the
 #: evidence commit after hosted CI. The change is to a docstring only; the
 #: evidence axis is by content, and says so.
-EXPECTED_EVIDENCE_COVERS = 28
+#: 28 -> 23 in the concurrency repairs (D-2026-184, D-2026-185): the
+#: governed path holds a tool's scope over the verifier's re-execution, so
+#: R24, R26, R28, R54 and R55, which cite agent_substrate/governed_tasks.py,
+#: predate it until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 23
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
