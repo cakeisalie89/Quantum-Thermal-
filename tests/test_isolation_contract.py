@@ -64,8 +64,13 @@ def test_each_dimension_holds_on_this_host(dimension, tmp_path):
 @pytest.mark.skipif(NAMESPACED, reason="this host has namespaces; the "
                     "probes above run instead")
 def test_without_namespaces_high_assurance_runs_nothing(tmp_path):
-    r = IC._run(tmp_path, "print('{}')")
-    assert r.outcome.value == "DENIED", r.reason
+    """The executor's own contract for this case
+    (tests/test_filesystem_confinement.py, which simulates it on every
+    host): FAILED, saying the tool did not run."""
+    r = IC._run(tmp_path, "open('out/ran.txt', 'w').write('x')\n")
+    assert r.outcome.value == "FAILED", r.reason
+    assert "did not run" in r.reason
+    assert not (tmp_path / "out" / "ran.txt").exists()
 
 
 @pytest.mark.skipif(not NAMESPACED, reason="the controls switch off a "

@@ -10871,6 +10871,20 @@ The agent-substrate job now runs it wherever the runner offers
 unprivileged namespaces, as it runs the confinement probe. As with that
 probe, a pass there says what the runner does.
 
+**ADDENDUM: FOUND BY HOSTED CI.** The container-verify job at the commit
+titled "Assurance G: an offline adversarial evaluation of the research
+loop" failed one test. The container refuses unprivileged namespaces, so
+there the test runs instead of the host probes, and nowhere the suite had
+run before refuses them. The test is
+`test_without_namespaces_high_assurance_runs_nothing`, and it asserted
+that high_assurance without namespaces is DENIED. The executor's own
+contract for that case is FAILED, saying the tool did not run.
+`tests/test_filesystem_confinement.py` holds the executor to that contract
+on every host, by simulating the refusal. The executor did what its
+contract says, and the tool did not run. The test was wrong. It now
+asserts the contract, including that nothing was written, and was checked
+here with the refusal simulated. No control changed.
+
 ## D-2026-177 — Assurance H: units, quantity kinds and the dimensional statements of the equations
 
 **INSPECTED FIRST.** Units were strings, and nothing checked them.

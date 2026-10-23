@@ -6494,7 +6494,8 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
-     "tests/test_agent_substrate_isolation.py"
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_isolation_contract.py"
     ]
    }
   },
