@@ -14,12 +14,24 @@
    "severity": "P3",
    "subsystem": "retired programme / repository history",
    "files": [
-    {"path": "attic/delivery_artifacts/QTA_3d_layer.bundle"},
-    {"path": "attic/delivery_artifacts/QTA_coupled_3d.bundle"},
-    {"path": "attic/delivery_artifacts/QTA_deep_complete.bundle"},
-    {"path": "attic/delivery_artifacts/QTA_github_sync.bundle"},
-    {"path": "attic/delivery_artifacts/QTA_hardened.bundle"},
-    {"path": "attic/delivery_artifacts/QTA_machine_fsm.bundle"}
+    {
+     "path": "attic/delivery_artifacts/QTA_3d_layer.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_coupled_3d.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_deep_complete.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_github_sync.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_hardened.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_machine_fsm.bundle"
+    }
    ],
    "behavior": "The PR deletes twelve git bundle files from the tree. The heads e0e71ce, c3b59bb, cf813b0, 7d85223, d2a71b0 and a0566d7 are not commits of this repository on any of its 13 remote branches; they exist only inside those bundle blobs.",
    "invariant": "Removing a retired artefact from the active tree must not destroy the only copy of history the owner may need.",
@@ -32,6 +44,192 @@
    "residual_risk": "Loss of retired-programme history on an owner-run purge.",
    "verification": "REPRODUCED",
    "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-002",
+   "title": "A final record that lost only its trailing newline verifies, and the next append fuses two records into one unparseable line",
+   "severity": "P1",
+   "subsystem": "event log (crash safety)",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "551-611 (read), 1358-1449 (_write_event)"
+    }
+   ],
+   "behavior": "read() splits the file into lines and accepts a final line that parses even when it has no trailing newline. _write_event opens the log in append mode and writes the next record without checking that the file ends with a newline. Its own short-write branch raises and leaves the written bytes on disk, which can be every byte but the newline.",
+   "invariant": "A record is durable on return and stays readable; a crash or short write leaves at most a torn tail that refuses appends until repaired (D-2026-50).",
+   "mechanism": "The state 'complete record, newline missing' reads as a clean log (ok=True, every record counted). The next append returns normally and its bytes are glued to the unterminated line, so the last two records become one unparseable final line.",
+   "reproduction": "An EventLog with three appends; truncate the file's final byte; verify(); append once more; verify() again. Script recorded in the audit's session notes (scratchpad repro/torn_newline.py); regression test added with the fix.",
+   "observed": "After the lost newline: ok=True, count=3. After the next append (which returned): ok=False, count=2, a 'partial final record' and 'TRUNCATED: witness records seq 3 but the log ends at 1'. Seq 2 and the acknowledged seq 3 are unreadable, and the log refuses every later append.",
+   "expected": "An unterminated final line is a torn tail: the read refuses it as such (the records before it intact), appends refuse until the tail is repaired, and no append ever lands after unterminated bytes.",
+   "correction": "One line rule for every reader (_parse_line in agent_substrate/events.py): a record ends in its newline, so an unterminated final line is a torn tail in the whole-chain read (TruncatedTail, the records before it intact) and refused by the anchored tail read; and the write path refuses to write when the byte before end-of-file is not a newline, under the writer lock, after the head check.",
+   "regression_tests": [
+    "tests/test_agent_crash_recovery.py::test_a_final_record_without_its_newline_is_a_torn_tail",
+    "tests/test_agent_crash_recovery.py::test_no_append_lands_on_a_final_record_without_its_newline",
+    "tests/test_agent_crash_recovery.py::test_the_anchored_read_refuses_a_tail_without_its_newline",
+    "tests/test_agent_fault_injection.py::test_an_append_never_lands_after_unterminated_bytes"
+   ],
+   "residual_risk": "The write-side guard closes the window between the head check and the write for writers of this class; flock stays advisory, so a process that writes the file without the lock can still interleave bytes mid-write, as the module docstring states.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_recovery.json: R60, R61",
+    "tools/mutations/agent_fault_injection.json: F10"
+   ]
+  },
+  {
+   "id": "AUD-003",
+   "title": "anchor_at() builds an anchor from a second, unverified read, and nothing binds it to the read that was verified",
+   "severity": "P2",
+   "subsystem": "event log (incremental verification)",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "931-956 (anchor_at), 1568-1570"
+    },
+    {
+     "path": "agent_substrate/checkpoint.py",
+     "lines": "199-250 (create)"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "309-312"
+    }
+   ],
+   "behavior": "anchor_at(seq) re-reads the log, finds the record at seq and checks only that it hashes to its own stored hash: no link before it, no witness. Its docstring says an anchor is worth trusting 'because something verified the log to produce it'. Twelve call sites take a verified read, fold it, and then call anchor_at for the position they reached, and checkpoint.create() verifies the log and then anchors from a separate read; none compares the anchor's hash with the hash of the event it folded or verified.",
+   "invariant": "An anchor (and a checkpoint marked full_verification) describes bytes a verification actually covered.",
+   "mechanism": "A rewrite of the file between the verified read and anchor_at produces an anchor at a record the verification never saw; every later advance() and verify_from() trusts the prefix before it. Honest concurrent writers only append, so this needs a writer that rewrites the file during the window. Anchored reads already trust the prefix, so this widens a trust the design states rather than creating a new one.",
+   "reproduction": "By reading: no comparison of anchor.head_hash with the verified event's hash at any of the 12 call sites or in checkpoint.create().",
+   "observed": "Anchors and checkpoints carry the hash of a record re-read after verification.",
+   "expected": "The anchor is taken from the verified read itself, or anchor_at is told the hash it must find.",
+   "correction": "VerifyReport.verified_anchor: the verified read returns an anchor at the last record it verified, from the bytes it parsed. The 13 projection sites and checkpoint.create() take it instead of a second read; anchor_at(seq, head_hash=...) refuses a record other than the one named, and checkpoint.create(require_full_verification=False) binds its anchor to the witness's hash.",
+   "regression_tests": [
+    "tests/test_agent_incremental.py::test_a_projection_resumes_from_the_bytes_it_verified",
+    "tests/test_agent_incremental.py::test_a_checkpoint_names_the_record_its_verification_read",
+    "tests/test_agent_incremental.py::test_an_unverified_checkpoint_is_refused_where_log_and_witness_differ",
+    "tests/test_agent_incremental.py::test_no_production_module_anchors_on_an_unbound_second_read (with its control)"
+   ],
+   "residual_risk": "anchor_at() without head_hash is still the unbound slow path, used by tests; no production module calls it without head_hash.",
+   "verification": "CONFIRMED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_incremental.json: N10, N11"
+   ]
+  },
+  {
+   "id": "AUD-004",
+   "title": "Invariant I3 says re-verification after STALE needs fresh evidence; the evidence merge lets the pre-staleness report satisfy it",
+   "severity": "P1",
+   "subsystem": "authority state machine",
+   "files": [
+    {
+     "path": "agent_substrate/authority.py",
+     "lines": "20-23 (I3), 114-117, 143-146"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "543-549 (replay), 1271-1277 (live)"
+    }
+   ],
+   "behavior": "Both the live transition and the replay evaluate an edge against {**record.evidence, **transition.evidence}. After STALE, UNDER_REVIEW -> VERIFIED requires 'verification_report', which the record already carries from before it went stale.",
+   "invariant": "I3: STALE returns to PROMOTED only through VERIFIED, 'which requires fresh evidence' -- the prior verification no longer describes the current inputs.",
+   "mechanism": "A record verified with report R, promoted, made STALE by a dependency change, re-reviewed, and re-verified with an empty evidence mapping is VERIFIED again on R, and can be promoted again on R. The second reader restates the same rule and agrees, so nothing flags it.",
+   "reproduction": "AuthorityStore over a fresh EventLog: create; UNDER_REVIEW; VERIFIED with R; PROMOTED; STALE with invalidated_by; UNDER_REVIEW; VERIFIED with evidence={}; PROMOTED with evidence={}. Script: scratchpad repro/stale_reverify.py; regression test added with the fix.",
+   "observed": "VERIFIED and then PROMOTED with no new evidence; the fresh replay and reconstruct() both report PROMOTED with no anomaly.",
+   "expected": "A VERIFIED transition out of a re-review that followed STALE cites a verification_report other than the one the record carried when it went stale; otherwise it is refused, live and on replay, by both readers.",
+   "correction": "Under evaluation: the scientific-result admission rule may already refuse this for scientific results (to be tested through the governed path); for every other record kind the edge check needs the rule, in both readers.",
+   "regression_tests": [],
+   "residual_risk": "",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-005",
+   "title": "The log accepted any encoding of a record, and its readers did not agree where records begin",
+   "severity": "P2",
+   "subsystem": "event log (integrity of the bytes)",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "read (splitlines), anchor_at, _read_anchored, _read_tail, _genesis_profile"
+    }
+   ],
+   "behavior": "Every reader recomputes the hash over the PARSED record, so any byte string that parses to it verified: other whitespace, key order or escapes, and a key given twice (json keeps the last value, which the hash covers; a first-wins parser shows the first). read() split lines with bytes.splitlines(), which also breaks at a CR; anchor_at, _read_anchored and _read_tail iterate the file, which breaks only at a newline.",
+   "invariant": "canonical.py: every integrity claim reduces to 'are these the same bytes'. _validate_field_types already refuses an unhashed extra field because it 'could carry unverified content beside a valid digest'; a duplicated key is the same thing.",
+   "mechanism": "The hash binds the parse, not the line; and the two framings disagree on bytes containing a CR.",
+   "reproduction": "scratchpad repro/event_log_framing.py, run against c11c628 and against the fix (before/after table in docs/audit/AUDIT_PROGRESS.md).",
+   "observed": "Before: a CR in place of a newline verified in full (count 3) while anchor_at(1) raised a bare JSONDecodeError; a CR in a record's whitespace verified from an anchor and failed in full; a duplicated actor key verified, the fold saw 'a' and a first-wins parser 'mallory'; a record re-encoded with spaces and reversed keys verified.",
+   "expected": "A record is its canonical bytes and one newline, framed at the newline only, the same in every reader.",
+   "correction": "_parse_line: the one statement of what a line is, used by all five readers; it refuses a line that is not exactly canonical_bytes(record) + b'\\n'. The whole-chain reader frames at b'\\n' only.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_a_record_is_its_canonical_bytes_and_no_other (5 encodings)",
+    "tests/test_agent_substrate.py::test_the_canonical_bytes_of_the_same_record_still_verify (control)",
+    "tests/test_agent_substrate.py::test_every_reader_frames_records_at_a_newline_and_nowhere_else"
+   ],
+   "mutations": [
+    "tools/mutations/agent_substrate.json: M60"
+   ],
+   "residual_risk": "Blank lines between records are still skipped, as before; they carry no content. No committed event log exists in the repository to migrate (checked: 0 files with event records).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-006",
+   "title": "A live projection folds a rewritten history onto the state it built from the old one, and can then write a record that makes the log unreplayable",
+   "severity": "P1",
+   "subsystem": "projections (incremental catch-up)",
+   "files": [
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "_fold_new"
+    },
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "_fold_new"
+    },
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "DecidedWriter._fold_new"
+    },
+    {
+     "path": "agent_substrate/agents.py, policy.py, memory.py, idempotency.py, proposals.py",
+     "lines": "_fold_new / catch_up"
+    }
+   ],
+   "behavior": "Catching up, a projection folds only records whose seq is above its position and assumes every record at or below it is one it already folded. On an anchor mismatch it falls back to a full verified read and keeps that assumption. When its anchor lags its position -- the records it appended itself -- advance() succeeds without any mismatch at all.",
+   "invariant": "A projection is disposable: what a live projection holds, and decides against, is what a fresh replay of the same log yields.",
+   "mechanism": "Nothing compares the history being caught up from with the history already folded. A restore of the log and its witness from a backup -- an operational act, not an attack -- replaces the records below the position with others.",
+   "reproduction": "scratchpad repro/rewritten_prefix.py: create r0; back up log and witness; create r1; a second process loads; restore the backup; an honest writer creates r2 and r3; the second process catches up and transitions r1.",
+   "observed": "Live projection after catching up: r0, r1, r3; a fresh replay of the same log: r0, r2, r3. The live projection then appended a transition on r1, which the log never created, and every fresh load of that log fails with KeyError 'r1'.",
+   "expected": "Catching up refuses -- the projection stays refused until load() -- when the log no longer extends the history the projection folded.",
+   "correction": "Planned: each projection keeps the hash of the last record it folded, and catching up requires the record at its position to carry it (equivalently, the first record after it to link to it); otherwise it raises.",
+   "regression_tests": [],
+   "residual_risk": "",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-007",
+   "title": "Replaying a transition on a record the history never created raises a bare KeyError in the primary store",
+   "severity": "P2",
+   "subsystem": "authority store (replay)",
+   "files": [
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "_apply, ACT_TRANSITION branch"
+    }
+   ],
+   "behavior": "The transition branch indexes self._records[rid] directly. The dependency branch beside it already refuses the same case with StoreError and says why: 'A raw KeyError leaks the projection's internals and skips the domain error every other refusal here raises.'",
+   "invariant": "Every refusal of a history by the store is a StoreError, so a caller that catches StoreError catches every refusal.",
+   "mechanism": "A missing membership check in one of two parallel branches.",
+   "reproduction": "scratchpad repro/unknown_record.py: append a record.transition for 'ghost' and load.",
+   "observed": "AuthorityStore.load() raises KeyError 'ghost'; the second reader reports the anomaly \"seq 1: transition for unknown record 'ghost'\" and continues.",
+   "expected": "StoreError naming the seq and the record, as for a dependency on an unknown record.",
+   "correction": "Planned: the membership check of the dependency branch, in the transition branch.",
+   "regression_tests": [],
+   "residual_risk": "",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
   }
  ]
 }

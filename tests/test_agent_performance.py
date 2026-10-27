@@ -1140,8 +1140,8 @@ def _count_full_passes(fn):
     seen = {"passes": 0, "records": 0}
     real = _EL.read
 
-    def counting(self, *, strict: bool = True):
-        events = real(self, strict=strict)
+    def counting(self, *, strict: bool = True, **kw):
+        events = real(self, strict=strict, **kw)
         seen["passes"] += 1
         seen["records"] += len(events)
         return events

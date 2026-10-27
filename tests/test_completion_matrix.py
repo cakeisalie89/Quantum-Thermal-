@@ -940,7 +940,16 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: name deleted files by their baseline paths (tools/repo_content_audit.py
 #: and its report, cited by R71). Both predate their hosted evidence until
 #: the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 47
+#: 47 -> 23 in the audit's event-log repair (AUD-002, AUD-003, AUD-005): a
+#: record is its canonical bytes and its newline in every reader, a verified
+#: read returns the anchor it verified, and the projections and
+#: checkpoint.create() take that anchor rather than reading the log again.
+#: That changes agent_substrate/events.py, checkpoint.py, store.py,
+#: scheduler.py and the other projections, and four mutation specs, so R22,
+#: R24-R30, R32, R33, R36, R37, R39-R41, R46-R49, R51, R52, R54, R55 and
+#: R66 predate their implementation until the evidence commit after hosted
+#: CI.
+EXPECTED_EVIDENCE_COVERS = 23
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

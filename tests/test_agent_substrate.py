@@ -26,7 +26,7 @@ from agent_substrate.canonical import (  # noqa: E402
     is_digest,
 )
 from agent_substrate.events import (  # noqa: E402
-    _HASHED_FIELDS, ChainBroken, ChainState, EventLog,
+    _HASHED_FIELDS, ChainBroken, ChainState, EventLog, MalformedEvent,
 )
 from agent_substrate.invalidation import (  # noqa: E402
     apply_invalidation, find_cycles, plan_invalidation,
@@ -150,6 +150,72 @@ def test_unhashed_extra_fields_are_refused(tmp_path):
     rec["smuggled"] = "not covered by the digest"
     log.path.write_text(json.dumps(rec, sort_keys=True) + "\n")
     assert not log.verify().ok
+
+
+# The line, not only the record (AUD-005). The hash covers the PARSED record,
+# so a reader that stopped at the hash accepted every other encoding of the
+# same record -- and the bytes on disk could then say what no check read.
+
+def _encodings_of(line: bytes) -> dict:
+    """Other bytes that parse to the record ``line`` holds."""
+    rec = json.loads(line)
+    canon = json.dumps(rec, sort_keys=True, separators=(",", ":"))
+    return {
+        "spaces": json.dumps(rec, sort_keys=True),
+        "key order": json.dumps(dict(reversed(list(rec.items()))),
+                                separators=(",", ":")),
+        # json keeps the LAST value, which is the true one, so the hash
+        # matches; a first-wins parser shows the injected one instead.
+        "a key given twice": canon.replace("{", '{"actor":"mallory",', 1),
+        "an escape for a plain letter": canon.replace(
+            '"actor":"a"', '"actor":"\\u0061"', 1),
+        "a CR before the newline": canon + "\r",
+    }
+
+
+@pytest.mark.parametrize("how", sorted(_encodings_of(
+    b'{"actor":"a","x":1}')))
+def test_a_record_is_its_canonical_bytes_and_no_other(tmp_path, how):
+    log = _log_with(tmp_path)
+    anchor = log.anchor_at(0)
+    lines = log.path.read_bytes().split(b"\n")
+    lines[1] = _encodings_of(lines[1])[how].encode()
+    log.path.write_bytes(b"\n".join(lines))
+
+    assert json.loads(lines[1].decode())["actor"] == "a"   # the same record
+    rep = EventLog(log.path).verify()
+    assert not rep.ok, f"{how}: a re-encoded record verified"
+    assert any("canonical encoding" in p for p in rep.problems), rep.problems
+    with pytest.raises(MalformedEvent, match="canonical encoding"):
+        EventLog(log.path).verify_from(anchor)
+
+
+def test_the_canonical_bytes_of_the_same_record_still_verify(tmp_path):
+    """The control: rewriting a record AS its canonical bytes is no change."""
+    log = _log_with(tmp_path)
+    anchor = log.anchor_at(0)
+    lines = log.path.read_bytes().split(b"\n")
+    rec = json.loads(lines[1])
+    lines[1] = json.dumps(rec, sort_keys=True, ensure_ascii=True,
+                          separators=(",", ":")).encode()
+    log.path.write_bytes(b"\n".join(lines))
+    assert EventLog(log.path).verify().ok
+    assert EventLog(log.path).verify_from(anchor).ok
+
+
+def test_every_reader_frames_records_at_a_newline_and_nowhere_else(tmp_path):
+    """The whole-chain reader split at a CR too; the anchored readers did not.
+
+    A CR in place of the first newline verified in full -- read as two
+    records -- while anchor_at() raised a bare JSON error on the same bytes.
+    """
+    log = _log_with(tmp_path)
+    raw = log.path.read_bytes()
+    i = raw.index(b"\n")
+    log.path.write_bytes(raw[:i] + b"\r" + raw[i + 1:])
+    assert not EventLog(log.path).verify().ok
+    with pytest.raises(MalformedEvent):
+        EventLog(log.path).anchor_at(1)
 
 
 def test_a_partial_trailing_line_is_reported_as_truncation(tmp_path):

@@ -103,8 +103,8 @@
     {
       "name": "E26_anchor_on_unhashable_record",
       "path": "agent_substrate/events.py",
-      "find": "                    if ev.recompute_hash() != ev.hash:\n                        raise ChainBroken(",
-      "replace": "                    if False:\n                        raise ChainBroken(",
+      "find": "                if ev.recompute_hash() != ev.hash:\n                    raise ChainBroken(",
+      "replace": "                if False:\n                    raise ChainBroken(",
       "rationale": "an anchor would be built on a record that does not hash to its own hash"
     },
     {

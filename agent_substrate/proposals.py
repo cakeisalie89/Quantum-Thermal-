@@ -605,8 +605,7 @@ class ProposalIngress:
         report.raise_if_bad()
         self._received = _fold_receipts(events, {})
         self._folded_through = events[-1].seq if events else -1
-        self._anchor = (self.log.anchor_at(self._folded_through)
-                        if self._folded_through >= 0 else None)
+        self._anchor = report.verified_anchor
         return self._received
 
     def receive(self, raw) -> Receipt:

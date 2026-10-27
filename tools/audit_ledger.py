@@ -205,7 +205,10 @@ def changes(base: str, head: str | None = None) -> list:
             before = old.get(path)
             after = new.get(path)
             side = before if change == "DELETED" else after
-            assert side is not None, (change, path)
+            if side is None:
+                raise SystemExit(
+                    f"git diff says {path} was {change.lower()}, and the "
+                    "tree it was diffed against does not hold it there")
             facts: dict[str, object]
             if _volatile(path) and change != "DELETED":
                 facts = {"new_blob": None, "size": None, "sha256": None}

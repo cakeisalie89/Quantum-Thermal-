@@ -15,8 +15,8 @@
     {
       "name": "F2_the_log_swallows_a_write_failure",
       "path": "agent_substrate/events.py",
-      "find": "            start = fh.tell()\n            written = fh.write(line)",
-      "replace": "            start = fh.tell()\n            try:\n                written = fh.write(line)\n            except OSError:\n                written = len(line)",
+      "find": "            written = fh.write(line)\n            if written != len(line):\n                # A SHORT WRITE.",
+      "replace": "            try:\n                written = fh.write(line)\n            except OSError:\n                written = len(line)\n            if written != len(line):\n                # A SHORT WRITE.",
       "rationale": "ENOSPC becomes a successful append: the caller is told the event is recorded and the bytes are not there"
     },
     {
@@ -74,6 +74,13 @@
       "find": "        recomputed = cp.recompute_hash()\n        if recomputed != cp.hash:",
       "replace": "        recomputed = cp.recompute_hash()\n        if False:",
       "rationale": "bit-rot inside a complete record is invisible to the parser, so this is the only check between altered bytes and a projection restored as though it had been verified"
+    },
+    {
+      "name": "F10_a_record_is_written_after_unterminated_bytes",
+      "path": "agent_substrate/events.py",
+      "find": "            if start and not self._ends_with_newline(start):",
+      "replace": "            if False:",
+      "rationale": "AUD-002, the write itself. Bytes an unlocked writer left after the head check are not seen, and the record is written onto their line: neither can be read again"
     }
   ]
 }

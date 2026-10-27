@@ -108,9 +108,23 @@
     {
       "name": "R53_damage_after_the_tear_is_read_as_a_torn_tail",
       "path": "agent_substrate/events.py",
-      "find": "                if any(x.strip() for x in lines[lineno:]):",
+      "find": "                if blob[pos:].strip():",
       "replace": "                if False:",
       "rationale": "an unparseable record with complete records AFTER it would be treated as the ordinary crash signature, so corruption in the middle of the log would be recovered from rather than refused"
+    },
+    {
+      "name": "R60_an_unterminated_final_line_is_a_record",
+      "path": "agent_substrate/events.py",
+      "find": "    if not raw.endswith(b\"\\n\"):\n        raise _Unterminated(",
+      "replace": "    if False:\n        raise _Unterminated(",
+      "rationale": "AUD-002. A final record whose newline never reached the disk is read as complete instead of as the torn tail it is, and the records before it are lost with it as 'damage'"
+    },
+    {
+      "name": "R61_the_anchored_tail_stops_quietly_at_a_tear",
+      "path": "agent_substrate/events.py",
+      "find": "            except _Unterminated as exc:\n                raise MalformedEvent(\n                    \"the final record after the anchor has no newline; the \"\n                    \"log was truncated mid-append\") from exc",
+      "replace": "            except _Unterminated:\n                break",
+      "rationale": "AUD-002, from an anchor. The tail read ends at the unterminated line as if the log ended there, so a running writer's head check passes and only the write path's own guard is left between the next record and the torn line"
     }
   ]
 }

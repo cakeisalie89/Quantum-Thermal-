@@ -464,17 +464,13 @@ class Scheduler:
         self._anchor = None
         for ev in events:
             self.apply(ev)
-        self._reanchor()
+        self._reanchor(report)
         return self
 
-    def _reanchor(self) -> None:
-        """Take an anchor at the position this projection has reached.
-
-        anchor_at() reads the whole log, so this is the slow path and is
-        only ever paid on a full load or after damage forced one.
-        """
-        self._anchor = (self.log.anchor_at(self._seen_through)
-                        if self._seen_through >= 0 else None)
+    def _reanchor(self, report) -> None:
+        """Take an anchor at the position this projection has reached: the
+        head of the verified read it just folded, from that read's bytes."""
+        self._anchor = report.verified_anchor
 
     @projection_fold
     def catch_up(self, *, force: bool = False) -> "Scheduler":
@@ -541,7 +537,7 @@ class Scheduler:
         for ev in events:
             if ev.seq > self._seen_through:
                 self.apply(ev)
-        self._reanchor()
+        self._reanchor(report)
 
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a scheduler event."""

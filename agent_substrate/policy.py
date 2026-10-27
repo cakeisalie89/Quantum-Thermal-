@@ -643,8 +643,7 @@ class PolicyStore:
         self._latest_wall = None
         for ev in events:
             self.apply(ev)
-        self._anchor = (self.log.anchor_at(self._folded_through)
-                        if self._folded_through >= 0 else None)
+        self._anchor = report.verified_anchor
         return self
 
     @projection_fold
@@ -666,8 +665,7 @@ class PolicyStore:
         for ev in events:
             if ev.seq > self._folded_through:
                 self.apply(ev)
-        self._anchor = (self.log.anchor_at(self._folded_through)
-                        if self._folded_through >= 0 else None)
+        self._anchor = report.verified_anchor
 
     def _append_decided(self, decide):
         """Decide against the history the record is appended onto, under

@@ -45,7 +45,10 @@ CRASH SAFETY
 Append is: serialize, write, flush, ``fsync``, then update the head pointer.
 A crash mid-append can leave a partial trailing line; :meth:`verify` treats a
 malformed tail as a truncation boundary and reports the last intact record,
-so recovery is possible without discarding history.
+so recovery is possible without discarding history. A record ends in its
+newline: a final line without one is that same torn tail even when every
+other byte of the record reached the disk and it parses, and no append is
+written after unterminated bytes (:func:`_parse_line`).
 
 COST, AND WHY IT IS NOT A SIDE ISSUE
 
@@ -132,8 +135,10 @@ _HASHED_FIELDS = (
     "payload", "prev_hash", "canonical_form_version",
 )
 
-#: A single line longer than this is refused rather than buffered. Prevents a
-#: malformed or hostile log from exhausting memory during verification.
+#: A single line longer than this is refused. The anchored readers read at
+#: most this much of a line before refusing it, so one hostile line cannot
+#: make an O(new) read buffer an unbounded one. The whole-chain read holds
+#: the whole file, so its memory is bounded by the log's size, not by this.
 MAX_EVENT_BYTES = 4 * 1024 * 1024
 
 #: THE SECURITY PROFILE A HISTORY IS WRITTEN UNDER, declared by its FIRST
@@ -353,6 +358,12 @@ class VerifyReport:
     #: now the complete records BEFORE the tear, so a crashed log can be
     #: recovered instead of being indistinguishable from a corrupt one.
     truncated_tail: bool = False
+    #: An anchor at the last record this pass verified, taken from the bytes
+    #: it verified; None when it verified none. A projection resumes from
+    #: this rather than from a second read: :meth:`EventLog.anchor_at`
+    #: reads the log again, and nothing tied what it found to what was
+    #: verified.
+    verified_anchor: "Anchor | None" = None
 
     def torn_tail_only(self) -> bool:
         """True when the ONLY complaint is a partial final append.
@@ -430,6 +441,78 @@ def _validate_field_types(rec: dict, where: str) -> None:
         # content beside a valid digest.
         raise MalformedEvent(
             f"{where}: unhashed extra fields {sorted(unknown)}")
+
+
+class _Unterminated(MalformedEvent):
+    """The line has no newline: the file ends inside it."""
+
+
+class _Unparseable(MalformedEvent):
+    """The line is not UTF-8 JSON."""
+
+
+def _parse_line(raw: bytes, where: str) -> dict | None:
+    """The record one log line holds, None for a blank line, or raise.
+
+    THE ONE STATEMENT OF WHAT A LINE IS, for every reader in this module. A
+    record is its canonical bytes (:func:`canonical_bytes`) and one ``\\n``,
+    and nothing else is:
+
+    * framing is ``\\n`` and only ``\\n``. The whole-chain reader split with
+      ``splitlines()``, which also breaks at ``\\r``; the anchored readers
+      iterate the file, which does not. They disagreed about where records
+      begin: a CR in place of a newline verified in full and made
+      :meth:`EventLog.anchor_at` raise a bare JSON error, and a CR in a
+      record's whitespace verified from an anchor and failed in full.
+    * the newline is part of the record. A final record whose newline never
+      reached the disk parsed and verified, and the next append was written
+      onto the same line: two acknowledged records became one unparseable
+      final line.
+    * the bytes are the canonical encoding of what they parse to. The hash
+      covers the PARSED body, so every other encoding of a record verified
+      too -- other whitespace, key order or escapes, or a key given twice,
+      whose last value the hash covers and whose first is what a first-wins
+      parser shows. The bytes on disk then said things no check had read.
+
+    Blank lines are still skipped, as they always were: they carry nothing.
+    A blank line without its newline is not blank, it is an unterminated
+    tail, and is refused as one.
+    """
+    if len(raw) > MAX_EVENT_BYTES:
+        raise MalformedEvent(
+            f"{where}: {len(raw)} bytes exceeds the {MAX_EVENT_BYTES}-byte "
+            "bound")
+    if not raw.endswith(b"\n"):
+        raise _Unterminated(f"{where}: the line has no newline")
+    if not raw.strip():
+        return None
+    try:
+        rec = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise _Unparseable(
+            f"{where}: unparseable ({type(exc).__name__})") from exc
+    if not isinstance(rec, dict):
+        raise MalformedEvent(
+            f"{where}: record is {type(rec).__name__}, not an object")
+    _validate_field_types(rec, where)
+    try:
+        canonical = canonical_bytes(rec)
+    except CanonicalizationError as exc:
+        raise MalformedEvent(f"{where}: not canonically encodable: {exc}") \
+            from exc
+    if canonical + b"\n" != raw:
+        raise MalformedEvent(
+            f"{where}: the line is not the canonical encoding of the record "
+            "it parses to; the hash covers the parsed record, so these "
+            "bytes may say what no check read")
+    return rec
+
+
+def _cause(exc: MalformedEvent) -> str:
+    """What a torn or unparseable line's message names as its cause."""
+    if isinstance(exc, _Unterminated):
+        return "no newline"
+    return type(exc.__cause__ or exc).__name__
 
 
 @dataclass(frozen=True)
@@ -548,16 +631,23 @@ class EventLog:
         _refuse_unverified_caller(2)
         yield from self.read()
 
-    def read(self, *, strict: bool = True) -> list:
+    def read(self, *, strict: bool = True,
+             _spans: list | None = None) -> list:
         """Parse every record. With ``strict`` a malformed tail raises.
 
         UNVERIFIED: this parses, it does not check the chain. Inside
         ``agent_substrate`` only this module may call it (D-2026-76);
         everything that folds records uses :meth:`read_verified`.
+
+        ``_spans``, for :meth:`read_verified` only, is filled with the
+        ``(record_offset, next_offset)`` of each record returned -- also
+        before a :class:`TruncatedTail` is raised -- so a verified read can
+        hand back an anchor at the head it verified without reading the log
+        a second time.
         """
         _refuse_unverified_caller(2)
-        import json
         events: list = []
+        spans: list = [] if _spans is None else _spans
         if not self.path.exists():
             return events
         # ONE SNAPSHOT, and under concurrency that is the whole point.
@@ -572,17 +662,17 @@ class EventLog:
         # six-worker campaign did on a hosted runner while passing here
         # eight times out of eight. Read once; classify against that.
         blob = self.path.read_bytes()
-        lines = blob.splitlines(keepends=True)
-        for lineno, raw in enumerate(lines, 1):
-            if len(raw) > MAX_EVENT_BYTES:
-                raise MalformedEvent(
-                    f"line {lineno}: {len(raw)} bytes exceeds the "
-                    f"{MAX_EVENT_BYTES}-byte bound")
-            if not raw.strip():
-                continue
+        size = len(blob)
+        pos = lineno = 0
+        while pos < size:
+            # Framed at b"\n" and nowhere else, as the anchored readers
+            # frame it (_parse_line says why that has to be one rule).
+            nl = blob.find(b"\n", pos)
+            start, pos = pos, (size if nl < 0 else nl + 1)
+            lineno += 1
             try:
-                rec = json.loads(raw.decode("utf-8"))
-            except (UnicodeDecodeError, ValueError) as exc:
+                rec = _parse_line(blob[start:pos], f"line {lineno}")
+            except (_Unterminated, _Unparseable) as exc:
                 if not strict:
                     break
                 # A partial trailing line is the expected crash signature
@@ -590,24 +680,25 @@ class EventLog:
                 # SNAPSHOT. The message used to say "if this is the final
                 # line", leaving the question open and making the caller
                 # answer it by discarding the whole log.
-                if any(x.strip() for x in lines[lineno:]):
+                if blob[pos:].strip():
                     raise MalformedEvent(
                         f"line {lineno}: unparseable "
-                        f"({type(exc).__name__}) and NOT the final "
+                        f"({_cause(exc)}) and NOT the final "
                         "line -- complete records follow it, so this is "
                         "damage rather than a torn final append") from exc
+                # The final line with no newline is torn too, even when it
+                # parses: its write did not finish, and an append after it
+                # would land on the same line.
                 raise TruncatedTail(
                     f"line {lineno}: partial final record "
-                    f"({type(exc).__name__}); the log was truncated "
+                    f"({_cause(exc)}); the log was truncated "
                     f"mid-append and the {len(events)} complete "
                     "record(s) before it are intact",
                     events, lineno) from exc
-            if not isinstance(rec, dict):
-                raise MalformedEvent(
-                    f"line {lineno}: record is "
-                    f"{type(rec).__name__}, not an object")
-            _validate_field_types(rec, f"line {lineno}")
+            if rec is None:
+                continue
             events.append(Event(**rec))
+            spans.append((start, pos))
         return events
 
     def head(self) -> ChainState | None:
@@ -698,8 +789,9 @@ class EventLog:
             except EventLogError as exc:
                 problems.append(str(exc))
         truncated_tail = False
+        spans: list = []
         try:
-            events = self.read(strict=True)
+            events = self.read(strict=True, _spans=spans)
         except TruncatedTail as exc:
             # NOT a return, and NOT a pass either.
             #
@@ -727,9 +819,14 @@ class EventLog:
         self._check_witness(head_seq, head_hash, witness, problems, notes)
         admitted = self._security_gate(events[:verified], problems,
                                        whole=True)
+        anchor = None
+        if admitted:
+            last = admitted[-1]
+            anchor = Anchor(last.seq, last.hash, *spans[len(admitted) - 1])
         return (VerifyReport(not problems, len(events), head_seq, head_hash,
                              problems, notes,
-                             truncated_tail=truncated_tail),
+                             truncated_tail=truncated_tail,
+                             verified_anchor=anchor),
                 admitted)
 
     # ---- the security profile ------------------------------------------
@@ -819,15 +916,13 @@ class EventLog:
         try:
             with self.path.open("rb") as fh:
                 line = fh.readline(MAX_EVENT_BYTES + 1)
-            rec = json.loads(line)
-            if not isinstance(rec, dict):
-                raise MalformedEvent("genesis record is not an object")
-            _validate_field_types(rec, "seq 0")
+            rec = _parse_line(line, "seq 0")
+            if rec is None:
+                raise MalformedEvent("genesis is a blank line")
             ev = Event(**rec)
         except (OSError, ValueError, KeyError, TypeError,
                 MalformedEvent) as exc:
-            problems.append(f"genesis record is unreadable: "
-                            f"{type(exc).__name__}")
+            problems.append(f"genesis record is unreadable: {exc}")
             return None
         if (ev.seq != 0 or ev.prev_hash != ZERO_DIGEST
                 or ev.recompute_hash() != ev.hash):
@@ -928,31 +1023,43 @@ class EventLog:
                 "witness update")
 
     # ---- appending ----------------------------------------------------
-    def anchor_at(self, seq: int) -> "Anchor":
+    def anchor_at(self, seq: int, *,
+                  head_hash: str | None = None) -> "Anchor":
         """Build an anchor for ``seq`` by reading the log once.
 
-        Deliberately the slow path. An anchor is only worth trusting because
-        something verified the log to produce it, so producing one costs a
-        full pass; the saving comes from every use afterwards.
+        Deliberately the slow path, and NOT a verification: the record at
+        ``seq`` must parse and hash to its own stored hash, and nothing
+        before it is checked as a chain. An anchor is worth what verified
+        the log it was taken from.
+
+        ``head_hash`` is the hash the caller verified at ``seq``, and the
+        anchor is refused unless the record found there has it. Without it
+        the anchor describes whatever the log holds at ``seq`` when this
+        second read happens, and nothing ties that to an earlier
+        verification. A caller holding a verified read does not call this:
+        it takes :attr:`VerifyReport.verified_anchor`, built from the bytes
+        that read verified.
         """
         if seq < 0:
             raise EventLogError(f"cannot anchor at negative seq {seq}")
         offset = 0
         with self.path.open("rb") as fh:
-            for raw in fh:
-                start = offset
-                offset += len(raw)
-                if not raw.strip():
+            while raw := fh.readline(MAX_EVENT_BYTES + 1):
+                start, offset = offset, offset + len(raw)
+                rec = _parse_line(raw, f"offset {start}")
+                if rec is None or rec["seq"] != seq:
                     continue
-                rec = json.loads(raw.decode("utf-8"))
-                _validate_field_types(rec, f"offset {start}")
-                if rec["seq"] == seq:
-                    ev = Event(**rec)
-                    if ev.recompute_hash() != ev.hash:
-                        raise ChainBroken(
-                            f"seq {seq}: record does not hash to its own "
-                            "stored hash; refusing to anchor on it")
-                    return Anchor(seq, ev.hash, start, offset)
+                ev = Event(**rec)
+                if ev.recompute_hash() != ev.hash:
+                    raise ChainBroken(
+                        f"seq {seq}: record does not hash to its own "
+                        "stored hash; refusing to anchor on it")
+                if head_hash is not None and ev.hash != head_hash:
+                    raise ChainBroken(
+                        f"seq {seq}: the record there hashes to "
+                        f"{ev.hash[:12]}, not the {head_hash[:12]} it was "
+                        "verified as; the log changed after it was read")
+                return Anchor(seq, ev.hash, start, offset)
         raise EventLogError(f"no record at seq {seq}")
 
     def _open_for(self, anchor: "Anchor"):
@@ -990,14 +1097,15 @@ class EventLog:
                 f"log is {size} bytes; {anchor.next_offset - size} byte(s) "
                 "are missing")
         fh.seek(anchor.record_offset)
-        raw = fh.readline()
+        raw = fh.readline(MAX_EVENT_BYTES + 1)
         if anchor.record_offset + len(raw) != anchor.next_offset:
             raise ChainBroken(
                 f"anchor at seq {anchor.seq} does not describe the bytes "
                 "now at its offset; the log was rewritten")
         try:
-            rec = json.loads(raw.decode("utf-8"))
-            _validate_field_types(rec, f"anchor seq {anchor.seq}")
+            rec = _parse_line(raw, f"anchor seq {anchor.seq}")
+            if rec is None:
+                raise MalformedEvent(f"anchor seq {anchor.seq}: a blank line")
             anchored = Event(**rec)
         except (UnicodeDecodeError, ValueError, TypeError,
                 EventLogError) as exc:
@@ -1179,26 +1287,23 @@ class EventLog:
         events: list = []
         fh.seek(offset)
         pos = offset
-        for raw in fh:
+        # Bounded: a line is refused at MAX_EVENT_BYTES, not buffered whole
+        # first, which iterating the file did.
+        while raw := fh.readline(MAX_EVENT_BYTES + 1):
             here, pos = pos, pos + len(raw)
-            if len(raw) > MAX_EVENT_BYTES:
-                raise MalformedEvent(
-                    f"{len(raw)} bytes exceeds the {MAX_EVENT_BYTES}-byte "
-                    "bound")
-            if not raw.strip():
-                continue
             try:
-                rec = json.loads(raw.decode("utf-8"))
-            except (UnicodeDecodeError, ValueError) as exc:
+                rec = _parse_line(raw, "after anchor")
+            except _Unterminated as exc:
+                raise MalformedEvent(
+                    "the final record after the anchor has no newline; the "
+                    "log was truncated mid-append") from exc
+            except _Unparseable as exc:
                 raise MalformedEvent(
                     f"unparseable record after the anchor "
-                    f"({type(exc).__name__}); if this is the final line the "
+                    f"({_cause(exc)}); if this is the final line the "
                     "log was truncated mid-append") from exc
-            if not isinstance(rec, dict):
-                raise MalformedEvent(
-                    f"record is {type(rec).__name__}, not an object")
-            _validate_field_types(rec, "after anchor")
-            events.append((Event(**rec), here, pos))
+            if rec is not None:
+                events.append((Event(**rec), here, pos))
         return events
 
     def append(self, *, actor: str, action: str, target: str,
@@ -1424,6 +1529,15 @@ class EventLog:
             # append-mode write lands at the true end of file, which a stat
             # taken earlier may no longer describe.
             start = fh.tell()
+            # The head check refuses a torn tail, and it reads under this
+            # lock; this is the same question asked of the bytes the write
+            # will follow. A record written after unterminated bytes joins
+            # their line and neither can be read again.
+            if start and not self._ends_with_newline(start):
+                raise ChainBroken(
+                    f"refusing to append: byte {start - 1} of {self.path} "
+                    "is not a newline, so the last line is unterminated and "
+                    "this record would be written onto it")
             written = fh.write(line)
             if written != len(line):
                 # A SHORT WRITE. write() is allowed to store fewer bytes
@@ -1447,6 +1561,12 @@ class EventLog:
             end = fh.tell()
         self._write_head(ChainState(ev.seq, ev.hash))
         return ev, Anchor(ev.seq, ev.hash, start, end)
+
+    def _ends_with_newline(self, size: int) -> bool:
+        """True when byte ``size - 1`` of the log is a newline."""
+        with self.path.open("rb") as fh:
+            fh.seek(size - 1)
+            return fh.read(1) == b"\n"
 
     def _write_head(self, state: ChainState) -> None:
         """Update the witness atomically: temp file, fsync, rename."""
@@ -1565,9 +1685,10 @@ class DecidedWriter:
         if seq > self._folded_through:
             self._folded_through = seq
 
-    def _set_fold_anchor(self) -> None:
-        self._fold_anchor = (self.log.anchor_at(self._folded_through)
-                             if self._folded_through >= 0 else None)
+    def _set_fold_anchor(self, report: "VerifyReport") -> None:
+        """Resume from the head of the verified read just folded, as its
+        bytes were verified: not from a second read of the log."""
+        self._fold_anchor = report.verified_anchor
 
     @projection_fold
     def _fold_new(self) -> None:
@@ -1587,7 +1708,7 @@ class DecidedWriter:
         for ev in events:
             if ev.seq > self._folded_through:
                 self.apply(ev)
-        self._set_fold_anchor()
+        self._set_fold_anchor(report)
 
     def _append_decided(self, decide) -> "Event":
         """``decide(head_seq)`` returns the append keywords or raises; it

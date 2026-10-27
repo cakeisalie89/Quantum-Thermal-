@@ -525,8 +525,7 @@ class AgentDirectory:
         self._folded_through = -1
         for ev in events:
             self.apply(ev)
-        self._anchor = (self.log.anchor_at(self._folded_through)
-                        if self._folded_through >= 0 else None)
+        self._anchor = report.verified_anchor
         return self
 
     @projection_fold
@@ -551,8 +550,7 @@ class AgentDirectory:
         for ev in events:
             if ev.seq > self._folded_through:
                 self.apply(ev)
-        self._anchor = (self.log.anchor_at(self._folded_through)
-                        if self._folded_through >= 0 else None)
+        self._anchor = report.verified_anchor
 
     def _append_decided(self, decide):
         """Re-read, re-check and write under the writer lock (D-2026-147).

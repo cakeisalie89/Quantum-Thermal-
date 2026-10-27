@@ -228,8 +228,7 @@ class IdempotencyLedger:
         for ev in events:
             self.apply(ev)
         self._folded_through = events[-1].seq if events else -1
-        self._anchor = (self.log.anchor_at(self._folded_through)
-                        if self._folded_through >= 0 else None)
+        self._anchor = report.verified_anchor
         return self
 
     @projection_fold

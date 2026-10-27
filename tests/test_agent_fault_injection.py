@@ -433,6 +433,30 @@ def test_the_log_refuses_to_grow_onto_a_partial_line(log_path, monkeypatch):
         caught.value
 
 
+def test_an_append_never_lands_after_unterminated_bytes(log_path):
+    """The write's own check, apart from the head check before it (AUD-002).
+
+    The head check refuses a torn tail, under the writer lock. The lock is
+    advisory, so a process that writes the file without taking it can still
+    leave unterminated bytes after that check; a record written then joins
+    their line and neither can be read again. Planted from ``before_write``,
+    which runs under the lock after the head check and before the write.
+    """
+    log = EventLog(log_path)
+    log.append(actor="w", action="probe", target="t", payload={"i": 0})
+    planted = b'{"seq": 9, "actor": "unlocked'
+
+    def plant(ev):
+        with open(log_path, "ab") as fh:
+            fh.write(planted)
+
+    with pytest.raises(ChainBroken, match="unterminated"):
+        log.append(actor="w", action="probe", target="t", payload={"i": 1},
+                   before_write=plant)
+    assert log_path.read_bytes().endswith(planted), (
+        "the record was written after the unterminated bytes")
+
+
 def test_a_write_that_stores_fewer_bytes_and_reports_no_error(log_path,
                                                               monkeypatch):
     """The nastiest of the three, because nothing raises.

@@ -224,19 +224,27 @@ def create(log: EventLog, *, state_digest: str | None = None,
         if not report.prefix_verified:
             raise CheckpointError(
                 "internal: log.verify() reported an unverified prefix")
-        head_seq = report.head_seq
+        if report.head_seq < 0:
+            raise CheckpointError("cannot checkpoint an empty log")
+        # From the bytes that verification read, not a second read: a
+        # checkpoint marked full_verification names what was verified.
+        anchor = report.verified_anchor
+        if anchor is None or anchor.seq != report.head_seq:
+            raise CheckpointError(
+                f"internal: the verified head is seq {report.head_seq} and "
+                "the verified read gave no anchor there")
     else:
         head = log.head()
         if head is None:
             raise CheckpointError(
                 "cannot checkpoint without a full verification and without a "
                 "head witness; there is nothing to record a position from")
-        head_seq = head.seq
+        if head.seq < 0:
+            raise CheckpointError("cannot checkpoint an empty log")
+        # Nothing was verified: the position is the witness's, and the
+        # record found there must be the one the witness names.
+        anchor = log.anchor_at(head.seq, head_hash=head.head_hash)
 
-    if head_seq < 0:
-        raise CheckpointError("cannot checkpoint an empty log")
-
-    anchor = log.anchor_at(head_seq)
     body: dict[str, Any] = {
         "seq": anchor.seq,
         "head_hash": anchor.head_hash,

@@ -726,7 +726,7 @@ class SecretStore(DecidedWriter):
         self._reset_fold()
         for ev in events:
             self.apply(ev)
-        self._set_fold_anchor()
+        self._set_fold_anchor(report)
         return self
 
     def apply(self, ev) -> bool:

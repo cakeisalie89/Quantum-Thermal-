@@ -284,7 +284,7 @@ class AuthorityStore:
         with self._one_origin_view():
             for ev in events:
                 self._apply(ev)
-        self._reanchor()
+        self._reanchor(report)
         return self
 
     def _authenticate(self, events, *, complete: bool = True) -> None:
@@ -306,10 +306,10 @@ class AuthorityStore:
         shared = getattr(self.origins, "shared", None)
         return shared() if shared is not None else nullcontext()
 
-    def _reanchor(self) -> None:
-        """Take an anchor at the position this projection has reached."""
-        self._anchor = (self.log.anchor_at(self._loaded_through)
-                        if self._loaded_through >= 0 else None)
+    def _reanchor(self, report) -> None:
+        """Take an anchor at the position this projection has reached: the
+        head of the verified read it just folded, from that read's bytes."""
+        self._anchor = report.verified_anchor
 
     @projection_fold
     def catch_up(self, *, force: bool = False) -> "AuthorityStore":
@@ -366,7 +366,7 @@ class AuthorityStore:
             for ev in events:
                 if ev.seq > self._loaded_through:
                     self._apply(ev)
-        self._reanchor()
+        self._reanchor(report)
 
     def _append_decided(self, build):
         """Re-read, rebuild the record and write, all under one lock.

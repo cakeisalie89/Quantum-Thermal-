@@ -357,7 +357,7 @@ class ResearchLedger(DecidedWriter):
         self._clear()
         for ev in events:
             self.apply(ev)
-        self._set_fold_anchor()
+        self._set_fold_anchor(report)
         return self
 
     # ---- the fold -------------------------------------------------------

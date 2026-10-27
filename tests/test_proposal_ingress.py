@@ -293,9 +293,9 @@ def _whole_log_passes(fn):
     seen = {"passes": 0}
     real = EventLog.read
 
-    def counting(self, *, strict: bool = True):
+    def counting(self, *, strict: bool = True, **kw):
         seen["passes"] += 1
-        return real(self, strict=strict)
+        return real(self, strict=strict, **kw)
 
     EventLog.read = counting
     try:

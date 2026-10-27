@@ -593,7 +593,7 @@ class GovernedTasks:
             report.raise_if_bad()
             if report.head_seq < 0:
                 return -1
-            self._head_anchor = self.log.anchor_at(report.head_seq)
+            self._head_anchor = report.verified_anchor
             return report.head_seq
         _, self._head_anchor = self.log.advance(self._head_anchor)
         return self._head_anchor.seq

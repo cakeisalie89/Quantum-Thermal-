@@ -51,9 +51,9 @@ class CountingLog(EventLog):
         self.full_reads = 0
         self.tail_reads = 0
 
-    def read(self, *, strict: bool = True):
+    def read(self, *, strict: bool = True, **kw):
         self.full_reads += 1
-        return super().read(strict=strict)
+        return super().read(strict=strict, **kw)
 
     def advance(self, anchor):
         self.tail_reads += 1
@@ -293,3 +293,134 @@ def test_is_digest_did_not_get_looser_when_it_got_faster():
         "allowed a trailing one")
     assert not is_digest("a" * 63 + "\n")
     assert not is_digest(None) and not is_digest(64) and not is_digest(b"a" * 64)
+
+
+# ---- an anchor names what was verified (AUD-003) ---------------------------
+#
+# A projection used to verify the log, fold it, and then call anchor_at() for
+# the position it reached: a second read, whose record was checked only
+# against its own hash. Nothing compared it with the record the verification
+# returned, so a history replaced between the two reads was anchored on, and
+# every later advance trusted a prefix no verification had seen. The window
+# below opens as early as that can matter: the moment the verified read has
+# PARSED the log, before it checks a link, the log is replaced by a
+# self-consistent history of the same length, its witness with it. Any read
+# after that one -- in the caller, or inside the verified read itself -- sees
+# the replacement.
+
+def _replace_head_in_place(log: EventLog) -> None:
+    """Rewrite the final record as another valid record of the same length,
+    re-hashed, and move the witness to it."""
+    from agent_substrate.canonical import canonical_bytes
+    from agent_substrate.events import ChainState, Event
+    lines = log.path.read_bytes().split(b"\n")
+    rec = json.loads(lines[-2])
+    rec["actor"] = "z" * len(rec["actor"])
+    body = {k: v for k, v in rec.items() if k != "hash"}
+    ev = Event(**body, hash=digest(body))
+    lines[-2] = canonical_bytes(ev.to_record())
+    log.path.write_bytes(b"\n".join(lines))
+    log._write_head(ChainState(ev.seq, ev.hash))
+
+
+class _ReplaceAfterVerifiedRead:
+    """Replace the log's head once, right after the log is first parsed."""
+
+    def __init__(self, monkeypatch):
+        self.verified_head = None
+        real = EventLog.read
+        window = self
+
+        def read_then_replace(log_self, **kw):
+            events = real(log_self, **kw)
+            if window.verified_head is None and events:
+                window.verified_head = events[-1].hash
+                _replace_head_in_place(log_self)
+            return events
+
+        monkeypatch.setattr(EventLog, "read", read_then_replace)
+
+
+def _records(path, n=4):
+    log = EventLog(path)
+    store = AuthorityStore(log).load()
+    for i in range(n):
+        store.create(record_id=f"r{i}", kind="claim", proposer="p")
+    return log
+
+
+def test_a_projection_resumes_from_the_bytes_it_verified(tmp_path,
+                                                         monkeypatch):
+    path = tmp_path / "log.jsonl"
+    _records(path)
+    window = _ReplaceAfterVerifiedRead(monkeypatch)
+    store = AuthorityStore(EventLog(path)).load()
+    monkeypatch.undo()
+    assert window.verified_head, "the window never opened"
+    now = EventLog(path).read_verified()[1][-1].hash
+    assert now != window.verified_head, "the history was not replaced"
+    assert store._anchor.head_hash == window.verified_head, (
+        "the projection anchored on a record its verification never read")
+
+
+def test_a_checkpoint_names_the_record_its_verification_read(tmp_path,
+                                                             monkeypatch):
+    from agent_substrate.checkpoint import create
+    path = tmp_path / "log.jsonl"
+    log = _records(path)
+    window = _ReplaceAfterVerifiedRead(monkeypatch)
+    cp = create(log)
+    monkeypatch.undo()
+    assert window.verified_head, "the window never opened"
+    assert cp.full_verification is True
+    assert cp.head_hash == window.verified_head, (
+        "a checkpoint marked full_verification names a record that "
+        "verification did not read")
+
+
+def test_an_unverified_checkpoint_is_refused_where_log_and_witness_differ(
+        tmp_path):
+    """No verification, so the position is the witness's; the record found
+    there must be the one the witness names, not whatever is there now."""
+    from agent_substrate.checkpoint import create
+    from agent_substrate.events import ChainState
+    log = _records(tmp_path / "log.jsonl")
+    witness = log.head()
+    _replace_head_in_place(log)
+    log._write_head(witness)
+    with pytest.raises(ChainBroken, match="verified as"):
+        create(log, require_full_verification=False)
+    _replace_head_in_place(log)          # the control: a witness that agrees
+    head = log.head()
+    assert isinstance(head, ChainState)
+    assert create(log, require_full_verification=False).head_hash == \
+        head.head_hash
+
+
+def _unbound_anchor_calls(source: str) -> list:
+    """Lines of ``source`` that call anchor_at() without naming the hash."""
+    import ast
+    return [node.lineno for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "anchor_at"
+            and not any(k.arg == "head_hash" for k in node.keywords)]
+
+
+def test_no_production_module_anchors_on_an_unbound_second_read():
+    """AUD-003 at every call site: a module that holds a verified read takes
+    ``report.verified_anchor``; one that does not names the hash it expects.
+    """
+    found = {}
+    for path in sorted((ROOT / "agent_substrate").glob("*.py")):
+        lines = _unbound_anchor_calls(path.read_text(encoding="utf-8"))
+        if lines:
+            found[path.name] = lines
+    assert found == {}, found
+
+
+def test_the_unbound_anchor_scan_sees_one():
+    """The control: without it the scan above could be finding nothing
+    because it can see nothing."""
+    assert _unbound_anchor_calls(
+        "a = log.anchor_at(3)\nb = log.anchor_at(3, head_hash=h)\n") == [1]

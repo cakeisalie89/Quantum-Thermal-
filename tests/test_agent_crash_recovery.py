@@ -43,7 +43,9 @@ from agent_substrate.capability import (  # noqa: E402
     Action, CapabilitySet, issue as issue_cap,
 )
 from agent_substrate.checkpoint import CheckpointStore  # noqa: E402
-from agent_substrate.events import ChainBroken, EventLog  # noqa: E402
+from agent_substrate.events import (  # noqa: E402
+    ChainBroken, EventLog, MalformedEvent,
+)
 from agent_substrate.evidence import (  # noqa: E402
     CorruptEvidence, EvidenceStore, UnknownEvidence,
 )
@@ -301,6 +303,74 @@ def test_records_actually_lost_are_still_TRUNCATED_even_with_a_torn_tail(
     assert any(x.startswith("TRUNCATED") for x in report.problems), (
         report.problems[:3])
     assert report.count == 3, "what survived is still reported, and is 3"
+
+
+# ---- 3c. the landing between the two: every byte but the newline ----------
+#
+# The writer puts a record and its newline down in one write, so a crash can
+# leave any prefix of the line -- including all of it but the last byte. That
+# prefix PARSES. It was read as a complete record, the log verified, and the
+# next append was written onto the same line: two records, the second one
+# acknowledged, became one unparseable final line (AUD-002).
+
+def _log_ending_unterminated(tmp_path, n):
+    """``n`` complete records, then one whose newline never reached the disk.
+
+    The witness is left where that crash leaves it, at the last append that
+    RETURNED: the unterminated record was never acknowledged.
+    """
+    p = _log_with(tmp_path, n)
+    witness = EventLog(p).head_path.read_bytes()
+    EventLog(p).append(actor="w1", action="probe", target="t",
+                       payload={"i": n})
+    p.write_bytes(p.read_bytes()[:-1])
+    EventLog(p).head_path.write_bytes(witness)
+    return p
+
+
+def test_a_final_record_without_its_newline_is_a_torn_tail(tmp_path):
+    p = _log_ending_unterminated(tmp_path, 4)
+    json.loads(p.read_bytes().split(b"\n")[-1])     # it does parse
+    report = EventLog(p).verify()
+    assert not report.ok, "a record whose write did not finish verified"
+    assert report.truncated_tail is True
+    assert report.torn_tail_only(), report.problems
+    assert report.count == 4
+    assert [e.payload["i"] for e in EventLog(p).read_verified()[1]] == [
+        0, 1, 2, 3], "the records before the tear are still readable"
+
+
+def test_no_append_lands_on_a_final_record_without_its_newline(tmp_path):
+    p = _log_ending_unterminated(tmp_path, 4)
+    before = p.read_bytes()
+    with pytest.raises(ChainBroken, match="refusing to append"):
+        EventLog(p).append(actor="w1", action="probe", target="t",
+                           payload={"i": 5})
+    assert p.read_bytes() == before, "the refused append wrote something"
+
+
+def test_the_anchored_read_refuses_a_tail_without_its_newline(tmp_path):
+    """The same tear, seen from an anchor: the only read a running writer's
+    head check makes. Asked of verify_from directly, so the refusal here is
+    the anchored reader's and not the write path's own guard."""
+    p = tmp_path / "log.jsonl"
+    writer = EventLog(p)
+    for i in range(3):
+        writer.append(actor="w1", action="probe", target="t",
+                      payload={"i": i})
+    anchor = writer.written_anchor
+    witness = writer.head_path.read_bytes()
+    EventLog(p).append(actor="w2", action="probe", target="t",
+                       payload={"i": 3})
+    p.write_bytes(p.read_bytes()[:-1])
+    writer.head_path.write_bytes(witness)
+    with pytest.raises(MalformedEvent, match="no newline"):
+        writer.verify_from(anchor)
+    before = p.read_bytes()
+    with pytest.raises(MalformedEvent, match="no newline"):
+        writer.append(actor="w1", action="probe", target="t",
+                      payload={"i": 4})
+    assert p.read_bytes() == before
 
 
 # ---- 4. capability granted -> revoked ------------------------------------

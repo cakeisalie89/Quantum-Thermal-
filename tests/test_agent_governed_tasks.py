@@ -1856,8 +1856,8 @@ def test_a_record_landing_mid_projection_is_not_folded_unverified(gov):
     from agent_substrate.events import EventLog as _EL
     real_read, state = _EL.read, {"n": 0}
 
-    def read_then_append(self, *, strict=True):
-        out = real_read(self, strict=strict)
+    def read_then_append(self, *, strict=True, **kw):
+        out = real_read(self, strict=strict, **kw)
         state["n"] += 1
         if state["n"] == 1 and self.path == path:
             with open(path, "a", encoding="utf-8") as fh:
@@ -1897,10 +1897,10 @@ def test_the_projection_reads_the_log_once(gov):
 
     real_read, n = _EL.read, {"c": 0}
 
-    def counting(self, *, strict=True):
+    def counting(self, *, strict=True, **kw):
         if self.path == gov.log.path:
             n["c"] += 1
-        return real_read(self, strict=strict)
+        return real_read(self, strict=strict, **kw)
 
     _EL.read = counting
     try:
