@@ -1,14 +1,14 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 573,
+   "ADDED": 578,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 204,
-   "MEDIUM": 319
+   "LOW": 205,
+   "MEDIUM": 323
   },
   "by_subsystem": {
    "agent-substrate": 31,
@@ -20,7 +20,7 @@
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 52,
+   "evidence": 55,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 180,
-   "tooling": 48,
+   "tests": 181,
+   "tooling": 49,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 605
+  "files": 610
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -542,6 +542,7 @@
      "tests/test_agent_substrate_properties.py",
      "tests/test_agent_toctou.py",
      "tests/test_assurance_graph.py",
+     "tests/test_audit_ledger.py",
      "tests/test_authenticated_history.py",
      "tests/test_authority_inventory.py",
      "tests/test_checkpoint_recovery.py",
@@ -1123,6 +1124,7 @@
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
      "tests/test_agent_toctou.py",
+     "tests/test_audit_ledger.py",
      "tests/test_authenticated_history.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_composed_campaigns.py",
@@ -2541,6 +2543,45 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/audit/AUDIT_PROGRESS.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/audit/findings.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/audit/pr17_audit_ledger.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/claims_boundary.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -3427,6 +3468,7 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
+     "tests/test_completion_matrix.py",
      "tests/test_typecheck_scope.py"
     ]
    }
@@ -3443,6 +3485,7 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_agent_governed_breadth.py",
+     "tests/test_audit_ledger.py",
      "tests/test_container_manifest_coverage.py",
      "tests/test_manifest_completeness.py",
      "tests/test_manifest_policy.py",
@@ -6174,6 +6217,21 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_audit_ledger.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_authenticated_history.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8121,6 +8179,21 @@
     "tests": [
      "tests/test_harness_status.py",
      "tests/test_readiness_matrix.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/audit_ledger.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_audit_ledger.py"
     ]
    }
   },
@@ -10529,6 +10602,7 @@
      "tests/test_claim_hygiene.py",
      "tests/test_claims_boundary.py",
      "tests/test_claude_workflow_prompt.py",
+     "tests/test_completion_matrix.py",
      "tests/test_container_workflow_contract.py",
      "tests/test_generic_consistency.py",
      "tests/test_neural_boundary.py",

@@ -108,6 +108,11 @@ ALLOWANCES = {
     "tests/fuzz_corpus/*.json":
         "recorded fuzzing findings, kept verbatim: their tracebacks name "
         "the module path the finding was made in",
+    "docs/audit/*":
+        "the PR #17 audit's ledger, findings and record: the ledger has an "
+        "entry for every file the PR changes, deleted files by their "
+        "baseline paths, and the findings and record name the deleted "
+        "files they inspected; that is what makes the removal auditable",
 }
 
 #: Retired outputs by FILE NAME, refused anywhere in the tree: a copy at a

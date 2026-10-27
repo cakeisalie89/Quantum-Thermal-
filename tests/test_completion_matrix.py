@@ -934,7 +934,13 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 23 -> 49 in the evidence commit at 927b69c: every hosted run there (8
 #: workflow runs, 44 jobs) succeeded, and the 26 rows whose evidence
 #: predated their implementation now cite runs of the code they describe.
-EXPECTED_EVIDENCE_COVERS = 49
+#: 49 -> 47 in the PR #17 audit's first commit: the audit's ledger tool
+#: joins the typing scope (docs/typing_scope.json, cited by R70), and the
+#: content audit gains an allowance for the audit's own records, which
+#: name deleted files by their baseline paths (tools/repo_content_audit.py
+#: and its report, cited by R71). Both predate their hosted evidence until
+#: the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 47
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

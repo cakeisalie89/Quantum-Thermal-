@@ -1,0 +1,37 @@
+{
+ "schema": "pr17-audit-findings/1",
+ "note": "The adversarial findings register of the PR #17 audit. verification says how far a finding is established: REPRODUCED (shown failing by a test or a script), CONFIRMED (established by reading the code, not executed), POTENTIAL (suspected, not established), BLOCKED (cannot be established here, and why), NOT_REPRODUCED (looked for and not found). resolution says what became of it: OPEN, FIXED (with the commit and regression test), DOCUMENTED (a limit stated, not a defect to fix here), OWNER (needs an owner decision or action), NOT_A_DEFECT.",
+ "severity_scale": {
+  "P0": "authority bypass, integrity failure, credential exposure, security-boundary violation, silent data corruption or unauthorized external effect",
+  "P1": "incorrect recovery, replay disagreement, unsafe concurrency, false verification claim, scientific correctness defect, or unbounded scaling on a required operation",
+  "P2": "test gap, performance, maintainability, or a documentary inconsistency with practical consequences",
+  "P3": "optional future enhancement, or information an owner should have"
+ },
+ "findings": [
+  {
+   "id": "AUD-001",
+   "title": "Six commit histories exist only inside deleted bundle files",
+   "severity": "P3",
+   "subsystem": "retired programme / repository history",
+   "files": [
+    {"path": "attic/delivery_artifacts/QTA_3d_layer.bundle"},
+    {"path": "attic/delivery_artifacts/QTA_coupled_3d.bundle"},
+    {"path": "attic/delivery_artifacts/QTA_deep_complete.bundle"},
+    {"path": "attic/delivery_artifacts/QTA_github_sync.bundle"},
+    {"path": "attic/delivery_artifacts/QTA_hardened.bundle"},
+    {"path": "attic/delivery_artifacts/QTA_machine_fsm.bundle"}
+   ],
+   "behavior": "The PR deletes twelve git bundle files from the tree. The heads e0e71ce, c3b59bb, cf813b0, 7d85223, d2a71b0 and a0566d7 are not commits of this repository on any of its 13 remote branches; they exist only inside those bundle blobs.",
+   "invariant": "Removing a retired artefact from the active tree must not destroy the only copy of history the owner may need.",
+   "mechanism": "Deleting the files from the PR head destroys nothing: main's tree and history still hold the blobs. The PR description lists purging the retired programme from history as an owner choice. A purge that removed these blobs would remove the only copies of those six histories.",
+   "reproduction": "git bundle list-heads on each blob; git cat-file -e <head>^{commit} in a full clone with every remote branch fetched.",
+   "observed": "6 bundle heads absent from the repository's own history.",
+   "expected": "Either the histories are archived outside the repository before any purge, or they are declared expendable.",
+   "correction": "None in this PR. An owner who purges history should first archive the bundles, or the six histories, elsewhere.",
+   "regression_tests": [],
+   "residual_risk": "Loss of retired-programme history on an owner-run purge.",
+   "verification": "REPRODUCED",
+   "resolution": "OWNER"
+  }
+ ]
+}

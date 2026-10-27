@@ -1,5 +1,9 @@
 {
  "allowances": {
+  "docs/audit/*": {
+   "files_using": 4,
+   "why": "the PR #17 audit's ledger, findings and record: the ledger has an entry for every file the PR changes, deleted files by their baseline paths, and the findings and record name the deleted files they inspected; that is what makes the removal auditable"
+  },
   "docs/repo_content_audit.json": {
    "files_using": 1,
    "why": "this audit's committed report: it lists the retired roots and names it refuses, and --check requires it to be exactly what the tree produces"
@@ -36,7 +40,7 @@
  "by_area": {
   "AGENT_SUBSTRATE": 53,
   "CONTAINER": 3,
-  "DOCUMENTATION": 30,
+  "DOCUMENTATION": 31,
   "HOSTED_CI": 6,
   "INTEGRATION_ASSETS": 15,
   "LEARNED_MODEL_EVIDENCE": 10,
@@ -44,14 +48,14 @@
   "NEURAL_INFRASTRUCTURE": 27,
   "PACKAGING": 3,
   "PROVENANCE": 5,
-  "REGISTRY_OR_DERIVED_STATUS": 31,
+  "REGISTRY_OR_DERIVED_STATUS": 33,
   "REPOSITORY_CONFIGURATION": 1,
   "SCIENTIFIC_COMPUTING": 39,
-  "SOFTWARE_ASSURANCE": 189,
-  "TESTS": 181,
+  "SOFTWARE_ASSURANCE": 190,
+  "TESTS": 182,
   "WORKFLOW": 1
  },
- "files": 605,
+ "files": 610,
  "finding_counts": {},
  "findings": [],
  "label": "The current tree read for retired content. Zero findings is the transformation's acceptance condition for repository content; it says nothing about scientific correctness.",
