@@ -100,7 +100,7 @@ from enum import Enum
 
 from .canonical import digest
 from .events import (EventLogError, judged_at, projection_fold,
-                     projection_load)
+                     projection_load, require_extends)
 
 #: Explicit wildcard. Must be written out; a blank field is refused.
 ANY = "*"
@@ -625,6 +625,9 @@ class PolicyStore:
         self._withdrawn: dict = {}
         self._loaded_through = -1
         self._folded_through = -1
+        #: The hash of the record at ``_folded_through``: what a catch-up
+        #: holds the log to (events.require_extends).
+        self._folded_hash: str | None = None
         self._anchor = None
         #: the latest wall time on the history folded so far: what an expiry
         #: is judged against (events.judged_at, D-2026-168)
@@ -640,6 +643,7 @@ class PolicyStore:
         self._withdrawn = {}
         self._loaded_through = -1
         self._folded_through = -1
+        self._folded_hash = None
         self._latest_wall = None
         for ev in events:
             self.apply(ev)
@@ -656,12 +660,15 @@ class PolicyStore:
             except EventLogError:
                 self._anchor = None
             else:
+                require_extends(events, self._folded_through,
+                                self._folded_hash, after=self._anchor)
                 for ev in events:
                     if ev.seq > self._folded_through:
                         self.apply(ev)
                 return
         report, events = self.log.read_verified()
         report.raise_if_bad()
+        require_extends(events, self._folded_through, self._folded_hash)
         for ev in events:
             if ev.seq > self._folded_through:
                 self.apply(ev)
@@ -686,7 +693,8 @@ class PolicyStore:
         one reducer among several over a shared log and must not claim that
         another subsystem's event is unknown.
         """
-        self._folded_through = max(self._folded_through, ev.seq)
+        if ev.seq > self._folded_through:
+            self._folded_through, self._folded_hash = ev.seq, ev.hash
         self._latest_wall = judged_at(self._latest_wall, ev.wall_time)
         if ev.action == ACT_POLICY_PUBLISH:
             doc = document_from_record(ev.payload["document"])

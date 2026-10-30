@@ -600,6 +600,45 @@ def test_an_unauthorized_transition_in_the_log_is_not_applied(tmp_path):
     assert any("would be refused today" in u for u in rec.unauthorized)
 
 
+# AUD-007. Records replay cannot read: the primary store refused each as a
+# bare KeyError or ValueError, out of every caller's ``except StoreError``,
+# and the second reader applied one of them -- a dependency naming no
+# dependency -- in silence.
+_UNREADABLE = {
+    "a transition of a record never created": ("record.transition", "ghost", {
+        "record_id": "ghost", "src": "PROPOSED", "dst": "UNDER_REVIEW",
+        "role": "VERIFIER", "expected_revision": 0, "evidence": {}},
+        "never created"),
+    "a create without record_id": ("record.create", "x", {
+        "kind": "claim", "proposer": "p"}, "cannot read"),
+    "a transition without record_id": ("record.transition", "r0", {
+        "dst": "UNDER_REVIEW", "role": "VERIFIER"}, "cannot read"),
+    "a transition without dst": ("record.transition", "r0", {
+        "record_id": "r0", "role": "VERIFIER"}, "cannot read"),
+    "a transition to no state": ("record.transition", "r0", {
+        "record_id": "r0", "dst": "NOT_A_STATE", "role": "VERIFIER"},
+        "cannot read"),
+    "a transition without role": ("record.transition", "r0", {
+        "record_id": "r0", "dst": "UNDER_REVIEW"}, "cannot read"),
+    "a dependency naming none": ("record.depend", "r0", {"record_id": "r0"},
+                                 "cannot read"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_UNREADABLE))
+def test_a_record_replay_cannot_read_is_refused_by_both_readers(tmp_path,
+                                                                name):
+    action, target, payload, said = _UNREADABLE[name]
+    log = EventLog(tmp_path / "ev.jsonl")
+    AuthorityStore(log).load().create(record_id="r0", kind="claim",
+                                      proposer="p")
+    log.append(actor="rev", action=action, target=target, payload=payload)
+    with pytest.raises(StoreError, match=said):
+        AuthorityStore(EventLog(log.path)).load()
+    assert reconstruct(EventLog(log.path)).anomalies, (
+        "the second reader passed in silence a record the store refuses")
+
+
 def test_reconstruction_uses_a_separate_implementation():
     """Guard against someone 'simplifying' the duplication away.
 

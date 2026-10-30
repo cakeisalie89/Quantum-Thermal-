@@ -1644,13 +1644,60 @@ def check_projection(owner) -> None:
         raise refused
 
 
+def require_extends(events: list, through: int, folded_hash: "str | None",
+                    *, after: "Anchor | None" = None) -> None:
+    """Raise unless ``events`` extend the history a projection folded.
+
+    ``events`` is a verified read: from genesis when ``after`` is None, or
+    what :meth:`EventLog.advance` returned with ``after`` the anchor it
+    returned. The projection has folded through seq ``through``, and the
+    record it folded there hashed to ``folded_hash``.
+
+    A projection folds by seq. It takes every record at or below its
+    position to be one it has already folded, which holds while the log
+    only grows, and nothing checked it (AUD-006). A log restored from a
+    backup, witness and all, verifies, and its records below the position
+    are other records. A live store joined that history's tail to the old
+    history's state, decided on a record the log no longer held, and wrote
+    a transition for it that no replay of the log can apply. Two routes led
+    there: the full read a catch-up falls back to when its anchor no longer
+    fits, and an anchor that lags the records the projection appended
+    itself, which ``advance`` follows without finding anything wrong.
+
+    The record at the position is the whole question. The chain is
+    verified, so if the log still holds that record, it still holds
+    everything the projection folded below it.
+    """
+    start = (events[0].seq if events
+             else (0 if after is None else after.seq + 1))
+    if through < start - 1:
+        raise ChainBroken(
+            f"this projection has folded through seq {through} and was "
+            f"handed records from seq {start}: the ones between were never "
+            "folded")
+    if through < start:
+        return
+    if through - start >= len(events):
+        raise ChainBroken(
+            f"this projection has folded through seq {through} and the log "
+            f"now ends at seq {start + len(events) - 1}: the history it "
+            "folded is not the log's. Reload to read the log as it is.")
+    held = events[through - start]
+    if held.seq != through or held.hash != folded_hash:
+        raise ChainBroken(
+            f"seq {through}: this projection folded "
+            f"{str(folded_hash)[:12]} there and the log now holds "
+            f"{held.hash[:12]}: the history below its position was "
+            "rewritten. Reload to read the log as it is.")
+
+
 class DecidedWriter:
     """A projection that decides against the history it appends onto.
 
     D-2026-156. The agent directory and the memory store carry their own
     copies of this (D-2026-147); the capability ledger, the egress authority
     and the secret store share this one. A subclass has ``log``, an
-    ``apply(ev)`` that calls :meth:`_folded` with each event's seq, and a
+    ``apply(ev)`` that calls :meth:`_folded` with each event, and a
     ``load()`` that calls :meth:`_reset_fold` before folding and
     :meth:`_set_fold_anchor` after.
 
@@ -1675,15 +1722,19 @@ class DecidedWriter:
     """
 
     _folded_through: int = -1
+    #: The hash of the record at ``_folded_through``: what a catch-up holds
+    #: the log to (:func:`require_extends`).
+    _folded_hash: "str | None" = None
     _fold_anchor: "Anchor | None" = None
 
     def _reset_fold(self) -> None:
         self._folded_through = -1
+        self._folded_hash = None
         self._fold_anchor = None
 
-    def _folded(self, seq: int) -> None:
-        if seq > self._folded_through:
-            self._folded_through = seq
+    def _folded(self, ev) -> None:
+        if ev.seq > self._folded_through:
+            self._folded_through, self._folded_hash = ev.seq, ev.hash
 
     def _set_fold_anchor(self, report: "VerifyReport") -> None:
         """Resume from the head of the verified read just folded, as its
@@ -1699,12 +1750,15 @@ class DecidedWriter:
             except EventLogError:
                 self._fold_anchor = None
             else:
+                require_extends(events, self._folded_through,
+                                self._folded_hash, after=self._fold_anchor)
                 for ev in events:
                     if ev.seq > self._folded_through:
                         self.apply(ev)
                 return
         report, events = self.log.read_verified()
         report.raise_if_bad()
+        require_extends(events, self._folded_through, self._folded_hash)
         for ev in events:
             if ev.seq > self._folded_through:
                 self.apply(ev)

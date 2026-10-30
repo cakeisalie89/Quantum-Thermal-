@@ -949,7 +949,11 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: R24-R30, R32, R33, R36, R37, R39-R41, R46-R49, R51, R52, R54, R55 and
 #: R66 predate their implementation until the evidence commit after hosted
 #: CI.
-EXPECTED_EVIDENCE_COVERS = 23
+#: 23 -> 20 in the audit's second repair (AUD-006, AUD-007): the second
+#: reader refuses a dependency record that names no dependency, so R38, R42
+#: and R53, which cite agent_substrate/reconstruct.py, predate it until the
+#: evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 20
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

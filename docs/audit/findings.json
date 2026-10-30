@@ -202,15 +202,25 @@
    "reproduction": "scratchpad repro/rewritten_prefix.py: create r0; back up log and witness; create r1; a second process loads; restore the backup; an honest writer creates r2 and r3; the second process catches up and transitions r1.",
    "observed": "Live projection after catching up: r0, r1, r3; a fresh replay of the same log: r0, r2, r3. The live projection then appended a transition on r1, which the log never created, and every fresh load of that log fails with KeyError 'r1'.",
    "expected": "Catching up refuses -- the projection stays refused until load() -- when the log no longer extends the history the projection folded.",
-   "correction": "Planned: each projection keeps the hash of the last record it folded, and catching up requires the record at its position to carry it (equivalently, the first record after it to link to it); otherwise it raises.",
-   "regression_tests": [],
-   "residual_risk": "",
+   "correction": "events.require_extends(): before a catch-up folds anything, the log must still hold the record at the projection's position with the hash the projection folded there -- equivalently, since the chain is verified, everything below it. Each projection keeps that hash beside its position (AuthorityStore._loaded_hash, Scheduler._seen_hash, _folded_hash in the agent directory, policy store, memory store, proposal ingress, idempotency ledger and every DecidedWriter), set wherever the position moves, including a projection's own appends. Both catch-up routes call it. The refusal is remembered by projection_fold until load().",
+   "regression_tests": [
+    "tests/test_agent_incremental.py::test_catching_up_onto_a_restored_history_does_not_fold_onto_it (8 projections)",
+    "tests/test_agent_incremental.py::test_an_anchor_behind_its_own_appends_does_not_hide_a_restored_history (8 projections)",
+    "tests/test_agent_incremental.py::test_a_log_restored_to_before_what_was_folded_is_refused (8 projections)",
+    "tests/test_agent_incremental.py::test_a_log_that_only_grew_is_caught_up_on_both_routes (control, 8 projections)",
+    "tests/test_agent_incremental.py::test_the_restore_this_suite_models_really_diverges (control)"
+   ],
+   "residual_risk": "The proposal ingress and the idempotency ledger rebuild from scratch on the full-read route, as they did before; they now refuse on the anchored route. A restore is refused by a live process, not reported anywhere else: a process started after the restore reads the restored history as the history, which is the no-external-trust-root limit the witness work (Phase 3) addresses. GovernedTasks keeps its own catch-up (_after_move), whose anchor is the record it folded last and whose fallback is a full replay; it was not changed.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_incremental.json: N12-N27 (the check's two refusals and each of the 14 call sites)",
+    "tools/mutations/agent_snapshot_coherence.json: V_store_fallback, V_scheduler_fallback (anchors moved past the new check)"
+   ]
   },
   {
    "id": "AUD-007",
-   "title": "Replaying a transition on a record the history never created raises a bare KeyError in the primary store",
+   "title": "Replaying a record the reducer cannot read raises a bare KeyError or ValueError in the primary store, and the second reader applies one of them",
    "severity": "P2",
    "subsystem": "authority store (replay)",
    "files": [
@@ -219,17 +229,22 @@
      "lines": "_apply, ACT_TRANSITION branch"
     }
    ],
-   "behavior": "The transition branch indexes self._records[rid] directly. The dependency branch beside it already refuses the same case with StoreError and says why: 'A raw KeyError leaks the projection's internals and skips the domain error every other refusal here raises.'",
+   "behavior": "Seven malformed authority records -- a transition of a record never created; a create or transition without record_id; a transition without dst, with a dst that is no state, or without role; a dependency without depends_on -- each made AuthorityStore.load() raise a bare KeyError or ValueError. The second reader reported six as anomalies and applied the seventh, a dependency naming no dependency, as an empty one.",
    "invariant": "Every refusal of a history by the store is a StoreError, so a caller that catches StoreError catches every refusal.",
    "mechanism": "A missing membership check in one of two parallel branches.",
-   "reproduction": "scratchpad repro/unknown_record.py: append a record.transition for 'ghost' and load.",
-   "observed": "AuthorityStore.load() raises KeyError 'ghost'; the second reader reports the anomaly \"seq 1: transition for unknown record 'ghost'\" and continues.",
-   "expected": "StoreError naming the seq and the record, as for a dependency on an unknown record.",
-   "correction": "Planned: the membership check of the dependency branch, in the transition branch.",
-   "regression_tests": [],
-   "residual_risk": "",
+   "reproduction": "scratchpad repro/malformed_payloads.py",
+   "observed": "Primary: KeyError('ghost'), KeyError('record_id') twice, KeyError('dst'), ValueError('NOT_A_STATE' is not a valid State), KeyError('role'), KeyError('depends_on'). Second reader: anomalies for six, none for the dependency without depends_on.",
+   "expected": "Both readers refuse each: the store with a StoreError naming the seq, the second reader with an anomaly.",
+   "correction": "AuthorityStore._apply turns a KeyError, TypeError or ValueError raised while folding into a StoreError naming the seq and action, and the transition branch refuses a record never created by name, as the dependency branch did. reconstruct.py reports a dependency record without depends_on as an anomaly and does not apply it.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_a_record_replay_cannot_read_is_refused_by_both_readers (7 records)"
+   ],
+   "residual_risk": "The wrapper converts the error's type, not its cause: a KeyError from a defect in the reducer itself is now reported as an unreadable record, with the original chained.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_substrate.json: M61, M62, M63"
+   ]
   }
  ]
 }

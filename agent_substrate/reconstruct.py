@@ -1016,7 +1016,14 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 continue
             # The store refuses a dependency on a record nobody created: it
             # is one nothing will ever resolve (D-2026-140, restated).
-            deps = p.get("depends_on", [])
+            if "depends_on" not in p:
+                # And one that names no dependency at all: the store refuses
+                # it, and this reader applied it as an empty one (AUD-007).
+                out.anomalies.append(
+                    f"seq {ev.seq}: a dependency record for {rid!r} names no "
+                    "depends_on; not applied")
+                continue
+            deps = p["depends_on"]
             unrecorded = ([d for d in deps if d not in recs]
                           if isinstance(deps, list) else [deps])
             if unrecorded:

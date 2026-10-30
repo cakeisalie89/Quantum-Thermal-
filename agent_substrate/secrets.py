@@ -731,7 +731,7 @@ class SecretStore(DecidedWriter):
 
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a secret-grant event."""
-        self._folded(ev.seq)
+        self._folded(ev)
         if ev.action == ACT_SECRET_PROVISION:
             # ONE ID, ONE SOURCE (D-2026-156). Values are process-local, so
             # another process provisioning the same id is ordinary -- from

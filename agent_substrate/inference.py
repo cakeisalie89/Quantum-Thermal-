@@ -790,7 +790,7 @@ class InferenceGateway(DecidedWriter):
 
     def apply(self, ev) -> bool:
         """Fold one event. True when it was an inference record."""
-        self._folded(ev.seq)
+        self._folded(ev)
         self._latest_wall = judged_at(self._latest_wall, ev.wall_time)
         p = ev.payload if isinstance(ev.payload, dict) else {}
         a = ev.action

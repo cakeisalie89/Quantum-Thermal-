@@ -45,7 +45,8 @@ from .authority import (
 )
 from .canonical import canonical_bytes, digest, is_digest
 from .events import (Anchor, ChainBroken, Event, EventLog, EventLogError,
-                     judged_at, projection_fold, projection_load)
+                     judged_at, projection_fold, projection_load,
+                     require_extends)
 from .projection import ProjectionIdentityError, ReducerIdentity, identity_of
 
 #: What a snapshot of this store is, for :class:`ReducerIdentity`.
@@ -200,6 +201,9 @@ class AuthorityStore:
         #: than a silent success returning someone else's record.
         self._applied_keys: dict = {}
         self._loaded_through: int = -1
+        #: The hash of the record at ``_loaded_through``: what a catch-up
+        #: holds the log to (events.require_extends).
+        self._loaded_hash: str | None = None
         self._loaded_prefix_verified: bool = True
         #: Set by :meth:`load_from` when it refused a snapshot; see
         #: :attr:`checkpoint_refusal`.
@@ -275,6 +279,7 @@ class AuthorityStore:
         self._records = {}
         self._applied_keys = {}
         self._loaded_through = -1
+        self._loaded_hash = None
         self._loaded_prefix_verified = True
         self._anchor = None
         self._binding = None
@@ -350,6 +355,8 @@ class AuthorityStore:
             except EventLogError:
                 self._anchor = None
             else:
+                require_extends(events, self._loaded_through,
+                                self._loaded_hash, after=moved)
                 self._anchor = moved
                 self._authenticate([ev for ev in events
                                     if ev.seq > self._loaded_through],
@@ -361,6 +368,7 @@ class AuthorityStore:
                 return
         report, events = self.log.read_verified()
         report.raise_if_bad()
+        require_extends(events, self._loaded_through, self._loaded_hash)
         self._authenticate(events)
         with self._one_origin_view():
             for ev in events:
@@ -391,6 +399,23 @@ class AuthorityStore:
         return ev
 
     def _apply(self, ev: Event) -> None:
+        """Fold one event into the projection, or refuse it as a StoreError.
+
+        A record whose payload this reducer cannot read -- a field missing
+        or of the wrong type, a state that does not exist -- was refused as
+        a bare KeyError or ValueError (AUD-007): out of every caller's
+        ``except StoreError``, and in the dependency branch's words, leaking
+        "the projection's internals". The refusal is the same; its type is
+        now this store's.
+        """
+        try:
+            self._fold_one(ev)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise StoreError(
+                f"seq {ev.seq}: a {ev.action} record this reducer cannot "
+                f"read ({type(exc).__name__}: {exc})") from exc
+
+    def _fold_one(self, ev: Event) -> None:
         """Fold one event into the projection.
 
         Tolerant of exactly one thing: another subsystem's event on the same
@@ -421,7 +446,7 @@ class AuthorityStore:
             # recorded withdrawal -- the direction that fails closed.
             if ev.action in (_POLICY_PUBLISH, _POLICY_WITHDRAW):
                 self._fold_policy_record(ev)
-            self._loaded_through = ev.seq
+            self._loaded_through, self._loaded_hash = ev.seq, ev.hash
             return
         p = ev.payload
         if ev.action == ACT_POLICY_BINDING:
@@ -432,7 +457,7 @@ class AuthorityStore:
                     "name other policy authorities")
             self._binding = {"seq": ev.seq,
                              "publishers": _binding_publishers(p, ev.seq)}
-            self._loaded_through = ev.seq
+            self._loaded_through, self._loaded_hash = ev.seq, ev.hash
             return
         if ev.action == ACT_CHECKPOINT_STATE:
             # A FACT ABOUT THE PROJECTION, NOT A CHANGE TO IT.
@@ -441,7 +466,7 @@ class AuthorityStore:
             # and "somebody changed a record" the same kind of event. It
             # moves the position and nothing else; load_from reads it back
             # out of the tail to check what a checkpoint file claims.
-            self._loaded_through = ev.seq
+            self._loaded_through, self._loaded_hash = ev.seq, ev.hash
             return
         key = p.get("idempotency_key")
         if key:
@@ -510,6 +535,12 @@ class AuthorityStore:
                 created_seq=ev.seq, updated_seq=ev.seq)
         elif ev.action == ACT_TRANSITION:
             rid = p["record_id"]
+            if rid not in self._records:
+                # As for a dependency: a transition of a record nobody
+                # created moves nothing, and replay refuses it by name.
+                raise StoreError(
+                    f"seq {ev.seq}: a transition names {rid!r}, which was "
+                    "never created")
             cur = self._records[rid]
             # RE-AUTHORIZE ON REPLAY, FROM THE STATE THIS REPLAY REACHED.
             #
@@ -607,7 +638,7 @@ class AuthorityStore:
             raise StoreError(
                 f"seq {ev.seq}: {ev.action!r} is listed as owned by this "
                 "reducer and has no branch handling it")
-        self._loaded_through = ev.seq
+        self._loaded_through, self._loaded_hash = ev.seq, ev.hash
 
     # ---- snapshotting -------------------------------------------------
     def snapshot(self) -> dict:
@@ -731,6 +762,9 @@ class AuthorityStore:
                 "snapshot applied_keys must map key -> record_id")
         self._applied_keys = dict(keys)
         self._loaded_through = through
+        # The snapshot names its position, not the record there; the
+        # caller binds it to the checkpoint's hash once that is checked.
+        self._loaded_hash = None
         binding = snap.get("policy_binding")
         policies = snap.get("policies", {})
         if binding is not None:
@@ -1004,6 +1038,7 @@ class AuthorityStore:
                 f"{store._loaded_through} but the checkpoint anchors at "
                 f"{cp.seq}; refusing to replay from a position the snapshot "
                 "does not describe")
+        store._loaded_hash = cp.head_hash
 
         # ONE read of the tail: the records folded below are the records
         # this report checked. Until D-2026-70 the tail was verified here and

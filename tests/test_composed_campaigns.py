@@ -47,7 +47,7 @@ from agent_substrate import inference as I  # noqa: E402
 from agent_substrate import research as R  # noqa: E402
 from agent_substrate import witness as W  # noqa: E402
 from agent_substrate.authority import Role, State  # noqa: E402
-from agent_substrate.canonical import digest  # noqa: E402
+from agent_substrate.canonical import canonical_bytes, digest  # noqa: E402
 from agent_substrate.context import ContextBuilder, Tier, record_context  # noqa: E402
 from agent_substrate.events import ChainState, EventLog  # noqa: E402
 from agent_substrate.evidence import EvidenceStore  # noqa: E402
@@ -275,7 +275,9 @@ def _test_key(label: str) -> bytes:
 
 def _rechain(log: EventLog, seq: int, edit) -> None:
     """Edit record ``seq`` and re-chain every record after it, head witness
-    included: a rewrite every local check accepts."""
+    included: a rewrite every local check accepts. Written as canonical
+    bytes, as the log's own writer writes them: a reader refuses any other
+    encoding (AUD-005), and a forger with the disk writes this one."""
     recs = [json.loads(x) for x in
             log.path.read_text(encoding="utf-8").splitlines()]
     prev = recs[seq - 1]["hash"]
@@ -285,8 +287,7 @@ def _rechain(log: EventLog, seq: int, edit) -> None:
         r["prev_hash"] = prev
         r["hash"] = digest({k: v for k, v in r.items() if k != "hash"})
         prev = r["hash"]
-    log.path.write_text("".join(json.dumps(r, sort_keys=True) + "\n"
-                                for r in recs), encoding="utf-8")
+    log.path.write_bytes(b"".join(canonical_bytes(r) + b"\n" for r in recs))
     log._write_head(ChainState(recs[-1]["seq"], recs[-1]["hash"]))
 
 

@@ -594,7 +594,7 @@ class CapabilityLedger(DecidedWriter):
 
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a capability event."""
-        self._folded(ev.seq)
+        self._folded(ev)
         if ev.action == ACT_ROOT:
             issuer = ev.payload.get("issuer")
             if not isinstance(issuer, str) or not issuer:

@@ -705,6 +705,7 @@
     ],
     "mutation_specs": [
      "tools/mutations/agent_agents.json",
+     "tools/mutations/agent_incremental.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_toctou.json",
      "tools/mutations/t2_closure.json"
@@ -717,6 +718,7 @@
      "tests/test_agent_governed_tasks.py",
      "tests/test_agent_hostile_campaign.py",
      "tests/test_agent_idempotency.py",
+     "tests/test_agent_incremental.py",
      "tests/test_agent_long_horizon.py",
      "tests/test_agent_second_reader.py",
      "tests/test_agent_snapshot_coherence.py",
@@ -932,6 +934,7 @@
      "tests/test_agent_execution.py",
      "tests/test_agent_governed_tasks.py",
      "tests/test_agent_hostile_campaign.py",
+     "tests/test_agent_incremental.py",
      "tests/test_agent_machine_properties.py",
      "tests/test_agent_performance.py",
      "tests/test_agent_readpath.py",
@@ -1468,12 +1471,14 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/agent_idempotency.json",
+     "tools/mutations/agent_incremental.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/decided_appends.json"
     ],
     "tests": [
      "tests/test_agent_hostile_campaign.py",
      "tests/test_agent_idempotency.py",
+     "tests/test_agent_incremental.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
@@ -1588,6 +1593,7 @@
      "T-3"
     ],
     "mutation_specs": [
+     "tools/mutations/agent_incremental.json",
      "tools/mutations/agent_memory_context.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_toctou.json",
@@ -1595,6 +1601,7 @@
      "tools/mutations/t2_closure.json"
     ],
     "tests": [
+     "tests/test_agent_incremental.py",
      "tests/test_agent_long_horizon.py",
      "tests/test_agent_memory.py",
      "tests/test_agent_second_reader.py",
@@ -1684,6 +1691,7 @@
      "D-1"
     ],
     "mutation_specs": [
+     "tools/mutations/agent_incremental.json",
      "tools/mutations/agent_policy.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/composed_campaigns.json",
@@ -1783,11 +1791,13 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/agent_incremental.json",
      "tools/mutations/inference_gateway.json",
      "tools/mutations/proposal_ingress.json"
     ],
     "tests": [
      "tests/test_adversarial_controls.py",
+     "tests/test_agent_incremental.py",
      "tests/test_agent_long_horizon.py",
      "tests/test_authenticated_history.py",
      "tests/test_decision_proof.py",
@@ -1929,6 +1939,7 @@
      "tests/test_agent_substrate_properties.py",
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
+     "tests/test_completion_matrix.py",
      "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",

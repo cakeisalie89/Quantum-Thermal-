@@ -51,7 +51,9 @@ from enum import Enum
 from typing import FrozenSet
 
 from .canonical import digest, is_digest
-from .events import EventLogError, projection_fold, projection_load
+from .events import (
+    EventLogError, projection_fold, projection_load, require_extends,
+)
 
 ACT_AGENT_REGISTER = "agent.register"
 ACT_AGENT_RETIRE = "agent.retire"
@@ -510,6 +512,9 @@ class AgentDirectory:
         #: starts after. ``_at_seq`` is the last record THIS projection
         #: recognised, which is what its gates read.
         self._folded_through = -1
+        #: The hash of the record at ``_folded_through``: what a catch-up
+        #: holds the log to (events.require_extends).
+        self._folded_hash: str | None = None
         self._anchor = None
 
     # ---- projection ----------------------------------------------------
@@ -523,6 +528,7 @@ class AgentDirectory:
         self._escalations = {}
         self._at_seq = -1
         self._folded_through = -1
+        self._folded_hash = None
         for ev in events:
             self.apply(ev)
         self._anchor = report.verified_anchor
@@ -541,12 +547,15 @@ class AgentDirectory:
             except EventLogError:
                 self._anchor = None
             else:
+                require_extends(events, self._folded_through,
+                                self._folded_hash, after=self._anchor)
                 for ev in events:
                     if ev.seq > self._folded_through:
                         self.apply(ev)
                 return
         report, events = self.log.read_verified()
         report.raise_if_bad()
+        require_extends(events, self._folded_through, self._folded_hash)
         for ev in events:
             if ev.seq > self._folded_through:
                 self.apply(ev)
@@ -573,7 +582,8 @@ class AgentDirectory:
         return ev
 
     def apply(self, ev) -> bool:
-        self._folded_through = max(self._folded_through, ev.seq)
+        if ev.seq > self._folded_through:
+            self._folded_through, self._folded_hash = ev.seq, ev.hash
         p = ev.payload
         if ev.action == ACT_AGENT_REGISTER:
             ident = identity_from_record(p["identity"])

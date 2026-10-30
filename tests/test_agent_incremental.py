@@ -424,3 +424,188 @@ def test_the_unbound_anchor_scan_sees_one():
     because it can see nothing."""
     assert _unbound_anchor_calls(
         "a = log.anchor_at(3)\nb = log.anchor_at(3, head_hash=h)\n") == [1]
+
+
+# ---- a projection holds the log to what it folded (AUD-006) ---------------
+#
+# A projection catches up by seq: it folds what lies past its position and
+# takes everything at or below it to be what it already folded. That holds
+# while the log only grows, and nothing checked it. A log restored from a
+# backup -- witness and all, so every verification passes -- holds other
+# records below the position. A live store then joined the restored
+# history's tail to the old history's state (r0, r1, r3 where a fresh replay
+# gives r0, r2, r3), decided on r1, which the log no longer held, and wrote a
+# transition for it that no replay of the log can apply.
+#
+# Two routes lead there, and each class is held on both: the full read a
+# catch-up falls back to when its anchor no longer fits, and an anchor that
+# lags the records a projection appended itself, which advance() follows
+# without finding anything wrong. Two projections REBUILD from scratch on
+# the first route instead of folding onto what they hold; for them the
+# property is that they then hold the log as it is.
+
+def _create(log, rid):
+    return log.append(actor="p", action="record.create", target=rid,
+                      payload={"record_id": rid, "kind": "claim",
+                               "proposer": "p"})
+
+
+def _backup(path):
+    return path.read_bytes(), EventLog(path).head_path.read_bytes()
+
+
+def _restore_and_go_on(path, backup, *rids):
+    """Put the backup back, log and witness, and let honest writers go on."""
+    path.write_bytes(backup[0])
+    EventLog(path).head_path.write_bytes(backup[1])
+    log = EventLog(path)
+    for rid in rids:
+        _create(log, rid)
+
+
+def _projections():
+    from agent_substrate.agents import AgentDirectory
+    from agent_substrate.capability import CapabilityLedger
+    from agent_substrate.idempotency import IdempotencyLedger
+    from agent_substrate.memory import MemoryStore
+    from agent_substrate.proposals import ProposalIngress, _fold_receipts
+
+    def own(position, hashed, folds=None):
+        """Fold a record as the class folds its own append: the record is
+        applied, the position moves, the anchor does not."""
+        def run(p, ev):
+            if folds is not None:
+                folds(p, ev)
+            if position is not None:
+                setattr(p, position, ev.seq)
+                setattr(p, hashed, ev.hash)
+        return run
+
+    return {
+        # name: (make, catch_up, folds_own_record, rebuilds_on_fallback)
+        "authority_store": (AuthorityStore,
+                            lambda p: p.catch_up(force=True),
+                            own(None, None, lambda p, ev: p._apply(ev)),
+                            False),
+        "scheduler": (lambda log: Scheduler(log, policy=PolicyStore(log),
+                                            policy_id="scheduler.default"),
+                      lambda p: p.catch_up(force=True),
+                      own(None, None, lambda p, ev: p.apply(ev)), False),
+        "agents": (AgentDirectory, lambda p: p._fold_new(),
+                   own(None, None, lambda p, ev: p.apply(ev)), False),
+        "policy": (PolicyStore, lambda p: p._fold_new(),
+                   own(None, None, lambda p, ev: p.apply(ev)), False),
+        "memory": (MemoryStore, lambda p: p._fold_new(),
+                   own(None, None, lambda p, ev: p.apply(ev)), False),
+        "capability": (CapabilityLedger, lambda p: p._fold_new(),
+                       own(None, None, lambda p, ev: p.apply(ev)), False),
+        "idempotency": (IdempotencyLedger, lambda p: p.catch_up(),
+                        own("_folded_through", "_folded_hash",
+                            lambda p, ev: p.apply(ev)), True),
+        "proposals": (ProposalIngress, lambda p: p._catch_up(),
+                      own("_folded_through", "_folded_hash",
+                          lambda p, ev: _fold_receipts([ev], p._received)),
+                      True),
+    }
+
+
+_PROJECTIONS = sorted(_projections())
+
+
+def _load(make, path):
+    p = make(EventLog(path))
+    return p.load() if hasattr(p, "load") else (p._catch_up(), p)[1]
+
+
+@pytest.mark.parametrize("name", _PROJECTIONS)
+def test_catching_up_onto_a_restored_history_does_not_fold_onto_it(
+        tmp_path, name):
+    """The fallback route: the anchor no longer fits, a full read follows."""
+    make, catch_up, _, rebuilds = _projections()[name]
+    path = tmp_path / "log.jsonl"
+    _create(EventLog(path), "r0")
+    backup = _backup(path)
+    _create(EventLog(path), "r1")
+    live = _load(make, path)
+    _restore_and_go_on(path, backup, "r2", "r3")
+    head = EventLog(path).read_verified()[1][-1]
+    if rebuilds:
+        catch_up(live)
+        assert live._folded_through == head.seq
+        assert live._folded_hash == head.hash, (
+            "it rebuilt, and does not hold the log's head")
+    else:
+        with pytest.raises(ChainBroken, match="rewritten"):
+            catch_up(live)
+        with pytest.raises(ChainBroken, match="rewritten"):
+            catch_up(live)       # and stays refused until it is reloaded
+        _load(make, path)        # which a fresh projection can do
+
+
+@pytest.mark.parametrize("name", _PROJECTIONS)
+def test_an_anchor_behind_its_own_appends_does_not_hide_a_restored_history(
+        tmp_path, name):
+    """The lag route: advance() succeeds, because nothing it reads changed."""
+    make, catch_up, folds_own, _ = _projections()[name]
+    path = tmp_path / "log.jsonl"
+    _create(EventLog(path), "r0")
+    live = _load(make, path)
+    backup = _backup(path)
+    folds_own(live, _create(live.log, "r1"))
+    _restore_and_go_on(path, backup, "r2")
+    with pytest.raises(ChainBroken, match="rewritten"):
+        catch_up(live)
+
+
+@pytest.mark.parametrize("name", _PROJECTIONS)
+def test_a_log_that_only_grew_is_caught_up_on_both_routes(tmp_path, name):
+    """The control: the same moves with no restore are folded, not refused."""
+    make, catch_up, folds_own, _ = _projections()[name]
+    path = tmp_path / "log.jsonl"
+    _create(EventLog(path), "r0")
+    live = _load(make, path)
+    folds_own(live, _create(live.log, "r1"))
+    _create(EventLog(path), "r2")
+    catch_up(live)                                   # the anchored route
+    _create(EventLog(path), "r3")
+    for attr in ("_anchor", "_fold_anchor"):
+        if hasattr(live, attr):
+            setattr(live, attr, None)
+    catch_up(live)                                   # the full-read route
+
+
+def test_the_restore_this_suite_models_really_diverges(tmp_path):
+    """Without this the refusals above could be refusing a log that never
+    changed: a fresh replay of the restored log does not hold r1."""
+    path = tmp_path / "log.jsonl"
+    _create(EventLog(path), "r0")
+    backup = _backup(path)
+    _create(EventLog(path), "r1")
+    _restore_and_go_on(path, backup, "r2", "r3")
+    fresh = AuthorityStore(EventLog(path)).load()
+    assert sorted(fresh._records) == ["r0", "r2", "r3"]
+
+
+@pytest.mark.parametrize("name", _PROJECTIONS)
+def test_a_log_restored_to_before_what_was_folded_is_refused(tmp_path, name):
+    """The log now ends below the position: nothing to compare, and the
+    projection holds a record the log does not. Both routes."""
+    make, catch_up, folds_own, rebuilds = _projections()[name]
+    path = tmp_path / "log.jsonl"
+    _create(EventLog(path), "r0")
+    live = _load(make, path)
+    backup = _backup(path)
+    folds_own(live, _create(live.log, "r1"))
+    _restore_and_go_on(path, backup)
+    with pytest.raises(ChainBroken, match="now ends at seq 0"):
+        catch_up(live)                               # the anchored route
+    if rebuilds:
+        return
+    path2 = path.parent / "other.jsonl"              # the full-read route
+    _create(EventLog(path2), "r0")
+    backup = _backup(path2)
+    _create(EventLog(path2), "r1")
+    live = _load(make, path2)
+    _restore_and_go_on(path2, backup)
+    with pytest.raises(ChainBroken, match="now ends at seq 0"):
+        catch_up(live)

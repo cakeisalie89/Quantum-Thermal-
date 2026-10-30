@@ -54,7 +54,9 @@ from enum import Enum
 from typing import Any, FrozenSet
 
 from .canonical import digest, is_digest
-from .events import EventLogError, projection_fold, projection_load
+from .events import (
+    EventLogError, projection_fold, projection_load, require_extends,
+)
 from .policy import (Decision, Effect, PolicyDocument, PolicyRequest,
                      document, rule)
 
@@ -446,6 +448,9 @@ class Scheduler:
         #: LOG's head, and a policy record between two job records moves that
         #: head without moving this projection.
         self._seen_through = -1
+        #: The hash of the record at ``_seen_through``: what a catch-up holds
+        #: the log to (events.require_extends).
+        self._seen_hash: str | None = None
         #: An anchor at ``_seen_through``, so catching up costs O(new) rather
         #: than O(history). None means "no cheap position": the next
         #: catch-up does a full verified read and establishes one.
@@ -461,6 +466,7 @@ class Scheduler:
         self._keys = {}
         self._loaded_through = -1
         self._seen_through = -1
+        self._seen_hash = None
         self._anchor = None
         for ev in events:
             self.apply(ev)
@@ -511,7 +517,9 @@ class Scheduler:
 
         Falls back to a full verified read when there is no anchor, or when
         the anchor no longer describes the bytes at its offset. The fallback
-        is strictly stronger, and it re-establishes a position.
+        is strictly stronger, and it re-establishes a position -- provided
+        the log still holds the record this projection last saw; a history
+        rewritten below it is refused, not folded onto (AUD-006).
         """
         if self._anchor is not None:
             try:
@@ -523,6 +531,8 @@ class Scheduler:
                 # are no longer the ones it described.
                 self._anchor = None
             else:
+                require_extends(events, self._seen_through, self._seen_hash,
+                                after=moved)
                 self._anchor = moved
                 for ev in events:
                     # The anchor can legitimately lag this projection by the
@@ -534,6 +544,7 @@ class Scheduler:
                 return
         report, events = self.log.read_verified()
         report.raise_if_bad()
+        require_extends(events, self._seen_through, self._seen_hash)
         for ev in events:
             if ev.seq > self._seen_through:
                 self.apply(ev)
@@ -586,11 +597,18 @@ class Scheduler:
             # conditional append compares against the log's head, and a
             # projection that only tracked its own records would think the
             # head was where it left it and be refused on every write.
-            self._seen_through = max(self._seen_through, ev.seq)
+            self._saw(ev)
             return False
         self._loaded_through = ev.seq
-        self._seen_through = max(self._seen_through, ev.seq)
+        self._saw(ev)
         return True
+
+    def _saw(self, ev) -> None:
+        # A dry run's _ProbeEvent has no hash: it was never written, and the
+        # probe projection that folds it is thrown away.
+        if ev.seq > self._seen_through:
+            self._seen_through = ev.seq
+            self._seen_hash = getattr(ev, "hash", None)
 
     def _apply_renewal(self, ev, p: dict) -> None:
         """Extend a live lease, deciding every term from the replay's state.
@@ -826,6 +844,7 @@ class Scheduler:
         probe._keys = dict(self._keys)
         probe._loaded_through = self._loaded_through
         probe._seen_through = self._seen_through
+        probe._seen_hash = self._seen_hash
         return probe
 
     def _dry_run(self, *, actor: str, action: str, target: str,

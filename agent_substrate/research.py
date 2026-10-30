@@ -362,7 +362,7 @@ class ResearchLedger(DecidedWriter):
 
     # ---- the fold -------------------------------------------------------
     def apply(self, ev) -> bool:
-        self._folded(ev.seq)
+        self._folded(ev)
         self._latest_wall = judged_at(self._latest_wall, ev.wall_time)
         folded = self._dispatch(ev)
         # After the record itself is judged, so a writer -- which judges

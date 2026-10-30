@@ -143,8 +143,10 @@ def test_m3_closed_even_when_the_holder_drops_the_cosignatures(w):
 
 def _rewrite(log: EventLog, seq: int) -> None:
     """Change record ``seq`` and re-chain everything after it, head witness
-    included: a rewrite every local check accepts."""
-    from agent_substrate.canonical import digest
+    included: a rewrite every local check accepts. Written as canonical
+    bytes, as the log's own writer writes them: a reader refuses any other
+    encoding (AUD-005), and a forger with the disk writes this one."""
+    from agent_substrate.canonical import canonical_bytes, digest
     recs = [json.loads(x) for x in
             log.path.read_text(encoding="utf-8").splitlines()]
     prev = recs[seq - 1]["hash"]
@@ -155,8 +157,7 @@ def _rewrite(log: EventLog, seq: int) -> None:
         body = {k: v for k, v in r.items() if k != "hash"}
         r["hash"] = digest(body)
         prev = r["hash"]
-    log.path.write_text("".join(json.dumps(r, sort_keys=True) + "\n"
-                                for r in recs), encoding="utf-8")
+    log.path.write_bytes(b"".join(canonical_bytes(r) + b"\n" for r in recs))
     log._write_head(ChainState(recs[-1]["seq"], recs[-1]["hash"]))
 
 

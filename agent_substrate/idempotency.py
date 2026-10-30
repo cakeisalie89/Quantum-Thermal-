@@ -66,7 +66,9 @@ from typing import FrozenSet
 
 from .actions import require_known
 from .canonical import digest, is_digest
-from .events import EventLogError, projection_fold, projection_load
+from .events import (
+    EventLogError, projection_fold, projection_load, require_extends,
+)
 
 #: The one durable action this module owns.
 ACT_BIND = "idempotency.bind"
@@ -216,6 +218,9 @@ class IdempotencyLedger:
         #: The last record folded, of any kind, and an anchor there: what
         #: :meth:`catch_up` reads on from.
         self._folded_through = -1
+        #: The hash of the record at ``_folded_through``: what a catch-up
+        #: holds the log to (events.require_extends).
+        self._folded_hash: str | None = None
         self._anchor = None
 
     # ---- projection ----------------------------------------------------
@@ -228,6 +233,7 @@ class IdempotencyLedger:
         for ev in events:
             self.apply(ev)
         self._folded_through = events[-1].seq if events else -1
+        self._folded_hash = events[-1].hash if events else None
         self._anchor = report.verified_anchor
         return self
 
@@ -249,10 +255,12 @@ class IdempotencyLedger:
             events, self._anchor = self.log.advance(self._anchor)
         except EventLogError:
             return self.load()
+        require_extends(events, self._folded_through, self._folded_hash,
+                        after=self._anchor)
         for ev in events:
             if ev.seq > self._folded_through:
                 self.apply(ev)
-                self._folded_through = ev.seq
+                self._folded_through, self._folded_hash = ev.seq, ev.hash
         return self
 
     def apply(self, ev) -> bool:
@@ -367,6 +375,7 @@ class IdempotencyLedger:
                     "the original resolve to the new work.")
             return existing
         self.apply(ev)
-        self._folded_through = max(self._folded_through, ev.seq)
+        if ev.seq > self._folded_through:
+            self._folded_through, self._folded_hash = ev.seq, ev.hash
         return self._bindings[scope_identity(owner=owner, tool_id=tool_id,
                                              key=key)]

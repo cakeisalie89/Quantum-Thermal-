@@ -71,15 +71,15 @@
   {
    "name": "V_store_fallback_reads_the_log_twice",
    "path": "agent_substrate/store.py",
-   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._authenticate(events)\n        with self._one_origin_view():\n            for ev in events:\n                if ev.seq > self._loaded_through:\n",
-   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._authenticate(events)\n        with self._one_origin_view():\n            for ev in events:\n                if ev.seq > self._loaded_through:\n",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        require_extends(events, self._loaded_through, self._loaded_hash)\n        self._authenticate(events)\n        with self._one_origin_view():\n            for ev in events:\n                if ev.seq > self._loaded_through:\n",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        require_extends(events, self._loaded_through, self._loaded_hash)\n        events = self.log.read()\n        self._authenticate(events)\n        with self._one_origin_view():\n            for ev in events:\n                if ev.seq > self._loaded_through:\n",
    "rationale": "the catch-up taken after damage forced the anchor away folds a second, unverified read"
   },
   {
    "name": "V_scheduler_fallback_reads_the_log_twice",
    "path": "agent_substrate/scheduler.py",
-   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        for ev in events:\n            if ev.seq > self._seen_through:",
-   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        for ev in events:\n            if ev.seq > self._seen_through:",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        require_extends(events, self._seen_through, self._seen_hash)\n        for ev in events:\n            if ev.seq > self._seen_through:",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        require_extends(events, self._seen_through, self._seen_hash)\n        events = self.log.read()\n        for ev in events:\n            if ev.seq > self._seen_through:",
    "rationale": "the same, on the job queue"
   },
   {

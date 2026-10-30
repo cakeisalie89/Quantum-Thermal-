@@ -52,7 +52,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from .canonical import canonical_bytes, digest
-from .events import EventLogError, projection_fold
+from .events import EventLogError, projection_fold, require_extends
 
 SCHEMA = "proposal-envelope/1"
 #: A proposal a model produced through the inference gateway: /1's fields and
@@ -574,6 +574,9 @@ class ProposalIngress:
         self.source_digest = source_digest
         self._received: dict = {}
         self._folded_through = -1
+        #: The hash of the record at ``_folded_through``: what a catch-up
+        #: holds the log to (events.require_extends).
+        self._folded_hash: str | None = None
         self._anchor: Any = None
 
     @projection_fold
@@ -594,17 +597,20 @@ class ProposalIngress:
             except EventLogError:
                 self._anchor = None
             else:
+                require_extends(events, self._folded_through,
+                                self._folded_hash, after=self._anchor)
                 _fold_receipts([ev for ev in events
                                 if ev.seq > self._folded_through],
                                self._received)
-                if events:
-                    self._folded_through = max(self._folded_through,
-                                               events[-1].seq)
+                if events and events[-1].seq > self._folded_through:
+                    self._folded_through = events[-1].seq
+                    self._folded_hash = events[-1].hash
                 return self._received
         report, events = self.log.read_verified()
         report.raise_if_bad()
         self._received = _fold_receipts(events, {})
         self._folded_through = events[-1].seq if events else -1
+        self._folded_hash = events[-1].hash if events else None
         self._anchor = report.verified_anchor
         return self._received
 
@@ -651,7 +657,8 @@ class ProposalIngress:
         except _AlreadyReceived as already:
             return Receipt(env, already.have["seq"], True)
         _fold_receipts([ev], self._received)
-        self._folded_through = max(self._folded_through, ev.seq)
+        if ev.seq > self._folded_through:
+            self._folded_through, self._folded_hash = ev.seq, ev.hash
         return Receipt(env, ev.seq, False)
 
     def pending(self, submitted: Callable[[str], bool]) -> list:

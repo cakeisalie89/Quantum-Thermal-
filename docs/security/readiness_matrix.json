@@ -207,7 +207,7 @@
   {
    "id": "SUB-1",
    "capability": "authority-bearing writers decide under the writer lock against the history they append onto",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_agent_toctou.py",
     "tests/test_decided_appends.py"
@@ -217,7 +217,7 @@
     "tools/mutations/agent_agents.json"
    ],
    "ledger": "D-2026-147",
-   "note": "the agent directory, memory and policy stores; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the event log's fold, the agent directory and memory (a refused fold is never resumed past); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by D-2026-168: the policy store's decision path, the authority store and the event log changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "note": "the agent directory, memory and policy stores; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the event log's fold, the agent directory and memory (a refused fold is never resumed past); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by D-2026-168: the policy store's decision path, the authority store and the event log changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them. Returned to IMPLEMENTED by the PR #17 audit's event-log repairs (AUD-002, AUD-003, AUD-005, AUD-006, AUD-007): the event log, the agent directory and the memory store changed, so the hosted runs at 927b69c no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "agent_substrate/agents.py",
     "agent_substrate/memory.py",
@@ -232,7 +232,7 @@
     "implementation_sha256": "98056f22745c5e0bc52aa57fed788d92f2637cbc22000bc8866250460938e613",
     "what": "agent-substrate: full suite and mutation shards"
    },
-   "hosted_before": {
+   "hosted_earlier": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -241,7 +241,7 @@
     "implementation_sha256": "8164c761bf000d9c7112c531233d3edc0fed0de54c79bc739591897306aa11b7",
     "what": "agent-substrate: full suite and mutation shards"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
     "runs": [
      "40008852181",
@@ -254,7 +254,7 @@
   {
    "id": "SUB-2",
    "capability": "every other authority writer decides under the writer lock against the history it appends onto -- capability, egress and secret writers, the execution record, the compensation authorization, governed reads -- and no projection resumes past a record it refused",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_t2_closure.py",
     "tests/test_refused_fold.py",
@@ -267,7 +267,7 @@
     "tools/mutations/authority_inventory.json"
    ],
    "ledger": "D-2026-156",
-   "note": "finding T-2 FIXED; every durable write is classified and measured by tools/authority_inventory.py, which CI runs. Hosted at 1586322; attached in Tranche H Gate A, having been missed in the Tranche G evidence commit (D-2026-161). Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "note": "finding T-2 FIXED; every durable write is classified and measured by tools/authority_inventory.py, which CI runs. Hosted at 1586322; attached in Tranche H Gate A, having been missed in the Tranche G evidence commit (D-2026-161). Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them. Returned to IMPLEMENTED by the PR #17 audit's event-log repairs (AUD-002, AUD-003, AUD-005, AUD-006, AUD-007): the event log, the capability, egress and secret writers, governed_tasks and the second reader changed, so the hosted runs at 927b69c no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "agent_substrate/events.py",
     "agent_substrate/capability.py",
@@ -279,7 +279,7 @@
     "tools/authority_inventory.py",
     "docs/security/authority_inventory.json"
    ],
-   "hosted_before": {
+   "hosted_earlier": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -288,7 +288,7 @@
     "implementation_sha256": "5e501474e79a43e5a4ddf1118513340a72324f011be054858fdd0159fe876e03",
     "what": "agent-substrate: full suite (tests/test_t2_closure.py, test_refused_fold.py, test_t2_governed.py, test_decided_under_lock.py, test_authority_inventory.py) and mutation shards (t2_closure, authority_inventory), and the authority-inventory step"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
     "runs": [
      "40008852181",
@@ -301,7 +301,7 @@
   {
    "id": "SUB-3",
    "capability": "promotions bound to a policy published by a named authority, not withdrawn, not expired; restated by the second reader",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_policy_binding.py",
     "tests/test_scientific_authority_replay.py"
@@ -310,7 +310,7 @@
     "tools/mutations/policy_binding.json"
    ],
    "ledger": "D-2026-148",
-   "note": "the governed path declares the binding; an unbound history does not have it; the governed path refuses a history whose binding names any other authority (D-2026-151); hosted evidence at 40440ce predates this implementation: D-2026-156 changed the policy store and authority store folds and the second reader; re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "note": "the governed path declares the binding; an unbound history does not have it; the governed path refuses a history whose binding names any other authority (D-2026-151); hosted evidence at 40440ce predates this implementation: D-2026-156 changed the policy store and authority store folds and the second reader; re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them. Returned to IMPLEMENTED by the PR #17 audit's event-log repairs (AUD-002, AUD-003, AUD-005, AUD-006, AUD-007): the policy store, the authority store and the second reader changed, so the hosted runs at 927b69c no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "agent_substrate/policy.py",
     "agent_substrate/store.py",
@@ -327,7 +327,7 @@
     "implementation_sha256": "ef07b3032b920413d20d3bb74552f70bf50c695485d945a0f662decd2163ece5",
     "what": "agent-substrate: full suite and mutation shards"
    },
-   "hosted_before": {
+   "hosted_earlier": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -336,7 +336,7 @@
     "implementation_sha256": "5263950f050372f8bda9cd193d7af578c5e00523e41c0625623cca90253867b5",
     "what": "agent-substrate: full suite and mutation shards"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
     "runs": [
      "40008852181",
@@ -349,13 +349,13 @@
   {
    "id": "SUB-4",
    "capability": "hostile Cases A-H refused end to end",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_hostile_composition.py"
    ],
    "mutation_specs": [],
    "ledger": "D-2026-150",
-   "note": "each case through the real components with a control; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the agent directory, policy and store folds and the second reader; re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "note": "each case through the real components with a control; hosted evidence at 40440ce predates this implementation: D-2026-156 changed the agent directory, policy and store folds and the second reader; re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them. Returned to IMPLEMENTED by the PR #17 audit's event-log repairs (AUD-002, AUD-003, AUD-005, AUD-006, AUD-007): the authority store, the second reader, the agent directory and the policy store changed, so the hosted runs at 927b69c no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
    "implementation": [
     "agent_substrate/store.py",
     "agent_substrate/reconstruct.py",
@@ -373,7 +373,7 @@
     "implementation_sha256": "e41e344d84dfd6a1645e8077a84bace1c95c45fa4041ad6eb72edf58a8346506",
     "what": "agent-substrate: full suite"
    },
-   "hosted_before": {
+   "hosted_earlier": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -382,7 +382,7 @@
     "implementation_sha256": "8b7ea80fee2e93c0169fdb7deb7394e11a10d62250e192a5d3e94a886aa6b477",
     "what": "agent-substrate: full suite"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
     "runs": [
      "40008852181",

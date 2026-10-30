@@ -380,6 +380,27 @@
       "find": "    if canonical + b\"\\n\" != raw:",
       "replace": "    if False:",
       "rationale": "AUD-005. The hash covers the parsed record, so every other encoding of it verifies again: other whitespace, key order or escapes, and a key given twice whose first value is what a first-wins parser shows while the hash covers the last"
+    },
+    {
+      "name": "M61_replay_refuses_an_unreadable_record_as_a_bare_error",
+      "path": "agent_substrate/store.py",
+      "find": "        except (KeyError, TypeError, ValueError) as exc:\n            raise StoreError(\n                f\"seq {ev.seq}: a {ev.action} record this reducer cannot \"",
+      "replace": "        except StoreError as exc:\n            raise StoreError(\n                f\"seq {ev.seq}: a {ev.action} record this reducer cannot \"",
+      "rationale": "AUD-007. A record replay cannot read escapes every caller's except StoreError as a bare KeyError or ValueError"
+    },
+    {
+      "name": "M62_a_transition_of_an_uncreated_record_is_not_named",
+      "path": "agent_substrate/store.py",
+      "find": "            if rid not in self._records:\n                # As for a dependency: a transition of a record nobody",
+      "replace": "            if False:\n                # As for a dependency: a transition of a record nobody",
+      "rationale": "AUD-007. A transition of a record nobody created is refused only as an unreadable record, not as what it is"
+    },
+    {
+      "name": "M63_the_second_reader_applies_a_dependency_naming_none",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            if \"depends_on\" not in p:\n                # And one that names no dependency at all: the store refuses",
+      "replace": "            if False:\n                # And one that names no dependency at all: the store refuses",
+      "rationale": "AUD-007. The second reader takes a dependency record that names no dependency, which the store refuses"
     }
   ]
 }

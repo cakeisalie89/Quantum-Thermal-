@@ -67,7 +67,9 @@ from dataclasses import dataclass, replace
 from enum import Enum
 
 from .canonical import digest, is_digest
-from .events import EventLogError, projection_fold, projection_load
+from .events import (
+    EventLogError, projection_fold, projection_load, require_extends,
+)
 
 ACT_MEMORY_WRITE = "memory.write"
 ACT_MEMORY_STATUS = "memory.status"
@@ -239,6 +241,9 @@ class MemoryStore:
         self._by_source: dict = {}
         self._invalidated: set = set()
         self._folded_through = -1
+        #: The hash of the record at ``_folded_through``: what a catch-up
+        #: holds the log to (events.require_extends).
+        self._folded_hash: str | None = None
         self._anchor = None
 
     # ---- projection ----------------------------------------------------
@@ -250,6 +255,7 @@ class MemoryStore:
         self._by_source = {}
         self._invalidated = set()
         self._folded_through = -1
+        self._folded_hash = None
         for ev in events:
             self.apply(ev)
         self._anchor = report.verified_anchor
@@ -265,12 +271,15 @@ class MemoryStore:
             except EventLogError:
                 self._anchor = None
             else:
+                require_extends(events, self._folded_through,
+                                self._folded_hash, after=self._anchor)
                 for ev in events:
                     if ev.seq > self._folded_through:
                         self.apply(ev)
                 return
         report, events = self.log.read_verified()
         report.raise_if_bad()
+        require_extends(events, self._folded_through, self._folded_hash)
         for ev in events:
             if ev.seq > self._folded_through:
                 self.apply(ev)
@@ -293,7 +302,8 @@ class MemoryStore:
         return ev
 
     def apply(self, ev) -> bool:
-        self._folded_through = max(self._folded_through, ev.seq)
+        if ev.seq > self._folded_through:
+            self._folded_through, self._folded_hash = ev.seq, ev.hash
         p = ev.payload
         if ev.action == ACT_MEMORY_WRITE:
             if not isinstance(p, dict) or "entry" not in p:

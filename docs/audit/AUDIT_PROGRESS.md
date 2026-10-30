@@ -175,7 +175,76 @@ against c11c628 and against the fix:
   rows citing the changed code now predate their hosted evidence until
   the next hosted run.
 
-### Found, not yet fixed
+### The full suite at f142a7e, and what it found
+
+`HARNESS_HISTORY_REQUIRED=1 pytest tests/` in a worktree at f142a7e, 34
+minutes: 6,259 passed, 19 skipped, 5 failed, 6 errors. None of these is a
+defect in the repair. Each is a place that wrote, or claimed, what the
+repair made untrue.
+
+- **Three test fixtures and one demonstration tool modelled a forger.**
+  They rewrote the log with `json.dumps(sort_keys=True)`, which is not the
+  canonical encoding, "a rewrite every local check accepts". The line rule
+  now refuses that encoding locally. A forger with the disk would write
+  canonical bytes, and every local check still accepts those. The helpers
+  now write canonical bytes, so they still show what they claim: only a
+  witness catches a re-chained history.
+  - `tests/test_composed_campaigns.py` (K4).
+  - `tests/test_witness.py`, two tests.
+  - `tools/integration_demo.py`'s altered-history step, which raised in
+    every one of the six `tests/test_integration_demo.py` tests that run
+    it.
+- **Readiness rows SUB-1 to SUB-4 (two failures).** These said
+  HOSTED_TESTED, bound to the code hosted CI ran at 927b69c, and that code
+  has changed. `tools/readiness.py` refused them, as it should. They
+  return to IMPLEMENTED until a hosted run covers the new code. The
+  927b69c evidence is kept on each row as `hosted_before`.
+
+### Cluster 2: AUD-006 and AUD-007, fixed
+
+- **AUD-006.** `events.require_extends()`: before a catch-up folds
+  anything, the log must still hold the record at the projection's
+  position, with the hash the projection folded there.
+  - Each projection keeps that hash beside its position, wherever the
+    position moves, its own appends included.
+  - Both catch-up routes call the check. The refusal is remembered until
+    `load()`.
+  - The proposal ingress and the idempotency ledger already rebuilt from
+    scratch on the full-read route. They now also refuse on the anchored
+    route.
+- **AUD-007.** `AuthorityStore._apply` now refuses an unreadable record as
+  a `StoreError` naming its seq and action. A transition of a record never
+  created is refused by name. The second reader reports a dependency
+  record that names no dependency as an anomaly, instead of applying it.
+
+**Validation.**
+
+- **AUD-006 tests.** There are 33, in `tests/test_agent_incremental.py`:
+  three refusal tests over eight projections each, the control over the
+  same eight, and a check that the modelled restore really diverges.
+  - On f142a7e, 22 of them fail with "DID NOT RAISE": every folding
+    projection on every route, and both rebuilding projections on the
+    anchored route.
+  - Two fail only because they read the new hash attribute: the rebuilding
+    projections' full-read route was already safe.
+- **AUD-007 tests.** All 7 fail on f142a7e with the bare errors.
+- **Mutation.** 22 targeted mutations were all KILLED, each run with a
+  green baseline, and every source was restored byte-identical:
+  - N12 to N27: the check's two refusals, and each of its 14 call sites;
+  - M61 to M63;
+  - three existing mutations whose anchors moved: V_store_fallback,
+    V_scheduler_fallback and TC2.
+- **A false failure, and its cause.** One subset run failed
+  `test_proposal_concurrency` with FULL_REPLAY_FOREIGN_REDUCER. I had
+  moved a function in `events.py` while that run's worker processes were
+  starting, and the reducer identity is a digest of the source files. Run
+  alone, it passes. No source has been edited during a test run since.
+
+### Still open
+
+- **AUD-004 (P1).** I3's "fresh evidence" after STALE is not enforced.
+
+### Found, then fixed in cluster 2
 
 - **AUD-006 (P1).** A live projection, after a restore of the log and
   its witness from a backup, folded the new history's tail onto the old
@@ -204,8 +273,7 @@ records:
 
 ### Next actions
 
-1. Cluster 2: AUD-006 and AUD-007, with regression tests, mutations and
-   both readers checked.
+1. Run the full suite at the cluster 2 commit, then push it.
 2. AUD-004: test the scientific-admission rule through the governed path,
    then fix the edge evidence rule in the store and in `reconstruct.py`.
 3. Record REVIEWED_IN_FULL dispositions for the six files above.

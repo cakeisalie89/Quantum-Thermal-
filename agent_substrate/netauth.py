@@ -910,7 +910,7 @@ class NetworkAuthority(DecidedWriter):
             self._at_seq = max(self._at_seq, self._folded_through)
 
     def apply(self, ev) -> bool:
-        self._folded(ev.seq)
+        self._folded(ev)
         if ev.action == ACT_SERVICE_REGISTER:
             svc = service_from_record(ev.payload["service"])
             claimed = ev.payload.get("service_digest")
