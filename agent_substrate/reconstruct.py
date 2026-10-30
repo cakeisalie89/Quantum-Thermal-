@@ -2178,12 +2178,6 @@ def _sub_policy_publish(ev, p: dict, out) -> None:
         _note(out, ev, f"policy {pid!r} is republished after its withdrawal "
                        f"at seq {owner['withdrawn_seq']}")
         return
-    if ev.actor != owner["by"]:
-        # Restated, AUD-015: a policy's later versions are its owner's.
-        _note(out, ev, f"{ev.actor!r} publishes version "
-                       f"{doc.get('version')!r} of {pid!r}, which "
-                       f"{owner['by']!r} published")
-        return
     versions = out.policies.setdefault(pid, [])
     version = doc.get("version")
     if any(v["version"] == version for v in versions):
@@ -2196,6 +2190,12 @@ def _sub_policy_publish(ev, p: dict, out) -> None:
         # intervening range with rules that were superseded.
         _note(out, ev, f"policy {pid!r} publishes version {version!r} after "
                        f"{versions[-1]['version']!r}")
+        return
+    if ev.actor != owner["by"]:
+        # Restated, AUD-015: a policy's later versions are its owner's.
+        _note(out, ev, f"{ev.actor!r} publishes version "
+                       f"{doc.get('version')!r} of {pid!r}, which "
+                       f"{owner['by']!r} published")
         return
     versions.append({"version": version, "digest": p.get("policy_digest"),
                      "effective_seq": ev.seq,

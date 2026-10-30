@@ -572,6 +572,22 @@ leaves the log unchanged, does not exist yet.
   (`tests/test_completion_matrix.py`).
 - **Found late.** The pin was found by the contract tests at ebd14a0,
   and fixed in the commit after it.
+- **Found by the full suite at ebd14a0.**
+  `tests/test_agent_second_reader.py::test_a_policy_downgrade_is_reported`
+  forges a downgrade as an actor other than the owner. The second
+  reader's new owner note answered it first, where the test expects the
+  downgrade note. The owner note now follows the duplicate and downgrade
+  notes, as the policy store's owner check follows its version checks.
+  PB29 and PB22 were re-killed.
+- **Also found by that suite.** Two tests in
+  `tests/test_readiness_matrix.py` failed:
+  - **Why.** Readiness row CI-4 (HOSTED_TESTED) covers the workflows, and
+    the regenerated shard matrix changed `agent-substrate.yml`.
+  - **What changed.** CI-4 returns to IMPLEMENTED, as SUB-1 to SUB-4 did
+    in a48ae7b, until hosted runs of the new workflow are attached.
+  - **Why no earlier check caught it.** The contract tests at ebd14a0 do
+    not name the readiness matrix's file, so they did not include this
+    module.
 
 
 ### Next actions

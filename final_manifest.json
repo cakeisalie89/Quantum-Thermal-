@@ -350,7 +350,7 @@
     {
       "filename": "agent_substrate/reconstruct.py",
       "size_bytes": 209944,
-      "sha256": "d52802ce80db41b6b3f994178f9c7e74be33137ee70b1ba256aa1693050f09b0"
+      "sha256": "d795a4a71223799cdb0eedcffae894c8d511ffa5b9b439f7334f119c7ffb2b88"
     },
     {
       "filename": "agent_substrate/research.py",
@@ -479,8 +479,8 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 28069,
-      "sha256": "5d6fda820dbbb4a501edd645444033f228a9d013c12d7e6c73bc4556315b88c4"
+      "size_bytes": 29023,
+      "sha256": "e515328298e1bb8122c620b35ff00238161925410f6d3faeddabbd56fb83886d"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
@@ -499,8 +499,8 @@
     },
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
-      "size_bytes": 463282,
-      "sha256": "74cc5ee586fb990667b1f7438a1bd2467dbd8568c166649a0c6872610d70950d"
+      "size_bytes": 463374,
+      "sha256": "9fd597db60d304aca70a7a6e3cc1c47d70a89165ee7cb3a039331fa2145370f0"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -520,7 +520,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5501,
-      "sha256": "c80aca38f77ec99cd7b172b4b2d882951db3c47a0d50de8443fcd1d237a25b72"
+      "sha256": "178fe026bf8b5f9131fe734c9ba424eff50412e0210faba62a40b2252f7179b3"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -779,8 +779,8 @@
     },
     {
       "filename": "docs/security/readiness_matrix.json",
-      "size_bytes": 24741,
-      "sha256": "cd1bfef157de59e43b743ab99a85eaeba74d694f9dd3fa48b1a0c52dbb33c6d0"
+      "size_bytes": 25099,
+      "sha256": "f2b8a58f1c4b0c4ce2d4088fe1ec329898fe425cf5c10fef7b5e3a38f086995e"
     },
     {
       "filename": "docs/security/reproducibility_contract.json",

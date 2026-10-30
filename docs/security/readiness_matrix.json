@@ -143,7 +143,7 @@
   {
    "id": "CI-4",
    "capability": "every workflow on this branch holds no more than its stated authority; the agent's and the CI signer's identities cannot sign a release",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_ci_authority.py"
    ],
@@ -151,7 +151,7 @@
     "tools/mutations/ci_authority.json"
    ],
    "ledger": "D-2026-146",
-   "note": "hosted evidence at 40440ce predates this implementation: the agent-substrate workflow gained the deployment-evidence step (D-2026-155); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "note": "hosted evidence at 40440ce predates this implementation: the agent-substrate workflow gained the deployment-evidence step (D-2026-155); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them. Returned to IMPLEMENTED by the PR #17 audit's fifth cluster (AUD-014, AUD-015): six new mutations moved specs between CI shards and the shard matrix in .github/workflows/agent-substrate.yml was regenerated, so the hosted runs at 927b69c no longer describe it. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed it.",
    "implementation": [
     "tools/workflow_contract.py",
     ".github/workflows/agent-substrate.yml",
@@ -170,7 +170,7 @@
     "implementation_sha256": "663ec20b5e210f373844b3c3711fbf845a609dc562f148de9b88f433e815759e",
     "what": "agent-substrate: the workflow contract, with its authority rules and exit-capture rule, and tests/test_ci_authority.py in the full suite"
    },
-   "hosted_before": {
+   "hosted_earlier": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -179,7 +179,7 @@
     "implementation_sha256": "657ba6f44e535cf4ca3911ed810956f2b8c61db08ab122df9f2279586e813913",
     "what": "agent-substrate: the workflow contract, with its authority rules and exit-capture rule, and tests/test_ci_authority.py in the full suite"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
     "runs": [
      "40008852181",
