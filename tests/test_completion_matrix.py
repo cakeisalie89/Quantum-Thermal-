@@ -953,7 +953,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: reader refuses a dependency record that names no dependency, so R38, R42
 #: and R53, which cite agent_substrate/reconstruct.py, predate it until the
 #: evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 20
+#: 20 -> 19 in the audit's fifth cluster (AUD-014, AUD-015): six new
+#: mutations moved specs between CI shards, and the shard matrix in
+#: .github/workflows/agent-substrate.yml was regenerated with
+#: tools/mutation_shards.py --emit, so R58, which cites that workflow,
+#: predates it until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 19
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

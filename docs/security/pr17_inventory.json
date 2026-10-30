@@ -78,6 +78,7 @@
     ],
     "mutation_specs": [],
     "tests": [
+     "tests/test_completion_matrix.py",
      "tests/test_repo_inventory.py"
     ]
    }
@@ -8903,6 +8904,7 @@
      "tools/mutations/mutation_shards.json"
     ],
     "tests": [
+     "tests/test_completion_matrix.py",
      "tests/test_mutation_shards.py"
     ]
    }

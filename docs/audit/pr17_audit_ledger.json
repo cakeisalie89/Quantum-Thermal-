@@ -10551,13 +10551,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "3f16faf48ea57b1476b72f479aa0948dbe6da572",
+   "new_blob": "7383cfc2bb9baf6981953778d15a55292cb3f0bd",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_completion_matrix.py",
    "reviewed_blob": null,
-   "sha256": "e5e66dc466eccd6e76687f406c1953314022131a084fa2384a4726f260d65877",
-   "size": 51317,
+   "sha256": "ed6ef67be949db0384326952fd7f60deea899b6db0b065825e7e72ec73c7649a",
+   "size": 51645,
    "status": "NOT_REVIEWED"
   },
   {

@@ -479,8 +479,8 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 27879,
-      "sha256": "6a6a35a81c547d1a44f5d57904ca7cf0f3a451219fb35ca08e85087ebe3984f7"
+      "size_bytes": 28069,
+      "sha256": "5d6fda820dbbb4a501edd645444033f228a9d013c12d7e6c73bc4556315b88c4"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
@@ -500,7 +500,7 @@
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
       "size_bytes": 463282,
-      "sha256": "4ebb81ff6c8648a04ddec7c39341bab4e757d8a7e5027c9af7c2bf1d1be4d705"
+      "sha256": "74cc5ee586fb990667b1f7438a1bd2467dbd8568c166649a0c6872610d70950d"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -520,7 +520,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5501,
-      "sha256": "3ee4e82ac71d9efc994f9b8071d3310611b5da2a7914a0cd5911696a2ea935bd"
+      "sha256": "c80aca38f77ec99cd7b172b4b2d882951db3c47a0d50de8443fcd1d237a25b72"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -774,8 +774,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 270594,
-      "sha256": "5be6ce76630d31851e15d304988394f75b00f2868682335b6cc09661dfae34b9"
+      "size_bytes": 270674,
+      "sha256": "12243d25f560528dd5b7d9db5587576753ca0fe6464c12ad657e9329d165e825"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -1614,8 +1614,8 @@
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 51317,
-      "sha256": "e5e66dc466eccd6e76687f406c1953314022131a084fa2384a4726f260d65877"
+      "size_bytes": 51645,
+      "sha256": "ed6ef67be949db0384326952fd7f60deea899b6db0b065825e7e72ec73c7649a"
     },
     {
       "filename": "tests/test_composed_campaigns.py",

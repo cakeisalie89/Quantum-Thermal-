@@ -566,8 +566,12 @@ leaves the log unchanged, does not exist yet.
 - **The shard matrix.** The six new mutations moved specs between
   shards, so the workflow's shard matrix was regenerated with
   `tools/mutation_shards.py --emit`. `--check` holds.
-- **The harness status.** It is INCOMPLETE with 35 unsatisfied: row R58's
-  hosted evidence now predates the code cluster 5 changed.
+- **The harness status.** It is INCOMPLETE with 35 unsatisfied. Row R58
+  cites that workflow, so its hosted evidence now predates it. The
+  evidence-coverage pin moves 20 -> 19
+  (`tests/test_completion_matrix.py`).
+- **Found late.** The pin was found by the contract tests at ebd14a0,
+  and fixed in the commit after it.
 
 
 ### Next actions
