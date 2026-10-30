@@ -542,11 +542,11 @@
    "files": [
     {
      "path": "tools/isolation_contract.py",
-     "lines": "_TREE and probe_process_tree(): the grandchild loops forever and nothing stops it"
+     "lines": "_TREE, ESCAPEE_SECONDS and probe_process_tree(): the grandchild looped forever and nothing stopped it"
     },
     {
      "path": "tests/test_isolation_contract.py",
-     "lines": "test_each_probe_sees_the_boundary_gone[process_tree]"
+     "lines": "test_each_probe_sees_the_boundary_gone[process_tree]; test_the_grandchild_the_control_lets_escape_is_stopped_once_read; test_a_grandchild_nothing_tells_to_stop_ends_on_its_own"
     }
    ],
    "behavior": "With isolation switched off on purpose, the probe's grandchild -- in a session of its own -- outlives the tool killed on timeout, which is what the negative control asserts. Nothing then stops it: it is reparented to the host's init and writes out/beat every 100 ms until its directory is deleted (pytest prunes a run's temporary directory after three newer runs; a CI runner is discarded).",
@@ -555,11 +555,15 @@
    "reproduction": "During the full suite at d3cddc3: a python process running the _TREE loop, parent PID 1, cwd /tmp/pytest-of-root/pytest-179/test_each_probe_sees_the_bound3, still writing after the test had passed.",
    "observed": "One orphan per run of the suite, alive until its temporary directory is pruned.",
    "expected": "The grandchild stops once the probe has measured it.",
-   "correction": "Proposed, not made: the grandchild loops while out/stop does not exist, and the probe writes out/stop after its second reading. A PID-based kill is not safe here: under a PID namespace the recorded PID is the namespace's and names an unrelated process on the host.",
-   "regression_tests": [],
-   "residual_risk": "None for any contract result: the verdict is unaffected, and the boundary the probe measures with isolation on held on this host and on the hosted runner.",
+   "correction": "The grandchild beats while out/stop does not exist and until its own bound (ESCAPEE_SECONDS, 30 s) passes. The probe takes both readings, then writes out/stop in a finally, so a probe that raises still writes it. The bound ends the grandchild of a probe stopped before the finally runs, such as by a kill or a test timeout. Neither runs before the reading, and the verdict is unchanged. No PID is used: under a PID namespace the recorded PID is the namespace's and names an unrelated process on the host.",
+   "regression_tests": [
+    "tests/test_isolation_contract.py::test_the_grandchild_the_control_lets_escape_is_stopped_once_read",
+    "tests/test_isolation_contract.py::test_a_grandchild_nothing_tells_to_stop_ends_on_its_own",
+    "tests/test_isolation_contract.py::test_each_probe_sees_the_boundary_gone[process_tree]"
+   ],
+   "residual_risk": "A probe killed before its finally leaves the grandchild running for at most ESCAPEE_SECONDS. The tests find a leftover by its working directory, through /proc. That needs Linux and permission to read another process's cwd. Each test also kills what it finds, so a mutant that leaves the grandchild running does not outlive its test. Both tests failed before the fix, each leaving one process, which the test killed. Mutations IS11 (no stop file), IS12 (no bound) and IS13 (a bound shorter than the reading) are each killed, and IS7 still is.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED"
   },
   {
    "id": "AUD-017",

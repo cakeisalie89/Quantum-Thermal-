@@ -1,6 +1,6 @@
 {
  "title": "The isolation contract: each dimension holds as stated, and each probe can see it fail",
- "note": "Assurance I (D-2026-176). Four mutations remove a mechanism the executor relies on (namespaces, a clean environment, the CPU and address-space rlimits); five make a probe pass what it did not observe; one makes the contract claim a syscall filter. tests/test_isolation_contract.py holds each, on a host with unprivileged namespaces.",
+ "note": "Assurance I (D-2026-176). Four mutations remove a mechanism the executor relies on (namespaces, a clean environment, the CPU and address-space rlimits); five make a probe pass what it did not observe; one makes the contract claim a syscall filter; three undo the tree probe's cleanup of the grandchild it lets escape in the control (AUD-016): no stop file, no bound of its own, and a bound shorter than the reading, which would let a broken boundary look whole. tests/test_isolation_contract.py holds each, on a host with unprivileged namespaces.",
  "suites": [
   "tests/test_isolation_contract.py"
  ],
@@ -74,6 +74,27 @@
    "find": "\"id\": \"syscalls\",\n   \"enforcement\": \"NOT_PROVIDED\"",
    "replace": "\"id\": \"syscalls\",\n   \"enforcement\": \"KERNEL\"",
    "rationale": "I: the contract says the kernel filters system calls; nothing does"
+  },
+  {
+   "name": "IS11_the_probe_never_stops_the_grandchild",
+   "path": "tools/isolation_contract.py",
+   "find": "        (work / \"out\" / \"stop\").write_text(\"\")",
+   "replace": "        pass",
+   "rationale": "AUD-016: the grandchild the control lets escape beats on after the probe"
+  },
+  {
+   "name": "IS12_the_escaped_grandchild_has_no_bound",
+   "path": "tools/isolation_contract.py",
+   "find": "\"while not stop.exists() and time.monotonic() < end:\\\\n\"",
+   "replace": "\"while not stop.exists():\\\\n\"",
+   "rationale": "AUD-016: a probe stopped before writing out/stop leaves the grandchild running for good"
+  },
+  {
+   "name": "IS13_the_grandchild_bound_ends_before_the_reading",
+   "path": "tools/isolation_contract.py",
+   "find": "ESCAPEE_SECONDS = 30.0",
+   "replace": "ESCAPEE_SECONDS = 0.2",
+   "rationale": "AUD-016: the grandchild ends on its own before the probe reads, and a tree the boundary failed to take down is reported as holding"
   }
  ]
 }

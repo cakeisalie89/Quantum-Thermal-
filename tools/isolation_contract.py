@@ -148,26 +148,48 @@ def probe_syscalls(work: Path) -> dict:
     return {"observed": {"seccomp_mode": mode}, "holds": mode == "0"}
 
 
+# The grandchild beats until ``out/stop`` appears or its own bound (argv[1]
+# seconds) passes, whichever is first. Where the boundary holds, neither is
+# reached: the namespace takes it down with the tool.
 _TREE = """\
 import subprocess, sys, time
 subprocess.Popen([sys.executable, "-c",
-                  "import time, pathlib\\n"
+                  "import sys, time, pathlib\\n"
                   "p = pathlib.Path('out/beat')\\n"
-                  "while True:\\n"
-                  "    p.write_text(str(time.time())); time.sleep(0.1)"],
+                  "stop = pathlib.Path('out/stop')\\n"
+                  "end = time.monotonic() + float(sys.argv[1])\\n"
+                  "while not stop.exists() and time.monotonic() < end:\\n"
+                  "    p.write_text(str(time.time())); time.sleep(0.1)",
+                  sys.argv[1]],
                  start_new_session=True)
 time.sleep(60)
 """
 
+#: How long an escaped grandchild beats if nothing tells it to stop. Well
+#: past the probe's reading (about three seconds), so the verdict does not
+#: move; it ends the grandchild of a probe stopped before writing
+#: ``out/stop`` (AUD-016).
+ESCAPEE_SECONDS = 30.0
+
 
 def probe_process_tree(work: Path) -> dict:
     """A grandchild in a session of its own, outliving a tool that times
-    out, must die with it."""
-    r = _run(work, _TREE, limits=_limits(wall_seconds=2.0))
-    beat = work / "out" / "beat"
-    first = beat.stat().st_mtime if beat.exists() else None
-    time.sleep(1.0)
-    after = beat.stat().st_mtime if beat.exists() else None
+    out, must die with it.
+
+    Where it does not (the control, or a host where the boundary is gone),
+    the reading is taken first and the grandchild is then told to stop:
+    before AUD-016 it beat on after the probe, until its directory was
+    deleted."""
+    try:
+        r = _run(work, _TREE, str(ESCAPEE_SECONDS),
+                 limits=_limits(wall_seconds=2.0))
+        beat = work / "out" / "beat"
+        first = beat.stat().st_mtime if beat.exists() else None
+        time.sleep(1.0)
+        after = beat.stat().st_mtime if beat.exists() else None
+    finally:
+        (work / "out").mkdir(parents=True, exist_ok=True)
+        (work / "out" / "stop").write_text("")
     return {"observed": {"outcome": r.outcome.value,
                          "grandchild_started": first is not None,
                          "grandchild_alive_after": after != first},

@@ -599,7 +599,45 @@ leaves the log unchanged, does not exist yet.
    with the ledger and the register.
 3. Look for AUD-014's class in every DecidedWriter: a property that a
    refused write leaves the log unchanged.
-4. Phase 9: a resumable campaign (AUD-013), and the stop file (AUD-016).
+4. Phase 9: a resumable campaign (AUD-013). The stop file (AUD-016) was
+   made in session 4.
 5. The ledger: most changed files are still NOT_REVIEWED. Continue with
    the trust surface: `governed_tasks.py`, `governed_model.py`,
    `netauth.py`, the executor and `secrets.py`'s resolve path.
+
+
+## Session 4 (2026-10-30): the frontier directive
+
+The baseline at the start of the session: HEAD and origin were both
+29aedfb39a8b. The merge base with origin/main was 096fb90fff08, which is
+origin/main itself. The worktree was clean, with 1001 changed files.
+
+### AUD-016, fixed
+
+Two tests were written first, and each failed on 29aedfb.
+
+- `test_the_grandchild_the_control_lets_escape_is_stopped_once_read`
+  runs the probe with isolation off. Three seconds after the probe
+  returned, the grandchild was still running.
+- `test_a_grandchild_nothing_tells_to_stop_ends_on_its_own` runs the
+  tool as the probe does, but never writes the stop file. The
+  grandchild was still running after ten seconds.
+
+Each test finds a leftover through `/proc`, by its working directory. It
+kills what it finds, so the failing runs left no process behind.
+
+The fix has three parts:
+
+- The grandchild beats while `out/stop` is absent, and stops at its own
+  bound, `ESCAPEE_SECONDS` (30 s), whichever comes first.
+- The probe takes both readings first. Then it writes the stop file, in a
+  `finally`.
+- No PID is used anywhere.
+
+The verdict is unchanged: the control `[process_tree]` still sees the
+grandchild escape.
+
+Mutations were run on this host: IS11 (no stop file), IS12 (no bound) and
+IS13 (a bound shorter than the reading). Each was killed, and IS7 is still
+killed.
+

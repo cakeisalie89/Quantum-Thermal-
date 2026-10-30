@@ -11395,18 +11395,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-016"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "every line read; the AUD-016 tests and their cleanup helpers written by the audit, each shown failing before the fix with the leftover process killed by the test itself",
    "mode": "100644",
-   "new_blob": "66670971737248df4eeb1bead9c4d1490c19bfdb",
-   "note": "not yet examined",
+   "new_blob": "e9bd42fa1fd5cceeaaf07980e230525a375e0a10",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_isolation_contract.py",
-   "reviewed_blob": null,
-   "sha256": "8faa9d70cb8d67b1200bd020558b914252422ce22e4658f5dc22a58d1ce16567",
-   "size": 6671,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "e9bd42fa1fd5cceeaaf07980e230525a375e0a10",
+   "sha256": "8da77c0470bb7a52fbfa130a1474b5cd83b79a6f7c825b9f7468385ce6965e69",
+   "size": 9884,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -13591,18 +13593,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-016"
+   ],
    "kind": "tool",
-   "method": "",
+   "method": "read: MODE, _limits, _spec, _run, _json, probe_syscalls, _TREE, probe_process_tree and the head of probe_quotas; the audit's AUD-016 change written and reviewed as a diff, with mutations IS11-IS13 killed and IS7 still killed; not read: the filesystem, network, namespace, credential, audit and quota probe bodies, host() and main()",
    "mode": "100644",
-   "new_blob": "a6538566f27734202c198811ba8a81b8762e037b",
-   "note": "not yet examined",
+   "new_blob": "ac143796602c130741008e29a8092f3e60641694",
+   "note": "",
    "old_blob": null,
    "path": "tools/isolation_contract.py",
-   "reviewed_blob": null,
-   "sha256": "948cdd657a4796d0d8f6362a68c667d8e350e64443c9d5fd88482e8ee5607199",
-   "size": 11027,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "ac143796602c130741008e29a8092f3e60641694",
+   "sha256": "80f075e4548eca18e64de20c49bd2ff5fafd2399d56db20ed090ca7e830043cb",
+   "size": 12115,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -14875,18 +14879,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-016"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "every mutation read: name, anchor, replacement and rationale; IS11-IS13 added by the audit and killed, with IS7",
    "mode": "100644",
-   "new_blob": "487c171e8c75318fea2dfc2d4c9431d8fd3f3976",
-   "note": "not yet examined",
+   "new_blob": "c24bc4446a6c0112c14328010f6886ba0cf0085b",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/isolation_contract.json",
-   "reviewed_blob": null,
-   "sha256": "e7469985c34406a4b8091af10054d17e5d83c3470091f7a33b43ffd291379384",
-   "size": 3903,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "c24bc4446a6c0112c14328010f6886ba0cf0085b",
+   "sha256": "cf226838d178b65fa3d21b8adccd0bcca0ecb030b3f970b6ae7ae4eef52f2afe",
+   "size": 5090,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,

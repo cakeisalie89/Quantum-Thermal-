@@ -479,18 +479,18 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 29023,
-      "sha256": "e515328298e1bb8122c620b35ff00238161925410f6d3faeddabbd56fb83886d"
+      "size_bytes": 30409,
+      "sha256": "8db46553f2deaf0a3302e0680d3eb0f44336f2f59abef25e5bf0c6d843284486"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
-      "size_bytes": 23533,
-      "sha256": "ff9c8db950dcd3c4769c16891ce7c4fb23ee93e2bb2f9010457e060f6bb7048a"
+      "size_bytes": 23728,
+      "sha256": "23d777ed9830238614b79c50f034c57fa7b6cdad4c0ad3b74f2e89e81cfb4c9a"
     },
     {
       "filename": "docs/audit/findings.json",
-      "size_bytes": 55918,
-      "sha256": "2c6b86a81132081face6210db2a9bf711076af41f5ddabe42e12b1395d5bbd75"
+      "size_bytes": 56989,
+      "sha256": "ef0d00c0afcaed3a1da388192f94cf3ea432fbaf071ca2f47546a8f903d054f6"
     },
     {
       "filename": "docs/audit/op_costs.json",
@@ -499,8 +499,8 @@
     },
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
-      "size_bytes": 463374,
-      "sha256": "9fd597db60d304aca70a7a6e3cc1c47d70a89165ee7cb3a039331fa2145370f0"
+      "size_bytes": 464116,
+      "sha256": "6aebee591d5b2a61346da4927a35261ed8af13645bcfe70dc1aecd3dcfa5a41f"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -520,7 +520,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5501,
-      "sha256": "178fe026bf8b5f9131fe734c9ba424eff50412e0210faba62a40b2252f7179b3"
+      "sha256": "5888a38538924fce3c8784504aa91006e05cefee3dbedd61ab22eeb3fce6518f"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -1794,8 +1794,8 @@
     },
     {
       "filename": "tests/test_isolation_contract.py",
-      "size_bytes": 6671,
-      "sha256": "8faa9d70cb8d67b1200bd020558b914252422ce22e4658f5dc22a58d1ce16567"
+      "size_bytes": 9884,
+      "sha256": "8da77c0470bb7a52fbfa130a1474b5cd83b79a6f7c825b9f7468385ce6965e69"
     },
     {
       "filename": "tests/test_manifest_completeness.py",
@@ -2329,8 +2329,8 @@
     },
     {
       "filename": "tools/isolation_contract.py",
-      "size_bytes": 11027,
-      "sha256": "948cdd657a4796d0d8f6362a68c667d8e350e64443c9d5fd88482e8ee5607199"
+      "size_bytes": 12115,
+      "sha256": "80f075e4548eca18e64de20c49bd2ff5fafd2399d56db20ed090ca7e830043cb"
     },
     {
       "filename": "tools/model_check.py",
@@ -2729,8 +2729,8 @@
     },
     {
       "filename": "tools/mutations/isolation_contract.json",
-      "size_bytes": 3903,
-      "sha256": "e7469985c34406a4b8091af10054d17e5d83c3470091f7a33b43ffd291379384"
+      "size_bytes": 5090,
+      "sha256": "cf226838d178b65fa3d21b8adccd0bcca0ecb030b3f970b6ae7ae4eef52f2afe"
     },
     {
       "filename": "tools/mutations/manifest.json",

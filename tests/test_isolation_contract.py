@@ -15,9 +15,12 @@ Three things are checked:
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -115,6 +118,83 @@ def test_each_probe_sees_the_boundary_gone(dimension, tmp_path, monkeypatch):
     if dimension == "credentials":
         assert got["observed"]["credential_file"] == "OPENED"
         assert "QT_ISOLATION_PROBE_TOKEN" not in got["observed"]["environment"]
+
+
+def _running_in(work: Path) -> list[int]:
+    """Live processes whose working directory is ``work``: the escaped
+    grandchild of a tree probe run there, and nothing else this module
+    starts. A zombie has no working directory, so an ended one is not
+    counted whoever reaps it."""
+    pids = []
+    for d in Path("/proc").iterdir():
+        if d.name.isdigit():
+            try:
+                if Path(os.readlink(d / "cwd")) == work:
+                    pids.append(int(d.name))
+            except OSError:
+                continue
+    return pids
+
+
+def _gone_within(work: Path, seconds: float) -> list[int]:
+    end = time.monotonic() + seconds
+    while (pids := _running_in(work)) and time.monotonic() < end:
+        time.sleep(0.1)
+    return pids
+
+
+def _kill_all_in(work: Path) -> None:
+    """The test's own cleanup, whatever the code under test does: a
+    mutant that leaves the grandchild running must not leave it running
+    after its test (AUD-016)."""
+    for pid in _running_in(work):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+@pytest.mark.skipif(not NAMESPACED, reason="the grandchild escapes only "
+                    "in the control, which needs this host's namespaces")
+def test_the_grandchild_the_control_lets_escape_is_stopped_once_read(
+        tmp_path, monkeypatch):
+    """AUD-016. With the boundary gone the grandchild escapes -- the control
+    above depends on it -- and it then ran on after the test, writing into
+    a retained tmp_path until something deleted the directory. The probe
+    reads the beat first and then tells the grandchild to stop."""
+    monkeypatch.setattr(IC, "MODE", {"confine": "research", "isolate": False})
+    work = tmp_path.resolve()
+    try:
+        got = IC.probe_process_tree(work)
+        assert got["observed"]["grandchild_alive_after"], got
+        assert not got["holds"], got
+        assert _gone_within(work, 3.0) == []
+        beat = work / "out" / "beat"
+        still = beat.stat().st_mtime
+        time.sleep(0.5)
+        assert beat.stat().st_mtime == still
+    finally:
+        _kill_all_in(work)
+
+
+@pytest.mark.skipif(not NAMESPACED, reason="the grandchild escapes only "
+                    "in the control, which needs this host's namespaces")
+def test_a_grandchild_nothing_tells_to_stop_ends_on_its_own(tmp_path,
+                                                            monkeypatch):
+    """A probe stopped between starting the tool and writing ``out/stop``
+    (a test timeout, an interrupt) never tells the grandchild. It ends at
+    its own bound: the tool here is run as the probe runs it, with a
+    bound of four seconds, and no stop file is ever written."""
+    monkeypatch.setattr(IC, "MODE", {"confine": "research", "isolate": False})
+    work = tmp_path.resolve()
+    try:
+        r = IC._run(work, IC._TREE, "4", limits=IC._limits(wall_seconds=2.0))
+        assert r.outcome.value == "TIMED_OUT", r.reason
+        assert _running_in(work), "the grandchild did not escape"
+        assert _gone_within(work, 10.0) == []
+        assert not (work / "out" / "stop").exists()
+    finally:
+        _kill_all_in(work)
 
 
 @pytest.mark.skipif(not NAMESPACED, reason="the probe runs under "

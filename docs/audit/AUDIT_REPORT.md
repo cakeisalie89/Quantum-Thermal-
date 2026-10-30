@@ -37,11 +37,11 @@ diff). Each has one entry.
 
 | Disposition | Files | Meaning |
 |---|---|---|
-| REVIEWED_IN_FULL | 8 | every line read, bound to the blob read |
-| REVIEWED_IN_PART | 20 | the parts named in the entry read, bound to the blob |
+| REVIEWED_IN_FULL | 10 | every line read, bound to the blob read |
+| REVIEWED_IN_PART | 21 | the parts named in the entry read, bound to the blob |
 | INSPECTED_BINARY | 20 | a binary, identified and inspected |
 | AUDIT_ARTIFACT | 12 | written by this audit, not independently reviewed |
-| NOT_REVIEWED | 941 | not examined, with the reason |
+| NOT_REVIEWED | 938 | not examined, with the reason |
 
 Of the 53 changed `agent_substrate` modules, 18 have been read:
 
@@ -74,7 +74,7 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-013 | P2 | CONFIRMED | DOCUMENTED | the long-horizon campaign cannot resume after its process dies |
 | AUD-014 | P1 | REPRODUCED | FIXED | a refused capability mint was written first, and every later load refused the log |
 | AUD-015 | P1 | REPRODUCED | FIXED | anyone could publish an owner's next policy version, and bound promotions stood on it |
-| AUD-016 | P3 | REPRODUCED | OPEN | the process-tree negative control leaves its escaped grandchild running |
+| AUD-016 | P3 | REPRODUCED | FIXED | the process-tree negative control left its escaped grandchild running |
 | AUD-017 | P3 | CONFIRMED | OWNER | nothing says who may issue a secret or an egress grant |
 
 **How far each is established.** REPRODUCED means shown failing by a
@@ -354,17 +354,17 @@ The audit restored none of it.
 | AUD-004 | A verification is a report the transition brought, not one the record already carried | `authority.check` (I3); `reconstruct` |
 | AUD-014 | A refused write leaves the log as it was: a capability mint is authorized before its record exists | `CapabilityLedger.issue` |
 | AUD-015 | A policy's later versions are its owner's, and a binding judges the publisher of the version in force | `PolicyStore`; `AuthorityStore`; `reconstruct` |
+| AUD-016 | A test leaves no process behind: the grandchild the control lets escape is stopped after the reading, and ends at its own bound if the probe is stopped first | `isolation_contract.probe_process_tree`; `tests/test_isolation_contract.py` |
 
 ## 7. Owner decisions
 
-**Fixable here, and fixed.** AUD-002 to AUD-009, AUD-012, AUD-014 and
-AUD-015.
+**Fixable here, and fixed.** AUD-002 to AUD-009, AUD-012, AUD-014,
+AUD-015 and AUD-016.
 
 **Fixable here, not yet done.**
 
 - AUD-013: a resumable campaign that persists its counters beside the
   world.
-- AUD-016: a stop file for the process-tree probe's grandchild.
 
 **Owner decisions the audit found:**
 
@@ -431,11 +431,11 @@ Each line names its weakest point. No aggregate is given.
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
 | Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; AUD-011 open |
 | Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
-| Merge readiness | not assessed as ready | 941 of 1001 files not reviewed; hosted runs of the audit's head not complete |
+| Merge readiness | not assessed as ready | 938 of 1001 files not reviewed; hosted runs of the audit's head not complete |
 
 ## 9. What remains unknown
 
-- **The files not reviewed.** Everything in the 941 NOT_REVIEWED files.
+- **The files not reviewed.** Everything in the 938 NOT_REVIEWED files.
 - **Unmeasured costs.** Resident memory per operation, a governed task
   transition on its own, and what the campaign's reads are (section 4).
 - **Long horizons.** Whether the campaign holds past 1,000 decisions.
