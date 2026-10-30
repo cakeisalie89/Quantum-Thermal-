@@ -71,6 +71,12 @@ ALLOWED_IMPORTERS = {
     # computes no scientific result.
     "tools/work_counts.py",
     "tests/test_work_counts.py",
+    # The audit's per-operation cost instrument: it builds histories with
+    # the package's own writers, in child processes, to MEASURE one
+    # operation at a time; it changes nothing in the package and computes
+    # no scientific result.
+    "tools/op_costs.py",
+    "tests/test_op_costs.py",
     "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",

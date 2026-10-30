@@ -461,6 +461,132 @@
    "residual_risk": "Long-horizon reliability beyond 1,000 decisions is unmeasured. The governed loop's per-step crash recovery is measured (14 restarts by the 1,000 stage, no recovery failure), and recovery of the whole process is not.",
    "verification": "CONFIRMED",
    "resolution": "DOCUMENTED"
+  },
+  {
+   "id": "AUD-014",
+   "title": "A refused mint is written before it is refused: one call leaves a capability log that no reader will load again",
+   "severity": "P1",
+   "subsystem": "capability ledger",
+   "files": [
+    {
+     "path": "agent_substrate/capability.py",
+     "lines": "CapabilityLedger.issue(): decide() appended the grant without asking who may mint; _authorize_mint() ran only in apply()"
+    },
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "DecidedWriter._append_decided(): the record is written, then folded"
+    }
+   ],
+   "behavior": "issue() decided the record under the writer lock and checked its id, its start and its terms, but not who may mint it. The rule -- the root mints, a holder delegates an attenuation -- lived in _authorize_mint(), which apply() runs on the record after DecidedWriter._append_decided() has written it. So a mint by any actor other than the root was durable before it was refused: the caller got NotTheIssuer, the log kept the record, and every later CapabilityLedger.load() of that log refused the whole history at its seq. The same for a delegation by an actor that does not hold the parent, written through issue() rather than delegate().",
+   "invariant": "events.py, DecidedWriter: a decision is taken under the writer lock so that a refused write is 'refused before anything is written instead of leaving a history every later load refuses'; capability.py, issue(), of its other checks: 'Refused here, under the lock, nothing is written.' The live path and every replay apply one rule to one record.",
+   "mechanism": "The live path and the fold asked different questions, and the fold's answer arrived after the append.",
+   "reproduction": "scratchpad repro/unauthorized_mint.py",
+   "observed": "A ledger whose root is 'scheduler' with one grant: issue(..., actor='mallory') raised NotTheIssuer, the log went from 2 records to 3 (the last by mallory), and a fresh load raised NotTheIssuer at seq 2 -- while the live ledger kept answering as if nothing had happened. The same at the baseline b0058f6.",
+   "expected": "The mint refused before anything is written: the log unchanged, and a fresh load as before.",
+   "correction": "issue()'s decide() runs _authorize_mint() on the record it is about to write (its seq and actor), under the writer lock and after the fold of what other writers appended, so the live path and replay apply one rule and a refusal writes nothing. delegate() and revoke() already decided their rules before writing.",
+   "regression_tests": [
+    "tests/test_agent_delegation.py::test_a_refused_mint_never_reaches_the_log (with the root's mint and a holder's delegation as the control)"
+   ],
+   "mutations": [
+    "tools/mutations/agent_delegation.json: G28"
+   ],
+   "residual_risk": "The same shape -- a fold that refuses a record its own writer wrote -- was looked for here, in the capability ledger. It was not looked for systematically in every DecidedWriter; a property that every refused write leaves the log unchanged, across writers, does not exist yet. Under AUTHENTICATED_REQUIRED an unsigned write is refused before it is written, so the exposure is to legacy histories, which is every history in this repository.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-015",
+   "title": "Anyone may publish the next version of an owner's policy, and a policy-bound promotion then stands on it",
+   "severity": "P1",
+   "subsystem": "policy store / promotion policy binding (D-2026-148)",
+   "files": [
+    {
+     "path": "agent_substrate/policy.py",
+     "lines": "PolicyStore.publish() and apply(): a later version was checked for order and withdrawal, not for who published it"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "_fold_policy_record(): the binding's view kept the first version's publisher, and took expiry from the latest version"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "the binding fold (entry['by']) and _sub_policy_publish()"
+    }
+   ],
+   "behavior": "A policy's owner is whoever published version 1, and only the owner may withdraw it. Publishing the next version was anyone's: publish() and its replay checked that the version followed the last and that the policy was not withdrawn. The new version then governed every PolicyStore decision after it. Where a history binds its promotions to named policy authorities, the store and the second reader both judged a promotion by the publisher of the policy's FIRST version, while its expiry came from the latest. So an outsider's version 2 replaced the owner's rules and lifted the owner's expiry, and promotions under the policy were admitted on it.",
+   "invariant": "tests/test_policy_binding.py (D-2026-148): 'a policy's owner (whoever published version 1) may WITHDRAW it'; 'a promotion's policy must be published on that history by one of them [the named principals], not withdrawn, and not expired at the promotion'.",
+   "mechanism": "Ownership governed withdrawal only, and the binding asked who published the policy's first version rather than the version in force.",
+   "reproduction": "scratchpad repro/policy_version_hijack.py",
+   "observed": "On a history bound to 'policy-authority': 'mallory' published version 2 of the authority's policy p1 without its expiry, and it was accepted live and on replay. After version 1 expired, a promotion under p1 was PROMOTED, standing on mallory's version. The same at the baseline b0058f6.",
+   "expected": "A later version by anyone but the owner refused, live before it is written and on replay. A binding judges the publisher of the version in force, so a promotion standing on an outsider's version is refused by both readers.",
+   "correction": "PolicyStore.publish() refuses a later version by anyone but the owner, under the writer lock after the version checks, so nothing is written; apply() refuses the same record on replay. The store's binding view and the second reader's take the publisher of the latest version, so a promotion under a policy whose version in force an outsider wrote is refused, live and on replay. The second reader's subsystem replay notes the version and does not fold it.",
+   "regression_tests": [
+    "tests/test_policy_binding.py::test_only_the_owner_publishes_a_later_version (with the owner's version 2 as the control)",
+    "tests/test_policy_binding.py::test_a_forged_later_version_does_not_load",
+    "tests/test_policy_binding.py::test_a_promotion_under_a_version_an_outsider_published_is_refused",
+    "tests/test_policy_binding.py::test_control_a_promotion_under_the_owners_later_version (control)",
+    "tests/test_policy_binding.py::test_the_subsystem_reader_flags_an_outsiders_later_version"
+   ],
+   "mutations": [
+    "tools/mutations/policy_binding.json: PB25-PB29"
+   ],
+   "residual_risk": "Ownership is still first-come: whoever publishes version 1 of an id owns it, and nothing names who may create a policy. That is the open publishing the binding was built around. Owners and policy authorities are names: authenticated under AUTHENTICATED_REQUIRED, self-asserted otherwise (AUD-011).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-016",
+   "title": "The process-tree negative control leaves the grandchild it shows escaping running after the test",
+   "severity": "P3",
+   "subsystem": "isolation contract probes / test hygiene",
+   "files": [
+    {
+     "path": "tools/isolation_contract.py",
+     "lines": "_TREE and probe_process_tree(): the grandchild loops forever and nothing stops it"
+    },
+    {
+     "path": "tests/test_isolation_contract.py",
+     "lines": "test_each_probe_sees_the_boundary_gone[process_tree]"
+    }
+   ],
+   "behavior": "With isolation switched off on purpose, the probe's grandchild -- in a session of its own -- outlives the tool killed on timeout, which is what the negative control asserts. Nothing then stops it: it is reparented to the host's init and writes out/beat every 100 ms until its directory is deleted (pytest prunes a run's temporary directory after three newer runs; a CI runner is discarded).",
+   "invariant": "A test leaves no process behind it.",
+   "mechanism": "The probe measures the escape and returns; the escaped process has no stop condition.",
+   "reproduction": "During the full suite at d3cddc3: a python process running the _TREE loop, parent PID 1, cwd /tmp/pytest-of-root/pytest-179/test_each_probe_sees_the_bound3, still writing after the test had passed.",
+   "observed": "One orphan per run of the suite, alive until its temporary directory is pruned.",
+   "expected": "The grandchild stops once the probe has measured it.",
+   "correction": "Proposed, not made: the grandchild loops while out/stop does not exist, and the probe writes out/stop after its second reading. A PID-based kill is not safe here: under a PID namespace the recorded PID is the namespace's and names an unrelated process on the host.",
+   "regression_tests": [],
+   "residual_risk": "None for any contract result: the verdict is unaffected, and the boundary the probe measures with isolation on held on this host and on the hosted runner.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-017",
+   "title": "Nothing says who may issue a secret grant or an egress grant",
+   "severity": "P3",
+   "subsystem": "secret store / network authority",
+   "files": [
+    {
+     "path": "agent_substrate/secrets.py",
+     "lines": "SecretStore.issue() and apply(): a grant's id, digest and stamp are checked on both paths, and its issuer on neither"
+    },
+    {
+     "path": "agent_substrate/netauth.py",
+     "lines": "NetworkAuthority.issue(): an egress grant's id and stamp are checked, and its issuer is not"
+    }
+   ],
+   "behavior": "SecretStore.issue() and its replay check that a grant's id is new, that its digest matches and that its start is the log's stamp; revocation is the granter's alone, on both paths. Who may ISSUE a grant is checked on neither, so any actor that can append may grant itself access to any registered secret. The capability ledger closed the same gap with a root issuer (tests/test_agent_delegation.py states it as found: 'no ISSUER authority: any actor that can write the log can mint a grant'); the secret store has none. NetworkAuthority.issue() is the same: an egress grant's id and stamp are checked, its issuer is not. Egress grants ARE decided on the governed path: socket_guard(self.network, actor=..., task_id=...) wraps a task's execution and verification in GovernedTasks, mediating the runner process's own sockets (a tool's child has no network either way, by its namespace).",
+   "invariant": "secrets.py: a value is 'reachable only through SecretStore.resolve, only under a grant that names the actor, task, tool and purpose' -- which binds the grant's use, not its making.",
+   "mechanism": "Issuance authority was given to capability grants and not to secret grants.",
+   "reproduction": "Read: SecretStore.issue() and apply() (agent_substrate/secrets.py); NetworkAuthority.issue() (agent_substrate/netauth.py). Reachability: no module in agent_substrate/ or tools/ calls SecretStore.resolve(); GovernedTasks calls socket_guard over the network authority at three sites.",
+   "observed": "By reading, not executed. Secret grants: no governed path resolves one in this build. Egress grants: an actor that can append can grant the runner's mediated egress for a task, which the socket guard then permits; mediation of the runner's own sockets, not of the tool's child.",
+   "expected": "An issuer authority for secret and egress grants, as the capability ledger has, held on both paths -- for egress before any deployment relies on the mediation, for secrets before a governed path first resolves one.",
+   "correction": "None in this audit: who may grant access to a credential or to the network is a deployment decision.",
+   "regression_tests": [],
+   "residual_risk": "Egress mediation is an application control over the runner's own sockets (AGENT_SUBSTRATE.md: 'mediation, not child containment -- see R21/R32/R54'); the kernel network namespace still contains a tool. Secret grants become reachable the first time a governed path resolves one.",
+   "verification": "CONFIRMED",
+   "resolution": "OWNER"
   }
  ]
 }

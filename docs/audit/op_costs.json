@@ -1,0 +1,716 @@
+{
+ "campaign_sizes": [
+  4,
+  8,
+  16
+ ],
+ "growth": [
+  {
+   "from": 250,
+   "op": "append_warm",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 0.94,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.01,
+    "peak_alloc_bytes": 1.0,
+    "read_bytes": 1.0,
+    "wall_s": 1.19
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "append_warm",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.38,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.01,
+    "peak_alloc_bytes": 1.0,
+    "read_bytes": 1.0,
+    "wall_s": 1.11
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 250,
+   "op": "append_cold",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.92,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.03,
+    "peak_alloc_bytes": 2.02,
+    "read_bytes": 2.0,
+    "wall_s": 1.79
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "append_cold",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 2.35,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.04,
+    "peak_alloc_bytes": 2.01,
+    "read_bytes": 2.0,
+    "wall_s": 2.29
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 250,
+   "op": "authority_transition",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.04,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.01,
+    "peak_alloc_bytes": 1.0,
+    "read_bytes": 1.0,
+    "wall_s": 0.9
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "authority_transition",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.02,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.01,
+    "peak_alloc_bytes": 1.0,
+    "read_bytes": 1.0,
+    "wall_s": 1.33
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 250,
+   "op": "projection_load",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.89,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.03,
+    "peak_alloc_bytes": 2.02,
+    "read_bytes": 2.0,
+    "wall_s": 1.93
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "projection_load",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.91,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.04,
+    "peak_alloc_bytes": 2.01,
+    "read_bytes": 2.0,
+    "wall_s": 1.89
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 250,
+   "op": "projection_update",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 0.89,
+    "disk_bytes": 1.96,
+    "max_rss_bytes": 1.03,
+    "peak_alloc_bytes": 1.01,
+    "read_bytes": 1.0,
+    "wall_s": 0.89
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "projection_update",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.23,
+    "disk_bytes": 1.98,
+    "max_rss_bytes": 1.06,
+    "peak_alloc_bytes": 1.0,
+    "read_bytes": 1.0,
+    "wall_s": 1.21
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 250,
+   "op": "checkpoint_create",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.24,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.01,
+    "peak_alloc_bytes": 1.0,
+    "read_bytes": 1.45,
+    "wall_s": 1.23
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "checkpoint_create",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 2.03,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.0,
+    "peak_alloc_bytes": 0.9,
+    "read_bytes": 1.62,
+    "wall_s": 2.11
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 250,
+   "op": "checkpoint_restore",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.81,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 0.98,
+    "peak_alloc_bytes": 1.05,
+    "read_bytes": 1.9,
+    "wall_s": 1.82
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "checkpoint_restore",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.48,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.01,
+    "peak_alloc_bytes": 1.15,
+    "read_bytes": 1.94,
+    "wall_s": 1.49
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 250,
+   "op": "independent_reconstruction",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 2.59,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.02,
+    "peak_alloc_bytes": 2.02,
+    "read_bytes": 2.0,
+    "wall_s": 2.36
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "independent_reconstruction",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.41,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.05,
+    "peak_alloc_bytes": 2.01,
+    "read_bytes": 2.0,
+    "wall_s": 1.72
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 250,
+   "op": "research_ledger_update",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.53,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.01,
+    "peak_alloc_bytes": 0.97,
+    "read_bytes": 1.0,
+    "wall_s": 1.32
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "research_ledger_update",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 0.66,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.03,
+    "peak_alloc_bytes": 1.0,
+    "read_bytes": 1.0,
+    "wall_s": 0.87
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 250,
+   "op": "memory_retrieval",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.81,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.01,
+    "peak_alloc_bytes": 2.08,
+    "read_bytes": 1.01,
+    "wall_s": 1.88
+   },
+   "size_ratio": 2.0,
+   "to": 500
+  },
+  {
+   "from": 500,
+   "op": "memory_retrieval",
+   "ratios": {
+    "children_cpu_s": null,
+    "cpu_s": 1.45,
+    "disk_bytes": 2.0,
+    "max_rss_bytes": 1.01,
+    "peak_alloc_bytes": 2.0,
+    "read_bytes": 1.0,
+    "wall_s": 1.47
+   },
+   "size_ratio": 2.0,
+   "to": 1000
+  },
+  {
+   "from": 4,
+   "op": "campaign",
+   "ratios": {
+    "children_cpu_s": 0.98,
+    "cpu_s": 1.08,
+    "disk_bytes": 1.0,
+    "max_rss_bytes": 0.97,
+    "peak_alloc_bytes": null,
+    "read_bytes": 1.0,
+    "wall_s": 1.01
+   },
+   "size_ratio": 2.0,
+   "to": 8
+  },
+  {
+   "from": 8,
+   "op": "campaign",
+   "ratios": {
+    "children_cpu_s": 2.1,
+    "cpu_s": 2.01,
+    "disk_bytes": 1.85,
+    "max_rss_bytes": 1.02,
+    "peak_alloc_bytes": null,
+    "read_bytes": 2.01,
+    "wall_s": 2.07
+   },
+   "size_ratio": 2.0,
+   "to": 16
+  }
+ ],
+ "host": {
+  "cpus": 4,
+  "platform": "linux",
+  "python": "3.12.3"
+ },
+ "rows": [
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.000664,
+   "disk_bytes": 118076,
+   "max_rss_bytes": 21442560,
+   "n": 250,
+   "op": "append_warm",
+   "peak_alloc_bytes": 12073,
+   "read_bytes": 681,
+   "wall_s": 0.001059
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.000627,
+   "disk_bytes": 236016,
+   "max_rss_bytes": 21733376,
+   "n": 500,
+   "op": "append_warm",
+   "peak_alloc_bytes": 12101,
+   "read_bytes": 682,
+   "wall_s": 0.001259
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.000866,
+   "disk_bytes": 471908,
+   "max_rss_bytes": 21880832,
+   "n": 1000,
+   "op": "append_warm",
+   "peak_alloc_bytes": 12102,
+   "read_bytes": 683,
+   "wall_s": 0.001399
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.006677,
+   "disk_bytes": 118073,
+   "max_rss_bytes": 21876736,
+   "n": 250,
+   "op": "append_cold",
+   "peak_alloc_bytes": 512196,
+   "read_bytes": 117810,
+   "wall_s": 0.007542
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.012802,
+   "disk_bytes": 236012,
+   "max_rss_bytes": 22581248,
+   "n": 500,
+   "op": "append_cold",
+   "peak_alloc_bytes": 1034522,
+   "read_bytes": 235750,
+   "wall_s": 0.013477
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.030144,
+   "disk_bytes": 471866,
+   "max_rss_bytes": 23556096,
+   "n": 1000,
+   "op": "append_cold",
+   "peak_alloc_bytes": 2080437,
+   "read_bytes": 471603,
+   "wall_s": 0.030903
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.000841,
+   "disk_bytes": 118253,
+   "max_rss_bytes": 21434368,
+   "n": 250,
+   "op": "authority_transition",
+   "peak_alloc_bytes": 14772,
+   "read_bytes": 1807,
+   "wall_s": 0.001584
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.000874,
+   "disk_bytes": 236201,
+   "max_rss_bytes": 21602304,
+   "n": 500,
+   "op": "authority_transition",
+   "peak_alloc_bytes": 14769,
+   "read_bytes": 1812,
+   "wall_s": 0.001422
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.00089,
+   "disk_bytes": 472027,
+   "max_rss_bytes": 21819392,
+   "n": 1000,
+   "op": "authority_transition",
+   "peak_alloc_bytes": 14828,
+   "read_bytes": 1811,
+   "wall_s": 0.001892
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.008024,
+   "disk_bytes": 117706,
+   "max_rss_bytes": 21966848,
+   "n": 250,
+   "op": "projection_load",
+   "peak_alloc_bytes": 512127,
+   "read_bytes": 117821,
+   "wall_s": 0.007951
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.01518,
+   "disk_bytes": 235618,
+   "max_rss_bytes": 22519808,
+   "n": 500,
+   "op": "projection_load",
+   "peak_alloc_bytes": 1034421,
+   "read_bytes": 235734,
+   "wall_s": 0.015328
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.028971,
+   "disk_bytes": 471487,
+   "max_rss_bytes": 23437312,
+   "n": 1000,
+   "op": "projection_load",
+   "peak_alloc_bytes": 2080383,
+   "read_bytes": 471604,
+   "wall_s": 0.028978
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.00056,
+   "disk_bytes": 122376,
+   "max_rss_bytes": 22126592,
+   "n": 250,
+   "op": "projection_update",
+   "peak_alloc_bytes": 24736,
+   "read_bytes": 5827,
+   "wall_s": 0.000518
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.000497,
+   "disk_bytes": 240293,
+   "max_rss_bytes": 22749184,
+   "n": 500,
+   "op": "projection_update",
+   "peak_alloc_bytes": 24990,
+   "read_bytes": 5827,
+   "wall_s": 0.000459
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.00061,
+   "disk_bytes": 476182,
+   "max_rss_bytes": 24219648,
+   "n": 1000,
+   "op": "projection_update",
+   "peak_alloc_bytes": 24992,
+   "read_bytes": 5841,
+   "wall_s": 0.000555
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.060121,
+   "disk_bytes": 176955,
+   "max_rss_bytes": 26738688,
+   "n": 250,
+   "op": "checkpoint_create",
+   "peak_alloc_bytes": 4613842,
+   "read_bytes": 526353,
+   "wall_s": 0.062491
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.07474,
+   "disk_bytes": 353132,
+   "max_rss_bytes": 27123712,
+   "n": 500,
+   "op": "checkpoint_create",
+   "peak_alloc_bytes": 4626120,
+   "read_bytes": 762203,
+   "wall_s": 0.076768
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.151615,
+   "disk_bytes": 705489,
+   "max_rss_bytes": 27213824,
+   "n": 1000,
+   "op": "checkpoint_create",
+   "peak_alloc_bytes": 4175763,
+   "read_bytes": 1233916,
+   "wall_s": 0.161829
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.002028,
+   "disk_bytes": 176967,
+   "max_rss_bytes": 26730496,
+   "n": 250,
+   "op": "checkpoint_restore",
+   "peak_alloc_bytes": 1110549,
+   "read_bytes": 65061,
+   "wall_s": 0.001977
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.003666,
+   "disk_bytes": 353144,
+   "max_rss_bytes": 26198016,
+   "n": 500,
+   "op": "checkpoint_restore",
+   "peak_alloc_bytes": 1168827,
+   "read_bytes": 123309,
+   "wall_s": 0.003605
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.00543,
+   "disk_bytes": 705536,
+   "max_rss_bytes": 26554368,
+   "n": 1000,
+   "op": "checkpoint_restore",
+   "peak_alloc_bytes": 1343253,
+   "read_bytes": 239818,
+   "wall_s": 0.005367
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.008557,
+   "disk_bytes": 117698,
+   "max_rss_bytes": 22851584,
+   "n": 250,
+   "op": "independent_reconstruction",
+   "peak_alloc_bytes": 548806,
+   "read_bytes": 117813,
+   "wall_s": 0.00934
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.022132,
+   "disk_bytes": 235618,
+   "max_rss_bytes": 23408640,
+   "n": 500,
+   "op": "independent_reconstruction",
+   "peak_alloc_bytes": 1111234,
+   "read_bytes": 235734,
+   "wall_s": 0.022024
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.031205,
+   "disk_bytes": 471518,
+   "max_rss_bytes": 24604672,
+   "n": 1000,
+   "op": "independent_reconstruction",
+   "peak_alloc_bytes": 2237298,
+   "read_bytes": 471635,
+   "wall_s": 0.037924
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.000902,
+   "disk_bytes": 122070,
+   "max_rss_bytes": 22028288,
+   "n": 250,
+   "op": "research_ledger_update",
+   "peak_alloc_bytes": 14274,
+   "read_bytes": 1764,
+   "wall_s": 0.001491
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.001382,
+   "disk_bytes": 244006,
+   "max_rss_bytes": 22274048,
+   "n": 500,
+   "op": "research_ledger_update",
+   "peak_alloc_bytes": 13864,
+   "read_bytes": 1767,
+   "wall_s": 0.001965
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.000912,
+   "disk_bytes": 487891,
+   "max_rss_bytes": 22974464,
+   "n": 1000,
+   "op": "research_ledger_update",
+   "peak_alloc_bytes": 13803,
+   "read_bytes": 1764,
+   "wall_s": 0.001706
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.001426,
+   "disk_bytes": 141094,
+   "max_rss_bytes": 21614592,
+   "n": 250,
+   "op": "memory_retrieval",
+   "peak_alloc_bytes": 35084,
+   "read_bytes": 115,
+   "wall_s": 0.001328
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.002579,
+   "disk_bytes": 282558,
+   "max_rss_bytes": 21766144,
+   "n": 500,
+   "op": "memory_retrieval",
+   "peak_alloc_bytes": 72841,
+   "read_bytes": 116,
+   "wall_s": 0.002492
+  },
+  {
+   "children_cpu_s": 0.0,
+   "cpu_s": 0.003732,
+   "disk_bytes": 565454,
+   "max_rss_bytes": 22003712,
+   "n": 1000,
+   "op": "memory_retrieval",
+   "peak_alloc_bytes": 145348,
+   "read_bytes": 116,
+   "wall_s": 0.003658
+  },
+  {
+   "children_cpu_s": 3.039908,
+   "cpu_s": 0.627038,
+   "disk_bytes": 196357,
+   "max_rss_bytes": 33693696,
+   "n": 4,
+   "op": "campaign",
+   "peak_alloc_bytes": null,
+   "read_bytes": 430169636,
+   "wall_s": 3.838032
+  },
+  {
+   "children_cpu_s": 2.974533,
+   "cpu_s": 0.676224,
+   "disk_bytes": 196350,
+   "max_rss_bytes": 32718848,
+   "n": 8,
+   "op": "campaign",
+   "peak_alloc_bytes": null,
+   "read_bytes": 430170331,
+   "wall_s": 3.866201
+  },
+  {
+   "children_cpu_s": 6.25331,
+   "cpu_s": 1.358826,
+   "disk_bytes": 364109,
+   "max_rss_bytes": 33333248,
+   "n": 16,
+   "op": "campaign",
+   "peak_alloc_bytes": null,
+   "read_bytes": 865123299,
+   "wall_s": 8.014732
+  }
+ ],
+ "schema": "pr17-audit-op-costs/1",
+ "sizes": [
+  250,
+  500,
+  1000
+ ],
+ "what": "one operation per fresh child process, after the child built its history; wall, cpu, read bytes, disk and peak allocation measured separately; this host's figures, at one commit; the campaign runs SCRIPTED DECISIONS, no model"
+}

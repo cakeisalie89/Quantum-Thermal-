@@ -74,6 +74,33 @@ def test_a_second_actor_cannot_mint_after_the_root_exists(tmp_path):
     assert led.issued_ids() == ("c1",)
 
 
+def test_a_refused_mint_never_reaches_the_log(tmp_path):
+    """AUD-014. The refusal above came from the fold that follows the
+    append, so the attacker's record was already durable. The writer
+    raised, and every later load of the log refused the whole history: one
+    call locked every governed runner out of its own grants. Decided before
+    the record exists, the log is as it was."""
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(), actor="control-plane")
+    before = (tmp_path / "caps.jsonl").read_bytes()
+    with pytest.raises(NotTheIssuer):
+        led.issue(_cap(cap_id="c2", subject="attacker"), actor="attacker")
+    with pytest.raises(NotTheIssuer):
+        # a delegation of a grant the actor does not hold, past delegate()'s
+        # own check: the same mint
+        led.issue(_cap(cap_id="c3", subject="attacker", parent_id="c1"),
+                  actor="attacker")
+    assert (tmp_path / "caps.jsonl").read_bytes() == before
+    assert CapabilityLedger(EventLog(tmp_path / "caps.jsonl")).load(
+        ).issued_ids() == ("c1",)
+    # the control: the root still mints, and the holder still delegates
+    led.issue(_cap(cap_id="c4"), actor="control-plane")
+    led.delegate(_cap(cap_id="c5", subject="agent-2"), parent_id="c1",
+                 actor="agent-1")
+    assert CapabilityLedger(EventLog(tmp_path / "caps.jsonl")).load(
+        ).issued_ids() == ("c1", "c4", "c5")
+
+
 def test_a_forged_grant_appended_directly_fails_at_load(tmp_path):
     """Not merely refused by the writer: refused by every READER.
 

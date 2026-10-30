@@ -493,16 +493,93 @@ anchor".
   - the long-horizon module at both scales;
   - 981 contract tests at 55032de.
 
+### Cluster 5: two more authority defects; the cost instrument and the report
+
+Read on the trust surface after cluster 4: the capability ledger and the
+policy store. Two P1 defects were reproduced, and they were reproduced at
+the baseline as well.
+
+**AUD-014.** A refused capability mint was written before it was refused.
+
+- **Where the rule ran.** `CapabilityLedger.issue()` left "who may mint"
+  to `_authorize_mint()`, which runs in the fold after
+  `DecidedWriter._append_decided()` has written the record.
+- **What it did.** A mint by anyone but the root raised NotTheIssuer.
+  But the record was durable, so every later load of the ledger refused
+  the whole log. The live ledger meanwhile answered as if nothing had
+  happened (`repro/unauthorized_mint.py`).
+- **The fix.** `issue()`'s decision runs the same rule, under the writer
+  lock, before the record exists.
+- **Why the existing test passed.** It asserted the refusal and the
+  in-memory state, never the log.
+
+**AUD-015.** Anyone could publish the next version of an owner's policy.
+
+- **The gap in the policy store.** Withdrawal was the owner's act, and
+  version 2 was anyone's.
+- **The gap in the binding.** Under the promotion binding (D-2026-148),
+  the store and the second reader judged a promotion by the publisher of
+  the policy's FIRST version, while its expiry came from the latest.
+- **What it allowed.** An outsider's version 2 lifted the owner's expiry,
+  and a promotion was admitted on it (`repro/policy_version_hijack.py`).
+- **The fix.** Later versions are the owner's, live (before writing) and
+  on replay. Both readers judge a bound promotion by the publisher of the
+  version in force.
+- **Kept as they were.** Two existing tests that forge out-of-order
+  versions as "mallory" still see the version error: the owner check runs
+  after the version checks.
+
+**Validation.**
+
+- Each new test fails before its fix and passes after.
+- **G28 (agent_delegation).** Killed, with D1 and D2.
+- **PB25-PB29 (policy_binding).** Killed, with PB4, PB16, PB17 and PB21.
+- Sources were restored byte-identical, and every anchor in every spec
+  still matches exactly once.
+
+**Also here:**
+
+- **`tools/op_costs.py`.** The Phase 14 cost instrument: one operation per
+  fresh child process, with wall time, CPU, read bytes, disk and peak
+  allocation measured separately. Its record is `docs/audit/op_costs.json`.
+- **`docs/audit/AUDIT_REPORT.md`.** The interim Phase 14 report.
+
+**Limit.** The class behind AUD-014 is a fold that refuses a record its
+own writer wrote. It was looked for in the capability ledger and the
+policy store. A property over every DecidedWriter, that a refused write
+leaves the log unchanged, does not exist yet.
+
+**Also recorded:**
+
+- **AUD-016 (P3, OPEN).** The process-tree negative control leaves the
+  grandchild it shows escaping running after the test, reparented to
+  init. A stop file is proposed. A PID-based kill is not safe across a PID
+  namespace.
+- **AUD-017 (P3, OWNER).** Nothing says who may issue a secret grant or
+  an egress grant, on either path.
+  - Egress grants are decided on the governed path: `socket_guard`
+    mediates the runner's own sockets.
+  - No caller in the repository resolves a secret grant yet.
+
+**Generated, and derived.**
+
+- **The shard matrix.** The six new mutations moved specs between
+  shards, so the workflow's shard matrix was regenerated with
+  `tools/mutation_shards.py --emit`. `--check` holds.
+- **The harness status.** It is INCOMPLETE with 35 unsatisfied: row R58's
+  hosted evidence now predates the code cluster 5 changed.
+
+
 ### Next actions
 
-1. Push the cluster 4 commit once its full suite passes, and attach
-   hosted evidence through the repository's tools when the runs finish.
-2. Phase 14: the trust-boundary matrix (operations against the checks
-   each requires), the per-operation cost report, the test and evidence
-   report, the claims-boundary report, the owner decisions (OD-1 to OD-7,
-   O-1 to O-9, and AUD-001, AUD-010, AUD-011) and the 12-dimension
-   readiness assessment.
-3. Phase 9: a resumable campaign (AUD-013), if it is taken on here.
-4. The ledger: most changed files are still NOT_REVIEWED. Continue with
+1. Push d3cddc3 once its full suite passes, then the cluster 5 commit
+   once its own does. Attach hosted evidence through the repository's
+   tools when the runs finish.
+2. Phase 14 is in `docs/audit/AUDIT_REPORT.md`, interim. Keep it in step
+   with the ledger and the register.
+3. Look for AUD-014's class in every DecidedWriter: a property that a
+   refused write leaves the log unchanged.
+4. Phase 9: a resumable campaign (AUD-013), and the stop file (AUD-016).
+5. The ledger: most changed files are still NOT_REVIEWED. Continue with
    the trust surface: `governed_tasks.py`, `governed_model.py`,
-   `secrets.py`, `capability.py`, `netauth.py`, and the executor.
+   `netauth.py`, the executor and `secrets.py`'s resolve path.

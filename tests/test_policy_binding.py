@@ -111,6 +111,33 @@ def test_only_the_owner_withdraws_and_only_once(tmp_path):
     assert reloaded.withdrawn("promote")[1] == "owner"
 
 
+def test_only_the_owner_publishes_a_later_version(tmp_path):
+    """AUD-015. Withdrawal was the owner's act and the next version was
+    anyone's: a version 2 by another principal replaced the owner's rules
+    and expiry for every decision and every bound promotion after it.
+    Refused before anything is written."""
+    log = _log(tmp_path)
+    ps = PolicyStore(log).load()
+    ps.publish(_doc(), actor="owner")
+    before = (tmp_path / "log.jsonl").read_bytes()
+    with pytest.raises(PolicyError, match="its owner"):
+        ps.publish(_doc(version=2), actor="mallory")
+    assert (tmp_path / "log.jsonl").read_bytes() == before
+    ps.publish(_doc(version=2), actor="owner")          # the control
+    assert PolicyStore(log).load().in_force("promote").version == 2
+
+
+def test_a_forged_later_version_does_not_load(tmp_path):
+    from agent_substrate.policy import ACT_POLICY_PUBLISH
+    log = _log(tmp_path)
+    PolicyStore(log).load().publish(_doc(), actor="owner")
+    doc = _doc(version=2)
+    log.append(actor="mallory", action=ACT_POLICY_PUBLISH, target="promote",
+               payload={"document": doc.body(), "policy_digest": doc.digest()})
+    with pytest.raises(PolicyError, match="its owner"):
+        PolicyStore(log).load()
+
+
 def test_a_forged_withdrawal_or_republication_does_not_load(tmp_path):
     log = _log(tmp_path)
     PolicyStore(log).load().publish(_doc(), actor="owner")
@@ -319,6 +346,44 @@ def test_a_forged_promotion_is_refused_by_both_readers(bound, prepare, pid,
     assert recon.records["r1"]["state"] == "VERIFIED"
 
 
+def _publish_as(log: EventLog, actor: str, version: int) -> None:
+    """A later version of 'promote', written past the policy store's own
+    check, as a holder of the file can."""
+    from agent_substrate.policy import ACT_POLICY_PUBLISH
+    doc = _doc(version=version)
+    log.append(actor=actor, action=ACT_POLICY_PUBLISH, target="promote",
+               payload={"document": doc.body(), "policy_digest": doc.digest()})
+
+
+def test_a_promotion_under_a_version_an_outsider_published_is_refused(bound):
+    """AUD-015, where the binding is judged. The binding asks who published
+    the policy a promotion stands on, and both readers asked who published
+    its FIRST version. An outsider's version 2 is the version in force:
+    the store refuses the promotion live and on replay, and so does the
+    second reader."""
+    log, s = bound
+    _verified(s, "r1")
+    _publish_as(log, "mallory", 2)
+    with pytest.raises(StoreError, match="'mallory'.*not a policy authority"):
+        _promote(AuthorityStore(log).load(), "r1")
+    _forge_promotion(log, "promote")
+    with pytest.raises(StoreError, match="not a policy authority"):
+        AuthorityStore(log).load()
+    recon = reconstruct(log)
+    assert any("r1" in u and "PROMOTED" in u and "not a policy authority" in u
+               for u in recon.unauthorized), recon.unauthorized
+    assert recon.records["r1"]["state"] == "VERIFIED"
+
+
+def test_control_a_promotion_under_the_owners_later_version(bound):
+    log, s = bound
+    PolicyStore(log).load().publish(_doc(version=2), actor="owner")
+    _verified(s, "r1")
+    _promote(s, "r1")
+    assert AuthorityStore(log).load().get("r1").state is State.PROMOTED
+    assert reconstruct(log).unauthorized == []
+
+
 def test_control_the_same_forged_line_under_the_policy_in_force(bound):
     """The line above, naming the owner's policy in force: both readers
     fold it -- so the refusals are for the policy, not for the line."""
@@ -381,6 +446,19 @@ def test_the_subsystem_reader_flags_what_the_policy_store_refuses(tmp_path):
     found = reconstruct_subsystems(log).anomalies
     assert any("'mallory' withdraws 'promote'" in a for a in found), found
     assert any("'nothing', which nothing published" in a for a in found)
+
+
+def test_the_subsystem_reader_flags_an_outsiders_later_version(tmp_path):
+    """AUD-015, restated by the second reader's subsystem replay."""
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    log = _log(tmp_path)
+    PolicyStore(log).load().publish(_doc(), actor="owner")
+    _publish_as(log, "owner", 2)
+    assert reconstruct_subsystems(log).anomalies == []
+    _publish_as(log, "mallory", 3)
+    found = reconstruct_subsystems(log).anomalies
+    assert any("'mallory' publishes version 3 of 'promote'" in a
+               for a in found), found
 
 
 def test_the_auditor_says_a_decision_postdates_its_policys_withdrawal(

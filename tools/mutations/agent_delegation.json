@@ -193,6 +193,13 @@
       "find": "            issuer = self._issued_by.get(capability_id)\n            if actor != issuer and not (self._root is not None\n                                        and actor == self._root):\n",
       "replace": "            issuer = self._issued_by.get(capability_id)\n            if False:\n",
       "rationale": "the caller builds a record its own reducer will refuse, which is the writer-versus-reducer divergence this repository has already recorded once"
+    },
+    {
+      "name": "G28_a_refused_mint_is_written_before_it_is_refused",
+      "path": "agent_substrate/capability.py",
+      "find": "            self._authorize_mint(_Draft(c.issued_seq, actor), c)\n",
+      "replace": "            pass\n",
+      "rationale": "AUD-014. The write path leaves the mint rule to the fold after the append: a non-root mint is durable before it is refused, and every later load of the log refuses the whole history"
     }
   ]
 }

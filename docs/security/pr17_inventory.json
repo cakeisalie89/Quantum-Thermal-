@@ -1,14 +1,14 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 581,
+   "ADDED": 585,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 206,
-   "MEDIUM": 325
+   "LOW": 207,
+   "MEDIUM": 328
   },
   "by_subsystem": {
    "agent-substrate": 31,
@@ -20,7 +20,7 @@
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 56,
+   "evidence": 58,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 182,
-   "tooling": 50,
+   "tests": 183,
+   "tooling": 51,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 613
+  "files": 617
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -2572,7 +2572,33 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/audit/AUDIT_REPORT.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/audit/findings.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/audit/op_costs.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -7391,6 +7417,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_op_costs.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_performance_telemetry.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -10576,6 +10619,22 @@
      "tests/test_hostile_composition.py",
      "tests/test_offline_verify.py",
      "tests/test_release_admission.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/op_costs.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_op_costs.py"
     ]
    }
   },

@@ -716,6 +716,13 @@ class PolicyStore:
                     f"seq {ev.seq}: {doc.policy_id!r} version {doc.version} "
                     f"follows version {expected - 1}; versions must be "
                     "gap-free so 'which policy governed seq N' is answerable")
+            owner = self._owner.get(doc.policy_id)
+            if owner is not None and ev.actor != owner:
+                raise PolicyError(
+                    f"seq {ev.seq}: {ev.actor!r} published version "
+                    f"{doc.version} of {doc.policy_id!r}, which {owner!r} "
+                    "published; a policy's later versions are published by "
+                    "its owner")
             history.append((ev.seq, doc))
             self._owner.setdefault(doc.policy_id, ev.actor)
             self._loaded_through = ev.seq
@@ -924,6 +931,13 @@ class PolicyStore:
                     f"{doc.policy_id!r} is at version {expected - 1}; the "
                     f"next publication must be version {expected}, not "
                     f"{doc.version}")
+            owner = self._owner.get(doc.policy_id)
+            if owner is not None and actor != owner:
+                raise PolicyError(
+                    f"{actor!r} may not publish a version of "
+                    f"{doc.policy_id!r}, which {owner!r} published; a "
+                    "policy's later versions are published by its owner, as "
+                    "its withdrawal is (AUD-015)")
             return {"actor": actor, "action": ACT_POLICY_PUBLISH,
                     "target": doc.policy_id,
                     "payload": {"document": doc.body(),

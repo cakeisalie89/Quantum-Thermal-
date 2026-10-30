@@ -215,7 +215,8 @@ class AuthorityStore:
         #: "publishers"}``. See ACT_POLICY_BINDING.
         self._binding: dict | None = None
         #: policy_id -> ``{"publisher", "published": [[seq, version,
-        #: not_after]], "withdrawn_seq"}``, from the log's policy records.
+        #: not_after]], "withdrawn_seq"}``, from the log's policy records;
+        #: ``publisher`` is the latest version's.
         self._policy_view: dict = {}
         #: The latest wall time folded: what a policy's expiry is judged
         #: against (events.judged_at, D-2026-168).
@@ -1388,6 +1389,10 @@ class AuthorityStore:
             view = self._policy_view.setdefault(
                 pid, {"publisher": ev.actor, "published": [],
                       "withdrawn_seq": None})
+            # The publisher a binding asks about is the publisher of the
+            # version in force, the latest (AUD-015): a later version by
+            # someone else is the one a promotion after it stands on.
+            view["publisher"] = ev.actor
             view["published"].append(
                 [ev.seq, version,
                  not_after if isinstance(not_after, (int, float))

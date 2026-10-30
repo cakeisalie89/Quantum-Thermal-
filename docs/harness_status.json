@@ -6,7 +6,7 @@
   },
   "repository_content": {
    "committed_report_current": true,
-   "files": 613,
+   "files": 617,
    "findings": 0,
    "ok": true
   },
@@ -50,8 +50,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 20,
-   "PREDATES_CURRENT_IMPLEMENTATION": 29
+   "COVERS_CURRENT_IMPLEMENTATION": 19,
+   "PREDATES_CURRENT_IMPLEMENTATION": 30
   },
   "rows": 49
  },
@@ -606,6 +606,12 @@
   {
    "external": false,
    "id": "R55",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R58",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },

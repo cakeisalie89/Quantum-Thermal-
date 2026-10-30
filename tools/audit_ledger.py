@@ -105,7 +105,8 @@ DERIVED = {
 }
 AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tests/test_audit_ledger.py", "tools/work_counts.py",
-               "tests/test_work_counts.py")
+               "tests/test_work_counts.py", "tools/op_costs.py",
+               "tests/test_op_costs.py")
 
 #: (glob, kind). First match wins.
 KINDS = (

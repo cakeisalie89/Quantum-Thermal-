@@ -394,19 +394,19 @@ jobs:
           - shard: 2
             specs: >-
               tools/mutations/agent_compensation.json
-              tools/mutations/agent_fault_injection.json
               tools/mutations/agent_netauth.json
               tools/mutations/agent_recovery.json
               tools/mutations/backend_probe.json
               tools/mutations/dependency_declarations.json
-              tools/mutations/dimensions.json
               tools/mutations/execution_containment.json
-              tools/mutations/external_models.json
               tools/mutations/integration_demo_harness.json
+              tools/mutations/manifest.json
               tools/mutations/mutation_harness.json
               tools/mutations/neural_training.json
+              tools/mutations/performance_telemetry.json
               tools/mutations/prov_export.json
               tools/mutations/ranking_equivalence.json
+              tools/mutations/reproduction_policy.json
               tools/mutations/t2_closure.json
               tools/mutations/witness.json
           - shard: 3
@@ -419,14 +419,14 @@ jobs:
               tools/mutations/formal.json
               tools/mutations/freshness.json
               tools/mutations/history_time.json
-              tools/mutations/manifest.json
               tools/mutations/mutation_shards.json
-              tools/mutations/performance_telemetry.json
               tools/mutations/policy_binding.json
+              tools/mutations/run_identity_backend.json
               tools/mutations/scientific_authority_replay.json
               tools/mutations/scientific_invalidation.json
               tools/mutations/signed_append_lifecycle.json
               tools/mutations/simulation.json
+              tools/mutations/typecheck_scope.json
           - shard: 4
             specs: >-
               tools/mutations/actor_authentication.json
@@ -470,6 +470,7 @@ jobs:
               tools/mutations/agent_audit.json
               tools/mutations/agent_execution.json
               tools/mutations/agent_memory_context.json
+              tools/mutations/evidence_terms.json
               tools/mutations/governed_breadth.json
               tools/mutations/governed_model_reuse.json
               tools/mutations/governed_tasks_authority.json
@@ -479,28 +480,27 @@ jobs:
               tools/mutations/neural_accounting.json
               tools/mutations/performance_measurement.json
               tools/mutations/replay_origin_view.json
-              tools/mutations/reproduction_policy.json
-              tools/mutations/run_identity_backend.json
+              tools/mutations/ro_crate_conformance.json
+              tools/mutations/scientific_integrations.json
               tools/mutations/stress_campaign_coverage.json
-              tools/mutations/typecheck_scope.json
               tools/mutations/verified_read_guard.json
           - shard: 7
             specs: >-
               tools/mutations/agent_checkpoint.json
+              tools/mutations/agent_fault_injection.json
               tools/mutations/agent_job_graph.json
               tools/mutations/agent_readpath.json
               tools/mutations/agent_scheduler.json
               tools/mutations/agent_snapshot_coherence.json
               tools/mutations/agent_substrate.json
+              tools/mutations/composed_campaigns.json
+              tools/mutations/container.json
               tools/mutations/deployment_evidence.json
-              tools/mutations/evidence_terms.json
               tools/mutations/filesystem_confinement.json
               tools/mutations/governed_model.json
               tools/mutations/neural_parallel.json
               tools/mutations/neural_tokens.json
               tools/mutations/policy_semantics.json
-              tools/mutations/ro_crate_conformance.json
-              tools/mutations/scientific_integrations.json
               tools/mutations/scientific_interfaces.json
               tools/mutations/supply_chain.json
           - shard: 8
@@ -512,8 +512,8 @@ jobs:
               tools/mutations/authenticated_history.json
               tools/mutations/claim_check.json
               tools/mutations/claims_boundary.json
-              tools/mutations/composed_campaigns.json
-              tools/mutations/container.json
+              tools/mutations/dimensions.json
+              tools/mutations/external_models.json
               tools/mutations/fuzz_harness.json
               tools/mutations/generic_consistency.json
               tools/mutations/hdf5_bundle.json

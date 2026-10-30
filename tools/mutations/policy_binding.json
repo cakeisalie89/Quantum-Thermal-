@@ -1,6 +1,6 @@
 {
  "title": "Promotions bound to a published policy in force: withdrawal, expiry, the binding, both readers",
- "note": "D-2026-148. Each mutation deletes one rule of the binding (store write and replay), of policy withdrawal and expiry (policy store), of the second readers' restatements, of the governed path's declaration or its refusal of a binding it did not declare, or of the auditor's report. tests/test_policy_binding.py pairs every refusal with a control differing only in the reason; tests/test_scientific_authority_replay.py holds the governed path.",
+ "note": "D-2026-148 (PB25-PB29: AUD-015, a policy's later versions are its owner's, and a binding asks who published the version in force). Each mutation deletes one rule of the binding (store write and replay), of policy withdrawal and expiry (policy store), of the second readers' restatements, of the governed path's declaration or its refusal of a binding it did not declare, or of the auditor's report. tests/test_policy_binding.py pairs every refusal with a control differing only in the reason; tests/test_scientific_authority_replay.py holds the governed path.",
  "suites": [
   "tests/test_policy_binding.py",
   "tests/test_agent_policy.py",
@@ -174,6 +174,41 @@
    "find": "        elif binding[\"publishers\"] != [\"owner\"]:\n",
    "replace": "        elif False:\n",
    "rationale": "D-2026-148, adversarial review: a binding declared before the governed path opened the history, naming another policy authority, is adopted, and that authority's policies promote on the governed history"
+  },
+  {
+   "name": "PB25_anyone_may_publish_a_later_version_live",
+   "path": "agent_substrate/policy.py",
+   "find": "            if owner is not None and actor != owner:\n",
+   "replace": "            if False:\n",
+   "rationale": "AUD-015. A principal other than the owner publishes the next version of the owner's policy, and its rules and expiry govern every decision and bound promotion after it"
+  },
+  {
+   "name": "PB26_the_replay_accepts_anyones_later_version",
+   "path": "agent_substrate/policy.py",
+   "find": "            if owner is not None and ev.actor != owner:\n",
+   "replace": "            if False:\n",
+   "rationale": "AUD-015. A later version written into the log by someone other than the owner loads as the version in force"
+  },
+  {
+   "name": "PB27_the_binding_asks_who_published_the_first_version",
+   "path": "agent_substrate/store.py",
+   "find": "            view[\"publisher\"] = ev.actor\n",
+   "replace": "            pass\n",
+   "rationale": "AUD-015. A bound promotion is judged by the publisher of the policy's first version, while an outsider's later version is the one in force"
+  },
+  {
+   "name": "PB28_the_second_reader_asks_who_published_the_first_version",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "                entry[\"by\"] = ev.actor\n",
+   "replace": "                pass\n",
+   "rationale": "AUD-015, restated. The second reader judges a bound promotion by the publisher of the policy's first version"
+  },
+  {
+   "name": "PB29_the_subsystem_reader_accepts_anyones_later_version",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if ev.actor != owner[\"by\"]:\n        # Restated, AUD-015: a policy's later versions are its owner's.\n",
+   "replace": "    if False:\n        # Restated, AUD-015: a policy's later versions are its owner's.\n",
+   "rationale": "AUD-015, restated. The subsystem replay folds a later version published by someone other than the policy's owner"
   }
  ]
 }

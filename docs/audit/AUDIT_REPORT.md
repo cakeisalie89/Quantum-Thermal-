@@ -1,0 +1,443 @@
+# PR #17 adversarial audit: interim report
+
+This report is the Phase 14 output of the audit, at the head named below.
+It is interim, and it does not claim the pull request has been reviewed:
+the coverage ledger says how much has been, file by file.
+
+The state is in three files:
+
+- the ledger, `docs/audit/pr17_audit_ledger.json`, checked by
+  `python tools/audit_ledger.py check`;
+- the findings register, `docs/audit/findings.json`;
+- the progress record, `docs/audit/AUDIT_PROGRESS.md`.
+
+Where this report and those files disagree, the files are right.
+
+**Audited.**
+
+- **Baseline:** `b0058f62503edaaccef26d8ed6a25df4602bf039`.
+- **Merge base:** `096fb90fff089a62e4b20513de729a3e45a69f35` (`origin/main`).
+- **Audit commits since:**
+
+  | Commit | Phase or cluster |
+  |---|---|
+  | c11c628 | Phase 0 |
+  | f142a7e | cluster 1 |
+  | a48ae7b | cluster 2 |
+  | d124a8f | cluster 3 |
+  | 55032de | fixture |
+  | d3cddc3 | cluster 4 |
+  | the commit that adds this report | the report and the cost instrument |
+
+## 1. Coverage ledger
+
+The pull request changes 1001 files, counting the audit's own (`git diff
+--name-status` from the merge base, with rename detection, not the web
+diff). Each has one entry.
+
+| Disposition | Files | Meaning |
+|---|---|---|
+| REVIEWED_IN_FULL | 8 | every line read, bound to the blob read |
+| REVIEWED_IN_PART | 20 | the parts named in the entry read, bound to the blob |
+| INSPECTED_BINARY | 20 | a binary, identified and inspected |
+| AUDIT_ARTIFACT | 12 | written by this audit, not independently reviewed |
+| NOT_REVIEWED | 941 | not examined, with the reason |
+
+Of the 53 changed `agent_substrate` modules, 18 have been read:
+
+- in full: `authority`, `canonical`, `checkpoint`, `events`, `principals`, `projection` and `store`;
+- in part: `agents`, `capability`, `governed_tasks`, `idempotency`, `memory`, `netauth`, `policy`, `proposals`, `reconstruct`, `scheduler` and `secrets`.
+
+Nothing outside those files is claimed reviewed. A disposition goes STALE
+when its file changes, and `check` fails on any entry that disagrees with
+git.
+
+## 2. Findings register
+
+Seventeen findings. Severity follows the register's scale: P0 is an
+authority bypass or integrity failure, P3 is information for the owner.
+
+| ID | Sev | Established | Resolution | In brief |
+|---|---|---|---|---|
+| AUD-001 | P3 | REPRODUCED | OWNER | six commit histories exist only inside deleted bundle files |
+| AUD-002 | P1 | REPRODUCED | FIXED | a lost newline fused two records |
+| AUD-003 | P2 | CONFIRMED | FIXED | anchors not bound to the verified read |
+| AUD-004 | P1 | REPRODUCED | FIXED | re-verified and re-promoted on a report the record already carried (I3) |
+| AUD-005 | P2 | REPRODUCED | FIXED | non-canonical bytes and framing accepted |
+| AUD-006 | P1 | REPRODUCED | FIXED | a projection folded onto a history rewritten beneath it |
+| AUD-007 | P2 | REPRODUCED | FIXED | replay raised a bare KeyError on malformed records |
+| AUD-008 | P3 | REPRODUCED | FIXED | append returned values its own log does not hold |
+| AUD-009 | P2 | REPRODUCED | FIXED | a checkpoint in the crash window read as truncation |
+| AUD-010 | P2 | REPRODUCED | OWNER | full verified reads grow quadratically with a campaign |
+| AUD-011 | P2 | REPRODUCED | OWNER | roles are self-asserted, and agent admission is open |
+| AUD-012 | P1 | REPRODUCED | FIXED | a REQUIRED history read as authenticated by a scoped authenticator |
+| AUD-013 | P2 | CONFIRMED | DOCUMENTED | the long-horizon campaign cannot resume after its process dies |
+| AUD-014 | P1 | REPRODUCED | FIXED | a refused capability mint was written first, and every later load refused the log |
+| AUD-015 | P1 | REPRODUCED | FIXED | anyone could publish an owner's next policy version, and bound promotions stood on it |
+| AUD-016 | P3 | REPRODUCED | OPEN | the process-tree negative control leaves its escaped grandchild running |
+| AUD-017 | P3 | CONFIRMED | OWNER | nothing says who may issue a secret or an egress grant |
+
+**How far each is established.** REPRODUCED means shown failing by a
+test or a script; CONFIRMED means established by reading, not executed.
+No finding is POTENTIAL, BLOCKED or NOT_REPRODUCED.
+
+**What every fix carries:**
+
+- a regression test that fails on the commit before it and passes after;
+- one or more mutations killed by that test.
+
+## 3. Trust-boundary matrix
+
+Which checks each operation runs before it acts. "-" means it runs
+none.
+
+| Operation | Genesis verification | Suffix verification | External witness | Actor authentication | Second reader | Numerical verification | Human or deployment authorization |
+|---|---|---|---|---|---|---|---|
+| First append by a log object | yes, the head check | - | - | if REQUIRED: attestation prepared first, head authenticated | - | - | - |
+| Later append | - | yes, from the object's anchor | - | as above | - | - | - |
+| Authority transition (store) | on load | on catch-up | - | if REQUIRED | replay restates every rule | - | none required by code (AUD-011) |
+| VERIFIED, any record | as above | as above | - | as above | as above | I6: the cited report exists; I3: this transition brought it | - |
+| VERIFIED, scientific result | as above | as above | - | as above | as above | admission: a governed run's check supports it | - |
+| PROMOTED | as above | as above | - | as above | as above | - | a policy, if the history binds one; no human (AUD-011) |
+| Capability mint or delegation | the fold | the head check | - | if REQUIRED | replay restates | - | the root issuer, trust on first use (decided before writing, AUD-014) |
+| Policy publication | the fold | the head check | - | if REQUIRED | replay restates | - | open for a new id; a later version is its owner's (AUD-015) |
+| Learned record to VERIFIED or PROMOTED | refused | refused | - | - | refused on replay too | - | - |
+| Governed task move | every projection, from genesis (AUD-010) | the head check | - | if REQUIRED | - | - | - |
+| Projection catch-up | fallback | yes, `require_extends` | - | if REQUIRED | - | - | - |
+| Checkpoint creation | yes, or the witness path bound to its hash | - | the head witness, if present | if REQUIRED | - | - | - |
+| Checkpoint restoration | no: the prefix is trusted, and labelled weaker | the tail | the head witness | an authenticated load replays from genesis | - | - | - |
+| Independent reconstruction | always | - | the head witness | if given | is the second reader | - | - |
+| Release | - | - | - | - | - | - | a release trust root: none exists (O-8) |
+| Live inference | - | - | - | - | - | - | a provider (OD-1): none chosen; live mode refuses |
+
+**What no check here may be read as.** Weaker evidence is never promoted
+to stronger authority without the missing check:
+
+- A checkpointed load says it is weaker (`loaded_prefix_verified=False`).
+  It is never reported as a replay.
+- An anchored read verifies the suffix, and says the prefix is unverified
+  (`prefix_verified=False`, `unverified_through`).
+- HISTORY_INTACT is not HISTORY_RECORDS, and neither is CURRENT_WORLD
+  (`docs/EVIDENCE_TERMS.md`). A history rewritten with its witness is
+  intact. Only an independent witness (`witness.py`) shows it, and no
+  production witness is provisioned.
+- An actor name in an UNAUTHENTICATED_LEGACY history is a name. In a
+  REQUIRED history it is a principal only through an authenticator that
+  asks every actor (AUD-012).
+- A role is a claim (AUD-011). An authenticated principal still asserts its
+  own role.
+- A meta-validated architecture is not a trained model (EB13).
+- A scripted campaign is not a model's behaviour: its decisions are
+  SCRIPTED DECISIONS.
+
+## 4. Performance and memory
+
+**Measured.** Each measurement is this host's, at the commit named.
+
+| What | Where | Result |
+|---|---|---|
+| Records parsed by full verified reads, scripted campaign | `docs/audit/work_counts.json` | 15 decisions: 11,195; 30: 23,720; 60: 67,591. Each doubling x2.12, then x2.85 |
+| Where those reads are, at 60 decisions | same | `GovernedTasks.projection()`: 42% |
+| `anchor_at` re-reads removed by AUD-003 | same | 89 calls (27,777 lines) at 60 decisions, now 0 |
+| Gate G campaign per decision | `docs/assurance/research_horizon_results.json` (8f53500) | 0.56 s at 50, 0.72 s at 100, 2.33 s at 1,000 |
+| Gate G ledger replay, peak allocation, log size | same | 0.17 s, 3.1 MB, 0.6 MB at 50; 4.34 s, 63 MB, 12.2 MB at 1,000 |
+| Scaling exponents of the existing guards | `docs/performance_baseline.json` | full verification, projection load and independent reconstruction near 1.0 (linear), last recorded at 46063c8 |
+| Long-horizon module at 1,200 cycles | this audit, at d124a8f plus the fixture fix | 34 passed in 6 min 47 s |
+
+**Per operation, measured by this audit** (`tools/op_costs.py`, recorded
+in `docs/audit/op_costs.json`).
+
+- **Method.** Each operation ran once, in a fresh child process, after the
+  child built a history of n `record.create` records (n objectives, or n
+  memories, for the ledger and the recall). The campaign runs n scripted
+  decisions.
+- **What each figure is.** Wall time and CPU are around the operation
+  alone. Children's CPU is that of the subprocesses it ran. Read is the
+  bytes the process asked of read() (`rchar`), page cache or disk. Disk is
+  the history's footprint afterwards. The peak allocation is from a second,
+  traced run.
+- **Host and commit.** Four CPUs, Python 3.12.3, at the commit that adds
+  this report. These are this host's figures, once each. The ratios
+  describe this workload, not a bound.
+
+| Operation | n | Wall | CPU | Children's CPU | Read | Disk | Peak allocation | x wall, x CPU, x read on the last doubling |
+|---|---|---|---|---|---|---|---|---|
+| append_warm | 250 | 1.1 ms | 0.7 ms | 0.0 ms | 1 KiB | 115 KiB | 12 KiB |  |
+|  | 500 | 1.3 ms | 0.6 ms | 0.0 ms | 1 KiB | 230 KiB | 12 KiB |  |
+|  | 1000 | 1.4 ms | 0.9 ms | 0.0 ms | 1 KiB | 461 KiB | 12 KiB | x1.11, x1.38, x1.00 |
+| append_cold | 250 | 7.5 ms | 6.7 ms | 0.0 ms | 115 KiB | 115 KiB | 500 KiB |  |
+|  | 500 | 13.5 ms | 12.8 ms | 0.0 ms | 230 KiB | 230 KiB | 1010 KiB |  |
+|  | 1000 | 30.9 ms | 30.1 ms | 0.0 ms | 461 KiB | 461 KiB | 2032 KiB | x2.29, x2.35, x2.00 |
+| authority_transition | 250 | 1.6 ms | 0.8 ms | 0.0 ms | 2 KiB | 115 KiB | 14 KiB |  |
+|  | 500 | 1.4 ms | 0.9 ms | 0.0 ms | 2 KiB | 231 KiB | 14 KiB |  |
+|  | 1000 | 1.9 ms | 0.9 ms | 0.0 ms | 2 KiB | 461 KiB | 14 KiB | x1.33, x1.02, x1.00 |
+| projection_load | 250 | 8.0 ms | 8.0 ms | 0.0 ms | 115 KiB | 115 KiB | 500 KiB |  |
+|  | 500 | 15.3 ms | 15.2 ms | 0.0 ms | 230 KiB | 230 KiB | 1010 KiB |  |
+|  | 1000 | 29.0 ms | 29.0 ms | 0.0 ms | 461 KiB | 460 KiB | 2032 KiB | x1.89, x1.91, x2.00 |
+| projection_update | 250 | 0.5 ms | 0.6 ms | 0.0 ms | 6 KiB | 120 KiB | 24 KiB |  |
+|  | 500 | 0.5 ms | 0.5 ms | 0.0 ms | 6 KiB | 235 KiB | 24 KiB |  |
+|  | 1000 | 0.6 ms | 0.6 ms | 0.0 ms | 6 KiB | 465 KiB | 24 KiB | x1.21, x1.23, x1.00 |
+| checkpoint_create | 250 | 62.5 ms | 60.1 ms | 0.0 ms | 514 KiB | 173 KiB | 4506 KiB |  |
+|  | 500 | 76.8 ms | 74.7 ms | 0.0 ms | 744 KiB | 345 KiB | 4518 KiB |  |
+|  | 1000 | 161.8 ms | 151.6 ms | 0.0 ms | 1205 KiB | 689 KiB | 4078 KiB | x2.11, x2.03, x1.62 |
+| checkpoint_restore | 250 | 2.0 ms | 2.0 ms | 0.0 ms | 64 KiB | 173 KiB | 1085 KiB |  |
+|  | 500 | 3.6 ms | 3.7 ms | 0.0 ms | 120 KiB | 345 KiB | 1141 KiB |  |
+|  | 1000 | 5.4 ms | 5.4 ms | 0.0 ms | 234 KiB | 689 KiB | 1312 KiB | x1.49, x1.48, x1.94 |
+| independent_reconstruction | 250 | 9.3 ms | 8.6 ms | 0.0 ms | 115 KiB | 115 KiB | 536 KiB |  |
+|  | 500 | 22.0 ms | 22.1 ms | 0.0 ms | 230 KiB | 230 KiB | 1085 KiB |  |
+|  | 1000 | 37.9 ms | 31.2 ms | 0.0 ms | 461 KiB | 460 KiB | 2185 KiB | x1.72, x1.41, x2.00 |
+| research_ledger_update | 250 | 1.5 ms | 0.9 ms | 0.0 ms | 2 KiB | 119 KiB | 14 KiB |  |
+|  | 500 | 2.0 ms | 1.4 ms | 0.0 ms | 2 KiB | 238 KiB | 14 KiB |  |
+|  | 1000 | 1.7 ms | 0.9 ms | 0.0 ms | 2 KiB | 476 KiB | 13 KiB | x0.87, x0.66, x1.00 |
+| memory_retrieval | 250 | 1.3 ms | 1.4 ms | 0.0 ms | 0 KiB | 138 KiB | 34 KiB |  |
+|  | 500 | 2.5 ms | 2.6 ms | 0.0 ms | 0 KiB | 276 KiB | 71 KiB |  |
+|  | 1000 | 3.7 ms | 3.7 ms | 0.0 ms | 0 KiB | 552 KiB | 142 KiB | x1.47, x1.45, x1.00 |
+| campaign | 4 | 3838.0 ms | 627.0 ms | 3039.9 ms | 410.2 MiB | 192 KiB | - |  |
+|  | 8 | 3866.2 ms | 676.2 ms | 2974.5 ms | 410.2 MiB | 192 KiB | - |  |
+|  | 16 | 8014.7 ms | 1358.8 ms | 6253.3 ms | 825.0 MiB | 356 KiB | - | x2.07, x2.01, x2.01 |
+
+host: {'cpus': 4, 'platform': 'linux', 'python': '3.12.3'}
+
+**What the shapes say.**
+
+- **Flat (O(new)).** A warm append, an authority transition, a catch-up
+  and a research-ledger update stay flat as the history doubles.
+- **Linear (O(history)).** A cold append, a full replay, an independent
+  reconstruction and a checkpoint's creation each read the whole log, and
+  grow about x2 per doubling. A cold append is the first write by a fresh
+  log object, which verifies the chain first.
+- **A checkpointed restore.** It reads a snapshot proportional to the
+  state. Its time grows about x1.5 per doubling, against x1.9 for the
+  full replay, and it is about five times faster at n=1,000.
+- **Memory recall.** It scans every live entry (x1.5 per doubling).
+- **The campaign.**
+  - Its wall time is mostly its sandboxed runs (children's CPU), and grows
+    x2.07 from 8 to 16 decisions.
+  - The process read 410 MiB for 4 and for 8 decisions, and 825 MiB for 16,
+    a step per objective rather than per decision. The audit has not
+    attributed those reads.
+  - At this scale the quadratic term AUD-010 measures is not yet visible.
+    It is in the work counts above and in the Gate G stages.
+
+**Not measured.** RAM is reported as allocation peaks (tracemalloc), not as
+resident size per operation. A governed task transition is measured only
+inside the campaign, not on its own.
+
+## 5. Tests and evidence
+
+**Environment.**
+
+- Python 3.12, the repository's `.venv`, with `HARNESS_HISTORY_REQUIRED=1`.
+- Not installed: FEniCSx, OpenMDAO, SALib and OpenUSD (`pxr`). Their tests
+  skip, and nothing they check is claimed from this host.
+
+**Full suites, each in a worktree at the commit:**
+
+| Commit | Passed | Failed | Errors | Skipped |
+|---|---|---|---|---|
+| f142a7e | 6,259 | 5 | 6 | - |
+| a48ae7b | 6,310 | 0 | 0 | 19 |
+| d124a8f | 6,294 | 0 | 34 | 19 |
+| d3cddc3 | 6,337 | 0 | 0 | 19 |
+
+- **f142a7e.** The failures were forger fixtures writing non-canonical
+  bytes. a48ae7b fixed them.
+- **d124a8f.** The 34 errors were the long-horizon fixture. 55032de fixed
+  it.
+
+**Mutations the audit added.** There are 45. Each was killed by the
+tests it was written for when it was added, and the sources were restored
+byte-identical. Every rationale except EP11's and RC3's names its finding.
+
+| Finding | Mutations | Spec |
+|---|---|---|
+| AUD-002 | 3: R60, R61; F10 (the unterminated-bytes write) | agent_recovery, agent_fault_injection |
+| AUD-003 | 2: N10 (the second read), N11 | agent_incremental |
+| AUD-004 | 7: M64-M70 | agent_substrate |
+| AUD-005 | 1: M60 | agent_substrate |
+| AUD-006 | 16: N12-N27, one per projection and path | agent_incremental |
+| AUD-007 | 3: M61-M63 | agent_substrate |
+| AUD-008 | 1: M71 | agent_substrate |
+| AUD-009 | 3: E40-E42 | agent_checkpoint |
+| AUD-012 | 3: EP10, EP11, RC3 | authenticated_history |
+| AUD-014 | 1: G28 | agent_delegation |
+| AUD-015 | 5: PB25-PB29 | policy_binding |
+
+**The short ids are not unique.** agent_fault_injection already had an
+F10, and agent_incremental an N10, so the full name identifies a mutation.
+
+**Mutations re-killed after their anchors moved:**
+
+- R53, E26, F2, M33 and FC1;
+- SA1 (scientific_authority_replay);
+- V_store_fallback and V_scheduler_fallback (agent_snapshot_coherence);
+- EP1, AH23 and RC1 (authenticated_history).
+
+**Hosted CI at a48ae7b.** All 44 check runs completed successfully,
+across the push and pull_request events:
+
+- the full suite twice;
+- all 16 mutation shards (125 specs, every audit mutation up to cluster
+  2), and the mutation-matrix job twice;
+- the 3.13 interpreter, dispatch sensitivity and container-verify;
+- the supply chain (sign and verify, offline verify, rebuild elsewhere);
+- stack-verify;
+- the integration jobs: FEniCSx, FMI, end to end, RO-Crate and
+  performance telemetry.
+
+No completed hosted run of a later head is reported here: the runs of
+55032de and d3cddc3 began when each was pushed.
+
+## 6. Claims boundary
+
+`CLAIMS_BOUNDARY.md` (EB1-EB17) and `docs/EVIDENCE_TERMS.md` hold the
+repository's own boundaries. The audit found them honest in what it read,
+and adds the five rows marked AUD below.
+
+**Numerically verified.** Each admitted model's result is checked by a
+different implementation:
+
+- the slab: a method-of-lines solve and, out of process, FEniCSx (not
+  installed on this host);
+- the RC network: an FMI 3.0 FMU against its closed form;
+- Langmuir capture: Runge-Kutta integration of the law in its other form.
+
+This is SCIENTIFICALLY_VERIFIED as `result_rules` defines it. It is not
+experimental validation (EB3, EB4).
+
+**Analytically compared.** The slab against its exact series, and the RC
+network against its closed form.
+
+**Fixture-tested.**
+
+- Model behaviour, through recorded fixtures (`integrations/proposals/`):
+  no live model has been called.
+- The long-horizon and adversarial campaigns, which run SCRIPTED
+  DECISIONS.
+
+**Meta-validated.** The NF-1T flagship:
+
+- architecture defined and parameters counted exactly (996,509,217,800
+  trainable);
+- weights not allocated, and training NOT EXECUTED;
+- scientific performance UNESTABLISHED.
+
+Only a 2-layer development member is trained, on one closed-form law
+(EB13, EB14).
+
+**Externally blocked.**
+
+- production keys and a vetted signature provider;
+- production witnesses;
+- a release trust root;
+- a live model provider (OD-1);
+- a human principal (OD-4).
+
+**Experimentally unvalidated.** Everything physical: no hardware exists
+here, and nothing was measured in one (EB1, EB15).
+
+**The retired hardware programme.** It is absent from the tree, which
+separates the active harness from historical hardware governance:
+
+- `tools/repo_content_audit.py` finds 0 findings in 613 files;
+- the CI step "the tree carries none of the retired hardware programme"
+  passed at a48ae7b.
+
+The audit restored none of it.
+
+**Added by the audit:**
+
+| | Boundary | Held by |
+|---|---|---|
+| AUD-012 | A REQUIRED history is authenticated only by an authenticator that asks every actor | `events._security_gate`; `reconstruct` |
+| AUD-011 | A role is self-asserted: neither the store nor the directory binds a role to an authority | not held; owner decision |
+| AUD-004 | A verification is a report the transition brought, not one the record already carried | `authority.check` (I3); `reconstruct` |
+| AUD-014 | A refused write leaves the log as it was: a capability mint is authorized before its record exists | `CapabilityLedger.issue` |
+| AUD-015 | A policy's later versions are its owner's, and a binding judges the publisher of the version in force | `PolicyStore`; `AuthorityStore`; `reconstruct` |
+
+## 7. Owner decisions
+
+**Fixable here, and fixed.** AUD-002 to AUD-009, AUD-012, AUD-014 and
+AUD-015.
+
+**Fixable here, not yet done.**
+
+- AUD-013: a resumable campaign that persists its counters beside the
+  world.
+- AUD-016: a stop file for the process-tree probe's grandchild.
+
+**Owner decisions the audit found:**
+
+- **AUD-011.** Which authority grants VERIFIER and PROMOTER: an
+  out-of-log registry like the key registry, the promotion policy itself,
+  or a human principal. It must be settled before PROMOTED is reached
+  outside tests. It extends OD-4, which provides a human principal but not
+  a role authority.
+- **AUD-010.** Whether governed folds may use the anchored, verified
+  suffix read, with periodic re-verification from genesis. The
+  alternatives are to keep paying the measured quadratic cost, or to use a
+  memoized prefix digest.
+- **AUD-017.** Who may issue secret and egress grants:
+  - for egress, before a deployment relies on the runner's socket
+    mediation;
+  - for secrets, before a governed path first resolves one.
+- **AUD-001.** Archive the six bundled histories before any purge of
+  history.
+
+**The existing decisions, unchanged by the audit.** None is satisfiable
+from this branch.
+
+| Decision | Subject |
+|---|---|
+| OD-1 | live inference provider and key handling |
+| OD-2 | live runs in hosted CI; recommended never |
+| OD-3 | external retrieval policy |
+| OD-4 | a human principal registered out of band |
+| OD-5 | symbolic mathematics and a proof checker |
+| OD-6 | inference budgets |
+| OD-7 | a multi-host deployment |
+
+**The owner actions in `docs/security/owner_actions.md`:**
+
+| Action | Subject |
+|---|---|
+| O-1 | stop the ungated agent workflow on `main` (P0) |
+| O-2 | withdraw its credential until O-1 holds |
+| O-3 | review the app installation |
+| O-4 | protect the default branch |
+| O-5 | code owners for the trust surface |
+| O-6 | retire leftover signing workflows on `main` |
+| O-7 | Actions defaults |
+| O-8 | a release trust root, before any release |
+| O-9 | repository security features |
+
+The audit read the branch's workflows and did not re-observe repository
+settings. O-1 to O-9 stand as that file records them.
+
+## 8. Readiness, by dimension
+
+Each line names its weakest point. No aggregate is given.
+
+| Dimension | Assessment | Weakest point |
+|---|---|---|
+| Event-sourcing correctness | improved, not complete | log defects fixed: AUD-002, AUD-003, AUD-005, AUD-006 (P1/P2) and AUD-008 (P3); the second reader shares the parser (common mode) |
+| Incremental-verification maturity | partial | suffix reads bound to verified anchors and to the folded hash (AUD-003, AUD-006); governed folds still re-verify from genesis by decision (AUD-010) |
+| Recovery maturity | partial | crash-window checkpoint fixed (AUD-009); per-step campaign recovery measured; whole-process campaign recovery absent (AUD-013) |
+| Witness deployment maturity | not deployed | protocol implemented and tested; no production witness or trust root |
+| Authority security | not ready | roles self-asserted (AUD-011); authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
+| Execution isolation | partial, honestly classified | kernel namespaces, filesystem, network, process tree and quotas; syscall filtering NOT_PROVIDED |
+| Scientific verification | bounded, honest | numerical cross-checks of three models; no experimental validation; FEniCSx not exercised on this host |
+| Long-horizon reliability | measured to 1,000 decisions | not resumable (AUD-013); per-decision cost rising (AUD-010) |
+| CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
+| Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; AUD-011 open |
+| Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
+| Merge readiness | not assessed as ready | 941 of 1001 files not reviewed; hosted runs of the audit's head not complete |
+
+## 9. What remains unknown
+
+- **The files not reviewed.** Everything in the 941 NOT_REVIEWED files.
+- **Unmeasured costs.** Resident memory per operation, a governed task
+  transition on its own, and what the campaign's reads are (section 4).
+- **Long horizons.** Whether the campaign holds past 1,000 decisions.
+- **Physical validity.** Whether any scientific result holds of the
+  physical world. Nothing here can establish it.

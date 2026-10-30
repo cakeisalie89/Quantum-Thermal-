@@ -903,6 +903,8 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 entry = policies.setdefault(
                     doc["policy_id"], {"by": ev.actor, "versions": [],
                                        "withdrawn": None})
+                # who published the version in force, the latest (AUD-015)
+                entry["by"] = ev.actor
                 entry["versions"].append(
                     (ev.seq, doc.get("version"),
                      limit if isinstance(limit, (int, float))
@@ -2175,6 +2177,12 @@ def _sub_policy_publish(ev, p: dict, out) -> None:
     if owner["withdrawn_seq"] is not None:
         _note(out, ev, f"policy {pid!r} is republished after its withdrawal "
                        f"at seq {owner['withdrawn_seq']}")
+        return
+    if ev.actor != owner["by"]:
+        # Restated, AUD-015: a policy's later versions are its owner's.
+        _note(out, ev, f"{ev.actor!r} publishes version "
+                       f"{doc.get('version')!r} of {pid!r}, which "
+                       f"{owner['by']!r} published")
         return
     versions = out.policies.setdefault(pid, [])
     version = doc.get("version")

@@ -541,6 +541,15 @@ def digest_is_consistent(cap: Capability, claimed: str) -> bool:
     return is_digest(claimed) and cap.digest() == claimed
 
 
+@dataclass(frozen=True)
+class _Draft:
+    """The position and actor of a record not yet written, as far as
+    :meth:`CapabilityLedger._authorize_mint` reads one."""
+
+    seq: int
+    actor: str
+
+
 class _RootExists(Exception):
     """Raised inside a decided append: a root is already in the log."""
 
@@ -918,6 +927,11 @@ class CapabilityLedger(DecidedWriter):
                     f"{c.issued_seq}: {exc}. The log moved "
                     f"{c.issued_seq - cap.issued_seq} position(s) past the "
                     "start the caller computed") from exc
+            # WHO MAY MINT, decided before the record exists (AUD-014). The
+            # fold after the append asks the same question; a record it
+            # refused was already durable, and every later load of the log
+            # refused the whole history.
+            self._authorize_mint(_Draft(c.issued_seq, actor), c)
             return {"actor": actor, "action": ACT_ISSUE, "target": c.task_id,
                     "payload": payload}
 
