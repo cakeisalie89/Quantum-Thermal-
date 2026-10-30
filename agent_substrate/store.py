@@ -577,7 +577,8 @@ class AuthorityStore:
                     record_id=rid, src=cur.state, dst=State(p["dst"]),
                     actor=ev.actor, role=Role(p["role"]),
                     evidence=merged_evidence, proposer=cur.proposer,
-                    policy_id=p.get("policy_id") or cur.policy_id))
+                    policy_id=p.get("policy_id") or cur.policy_id,
+                    prior_evidence=cur.evidence))
             except TransitionError as exc:
                 raise StoreError(
                     f"seq {ev.seq}: {rid!r} {cur.state.value} -> "
@@ -1306,7 +1307,8 @@ class AuthorityStore:
             req = TransitionRequest(
                 record_id=record_id, src=cur.state, dst=dst, actor=actor,
                 role=role, evidence={**cur.evidence, **evidence},
-                proposer=cur.proposer, policy_id=policy_id or cur.policy_id)
+                proposer=cur.proposer, policy_id=policy_id or cur.policy_id,
+                prior_evidence=cur.evidence)
             # raises TransitionError if not permitted, including when a
             # cited digest does not resolve in the attached evidence store
             edge = check(req, resolve=self._resolver)

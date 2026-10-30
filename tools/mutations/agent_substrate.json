@@ -237,8 +237,8 @@
     {
       "name": "M33_store_replay_resolves_archived_evidence",
       "path": "agent_substrate/store.py",
-      "find": "                    policy_id=p.get(\"policy_id\") or cur.policy_id))",
-      "replace": "                    policy_id=p.get(\"policy_id\") or cur.policy_id),\n                    resolve=self._resolver)",
+      "find": "                    policy_id=p.get(\"policy_id\") or cur.policy_id,\n                    prior_evidence=cur.evidence))",
+      "replace": "                    policy_id=p.get(\"policy_id\") or cur.policy_id,\n                    prior_evidence=cur.evidence),\n                    resolve=self._resolver)",
       "rationale": "replaying a historical transition whose evidence has since been archived becomes a retroactive authority failure, turning an archival policy into corruption"
     },
     {
@@ -401,6 +401,62 @@
       "find": "            if \"depends_on\" not in p:\n                # And one that names no dependency at all: the store refuses",
       "replace": "            if False:\n                # And one that names no dependency at all: the store refuses",
       "rationale": "AUD-007. The second reader takes a dependency record that names no dependency, which the store refuses"
+    },
+    {
+      "name": "M64_the_gate_takes_an_inherited_report_as_fresh",
+      "path": "agent_substrate/authority.py",
+      "find": "    if inherited:\n        raise TransitionError(\n            f\"I3: {req.src.value} -> {req.dst.value} requires fresh \"",
+      "replace": "    if False:\n        raise TransitionError(\n            f\"I3: {req.src.value} -> {req.dst.value} requires fresh \"",
+      "rationale": "AUD-004. The report a record went STALE with makes it VERIFIED again: I3's fresh evidence is asked for and never checked"
+    },
+    {
+      "name": "M65_verification_asks_for_no_fresh_evidence",
+      "path": "agent_substrate/authority.py",
+      "find": "          requires_fresh=frozenset({\"verification_report\"})),",
+      "replace": "          requires_fresh=frozenset()),",
+      "rationale": "AUD-004. The edge into VERIFIED no longer names its report as one the transition must supply"
+    },
+    {
+      "name": "M66_the_live_transition_forgets_what_the_record_carried",
+      "path": "agent_substrate/store.py",
+      "find": "                proposer=cur.proposer, policy_id=policy_id or cur.policy_id,\n                prior_evidence=cur.evidence)",
+      "replace": "                proposer=cur.proposer, policy_id=policy_id or cur.policy_id,\n                prior_evidence={})",
+      "rationale": "AUD-004. The store's own write path judges every report as new, so the stale one is accepted at the gate"
+    },
+    {
+      "name": "M67_replay_forgets_what_the_record_carried",
+      "path": "agent_substrate/store.py",
+      "find": "                    policy_id=p.get(\"policy_id\") or cur.policy_id,\n                    prior_evidence=cur.evidence))",
+      "replace": "                    policy_id=p.get(\"policy_id\") or cur.policy_id,\n                    prior_evidence={}))",
+      "rationale": "AUD-004. A history that re-verified a record on its stale report, written past the gate, loads"
+    },
+    {
+      "name": "M68_the_second_reader_takes_an_inherited_report_as_fresh",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if inherited:\n        return (f\"I3: {src} -> {dst} requires fresh evidence {inherited}: \"",
+      "replace": "    if False:\n        return (f\"I3: {src} -> {dst} requires fresh evidence {inherited}: \"",
+      "rationale": "AUD-004. The second reader restates the fresh-evidence rule and does not apply it"
+    },
+    {
+      "name": "M69_the_second_reader_forgets_what_the_record_carried",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                    policy_id=p.get(\"policy_id\") or cur[\"policy_id\"],\n                    prior=cur[\"evidence\"])",
+      "replace": "                    policy_id=p.get(\"policy_id\") or cur[\"policy_id\"],\n                    prior=None)",
+      "rationale": "AUD-004. The second reader judges every report as new"
+    },
+    {
+      "name": "M70_the_second_reader_asks_for_no_fresh_evidence",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        frozenset({\"VERIFIER\"}), frozenset({\"verification_report\"}), True,\n        frozenset({\"verification_report\"})),",
+      "replace": "        frozenset({\"VERIFIER\"}), frozenset({\"verification_report\"}), True),",
+      "rationale": "AUD-004. The second reader's edge into VERIFIED no longer names a fresh report"
+    },
+    {
+      "name": "M71_a_writer_folds_its_own_values_not_the_log_s",
+      "path": "agent_substrate/events.py",
+      "find": "        body = json.loads(canonical_bytes(body))\n        ev = Event(**body, hash=digest(body))\n",
+      "replace": "        ev = Event(**body, hash=digest(body))\n",
+      "rationale": "AUD-008. append() hands back the caller's tuples and int keys under the hash of their JSON form, so a projection folding its own append holds what no replay of the log does"
     }
   ]
 }

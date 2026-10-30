@@ -137,6 +137,10 @@ class _Rule:
     evidence: frozenset = frozenset()
     #: True when the actor must differ from the record's proposer (I4).
     distinct_actor: bool = False
+    #: Evidence keys the transition must supply itself, with a value the
+    #: record did not already carry (I3): the merge satisfies ``evidence``
+    #: with what the record had, and that is not a fresh verification.
+    fresh: frozenset = frozenset()
 
 
 #: The authority transition graph. (src, dst) -> the rule that permits it.
@@ -149,7 +153,8 @@ _AUTH_EDGES = {
     ("PROPOSED", "REJECTED"): _Rule(
         frozenset({"VERIFIER"}), frozenset({"rejection_reason"}), True),
     ("UNDER_REVIEW", "VERIFIED"): _Rule(
-        frozenset({"VERIFIER"}), frozenset({"verification_report"}), True),
+        frozenset({"VERIFIER"}), frozenset({"verification_report"}), True,
+        frozenset({"verification_report"})),
     ("UNDER_REVIEW", "REJECTED"): _Rule(
         frozenset({"VERIFIER"}), frozenset({"rejection_reason"}), True),
     # I1: the ONLY edge into PROMOTED, and it needs a different actor.
@@ -233,7 +238,7 @@ def _create_refusal(p: dict, actor: str, recs: dict) -> str | None:
 
 
 def _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,
-                  policy_id):
+                  policy_id, prior=None):
     """Why this authority transition would be refused, or None if it stands.
 
     A STRING rather than an exception, because this reader diagnoses instead
@@ -274,6 +279,16 @@ def _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,
     missing = sorted(rule.evidence - set(evidence))
     if missing:
         return f"I6: {src} -> {dst} requires evidence {missing}"
+
+    # ``prior`` is the record's evidence before this transition; ``evidence``
+    # is that merged with the transition's own.
+    prior = prior or {}
+    inherited = sorted(k for k in rule.fresh
+                       if evidence.get(k) == prior.get(k))
+    if inherited:
+        return (f"I3: {src} -> {dst} requires fresh evidence {inherited}: "
+                "the record already carried it, so this transition verified "
+                "nothing new")
 
     for key in sorted(rule.evidence):
         val = evidence.get(key)
@@ -938,7 +953,8 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                     role=p.get("role"),
                     evidence={**cur["evidence"], **p.get("evidence", {})},
                     proposer=cur["proposer"],
-                    policy_id=p.get("policy_id") or cur["policy_id"])
+                    policy_id=p.get("policy_id") or cur["policy_id"],
+                    prior=cur["evidence"])
                 if refusal is not None:
                     out.unauthorized.append(
                         f"seq {ev.seq}: {rid} {cur['state']} -> "

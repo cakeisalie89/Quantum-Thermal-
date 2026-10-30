@@ -1,14 +1,14 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 578,
+   "ADDED": 581,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 57,
-   "LOW": 205,
-   "MEDIUM": 323
+   "LOW": 206,
+   "MEDIUM": 325
   },
   "by_subsystem": {
    "agent-substrate": 31,
@@ -20,7 +20,7 @@
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 55,
+   "evidence": 56,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 181,
-   "tooling": 49,
+   "tests": 182,
+   "tooling": 50,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 610
+  "files": 613
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -606,7 +606,8 @@
      "tests/test_trust_labels.py",
      "tests/test_typecheck_scope.py",
      "tests/test_verified_read_guard.py",
-     "tests/test_witness.py"
+     "tests/test_witness.py",
+     "tests/test_work_counts.py"
     ]
    }
   },
@@ -1171,7 +1172,8 @@
      "tests/test_task_execution_phase.py",
      "tests/test_typecheck_scope.py",
      "tests/test_verified_read_guard.py",
-     "tests/test_witness.py"
+     "tests/test_witness.py",
+     "tests/test_work_counts.py"
     ]
    }
   },
@@ -2271,7 +2273,8 @@
      "tests/test_scientific_identity.py",
      "tests/test_second_reader_audit_actions.py",
      "tests/test_security_findings.py",
-     "tests/test_verified_read_guard.py"
+     "tests/test_verified_read_guard.py",
+     "tests/test_work_counts.py"
     ]
    }
   },
@@ -2583,6 +2586,19 @@
   {
    "change": "ADDED",
    "path": "docs/audit/pr17_audit_ledger.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/audit/work_counts.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -8127,6 +8143,21 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_work_counts.py",
+   "risk": "LOW",
+   "runtime_dependencies": [],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_workflow_exit_checks.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -10812,6 +10843,22 @@
     "findings": [],
     "mutation_specs": [],
     "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/work_counts.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_work_counts.py"
+    ]
    }
   },
   {

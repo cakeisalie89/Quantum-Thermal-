@@ -271,7 +271,7 @@ records:
 - The rest: `adversarial_eval` 22, `research_horizon` 19, `proposals` 5,
   `_head_seq` 5, checkpointing 2.
 
-### Next actions
+### Next actions at the end of session 2
 
 1. Run the full suite at the cluster 2 commit, then push it.
 2. AUD-004: test the scientific-admission rule through the governed path,
@@ -280,3 +280,84 @@ records:
 4. Phase 2C: commit a work-count instrument, measure scaling curves, and
    reduce `projection()` and `__init__`'s full reads without losing the
    full-genesis path.
+
+### Pushed
+
+The full suite at a48ae7b passed: 6,310 passed, 19 skipped, 33 minutes.
+c11c628, f142a7e and a48ae7b were pushed together. Hosted CI started on
+both the push and the pull_request event.
+
+## Session 3 (2026-10-30)
+
+### Cluster 3: AUD-004, AUD-008, AUD-009 fixed; the work counter
+
+- **AUD-004 (I3's fresh evidence).** UNDER_REVIEW -> VERIFIED must now
+  cite a `verification_report` that the record did not already carry
+  (`Edge.requires_fresh`, `TransitionRequest.prior_evidence`). Both store
+  sites pass the record's prior evidence, and the second reader restates
+  the rule.
+  - "Fresh" means other bytes. A check is deterministic: the same checker
+    on the same bundle gave a byte-identical report under a new governed
+    task. So a re-run is the same verification, and is refused.
+  - Before and after, from `repro/fresh_evidence.py`:
+
+    | Case | f142a7e | Fixed |
+    |---|---|---|
+    | re-verified on the report it went stale with | VERIFIED | refused |
+    | ... citing that report again | VERIFIED | refused |
+    | control: a new report | VERIFIED | VERIFIED |
+    | written past the gate: store | loads | StoreError |
+    | written past the gate: second reader | VERIFIED, unauthorized=0 | UNDER_REVIEW, unauthorized=1 |
+
+- **AUD-008.** `append()` now hands back the record as its canonical bytes
+  parse. A tuple came back from the log as a list, and an int key as a
+  string, under the same hash.
+- **AUD-009.** `check_against` refused a checkpoint taken in the crash
+  window, where the witness is one behind, as "the log was truncated". It
+  now accepts that signature when the checkpoint's record is still there,
+  and refuses a deeper lag as before (test C5).
+- **Fixtures that met the new rules.** Four test fixtures (crash
+  recovery, governed-model reuse, scientific invalidation and the
+  work-count test) verified a record on a report it was created with, or
+  re-cited a stale one. They now follow the honest workflow. The
+  invalidation test now shows the origin rule on a record citing the
+  withdrawn run.
+
+**Validation.**
+
+- **Pre-fix failure.** Each new test fails on the commit before its fix
+  and passes after.
+- **Mutation.** All of these were KILLED, with sources restored
+  byte-identical:
+  - M64 to M71;
+  - M33 and FC1, whose anchors moved;
+  - E40 to E42.
+
+### Phase 2C: the work counter, and what it measured
+
+`tools/work_counts.py` wraps the event log's read paths from outside,
+counts them under the scripted campaign, and records the result in
+`docs/audit/work_counts.json`.
+
+| Decisions | Full reads | Records parsed | Baseline `anchor_at` calls (lines parsed) | Now |
+|---|---|---|---|---|
+| 15 | 78 | 11,195 | 33 (3,552) | 0 |
+| 30 | 114 | 23,720 | 48 (8,211) | 0 |
+| 60 | 198 | 67,591 | 89 (27,777) | 0 |
+
+- **Growth.** Each doubling multiplied the full-read records by 2.12, then
+  2.85: quadratic (AUD-010, open).
+- **Where.** At 60 decisions, `GovernedTasks.projection()` accounts for 42%
+  of those records.
+- **What AUD-003 saved.** It removed every `anchor_at` re-read, 29% of the
+  lines parsed at 60 decisions.
+- **Wall time.** It did not move outside noise: 20.5 s at the baseline and
+  21.6 s now. The subprocesses hide the work.
+
+### Next actions
+
+1. Run the full suite at the cluster 3 commit, then push it.
+2. AUD-010: an anchored task projection, and one verified read shared by
+   the seven stores a runner loads. Keep the full-genesis path.
+3. Record ledger dispositions for the files read in full.
+4. Phases 3 to 14.

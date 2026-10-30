@@ -65,6 +65,12 @@ ALLOWED_IMPORTERS = {
     # and computes no scientific result.
     "tools/generic_consistency.py",
     "tests/test_generic_consistency.py",
+    # The PR #17 audit's work counter. It wraps the event log's read paths
+    # from outside, in its own process, to COUNT them under the scripted
+    # research-horizon campaign; it changes nothing in the package and
+    # computes no scientific result.
+    "tools/work_counts.py",
+    "tests/test_work_counts.py",
     "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",

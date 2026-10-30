@@ -20,7 +20,11 @@ I2  REVOKED and REJECTED are terminal.
 I3  STALE cannot return to PROMOTED directly.
     A dependency changed, so the prior verification no longer describes the
     current inputs. The path back runs through VERIFIED, which requires fresh
-    evidence.
+    evidence: the verification report must be supplied by the transition
+    itself, and must not be one the record already carried
+    (:attr:`Edge.requires_fresh`). Before that was checked, the report a
+    record went stale with satisfied the edge through the evidence merge,
+    and a record was re-verified and re-promoted on nothing new (AUD-004).
 
 I4  Separation of duties: the proposer may not verify their own record.
     An agent that can propose and verify has no verification at all -- only a
@@ -96,6 +100,10 @@ class Edge:
     #: If True, the actor must differ from the record's proposer (I4).
     requires_distinct_actor: bool = False
     reason: str = ""
+    #: Evidence keys the transition must supply ITSELF, with a value the
+    #: record did not already carry (I3). A key the record carries satisfies
+    #: ``requires_evidence`` through the merge; it does not satisfy this.
+    requires_fresh: FrozenSet[str] = frozenset()
 
 
 def _edges() -> tuple:
@@ -114,7 +122,8 @@ def _edges() -> tuple:
         E(State.UNDER_REVIEW, State.VERIFIED, frozenset({Role.VERIFIER}),
           requires_evidence=frozenset({"verification_report"}),
           requires_distinct_actor=True,
-          reason="verification passed (I4: not the proposer)"),
+          reason="verification passed (I4: not the proposer)",
+          requires_fresh=frozenset({"verification_report"})),
         E(State.UNDER_REVIEW, State.REJECTED, frozenset({Role.VERIFIER}),
           requires_evidence=frozenset({"rejection_reason"}),
           requires_distinct_actor=True,
@@ -187,6 +196,10 @@ class TransitionRequest:
     proposer: str | None = None
     #: Policy identity in force when this was requested (I5).
     policy_id: str | None = None
+    #: The evidence the record carried before this transition. ``evidence``
+    #: is that merged with the transition's own; this is what tells a report
+    #: supplied now from one inherited (I3).
+    prior_evidence: dict = field(default_factory=dict)
 
 
 def check(req: TransitionRequest, *, resolve=None) -> Edge:
@@ -244,6 +257,15 @@ def check(req: TransitionRequest, *, resolve=None) -> Edge:
         raise TransitionError(
             f"I6: {req.src.value} -> {req.dst.value} requires evidence "
             f"{missing}")
+
+    inherited = sorted(k for k in edge.requires_fresh
+                       if req.evidence.get(k) == req.prior_evidence.get(k))
+    if inherited:
+        raise TransitionError(
+            f"I3: {req.src.value} -> {req.dst.value} requires fresh "
+            f"evidence {inherited}: the record already carried it, and a "
+            "report that was there before this transition is not a "
+            "verification made by it")
 
     for key in sorted(edge.requires_evidence):
         val = req.evidence.get(key)

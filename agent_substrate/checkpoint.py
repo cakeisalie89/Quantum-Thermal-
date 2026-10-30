@@ -288,6 +288,16 @@ def read_verified_with(log: EventLog, cp: Checkpoint) -> tuple:
     return log.read_verified_from(cp.anchor)
 
 
+def _holds_record(log: EventLog, cp: Checkpoint) -> bool:
+    """True when the record ``cp`` anchors on is at its offset in ``log``:
+    one seek and one line (:meth:`EventLog.check_anchor`)."""
+    try:
+        log.check_anchor(cp.anchor)
+    except EventLogError:
+        return False
+    return True
+
+
 def _last_seq(path: Path, window: int = 1 << 20) -> int | None:
     """The seq of the last complete record in ``path``, or None if there is
     none to read. A torn final line (no newline) is not a record and is
@@ -314,7 +324,8 @@ def _last_seq(path: Path, window: int = 1 << 20) -> int | None:
 def check_against(log: EventLog, cp: Checkpoint) -> None:
     """Raise unless ``cp`` could describe ``log``. Cheap: reads no records,
     except the last one when the log is shorter than the checkpoint's end,
-    to tell a foreign checkpoint from a truncated log.
+    to tell a foreign checkpoint from a truncated log, and the checkpoint's
+    own record when the witness is one behind it.
 
     Catches the case a byte-offset seek cannot: a checkpoint from a *different*
     log, or from a log that has since been truncated. ``verify_from`` would
@@ -354,9 +365,18 @@ def check_against(log: EventLog, cp: Checkpoint) -> None:
             "the checkpoint covered have been removed")
     witness = log.head()
     if witness is not None and witness.seq < cp.seq:
+        # ONE behind, with the checkpoint's record still in the log, is what
+        # a crash between an append and its witness update leaves -- which
+        # verify() calls a note -- when the checkpoint was taken at the head
+        # the witness had not reached yet. Refusing that called an intact
+        # log truncated (AUD-009). Further behind, the witness was rolled
+        # back, and that is refused as before.
+        if witness.seq == cp.seq - 1 and _holds_record(log, cp):
+            return
         raise CheckpointAheadOfLog(
             f"checkpoint names seq {cp.seq} but the head witness records "
-            f"{witness.seq}; the log was truncated after the checkpoint")
+            f"{witness.seq}; the witness was rolled back, or the log was "
+            "truncated after the checkpoint")
 
 
 def describes(log: EventLog, cp: Checkpoint) -> None:

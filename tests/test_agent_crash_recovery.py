@@ -456,8 +456,9 @@ def test_corrupted_evidence_is_detected_on_read_not_trusted(world):
 
 def test_a_record_citing_evidence_that_vanished_cannot_be_promoted(world):
     dg = world.evidence.put(b"a verification report")
-    world.store.create(record_id="r1", kind="claim", proposer="p1",
-                       evidence={"verification_report": dg})
+    # The verifier supplies the report; a report the record was created
+    # with would not be a verification of it (I3, AUD-004).
+    world.store.create(record_id="r1", kind="claim", proposer="p1")
     world.store.transition(record_id="r1", dst=State.UNDER_REVIEW,
                            actor="v1", role=Role.VERIFIER)
     world.store.transition(record_id="r1", dst=State.VERIFIED, actor="v1",

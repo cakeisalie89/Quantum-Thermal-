@@ -434,17 +434,41 @@ def test_a_stale_result_is_not_reused_and_not_readmitted(world):
     g0.invalidate_task(a.governed.task_id, reason="r")
     g = _open(base)
     assert a.record_id not in g.reusable(ident)
-    # I3: STALE returns only through re-verification -- and re-verification
-    # asks the origin again, at its own position, where the run is
-    # INVALIDATED.
+    # I3: STALE returns only through re-verification. The report the result
+    # went stale with is not one (AUD-004) ...
     g.authority.transition(record_id=a.record_id, dst=State.UNDER_REVIEW,
                            actor=REVIEWER_ID, role=Role.VERIFIER)
+    with pytest.raises(TransitionError, match="requires fresh evidence"):
+        g.authority.transition(
+            record_id=a.record_id, dst=State.VERIFIED, actor=REVIEWER_ID,
+            role=Role.VERIFIER,
+            evidence={"verification_report": chk.report_sha256})
+    # ... nor is the same check run again: it produces the same bytes, so
+    # it is the same verification, and says nothing about what changed.
+    again = g.check(a, check_id=CHECK, out_dir=f"{WS}/after/a-recheck")
+    assert again.report_sha256 == chk.report_sha256
+    with pytest.raises(TransitionError, match="requires fresh evidence"):
+        g.authority.transition(
+            record_id=a.record_id, dst=State.VERIFIED, actor=REVIEWER_ID,
+            role=Role.VERIFIER,
+            evidence={"verification_report": again.report_sha256})
+    # And admission asks the origin again, at its own position, where the
+    # run is INVALIDATED: shown on a record citing that run's bundle, for
+    # which the report is new.
+    carried = g.authority.get(a.record_id).evidence
+    g.authority.create(record_id="cites-the-withdrawn-run",
+                       kind=result_rules.KIND, proposer=SUBMITTER_ID,
+                       evidence={k: v for k, v in carried.items()
+                                 if k != "verification_report"})
+    g.authority.transition(record_id="cites-the-withdrawn-run",
+                           dst=State.UNDER_REVIEW, actor=REVIEWER_ID,
+                           role=Role.VERIFIER)
     with pytest.raises(TransitionError,
                        match="not an artefact of any VERIFIED governed "
                              "model run"):
         g.authority.transition(
-            record_id=a.record_id, dst=State.VERIFIED, actor=REVIEWER_ID,
-            role=Role.VERIFIER,
+            record_id="cites-the-withdrawn-run", dst=State.VERIFIED,
+            actor=REVIEWER_ID, role=Role.VERIFIER,
             evidence={"verification_report": chk.report_sha256})
 
 

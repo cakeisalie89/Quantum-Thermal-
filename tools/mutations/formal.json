@@ -8,8 +8,8 @@
     {
       "name": "FC1_a_proposer_may_verify_its_own_claim",
       "path": "agent_substrate/authority.py",
-      "find": "          requires_evidence=frozenset({\"verification_report\"}),\n          requires_distinct_actor=True,\n          reason=\"verification passed (I4: not the proposer)\"),",
-      "replace": "          requires_evidence=frozenset({\"verification_report\"}),\n          requires_distinct_actor=False,\n          reason=\"verification passed (I4: not the proposer)\"),",
+      "find": "          requires_evidence=frozenset({\"verification_report\"}),\n          requires_distinct_actor=True,\n          reason=\"verification passed (I4: not the proposer)\",\n          requires_fresh=frozenset({\"verification_report\"})),",
+      "replace": "          requires_evidence=frozenset({\"verification_report\"}),\n          requires_distinct_actor=False,\n          reason=\"verification passed (I4: not the proposer)\",\n          requires_fresh=frozenset({\"verification_report\"})),",
       "rationale": "the gate would describe another machine than AuthorityPromotion.tla's, and the self_verify counterexample would run through the store"
     },
     {

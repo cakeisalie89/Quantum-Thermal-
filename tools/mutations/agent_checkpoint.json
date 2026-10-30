@@ -344,6 +344,27 @@
       "find": "        if not self.seqs():\n            verdict = AUDIT_EMPTY\n",
       "replace": "        if False:\n            verdict = AUDIT_EMPTY\n",
       "rationale": "an empty store is reported as a store of foreign checkpoints"
+    },
+    {
+      "name": "E40_a_crash_window_checkpoint_is_called_a_truncation",
+      "path": "agent_substrate/checkpoint.py",
+      "find": "        if witness.seq == cp.seq - 1 and _holds_record(log, cp):\n            return\n",
+      "replace": "        if False:\n            return\n",
+      "rationale": "AUD-009. A checkpoint taken while the witness lags by the one record a crash leaves is refused, and the intact log is reported truncated"
+    },
+    {
+      "name": "E41_one_behind_vouches_for_a_record_that_is_gone",
+      "path": "agent_substrate/checkpoint.py",
+      "find": "        if witness.seq == cp.seq - 1 and _holds_record(log, cp):\n            return\n",
+      "replace": "        if witness.seq == cp.seq - 1:\n            return\n",
+      "rationale": "AUD-009. One behind is accepted without the checkpoint's record being in the log, so a checkpoint over a rewritten record passes"
+    },
+    {
+      "name": "E42_any_rolled_back_witness_is_accepted",
+      "path": "agent_substrate/checkpoint.py",
+      "find": "        if witness.seq == cp.seq - 1 and _holds_record(log, cp):\n            return\n",
+      "replace": "        if _holds_record(log, cp):\n            return\n",
+      "rationale": "AUD-009 and C5. A witness rolled back by more than a crash leaves is accepted whenever the record is there"
     }
   ]
 }

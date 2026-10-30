@@ -124,24 +124,40 @@
    "files": [
     {
      "path": "agent_substrate/authority.py",
-     "lines": "20-23 (I3), 114-117, 143-146"
+     "lines": "I3 docstring, Edge.requires_fresh, TransitionRequest.prior_evidence, check()"
     },
     {
      "path": "agent_substrate/store.py",
-     "lines": "543-549 (replay), 1271-1277 (live)"
+     "lines": "transition() (live) and _fold_one (replay): TransitionRequest(prior_evidence=cur.evidence)"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_Rule.fresh, _auth_refusal(prior=...), the record.transition replay"
     }
    ],
    "behavior": "Both the live transition and the replay evaluate an edge against {**record.evidence, **transition.evidence}. After STALE, UNDER_REVIEW -> VERIFIED requires 'verification_report', which the record already carries from before it went stale.",
    "invariant": "I3: STALE returns to PROMOTED only through VERIFIED, 'which requires fresh evidence' -- the prior verification no longer describes the current inputs.",
    "mechanism": "A record verified with report R, promoted, made STALE by a dependency change, re-reviewed, and re-verified with an empty evidence mapping is VERIFIED again on R, and can be promoted again on R. The second reader restates the same rule and agrees, so nothing flags it.",
-   "reproduction": "AuthorityStore over a fresh EventLog: create; UNDER_REVIEW; VERIFIED with R; PROMOTED; STALE with invalidated_by; UNDER_REVIEW; VERIFIED with evidence={}; PROMOTED with evidence={}. Script: scratchpad repro/stale_reverify.py; regression test added with the fix.",
-   "observed": "VERIFIED and then PROMOTED with no new evidence; the fresh replay and reconstruct() both report PROMOTED with no anomaly.",
-   "expected": "A VERIFIED transition out of a re-review that followed STALE cites a verification_report other than the one the record carried when it went stale; otherwise it is refused, live and on replay, by both readers.",
-   "correction": "Under evaluation: the scientific-result admission rule may already refuse this for scientific results (to be tested through the governed path); for every other record kind the edge check needs the rule, in both readers.",
-   "regression_tests": [],
-   "residual_risk": "",
+   "reproduction": "scratchpad repro/fresh_evidence.py against f142a7e and the fix; repro/stale_reverify.py.",
+   "observed": "Before (f142a7e): re-verification after STALE with evidence={} -> VERIFIED; citing the same report again -> VERIFIED; a history with that transition appended past the gate loads in the store, and the second reader holds the record VERIFIED with nothing unauthorized. A first verification resting on a report the proposer attached at creation was likewise accepted.",
+   "expected": "UNDER_REVIEW -> VERIFIED cites a verification_report the transition itself supplies and the record did not already carry; refused live and on replay, by both readers.",
+   "correction": "Edge.requires_fresh on UNDER_REVIEW -> VERIFIED ({'verification_report'}), judged by check() against TransitionRequest.prior_evidence -- the record's evidence before the transition -- which both store call sites pass. The second reader restates it (_Rule.fresh, _auth_refusal(prior=...)). For scientific results the admission rule already refused re-admission when the result's own governed run had been invalidated; a result made STALE by a dependency had no such cover, and the edge rule covers every kind. Fresh means other bytes. An independent check is deterministic: run again on the same bundle by the same checker it produced a byte-identical report under a new governed task (tests/test_scientific_invalidation.py), and the report names the verifier's implementation, the subject and the result. Identical bytes are the same verification, which cannot describe what made the record stale, so it is refused; a changed checker or changed inputs produce other bytes and are fresh.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_I3_the_gate_refuses_a_report_the_record_already_carried (with control)",
+    "tests/test_agent_substrate.py::test_I3_back_from_stale_needs_a_report_it_did_not_carry (inherited, cited-again)",
+    "tests/test_agent_substrate.py::test_I3_back_from_stale_on_a_new_report_is_verified (control)",
+    "tests/test_agent_substrate.py::test_I3_a_first_verification_does_not_rest_on_the_proposer_s_report",
+    "tests/test_agent_substrate.py::test_I3_a_stale_report_written_past_the_gate_is_refused_on_replay (both readers)",
+    "tests/test_agent_substrate.py::test_every_production_transition_request_says_what_was_there_before (with control)",
+    "tests/test_agent_differential.py::test_the_restated_authority_rules_decide_each_case[re-verified-on-the-report-it-went-stale-with, re-verified-citing-that-report-again, verified-on-the-report-its-proposer-attached, re-verified-on-a-new-report]",
+    "tests/test_scientific_invalidation.py::test_a_stale_result_is_not_reused_and_not_readmitted (the stale report and a byte-identical re-check refused by I3; the origin rule shown on a record citing the withdrawn run)"
+   ],
+   "residual_risk": "Freshness is judged against the report the record carries now, so a report used for an earlier verification and later replaced could be cited again after a second staleness. TransitionRequest.prior_evidence defaults to empty for direct callers (tests, tools/model_check.py), the first verification's case; every production construction passes it, held by a structural test. No committed history exists to migrate; a history written before this rule that re-verified on an inherited report no longer replays. Three fixtures verified a record on a report it was created with, or re-cited the stale one; they now follow the honest workflow: tests/test_agent_crash_recovery.py, tests/test_governed_model_reuse.py, tests/test_scientific_invalidation.py.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_substrate.json: M64-M70"
+   ]
   },
   {
    "id": "AUD-005",
@@ -245,6 +261,101 @@
    "mutations": [
     "tools/mutations/agent_substrate.json: M61, M62, M63"
    ]
+  },
+  {
+   "id": "AUD-008",
+   "title": "The event append() returns is not the event a replay reads: the caller's tuples and int keys come back from the log as lists and strings, under the same hash",
+   "severity": "P3",
+   "subsystem": "event log / canonical form",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "_write_event"
+    },
+    {
+     "path": "agent_substrate/canonical.py",
+     "lines": "module docstring"
+    }
+   ],
+   "behavior": "_write_event hashed the caller's body and returned an Event holding the caller's Python values. canonical_bytes serializes an int, float, bool or None dict key as a string and a tuple as a list, so the record a replay parses is a different Python value with the same hash. Every projection folds its own append from the returned Event.",
+   "invariant": "canonical.py: two records that differ must not hash equally; and a live projection holds what a replay of the log holds.",
+   "mechanism": "JSON cannot tell those values apart, and the in-memory record never made the round trip the log's readers make.",
+   "reproduction": "scratchpad repro/round_trip.py: append payload {'deps': ('x', 'y'), 'm': {1: 'one'}}; compare with the replayed event.",
+   "observed": "hash equal: True; payload equal: False; written {'deps': ('x', 'y'), 'm': {1: 'one'}}, replayed {'deps': ['x', 'y'], 'm': {'1': 'one'}}.",
+   "expected": "The writer is handed the record as its canonical bytes parse back.",
+   "correction": "_write_event normalizes the body through json.loads(canonical_bytes(body)) before building the Event; the bytes written are unchanged. canonical.py's docstring states which Python values serialize alike.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_the_event_append_returns_is_the_event_a_replay_reads"
+   ],
+   "mutations": [
+    "tools/mutations/agent_substrate.json: M71"
+   ],
+   "residual_risk": "No production writer was found relying on a tuple or non-string key surviving its own append; the class is closed at the write rather than audited caller by caller.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-009",
+   "title": "check_against calls an intact log truncated when a checkpoint is taken in the crash window that leaves the witness one record behind",
+   "severity": "P2",
+   "subsystem": "checkpoints",
+   "files": [
+    {
+     "path": "agent_substrate/checkpoint.py",
+     "lines": "check_against, the head-witness comparison"
+    }
+   ],
+   "behavior": "The witness is written after the append it describes, so a crash between the two leaves it one record behind the log; verify() reports that as a note and the log as ok. checkpoint.create() then checkpoints the log's head, one past the witness. check_against refused every checkpoint ahead of the witness as 'the log was truncated after the checkpoint'. verify_with, read_verified_with (AuthorityStore.load_from) and describes (prune and restore decisions) all call it.",
+   "invariant": "A checkpoint is refused for what is wrong with it; the module's two readers of the witness (verify and check_against) say the same thing about the same log.",
+   "mechanism": "The witness comparison could not tell the crash signature from a rolled-back witness, and named both truncation.",
+   "reproduction": "scratchpad repro/lagging_witness_checkpoint.py",
+   "observed": "verify: ok=True with the note 'witness is behind the log (2 < 3)'; checkpoint created at seq 3; check_against: CheckpointAheadOfLog 'checkpoint names seq 3 but the head witness records 2; the log was truncated after the checkpoint'. The log was intact.",
+   "expected": "A witness one behind the checkpoint, with the checkpoint's record still at its offset, is the crash signature and stands; further behind is a rolled-back witness and is refused, as test C5 (test_a_rolled_back_head_witness_invalidates_a_checkpoint) already requires.",
+   "correction": "check_against accepts exactly the crash signature -- witness.seq == cp.seq - 1 and EventLog.check_anchor finds the checkpoint's record -- and refuses everything else as before, with a message that names a rolled-back witness as well as truncation.",
+   "regression_tests": [
+    "tests/test_agent_checkpoint.py::test_a_witness_one_behind_after_a_crash_does_not_void_a_checkpoint",
+    "tests/test_agent_checkpoint.py::test_a_witness_one_behind_does_not_vouch_for_a_record_that_is_gone (control)",
+    "tests/test_agent_checkpoint.py::test_a_rolled_back_head_witness_invalidates_a_checkpoint (C5, unchanged)"
+   ],
+   "mutations": [
+    "tools/mutations/agent_checkpoint.json: E40, E41, E42"
+   ],
+   "residual_risk": "A witness rolled back by exactly one record is indistinguishable from the crash signature, here as in verify(). The cost of the defect was recovery time and a false diagnosis, not authority: load_from fell back to an older checkpoint or a full replay.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-010",
+   "title": "Governed operations re-read the whole history: the records parsed by full verified reads grow quadratically with the campaign",
+   "severity": "P2",
+   "subsystem": "projections / performance (Phase 2C)",
+   "files": [
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "projection() via _verified_events; __init__ loading seven stores"
+    },
+    {
+     "path": "agent_substrate/governed_model.py",
+     "lines": "_view"
+    },
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "load"
+    }
+   ],
+   "behavior": "Counted by tools/work_counts.py under the scripted research-horizon campaign (SCRIPTED DECISIONS, no model): at 15, 30 and 60 decisions the full verified reads number 78, 114 and 198 and parse 11,195, 23,720 and 67,591 records. Doubling the campaign multiplied the records by 2.12 and then 2.85, approaching the x4 of quadratic work. At 60 decisions GovernedTasks.projection() (_verified_events) made 80 of the 198 full reads and parsed 28,337 records, 42% of the total; governed_model._view 20 reads; research.load 17; policy.load 12; and each GovernedTasks construction loads seven stores, each with its own full read.",
+   "invariant": "Directive Phase 2C: distinguish O(history) initialization, O(new) incremental operations and O(history^2) cumulative workloads caused by repeated full replay; count work, not wall time.",
+   "mechanism": "Each governed run rebuilds the task projection from genesis several times, and each new runner re-loads every store from genesis; the anchored O(new) paths exist but these callers do not use them.",
+   "reproduction": "python tools/work_counts.py --sizes 15,30,60 (docs/audit/work_counts.json); the same instrument at b0058f6 for the baseline.",
+   "observed": "At the baseline b0058f6 the same campaign also made 33, 48 and 89 anchor_at calls, each a second read of the log, parsing 3,552, 8,211 and 27,777 lines (x2.31, then x3.38: quadratic as well). The AUD-003 repair removed every one: at 60 decisions the lines parsed fell from 95,368 to 67,591 (-29%). Wall time is subprocess-dominated and did not move outside noise (20.5 s and 21.6 s at 60 decisions, measured back to back), which is the trap the directive names: the time hides the work.",
+   "expected": "Per governed operation, O(new) verification work after one O(history) load, with an explicit full-genesis path kept for readers that must start from nothing.",
+   "correction": "Partly made: AUD-003 (anchors from the verified read) removed the anchor_at re-reads. Not yet made: an incremental, anchored task projection for GovernedTasks.projection(), and one verified read shared by the seven stores a GovernedTasks construction loads.",
+   "regression_tests": [
+    "tests/test_work_counts.py (the instrument)"
+   ],
+   "residual_risk": "Quadratic cumulative work remains in the sites above; at the 60-decision scale it costs under a second of hashing, and it grows with the square of the campaign.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
   }
  ]
 }

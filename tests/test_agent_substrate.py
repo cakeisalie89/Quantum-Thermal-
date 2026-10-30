@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT_PATH = Path(ROOT)
 sys.path.insert(0, ROOT)
 
 from agent_substrate.authority import (  # noqa: E402
@@ -218,6 +219,20 @@ def test_every_reader_frames_records_at_a_newline_and_nowhere_else(tmp_path):
         EventLog(log.path).anchor_at(1)
 
 
+def test_the_event_append_returns_is_the_event_a_replay_reads(tmp_path):
+    """AUD-008. A projection folds its own append from the Event append()
+    returns; a replay folds what the log parses to. The two hashed alike and
+    differed as values -- a tuple came back a list, an int key a string --
+    so a writer's own projection held what no replay of the log held."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    written = log.append(actor="a", action="probe", target="t",
+                         payload={"deps": ("x", "y"), "m": {1: "one"}})
+    (replayed,) = EventLog(log.path).read_verified()[1]
+    assert written.hash == replayed.hash
+    assert written.payload == replayed.payload == {
+        "deps": ["x", "y"], "m": {"1": "one"}}
+
+
 def test_a_partial_trailing_line_is_reported_as_truncation(tmp_path):
     """The expected crash signature: killed mid-append."""
     log = _log_with(tmp_path)
@@ -284,6 +299,109 @@ def test_I3_stale_cannot_reach_promoted_without_reverification():
     assert paths, "expected at least one recovery path to exist"
     for p in paths:
         assert State.VERIFIED in p, f"path bypasses verification: {p}"
+
+
+# I3's "fresh evidence" (AUD-004). Both readers judge an edge on the record's
+# evidence merged with the transition's, so the report a record went STALE
+# with satisfied UNDER_REVIEW -> VERIFIED again, and the record was
+# re-verified and re-promoted on nothing new. Both readers agreed, so
+# nothing flagged it.
+FRESH = digest({"report": "made after the record went stale"})
+
+
+def test_I3_the_gate_refuses_a_report_the_record_already_carried():
+    req = dict(record_id="r1", src=State.UNDER_REVIEW, dst=State.VERIFIED,
+               actor="bob", role=Role.VERIFIER, proposer="alice",
+               evidence={"verification_report": DIG})
+    with pytest.raises(TransitionError, match="fresh evidence"):
+        check(TransitionRequest(**req,
+                                prior_evidence={"verification_report": DIG}))
+    check(TransitionRequest(**req))              # the control: nothing prior
+
+
+def _gone_stale(tmp_path):
+    s = _store(tmp_path)
+    _promote(s, "r1")
+    s.transition(record_id="r1", dst=State.STALE, actor="system",
+                 role=Role.SYSTEM, evidence={"invalidated_by": DIG})
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+    return s
+
+
+@pytest.mark.parametrize("evidence", [{}, {"verification_report": DIG}],
+                         ids=["inherited", "cited-again"])
+def test_I3_back_from_stale_needs_a_report_it_did_not_carry(tmp_path,
+                                                            evidence):
+    s = _gone_stale(tmp_path)
+    with pytest.raises(TransitionError, match="fresh evidence"):
+        s.transition(record_id="r1", dst=State.VERIFIED, actor="bob",
+                     role=Role.VERIFIER, evidence=evidence)
+    assert s.get("r1").state is State.UNDER_REVIEW
+
+
+def test_I3_back_from_stale_on_a_new_report_is_verified(tmp_path):
+    """The control: the route back exists, through a fresh verification."""
+    s = _gone_stale(tmp_path)
+    s.transition(record_id="r1", dst=State.VERIFIED, actor="bob",
+                 role=Role.VERIFIER, evidence={"verification_report": FRESH})
+    assert s.get("r1").state is State.VERIFIED
+
+
+def test_I3_a_first_verification_does_not_rest_on_the_proposer_s_report(
+        tmp_path):
+    """The same rule, the first time round: a report the proposer attached
+    at creation is not a verification the verifier made."""
+    s = _store(tmp_path)
+    s.create(record_id="r1", kind="claim", proposer="alice",
+             evidence={"verification_report": DIG})
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+    with pytest.raises(TransitionError, match="fresh evidence"):
+        s.transition(record_id="r1", dst=State.VERIFIED, actor="bob",
+                     role=Role.VERIFIER)
+    s.transition(record_id="r1", dst=State.VERIFIED, actor="bob",
+                 role=Role.VERIFIER, evidence={"verification_report": FRESH})
+
+
+def test_I3_a_stale_report_written_past_the_gate_is_refused_on_replay(
+        tmp_path):
+    """Both readers, for a log written by something other than the store."""
+    s = _gone_stale(tmp_path)
+    s.log.append(actor="bob", action="record.transition", target="r1",
+                 payload={"record_id": "r1", "src": "UNDER_REVIEW",
+                          "dst": "VERIFIED", "role": "VERIFIER",
+                          "evidence": {}, "policy_id": "p1"})
+    with pytest.raises(StoreError, match="fresh evidence"):
+        AuthorityStore(EventLog(s.log.path)).load()
+    recon = reconstruct(EventLog(s.log.path))
+    assert any("fresh evidence" in u for u in recon.unauthorized), (
+        recon.unauthorized)
+    assert recon.records["r1"]["state"] == "UNDER_REVIEW"
+
+
+def _transition_requests_without_prior(source: str) -> list:
+    """Lines building a TransitionRequest that do not say what the record
+    carried before it."""
+    import ast
+    return [node.lineno for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call)
+            and getattr(node.func, "id", None) == "TransitionRequest"
+            and not any(k.arg == "prior_evidence" for k in node.keywords)]
+
+
+def test_every_production_transition_request_says_what_was_there_before():
+    """A request built without it is judged as if the record carried
+    nothing, which is the first verification's case and no other."""
+    found = {}
+    for path in sorted((ROOT_PATH / "agent_substrate").glob("*.py")):
+        lines = _transition_requests_without_prior(
+            path.read_text(encoding="utf-8"))
+        if lines:
+            found[path.name] = lines
+    assert found == {}, found
+    assert _transition_requests_without_prior(
+        "TransitionRequest(record_id='x')\n") == [1]      # the control
 
 
 def test_I4_the_proposer_cannot_verify_their_own_record():

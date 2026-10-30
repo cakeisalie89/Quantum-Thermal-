@@ -104,7 +104,8 @@ DERIVED = {
                                 "tools/neural.py verify"),
 }
 AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
-               "tests/test_audit_ledger.py")
+               "tests/test_audit_ledger.py", "tools/work_counts.py",
+               "tests/test_work_counts.py")
 
 #: (glob, kind). First match wins.
 KINDS = (

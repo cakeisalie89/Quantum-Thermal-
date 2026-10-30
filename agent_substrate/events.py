@@ -1486,6 +1486,13 @@ class EventLog:
         }
         # Reject unhashable payloads before touching the file, so a bad append
         # cannot leave a partial line behind.
+        #
+        # And hand back what every reader will read: the record as its
+        # canonical bytes parse, not the caller's Python values. A tuple came
+        # back from the log a list and an int key a string, under the same
+        # hash, so a projection folding its own append held what no replay
+        # of the log did (AUD-008).
+        body = json.loads(canonical_bytes(body))
         ev = Event(**body, hash=digest(body))
         line = canonical_bytes(ev.to_record()) + b"\n"
         if len(line) > MAX_EVENT_BYTES:

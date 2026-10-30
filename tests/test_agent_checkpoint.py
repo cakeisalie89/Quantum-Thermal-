@@ -641,6 +641,45 @@ def test_a_rolled_back_head_witness_invalidates_a_checkpoint(tmp_path):
     assert log.path.stat().st_size == cp.next_offset
 
 
+def test_a_witness_one_behind_after_a_crash_does_not_void_a_checkpoint(
+        tmp_path):
+    """AUD-009. The witness is written after the append it describes, so a
+    crash between the two leaves it one record behind the log, which
+    verify() calls a note. A checkpoint taken then names the head the
+    witness had not reached; check_against called that intact log
+    truncated. C5 above is the other side: a witness further behind."""
+    log = _log(tmp_path, n=8)
+    behind = log.anchor_at(6)
+    log.head_path.write_text(
+        json.dumps({"seq": behind.seq, "head_hash": behind.head_hash}),
+        encoding="utf-8")
+    assert log.verify().ok
+    cp = cp_mod.create(log)
+    assert cp.seq == 7
+    cp_mod.check_against(log, cp)
+    cp_mod.describes(log, cp)
+
+
+def test_a_witness_one_behind_does_not_vouch_for_a_record_that_is_gone(
+        tmp_path):
+    """The control: one behind is the crash signature only while the log
+    still holds the checkpoint's record."""
+    log = _log(tmp_path, n=8)
+    cp = cp_mod.create(log)
+    behind = log.anchor_at(6)
+    lines = log.path.read_bytes().split(b"\n")
+    rec = json.loads(lines[7])
+    rec["actor"] = "b"                          # same length, another record
+    lines[7] = canonical_bytes(rec)
+    log.path.write_bytes(b"\n".join(lines))
+    log.head_path.write_text(
+        json.dumps({"seq": behind.seq, "head_hash": behind.head_hash}),
+        encoding="utf-8")
+    assert log.path.stat().st_size == cp.next_offset
+    with pytest.raises(CheckpointAheadOfLog, match="head witness records"):
+        cp_mod.check_against(log, cp)
+
+
 def test_check_anchor_binds_an_anchor_to_a_log_and_verifies_nothing_else(
         tmp_path):
     """The primitive underneath `describes`, and the limit of it.

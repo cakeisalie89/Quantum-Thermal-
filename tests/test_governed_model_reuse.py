@@ -402,8 +402,12 @@ def test_a_result_this_reader_could_not_admit_is_not_reused(world):
 def test_another_kind_is_never_reused(world):
     g, first, _, _, _ = world
     rec0 = g.authority.get(first.record_id)
+    # Everything the result carries but its report, which the verifier
+    # supplies: one a record is created with verifies nothing (AUD-004).
     g.authority.create(record_id="not-a-result", kind="stage10_artifact",
-                       proposer=SUBMITTER_ID, evidence=dict(rec0.evidence))
+                       proposer=SUBMITTER_ID,
+                       evidence={k: v for k, v in rec0.evidence.items()
+                                 if k != "verification_report"})
     g.authority.transition(record_id="not-a-result", dst=State.UNDER_REVIEW,
                            actor=REVIEWER_ID, role=Role.VERIFIER)
     g.authority.transition(record_id="not-a-result", dst=State.VERIFIED,

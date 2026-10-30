@@ -4,7 +4,11 @@ Every integrity claim in this package reduces to one question: *are these the
 same bytes?* That question is only answerable if a record has exactly one
 byte representation, so serialization is defined here once and used
 everywhere. Two records that are semantically equal must hash equally, and
-two that differ must not.
+two that differ must not -- as JSON. Python values that JSON cannot tell
+apart are serialized alike: an int, float, bool or None dict key becomes a
+string, and a tuple becomes a list, so ``{1: x}`` and ``{"1": x}`` are the
+same bytes. The event log therefore hands its writer the record as these
+bytes parse back, not as the writer built it (AUD-008).
 
 Design rules, each chosen because the alternative silently breaks integrity:
 

@@ -1212,18 +1212,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-003",
+    "AUD-006"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided; not read: the reducer's own rules",
    "mode": "100644",
    "new_blob": "7080dd84f526243349d32d7698d906e84e5c2a13",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/agents.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "7080dd84f526243349d32d7698d906e84e5c2a13",
    "sha256": "af2369f6b26151ac6d9ea5da2701028a34760bb29fce86a47851cac632de6698",
    "size": 63683,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -1260,34 +1263,38 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-004"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "every line read: the invariants I1-I6, the edge table and check(); the audit's AUD-004 change (requires_fresh, prior_evidence) reviewed as a diff",
    "mode": "100644",
-   "new_blob": "f2926a2a1561164275d0f2a2617aed9215e0533e",
-   "note": "not yet examined",
+   "new_blob": "26a0bbdbefa2f0711dbfdc0280b75affcde5eeed",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/authority.py",
-   "reviewed_blob": null,
-   "sha256": "e246fe092e5e54536453f5e4025a72635e887a5a21dc79db83afb9331c5b8b70",
-   "size": 11846,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "26a0bbdbefa2f0711dbfdc0280b75affcde5eeed",
+   "sha256": "ea58451674bcbb5b75d43d64e9784ada137787720e9fc95796ad26b052548627",
+   "size": 13206,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-008"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "every line read; serialization probed for values JSON cannot tell apart (AUD-008); the docstring now says which",
    "mode": "100644",
-   "new_blob": "add9d7b938411c220a8f2f3811b41b69d953a2b9",
-   "note": "not yet examined",
+   "new_blob": "e28719a83bf17e10d715ed29e14c9fdc503deb17",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/canonical.py",
-   "reviewed_blob": null,
-   "sha256": "1cc43a8ce503d1a116ba594abeb4acd8b0d2f29311af9ecfdc63ebe42d3bff33",
-   "size": 4739,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "e28719a83bf17e10d715ed29e14c9fdc503deb17",
+   "sha256": "821907016a2077db881507b015ad9e6278a6371443c88d6fb4f728d630bafeda",
+   "size": 5065,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -1308,18 +1315,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-003",
+    "AUD-009"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "every line read at the baseline blob in session 1; the audit's changes (AUD-003 anchor binding, AUD-009 witness comparison) reviewed as diffs with regression tests and killed mutations",
    "mode": "100644",
-   "new_blob": "2d3882dca89070a9ee0455f6d3f0466c8865d8b8",
-   "note": "not yet examined",
+   "new_blob": "7118e9e1984d1a832da049f25d8114c097ba3670",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/checkpoint.py",
-   "reviewed_blob": null,
-   "sha256": "618d9866a6f4515f47e92a969d3a9005ba35e9e5f3dc90ae18a73d421bca1d1c",
-   "size": 29166,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "7118e9e1984d1a832da049f25d8114c097ba3670",
+   "sha256": "6f9b2687ea315cbb9c5b73d65a82a9e92c44a0d6470391f90d72633bac33c475",
+   "size": 30097,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -1372,18 +1382,24 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-002",
+    "AUD-003",
+    "AUD-005",
+    "AUD-006",
+    "AUD-008"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "every line read at the baseline blob (b0058f6) in session 1; the audit's own changes to it (AUD-002, AUD-003, AUD-005, AUD-006, AUD-008) written and reviewed as diffs, each with a regression test that fails before it and a killed mutation",
    "mode": "100644",
-   "new_blob": "1bbd5c86380b0dc0c7a3324e542740a6e7df8280",
-   "note": "not yet examined",
+   "new_blob": "a808d12e254e4d7ec06e88bf9850600a1a3df655",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/events.py",
-   "reviewed_blob": null,
-   "sha256": "8bff667e7402e2916ee5f5ec840b55dacdf0884b5d13340770053e10e3ec144e",
-   "size": 84227,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "a808d12e254e4d7ec06e88bf9850600a1a3df655",
+   "sha256": "d559bf943d205d90963d06148503deb1ab171197e320ae47b92ab8b50f71f442",
+   "size": 84621,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -1468,18 +1484,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-003",
+    "AUD-010"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "read: the constructor, _head_seq, projection()'s verified read, _projection_at_head and the after-move path; profiled with tools/work_counts.py; not read: the execution, verification and compensation paths",
    "mode": "100644",
    "new_blob": "3fdee55b8668e97fe4635e1a42a9f166c2261b34",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/governed_tasks.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "3fdee55b8668e97fe4635e1a42a9f166c2261b34",
    "sha256": "d4ef043c5a3969115e0c7f297fb1398cec6d71edcc5530275dfe3528b4f4e20e",
    "size": 145074,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -1500,18 +1519,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-003",
+    "AUD-006"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided; not read: the reducer's own rules",
    "mode": "100644",
    "new_blob": "8077fd677bb6e98ae97d49bbe10f37f1e6351c17",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/idempotency.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "8077fd677bb6e98ae97d49bbe10f37f1e6351c17",
    "sha256": "20ac9b8f063d0b1273cc3bb2e0404574f4f98ebb8f0227d2beb081b3554efa5f",
    "size": 17215,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -1580,18 +1602,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-003",
+    "AUD-006"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided; not read: the reducer's own rules",
    "mode": "100644",
    "new_blob": "2a5b97ff02ba2d340ac63a576b3d919af446a138",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/memory.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "2a5b97ff02ba2d340ac63a576b3d919af446a138",
    "sha256": "c1706efedfb2f30ef74aef8f2c315e72de665c4471b7ca7fa5db9f745a61f60f",
    "size": 34725,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -1628,18 +1653,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-003",
+    "AUD-006"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided; not read: the reducer's own rules",
    "mode": "100644",
    "new_blob": "cc893ce83de3bb43de424cb411e05df2bcdde3da",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/policy.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "cc893ce83de3bb43de424cb411e05df2bcdde3da",
    "sha256": "117961ef76ca12179a6dda204914f8e0408ef776c2985cb8af9560c7ef7d50e6",
    "size": 45116,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -1662,32 +1690,35 @@
    "change": "ADDED",
    "findings": [],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "every line read: the reducer identity is a digest of each reducer's source closure, and a foreign snapshot is refused; no defect found",
    "mode": "100644",
    "new_blob": "7ed202ee17290e654cad61cf25faf3da19be7a0b",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/projection.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "7ed202ee17290e654cad61cf25faf3da19be7a0b",
    "sha256": "ce72d59b5200f6294ada96da03354660457a0eac7e0fbf3e3a6bf19ee0279c4b",
    "size": 10758,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-003",
+    "AUD-006"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided; not read: the reducer's own rules",
    "mode": "100644",
    "new_blob": "5f2812d69bc1665053b6da0506b5953f7e9b8066",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/proposals.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "5f2812d69bc1665053b6da0506b5953f7e9b8066",
    "sha256": "c262a3417974dd1f4b29cc8279a5a8ab3e6c671d577f4ca5ed077b623a50a966",
    "size": 33670,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -1740,18 +1771,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-004",
+    "AUD-007"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "read: the authority edge restatement and _auth_refusal, the record.transition and record.depend replay, the create rule, the canonical() computation; not read: task, subsystem and scientific-admission reconstruction beyond their entry points",
    "mode": "100644",
-   "new_blob": "c0c1314ce8694a415d67f80579bb49b31897be9b",
-   "note": "not yet examined",
+   "new_blob": "235186879c285fa697bf7cdb84a300b07ad51e36",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/reconstruct.py",
-   "reviewed_blob": null,
-   "sha256": "48e1548a8316dd32cfed26786a94b3b11bf195fa4a30572e0968ee8bbe4456a5",
-   "size": 208030,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "235186879c285fa697bf7cdb84a300b07ad51e36",
+   "sha256": "f17c9798ec1f09fd9c15d92431b8eb26f782be2535666a67a5bf584f0100cdff",
+   "size": 208841,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -1820,18 +1854,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-003",
+    "AUD-006"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided; not read: the reducer's own rules",
    "mode": "100644",
    "new_blob": "3bb3354f423d27e962a5703825ed7ab57cc6c60d",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/scheduler.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "3bb3354f423d27e962a5703825ed7ab57cc6c60d",
    "sha256": "39b6c435d2bd10e149a8f71abb5dab20e996ac32f31c55bda5f159517979e98e",
    "size": 91863,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -1884,18 +1921,23 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-003",
+    "AUD-004",
+    "AUD-006",
+    "AUD-007"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "every line read at the baseline blob in session 1; the audit's changes (AUD-003, AUD-004, AUD-006, AUD-007) reviewed as diffs with regression tests and killed mutations",
    "mode": "100644",
-   "new_blob": "4530d42168c5706574283082bc607b22edc3735a",
-   "note": "not yet examined",
+   "new_blob": "6868cdf0e0044d389f2482c89b801b5bba85766d",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/store.py",
-   "reviewed_blob": null,
-   "sha256": "5debce0f62ececf0b089d7b341879535a14da0dbc05d501a1c40ebf5c4ce2ff7",
-   "size": 75529,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "6868cdf0e0044d389f2482c89b801b5bba85766d",
+   "sha256": "faef42be29534d3dbbbea365bc60586aefe233a4b436946695167b1903978ccc",
+   "size": 75623,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -3236,6 +3278,22 @@
    "change": "ADDED",
    "findings": [],
    "kind": "evidence-or-data",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "not independently reviewed",
+   "old_blob": null,
+   "path": "docs/audit/work_counts.json",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "evidence-or-data",
    "method": "",
    "mode": "100644",
    "new_blob": "000760d609b684f83d117d817bf493e8029bf163",
@@ -4100,16 +4158,16 @@
    "change": "ADDED",
    "findings": [],
    "kind": "evidence-or-data",
-   "method": "",
+   "method": "read: problems() and the HOSTED_TESTED binding to the implementation digest, which refused four rows the audit's changes left predating their hosted evidence; rows returned to IMPLEMENTED by the audit",
    "mode": "100644",
    "new_blob": "e981cac4c7cb433b99e72de9eb42b1bb37dc477f",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "docs/security/readiness_matrix.json",
-   "reviewed_blob": null,
+   "reviewed_blob": "e981cac4c7cb433b99e72de9eb42b1bb37dc477f",
    "sha256": "cd1bfef157de59e43b743ab99a85eaeba74d694f9dd3fa48b1a0c52dbb33c6d0",
    "size": 24741,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -9510,13 +9568,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "f0126e672e4da071de928c9f700fc083bca8cf90",
+   "new_blob": "3b4d4b9f0865e76a8c64db48a0c57038f41be693",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_agent_checkpoint.py",
    "reviewed_blob": null,
-   "sha256": "5a2787f79cd0183d78c81acc98431d241154dd95910fd75cf8f1e7ea87e306db",
-   "size": 76544,
+   "sha256": "9e28b60f5bc8ca4f895a0bb4224a3b238ad8910aa8f08910ab74177c5c9f9a7e",
+   "size": 78148,
    "status": "NOT_REVIEWED"
   },
   {
@@ -9590,13 +9648,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "f9f91ba86440248f78ec765d24f6ddebeab538a0",
+   "new_blob": "54cf3f96dc13257c9b29bf39f77398c39897d243",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_agent_crash_recovery.py",
    "reviewed_blob": null,
-   "sha256": "1d55d2fb8dd7daae9662657d4019c7ab633b1a81a55ff2f3553a397eba8b6476",
-   "size": 30770,
+   "sha256": "3f6d86038268988433740398895cfa7a53810e8e7ecc03544e3d48e2868237d2",
+   "size": 30841,
    "status": "NOT_REVIEWED"
   },
   {
@@ -9638,13 +9696,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "5a8e8a20e6f088eeb1ebc601bdb7a2032e273e3e",
+   "new_blob": "99ae1e428852297f5c28211cb1b2101d4cc628e4",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_agent_differential.py",
    "reviewed_blob": null,
-   "sha256": "f3578d8779fc98444696a667593f777dea04a7f8dd1df69b7f2c26f751a2a8bd",
-   "size": 63465,
+   "sha256": "9709ae821c1e10251aff0ae7077faaf06283b33556b1d20b1aa4ee9736f85501",
+   "size": 65096,
    "status": "NOT_REVIEWED"
   },
   {
@@ -10054,13 +10112,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "2556d60657c185f6eda7504fac187c18abe815f0",
+   "new_blob": "102a7278a1ab4c5e17e4e469c2e782decbe1c7e3",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_agent_substrate.py",
    "reviewed_blob": null,
-   "sha256": "a5fb2db685b28b932dec7a1b99f8a3dd999bf5da93b83f1eb681be4181d86345",
-   "size": 60031,
+   "sha256": "289cf84347385dbd05f106529b337bb62cbc7fbfaeb3972880ed83a96a76dbfb",
+   "size": 65556,
    "status": "NOT_REVIEWED"
   },
   {
@@ -10070,13 +10128,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "d86aaf0d74010726a3043d38d8e1971e1a63fe49",
+   "new_blob": "aedf3e732093a6170120d4a6296fd66c25f3c510",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_agent_substrate_isolation.py",
    "reviewed_blob": null,
-   "sha256": "8c6647e74cac1b5e7fa080edafd091b98f5b7c5c147d26aadfc13859dccdfdc2",
-   "size": 53133,
+   "sha256": "28f4d565506defc8a798b74e9ec782418d4c45d9fe8fb8b22bbc95e4dc9bb2be",
+   "size": 53450,
    "status": "NOT_REVIEWED"
   },
   {
@@ -10966,13 +11024,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "e164c64eae79af0b32d1b17fa99b70f91db5f3fd",
+   "new_blob": "f03ed8938160b7716b945c3bff3cd3cd1264c1cd",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_governed_model_reuse.py",
    "reviewed_blob": null,
-   "sha256": "fbdf1c86fbfc3b9feb049568d41c96aee5cb7dc3e3f20ffe2c0f92d27d0fe8d8",
-   "size": 22700,
+   "sha256": "964d9683439ce43fd5cab00588cb0d7f78cbce24c7e519c778e117aede8e41b7",
+   "size": 22951,
    "status": "NOT_REVIEWED"
   },
   {
@@ -12342,13 +12400,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "a9eec33d53d68d4f338544323e636cf3f35d3a9e",
+   "new_blob": "634cd724f81b128d996bea3482dbbd074fa33c7e",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_scientific_invalidation.py",
    "reviewed_blob": null,
-   "sha256": "daef18e068a462bc9db99fada9cc8804f9821ed4ade29ab7c8ebb9fe70b385f2",
-   "size": 22740,
+   "sha256": "896919f779f9c90da81db8c58f6948aa60d7f81fb1be00b7f571ac5422892fea",
+   "size": 24214,
    "status": "NOT_REVIEWED"
   },
   {
@@ -12798,6 +12856,22 @@
    "sha256": "c68172a56655f21dc2aeed1f73676753ee5c81899786df5784bedea9dc066830",
    "size": 14526,
    "status": "NOT_REVIEWED"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "test",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "not yet examined",
+   "old_blob": null,
+   "path": "tests/test_work_counts.py",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,
@@ -13410,18 +13484,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-005"
+   ],
    "kind": "tool",
-   "method": "",
+   "method": "read: the altered-history step and its _rechain helper, which modelled a forger in a non-canonical encoding",
    "mode": "100644",
    "new_blob": "c1fdc5bdf1165311f9b9a9025478da73e3af4ca5",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "tools/integration_demo.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "c1fdc5bdf1165311f9b9a9025478da73e3af4ca5",
    "sha256": "d588933f7e0bb25f1b8679d37d410328459b035a75863c1c811b3e022df33b5d",
    "size": 67175,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -13638,13 +13714,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "c009e11b29b8d7d7325516d96e3887f37c967023",
+   "new_blob": "62d4447cd278e6c54eabd5cd5b87f57ec13df0aa",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/agent_checkpoint.json",
    "reviewed_blob": null,
-   "sha256": "76f646041c4503b4f45c6bb20c186da0e49aa023554d94cb74bd211b6ac81b5e",
-   "size": 20822,
+   "sha256": "238bd1e931dc8fbae08c5ae16d169b978af1e2ba52e1a4d209f911b9a1cfd058",
+   "size": 22160,
    "status": "NOT_REVIEWED"
   },
   {
@@ -14006,13 +14082,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "6b507806b9bfefd709bd2fc559bfdf0e3b0e385b",
+   "new_blob": "a6951662e5292b1ea3151a0b96a40ad0fd9e4557",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/agent_substrate.json",
    "reviewed_blob": null,
-   "sha256": "3e2ef30378774b24a4bbe2ab3e6861d5bc726cdb73f7271edd2b17327e3ab857",
-   "size": 26248,
+   "sha256": "5b076a355568dc3d5f65a4208ae8708ee7c2b45cbd053756f3e1c6eccb7934fb",
+   "size": 30197,
    "status": "NOT_REVIEWED"
   },
   {
@@ -14438,13 +14514,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "1a2a6f143593680b560980950e675f786bc8bc30",
+   "new_blob": "e6a42ce282f93a62c47907448db450e79382677e",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/formal.json",
    "reviewed_blob": null,
-   "sha256": "211047037c8b9d57bc76209188216600af86138e5e6e44917e5f1b3d5aaa7df2",
-   "size": 4502,
+   "sha256": "471b3e80e49b8760821c77aa94c718b72608e2c0666eb6c6aec5197703566af7",
+   "size": 4630,
    "status": "NOT_REVIEWED"
   },
   {
@@ -15620,16 +15696,16 @@
    "change": "ADDED",
    "findings": [],
    "kind": "tool",
-   "method": "",
+   "method": "read: problems() and the HOSTED_TESTED binding to the implementation digest, which refused four rows the audit's changes left predating their hosted evidence; rows returned to IMPLEMENTED by the audit",
    "mode": "100644",
    "new_blob": "b98e3c24f99ab3a113e209e705f48589fc17d86b",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "tools/readiness.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "b98e3c24f99ab3a113e209e705f48589fc17d86b",
    "sha256": "9f3c43bfefff2e6f103ffcab6969b78be3ed85e50bee481d4f8afcec020d5944",
    "size": 10910,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -15806,6 +15882,22 @@
    "sha256": "a03f7cc8bac07a17688987c886977fbf891556ac94e0dafb8fc654ba59065d86",
    "size": 935,
    "status": "NOT_REVIEWED"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "tool",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "not yet examined",
+   "old_blob": null,
+   "path": "tools/work_counts.py",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,

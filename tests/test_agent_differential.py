@@ -464,6 +464,7 @@ from agent_substrate.reconstruct import reconstruct as _reconstruct  # noqa: E40
 
 _DG = _digest_bytes(b"a report")
 _DG2 = _digest_bytes(b"a result")
+_DG3 = _digest_bytes(b"a second report")
 
 
 def _recon_source_tree():
@@ -640,6 +641,13 @@ _VERIFY = ("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
 _SELF_VERIFY = ("alice", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
                           "role": "VERIFIER",
                           "evidence": {"verification_report": _DG}})
+#: Verified on _DG, gone STALE, and taken back into review.
+_STALE_AGAIN = [_REVIEW, _VERIFY,
+                ("system", {"src": "VERIFIED", "dst": "STALE",
+                            "role": "SYSTEM",
+                            "evidence": {"invalidated_by": _DG2}}),
+                ("bob", {"src": "STALE", "dst": "UNDER_REVIEW",
+                         "role": "VERIFIER"})]
 
 
 def test_the_second_reader_refuses_a_self_verification_a_weakened_gate_allows(
@@ -874,6 +882,28 @@ _AUTH_MATRIX = [
                  "evidence": {"verification_report": _DG, "policy_id": ""},
                  "policy_id": "pol-1"})],
      "I5: policy_id must be a non-empty id"),
+
+    # I3's fresh evidence (AUD-004): back from STALE, and the first time,
+    # only on a report the record did not already carry.
+    ("re-verified-on-the-report-it-went-stale-with", {},
+     _STALE_AGAIN + [("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                              "role": "VERIFIER"})],
+     "requires fresh evidence ['verification_report']"),
+    ("re-verified-citing-that-report-again", {},
+     _STALE_AGAIN + [("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                              "role": "VERIFIER",
+                              "evidence": {"verification_report": _DG}})],
+     "requires fresh evidence ['verification_report']"),
+    ("re-verified-on-a-new-report", {},
+     _STALE_AGAIN + [("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                              "role": "VERIFIER",
+                              "evidence": {"verification_report": _DG3}})],
+     None),
+    ("verified-on-the-report-its-proposer-attached",
+     {"create": {"evidence": {"verification_report": _DG}}},
+     [_REVIEW, ("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                        "role": "VERIFIER"})],
+     "requires fresh evidence ['verification_report']"),
 
     ("no-such-edge", {},
      [("carol", {"src": "PROPOSED", "dst": "PROMOTED", "role": "PROMOTER",
