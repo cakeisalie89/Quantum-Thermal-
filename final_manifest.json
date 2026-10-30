@@ -490,7 +490,7 @@
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
       "size_bytes": 458032,
-      "sha256": "8cca7211e14f44f3989385a0fe7acd5b3ae2e3a9168a6444734c2ffbb0f9647c"
+      "sha256": "f9604bbec56bffeb6938dfbf9818a440b29dfb6119303e399f275fbd517d5721"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -1449,8 +1449,8 @@
     },
     {
       "filename": "tests/test_agent_long_horizon.py",
-      "size_bytes": 47305,
-      "sha256": "2e3ce514040b18e44f61ce122c43d7fbf4030a2a0efed262e123718cdaba16d4"
+      "size_bytes": 47630,
+      "sha256": "264cdc3a0b7f64ecf855797776ff4a207b0c35a63c3505dfe4f674e0b48c924c"
     },
     {
       "filename": "tests/test_agent_machine_properties.py",

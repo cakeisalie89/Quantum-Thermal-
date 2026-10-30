@@ -321,9 +321,15 @@ def horizon(tmp_path_factory):
                            role=Role.VERIFIER)
         h.op("record.transition")
         if cycle % 3 == 0:
+            # the verifier's own report: VERIFIED cites what the
+            # verification produced, not the report the record already
+            # carried from its proposer (I3, AUD-004)
+            checked = h.evidence.put(
+                f"verification of cycle {cycle}".encode())
+            h.op("evidence.put")
             h.store.transition(record_id=rid, dst=State.VERIFIED, actor="v1",
                                role=Role.VERIFIER,
-                               evidence={"verification_report": dg})
+                               evidence={"verification_report": checked})
             h.store.transition(record_id=rid, dst=State.PROMOTED,
                                actor="owner", role=Role.PROMOTER,
                                policy_id="scheduler.default@1",
