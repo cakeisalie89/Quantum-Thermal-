@@ -8,7 +8,8 @@ Three claims, held here (D-2026-92):
   label -- and a provisioned registry. Neither exists here.
 * THE PROFILE. A history declared ``AUTHENTICATED_REQUIRED`` is enforced in
   the verified-read primitives, so a reader cannot skip authentication by
-  omitting an argument: given no authenticator, it is given no events.
+  omitting an argument: given no authenticator, it is given no events, and
+  given one that asks only some actors, none either (AUD-012).
 * THE COVERAGE. ``principals.READER_COVERAGE`` says what each reader does;
   every module that reads the log is in it, and each claim is exercised.
 """
@@ -334,6 +335,80 @@ def test_the_anchored_read_is_gated_too(tmp_path):
     assert report.ok and [e.target for e in tail] == ["r5"]
 
 
+def _scoped(att, *actors):
+    """An authenticator that asks only ``actors``: principals.authenticate
+    does not ask anyone else."""
+    return pr.Authenticator(att, pr.KeyRegistry(
+        [OWNER.registered(), ALICE.registered()], allow_test_keys=True),
+        require=frozenset(actors))
+
+
+def _forge_mallory(tmp_path):
+    _forge(tmp_path / "log.jsonl", actor="mallory", action="record.create",
+           target="r9", payload={"record_id": "r9", "kind": "k",
+                                 "proposer": "mallory"})
+
+
+@pytest.mark.parametrize("pinned", [None, REQUIRED])
+@pytest.mark.parametrize("scope", [("alice",), ("owner", "alice"), ()])
+def test_a_required_history_is_not_read_by_an_authenticator_asking_some(
+        tmp_path, pinned, scope):
+    """AUD-012. Under REQUIRED every actor authenticates, and ``require``
+    narrows who is asked. An authenticator asking only some actors read the
+    forged, unsigned record below as authenticated, whether or not the
+    deployment pinned the profile."""
+    _, att = _required_history(tmp_path)
+    _forge_mallory(tmp_path)
+    report, events = EventLog(tmp_path / "log.jsonl",
+                              authenticator=_scoped(att, *scope),
+                              required_profile=pinned).read_verified()
+    assert not report.ok and events == [], [e.actor for e in events]
+    assert any("every actor" in p for p in report.problems), report.problems
+
+
+def test_the_anchored_read_and_the_writer_refuse_a_scoped_authenticator(
+        tmp_path):
+    log, att = _required_history(tmp_path)
+    anchor = log._anchor
+    _forge_mallory(tmp_path)
+    scoped = EventLog(tmp_path / "log.jsonl",
+                      authenticator=_scoped(att, "alice"))
+    report, tail = scoped.read_verified_from(anchor)
+    assert not report.ok and tail == []
+    assert any("every actor" in p for p in report.problems), report.problems
+    # and a writer that asks only alice does not build on mallory's record
+    with pytest.raises(ev_mod.ChainBroken, match="every actor"):
+        pr.signed_append(scoped, att, ALICE, action="record.create",
+                         target="r10", payload={"record_id": "r10",
+                                                "kind": "k",
+                                                "proposer": "alice"})
+    assert [json.loads(x)["target"] for x in (
+        tmp_path / "log.jsonl").read_bytes().splitlines()][-1] == "r9", (
+        "nothing was written")
+
+
+def test_a_scope_still_narrows_a_history_that_is_not_required(tmp_path):
+    """The control. On a LEGACY history ``require`` is what it says: the
+    actors it names authenticate and the others are not asked."""
+    path = tmp_path / "log.jsonl"
+    att = pr.Attestations(tmp_path / "log.attestations.jsonl")
+    reg = pr.KeyRegistry([ALICE.registered()], allow_test_keys=True)
+    pr.signed_append(EventLog(path), att, ALICE, registry=reg,
+                     action="record.create", target="r0",
+                     payload={"record_id": "r0", "kind": "k",
+                              "proposer": "alice"})
+    EventLog(path).append(actor="carol", action="record.create",
+                          target="r1", payload={"record_id": "r1",
+                                                "kind": "k",
+                                                "proposer": "carol"})
+    report, events = EventLog(path, authenticator=pr.Authenticator(
+        att, reg, require=frozenset({"alice"}))).read_verified()
+    assert report.ok and [e.actor for e in events] == ["alice", "carol"]
+    report, events = EventLog(path, authenticator=pr.Authenticator(
+        att, reg)).read_verified()
+    assert not report.ok and [e.actor for e in events] == ["alice"]
+
+
 
 def test_a_reader_that_saw_the_history_empty_does_not_keep_it_legacy(
         tmp_path):
@@ -544,3 +619,25 @@ def test_the_independent_reader_refuses_a_misplaced_declaration(
     out = reconstruct(EventLog(path))
     assert any("declared once" in u for u in out.unauthorized), (
         out.unauthorized)
+
+
+def test_the_independent_reader_refuses_a_scoped_authenticator_itself(
+        tmp_path, monkeypatch):
+    """AUD-012, restated. With the primitive's gate switched OFF, the second
+    reader handed an authenticator that asks only alice still folds nothing
+    of a REQUIRED history: mallory's unsigned record is not folded."""
+    _, att = _required_history(tmp_path)
+    _forge_mallory(tmp_path)
+    monkeypatch.setattr(EventLog, "_security_gate",
+                        lambda self, events, problems, *, whole: events)
+    out = reconstruct(EventLog(tmp_path / "log.jsonl"),
+                      authenticator=_scoped(att, "alice"))
+    assert out.records == {}, sorted(out.records)
+    assert any("every actor" in u for u in out.unauthorized), (
+        out.unauthorized)
+    # the control: asking every actor, the second reader folds alice's
+    # records and refuses mallory's by name
+    out = reconstruct(EventLog(tmp_path / "log.jsonl"),
+                      authenticator=_authenticator(att))
+    assert sorted(out.records) == ["r0", "r1"]
+    assert any("mallory" in u for u in out.unauthorized), out.unauthorized

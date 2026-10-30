@@ -778,7 +778,9 @@ def _verifies(key: RegisteredKey, event_hash: str, att: dict,
 @dataclass(frozen=True)
 class Authenticator:
     """What a reader is given to authenticate a history: the attestation
-    file, the registry, and who must authenticate."""
+    file, the registry, and who must authenticate. ``require`` None asks
+    every actor, and is the only scope an AUTHENTICATED_REQUIRED history is
+    read with: the read primitives refuse it to any other (AUD-012)."""
 
     attestations: Attestations
     registry: KeyRegistry

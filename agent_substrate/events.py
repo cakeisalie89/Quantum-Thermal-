@@ -148,7 +148,8 @@ MAX_EVENT_BYTES = 4 * 1024 * 1024
 #: event must be authenticated, and it is enforced HERE, in the verified-read
 #: primitives every reader in this package reads through, so a reader cannot
 #: skip authentication by leaving out one optional argument: handed a
-#: REQUIRED history without an authenticator, it is handed no events.
+#: REQUIRED history without an authenticator, it is handed no events, and
+#: with one that asks only some actors, none either.
 #:
 #: What the declaration does not do on its own: stop a writer holding the
 #: file from rewriting the whole history WITHOUT it. That is a downgrade,
@@ -562,6 +563,8 @@ class EventLog:
         #: report with ``ok``, ``lines()`` and ``refused`` seqs -- in
         #: practice :class:`agent_substrate.principals.Authenticator`, which
         #: this module does not import: the log sits below the key layer.
+        #: An AUTHENTICATED_REQUIRED history is read only by one that asks
+        #: every actor; one naming a ``require`` scope is refused.
         self.authenticator = authenticator
         #: The profile the DEPLOYMENT requires. A history declaring less is
         #: a downgrade and does not read.
@@ -877,6 +880,17 @@ class EventLog:
                     "events is read")
                 return []
             return events
+        scope = getattr(self.authenticator, "require", None)
+        if required and nonempty and scope is not None:
+            # An authenticator given ``require`` asks only those actors, and
+            # every other event passes it unasked. Under REQUIRED every actor
+            # authenticates, so a narrowed one reads nothing (AUD-012).
+            problems.append(
+                f"this history is {PROFILE_AUTHENTICATED_REQUIRED}, so every "
+                "actor authenticates, and the reader's authenticator asks "
+                f"only {sorted(str(p) for p in scope)}: none of its events "
+                "is read")
+            return []
         report = self.authenticator(events, complete=whole)
         if report.ok:
             return events

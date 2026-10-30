@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "731298310043edcf20f5cedacbd8ce77e0e0011a562bf114af1ca6ecd2bb6ff6",
+  "entries_digest": "7afcd40c45b0da42b58f44492b7240fb9f0f8141646dab7ef65f3dd591c4ffc3",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/audit/AUDIT_PROGRESS.md",
-      "sha256": "6048b2de265388c4032e5b4f550f8db79c50be6e1b95e14d699ba5c0e5de6f03"
+      "sha256": "80f9a3401a992acca9b54faa062f7aabe27cda99d3621f80a71f5dffb57e817e"
     },
     {
       "path": "docs/formal/README.md",

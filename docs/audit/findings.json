@@ -349,13 +349,118 @@
    "reproduction": "python tools/work_counts.py --sizes 15,30,60 (docs/audit/work_counts.json); the same instrument at b0058f6 for the baseline.",
    "observed": "At the baseline b0058f6 the same campaign also made 33, 48 and 89 anchor_at calls, each a second read of the log, parsing 3,552, 8,211 and 27,777 lines (x2.31, then x3.38: quadratic as well). The AUD-003 repair removed every one: at 60 decisions the lines parsed fell from 95,368 to 67,591 (-29%). Wall time is subprocess-dominated and did not move outside noise (20.5 s and 21.6 s at 60 decisions, measured back to back), which is the trap the directive names: the time hides the work.",
    "expected": "Per governed operation, O(new) verification work after one O(history) load, with an explicit full-genesis path kept for readers that must start from nothing.",
-   "correction": "Partly made: AUD-003 (anchors from the verified read) removed the anchor_at re-reads. Not yet made: an incremental, anchored task projection for GovernedTasks.projection(), and one verified read shared by the seven stores a GovernedTasks construction loads.",
+   "correction": "Partly made: AUD-003 (anchors from the verified read) removed the anchor_at re-reads. Not made, by an earlier decision: the governed projection re-verifies the whole chain on every fold, which docs/tranche_h/FINAL_REPORT.md ('Why the cost grows') states as deliberate -- an anchored read 're-reads no prefix and trusts the anchor', and moving the governed projection onto it 'would weaken a control to buy throughput'. The audit's reading of that trade: advance() is a verified read of the suffix, and require_extends (AUD-006) refuses a re-chained prefix in O(1), because the record at the projection's position must still carry the hash folded there. What an anchored fold gives up is in-process detection of later, unchained damage to the prefix already verified, which the next full read still finds: detection latency, not the correctness of decisions made against the verified state. The options are the owner's: keep the full re-verification and accept the measured growth; fold anchored with require_extends and re-verify from genesis every K folds or T seconds, which bounds the latency; or memoize the verified prefix by a digest of its bytes (the report's own proposal), which still reads and hashes the prefix on every fold but no longer parses it.",
    "regression_tests": [
     "tests/test_work_counts.py (the instrument)"
    ],
-   "residual_risk": "Quadratic cumulative work remains in the sites above; at the 60-decision scale it costs under a second of hashing, and it grows with the square of the campaign.",
+   "residual_risk": "Measured: at 60 scripted decisions, 198 full reads parse 67,591 records (docs/audit/work_counts.json). In the recorded Gate G campaign (docs/assurance/research_horizon_results.json, 8f53500) a decision took 0.56 s at the 50 stage and 2.33 s at the 1,000 stage, and the 5,000 and 10,000 stages were not reached (FINAL_REPORT.md projects about 10 and 31 more hours).",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-011",
+   "title": "Authority-record roles are self-asserted: nothing binds the actor of a VERIFIED or PROMOTED transition to the role it claims",
+   "severity": "P2",
+   "subsystem": "authority state machine / identity",
+   "files": [
+    {
+     "path": "agent_substrate/authority.py",
+     "lines": "check(): the role must be one the edge permits"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "transition(), _policy_refusal()"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_auth_refusal"
+    },
+    {
+     "path": "agent_substrate/principals.py",
+     "lines": "RegisteredKey: a key binds a principal, not a role"
+    },
+    {
+     "path": "agent_substrate/agents.py",
+     "lines": "_check_may_register(): only a HUMAN principal's registrar is checked"
+    }
+   ],
+   "behavior": "check() requires the role a transition claims to be one its edge permits, and requires the actor to differ from the proposer where the edge says so (I4). The role itself is taken from the request (live) or the record's payload (replay). Neither reader consults the agent directory, the key registry (whose entries bind a key to a principal and carry no role) or the policy the promotion cites (_policy_refusal checks its publisher, withdrawal and expiry, not who may promote under it). So one identity may verify and promote, and an identity registered nowhere may take every role but the proposer's.",
+   "invariant": "AGENT_SUBSTRATE.md: a PROMOTED record 'means a claim was proposed, independently verified, and promoted under a recorded policy'; authority.py: Role is 'who may act'.",
+   "mechanism": "Roles are compared with the edge, never with an authority that grants them. The governed task layer checks the agent directory (GovernedTasks requires the verifier to hold AgentRole.VERIFIER there), and the directory admits an AGENT with any roles from any registrar, registered or not: _check_may_register guards HUMAN principals only. So the governed layer's role is a registration anyone can make, and the authority store beneath it asks for none.",
+   "reproduction": "scratchpad repro/self_asserted_roles.py; repro/open_agent_registration.py",
+   "observed": "'mallory', registered nowhere, moved alice's claim UNDER_REVIEW (VERIFIER), VERIFIED (VERIFIER) and PROMOTED (PROMOTER, policy p1): the store holds it PROMOTED and canonical, and the second reader agrees with nothing unauthorized. And 'mallory', registered nowhere, registered an AGENT v-evil holding VERIFIER (and 'nobody-at-all' one holding EXECUTOR): require() passes for both and a replay keeps them; a HUMAN registered by mallory is refused.",
+   "expected": "Before any production path reaches PROMOTED: an authority outside the log -- as the key registry is -- or the cited promotion policy names who may verify and who may promote, and both readers refuse anyone else.",
+   "correction": "None in this audit: which authority grants VERIFIER and PROMOTER, and how it is provisioned, is a design and deployment decision (owner decision). Recorded so that it is decided before PROMOTED is reached outside tests, which AGENT_SUBSTRATE.md section 7 says it is not today.",
+   "regression_tests": [],
+   "residual_risk": "Under AUTHENTICATED_REQUIRED an actor's name is bound to a key, and its roles still are not: an authenticated principal may claim PROMOTER. Collusion among registered identities is a separate, documented limit (AGENT_SUBSTRATE.md, 'Three registered identities').",
+   "verification": "REPRODUCED",
+   "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-012",
+   "title": "An AUTHENTICATED_REQUIRED history reads as authenticated to an authenticator that asks only some actors",
+   "severity": "P1",
+   "subsystem": "actor authentication / security profile",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "_security_gate(): the authenticator's report is taken as the verdict"
+    },
+    {
+     "path": "agent_substrate/principals.py",
+     "lines": "authenticate(): an actor outside require is not asked; Authenticator.require; production_authenticator(require=)"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct(): the second reader's own authentication verdict"
+    }
+   ],
+   "behavior": "Under AUTHENTICATED_REQUIRED the read primitives refused a reader given no authenticator and otherwise took the authenticator's report. principals.authenticate(require=...) checks only the actors it names and passes every other event without asking, and both Authenticator and production_authenticator accept require. So a REQUIRED history read through an authenticator scoped to some actors -- or to none, require=frozenset() -- read a correctly chained, unsigned record by any other name as authenticated, whether or not the deployment pinned the profile. A writer holding that authenticator appended after the record, and the second reader, whose own verdict is the same authenticator's, folded it.",
+   "invariant": "events.py, the security profile: 'AUTHENTICATED_REQUIRED means every event must be authenticated, and it is enforced HERE, in the verified-read primitives every reader in this package reads through, so a reader cannot skip authentication by leaving out one optional argument'.",
+   "mechanism": "The gate checked that an authenticator was present, not that it asked every actor. The scope that makes require useful on a legacy history was honoured on a REQUIRED one.",
+   "reproduction": "scratchpad repro/scoped_authenticator.py",
+   "observed": "A REQUIRED history (the declaration by owner, one record by alice) and a correctly chained, unsigned record by mallory, an actor with no key, written into the file. require=None: ok=False, NO_KEY for mallory, and the read stops before the record. require={'alice'}: ok=True and the record read, with required_profile pinned to AUTHENTICATED_REQUIRED or not. A signed append by alice through the scoped log wrote seq 3 after it, and reconstruct() with the scoped authenticator folded r1, r2 (mallory's) and r3 with nothing unauthorized. The same at the audit baseline b0058f6.",
+   "expected": "A REQUIRED history is read only through an authenticator that asks every actor; one that names a scope reads nothing of it, and the second reader refuses it in its own code as it refuses a missing authenticator.",
+   "correction": "_security_gate refuses a REQUIRED, non-empty history to an authenticator whose require is not None, with a problem naming the scope, before asking it anything; the anchored read and the writer's head check go through the same gate. reconstruct() restates the rule: given a scoped authenticator for a history whose genesis declares REQUIRED, it folds nothing and says why. On a legacy history require keeps its meaning.",
+   "regression_tests": [
+    "tests/test_authenticated_history.py::test_a_required_history_is_not_read_by_an_authenticator_asking_some (6 cases: three scopes, the profile pinned and not)",
+    "tests/test_authenticated_history.py::test_the_anchored_read_and_the_writer_refuse_a_scoped_authenticator",
+    "tests/test_authenticated_history.py::test_the_independent_reader_refuses_a_scoped_authenticator_itself",
+    "tests/test_authenticated_history.py::test_a_scope_still_narrows_a_history_that_is_not_required (control)"
+   ],
+   "mutations": [
+    "tools/mutations/authenticated_history.json: EP10, EP11, RC3"
+   ],
+   "residual_risk": "The gate trusts the authenticator object it is handed: it reads the scope an Authenticator declares, and a callable that skips actors without declaring a scope is not detected. No reader in the repository was configured with a scope, and production authentication is not provisioned (no registry, no vetted provider), so nothing deployed was exposed. Roles remain self-asserted under authentication (AUD-011).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-013",
+   "title": "The long-horizon campaign cannot resume after its process dies: a stopped campaign starts again from nothing",
+   "severity": "P2",
+   "subsystem": "long-horizon campaign (Gate G)",
+   "files": [
+    {
+     "path": "tools/research_horizon.py",
+     "lines": "Campaign.__init__, Campaign.run(), main(): c.clean() in finally"
+    },
+    {
+     "path": "tools/adversarial_eval.py",
+     "lines": "World.__init__: an existing workspace is deleted; World.clean()"
+    }
+   ],
+   "behavior": "World(name) deletes any workspace of that name before it builds a fresh one, and main() deletes the workspace when the run ends, normally or not. The campaign's own counters (resets, restarts, recovery failures, objectives, the stage clock) live in its process. Inside it, the governed loop does recover a crash mid-step from the log, in a freshly built controller, but only within the same process. Nothing resumes the campaign itself.",
+   "invariant": "The audit directive, phase 9: a long-horizon campaign that resumes across the death of its process. FINAL_REPORT.md names the same change: 'A resumable campaign that persists its counters beside the world and finishes the objective in flight. That is also a whole-process recovery test.'",
+   "mechanism": "State the campaign keeps outside the log lives only in its process, and its workspace is deleted on construction and on exit.",
+   "reproduction": "Read: tools/adversarial_eval.py World.__init__ (shutil.rmtree of an existing base) and clean(); tools/research_horizon.py main(). Recorded: docs/assurance/research_horizon_results.json at 8f53500.",
+   "observed": "The recorded run asked for 10,000 decisions and holds the 50, 100 and 1,000 stages with complete=false. FINAL_REPORT.md says the process went with a reclaimed container after 1,547 decisions in 76 minutes, and the 5,000 and 10,000 stages are not claimed.",
+   "expected": "Counters and stage bookkeeping that persist beside the world, and a campaign resumed from the log in a new process that reaches the counters an uninterrupted run reaches.",
+   "correction": "None in this audit yet. It is stated as unresolved in docs/tranche_h/FINAL_REPORT.md, and recorded here so that it stays visible as unresolved.",
+   "regression_tests": [],
+   "residual_risk": "Long-horizon reliability beyond 1,000 decisions is unmeasured. The governed loop's per-step crash recovery is measured (14 restarts by the 1,000 stage, no recovery failure), and recovery of the whole process is not.",
+   "verification": "CONFIRMED",
+   "resolution": "DOCUMENTED"
   }
  ]
 }

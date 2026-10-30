@@ -828,7 +828,19 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
     # the machine refuses. The verdict is the authenticator's -- one
     # signature check, not restated -- and the refusal is this reader's.
     unattested: set = set()
-    if authenticator is not None:
+    scope = getattr(authenticator, "require", None)
+    if scope is not None and (
+            events and events[0].action == _PROFILE_ACTION
+            and events[0].payload.get("profile") == _PROFILE_REQUIRED):
+        # An authenticator asking only some actors passes the others
+        # unasked, and in a REQUIRED history every actor authenticates
+        # (AUD-012): refused here too, not left to the primitive.
+        out.unauthorized.append(
+            f"the history is {_PROFILE_REQUIRED}, where every actor "
+            "authenticates, and the authenticator given asks only "
+            f"{sorted(str(p) for p in scope)}: none of its events is folded")
+        events = []
+    elif authenticator is not None:
         auth = authenticator(events)
         out.unauthorized.extend(f"unauthenticated: {line}"
                                 for line in auth.lines())

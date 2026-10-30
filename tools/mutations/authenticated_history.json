@@ -1,6 +1,6 @@
 {
   "title": "An authenticated history cannot be read around, and nothing unvetted signs for it",
-  "note": "D-2026-92. AP1-AP9: the signature-provider seam -- the reference implementation is an oracle and a test-identity signer, never a production provider by default or by label; a provider is judged on RFC 8032's vectors and on every refusal a conforming Ed25519 makes, a raising verifier included; production needs both a vetted provider and a provisioned registry. EP1-EP9: the history's security profile, enforced in the verified-read primitives every reader reads through -- no authenticator reads nothing of an AUTHENTICATED_REQUIRED history, a refused event ends the read and fails the report, a declaration is genesis-only and known, anchored catch-up is gated like a full read, and a pinned deployment refuses a downgrade. RC1-RC2: the independent reader restates the profile in its own code. AR1: the declaration is a registered action.",
+  "note": "D-2026-92. AP1-AP9: the signature-provider seam -- the reference implementation is an oracle and a test-identity signer, never a production provider by default or by label; a provider is judged on RFC 8032's vectors and on every refusal a conforming Ed25519 makes, a raising verifier included; production needs both a vetted provider and a provisioned registry. EP1-EP9: the history's security profile, enforced in the verified-read primitives every reader reads through -- no authenticator reads nothing of an AUTHENTICATED_REQUIRED history, a refused event ends the read and fails the report, a declaration is genesis-only and known, anchored catch-up is gated like a full read, and a pinned deployment refuses a downgrade. EP10-EP11: an authenticator asking only some actors -- or none -- reads nothing of a REQUIRED history (AUD-012). RC1-RC3: the independent reader restates the profile, and the scope rule, in its own code. AR1: the declaration is a registered action.",
   "suites": [
     "tests/test_authenticated_history.py",
     "tests/test_actor_authentication.py"
@@ -133,6 +133,20 @@
       "rationale": "an anchored read takes every history as legacy"
     },
     {
+      "name": "EP10_a_scoped_authenticator_reads_a_required_history",
+      "path": "agent_substrate/events.py",
+      "find": "        if required and nonempty and scope is not None:\n",
+      "replace": "        if False:\n",
+      "rationale": "an authenticator asking only some actors reads a REQUIRED history, and every other actor's events pass it unasked (AUD-012)"
+    },
+    {
+      "name": "EP11_an_empty_scope_is_taken_for_every_actor",
+      "path": "agent_substrate/events.py",
+      "find": "        if required and nonempty and scope is not None:\n",
+      "replace": "        if required and nonempty and scope:\n",
+      "rationale": "require=frozenset() -- asking nobody -- reads as no scope, and a REQUIRED history is read with no event authenticated"
+    },
+    {
       "name": "RC1_the_independent_reader_does_not_restate_the_profile",
       "path": "agent_substrate/reconstruct.py",
       "find": "    elif (events and events[0].action == _PROFILE_ACTION\n",
@@ -145,6 +159,13 @@
       "find": "            if ev.seq != 0 or p.get(\"profile\") not in _PROFILES:\n",
       "replace": "            if False:\n",
       "rationale": "the second reader folds past a declaration anywhere but genesis"
+    },
+    {
+      "name": "RC3_the_independent_reader_folds_with_a_scoped_authenticator",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if scope is not None and (\n            events and events[0].action == _PROFILE_ACTION\n",
+      "replace": "    if False and (\n            events and events[0].action == _PROFILE_ACTION\n",
+      "rationale": "the second reader leaves the scoped authenticator to the primitive's gate and folds a REQUIRED history's unasked actors"
     },
     {
       "name": "AR1_the_declaration_is_an_unknown_action",

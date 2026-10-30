@@ -1214,10 +1214,11 @@
    "change": "ADDED",
    "findings": [
     "AUD-003",
-    "AUD-006"
+    "AUD-006",
+    "AUD-011"
    ],
    "kind": "source:agent_substrate",
-   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided; not read: the reducer's own rules",
+   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided (session 2); register(), retire(), get(), require(), _check_may_register() -- which checks the registrar of a HUMAN principal only -- and _check_may_retire() (session 3); not read: the reducer's other rules, the messages and the escalation paths",
    "mode": "100644",
    "new_blob": "7080dd84f526243349d32d7698d906e84e5c2a13",
    "note": "",
@@ -1264,7 +1265,8 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-004"
+    "AUD-004",
+    "AUD-011"
    ],
    "kind": "source:agent_substrate",
    "method": "every line read: the invariants I1-I6, the edge table and check(); the audit's AUD-004 change (requires_fresh, prior_evidence) reviewed as a diff",
@@ -1387,18 +1389,19 @@
     "AUD-003",
     "AUD-005",
     "AUD-006",
-    "AUD-008"
+    "AUD-008",
+    "AUD-012"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at the baseline blob (b0058f6) in session 1; the audit's own changes to it (AUD-002, AUD-003, AUD-005, AUD-006, AUD-008) written and reviewed as diffs, each with a regression test that fails before it and a killed mutation",
+   "method": "every line read at the baseline blob (b0058f6) in session 1; the audit's own changes to it (AUD-002, AUD-003, AUD-005, AUD-006, AUD-008, AUD-012) written and reviewed as diffs, each with a regression test that fails before it and a killed mutation",
    "mode": "100644",
-   "new_blob": "a808d12e254e4d7ec06e88bf9850600a1a3df655",
+   "new_blob": "68617ef53c8584400c54e4ac55ad0489fcf4632b",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/events.py",
-   "reviewed_blob": "a808d12e254e4d7ec06e88bf9850600a1a3df655",
-   "sha256": "d559bf943d205d90963d06148503deb1ab171197e320ae47b92ab8b50f71f442",
-   "size": 84621,
+   "reviewed_blob": "68617ef53c8584400c54e4ac55ad0489fcf4632b",
+   "sha256": "53a67705aa22f5c052a46fdaac86b9790bf119d8d92dffbcca7050e00a322335",
+   "size": 85474,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1672,18 +1675,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-011",
+    "AUD-012"
+   ],
    "kind": "source:agent_substrate",
-   "method": "",
+   "method": "every line read in session 3: key ids, the registry and its v1 and v2 documents, the key lifecycle, the attestation file and its crash ordering, signed_append and may_sign, authenticate(), Authenticator, begin_history, READER_COVERAGE; the audit's AUD-012 docstring change reviewed as a diff",
    "mode": "100644",
-   "new_blob": "125e5719882c61e4e4c39709269e29d4d417bfe1",
-   "note": "not yet examined",
+   "new_blob": "5eb3d2579ded44e5dfa2d46b70a460cafd8f9cca",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/principals.py",
-   "reviewed_blob": null,
-   "sha256": "b0d76748d1cb53905bbb875027b2c6233231cf5ed1221030f6bb5d0b10cdd978",
-   "size": 38900,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "5eb3d2579ded44e5dfa2d46b70a460cafd8f9cca",
+   "sha256": "75d5b8f1a75a54629700c1bfd6b5abfb9b9a4a8128f38422cc1c89a5195cfee2",
+   "size": 39067,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -1773,18 +1779,19 @@
    "change": "ADDED",
    "findings": [
     "AUD-004",
-    "AUD-007"
+    "AUD-007",
+    "AUD-012"
    ],
    "kind": "source:agent_substrate",
-   "method": "read: the authority edge restatement and _auth_refusal, the record.transition and record.depend replay, the create rule, the canonical() computation; not read: task, subsystem and scientific-admission reconstruction beyond their entry points",
+   "method": "read: the authority edge restatement and _auth_refusal, the record.transition and record.depend replay, the create rule, the canonical() computation, the security-profile restatement and the authentication verdict (AUD-012 written and reviewed as a diff); not read: task, subsystem and scientific-admission reconstruction beyond their entry points",
    "mode": "100644",
-   "new_blob": "235186879c285fa697bf7cdb84a300b07ad51e36",
+   "new_blob": "98fe435747b4bd164ef9a8c232d77ef54b5c3415",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/reconstruct.py",
-   "reviewed_blob": "235186879c285fa697bf7cdb84a300b07ad51e36",
-   "sha256": "f17c9798ec1f09fd9c15d92431b8eb26f782be2535666a67a5bf584f0100cdff",
-   "size": 208841,
+   "reviewed_blob": "98fe435747b4bd164ef9a8c232d77ef54b5c3415",
+   "sha256": "82183924c7fe9bc8401152eb47579a2caa9b92ee68ae035e495054833baa73f9",
+   "size": 209532,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -1925,7 +1932,8 @@
     "AUD-003",
     "AUD-004",
     "AUD-006",
-    "AUD-007"
+    "AUD-007",
+    "AUD-011"
    ],
    "kind": "source:agent_substrate",
    "method": "every line read at the baseline blob in session 1; the audit's changes (AUD-003, AUD-004, AUD-006, AUD-007) reviewed as diffs with regression tests and killed mutations",
@@ -9852,18 +9860,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-004"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "read: the horizon fixture's job cycle and its authority record, and the assertions on reports and operation counts; the AUD-004 fixture change written by the audit; not read: the crash, policy and proposal assertions in detail",
    "mode": "100644",
    "new_blob": "24adc931d73feb22437f023bb466408e4ba59000",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_agent_long_horizon.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "24adc931d73feb22437f023bb466408e4ba59000",
    "sha256": "264cdc3a0b7f64ecf855797776ff4a207b0c35a63c3505dfe4f674e0b48c924c",
    "size": 47630,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -10204,18 +10214,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-012"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "read: the module docstring, the profile helpers (_authenticator, _required_history, _forge), the profile, anchored-read and second-reader tests; the AUD-012 tests written by the audit; not read: the provider-seam tests and the reader-coverage behaviour table",
    "mode": "100644",
-   "new_blob": "2026981a863f4937b02d127983d5d3ee98277a37",
-   "note": "not yet examined",
+   "new_blob": "bfbc1f9ddabe7b0310af23422e49dc0c8597e257",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_authenticated_history.py",
-   "reviewed_blob": null,
-   "sha256": "9eb90cca3dfe7af9e551eb9aeb7a5c05e21dc827fdbcceef95ae56665b0e2f8e",
-   "size": 25457,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "bfbc1f9ddabe7b0310af23422e49dc0c8597e257",
+   "sha256": "79442e06e6a8544cd6b0d0810478302489106e3b8d9bf624bcadbb440453110d",
+   "size": 30358,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -14142,18 +14154,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-012"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "every mutation read (AP1-AP9, EP1-EP9, RC1-RC2, AR1, AH22-AH23) with its anchor and rationale; EP10, EP11 and RC3 added by the audit and killed",
    "mode": "100644",
-   "new_blob": "df1b71c17ba603f4f5352c93556dde326efd0b8a",
-   "note": "not yet examined",
+   "new_blob": "79204de1e54569967456a97acb76e94294ce6796",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/authenticated_history.json",
-   "reviewed_blob": null,
-   "sha256": "3d046271e21b06ec1babf85c434cd6a138bb2a06c768b3eb3d978d5fc86fde6e",
-   "size": 9570,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "79204de1e54569967456a97acb76e94294ce6796",
+   "sha256": "cf7f12ceddab892065b69671537e19b4806643368b541ceaf19813a497a267f8",
+   "size": 10979,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,

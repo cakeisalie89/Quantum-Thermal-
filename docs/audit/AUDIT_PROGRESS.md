@@ -354,10 +354,155 @@ counts them under the scripted campaign, and records the result in
 - **Wall time.** It did not move outside noise: 20.5 s at the baseline and
   21.6 s now. The subprocesses hide the work.
 
+### The full suite at d124a8f, and what it found
+
+The suite ran in a worktree at d124a8f, with `HARNESS_HISTORY_REQUIRED=1`:
+6,294 passed, 19 skipped and 34 errors, in 33 minutes. The 34 errors were every test in
+`tests/test_agent_long_horizon.py`, and nothing else failed.
+
+- **Why.** The module's fixture creates each claim already carrying a
+  `verification_report`. Its verifier then moved the claim to VERIFIED
+  citing that same digest. I3's fresh-evidence rule (AUD-004, in d124a8f)
+  refuses that, so the fixture stopped at its first cycle. This is a fifth
+  fixture of the kind cluster 3 met. The targeted runs before d124a8f did
+  not include this module, which is slow.
+- **The fix (55032de).** The verifier cites a report of its own, put in the
+  evidence store. The change is to the test only. The module passes at
+  the default 260 cycles and at the 1,200 cycles CI runs
+  (`HARNESS_HORIZON_CYCLES=1200`, 6 min 47 s).
+- **The scan.** An AST scan of every tracked `.py` file looked for a
+  record created with a `verification_report`. It found no other record
+  that is then verified on that report.
+
+### Phase 3: actor authentication
+
+`agent_substrate/principals.py` was read in full. These hold:
+
+- The key registry is supplied from outside the log and pinned by digest.
+- Key ids are derived from the keys.
+- A test key is refused by a registry not built for tests.
+- A key's lifecycle is judged by log position.
+- The attestation is made durable before the record.
+- The reference Ed25519 signs only test identities.
+- Production authentication refuses until a registry and a vetted
+  provider exist. That is EXTERNALLY_BLOCKED, for the owner.
+
+One gap was found and fixed: **AUD-012 (P1)**.
+
+- **The defect.** A REQUIRED history read as authenticated through an
+  authenticator scoped by `require` to some actors. `authenticate()`
+  passes every other actor's events without asking them.
+- **The reproduction** (`repro/scoped_authenticator.py`). A correctly
+  chained, unsigned record by an actor with no key was:
+  - read with `ok=True`, with the profile pinned or not;
+  - built on by a writer, which appended after it;
+  - folded by the second reader.
+
+  The same happened at the baseline b0058f6.
+- **The fix.** `_security_gate` refuses a scoped authenticator for a
+  REQUIRED history. `reconstruct()` restates the refusal in its own code.
+
+### Phase 4: who holds a role
+
+**AUD-011 (P2, OWNER).** Nothing binds an actor to the role it claims.
+
+- The authority store compares the claimed role with the edge.
+- The agent directory admits an AGENT with any roles from any registrar,
+  registered or not. Only a HUMAN's registrar is checked.
+- So one unregistered name took a claim through VERIFIED to PROMOTED, and
+  registered its own VERIFIER agent (`repro/self_asserted_roles.py`,
+  `repro/open_agent_registration.py`).
+
+AGENT_SUBSTRATE.md states the neighbouring limit: three colluding
+registered identities are indistinguishable from three independent ones.
+Which authority grants VERIFIER and PROMOTER is an owner decision.
+
+### Cluster 4: AUD-012 fixed, AUD-011 recorded
+
+- **Pre-fix failure.** The 8 new AUD-012 tests fail on d124a8f, and the
+  control passes there.
+- **Mutation.** EP10, EP11 and RC3 were KILLED, and so were EP1, AH23 and
+  RC1, whose surrounding code changed. Sources were restored
+  byte-identical, and every anchor in every spec still matches exactly
+  once.
+- **Ledger.** The dispositions were recorded:
+  - `principals.py`: REVIEWED_IN_FULL;
+  - `agents.py` and the two test modules: REVIEWED_IN_PART;
+  - `events.py` and `reconstruct.py`: re-bound after the AUD-012 diff.
+
+### Read, and found as documented
+
+- **Phase 5.** The inference gateway holds no credential and opens no
+  connection. The worker's live mode refuses until the owner chooses a
+  provider (OD-1).
+- **Phase 7.** NF-1T's flagship holds architecture claims only:
+  `large_model_trained: false`, `real_weights_allocated: false`, and its
+  sizes are marked ESTIMATE. Only the 2-layer development member is
+  trained, on one closed-form law.
+- **Phase 8.** `tools/model_check.py` calls the real `check()` with an
+  empty prior evidence. AUD-004's freshness rule is outside its bounded
+  state space. That is a coverage limit, not a defect.
+- **Phase 10.** On this branch every workflow is default-deny with
+  per-job grants, and actions are pinned by commit. The agent workflow is
+  gated by the commenter's own association. The ungated copy on `main` is
+  O-1, which only the owner can change.
+
+### Full-history work and the campaign's limit, set against the record
+
+`docs/tranche_h/FINAL_REPORT.md` ("Why the cost grows") states the growth
+behind AUD-010 as deliberate. Every governed fold re-verifies from
+genesis, because an anchored read "re-reads no prefix and trusts the
+anchor".
+
+- **What an anchored fold gives up.** `advance()` is a verified read of
+  the suffix. `require_extends` (AUD-006) refuses a re-chained prefix in
+  O(1). What an anchored fold loses is in-process detection of later,
+  unchained damage to the verified prefix, which the next full read still
+  finds. That is detection latency, not the correctness of decisions.
+- **AUD-010 is now OWNER.** The options and the measured costs are in the
+  register. In the recorded Gate G campaign (8f53500), a decision took
+  0.56 s at the 50 stage and 2.33 s at the 1,000 stage.
+- **AUD-013 (P2, CONFIRMED, DOCUMENTED).** The campaign cannot resume
+  after its process dies.
+  - `World()` deletes an existing workspace, and `main()` deletes it at
+    the end.
+  - The recorded run asked for 10,000 decisions and holds three stages,
+    with `complete=false`.
+  - The report states this as unresolved, and the audit keeps it so.
+- **The derived harness status.** It is INCOMPLETE (34 unsatisfied). At
+  the baseline it was COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT.
+  - **Why.** Each audit commit that changed code left the hosted
+    evidence of the matrix rows and stack entries covering that code older
+    than the code (PREDATES_CURRENT_IMPLEMENTATION).
+  - **The count.** 3 items at c11c628, 31 at f142a7e, 34 at a48ae7b.
+  - **What can restore it.** The status re-derives from evidence. Hosted
+    runs of the new head, attached through the repository's evidence
+    tools, can restore it, and nothing else should.
+
+### Pushed, and what the hosted runs said
+
+- **a48ae7b.** All 44 check runs completed successfully, across both
+  events:
+  - both full suites;
+  - all 16 mutation shards, and both mutation-matrix jobs;
+  - container-verify and supply chain;
+  - the integration jobs (FEniCSx, FMI, end to end, RO-Crate, performance
+    telemetry).
+- **d124a8f and 55032de.** Pushed together, once the d124a8f suite and
+  the fixture fix were validated:
+  - the long-horizon module at both scales;
+  - 981 contract tests at 55032de.
+
 ### Next actions
 
-1. Run the full suite at the cluster 3 commit, then push it.
-2. AUD-010: an anchored task projection, and one verified read shared by
-   the seven stores a runner loads. Keep the full-genesis path.
-3. Record ledger dispositions for the files read in full.
-4. Phases 3 to 14.
+1. Push the cluster 4 commit once its full suite passes, and attach
+   hosted evidence through the repository's tools when the runs finish.
+2. Phase 14: the trust-boundary matrix (operations against the checks
+   each requires), the per-operation cost report, the test and evidence
+   report, the claims-boundary report, the owner decisions (OD-1 to OD-7,
+   O-1 to O-9, and AUD-001, AUD-010, AUD-011) and the 12-dimension
+   readiness assessment.
+3. Phase 9: a resumable campaign (AUD-013), if it is taken on here.
+4. The ledger: most changed files are still NOT_REVIEWED. Continue with
+   the trust surface: `governed_tasks.py`, `governed_model.py`,
+   `secrets.py`, `capability.py`, `netauth.py`, and the executor.
