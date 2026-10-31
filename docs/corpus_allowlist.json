@@ -2,11 +2,11 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "1bb7d3b88c101e1ba4dd338802f13cec9250d5a3f09ee49fca5829979f22a1bc",
+  "entries_digest": "d4bdc313607681cddbca03e7d8b9ab05f486fe0e8a6dbc9466e302f731ac835b",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "d83acf8ae90c0e51194244dfb476e7cb59b7503c1fd0e19c77f96ad20352adfd"
+      "sha256": "ece2827d0cfdb766535f8d0f0838ec5284238e39bc61b505e1773f1d7942f637"
     },
     {
       "path": "ARCHITECTURE.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "172770b83e4c2085edaff64e1b7d3ca37d81823598c34010eb347639ecf8a7bd"
+      "sha256": "e96a33482f3bf18d000f93117e2aaf6448820786693330b7d886c306650816e8"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -94,11 +94,11 @@
     },
     {
       "path": "docs/audit/AUDIT_PROGRESS.md",
-      "sha256": "1ed33bccd0050743f958c486116d7dd76ef2196a43b7f95ca3322bfeb2c5fcc5"
+      "sha256": "aaa3a8cec037f95c18c5a6028977b7d3b7d3fe3723f86f720461bec019d43187"
     },
     {
       "path": "docs/audit/AUDIT_REPORT.md",
-      "sha256": "fc52058d6d69cb63434c38f815e69b4b664c9127ae545950824a5dcd87fc5f41"
+      "sha256": "38c6621d001780ecb3c261feb3d59d4bb43d0f02aa4f1cea297b5d23c9ef0ae9"
     },
     {
       "path": "docs/formal/README.md",

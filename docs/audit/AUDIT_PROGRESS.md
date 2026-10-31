@@ -1151,3 +1151,81 @@ and the bound stays.
 - **The fix.** The file's review is re-recorded, with the audit's own
   additions to it reviewed as diffs, so the ledger and the report agree:
   1,030 files, 23 reviewed in part, 935 not reviewed.
+
+### Phase C, second item: the witness protocol over the tree
+
+**What was added.** `agent_substrate/witness.py` gains tree checkpoints
+(`witness-cosignature/2`) beside the head protocol, which is unchanged:
+
+- **The checkpoint.** A `TreeCheckpoint` is a log's origin, how many records
+  its tree commits to, and the tree's root. The size is stated because a
+  root does not fix it.
+- **The witness.** A `TreeWitness` keeps the last tree it cosigned, in a
+  file of its own per origin. It accepts a larger tree only with a
+  consistency proof from that one, so the proof is O(log n) hashes
+  whatever was appended.
+- **The verifier.** `verify_tree_witnessed` holds a log to the trees a
+  quorum cosigned.
+
+The tree witness refuses everything the head witness refuses:
+
+- a rollback;
+- another root at the cosigned size;
+- a history rewritten beneath the cosigned tree, even with that rewritten
+  log's own valid proof;
+- a proof that is not one;
+- a witness that lost its state, which trusts nothing first;
+- provisioning anywhere but at the first record's leaf, or a second time.
+
+The verifier reports TRUNCATED and FORKED by root, counts junk for nothing
+(another witness, another log, a bad signature), states the quorum's reach,
+and is STALE past a bound. The two schemes are different strings, so a
+cosignature of one is never read as one of the other.
+
+**Written so that neither protocol's code repeats the other's.** The first
+draft repeated the head verifier's lines, and eight of the head protocol's
+existing mutation anchors then matched twice. The tree code was rewritten
+with its own screening helper and its own wording, and every existing
+anchor matches once.
+
+**Tests and mutations.**
+
+- `tests/test_witness_tree.py` has 20 tests.
+- TW1 to TW19 (`tools/mutations/witness_tree.json`) are each killed.
+- The head protocol's 23 mutations (`tools/mutations/witness.json`) are
+  each still killed with the tree code present.
+
+**Not established.**
+
+- No independent witness exists. Every witness is a fixture with a TEST key.
+- The assurance package still carries the whole log, not an inclusion
+  proof against a cosigned tree.
+- The REFERENCE_ONLY Ed25519 provider signs; no vetted provider is
+  configured.
+
+**The record, kept true.** The report still said 54 changed `agent_substrate`
+modules after the transparency module made it 55. It now says 55, of which
+19 have been read and two (`roles`, `transparency`) were written by the
+audit. Changing the isolation test again sent its disposition back to
+NOT_REVIEWED, and it was re-recorded before this commit rather than after.
+`witness.py` is recorded as read in part, to write the tree checkpoints
+beside it. The head protocol was not reviewed adversarially line by line.
+
+### Hosted CI at 5a2bbf8 and 0683097
+
+Every workflow run at both heads succeeded, on push and pull_request:
+agent-substrate, stack-verify, harness-integrations, supply-chain and
+container-verify. Within agent-substrate, that includes:
+
+- the full suite;
+- all eight mutation shards (130 specifications at 0683097) and their
+  aggregate;
+- the second interpreter;
+- the dispatch-sensitivity job.
+
+It also includes the two assurance steps. The standalone verifier ran under
+the runner's own `python3 -I`, outside the project's environment, and
+accepted the committed package. `tools/assurance_package.py --check` found
+the package current on the runner's machine: the model's outputs at the
+recorded inputs agree with the package's to 1e-9 relative. Every corrupted
+copy was refused where it should be.

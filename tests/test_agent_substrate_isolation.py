@@ -186,6 +186,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_witness.py",
     # Phase C: Merkle transparency commitments over the log
     "tests/test_transparency.py",
+    # Phase C: the witness protocol over the tree
+    "tests/test_witness_tree.py",
     # Section 6.1: the causal assurance graph, and the withdrawal it predicts
     "tests/test_assurance_graph.py",
     # Section 6.2: the policy engine against an independent reference model
@@ -367,10 +369,11 @@ LAYERS = ("canonical", "projection", "hostid",
           # history, through the graph above it; nothing imports it.
           "prov_export",
           # Phase C: the RFC 9162 Merkle tree over the log's event hashes.
-          # Imports nothing internal; nothing imports it yet.
+          # Imports nothing internal; the witness's tree checkpoints use it.
           "transparency",
           # Assurance E: independent witnesses to the log's head. Imports
-          # the log's record type and the signature seam; nothing else.
+          # the log's record type, the signature seam and, for its tree
+          # checkpoints (Phase C), the Merkle tree; nothing else.
           "witness",
           # Assurance F: freshness policies and what an observation is now.
           # Imports nothing internal; the research ledger judges with it.

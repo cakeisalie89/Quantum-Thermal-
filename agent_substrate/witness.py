@@ -96,6 +96,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from . import transparency as T
 from .events import Event
 from .signature import ReferenceEd25519, SignatureProvider
 
@@ -431,4 +432,237 @@ def verify_witnessed(events, cosignatures, root: TrustRoot, *,
             out.stale = True
             out.notes.append(f"STALE: the newest counted cosignature is "
                              f"from {newest}; the bound is {max_age_s}s")
+    return out
+
+
+# ---------------------------------------------------- tree checkpoints (/2)
+#
+# THE SAME PROTOCOL OVER A MERKLE TREE (Phase C). A witness above learns that
+# a head extends the last one it cosigned from every record in between: the
+# proof grows with the history added. A TREE checkpoint names a log's origin,
+# how many records its tree commits to, and the tree's root
+# (agent_substrate.transparency, RFC 9162). The witness keeps the last tree
+# it cosigned and accepts a new one only with a consistency proof that the
+# old tree is a prefix of the new: O(log n) hashes, whatever was appended.
+#
+# The size is stated beside the root, and the cosignature covers both,
+# because a root does not fix its own size. The scheme is another string, so
+# a cosignature of one protocol is never read as one of the other.
+
+TREE_SCHEME = "witness-cosignature/2"
+
+
+@dataclass(frozen=True)
+class TreeCheckpoint:
+    origin: str
+    size: int
+    root: str
+
+    def __post_init__(self):
+        if not isinstance(self.origin, str) or "\n" in self.origin or \
+                not self.origin.strip():
+            raise WitnessError(f"origin {self.origin!r} is not one line")
+        if isinstance(self.size, bool) or not isinstance(self.size, int) or \
+                self.size < 1:
+            raise WitnessError(f"size {self.size!r} is not a tree's size")
+        if not isinstance(self.root, str) or not _HEX64.match(self.root):
+            raise WitnessError(f"root {self.root!r} is not a sha256 digest")
+
+    def text(self) -> bytes:
+        return f"{self.origin}\n{self.size}\n{self.root}\n".encode()
+
+    def to_record(self) -> dict:
+        return {"origin": self.origin, "size": self.size, "root": self.root}
+
+    @classmethod
+    def from_record(cls, rec) -> "TreeCheckpoint":
+        if not isinstance(rec, dict) or set(rec) != {"origin", "size",
+                                                      "root"}:
+            raise WitnessError("a tree checkpoint is exactly origin, size, "
+                               "root")
+        return cls(rec["origin"], rec["size"], rec["root"])
+
+
+def tree_cosigned_message(cp: TreeCheckpoint, t: int) -> bytes:
+    return f"{TREE_SCHEME}\ntime {t}\n".encode() + cp.text()
+
+
+@dataclass(frozen=True)
+class TreeCosignature:
+    witness_id: str
+    time: int
+    signature: str
+    checkpoint: TreeCheckpoint
+
+    def message(self) -> bytes:
+        return tree_cosigned_message(self.checkpoint, self.time)
+
+
+def tree_checkpoint_of(name: str, events) -> TreeCheckpoint:
+    """The tree checkpoint of a verified log: every record it holds."""
+    return TreeCheckpoint(origin_of(name, events), len(events),
+                          T.root(T.entries_of(events)).hex())
+
+
+def tree_proof(events, first: int, second: int) -> list:
+    """What a witness at ``first`` records needs to reach ``second``: the
+    consistency proof between the two trees, as hex."""
+    return [h.hex() for h in T.consistency_proof(
+        first, T.entries_of(events[:second]))]
+
+
+@dataclass
+class TreeWitness(Witness):
+    """A witness of tree checkpoints. Its state is its own file per origin,
+    beside a head witness's, and the same rules hold: provisioned by the
+    owner at the first record, never rolled back, never forked, recorded
+    before it answers, and trusting nothing first once it has lost its
+    state."""
+
+    def _tree_path(self, origin: str) -> Path:
+        return self._path(origin).with_suffix(".tree.json")
+
+    def _load_tree(self, origin: str) -> TreeCheckpoint:
+        path = self._tree_path(origin)
+        if not path.exists():
+            raise WitnessError(
+                f"{self.witness_id} holds no tree for {origin!r}: it was "
+                "never provisioned for it, or lost what it held. "
+                "Re-provisioning is the owner's act")
+        cp = TreeCheckpoint.from_record(json.loads(path.read_text(
+            encoding="utf-8")))
+        if cp.origin != origin:
+            raise WitnessError(f"{self.witness_id}'s tree for {origin!r} "
+                               "names another origin")
+        return cp
+
+    def _store_tree(self, cp: TreeCheckpoint) -> None:
+        path = self._tree_path(cp.origin)
+        tmp = path.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(cp.to_record(), fh, sort_keys=True)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+        dfd = os.open(self.state_dir, os.O_RDONLY)
+        try:
+            os.fsync(dfd)
+        finally:
+            os.close(dfd)
+
+    def provision_tree(self, genesis: TreeCheckpoint) -> None:
+        """The owner's act: witness ``genesis.origin`` from the tree of its
+        first record, whose root is that record's leaf."""
+        if self._tree_path(genesis.origin).exists():
+            raise WitnessError(f"{self.witness_id} already witnesses the "
+                               f"tree of {genesis.origin!r}")
+        first = genesis.origin.rsplit("/", 1)[-1]
+        if genesis.size != 1 or not _HEX64.match(first) or genesis.root != \
+                T.leaf_hash(bytes.fromhex(first)).hex():
+            raise WitnessError("a witness is provisioned at the tree of a "
+                               "log's first record, the one its origin "
+                               "names")
+        self._store_tree(genesis)
+
+    def latest_tree(self, origin: str) -> TreeCosignature:
+        return self._tree_cosign(self._load_tree(origin))
+
+    def add_tree_checkpoint(self, new: TreeCheckpoint,
+                            proof: list) -> TreeCosignature:
+        last = self._load_tree(new.origin)
+        if new.size < last.size:
+            raise Rollback(f"{new.origin}: size {new.size} is below size "
+                           f"{last.size}, which {self.witness_id} cosigned")
+        if new.size == last.size:
+            if new.root != last.root:
+                raise Fork(f"{new.origin}: at size {new.size} the root is "
+                           f"{new.root[:12]}, and {self.witness_id} cosigned "
+                           f"{last.root[:12]}")
+            if proof:
+                raise WitnessError("a tree at the witnessed size needs no "
+                                   "proof")
+            return self._tree_cosign(last)
+        try:
+            hashes = [bytes.fromhex(h) for h in proof]
+        except (TypeError, ValueError):
+            raise WitnessError("a consistency proof is a list of hex "
+                               "hashes") from None
+        if any(len(h) != 32 for h in hashes) or not T.verify_consistency(
+                last.size, new.size, bytes.fromhex(last.root),
+                bytes.fromhex(new.root), hashes):
+            raise Fork(f"{new.origin}: the tree of size {new.size} is not "
+                       f"shown to extend the one of size {last.size} that "
+                       f"{self.witness_id} cosigned")
+        self._store_tree(new)
+        return self._tree_cosign(new)
+
+    def _tree_cosign(self, cp: TreeCheckpoint) -> TreeCosignature:
+        t = int(self.clock())
+        sig = self.provider.sign(self.secret, tree_cosigned_message(cp, t))
+        return TreeCosignature(self.witness_id, t, sig.hex(), cp)
+
+
+def _tree_screen(c, root: TrustRoot, provider) -> str | None:
+    """Why a tree cosignature counts for nothing, or None when it counts:
+    a witness the trust root does not name, another log, a signature that
+    does not verify. Anybody can hand a verifier junk."""
+    cp = c.checkpoint
+    if c.witness_id not in root.witnesses:
+        return f"{c.witness_id}: not a witness the trust root names"
+    if cp.origin != root.origin:
+        return f"{c.witness_id}: a tree of another log"
+    try:
+        sig = bytes.fromhex(c.signature)
+    except ValueError:
+        sig = b""
+    key = root.witnesses[c.witness_id]
+    if not provider.verify(key, c.message(), sig):
+        return f"{c.witness_id}: its signature over size {cp.size} fails"
+    return None
+
+
+def verify_tree_witnessed(events, cosignatures, root: TrustRoot, *,
+                          provider=None,
+                          max_lag: int | None = None) -> WitnessReport:
+    """``events`` (a VERIFIED read of the log) against tree cosignatures,
+    as :func:`verify_witnessed` does against head cosignatures: TRUNCATED
+    when the log holds fewer records than a cosigned tree, FORKED when its
+    tree of that size has another root, junk counted for nothing, and the
+    reach stated as the last position a quorum's trees cover."""
+    provider = provider or ReferenceEd25519()
+    out = WitnessReport(head_seq=events[-1].seq if events else -1)
+    name = root.origin.rsplit("/", 1)[0]
+    if events and origin_of(name, events) != root.origin:
+        out.problems.append(f"this log is not {root.origin!r}: the trust "
+                            "root is for another log")
+        return out
+    entries = T.entries_of(events)
+    best: dict = {}
+    for c in cosignatures:
+        why = _tree_screen(c, root, provider)
+        if why is not None:
+            out.notes.append(why + "; not counted")
+            continue
+        cp = c.checkpoint
+        if cp.size > len(entries):
+            cut = (f"TRUNCATED: {c.witness_id} cosigned a tree of "
+                   f"{cp.size} records, and the log holds {len(entries)}")
+            out.problems.append(cut)
+            continue
+        if T.root(entries[:cp.size]).hex() != cp.root:
+            fork = (f"FORKED: {c.witness_id} cosigned root {cp.root[:12]} "
+                    f"at size {cp.size}; the log's tree there has another")
+            out.problems.append(fork)
+            continue
+        best[c.witness_id] = max(best.get(c.witness_id, -1), cp.size - 1)
+    ranked = sorted(best.values(), reverse=True)
+    if len(ranked) >= root.quorum:
+        out.witnessed_through = ranked[root.quorum - 1]
+    out.unwitnessed = out.head_seq - out.witnessed_through
+    lagging = max_lag is not None and out.unwitnessed > max_lag
+    if lagging:
+        out.stale = True
+        out.notes.append(f"STALE: {out.unwitnessed} record(s) after seq "
+                         f"{out.witnessed_through} are not covered by a "
+                         f"quorum's trees; the bound is {max_lag}")
     return out

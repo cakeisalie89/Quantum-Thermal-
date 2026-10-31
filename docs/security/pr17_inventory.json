@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 614,
+   "ADDED": 616,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 59,
-   "LOW": 213,
-   "MEDIUM": 349
+   "LOW": 214,
+   "MEDIUM": 350
   },
   "by_subsystem": {
    "agent-substrate": 33,
    "ai-ingress": 3,
-   "assurance": 130,
+   "assurance": 131,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 189,
+   "tests": 190,
    "tooling": 54,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 646
+  "files": 648
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -611,6 +611,7 @@
      "tests/test_typecheck_scope.py",
      "tests/test_verified_read_guard.py",
      "tests/test_witness.py",
+     "tests/test_witness_tree.py",
      "tests/test_work_counts.py"
     ]
    }
@@ -1181,6 +1182,7 @@
      "tests/test_typecheck_scope.py",
      "tests/test_verified_read_guard.py",
      "tests/test_witness.py",
+     "tests/test_witness_tree.py",
      "tests/test_work_counts.py"
     ]
    }
@@ -2396,7 +2398,8 @@
      "tools/mutations/transparency.json"
     ],
     "tests": [
-     "tests/test_transparency.py"
+     "tests/test_transparency.py",
+     "tests/test_witness_tree.py"
     ]
    }
   },
@@ -2430,11 +2433,13 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/composed_campaigns.json",
-     "tools/mutations/witness.json"
+     "tools/mutations/witness.json",
+     "tools/mutations/witness_tree.json"
     ],
     "tests": [
      "tests/test_composed_campaigns.py",
-     "tests/test_witness.py"
+     "tests/test_witness.py",
+     "tests/test_witness_tree.py"
     ]
    }
   },
@@ -8511,6 +8516,24 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_witness_tree.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_witness_tree.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
      "tests/test_agent_substrate_isolation.py"
     ]
    }
@@ -10949,6 +10972,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/witness.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/witness_tree.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

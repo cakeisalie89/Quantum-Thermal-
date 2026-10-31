@@ -130,7 +130,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                # Merkle transparency commitments over the log (Phase C).
                "agent_substrate/transparency.py",
                "tests/test_transparency.py",
-               "tools/mutations/transparency.json")
+               "tools/mutations/transparency.json",
+               # The witness's tree checkpoints (Phase C).
+               "tests/test_witness_tree.py",
+               "tools/mutations/witness_tree.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

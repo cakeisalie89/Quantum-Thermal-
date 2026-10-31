@@ -1,0 +1,142 @@
+{
+ "title": "A tree witness refuses what a head witness refuses, from a logarithmic proof",
+ "note": "Phase C. Each mutation removes one rule of the tree checkpoints in agent_substrate/witness.py: rollback, a fork at the cosigned size, an extension whose consistency is not proven, recording before answering, provisioning at the first record's leaf and only once, refusing a lost state, TRUNCATED and FORKED by root, the screening of junk (another witness, another log, a bad signature), the quorum's reach, STALE, the trust root's log, the scheme kept apart from the head protocol's, and the checkpoint's shape. tests/test_witness_tree.py holds each.",
+ "suites": [
+  "tests/test_witness_tree.py"
+ ],
+ "mutations": [
+  {
+   "name": "TW1_rollback",
+   "path": "agent_substrate/witness.py",
+   "find": "        if new.size < last.size:",
+   "replace": "        if False:",
+   "rationale": "a smaller tree than the one cosigned is accepted: the history rolled back"
+  },
+  {
+   "name": "TW2_fork_at_the_cosigned_size",
+   "path": "agent_substrate/witness.py",
+   "find": "            if new.root != last.root:",
+   "replace": "            if False:",
+   "rationale": "another root at the cosigned size is cosigned: a fork"
+  },
+  {
+   "name": "TW3_proof_at_the_same_size",
+   "path": "agent_substrate/witness.py",
+   "find": "            if proof:\n                raise WitnessError(\"a tree at the witnessed size needs no \"",
+   "replace": "            if False:\n                raise WitnessError(\"a tree at the witnessed size needs no \"",
+   "rationale": "a proof offered where none is needed is ignored rather than refused"
+  },
+  {
+   "name": "TW4_extension_unproven",
+   "path": "agent_substrate/witness.py",
+   "find": "        if any(len(h) != 32 for h in hashes) or not T.verify_consistency(",
+   "replace": "        if any(len(h) != 32 for h in hashes) or False and T.verify_consistency(",
+   "rationale": "a larger tree is cosigned without its consistency with the last being proven: a rewritten history passes"
+  },
+  {
+   "name": "TW5_answers_before_recording",
+   "path": "agent_substrate/witness.py",
+   "find": "        self._store_tree(new)\n        return self._tree_cosign(new)",
+   "replace": "        return self._tree_cosign(new)",
+   "rationale": "the witness cosigns a tree it has not recorded, and forgets it on a crash"
+  },
+  {
+   "name": "TW6_provisioned_at_any_root",
+   "path": "agent_substrate/witness.py",
+   "find": "        if genesis.size != 1 or not _HEX64.match(first) or genesis.root != \\",
+   "replace": "        if genesis.size != 1 or not _HEX64.match(first) or False and genesis.root != \\",
+   "rationale": "a witness is provisioned at a root that is not the first record's leaf"
+  },
+  {
+   "name": "TW7_provisioned_twice",
+   "path": "agent_substrate/witness.py",
+   "find": "        if self._tree_path(genesis.origin).exists():",
+   "replace": "        if False:",
+   "rationale": "provisioning again resets a witness's memory of what it cosigned"
+  },
+  {
+   "name": "TW8_trusts_on_first_use",
+   "path": "agent_substrate/witness.py",
+   "find": "        if not path.exists():\n            raise WitnessError(\n                f\"{self.witness_id} holds no tree",
+   "replace": "        if False:\n            raise WitnessError(\n                f\"{self.witness_id} holds no tree",
+   "rationale": "a witness that lost its state is not refused here, and fails on the read instead of saying why"
+  },
+  {
+   "name": "TW9_truncation_unseen",
+   "path": "agent_substrate/witness.py",
+   "find": "        if cp.size > len(entries):",
+   "replace": "        if False:",
+   "rationale": "a log cut below a cosigned tree is reported as something else"
+  },
+  {
+   "name": "TW10_fork_unseen",
+   "path": "agent_substrate/witness.py",
+   "find": "        if T.root(entries[:cp.size]).hex() != cp.root:",
+   "replace": "        if False:",
+   "rationale": "a log whose tree differs from the cosigned one passes"
+  },
+  {
+   "name": "TW11_signature_unchecked",
+   "path": "agent_substrate/witness.py",
+   "find": "    if not provider.verify(key, c.message(), sig):",
+   "replace": "    if False:",
+   "rationale": "a tree cosignature whose signature does not verify is counted"
+  },
+  {
+   "name": "TW12_any_witness_counts",
+   "path": "agent_substrate/witness.py",
+   "find": "    if c.witness_id not in root.witnesses:\n        return f\"{c.witness_id}: not a witness the trust root names\"",
+   "replace": "    if False:\n        return f\"{c.witness_id}: not a witness the trust root names\"",
+   "rationale": "a witness the trust root does not name is counted"
+  },
+  {
+   "name": "TW13_another_log_counts",
+   "path": "agent_substrate/witness.py",
+   "find": "    if cp.origin != root.origin:\n        return f\"{c.witness_id}: a tree of another log\"",
+   "replace": "    if False:\n        return f\"{c.witness_id}: a tree of another log\"",
+   "rationale": "a tree cosigned for another log is counted for this one"
+  },
+  {
+   "name": "TW14_quorum_reach",
+   "path": "agent_substrate/witness.py",
+   "find": "    ranked = sorted(best.values(), reverse=True)",
+   "replace": "    ranked = sorted(best.values())",
+   "rationale": "a quorum's reach is taken from its furthest witness instead of its nearest"
+  },
+  {
+   "name": "TW15_no_lag_is_too_long",
+   "path": "agent_substrate/witness.py",
+   "find": "    lagging = max_lag is not None and out.unwitnessed > max_lag",
+   "replace": "    lagging = False",
+   "rationale": "witnessing that lags past the bound is never STALE"
+  },
+  {
+   "name": "TW16_the_trust_roots_log_is_not_checked",
+   "path": "agent_substrate/witness.py",
+   "find": "    if events and origin_of(name, events) != root.origin:",
+   "replace": "    if False:",
+   "rationale": "a log is judged against another log's trust root"
+  },
+  {
+   "name": "TW17_one_scheme_for_both",
+   "path": "agent_substrate/witness.py",
+   "find": "TREE_SCHEME = \"witness-cosignature/2\"",
+   "replace": "TREE_SCHEME = \"witness-cosignature/1\"",
+   "rationale": "a cosignature of one protocol reads as one of the other"
+  },
+  {
+   "name": "TW18_empty_tree_checkpoint",
+   "path": "agent_substrate/witness.py",
+   "find": "                self.size < 1:",
+   "replace": "                self.size < 0:",
+   "rationale": "a checkpoint of an empty tree is accepted"
+  },
+  {
+   "name": "TW19_extra_fields",
+   "path": "agent_substrate/witness.py",
+   "find": "        if not isinstance(rec, dict) or set(rec) != {\"origin\", \"size\",",
+   "replace": "        if not isinstance(rec, dict) or False and set(rec) != {\"origin\", \"size\",",
+   "rationale": "a tree checkpoint may carry fields its cosignature does not cover"
+  }
+ ]
+}
