@@ -1078,3 +1078,76 @@ CI runs the verifier a second way too: with the runner's own interpreter,
   only with the repository.
 - What the history's other records mean.
 - Any physical validity.
+
+### Phase C, first item: Merkle transparency commitments, evaluated
+
+**The limit.** A witness (`agent_substrate/witness.py`) learns that a new
+head extends the last one it cosigned by being shown every record in
+between. For a hash chain those records are the consistency proof, so its
+length grows with the history added since. A reader who wants to know that
+one record belongs to a witnessed history must hold the history after it.
+
+**What was added.** `agent_substrate/transparency.py` is the RFC 9162
+Merkle tree over the log's event hashes, standard library only:
+
+- RFC 9162's Merkle Tree Hash, with the 0x00 and 0x01 domain separation;
+- inclusion proofs, and their verification;
+- consistency proofs, and their verification.
+
+The chain is unchanged. The tree is computed from a verified chain and adds
+a commitment, not an authority.
+
+**Held to an external reference.** The roots of RFC 6962's eight test
+leaves match the Certificate Transparency project's published values. Then
+every proof over every size up to 64 is checked both ways: each proof the
+module builds verifies, and each one offered for the wrong leaf, position or
+root, or for a fork, does not.
+
+**Measured on the assurance package's own 85-record log (69,748 bytes).**
+
+| Proof | Merkle | Hash chain |
+|---|---|---|
+| The verification decision at seq 74 is in the tree | 6 hashes, 192 B | the 10 records after it, 8,992 B, and only once seq 74 is witnessed |
+| Extend a witness from seq 12 to the head | 8 hashes, 256 B | 72 records, 61,491 B |
+| Extend a witness from seq 76 to the head | 7 hashes, 224 B | 8 records, 6,987 B |
+
+At 100,000 random entries, a prototype on this host measured:
+
+- the root in 208 ms;
+- an inclusion proof of 17 hashes (544 B), verified in 34 microseconds;
+- a consistency proof of 14 hashes.
+
+**A limit found and kept.** A root does not commit to its own size. RFC
+9162's verification takes the size as an input, so a proof for one size can
+verify against the same root at another size whose path has the same shape.
+Over the sizes up to 64 that happens for 1,824 proofs of each kind. A fork
+never verifies, at any size. So a checkpoint must state the size beside the
+root, and a cosignature must cover both. The module's tests demonstrate the
+limit rather than assume it away.
+
+**Mutations.** TR1 to TR14 (`tools/mutations/transparency.json`) are each
+killed, through the harness with every source restored byte-identical. One more was dropped rather than kept: removing the consistency
+check's bound on its sizes sends a loop spinning, and only a timeout would
+end it, which the harness rightly does not count. The loop is guarded now,
+and the bound stays.
+
+**Not done.**
+
+- The witness still cosigns head hashes and takes records as its proof. A
+  witness/2 that cosigns (size, root) and accepts a consistency proof is
+  the next step: a protocol change, with its own mutation specification.
+- The assurance package still carries the whole log.
+- No production witness exists.
+
+**A defect in the record, found and corrected.**
+
+- **What went wrong.** At 5a2bbf8 the report said 23 files were reviewed in
+  part and 935 not reviewed, but the ledger committed with it said 22 and
+  936.
+- **Why.** That commit's one-line change to
+  `tests/test_agent_substrate_isolation.py` (the builder's importer entry)
+  correctly sent the file's disposition back to NOT_REVIEWED, and the
+  report's table was not re-derived. No test compares the two.
+- **The fix.** The file's review is re-recorded, with the audit's own
+  additions to it reviewed as diffs, so the ledger and the report agree:
+  1,030 files, 23 reviewed in part, 935 not reviewed.

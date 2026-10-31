@@ -126,7 +126,11 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tests/test_assurance_package.py",
                "tests/test_assurance_package_build.py",
                "tools/mutations/verify_assurance.json",
-               "docs/assurance/package/*")
+               "docs/assurance/package/*",
+               # Merkle transparency commitments over the log (Phase C).
+               "agent_substrate/transparency.py",
+               "tests/test_transparency.py",
+               "tools/mutations/transparency.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

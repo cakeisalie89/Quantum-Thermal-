@@ -1,0 +1,107 @@
+{
+ "title": "The Merkle transparency commitments are RFC 9162's, and a proof that does not prove is refused",
+ "note": "Phase C. Each mutation removes one rule of agent_substrate/transparency.py: the domain separation of leaves and nodes, the split at the largest power of two, a bound on positions and sizes, the side a sibling is hashed on, the exhaustion of the path, the comparison of the old and the new roots. tests/test_transparency.py holds each with the CT project's published roots for RFC 6962's test leaves and with proofs offered for the wrong leaf, position or root.",
+ "suites": [
+  "tests/test_transparency.py"
+ ],
+ "mutations": [
+  {
+   "name": "TR1_no_leaf_prefix",
+   "path": "agent_substrate/transparency.py",
+   "find": "return hashlib.sha256(b\"\\x00\" + entry).digest()",
+   "replace": "return hashlib.sha256(entry).digest()",
+   "rationale": "a leaf and an interior node share a hash space: two children can pass as one leaf"
+  },
+  {
+   "name": "TR2_no_node_prefix",
+   "path": "agent_substrate/transparency.py",
+   "find": "return hashlib.sha256(b\"\\x01\" + left + right).digest()",
+   "replace": "return hashlib.sha256(left + right).digest()",
+   "rationale": "an interior node is hashed like any 64 bytes"
+  },
+  {
+   "name": "TR3_split_at_half",
+   "path": "agent_substrate/transparency.py",
+   "find": "    while k << 1 < n:",
+   "replace": "    while k << 1 <= n:",
+   "rationale": "the split moves past the largest power of two below the size, so a smaller tree is no longer a prefix of a larger"
+  },
+  {
+   "name": "TR4_empty_root",
+   "path": "agent_substrate/transparency.py",
+   "find": "EMPTY_ROOT = hashlib.sha256(b\"\").digest()",
+   "replace": "EMPTY_ROOT = bytes(32)",
+   "rationale": "the empty tree's root is not RFC 9162's"
+  },
+  {
+   "name": "TR5_inclusion_bounds",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if not 0 <= index < n:\n        raise ProofError(f\"no leaf {index} in a tree of {n}\")",
+   "replace": "    if False:\n        raise ProofError(f\"no leaf {index} in a tree of {n}\")",
+   "rationale": "a proof is built for a leaf the tree does not have"
+  },
+  {
+   "name": "TR6_verify_index_bound",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if not 0 <= index < size:\n        return False",
+   "replace": "    if False:\n        return False",
+   "rationale": "a position outside the tree is verified"
+  },
+  {
+   "name": "TR7_left_right_swapped",
+   "path": "agent_substrate/transparency.py",
+   "find": "            r = node_hash(r, p)",
+   "replace": "            r = node_hash(p, r)",
+   "rationale": "a right sibling is hashed on the left"
+  },
+  {
+   "name": "TR8_size_not_exhausted",
+   "path": "agent_substrate/transparency.py",
+   "find": "    return sn == 0 and r == expected_root",
+   "replace": "    return r == expected_root",
+   "rationale": "a proof shorter than the path its size requires verifies"
+  },
+  {
+   "name": "TR9_proof_longer_than_the_path",
+   "path": "agent_substrate/transparency.py",
+   "find": "        if sn == 0:\n            return False\n        if fn & 1 or fn == sn:\n            r = node_hash(p, r)",
+   "replace": "        if False:\n            return False\n        if fn & 1 or fn == sn:\n            r = node_hash(p, r)",
+   "rationale": "a proof longer than the path verifies with its extra hashes"
+  },
+  {
+   "name": "TR10_consistency_bounds",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if not 0 < m <= len(entries):",
+   "replace": "    if False:",
+   "rationale": "a consistency proof is built from nothing or past the tree"
+  },
+  {
+   "name": "TR11_same_size_any_proof",
+   "path": "agent_substrate/transparency.py",
+   "find": "        return not proof and first_root == second_root",
+   "replace": "        return first_root == second_root",
+   "rationale": "two equal sizes accept any proof"
+  },
+  {
+   "name": "TR12_power_of_two_prefix",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if first & (first - 1) == 0:\n        path = [first_root] + path",
+   "replace": "    if False:\n        path = [first_root] + path",
+   "rationale": "a first tree whose size is a power of two is never matched against its root"
+  },
+  {
+   "name": "TR13_first_root_unchecked",
+   "path": "agent_substrate/transparency.py",
+   "find": "    return fr == first_root and sr == second_root and sn == 0",
+   "replace": "    return sr == second_root and sn == 0",
+   "rationale": "the old root is never compared: a fork verifies"
+  },
+  {
+   "name": "TR14_second_root_unchecked",
+   "path": "agent_substrate/transparency.py",
+   "find": "            sr = node_hash(sr, c)",
+   "replace": "            sr = node_hash(c, sr)",
+   "rationale": "the new tree's right-hand subtrees are hashed on the wrong side"
+  }
+ ]
+}

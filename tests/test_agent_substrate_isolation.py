@@ -184,6 +184,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_freshness.py",
     # Assurance E: independent witnesses to the log's head
     "tests/test_witness.py",
+    # Phase C: Merkle transparency commitments over the log
+    "tests/test_transparency.py",
     # Section 6.1: the causal assurance graph, and the withdrawal it predicts
     "tests/test_assurance_graph.py",
     # Section 6.2: the policy engine against an independent reference model
@@ -364,6 +366,9 @@ LAYERS = ("canonical", "projection", "hostid",
           # Assurance J: a read-only W3C PROV export of the verified
           # history, through the graph above it; nothing imports it.
           "prov_export",
+          # Phase C: the RFC 9162 Merkle tree over the log's event hashes.
+          # Imports nothing internal; nothing imports it yet.
+          "transparency",
           # Assurance E: independent witnesses to the log's head. Imports
           # the log's record type and the signature seam; nothing else.
           "witness",
