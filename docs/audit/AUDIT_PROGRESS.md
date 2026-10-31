@@ -590,7 +590,9 @@ leaves the log unchanged, does not exist yet.
     module.
 
 
-### Next actions
+### Next actions at the end of session 3
+
+Superseded by the session 4 report below.
 
 1. Push d3cddc3 once its full suite passes, then the cluster 5 commit
    once its own does. Attach hosted evidence through the repository's
@@ -782,3 +784,108 @@ The model and theorems planned (the authority edge table generated from
 `authority.EDGES`, I1 to I3 and terminal retraction, with negative
 controls) wait on the owner's permission to run a third-party toolchain
 here, or on a CI job that installs it by digest.
+
+### Phase A report (session 4)
+
+Commits, in order:
+
+- 5900f3b: AUD-016;
+- 824a514: AUD-011 and AUD-017;
+- c7c0ce9: four mutation anchors that 824a514 moved, re-anchored;
+- 22dacc3: AUD-013;
+- this record.
+
+**Implemented.**
+
+- `tools/isolation_contract.py`: the escaped grandchild stops after the
+  reading, and at its own bound.
+- `agent_substrate/roles.py`: the role registry, its delegations and its
+  refusal kinds. It is enforced live and on replay by `AuthorityStore`,
+  `PolicyStore`, `SecretStore`, `NetworkAuthority` and `GovernedTasks`, and
+  restated in `reconstruct`, `reconstruct_tasks` and
+  `reconstruct_subsystems`. Task creation is a decided write.
+- `tools/research_horizon.py` and `tools/adversarial_eval.py`: the campaign's
+  state beside its world, its lock and its resume.
+- Tests: `tests/test_isolation_contract.py` (two added),
+  `tests/test_role_authority.py` (50) and
+  `tests/test_research_horizon_resume.py` (18).
+- Mutation specs: IS11-IS13, `role_authority.json` (44) and
+  `research_horizon_resume.json` (11).
+
+**Independently verified.**
+
+- No formal proof was run. The Lean toolchain was not allowed to execute
+  here; see above.
+- Mutation testing on this host:
+  - IS11-IS13 and IS7: 4 of 4 killed;
+  - RA1-RA36 and RR1-RR8: 44 of 44, after two tests were added for the
+    three that survived;
+  - RHR1-RHR11: 11 of 11;
+  - AA14, D17, HT2 and HT9, re-anchored: 4 of 4.
+- Full suites on this host:
+  - 5900f3b: 6,349 passed, 19 skipped;
+  - 824a514: 6,401 passed, 6 failed, all of them the four unmatched
+    anchors that c7c0ce9 fixes;
+  - 22dacc3: run before this record was pushed.
+- Hosted CI:
+  - 5900f3b: every job of run 41163919134 green, all eight mutation shards
+    and the aggregate included;
+  - 29aedfb: shard 5 lost to a runner shutdown at 59:49, with every matrix
+    it finished killed;
+  - 824a514 onward: not yet run.
+- Deployment evidence: none exists, and none is claimed.
+
+**Failed, and found.**
+
+- 824a514 broke four mutation anchors. Its full suite caught them, and
+  c7c0ce9 re-anchors them. The contract test batch did not include
+  `tests/test_mutation_harness.py`; it does now.
+- The role registry's first schema name carried the retired programme's
+  prefix. The content audit flagged it before the commit.
+- The first resume test compared raw event counts. It found a context
+  assembled for a call the dead process never made, which is now a named
+  allowance.
+
+**Measured.**
+
+- A 20-decision campaign takes 8 seconds on this host.
+- A resumed campaign reproduces the uninterrupted one's log-derived
+  counters exactly, at all twelve kill points.
+- The suite grew from 6,349 to 6,407 tests at 824a514, and 22dacc3 adds 18
+  more.
+
+**Not established.**
+
+- Role enforcement where no registry is given, and production provisioning.
+- HUMAN_APPROVER and RELEASE_AUTHORITY enforcement points.
+- Lean proofs.
+- Campaign recovery across the loss of the machine.
+- The 5,000 and 10,000 stages.
+- Phases B to F of the directive: the UQ demonstration, the assurance
+  package, Merkle transparency, agent evaluation, distributed protocols and
+  the reproduction guide.
+
+**Owner decisions.**
+
+- Provision the role registry: who holds which role, and its pinned digest.
+- Permit, or move to CI, a pinned Lean toolchain.
+- AUD-010, the anchored suffix read, and AUD-001, archiving the bundled
+  histories, are unchanged.
+- The existing OD-1 to OD-7 are unchanged.
+
+### Next actions at the end of session 4
+
+1. Once hosted runs of 22dacc3 finish, re-attach hosted evidence
+   (`tools/readiness.py attach`) for the rows the role registry returned to
+   IMPLEMENTED.
+2. A genesis declaration, as for `AUTHENTICATED_REQUIRED`, that obliges
+   every reader of a history to hold its role registry, by digest.
+   HUMAN_APPROVER at an escalation's answer.
+3. The Lean module, if permitted: generate
+   `formal/lean/Authority/Edges.lean` from `authority.EDGES`, and prove I1,
+   I2, I3, the role refusal and delegation lapse over it. Add negative
+   controls, `#print axioms`, and a CI step that installs the release by
+   the digest recorded above.
+4. Phase B on this host: an uncertainty budget for the slab model, and a
+   portable assurance package with a fail-closed verifier.
+5. The ledger: 935 files are still NOT_REVIEWED.

@@ -484,8 +484,8 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 36592,
-      "sha256": "461539d5c5757900057a803cb81b1238ed586132dc3360d2ef40f47b6d25c24e"
+      "size_bytes": 40933,
+      "sha256": "33126ca71fe3fa1fda437ce3aff109a03eb37351f1027734d43b3defd1927701"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
@@ -525,7 +525,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5501,
-      "sha256": "e0de95829fe568450a640fc1413224143d73cab64c234701e4f742a7992ce5d4"
+      "sha256": "c1837f4cccb3427e03e726f9b0a49a15f46fda6c7607c1a17990c38c35497e24"
     },
     {
       "filename": "docs/dependency_inventory.json",
