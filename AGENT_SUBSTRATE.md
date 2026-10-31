@@ -255,6 +255,72 @@ a test that provokes it with the other unable to fire, and two of those tests
 were themselves wrong on the first attempt: they used one actor that was both
 an agent and the asker, so the two rules masked each other again.
 
+### Who may hold a role (AUD-011, AUD-017)
+
+Separation of duties compares identities. Until `roles.py`, nothing said
+which identity may hold which role:
+
+- A transition's role was whatever its request or record named, held only
+  to the edge.
+- An agent registered by anyone could hold VERIFIER.
+- A secret grant or an egress grant had no issuer authority.
+
+A **role registry** is now the root. It is a document supplied from outside
+the log and pinned by its digest, like the key registry. Each grant names a
+principal, a role, a scope and the positions it holds for. Scopes are
+`kind:`, `tool:`, `policy:`, `secret:`, `egress:`, `approval:` and
+`release:`, each followed by a value or `*`.
+
+A reader given a registry holds every governed act to it, before the record
+is written and again on every replay:
+
+| Act | Role | Scope | Held by |
+|---|---|---|---|
+| propose a record | PROPOSER | `kind:<kind>` | `AuthorityStore`, `reconstruct` |
+| a record transition | the role it claims; SYSTEM needs VERIFIER or PROMOTER | `kind:<kind>` | `AuthorityStore`, `reconstruct` |
+| publish a policy version | POLICY_OWNER | `policy:<id>` | `PolicyStore`, `AuthorityStore`, `reconstruct`, `reconstruct_subsystems` |
+| issue a secret grant | SECRET_ISSUER | `secret:<id>` | `SecretStore`, `reconstruct_subsystems` |
+| issue an egress grant | EGRESS_ISSUER, over every host it names | `egress:<host>` | `NetworkAuthority`, `reconstruct_subsystems` |
+| submit, execute and verify a governed task | PROPOSER, EXECUTOR, VERIFIER | `tool:<tool id>` | `GovernedTasks`, `reconstruct_tasks` |
+
+The other rules:
+
+- **Delegation.** A holder may pass a narrower copy of a grant marked
+  `may_delegate` to another principal, once, in the log. Only PROPOSER,
+  EXECUTOR, VERIFIER and PROMOTER may be delegated. The issuing roles,
+  policy ownership, human approval and release authority are the root's to
+  give. A delegation holds only while its parent does, and only its
+  delegator revokes it.
+- **Positions.** Revocation and expiry are positions, as for keys, so
+  earlier acts stand.
+- **Recovery.** A checkpoint folded under other grants is not restored: the
+  history is replayed under the reader's own.
+- **Registration.** Under a registry, agent registration confers nothing.
+- **Signatures.** A signature is not an authorization: an authenticated
+  principal holding no grant is refused like any other name.
+
+`tests/test_role_authority.py` holds each of these as an attack beside its
+control, and `tools/mutations/role_authority.json` removes each check.
+
+What it does not do:
+
+- **No production registry exists.** `production_role_registry()` refuses
+  until the owner provisions one and pins its digest. Who holds each role in
+  production is the owner's decision.
+- **Enforcement is a reader's option, as authentication is.** A reader
+  given no registry reads roles as it always did. Nothing in a history yet
+  obliges a reader to hold one: there is no genesis declaration like
+  `AUTHENTICATED_REQUIRED`.
+- **Two roles have no enforcement point yet.** HUMAN_APPROVER and
+  RELEASE_AUTHORITY can be granted, and nothing consumes them. An escalation's
+  answer still rests on the directory's HUMAN principal, and there is no
+  release path.
+- **The capability ledger's root issuer** is still the first issuer on a log.
+- **SCHEDULER and SYSTEM task moves** are the control plane's, held to the
+  edge alone.
+- **Without authentication, a name is a name.** A writer able to append
+  under any name can append under a holder's.
+
 ### The same question, asked about identity instead of state
 
 The sweep above asked, of every reducer: *what decides the state this event is

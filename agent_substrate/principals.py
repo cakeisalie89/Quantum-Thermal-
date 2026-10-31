@@ -857,4 +857,7 @@ READER_COVERAGE = {
     # Assurance J: the PROV export reads the history through read_verified
     # and refuses one that does not verify.
     "agent_substrate.prov_export.export_log": GATED,
+    # AUD-011: the delegations of a role registry's grants, folded from the
+    # history through the gated primitives like every other ledger here.
+    "agent_substrate.roles.RoleDelegations": GATED,
 }

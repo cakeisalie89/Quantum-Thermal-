@@ -122,6 +122,8 @@ from .evidence import EvidenceStore
 from .execution import Executor, Limits, Outcome, scopes_held
 from .memory import MemoryStore
 from .netauth import NetworkAuthority, socket_guard
+from .roles import EXECUTOR, PROPOSER, VERIFIER as ROLE_VERIFIER
+from .roles import RoleDelegations, RoleRefused
 from .readpath import (
     GovernedReader,
     ReadDenied,
@@ -212,6 +214,14 @@ OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
                    ACT_EXECUTION, ACT_EVIDENCE, ACT_COMPENSATION,
                    ACT_COMPENSATION_AUTHORIZE, ACT_SEPARATE_VERIFY,
                    ACT_REEXECUTION})
+
+#: The registry role behind each task role a record claims, under a role
+#: registry (AUD-011). SCHEDULER and SYSTEM move a task for the control plane
+#: rather than for a party: the lease, the timeout and the recovery. No
+#: registry grant stands behind them, and the edge alone decides them.
+_TASK_REGISTRY_ROLES = {TaskRole.SUBMITTER: PROPOSER,
+                        TaskRole.WORKER: EXECUTOR,
+                        TaskRole.VERIFIER: ROLE_VERIFIER}
 
 
 def governed_policy(version: int = 1) -> PolicyDocument:
@@ -470,8 +480,20 @@ class GovernedTasks:
 
     def __init__(self, *, root: Path, log: EventLog, evidence: EvidenceStore,
                  registry: Registry | None = None, notifier=None,
-                 confine: str = "research"):
+                 confine: str = "research", roles=None):
         self.root = Path(root)
+        #: Optional :class:`~agent_substrate.roles.RoleRegistry` (AUD-011).
+        #: When present, the parties to a run hold their roles there, over
+        #: ``tool:<tool id>``. The submitter holds PROPOSER, the worker
+        #: EXECUTOR and the verifier VERIFIER. Each is decided before its
+        #: record is written and again on replay. The agent directory's
+        #: roles are then a registration, as they always were, and not
+        #: authority: anyone may register an agent holding any role. The
+        #: policy and egress stores this runner opens enforce the same
+        #: registry.
+        self.roles = roles
+        self.role_delegations = (None if roles is None
+                                 else RoleDelegations(log, roles).load())
         #: Filesystem confinement for every tool this runner starts --
         #: the work, the undo and the verifier's re-execution alike
         #: (D-2026-157). A deployment that must not run a tool unconfined
@@ -499,7 +521,7 @@ class GovernedTasks:
         # action registry exists to permit, and it is what makes the audit of
         # a run a single history rather than several that have to be
         # correlated afterwards.
-        self.policy = PolicyStore(self.log).load()
+        self.policy = PolicyStore(self.log, roles=roles).load()
         # An escalation on this path blocks work until a person acts, so it
         # is DELIVERED rather than only filed. stderr because that is where
         # an operator running the workflow -- or a hosted job's log -- will
@@ -514,7 +536,7 @@ class GovernedTasks:
         #: No egress grant is ever issued here. The governed tool needs none,
         #: and an authority with no grants denies everything -- which is what
         #: the socket guard enforces during execution.
-        self.network = NetworkAuthority(self.log).load()
+        self.network = NetworkAuthority(self.log, roles=roles).load()
         #: Grants are PROJECTED from the log, not assembled here. A caller
         #: that builds its own CapabilitySet can put anything in it, which
         #: made the issuance event decorative -- see CapabilityLedger.
@@ -655,6 +677,12 @@ class GovernedTasks:
                         f"{p['submitter']!r} but was appended by "
                         f"{ev.actor!r}; work is attributed to whoever asked "
                         "for it, not to whoever a record nominates")
+                refusal = self._role_refusal(ev.actor, PROPOSER,
+                                             p["tool_id"], ev.seq)
+                if refusal is not None:
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: task {p['task_id']!r} was submitted "
+                        f"by {ev.actor!r}: {refusal[0]}: {refusal[1]}")
                 tasks[p["task_id"]] = Task(
                     task_id=p["task_id"], tool_id=p["tool_id"],
                     submitter=p["submitter"],
@@ -744,6 +772,15 @@ class GovernedTasks:
                 # today is not applied, so a forged log entry cannot become
                 # state simply by being present.
                 edge = check(req, task)
+                if req.role in _TASK_REGISTRY_ROLES:
+                    refusal = self._role_refusal(
+                        ev.actor, _TASK_REGISTRY_ROLES[req.role],
+                        task.tool_id, ev.seq)
+                    if refusal is not None:
+                        raise TaskTransitionError(
+                            f"seq {ev.seq}: {task.task_id!r} -> "
+                            f"{req.dst.value} by {ev.actor!r} as "
+                            f"{req.role.value}: {refusal[0]}: {refusal[1]}")
                 tasks[p["task_id"]] = apply_transition(
                     task, edge, req, seq=ev.seq, lease=lease)
             elif ev.action == ACT_EXECUTION:
@@ -758,6 +795,12 @@ class GovernedTasks:
                 # readers agreed with it.
                 task = tasks[p["task_id"]]
                 check_execution(task, ev.actor, at_seq=ev.seq)
+                refusal = self._role_refusal(ev.actor, EXECUTOR,
+                                             task.tool_id, ev.seq)
+                if refusal is not None:
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: {task.task_id!r} was executed by "
+                        f"{ev.actor!r}: {refusal[0]}: {refusal[1]}")
                 tasks[p["task_id"]] = replace(
                     task, executed_by=ev.actor,
                     result_digest=p.get("result_digest")
@@ -953,6 +996,15 @@ class GovernedTasks:
         self.agents.require(submitter, AgentRole.PROPOSER)
         self.agents.require(worker, AgentRole.EXECUTOR)
         self.agents.require(verifier, AgentRole.VERIFIER)
+        # A REGISTRATION IS NOT A GRANT (AUD-011). Under a role registry the
+        # three parties hold their roles there, asked here first so a run
+        # nobody may finish is refused before anything is written, and again
+        # where each record is written.
+        if self.role_delegations is not None:
+            at = self._head_seq() + 1
+            for who, role in ((submitter, PROPOSER), (worker, EXECUTOR),
+                              (verifier, ROLE_VERIFIER)):
+                self._require_role(who, role, tool_id, at)
         separation = check_separation(
             self.agents, instance_id=verifier, taking=AgentRole.VERIFIER,
             already={AgentRole.EXECUTOR: worker})
@@ -1012,11 +1064,16 @@ class GovernedTasks:
             actor=submitter, target=task_id)
         decision.raise_if_denied()
 
-        self.log.append(
-            actor=submitter, action=ACT_TASK_CREATE, target=task_id,
-            payload={"task_id": task_id, "tool_id": tool_id,
-                     "submitter": submitter, "inputs_digest": inputs_digest,
-                     "depends_on": []})
+        def decide_create(head_seq: int) -> dict:
+            # who may submit, where the task is written (AUD-011)
+            self._require_role(submitter, PROPOSER, tool_id, head_seq + 1)
+            return dict(
+                actor=submitter, action=ACT_TASK_CREATE, target=task_id,
+                payload={"task_id": task_id, "tool_id": tool_id,
+                         "submitter": submitter,
+                         "inputs_digest": inputs_digest, "depends_on": []})
+
+        self.log.append_decided(decide_create)
         task = self.projection().get(task_id)
 
         # BOUND HERE: after the task exists and BEFORE anything is
@@ -1235,6 +1292,9 @@ class GovernedTasks:
                     raise TaskTransitionError(
                         f"it is held under {held!r}, not {lease.lease_id!r}")
                 check_execution(cur, worker, at_seq=head_seq + 1)
+                if cur is not None:
+                    self._require_role(worker, EXECUTOR, cur.tool_id,
+                                       head_seq + 1)
             except TaskTransitionError as exc:
                 raise TaskMovedUnderWriter(
                     f"{task_id} moved while its tool ran: "
@@ -2327,6 +2387,26 @@ class GovernedTasks:
                         text=entry.text)
         return builder.build(budget_bytes=64 * 1024)
 
+    def _role_refusal(self, actor: str, role: str, tool_id: str,
+                      seq: int):
+        """``(kind, detail)`` when the role registry does not grant
+        ``actor`` ``role`` over ``tool_id`` at ``seq``. None when it does, or
+        when no registry is enforced. The view is caught up to the head and
+        answers for any earlier position as a view folded there would."""
+        held = getattr(self, "role_delegations", None)
+        if held is None:
+            return None
+        held._fold_new()
+        return held.view.refusal(actor, role, f"tool:{tool_id}", seq)
+
+    def _require_role(self, actor: str, role: str, tool_id: str,
+                      seq: int) -> None:
+        refusal = self._role_refusal(actor, role, tool_id, seq)
+        if refusal is not None:
+            raise RoleRefused(refusal[0],
+                              f"{actor!r} as {role} over {tool_id!r}: "
+                              f"{refusal[1]}")
+
     def _move(self, task: Task, dst: TaskState, actor: str, role: TaskRole, *,
               lease: Lease | None = None, lease_id: str | None = None,
               executed_by: str | None = None,
@@ -2363,6 +2443,10 @@ class GovernedTasks:
                 lease_id=lease_id or (lease.lease_id if lease else None),
                 executed_by=executed_by, result_digest=result_digest)
             check(req, cur)              # raises if the machine forbids it
+            if role in _TASK_REGISTRY_ROLES:
+                # who holds the role claimed, where it is written (AUD-011)
+                self._require_role(actor, _TASK_REGISTRY_ROLES[role],
+                                   cur.tool_id, head_seq + 1)
             payload: dict[str, Any] = {
                 "task_id": cur.task_id, "src": cur.state.value,
                 "dst": dst.value, "role": role.value, "note": note}

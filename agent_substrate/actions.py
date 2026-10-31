@@ -123,6 +123,11 @@ OWNERS: dict = {
     # agent_substrate.store -- D-2026-148: promotions on this history name a
     # policy published on it by an authority it names, and in force
     "authority.policy_binding": "store",
+    # agent_substrate.roles -- AUD-011, AUD-017: a holder passes a narrower
+    # copy of a registry grant to another principal, and withdraws it. The
+    # grants themselves come from a registry outside the log.
+    "role.delegate": "roles",
+    "role.revoke": "roles",
 }
 
 KNOWN: FrozenSet[str] = frozenset(OWNERS)

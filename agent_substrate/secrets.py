@@ -72,6 +72,8 @@ from typing import FrozenSet
 from . import safeio
 from .canonical import digest
 from .events import DecidedWriter, projection_load
+from .roles import ACTIONS as ROLE_ACTIONS
+from .roles import SECRET_ISSUER, RoleError, RoleRefused, RoleView
 
 ACT_SECRET_GRANT = "secret.grant"
 ACT_SECRET_ACCESS = "secret.access"
@@ -663,8 +665,18 @@ class SecretStore(DecidedWriter):
     receives one except inside an explicit :meth:`Secret.reveal`.
     """
 
-    def __init__(self, log=None):
+    def __init__(self, log=None, *, roles=None):
         self.log = log
+        #: Optional :class:`~agent_substrate.roles.RoleRegistry` (AUD-017).
+        #: When present, a grant over a secret is issued only by a principal
+        #: it grants SECRET_ISSUER over that secret: decided before the
+        #: write and on every replay. A grant's position is what a role is
+        #: held at, so a registry needs a log.
+        if roles is not None and log is None:
+            raise SecretError("a role registry is enforced at positions in "
+                              "a log; this store has none")
+        self.roles = roles
+        self._role_view = None if roles is None else RoleView(roles)
         self._values: dict = {}
         self._grants: dict = {}
         #: grant_id -> the actor that issued it, so a revocation has
@@ -723,6 +735,7 @@ class SecretStore(DecidedWriter):
         self._granted_by = {}
         self._revoked = set()
         self._provisioned = {}
+        self._role_view = None if self.roles is None else RoleView(self.roles)
         self._reset_fold()
         for ev in events:
             self.apply(ev)
@@ -732,6 +745,13 @@ class SecretStore(DecidedWriter):
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a secret-grant event."""
         self._folded(ev)
+        if self._role_view is not None and ev.action in ROLE_ACTIONS:
+            try:
+                self._role_view.fold(ev)
+            except RoleError as exc:
+                raise SecretError(str(exc)) from exc
+            self._at_seq = max(self._at_seq, ev.seq)
+            return False
         if ev.action == ACT_SECRET_PROVISION:
             # ONE ID, ONE SOURCE (D-2026-156). Values are process-local, so
             # another process provisioning the same id is ordinary -- from
@@ -790,6 +810,14 @@ class SecretStore(DecidedWriter):
             raise SecretError(
                 f"seq {ev.seq}: secret grant {g.grant_id!r} claims "
                 f"issued_seq {g.issued_seq}; it would predate its own record")
+        if self._role_view is not None:
+            # WHO MAY ISSUE (AUD-017), at this position.
+            refusal = self._role_view.refusal(
+                ev.actor, SECRET_ISSUER, f"secret:{g.secret_id}", ev.seq)
+            if refusal is not None:
+                raise SecretError(
+                    f"seq {ev.seq}: {ev.actor!r} issued secret grant "
+                    f"{g.grant_id!r}: {refusal[0]}: {refusal[1]}")
         self._grants[g.grant_id] = g
         self._granted_by[g.grant_id] = ev.actor
         self._at_seq = ev.seq
@@ -957,6 +985,14 @@ class SecretStore(DecidedWriter):
             if g.grant_id in self._grants:
                 raise SecretError(
                     f"secret grant {g.grant_id!r} already exists")
+            if self._role_view is not None:
+                try:
+                    self._role_view.require(
+                        actor, SECRET_ISSUER, f"secret:{g.secret_id}",
+                        head_seq + 1,
+                        what=f"secret grant {g.grant_id!r}: ")
+                except RoleRefused as exc:
+                    raise SecretError(str(exc)) from exc
             # rebuilt by replay's own constructor, so a stamp that moved the
             # start past the expiry is refused with nothing written rather
             # than appended as a grant every replay refuses

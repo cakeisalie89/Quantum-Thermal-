@@ -85,6 +85,8 @@ from .secrets import check_egress_composition
 
 from .canonical import digest
 from .events import DecidedWriter, projection_load
+from .roles import ACTIONS as ROLE_ACTIONS
+from .roles import EGRESS_ISSUER, RoleError, RoleRefused, RoleView
 
 #: Event actions. Constants so a typo cannot create an unread action.
 ACT_SERVICE_REGISTER = "network.service"
@@ -860,8 +862,17 @@ class NetworkAuthority(DecidedWriter):
     about a mutable in-memory set.
     """
 
-    def __init__(self, log=None):
+    def __init__(self, log=None, *, roles=None):
         self.log = log
+        #: Optional :class:`~agent_substrate.roles.RoleRegistry` (AUD-017).
+        #: When present, an egress grant is issued only by a principal it
+        #: grants EGRESS_ISSUER over every host the grant names: decided
+        #: before the write and on every replay.
+        if roles is not None and log is None:
+            raise NetworkError("a role registry is enforced at positions in "
+                               "a log; this authority has none")
+        self.roles = roles
+        self._role_view = None if roles is None else RoleView(roles)
         self._grants: dict = {}
         #: grant_id -> the actor whose record issued it. Only populated in
         #: log-backed mode: with no log there is no record to attribute a
@@ -892,6 +903,7 @@ class NetworkAuthority(DecidedWriter):
         self._revoked = set()
         self._services = {}
         self._service_calls = {}
+        self._role_view = None if self.roles is None else RoleView(self.roles)
         self._reset_fold()
         for ev in events:
             self.apply(ev)
@@ -911,6 +923,12 @@ class NetworkAuthority(DecidedWriter):
 
     def apply(self, ev) -> bool:
         self._folded(ev)
+        if self._role_view is not None and ev.action in ROLE_ACTIONS:
+            try:
+                self._role_view.fold(ev)
+            except RoleError as exc:
+                raise NetworkError(str(exc)) from exc
+            return False
         if ev.action == ACT_SERVICE_REGISTER:
             svc = service_from_record(ev.payload["service"])
             claimed = ev.payload.get("service_digest")
@@ -977,6 +995,14 @@ class NetworkAuthority(DecidedWriter):
                         f"seq {ev.seq}: egress grant {g.grant_id!r} claims "
                         f"it was issued at seq {g.issued_seq}; a grant is in "
                         "force from where it appears in the log")
+                if self._role_view is not None:
+                    # WHO MAY ISSUE (AUD-017), at this position.
+                    try:
+                        self._require_issuer(ev.actor, g, ev.seq)
+                    except RoleRefused as exc:
+                        raise NetworkError(
+                            f"seq {ev.seq}: {ev.actor!r} issued egress grant "
+                            f"{g.grant_id!r}: {exc}") from exc
                 self._grants[g.grant_id] = g
                 # WHO granted it. Kept beside the grant rather than inside
                 # it so the grant's digest -- its identity -- does not
@@ -1079,6 +1105,11 @@ class NetworkAuthority(DecidedWriter):
                 # rather than appended as a grant every replay refuses
                 s = grant_from_record(
                     replace(g, issued_seq=head_seq + 1).body())
+                if self._role_view is not None:
+                    try:
+                        self._require_issuer(actor, s, head_seq + 1)
+                    except RoleRefused as exc:
+                        raise NetworkError(str(exc)) from exc
                 stamped["grant"] = s
                 return {"actor": actor, "action": ACT_NET_GRANT,
                         "target": s.task_id,
@@ -1091,6 +1122,16 @@ class NetworkAuthority(DecidedWriter):
         else:
             self._grants[g.grant_id] = g
         return g
+
+    def _require_issuer(self, actor: str, g: EgressGrant, seq: int) -> None:
+        """EGRESS_ISSUER over every host ``g`` names, or RoleRefused. A
+        grant naming no host is judged as one naming every host."""
+        view = self._role_view
+        if view is None:
+            return
+        for value in [f"egress:{h}" for h in g.hosts] or ["egress:*"]:
+            view.require(actor, EGRESS_ISSUER, value, seq,
+                         what=f"egress grant {g.grant_id!r}: ")
 
     def _authorize_revoke(self, ev, grant_id: str) -> None:
         """May ``ev.actor`` withdraw this egress grant? Or raise.

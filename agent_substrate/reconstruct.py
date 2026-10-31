@@ -692,6 +692,238 @@ def _sci_admission(*, record_id, evidence, policy, proposer, actor, at_seq,
 
 
 
+# ---------------------------------------------------------------------------
+# WHO HOLDS A ROLE, RESTATED (AUD-011, AUD-017).
+#
+# A role registry is a document supplied from outside the log, and a
+# delegation and its revocation are records in the log. Each is read here
+# from the document and the records, in this module's own words, and is
+# never asked of agent_substrate.roles. A reader that asked the registry
+# module whether its own grant held would agree with a broken one.
+# ---------------------------------------------------------------------------
+
+_ROLE_SCHEMA = "harness/role-registry/v1"
+_ROLE_NAMES = frozenset({
+    "PROPOSER", "EXECUTOR", "VERIFIER", "PROMOTER", "POLICY_OWNER",
+    "SECRET_ISSUER", "EGRESS_ISSUER", "HUMAN_APPROVER", "RELEASE_AUTHORITY"})
+#: The roles a holder may pass on, once; the rest are the root's to give.
+_ROLE_DELEGABLE = frozenset({"PROPOSER", "EXECUTOR", "VERIFIER", "PROMOTER"})
+_ROLE_NAMESPACES = frozenset({"kind", "tool", "policy", "secret", "egress",
+                              "approval", "release"})
+#: The registry roles behind each role a record transition claims. SYSTEM is
+#: granted to nobody.
+_ROLE_BEHIND = {"PROPOSER": ("PROPOSER",), "VERIFIER": ("VERIFIER",),
+                "PROMOTER": ("PROMOTER",), "SYSTEM": ("VERIFIER", "PROMOTER")}
+#: The registry role behind each task role. SCHEDULER and SYSTEM move a task
+#: for the control plane, and no grant stands behind them.
+_TASK_ROLE_BEHIND = {"SUBMITTER": "PROPOSER", "WORKER": "EXECUTOR",
+                     "VERIFIER": "VERIFIER"}
+_ROLE_DELEGATION_FIELDS = frozenset({"delegation_id", "parent", "role",
+                                     "principal", "scope",
+                                     "valid_until_seq"})
+
+
+def _role_seq(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) \
+        and value >= 0
+
+
+def _role_entry_ok(value) -> bool:
+    if value == "*":
+        return True
+    ns, sep, rest = value.partition(":") if isinstance(value, str) \
+        else ("", "", "")
+    return bool(sep) and ns in _ROLE_NAMESPACES and bool(rest)
+
+
+def _roles_read(doc) -> tuple:
+    """``(grants by id, problem)``, from a role registry document. A
+    registry object is read through its document, never its methods."""
+    if hasattr(doc, "to_document"):
+        doc = doc.to_document()
+    if (not isinstance(doc, dict) or doc.get("schema") != _ROLE_SCHEMA
+            or not isinstance(doc.get("grants"), list)):
+        return {}, f"the role registry given is not a {_ROLE_SCHEMA} document"
+    grants: dict = {}
+    for g in doc["grants"]:
+        ok = (isinstance(g, dict) and isinstance(g.get("grant_id"), str)
+              and g["grant_id"] and isinstance(g.get("principal"), str)
+              and g["principal"] and g.get("role") in _ROLE_NAMES
+              and isinstance(g.get("scope"), list) and g["scope"]
+              and all(_role_entry_ok(x) for x in g["scope"])
+              and _role_seq(g.get("valid_from_seq"))
+              and all(g.get(k) is None or _role_seq(g.get(k))
+                      for k in ("valid_until_seq", "revoked_at_seq"))
+              and isinstance(g.get("may_delegate"), bool))
+        if not ok:
+            return {}, ("the role registry holds a grant this reader cannot "
+                        f"read: {str(g)[:80]}")
+        if g["grant_id"] in grants:
+            return {}, f"the role registry holds {g['grant_id']!r} twice"
+        if g["may_delegate"] and g["role"] not in _ROLE_DELEGABLE:
+            return {}, (f"the role registry lets {g['grant_id']!r} delegate "
+                        f"{g['role']}, which only the root gives")
+        grants[g["grant_id"]] = g
+    return grants, None
+
+
+def _role_lapse(g: dict, seq: int):
+    """``(kind, detail)`` when registry grant ``g`` does not hold at
+    ``seq``."""
+    if g["revoked_at_seq"] is not None and seq >= g["revoked_at_seq"]:
+        return ("REVOKED", f"grant {g['grant_id']!r} was revoked at seq "
+                           f"{g['revoked_at_seq']}")
+    if seq < g["valid_from_seq"]:
+        return ("NOT_YET_VALID", f"grant {g['grant_id']!r} holds from seq "
+                                 f"{g['valid_from_seq']}")
+    if g["valid_until_seq"] is not None and seq > g["valid_until_seq"]:
+        return ("EXPIRED", f"grant {g['grant_id']!r} held until seq "
+                           f"{g['valid_until_seq']}")
+    return None
+
+
+def _role_delegation_lapse(d: dict, parent, seq: int):
+    if parent is None:
+        return ("REVOKED", f"delegation {d['delegation_id']!r} stands on a "
+                           "grant the registry does not hold")
+    if d["revoked_at_seq"] is not None and seq >= d["revoked_at_seq"]:
+        return ("REVOKED", f"delegation {d['delegation_id']!r} was revoked "
+                           f"at seq {d['revoked_at_seq']}")
+    if seq <= d["seq"]:
+        return ("NOT_YET_VALID", f"delegation {d['delegation_id']!r} was "
+                                 f"made at seq {d['seq']}")
+    if d["valid_until_seq"] is not None and seq > d["valid_until_seq"]:
+        return ("EXPIRED", f"delegation {d['delegation_id']!r} held until "
+                           f"seq {d['valid_until_seq']}")
+    lapse = _role_lapse(parent, seq)
+    return None if lapse is None else (
+        lapse[0], f"delegation {d['delegation_id']!r} stands on {lapse[1]}")
+
+
+def _role_covers(scope, value: str) -> bool:
+    ns = value.partition(":")[0]
+    return "*" in scope or value in scope or f"{ns}:*" in scope
+
+
+def _role_refusal(grants: dict, delegations: dict, principal, role: str,
+                  value: str, seq: int):
+    """``(kind, detail)`` when ``principal`` may not act as ``role`` over
+    ``value`` at ``seq``. The registry's grants by id, then the
+    delegations by id: the first refusal met is the answer."""
+    held = [(g, None) for _, g in sorted(grants.items())
+            if g["principal"] == principal and g["role"] == role]
+    held += [(d, grants.get(d["parent"]))
+             for _, d in sorted(delegations.items())
+             if d["principal"] == principal and d["role"] == role
+             and d["seq"] < seq]
+    if not held:
+        return ("NOT_GRANTED", f"{principal!r} holds no {role} grant")
+    first = None
+    for g, parent in held:
+        lapse = (_role_delegation_lapse(g, parent, seq)
+                 if "delegation_id" in g else _role_lapse(g, seq))
+        if lapse is None:
+            if _role_covers(g["scope"], value):
+                return None
+            name = g.get("delegation_id") or g["grant_id"]
+            lapse = ("OUT_OF_SCOPE", f"{role} {name!r} ranges over "
+                                     f"{g['scope']}, not {value!r}")
+        first = first or lapse
+    return first
+
+
+def _role_any_refusal(grants, delegations, principal, roles, value, seq):
+    """None when ``principal`` holds any of ``roles``; else the first
+    role's refusal."""
+    first = None
+    for role in roles:
+        r = _role_refusal(grants, delegations, principal, role, value, seq)
+        if r is None:
+            return None
+        first = first or r
+    return first
+
+
+def _role_delegation_refusal(grants: dict, delegations: dict, actor, p,
+                             seq: int) -> str | None:
+    """Why a ``role.delegate`` record is refused, restated."""
+    if not isinstance(p, dict) or set(p) != _ROLE_DELEGATION_FIELDS:
+        return "a role.delegate record of the wrong shape"
+    did = p["delegation_id"]
+    if not isinstance(did, str) or not did:
+        return "a delegation names no id"
+    if did in delegations:
+        return f"delegation {did!r} is made a second time"
+    parent = grants.get(p["parent"]) if isinstance(p["parent"], str) \
+        else None
+    if parent is None:
+        return (f"delegation {did!r} names {p['parent']!r}, no grant of the "
+                "registry: a delegation does not delegate")
+    if actor != parent["principal"]:
+        return (f"{actor!r} delegates {p['parent']!r}, held by "
+                f"{parent['principal']!r}")
+    if not parent["may_delegate"]:
+        return f"grant {p['parent']!r} may not be delegated"
+    lapse = _role_lapse(parent, seq)
+    if lapse is not None:
+        return f"grant {p['parent']!r} does not hold here: {lapse[1]}"
+    if p["role"] != parent["role"]:
+        return f"delegation {did!r} names another role than its parent's"
+    if not isinstance(p["principal"], str) or not p["principal"]:
+        return f"delegation {did!r} names no principal"
+    if p["principal"] == actor:
+        return f"{actor!r} delegates {parent['role']} to itself"
+    scope = p["scope"]
+    if (not isinstance(scope, list) or not scope
+            or not all(_role_entry_ok(x) for x in scope)
+            or scope != sorted(set(scope))):
+        return f"delegation {did!r}: a scope is a sorted list of entries"
+    pscope = parent["scope"]
+    for c in scope:
+        wider = ("*" not in pscope if c == "*"
+                 else ("*" not in pscope and c not in pscope)
+                 if c.endswith(":*") else not _role_covers(pscope, c))
+        if wider:
+            return (f"delegation {did!r} reaches {c!r}, outside grant "
+                    f"{p['parent']!r}")
+    until = p["valid_until_seq"]
+    if until is not None and not _role_seq(until):
+        return f"delegation {did!r}: valid_until_seq is a seq or null"
+    if parent["valid_until_seq"] is not None and (
+            until is None or until > parent["valid_until_seq"]):
+        return f"delegation {did!r} outlasts grant {p['parent']!r}"
+    return None
+
+
+def _role_fold(grants: dict, delegations: dict, ev, p) -> str | None:
+    """Fold a role record into ``delegations``; the refusal if it is one
+    these rules refuse, which is then not folded."""
+    if ev.action == "role.delegate":
+        why = _role_delegation_refusal(grants, delegations, ev.actor, p,
+                                       ev.seq)
+        if why is None:
+            delegations[p["delegation_id"]] = {
+                "delegation_id": p["delegation_id"], "parent": p["parent"],
+                "delegator": ev.actor, "principal": p["principal"],
+                "role": p["role"], "scope": list(p["scope"]),
+                "seq": ev.seq, "valid_until_seq": p["valid_until_seq"],
+                "revoked_at_seq": None}
+        return why
+    did = p.get("delegation_id") if isinstance(p, dict) else None
+    d = delegations.get(did) if isinstance(did, str) else None
+    if d is None:
+        return f"a revocation names delegation {did!r}, never made"
+    if ev.actor != d["delegator"]:
+        return (f"{ev.actor!r} revokes delegation {did!r}, made by "
+                f"{d['delegator']!r}")
+    if d["revoked_at_seq"] is not None:
+        return f"delegation {did!r} was already revoked"
+    if not isinstance(p.get("reason"), str) or not p["reason"]:
+        return "a revocation says why"
+    d["revoked_at_seq"] = ev.seq
+    return None
+
+
 @dataclass
 class Reconstruction:
     """The verdict, plus everything needed to argue with it."""
@@ -802,7 +1034,8 @@ def _bound_promotion_refusal(binding: dict, policies: dict, policy_ids,
 
 
 def reconstruct(log: EventLog, *, reauthorize: bool = True,
-                evidence=None, authenticator=None) -> Reconstruction:
+                evidence=None, authenticator=None,
+                roles=None) -> Reconstruction:
     """Rebuild authority state from a verified log.
 
     Verification comes first and is fatal: reconstructing from a chain that
@@ -852,6 +1085,17 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
             "given: none of its events is folded")
         events = []
 
+    # WHO HOLDS WHICH ROLE, when a role registry is given (AUD-011): read
+    # from its document, and the delegations from the history, restated.
+    role_grants: dict = {}
+    delegations: dict = {}
+    if roles is not None:
+        role_grants, problem = _roles_read(roles)
+        if problem is not None:
+            out.unauthorized.append(
+                f"{problem}: none of the history's events is folded")
+            events = []
+
     def task_view() -> dict:
         if not held:
             held.append(reconstruct_tasks(log).tasks)
@@ -872,6 +1116,13 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
         p = ev.payload
         action = ev.action
         rid = p.get("record_id")
+
+        if roles is not None and action in ("role.delegate", "role.revoke"):
+            why = _role_fold(role_grants, delegations, ev, p)
+            if why is not None:
+                out.unauthorized.append(f"seq {ev.seq}: {why}; not applied")
+            out.foreign_events += 1
+            continue
 
         if action == "history.security_profile":
             if ev.seq != 0 or p.get("profile") not in _PROFILES:
@@ -897,6 +1148,19 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
 
         if action in ("policy.publish", "policy.withdraw"):
             doc = p.get("document") if action == "policy.publish" else None
+            if roles is not None and isinstance(doc, dict):
+                # a version published by no POLICY_OWNER of it is not a
+                # policy a promotion may stand on (AUD-011)
+                r = _role_refusal(role_grants, delegations, ev.actor,
+                                  "POLICY_OWNER",
+                                  f"policy:{doc.get('policy_id')}", ev.seq)
+                if r is not None:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {ev.actor!r} publishes "
+                        f"{doc.get('policy_id')!r}: {r[0]}: {r[1]}; not "
+                        "applied")
+                    out.foreign_events += 1
+                    continue
             if isinstance(doc, dict) and isinstance(doc.get("policy_id"),
                                                     str):
                 limit = doc.get("not_after")
@@ -927,6 +1191,15 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 # the store refuses is not a record.
                 out.anomalies.append(f"seq {ev.seq}: {rid!r} {refused}")
                 continue
+            if roles is not None:
+                r = _role_refusal(role_grants, delegations, ev.actor,
+                                  "PROPOSER", f"kind:{p.get('kind')}",
+                                  ev.seq)
+                if r is not None:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {rid!r} proposed by {ev.actor!r}: "
+                        f"{r[0]}: {r[1]}; not applied")
+                    continue
             recs[rid] = {
                 "record_id": rid,
                 "kind": p.get("kind"),
@@ -976,6 +1249,22 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                         f"would be refused today: {refusal}")
                     # Do NOT apply. An unauthorized transition must not become
                     # canonical merely because it is present in the log.
+                    continue
+            if reauthorize and roles is not None:
+                # The edge permits the role; the registry says whether this
+                # actor holds it, here (AUD-011).
+                behind = _ROLE_BEHIND.get(p.get("role"))
+                r = (("NOT_GRANTED", f"no registry role stands behind "
+                                     f"{p.get('role')!r}")
+                     if behind is None else
+                     _role_any_refusal(role_grants, delegations, ev.actor,
+                                       behind, f"kind:{cur['kind']}",
+                                       ev.seq))
+                if r is not None:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {rid} {cur['state']} -> "
+                        f"{p.get('dst')} by {ev.actor!r} as "
+                        f"{p.get('role')}: {r[0]}: {r[1]}; not applied")
                     continue
             if (reauthorize and binding is not None
                     and p.get("dst") == _AUTH_PROMOTED):
@@ -1126,18 +1415,36 @@ class TaskReconstruction:
                             if t["state"] == _TASK_VERIFIED))
 
 
-def reconstruct_tasks(log: EventLog, *,
-                      reauthorize: bool = True) -> TaskReconstruction:
+def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
+                      roles=None) -> TaskReconstruction:
     """Replay the task lifecycle from the log alone. Never raises on content.
 
     A SECOND implementation, in plain dictionaries, sharing no reducer with
     ``governed_tasks.projection``. See the module docstring for why that
     duplication is the point rather than an oversight.
+
+    With ``roles`` (a role registry, read through its document), a task's
+    submitter, executor and verifier each hold their role over
+    ``tool:<tool id>`` where their record stands (AUD-011), restated here.
     """
     report, events = log.read_verified()
     report.raise_if_bad()
     out = TaskReconstruction(head_seq=report.head_seq,
                              head_hash=report.head_hash)
+    role_grants: dict = {}
+    delegations: dict = {}
+    if roles is not None:
+        role_grants, problem = _roles_read(roles)
+        if problem is not None:
+            out.unauthorized.append(
+                f"{problem}: none of the history's events is folded")
+            events = []
+
+    def role_refusal(actor, role: str, tool_id, seq: int) -> tuple | None:
+        if roles is None:
+            return None
+        return _role_refusal(role_grants, delegations, actor, role,
+                             f"tool:{tool_id}", seq)
     tasks: dict = {}
     bindings: dict = {}
     owned = {"task.create", "task.transition", "task.execution",
@@ -1147,6 +1454,12 @@ def reconstruct_tasks(log: EventLog, *,
     for ev in events:
         out.events_replayed += 1
         action = ev.action
+        if roles is not None and action in ("role.delegate", "role.revoke"):
+            why = _role_fold(role_grants, delegations, ev, ev.payload)
+            if why is not None:
+                out.unauthorized.append(f"seq {ev.seq}: {why}; not applied")
+            out.foreign_events += 1
+            continue
         if action not in owned:
             kind = actions.classify(action, mine=owned)
             if kind == actions.UNKNOWN:
@@ -1180,6 +1493,12 @@ def reconstruct_tasks(log: EventLog, *,
                     f"{p.get('submitter')!r} and was appended by "
                     f"{ev.actor!r}; whoever asked for the work is whoever "
                     "wrote the request")
+                continue
+            r = role_refusal(ev.actor, "PROPOSER", p.get("tool_id"), ev.seq)
+            if r is not None:
+                out.unauthorized.append(
+                    f"seq {ev.seq}: task {tid!r} submitted by {ev.actor!r}: "
+                    f"{r[0]}: {r[1]}; not applied")
                 continue
             tasks[tid] = {
                 "task_id": tid, "tool_id": p.get("tool_id"),
@@ -1235,6 +1554,13 @@ def reconstruct_tasks(log: EventLog, *,
                         f"seq {ev.seq}: {tid} execution recorded by "
                         f"{ev.actor!r}, and the lease is held by "
                         f"{holder!r}; only the holder runs the task")
+                    continue
+                r = role_refusal(ev.actor, "EXECUTOR", cur["tool_id"],
+                                 ev.seq)
+                if r is not None:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {tid} executed by {ev.actor!r}: "
+                        f"{r[0]}: {r[1]}; not applied")
                     continue
             cur["executed_by"] = ev.actor
             cur["result_digest"] = p.get("result_digest")
@@ -1297,6 +1623,16 @@ def reconstruct_tasks(log: EventLog, *,
                     f"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} "
                     f"would be refused today: {refusal}")
                 # Do NOT apply. Presence in the log is not authority.
+                continue
+            behind = _TASK_ROLE_BEHIND.get(p.get("role"))
+            r = (None if behind is None
+                 else role_refusal(ev.actor, behind, cur["tool_id"],
+                                   ev.seq))
+            if r is not None:
+                out.unauthorized.append(
+                    f"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} "
+                    f"by {ev.actor!r} as {p.get('role')}: {r[0]}: {r[1]}; "
+                    "not applied")
                 continue
 
         # The lease follows the task, not the record. Only the move INTO
@@ -1534,15 +1870,40 @@ _AGENT_ROLES = {"PROPOSER", "EXECUTOR", "VERIFIER", "AUDITOR", "REVIEWER",
 _ESC_MIN_OPTIONS = 2
 
 
-def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
+def reconstruct_subsystems(log: EventLog, *,
+                           roles=None) -> SubsystemReconstruction:
     """Replay every remaining authority subsystem, independently.
 
     Never raises on content: a hostile history produces findings, not an
     exception that hides the rest of the log.
+
+    With ``roles`` (a role registry, read through its document), a policy
+    version, a secret grant and an egress grant are each held to the role
+    that issues them (AUD-011, AUD-017), restated here.
     """
     report, events = log.read_verified()
     report.raise_if_bad()
     out = SubsystemReconstruction(head_seq=report.head_seq)
+    role_grants: dict = {}
+    delegations: dict = {}
+    if roles is not None:
+        role_grants, problem = _roles_read(roles)
+        if problem is not None:
+            out.anomalies.append(
+                f"{problem}: none of the history's events is folded")
+            events = []
+
+    def refused(ev, role: str, values) -> bool:
+        if roles is None:
+            return False
+        for value in values:
+            r = _role_refusal(role_grants, delegations, ev.actor, role,
+                              value, ev.seq)
+            if r is not None:
+                _note(out, ev, f"{ev.actor!r} acts as {role} over "
+                               f"{value!r}: {r[0]}: {r[1]}; not applied")
+                return True
+        return False
     # The record immediately before the one being folded, as (seq, hash).
     #
     # Held rather than a full seq -> hash index, deliberately: an index over
@@ -1557,7 +1918,11 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
         out.latest_wall = judged_at(out.latest_wall, ev.wall_time)
         p = ev.payload if isinstance(ev.payload, dict) else {}
         a = ev.action
-        if a == "scheduler.enqueue":
+        if roles is not None and a in ("role.delegate", "role.revoke"):
+            why = _role_fold(role_grants, delegations, ev, p)
+            if why is not None:
+                _note(out, ev, f"{why}; not applied")
+        elif a == "scheduler.enqueue":
             _sub_enqueue(ev, p, out)
         elif a == "scheduler.transition":
             _sub_job_transition(ev, p, out)
@@ -1566,7 +1931,10 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
         elif a == "scheduler.priority":
             _sub_priority(ev, p, out)
         elif a == "policy.publish":
-            _sub_policy_publish(ev, p, out)
+            doc = p.get("document")
+            if not (isinstance(doc, dict) and refused(
+                    ev, "POLICY_OWNER", [f"policy:{doc.get('policy_id')}"])):
+                _sub_policy_publish(ev, p, out)
         elif a == "policy.withdraw":
             _sub_policy_withdraw(ev, p, out)
         elif a == "policy.decision":
@@ -1614,9 +1982,18 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
         elif a == "secret.provision":
             _sub_secret_provision(ev, p, out)
         elif a == "network.grant":
-            _sub_grant(ev, p, out, out.net_grants, "network")
+            body = p.get("grant") if not p.get("revoke") else None
+            hosts = body.get("hosts") if isinstance(body, dict) else None
+            if not (isinstance(body, dict) and refused(
+                    ev, "EGRESS_ISSUER",
+                    [f"egress:{h}" for h in hosts or []] or ["egress:*"])):
+                _sub_grant(ev, p, out, out.net_grants, "network")
         elif a == "secret.grant":
-            _sub_grant(ev, p, out, out.secret_grants, "secret")
+            body = p.get("grant") if not p.get("revoke") else None
+            if not (isinstance(body, dict) and refused(
+                    ev, "SECRET_ISSUER",
+                    [f"secret:{body.get('secret_id')}"])):
+                _sub_grant(ev, p, out, out.secret_grants, "secret")
         elif a == "context.build":
             _sub_context(ev, p, out)
         elif a == "proposal.receive":

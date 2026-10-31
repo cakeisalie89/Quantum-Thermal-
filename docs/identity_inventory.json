@@ -885,6 +885,66 @@
       "note": "Gate C. Independently reconstructed by _sub_research: numbering and the objective's step limit.",
       "authority_changing": false,
       "authority_note": "The controller's progress record. It permits nothing."
+    },
+    {
+      "action": "role.delegate",
+      "module": "roles.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "delegation_id",
+          "role": "NONE",
+          "note": "the delegation's own name; names no one"
+        },
+        {
+          "name": "parent",
+          "role": "NONE",
+          "note": "the registry grant passed on. The DELEGATOR is ev.actor, who must be that grant's holder: refused otherwise on write and on replay (RoleView.delegation_refusal), and restated by reconstruct.py's _role_delegation_refusal"
+        },
+        {
+          "name": "role",
+          "role": "NONE",
+          "note": "must equal the parent grant's role"
+        },
+        {
+          "name": "principal",
+          "role": "SUBJECT",
+          "note": "the grantee: who the delegated role is given to. Never the delegator (no principal authorizes itself), and never read as who acted"
+        },
+        {
+          "name": "scope",
+          "role": "NONE",
+          "note": "inside the parent's scope, checked"
+        },
+        {
+          "name": "valid_until_seq",
+          "role": "NONE",
+          "note": "no later than the parent's end, checked"
+        }
+      ],
+      "note": "Under a role registry (AUD-011): a holder of a grant marked may_delegate passes a narrower copy to another principal, once; a delegation does not delegate. Folded by every reader given the registry; ignored as foreign by a reader given none.",
+      "authority_changing": true,
+      "authority_note": "From the next position the grantee holds the role within the copy's scope, for as long as the parent grant holds and the copy is not revoked."
+    },
+    {
+      "action": "role.revoke",
+      "module": "roles.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "delegation_id",
+          "role": "SUBJECT",
+          "note": "the delegation withdrawn. The REVOKER is ev.actor, who must be its delegator: refused otherwise on write and on replay, and restated by reconstruct.py's _role_fold"
+        },
+        {
+          "name": "reason",
+          "role": "NONE",
+          "note": "free text, never read as authority"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Ends a delegation from this seq on. Acts made under it before stand."
     }
   ]
 }

@@ -106,7 +106,11 @@ DERIVED = {
 AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tests/test_audit_ledger.py", "tools/work_counts.py",
                "tests/test_work_counts.py", "tools/op_costs.py",
-               "tests/test_op_costs.py")
+               "tests/test_op_costs.py",
+               # The role registry, written by the audit as the remediation
+               # of AUD-011 and AUD-017: not independently reviewed.
+               "agent_substrate/roles.py", "tests/test_role_authority.py",
+               "tools/mutations/role_authority.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

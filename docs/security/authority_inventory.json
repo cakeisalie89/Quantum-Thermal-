@@ -163,9 +163,9 @@
       "module": "governed_tasks.py",
       "function": "GovernedTasks.run",
       "action": "ACT_TASK_CREATE",
-      "mode": "APPEND",
+      "mode": "DECIDED",
       "class": "MINT",
-      "why": "creates a task under an id this writer draws from uuid4; no other writer's record can name it first, and admission was decided by the policy decision recorded before it"
+      "why": "creates a task under an id this writer draws from uuid4; no other writer's record can name it first, and admission was decided by the policy decision recorded before it; decided under the writer lock since AUD-011, so that under a role registry the submitter's PROPOSER grant is judged at the position the task is written at"
     },
     {
       "module": "idempotency.py",
@@ -485,6 +485,22 @@
       "mode": "DECIDED",
       "class": "FACT",
       "why": "the controller's progress; numbered under the lock so two controllers cannot both record step n"
+    },
+    {
+      "module": "roles.py",
+      "function": "RoleDelegations.delegate",
+      "action": "ACT_DELEGATE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "a delegation: who may act in a role from here on, decided against the registry and the delegations in force (AUD-011)"
+    },
+    {
+      "module": "roles.py",
+      "function": "RoleDelegations.revoke",
+      "action": "ACT_REVOKE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "withdraws a delegation, decided against its delegator"
     }
   ]
 }

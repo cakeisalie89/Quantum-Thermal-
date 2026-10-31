@@ -382,6 +382,10 @@
     {
      "path": "agent_substrate/agents.py",
      "lines": "_check_may_register(): only a HUMAN principal's registrar is checked"
+    },
+    {
+     "path": "agent_substrate/roles.py",
+     "lines": "RoleRegistry, RoleView, RoleDelegations: the root, the question and the delegations"
     }
    ],
    "behavior": "check() requires the role a transition claims to be one its edge permits, and requires the actor to differ from the proposer where the edge says so (I4). The role itself is taken from the request (live) or the record's payload (replay). Neither reader consults the agent directory, the key registry (whose entries bind a key to a principal and carry no role) or the policy the promotion cites (_policy_refusal checks its publisher, withdrawal and expiry, not who may promote under it). So one identity may verify and promote, and an identity registered nowhere may take every role but the proposer's.",
@@ -390,11 +394,22 @@
    "reproduction": "scratchpad repro/self_asserted_roles.py; repro/open_agent_registration.py",
    "observed": "'mallory', registered nowhere, moved alice's claim UNDER_REVIEW (VERIFIER), VERIFIED (VERIFIER) and PROMOTED (PROMOTER, policy p1): the store holds it PROMOTED and canonical, and the second reader agrees with nothing unauthorized. And 'mallory', registered nowhere, registered an AGENT v-evil holding VERIFIER (and 'nobody-at-all' one holding EXECUTOR): require() passes for both and a replay keeps them; a HUMAN registered by mallory is refused.",
    "expected": "Before any production path reaches PROMOTED: an authority outside the log -- as the key registry is -- or the cited promotion policy names who may verify and who may promote, and both readers refuse anyone else.",
-   "correction": "None in this audit: which authority grants VERIFIER and PROMOTER, and how it is provisioned, is a design and deployment decision (owner decision). Recorded so that it is decided before PROMOTED is reached outside tests, which AGENT_SUBSTRATE.md section 7 says it is not today.",
-   "regression_tests": [],
-   "residual_risk": "Under AUTHENTICATED_REQUIRED an actor's name is bound to a key, and its roles still are not: an authenticated principal may claim PROMOTER. Collusion among registered identities is a separate, documented limit (AGENT_SUBSTRATE.md, 'Three registered identities').",
+   "correction": "agent_substrate/roles.py: a role registry supplied from outside the log and pinned by its digest, as the key registry is. Each grant names a principal, a role, a scope and the positions it holds for. Delegation happens once, in the log, from grants marked may_delegate (PROPOSER, EXECUTOR, VERIFIER, PROMOTER only); it is never made to the delegator, never wider or longer than its parent, and revoked by its delegator. A reader given a registry holds each act to it before the record is written and again on every replay. AuthorityStore: create needs PROPOSER over kind:<kind>; a transition needs the role it claims, and SYSTEM needs VERIFIER or PROMOTER. PolicyStore and the AuthorityStore's own policy fold: POLICY_OWNER. GovernedTasks: PROPOSER, EXECUTOR and VERIFIER over tool:<tool id>, each where its record is written. The rules are restated in reconstruct, reconstruct_tasks and reconstruct_subsystems. Under a registry, agent registration confers nothing, and a checkpoint folded under other grants is not restored. Which principals hold which roles in production, and provisioning the registry, remain the owner's: production_role_registry refuses until then.",
+   "regression_tests": [
+    "tests/test_role_authority.py::test_a_forged_walk_to_promoted_is_refused_by_both_readers",
+    "tests/test_role_authority.py::test_a_forged_create_is_refused_by_both_readers",
+    "tests/test_role_authority.py::test_an_actor_without_a_grant_cannot_verify_or_promote",
+    "tests/test_role_authority.py::test_both_readers_refuse_with_the_same_kind",
+    "tests/test_role_authority.py::test_an_agent_anyone_registers_as_verifier_holds_no_role",
+    "tests/test_role_authority.py::test_an_authenticated_principal_without_a_grant_cannot_promote",
+    "tests/test_role_authority.py::test_a_checkpoint_folded_under_another_registry_is_not_restored",
+    "tests/test_role_authority.py::test_task_replay_refuses_the_first_record_past_a_grant",
+    "tests/test_role_authority.py::test_a_grant_ending_mid_run_refuses_the_act_before_it_is_written",
+    "tests/test_role_authority.py::test_a_forged_delegation_is_refused_on_replay_by_both_readers"
+   ],
+   "residual_risk": "Enforced only by a reader given a registry, as authentication is only by a reader given an authenticator. No history declaration yet obliges a reader to hold a registry; a genesis declaration like AUTHENTICATED_REQUIRED would. No production registry is provisioned, which is an owner action. HUMAN_APPROVER and RELEASE_AUTHORITY can be granted and are consumed by nothing yet: an escalation's answer still rests on the directory's HUMAN principal. SCHEDULER and SYSTEM task moves are held to the edge alone. Without AUTHENTICATED_REQUIRED a name is unauthenticated, and a writer able to append can write under a holder's name. Collusion among grantees remains the documented separation-of-duties limit. Mutations RA1-RA36 and RR1-RR8 (tools/mutations/role_authority.json) are each killed.",
    "verification": "REPRODUCED",
-   "resolution": "OWNER"
+   "resolution": "FIXED"
   },
   {
    "id": "AUD-012",
@@ -578,6 +593,10 @@
     {
      "path": "agent_substrate/netauth.py",
      "lines": "NetworkAuthority.issue(): an egress grant's id and stamp are checked, and its issuer is not"
+    },
+    {
+     "path": "agent_substrate/roles.py",
+     "lines": "SECRET_ISSUER and EGRESS_ISSUER, granted by the registry"
     }
    ],
    "behavior": "SecretStore.issue() and its replay check that a grant's id is new, that its digest matches and that its start is the log's stamp; revocation is the granter's alone, on both paths. Who may ISSUE a grant is checked on neither, so any actor that can append may grant itself access to any registered secret. The capability ledger closed the same gap with a root issuer (tests/test_agent_delegation.py states it as found: 'no ISSUER authority: any actor that can write the log can mint a grant'); the secret store has none. NetworkAuthority.issue() is the same: an egress grant's id and stamp are checked, its issuer is not. Egress grants ARE decided on the governed path: socket_guard(self.network, actor=..., task_id=...) wraps a task's execution and verification in GovernedTasks, mediating the runner process's own sockets (a tool's child has no network either way, by its namespace).",
@@ -586,11 +605,14 @@
    "reproduction": "Read: SecretStore.issue() and apply() (agent_substrate/secrets.py); NetworkAuthority.issue() (agent_substrate/netauth.py). Reachability: no module in agent_substrate/ or tools/ calls SecretStore.resolve(); GovernedTasks calls socket_guard over the network authority at three sites.",
    "observed": "By reading, not executed. Secret grants: no governed path resolves one in this build. Egress grants: an actor that can append can grant the runner's mediated egress for a task, which the socket guard then permits; mediation of the runner's own sockets, not of the tool's child.",
    "expected": "An issuer authority for secret and egress grants, as the capability ledger has, held on both paths -- for egress before any deployment relies on the mediation, for secrets before a governed path first resolves one.",
-   "correction": "None in this audit: who may grant access to a credential or to the network is a deployment decision.",
-   "regression_tests": [],
-   "residual_risk": "Egress mediation is an application control over the runner's own sockets (AGENT_SUBSTRATE.md: 'mediation, not child containment -- see R21/R32/R54'); the kernel network namespace still contains a tool. Secret grants become reachable the first time a governed path resolves one.",
+   "correction": "Under a role registry (agent_substrate/roles.py), a secret grant is issued only by a principal the registry grants SECRET_ISSUER over secret:<secret id>. An egress grant is issued only by one granted EGRESS_ISSUER over egress:<host>, for every host the grant names. Both are decided under the writer lock before the record exists, refused again on replay by SecretStore and NetworkAuthority, and restated by reconstruct_subsystems. Neither issuing role may be delegated. Revocation stays the granter's. Who issues in production is the owner's to provision.",
+   "regression_tests": [
+    "tests/test_role_authority.py::test_only_a_secret_issuer_grants_a_secret",
+    "tests/test_role_authority.py::test_only_an_egress_issuer_grants_egress_and_only_to_its_hosts"
+   ],
+   "residual_risk": "Enforced only where the store is given a registry. No production registry is provisioned. Egress mediation remains an application control over the runner's own sockets, and the kernel network namespace still contains a tool. Mutations RA25-RA29 and RR6 are each killed.",
    "verification": "CONFIRMED",
-   "resolution": "OWNER"
+   "resolution": "FIXED"
   }
  ]
 }

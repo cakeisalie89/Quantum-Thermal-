@@ -31,19 +31,20 @@ Where this report and those files disagree, the files are right.
 
 ## 1. Coverage ledger
 
-The pull request changes 1001 files, counting the audit's own (`git diff
+The pull request changes 1004 files, counting the audit's own (`git diff
 --name-status` from the merge base, with rename detection, not the web
 diff). Each has one entry.
 
 | Disposition | Files | Meaning |
 |---|---|---|
 | REVIEWED_IN_FULL | 10 | every line read, bound to the blob read |
-| REVIEWED_IN_PART | 21 | the parts named in the entry read, bound to the blob |
+| REVIEWED_IN_PART | 22 | the parts named in the entry read, bound to the blob |
 | INSPECTED_BINARY | 20 | a binary, identified and inspected |
-| AUDIT_ARTIFACT | 12 | written by this audit, not independently reviewed |
-| NOT_REVIEWED | 938 | not examined, with the reason |
+| AUDIT_ARTIFACT | 15 | written by this audit, not independently reviewed |
+| NOT_REVIEWED | 937 | not examined, with the reason |
 
-Of the 53 changed `agent_substrate` modules, 18 have been read:
+Of the 54 changed `agent_substrate` modules, 18 have been read, and one,
+`roles`, was written by the audit (AUDIT_ARTIFACT):
 
 - in full: `authority`, `canonical`, `checkpoint`, `events`, `principals`, `projection` and `store`;
 - in part: `agents`, `capability`, `governed_tasks`, `idempotency`, `memory`, `netauth`, `policy`, `proposals`, `reconstruct`, `scheduler` and `secrets`.
@@ -69,13 +70,13 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-008 | P3 | REPRODUCED | FIXED | append returned values its own log does not hold |
 | AUD-009 | P2 | REPRODUCED | FIXED | a checkpoint in the crash window read as truncation |
 | AUD-010 | P2 | REPRODUCED | OWNER | full verified reads grow quadratically with a campaign |
-| AUD-011 | P2 | REPRODUCED | OWNER | roles are self-asserted, and agent admission is open |
+| AUD-011 | P2 | REPRODUCED | FIXED | roles were self-asserted, and agent admission conferred them; a registry outside the log now roots them |
 | AUD-012 | P1 | REPRODUCED | FIXED | a REQUIRED history read as authenticated by a scoped authenticator |
 | AUD-013 | P2 | CONFIRMED | DOCUMENTED | the long-horizon campaign cannot resume after its process dies |
 | AUD-014 | P1 | REPRODUCED | FIXED | a refused capability mint was written first, and every later load refused the log |
 | AUD-015 | P1 | REPRODUCED | FIXED | anyone could publish an owner's next policy version, and bound promotions stood on it |
 | AUD-016 | P3 | REPRODUCED | FIXED | the process-tree negative control left its escaped grandchild running |
-| AUD-017 | P3 | CONFIRMED | OWNER | nothing says who may issue a secret or an egress grant |
+| AUD-017 | P3 | CONFIRMED | FIXED | nothing said who may issue a secret or an egress grant; the registry's issuing roles now do |
 
 **How far each is established.** REPRODUCED means shown failing by a
 test or a script; CONFIRMED means established by reading, not executed.
@@ -95,14 +96,14 @@ none.
 |---|---|---|---|---|---|---|---|
 | First append by a log object | yes, the head check | - | - | if REQUIRED: attestation prepared first, head authenticated | - | - | - |
 | Later append | - | yes, from the object's anchor | - | as above | - | - | - |
-| Authority transition (store) | on load | on catch-up | - | if REQUIRED | replay restates every rule | - | none required by code (AUD-011) |
+| Authority transition (store) | on load | on catch-up | - | if REQUIRED | replay restates every rule | - | the role it claims, from a role registry where the reader holds one (AUD-011); none otherwise |
 | VERIFIED, any record | as above | as above | - | as above | as above | I6: the cited report exists; I3: this transition brought it | - |
 | VERIFIED, scientific result | as above | as above | - | as above | as above | admission: a governed run's check supports it | - |
-| PROMOTED | as above | as above | - | as above | as above | - | a policy, if the history binds one; no human (AUD-011) |
+| PROMOTED | as above | as above | - | as above | as above | - | a PROMOTER grant under a registry; a policy, if the history binds one; no human |
 | Capability mint or delegation | the fold | the head check | - | if REQUIRED | replay restates | - | the root issuer, trust on first use (decided before writing, AUD-014) |
-| Policy publication | the fold | the head check | - | if REQUIRED | replay restates | - | open for a new id; a later version is its owner's (AUD-015) |
+| Policy publication | the fold | the head check | - | if REQUIRED | replay restates | - | a POLICY_OWNER grant under a registry; otherwise open for a new id; a later version is its owner's (AUD-015) |
 | Learned record to VERIFIED or PROMOTED | refused | refused | - | - | refused on replay too | - | - |
-| Governed task move | every projection, from genesis (AUD-010) | the head check | - | if REQUIRED | - | - | - |
+| Governed task move | every projection, from genesis (AUD-010) | the head check | - | if REQUIRED | `reconstruct_tasks` | - | PROPOSER, EXECUTOR or VERIFIER over the tool under a registry, where each record is written |
 | Projection catch-up | fallback | yes, `require_extends` | - | if REQUIRED | - | - | - |
 | Checkpoint creation | yes, or the witness path bound to its hash | - | the head witness, if present | if REQUIRED | - | - | - |
 | Checkpoint restoration | no: the prefix is trusted, and labelled weaker | the tail | the head witness | an authenticated load replays from genesis | - | - | - |
@@ -124,8 +125,10 @@ to stronger authority without the missing check:
 - An actor name in an UNAUTHENTICATED_LEGACY history is a name. In a
   REQUIRED history it is a principal only through an authenticator that
   asks every actor (AUD-012).
-- A role is a claim (AUD-011). An authenticated principal still asserts its
-  own role.
+- A role is a claim unless the reader holds a role registry (AUD-011).
+  Under one, an authenticated principal holding no grant is refused. Without
+  one, it still asserts its own role. No production registry is
+  provisioned.
 - A meta-validated architecture is not a trained model (EB13).
 - A scripted campaign is not a model's behaviour: its decisions are
   SCRIPTED DECISIONS.
@@ -350,7 +353,7 @@ The audit restored none of it.
 | | Boundary | Held by |
 |---|---|---|
 | AUD-012 | A REQUIRED history is authenticated only by an authenticator that asks every actor | `events._security_gate`; `reconstruct` |
-| AUD-011 | A role is self-asserted: neither the store nor the directory binds a role to an authority | not held; owner decision |
+| AUD-011, AUD-017 | A role, and each issuing act, is held to a registry outside the log, live and on replay; a registration confers none | `roles.RoleView` in `AuthorityStore`, `PolicyStore`, `SecretStore`, `NetworkAuthority`, `GovernedTasks`; restated in the second reader. Where a registry is given |
 | AUD-004 | A verification is a report the transition brought, not one the record already carried | `authority.check` (I3); `reconstruct` |
 | AUD-014 | A refused write leaves the log as it was: a capability mint is authorized before its record exists | `CapabilityLedger.issue` |
 | AUD-015 | A policy's later versions are its owner's, and a binding judges the publisher of the version in force | `PolicyStore`; `AuthorityStore`; `reconstruct` |
@@ -358,8 +361,10 @@ The audit restored none of it.
 
 ## 7. Owner decisions
 
-**Fixable here, and fixed.** AUD-002 to AUD-009, AUD-012, AUD-014,
-AUD-015 and AUD-016.
+**Fixable here, and fixed.** AUD-002 to AUD-009, AUD-011, AUD-012 and
+AUD-014 to AUD-017. For AUD-011 and AUD-017 the mechanism is what was
+fixed, and it holds where a reader is given a registry. Provisioning the
+production registry is the owner action below.
 
 **Fixable here, not yet done.**
 
@@ -368,19 +373,21 @@ AUD-015 and AUD-016.
 
 **Owner decisions the audit found:**
 
-- **AUD-011.** Which authority grants VERIFIER and PROMOTER: an
-  out-of-log registry like the key registry, the promotion policy itself,
-  or a human principal. It must be settled before PROMOTED is reached
-  outside tests. It extends OD-4, which provides a human principal but not
-  a role authority.
+- **AUD-011 and AUD-017: provision the role registry.** Decide which
+  principals hold PROPOSER, EXECUTOR, VERIFIER, PROMOTER, POLICY_OWNER,
+  SECRET_ISSUER, EGRESS_ISSUER, HUMAN_APPROVER and RELEASE_AUTHORITY, and
+  over what. Write the registry and pin its digest. The mechanism exists
+  (`agent_substrate/roles.py`), and `production_role_registry()` refuses
+  until this is done.
+  - Settle it before PROMOTED is reached outside tests.
+  - Settle it for egress before a deployment relies on the runner's socket
+    mediation, and for secrets before a governed path first resolves one.
+  - It extends OD-4, which provides a human principal but not a role
+    authority.
 - **AUD-010.** Whether governed folds may use the anchored, verified
   suffix read, with periodic re-verification from genesis. The
   alternatives are to keep paying the measured quadratic cost, or to use a
   memoized prefix digest.
-- **AUD-017.** Who may issue secret and egress grants:
-  - for egress, before a deployment relies on the runner's socket
-    mediation;
-  - for secrets, before a governed path first resolves one.
 - **AUD-001.** Archive the six bundled histories before any purge of
   history.
 
@@ -424,18 +431,18 @@ Each line names its weakest point. No aggregate is given.
 | Incremental-verification maturity | partial | suffix reads bound to verified anchors and to the folded hash (AUD-003, AUD-006); governed folds still re-verify from genesis by decision (AUD-010) |
 | Recovery maturity | partial | crash-window checkpoint fixed (AUD-009); per-step campaign recovery measured; whole-process campaign recovery absent (AUD-013) |
 | Witness deployment maturity | not deployed | protocol implemented and tested; no production witness or trust root |
-| Authority security | not ready | roles self-asserted (AUD-011); authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
+| Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
 | Execution isolation | partial, honestly classified | kernel namespaces, filesystem, network, process tree and quotas; syscall filtering NOT_PROVIDED |
 | Scientific verification | bounded, honest | numerical cross-checks of three models; no experimental validation; FEniCSx not exercised on this host |
 | Long-horizon reliability | measured to 1,000 decisions | not resumable (AUD-013); per-decision cost rising (AUD-010) |
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
-| Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; AUD-011 open |
+| Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; no role registry provisioned |
 | Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
-| Merge readiness | not assessed as ready | 938 of 1001 files not reviewed; hosted runs of the audit's head not complete |
+| Merge readiness | not assessed as ready | 937 of 1004 files not reviewed; hosted runs of the audit's head not complete |
 
 ## 9. What remains unknown
 
-- **The files not reviewed.** Everything in the 938 NOT_REVIEWED files.
+- **The files not reviewed.** Everything in the 937 NOT_REVIEWED files.
 - **Unmeasured costs.** Resident memory per operation, a governed task
   transition on its own, and what the campaign's reads are (section 4).
 - **Long horizons.** Whether the campaign holds past 1,000 decisions.

@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 585,
+   "ADDED": 588,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 57,
-   "LOW": 207,
-   "MEDIUM": 328
+   "HIGH": 58,
+   "LOW": 208,
+   "MEDIUM": 329
   },
   "by_subsystem": {
-   "agent-substrate": 31,
+   "agent-substrate": 32,
    "ai-ingress": 3,
-   "assurance": 125,
+   "assurance": 126,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 183,
+   "tests": 184,
    "tooling": 51,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 617
+  "files": 620
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -592,6 +592,7 @@
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
      "tests/test_research_science.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
@@ -732,6 +733,7 @@
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
      "tests/test_research_loop.py",
+     "tests/test_role_authority.py",
      "tests/test_second_reader_audit_actions.py",
      "tests/test_t2_governed.py"
     ]
@@ -840,6 +842,7 @@
      "tests/test_proposal_ingress.py",
      "tests/test_replay_origin_view.py",
      "tests/test_research_loop.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_supply_chain.py",
@@ -991,6 +994,7 @@
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_replay_origin_view.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py"
     ]
    }
@@ -1162,6 +1166,7 @@
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
      "tests/test_research_science.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
@@ -1248,6 +1253,7 @@
      "tests/test_replay_origin_view.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
@@ -1406,6 +1412,7 @@
      "tools/mutations/governed_breadth.json",
      "tools/mutations/governed_tasks_authority.json",
      "tools/mutations/proposal_crash_recovery.json",
+     "tools/mutations/role_authority.json",
      "tools/mutations/scientific_invalidation.json",
      "tools/mutations/t2_closure.json",
      "tools/mutations/task_execution_phase.json"
@@ -1437,6 +1444,7 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_replay_origin_view.py",
      "tests/test_repo_contract.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_t2_governed.py",
@@ -1662,6 +1670,7 @@
      "tools/mutations/agent_service_authority.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/decided_appends.json",
+     "tools/mutations/role_authority.json",
      "tools/mutations/t2_closure.json"
     ],
     "tests": [
@@ -1677,6 +1686,7 @@
      "tests/test_proposal_concurrency.py",
      "tests/test_refused_fold.py",
      "tests/test_repo_contract.py",
+     "tests/test_role_authority.py",
      "tests/test_second_reader_audit_actions.py",
      "tests/test_t2_closure.py"
     ]
@@ -1701,6 +1711,7 @@
      "tools/mutations/history_time.json",
      "tools/mutations/policy_binding.json",
      "tools/mutations/policy_semantics.json",
+     "tools/mutations/role_authority.json",
      "tools/mutations/t2_closure.json"
     ],
     "tests": [
@@ -1739,6 +1750,7 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_refused_fold.py",
      "tests/test_research_loop.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py"
     ]
    }
@@ -1762,6 +1774,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
+     "tests/test_role_authority.py",
      "tests/test_signed_append_lifecycle.py"
     ]
    }
@@ -1920,6 +1933,7 @@
      "tools/mutations/proposal_ingress.json",
      "tools/mutations/replay_origin_view.json",
      "tools/mutations/research.json",
+     "tools/mutations/role_authority.json",
      "tools/mutations/scientific_authority_replay.json",
      "tools/mutations/second_reader_audit_actions.json",
      "tools/mutations/t2_closure.json",
@@ -1968,6 +1982,7 @@
      "tests/test_replay_origin_view.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
@@ -2065,6 +2080,24 @@
   },
   {
    "change": "ADDED",
+   "path": "agent_substrate/roles.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "agent-substrate",
+   "trust_boundary": "event-sourced projections",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/role_authority.json"
+    ],
+    "tests": [
+     "tests/test_authenticated_history.py",
+     "tests/test_role_authority.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "agent_substrate/safeio.py",
    "risk": "HIGH",
    "runtime_dependencies": [],
@@ -2145,6 +2178,7 @@
      "tools/mutations/agent_secrets.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/decided_appends.json",
+     "tools/mutations/role_authority.json",
      "tools/mutations/t2_closure.json"
     ],
     "tests": [
@@ -2157,6 +2191,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_refused_fold.py",
+     "tests/test_role_authority.py",
      "tests/test_second_reader_audit_actions.py",
      "tests/test_t2_closure.py"
     ]
@@ -2225,6 +2260,7 @@
      "tools/mutations/neural_authority.json",
      "tools/mutations/policy_binding.json",
      "tools/mutations/replay_origin_view.json",
+     "tools/mutations/role_authority.json",
      "tools/mutations/scientific_authority_replay.json"
     ],
     "tests": [
@@ -2270,6 +2306,7 @@
      "tests/test_refused_fold.py",
      "tests/test_replay_origin_view.py",
      "tests/test_repo_contract.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_second_reader_audit_actions.py",
@@ -2311,6 +2348,7 @@
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_proposal_crash_recovery.py",
+     "tests/test_role_authority.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py"
@@ -7793,6 +7831,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_role_authority.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_run_identity_backend.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -10273,6 +10328,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/ro_crate_conformance.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/role_authority.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

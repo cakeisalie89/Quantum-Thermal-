@@ -77,6 +77,8 @@ ALLOWED_IMPORTERS = {
     # no scientific result.
     "tools/op_costs.py",
     "tests/test_op_costs.py",
+    # AUD-011 and AUD-017: the role registry's attacks and controls.
+    "tests/test_role_authority.py",
     "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",
@@ -301,6 +303,11 @@ LAYERS = ("canonical", "projection", "hostid",
           # and key registry built on it. Nothing below imports them; every
           # reader is HANDED an authenticator, on the log it reads.
           "ed25519", "signature", "principals",
+          # Who may hold a role (AUD-011, AUD-017): grants from a registry
+          # outside the log, and the delegations a history makes under
+          # them. Reads the key registry's digest rule; read by every
+          # reducer that enforces a role, all of which sit above it.
+          "roles",
           "capability", "idempotency", "readpath", "tools",
           "execution", "checkpoint", "authority",
           # The content rule for scientific results: JSON over canonical
@@ -817,6 +824,10 @@ IO_LAYER = {
     # appended beside it and read back whole. Its lines are checked by their
     # signatures, not by who may read the file.
     "principals": "the attestation file beside the log",
+    # The deployment's role registry, read whole from the path the
+    # deployment names and believed only at the digest it pinned, as the
+    # key registry is. No caller-supplied path, and no grant to check.
+    "roles": "the deployment's role registry, at its pinned digest",
     "checkpoint": "checkpoint files, written atomically and read back",
     # Assurance E (D-2026-170): a witness's durable record of what it
     # cosigned, one file per log, written atomically and read back. The

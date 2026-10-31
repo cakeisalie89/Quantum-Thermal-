@@ -99,6 +99,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .canonical import digest
+from .roles import ACTIONS as ROLE_ACTIONS
+from .roles import POLICY_OWNER, RoleError, RoleRefused, RoleView
 from .events import (EventLogError, judged_at, projection_fold,
                      projection_load, require_extends)
 
@@ -615,8 +617,17 @@ class Decision:
 class PolicyStore:
     """Published policies as a projection of the log. Fail closed."""
 
-    def __init__(self, log):
+    def __init__(self, log, *, roles=None):
         self.log = log
+        #: Optional :class:`~agent_substrate.roles.RoleRegistry` (AUD-011).
+        #: When present, a version of a policy is published only by a
+        #: principal it grants POLICY_OWNER over that policy, decided before
+        #: the write and on every replay. That holds for the first version as
+        #: well, and without a registry the first publisher becomes the
+        #: owner. Withdrawal stays the owner's act: it only narrows what is
+        #: authorized.
+        self.roles = roles
+        self._role_view = None if roles is None else RoleView(roles)
         #: policy_id -> list of (seq, PolicyDocument), version-ordered.
         self._published: dict = {}
         #: policy_id -> the actor that published version 1: its owner.
@@ -645,6 +656,7 @@ class PolicyStore:
         self._folded_through = -1
         self._folded_hash = None
         self._latest_wall = None
+        self._role_view = None if self.roles is None else RoleView(self.roles)
         for ev in events:
             self.apply(ev)
         self._anchor = report.verified_anchor
@@ -696,6 +708,12 @@ class PolicyStore:
         if ev.seq > self._folded_through:
             self._folded_through, self._folded_hash = ev.seq, ev.hash
         self._latest_wall = judged_at(self._latest_wall, ev.wall_time)
+        if self._role_view is not None and ev.action in ROLE_ACTIONS:
+            try:
+                self._role_view.fold(ev)
+            except RoleError as exc:
+                raise PolicyError(str(exc)) from exc
+            return False
         if ev.action == ACT_POLICY_PUBLISH:
             doc = document_from_record(ev.payload["document"])
             claimed = ev.payload.get("policy_digest")
@@ -723,6 +741,15 @@ class PolicyStore:
                     f"{doc.version} of {doc.policy_id!r}, which {owner!r} "
                     "published; a policy's later versions are published by "
                     "its owner")
+            if self._role_view is not None:
+                refusal = self._role_view.refusal(
+                    ev.actor, POLICY_OWNER, f"policy:{doc.policy_id}",
+                    ev.seq)
+                if refusal is not None:
+                    raise PolicyError(
+                        f"seq {ev.seq}: {ev.actor!r} published version "
+                        f"{doc.version} of {doc.policy_id!r}: {refusal[0]}: "
+                        f"{refusal[1]}")
             history.append((ev.seq, doc))
             self._owner.setdefault(doc.policy_id, ev.actor)
             self._loaded_through = ev.seq
@@ -938,6 +965,14 @@ class PolicyStore:
                     f"{doc.policy_id!r}, which {owner!r} published; a "
                     "policy's later versions are published by its owner, as "
                     "its withdrawal is (AUD-015)")
+            if self._role_view is not None:
+                try:
+                    self._role_view.require(
+                        actor, POLICY_OWNER, f"policy:{doc.policy_id}",
+                        self._folded_through + 1,
+                        what=f"version {doc.version} of {doc.policy_id!r}: ")
+                except RoleRefused as exc:
+                    raise PolicyError(str(exc)) from exc
             return {"actor": actor, "action": ACT_POLICY_PUBLISH,
                     "target": doc.policy_id,
                     "payload": {"document": doc.body(),

@@ -1,0 +1,317 @@
+{
+ "title": "Who may hold a role: grants rooted outside the log, held live, on replay and by the second reader",
+ "note": "AUD-011 and AUD-017. Each mutation removes one enforcement point of the role registry (agent_substrate/roles.py) or one of its rules: the authority store's checks on proposing and on each transition, live and on replay; the snapshot a reader holding other grants would restore; the policy, secret and egress issuers; the governed runner's checks where each record is written and on replay; the registry's lifecycle, scope and delegation rules; and the independent reader's restatement. tests/test_role_authority.py holds each.",
+ "suites": [
+  "tests/test_role_authority.py"
+ ],
+ "mutations": [
+  {
+   "name": "RA1_a_transition_takes_the_role_it_names",
+   "path": "agent_substrate/store.py",
+   "find": "            # The edge permits the role; the registry says whether THIS\n            # actor holds it, here (AUD-011).\n            if self._role_view is not None:",
+   "replace": "            # The edge permits the role; the registry says whether THIS\n            # actor holds it, here (AUD-011).\n            if False:",
+   "rationale": "AUD-011: live, any actor verifies and promotes"
+  },
+  {
+   "name": "RA2_replay_takes_the_role_a_record_names",
+   "path": "agent_substrate/store.py",
+   "find": "            # WHO HOLDS THE ROLE CLAIMED (AUD-011), at this position.\n            if self._role_view is not None:",
+   "replace": "            # WHO HOLDS THE ROLE CLAIMED (AUD-011), at this position.\n            if False:",
+   "rationale": "AUD-011: a forged verification or promotion loads"
+  },
+  {
+   "name": "RA3_anyone_proposes",
+   "path": "agent_substrate/store.py",
+   "find": "            # WHO MAY PROPOSE (AUD-011), at the position this is written at.\n            if self._role_view is not None:",
+   "replace": "            # WHO MAY PROPOSE (AUD-011), at the position this is written at.\n            if False:",
+   "rationale": "AUD-011: live, a principal with no PROPOSER grant creates a record"
+  },
+  {
+   "name": "RA4_replay_takes_any_proposer",
+   "path": "agent_substrate/store.py",
+   "find": "            if self._role_view is not None:\n                refusal = self._role_view.refusal(\n                    ev.actor, PROPOSER,",
+   "replace": "            if False:\n                refusal = self._role_view.refusal(\n                    ev.actor, PROPOSER,",
+   "rationale": "AUD-011: a forged create loads"
+  },
+  {
+   "name": "RA5_a_snapshot_under_other_grants_is_restored",
+   "path": "agent_substrate/store.py",
+   "find": "refusal = cls._foreign_reducer(snap) or store._foreign_roles(snap)",
+   "replace": "refusal = cls._foreign_reducer(snap)",
+   "rationale": "AUD-011: recovery restores records no registry this reader holds examined"
+  },
+  {
+   "name": "RA6_the_store_folds_any_policy_version",
+   "path": "agent_substrate/store.py",
+   "find": "                if self._role_view is not None:\n                    self._require_policy_owner(ev)",
+   "replace": "                if False:\n                    self._require_policy_owner(ev)",
+   "rationale": "AUD-011: a promotion stands on a policy version no owner published"
+  },
+  {
+   "name": "RA7_system_is_anyone",
+   "path": "agent_substrate/roles.py",
+   "find": "\"PROMOTER\": (PROMOTER,), \"SYSTEM\": (VERIFIER, PROMOTER)}",
+   "replace": "\"PROMOTER\": (PROMOTER,), \"SYSTEM\": ()}",
+   "rationale": "AUD-011: a name holding nothing moves a record to STALE as SYSTEM"
+  },
+  {
+   "name": "RA8_scope_is_not_compared",
+   "path": "agent_substrate/roles.py",
+   "find": "    return any(p == ANY or p == value or p == f\"{ns}:*\" for p in scope)",
+   "replace": "    return True",
+   "rationale": "a grant over one kind admits every kind"
+  },
+  {
+   "name": "RA9_a_revoked_grant_still_holds",
+   "path": "agent_substrate/roles.py",
+   "find": "        if self.revoked_at_seq is not None and seq >= self.revoked_at_seq:\n            return (REVOKED,\n                    f\"grant {self.grant_id!r} was revoked",
+   "replace": "        if False:\n            return (REVOKED,\n                    f\"grant {self.grant_id!r} was revoked",
+   "rationale": "a revocation in the registry refuses nothing"
+  },
+  {
+   "name": "RA10_an_expired_grant_still_holds",
+   "path": "agent_substrate/roles.py",
+   "find": "        if self.valid_until_seq is not None and seq > self.valid_until_seq:\n            return (EXPIRED,\n                    f\"grant {self.grant_id!r} held until",
+   "replace": "        if False:\n            return (EXPIRED,\n                    f\"grant {self.grant_id!r} held until",
+   "rationale": "a grant holds past its end"
+  },
+  {
+   "name": "RA11_a_grant_holds_before_it_begins",
+   "path": "agent_substrate/roles.py",
+   "find": "        if seq < self.valid_from_seq:\n            return (NOT_YET_VALID,\n                    f\"grant {self.grant_id!r} holds from",
+   "replace": "        if False:\n            return (NOT_YET_VALID,\n                    f\"grant {self.grant_id!r} holds from",
+   "rationale": "a grant holds before its start"
+  },
+  {
+   "name": "RA12_a_delegation_outlives_its_parent",
+   "path": "agent_substrate/roles.py",
+   "find": "        lapse = parent.lapse_at(seq)\n        if lapse is not None:\n            return (lapse[0],",
+   "replace": "        lapse = None\n        if lapse is not None:\n            return (lapse[0],",
+   "rationale": "a delegation holds after the registry revoked its parent"
+  },
+  {
+   "name": "RA13_a_revoked_delegation_still_holds",
+   "path": "agent_substrate/roles.py",
+   "find": "        if self.revoked_at_seq is not None and seq >= self.revoked_at_seq:\n            return (REVOKED,\n                    f\"delegation {self.delegation_id!r} was revoked",
+   "replace": "        if False:\n            return (REVOKED,\n                    f\"delegation {self.delegation_id!r} was revoked",
+   "rationale": "a delegation its delegator revoked still holds"
+  },
+  {
+   "name": "RA14_anyone_delegates_any_grant",
+   "path": "agent_substrate/roles.py",
+   "find": "        if actor != parent.principal:\n            return (f\"{actor!r} delegates grant",
+   "replace": "        if False:\n            return (f\"{actor!r} delegates grant",
+   "rationale": "a principal delegates a grant it does not hold"
+  },
+  {
+   "name": "RA15_a_root_role_is_delegated",
+   "path": "agent_substrate/roles.py",
+   "find": "        if not parent.may_delegate:\n            return f\"grant {parent.grant_id!r} may not be delegated\"",
+   "replace": "        if False:\n            return f\"grant {parent.grant_id!r} may not be delegated\"",
+   "rationale": "a grant not marked may_delegate is passed on"
+  },
+  {
+   "name": "RA16_a_principal_delegates_to_itself",
+   "path": "agent_substrate/roles.py",
+   "find": "        if principal == actor:\n            return (f\"{actor!r} delegates {parent.role} to itself",
+   "replace": "        if False:\n            return (f\"{actor!r} delegates {parent.role} to itself",
+   "rationale": "self-authorization through delegation"
+  },
+  {
+   "name": "RA17_a_delegation_widens",
+   "path": "agent_substrate/roles.py",
+   "find": "        if not within(scope, parent.scope):",
+   "replace": "        if False:",
+   "rationale": "a delegation reaches past its parent's scope"
+  },
+  {
+   "name": "RA18_a_delegation_outlasts_its_parent",
+   "path": "agent_substrate/roles.py",
+   "find": "        if parent.valid_until_seq is not None and (\n                until is None or until > parent.valid_until_seq):",
+   "replace": "        if False and (\n                until is None or until > parent.valid_until_seq):",
+   "rationale": "a delegation ends after its parent"
+  },
+  {
+   "name": "RA19_anyone_revokes_a_delegation",
+   "path": "agent_substrate/roles.py",
+   "find": "        if actor != d.delegator:",
+   "replace": "        if False:",
+   "rationale": "a delegation is withdrawn by someone other than its delegator"
+  },
+  {
+   "name": "RA20_the_registry_is_read_unpinned",
+   "path": "agent_substrate/roles.py",
+   "find": "        if pinned_digest is not None and got != pinned_digest:",
+   "replace": "        if False:",
+   "rationale": "a registry other than the pinned one is believed"
+  },
+  {
+   "name": "RA21_a_grant_names_a_keyless_principal",
+   "path": "agent_substrate/roles.py",
+   "find": "    if principals is not None and g.principal not in principals:",
+   "replace": "    if False:",
+   "rationale": "a role is granted to a name no key authenticates"
+  },
+  {
+   "name": "RA22_the_root_role_may_be_delegable",
+   "path": "agent_substrate/roles.py",
+   "find": "    if g.may_delegate and g.role not in DELEGABLE:",
+   "replace": "    if False:",
+   "rationale": "the registry lets a holder pass on an issuing role"
+  },
+  {
+   "name": "RA23_any_policy_publisher_live",
+   "path": "agent_substrate/policy.py",
+   "find": "            if self._role_view is not None:\n                try:\n                    self._role_view.require(\n                        actor, POLICY_OWNER,",
+   "replace": "            if False:\n                try:\n                    self._role_view.require(\n                        actor, POLICY_OWNER,",
+   "rationale": "AUD-011: live, anyone publishes a policy"
+  },
+  {
+   "name": "RA24_any_policy_publisher_on_replay",
+   "path": "agent_substrate/policy.py",
+   "find": "            if self._role_view is not None:\n                refusal = self._role_view.refusal(\n                    ev.actor, POLICY_OWNER,",
+   "replace": "            if False:\n                refusal = self._role_view.refusal(\n                    ev.actor, POLICY_OWNER,",
+   "rationale": "AUD-011: a forged policy version loads"
+  },
+  {
+   "name": "RA25_any_secret_issuer_live",
+   "path": "agent_substrate/secrets.py",
+   "find": "            if self._role_view is not None:\n                try:\n                    self._role_view.require(\n                        actor, SECRET_ISSUER,",
+   "replace": "            if False:\n                try:\n                    self._role_view.require(\n                        actor, SECRET_ISSUER,",
+   "rationale": "AUD-017: live, anyone grants a secret"
+  },
+  {
+   "name": "RA26_any_secret_issuer_on_replay",
+   "path": "agent_substrate/secrets.py",
+   "find": "        if self._role_view is not None:\n            # WHO MAY ISSUE (AUD-017), at this position.",
+   "replace": "        if False:\n            # WHO MAY ISSUE (AUD-017), at this position.",
+   "rationale": "AUD-017: a forged secret grant loads"
+  },
+  {
+   "name": "RA27_any_egress_issuer_live",
+   "path": "agent_substrate/netauth.py",
+   "find": "                if self._role_view is not None:\n                    try:\n                        self._require_issuer(actor, s, head_seq + 1)",
+   "replace": "                if False:\n                    try:\n                        self._require_issuer(actor, s, head_seq + 1)",
+   "rationale": "AUD-017: live, anyone grants egress"
+  },
+  {
+   "name": "RA28_any_egress_issuer_on_replay",
+   "path": "agent_substrate/netauth.py",
+   "find": "                if self._role_view is not None:\n                    # WHO MAY ISSUE (AUD-017), at this position.",
+   "replace": "                if False:\n                    # WHO MAY ISSUE (AUD-017), at this position.",
+   "rationale": "AUD-017: a forged egress grant loads"
+  },
+  {
+   "name": "RA29_one_host_of_a_grant_is_asked",
+   "path": "agent_substrate/netauth.py",
+   "find": "for value in [f\"egress:{h}\" for h in g.hosts] or [\"egress:*\"]:",
+   "replace": "for value in [f\"egress:{h}\" for h in g.hosts[:1]] or [\"egress:*\"]:",
+   "rationale": "AUD-017: an issuer of one host grants another beside it"
+  },
+  {
+   "name": "RA30_the_directory_is_taken_at_its_word",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "        if self.role_delegations is not None:\n            at = self._head_seq() + 1",
+   "replace": "        if False:\n            at = self._head_seq() + 1",
+   "rationale": "AUD-011: a run starts for parties the registry grants nothing, and writes before it is refused"
+  },
+  {
+   "name": "RA31_a_move_is_not_asked_where_it_is_written",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "            if role in _TASK_REGISTRY_ROLES:\n                # who holds the role claimed, where it is written (AUD-011)",
+   "replace": "            if False:\n                # who holds the role claimed, where it is written (AUD-011)",
+   "rationale": "AUD-011: a verdict whose grant ended mid-run is written, and every load refuses it"
+  },
+  {
+   "name": "RA32_a_task_is_created_without_asking",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "            self._require_role(submitter, PROPOSER, tool_id, head_seq + 1)",
+   "replace": "            pass",
+   "rationale": "AUD-011: a submission whose grant ended is written"
+  },
+  {
+   "name": "RA33_an_execution_is_recorded_without_asking",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "                if cur is not None:\n                    self._require_role(worker, EXECUTOR, cur.tool_id,",
+   "replace": "                if False:\n                    self._require_role(worker, EXECUTOR, cur.tool_id,",
+   "rationale": "AUD-011: an execution whose grant ended is recorded"
+  },
+  {
+   "name": "RA34_task_replay_takes_any_party",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "                if req.role in _TASK_REGISTRY_ROLES:\n                    refusal = self._role_refusal(",
+   "replace": "                if False:\n                    refusal = self._role_refusal(",
+   "rationale": "AUD-011: a forged verdict on a task loads"
+  },
+  {
+   "name": "RA35_task_replay_takes_any_submitter",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "                refusal = self._role_refusal(ev.actor, PROPOSER,\n                                             p[\"tool_id\"], ev.seq)\n                if refusal is not None:",
+   "replace": "                refusal = self._role_refusal(ev.actor, PROPOSER,\n                                             p[\"tool_id\"], ev.seq)\n                if False:",
+   "rationale": "AUD-011: a forged submission loads"
+  },
+  {
+   "name": "RA36_task_replay_takes_any_executor",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "                refusal = self._role_refusal(ev.actor, EXECUTOR,\n                                             task.tool_id, ev.seq)\n                if refusal is not None:",
+   "replace": "                refusal = self._role_refusal(ev.actor, EXECUTOR,\n                                             task.tool_id, ev.seq)\n                if False:",
+   "rationale": "AUD-011: a forged execution record loads"
+  },
+  {
+   "name": "RR1_the_reader_asks_no_grant",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if not held:\n        return (\"NOT_GRANTED\", f\"{principal!r} holds no {role} grant\")",
+   "replace": "    if True:\n        return None",
+   "rationale": "the second reader agrees with any role a record names"
+  },
+  {
+   "name": "RR2_the_reader_takes_any_transition",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if reauthorize and roles is not None:\n                # The edge permits the role; the registry says whether this",
+   "replace": "            if False:\n                # The edge permits the role; the registry says whether this",
+   "rationale": "the second reader applies a forged verification or promotion"
+  },
+  {
+   "name": "RR3_the_reader_takes_any_proposer",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "                r = _role_refusal(role_grants, delegations, ev.actor,\n                                  \"PROPOSER\", f\"kind:{p.get('kind')}\",",
+   "replace": "                r = None and _role_refusal(role_grants, delegations, ev.actor,\n                                  \"PROPOSER\", f\"kind:{p.get('kind')}\",",
+   "rationale": "the second reader applies a forged create"
+  },
+  {
+   "name": "RR4_the_reader_takes_any_delegation",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        why = _role_delegation_refusal(grants, delegations, ev.actor, p,\n                                       ev.seq)",
+   "replace": "        why = None",
+   "rationale": "the second reader takes a forged delegation"
+  },
+  {
+   "name": "RR5_the_reader_keeps_a_revoked_grant",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if g[\"revoked_at_seq\"] is not None and seq >= g[\"revoked_at_seq\"]:",
+   "replace": "    if False:",
+   "rationale": "the second reader keeps a grant the registry revoked"
+  },
+  {
+   "name": "RR6_the_reader_takes_any_issuer",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    def refused(ev, role: str, values) -> bool:\n        if roles is None:\n            return False",
+   "replace": "    def refused(ev, role: str, values) -> bool:\n        if True:\n            return False",
+   "rationale": "the second reader takes a policy, a secret grant or an egress grant from anyone"
+  },
+  {
+   "name": "RR7_the_reader_takes_any_task_party",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    def role_refusal(actor, role: str, tool_id, seq: int) -> tuple | None:\n        if roles is None:\n            return None",
+   "replace": "    def role_refusal(actor, role: str, tool_id, seq: int) -> tuple | None:\n        if True:\n            return None",
+   "rationale": "the second reader applies a task verdict by a party with no grant"
+  },
+  {
+   "name": "RR8_the_reader_folds_any_policy_version",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if roles is not None and isinstance(doc, dict):\n                # a version published by no POLICY_OWNER of it is not a",
+   "replace": "            if False:\n                # a version published by no POLICY_OWNER of it is not a",
+   "rationale": "the second reader binds a promotion to a policy version no owner published"
+  }
+ ]
+}

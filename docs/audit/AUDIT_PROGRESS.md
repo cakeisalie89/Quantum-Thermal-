@@ -641,3 +641,73 @@ Mutations were run on this host: IS11 (no stop file), IS12 (no bound) and
 IS13 (a bound shorter than the reading). Each was killed, and IS7 is still
 killed.
 
+### AUD-011 and AUD-017: a role registry outside the log
+
+`agent_substrate/roles.py` is the root. It is a registry supplied from
+outside the log and pinned by its digest, as the key registry is. Each grant
+names a principal, a role, a scope and the positions it holds for.
+
+Delegation happens in the log, once, and only from grants marked
+`may_delegate`. A delegation is narrower and no longer than its parent. It
+is never made to the delegator, and its delegator revokes it. A view folded
+past a position answers as one folded to it, so the governed runner can ask
+a view caught up to the head about earlier positions.
+
+Where a reader is given a registry, it holds these acts to it, before the
+write and again on replay:
+
+- in `AuthorityStore`: create, and each transition (SYSTEM needs VERIFIER or
+  PROMOTER);
+- the policy version a promotion would stand on;
+- `PolicyStore.publish`;
+- `SecretStore.issue` and `NetworkAuthority.issue`, the latter over every
+  host;
+- in `GovernedTasks`: submission, execution and each party's move, checked
+  where its record is written.
+
+The second reader restates all of it in `reconstruct`, `reconstruct_tasks`
+and `reconstruct_subsystems`. A checkpoint folded under other grants is not
+restored, and the history is replayed under the reader's own.
+
+`tests/test_role_authority.py` has 50 tests, each an attack beside its
+control:
+
+- mallory's forged walk to PROMOTED, refused by both readers with the same
+  kind;
+- an agent registered by anyone as VERIFIER;
+- an authenticated principal without a grant, refused as anyone else is;
+- the delegation rules;
+- revocation and expiry by position, the reach-back named;
+- recovery across registries;
+- each party's grant ending mid-run, refused where its record would have
+  been written, which leaves a history every reader loads.
+
+`tools/mutations/role_authority.json` holds 44 mutations. The first run
+killed 41. RA4 and RR3 (a forged create, both readers) and RR8 (the second
+reader's own policy fold) survived because no test replayed those cases.
+Two tests were added and all three are now killed.
+
+The structural registries now include the new module: the layering, the
+importer allowlist, the IO layer, READER_COVERAGE, the identity inventory
+(55 of 55 actions reconstructed) and the authority inventory. Task creation
+is now a decided write.
+
+Owner action: provision the production registry. `production_role_registry()`
+refuses until a registry is provisioned.
+
+Not done:
+
+- No history declaration obliges a reader to hold a registry.
+- HUMAN_APPROVER and RELEASE_AUTHORITY have no enforcement point.
+- The capability ledger's root is still trust on first use.
+
+### CI at 29aedfb
+
+Mutation shard 5 was cancelled at 59 minutes 49 seconds: "The runner has
+received a shutdown signal". The job limit is 150 minutes. Every matrix it
+finished killed all its mutations, and the other seven shards passed,
+running up to 68 minutes. The aggregate `mutation-matrices` check failed
+only because shard 5 did not finish. The run was lost to the runner, not
+failed by a test. Pushing 5900f3b superseded it. 5900f3b's local full suite
+passed: 6,349 passed, 19 skipped.
+

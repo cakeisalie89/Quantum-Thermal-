@@ -48,6 +48,9 @@ from .events import (Anchor, ChainBroken, Event, EventLog, EventLogError,
                      judged_at, projection_fold, projection_load,
                      require_extends)
 from .projection import ProjectionIdentityError, ReducerIdentity, identity_of
+from .roles import ACTIONS as ROLE_ACTIONS
+from .roles import (AUTHORITY_ROLES, POLICY_OWNER, PROPOSER, RoleError,
+                    RoleRefused, RoleView)
 
 #: What a snapshot of this store is, for :class:`ReducerIdentity`.
 PROJECTION_KIND = "authority_store"
@@ -170,8 +173,17 @@ class AuthorityStore:
     """Live projection with transactional mutation through the log."""
 
     def __init__(self, log: EventLog, *, evidence=None, origins=None,
-                 authenticator=None):
+                 authenticator=None, roles=None):
         self.log = log
+        #: Optional :class:`~agent_substrate.roles.RoleRegistry` (AUD-011).
+        #: When present, a record is proposed only by a principal it grants
+        #: PROPOSER over the record's kind, and a transition is made only by
+        #: one it grants the role the transition claims. Both are decided
+        #: before the write and again on every replay. Absent -- as in
+        #: production until a registry is provisioned -- a role is what the
+        #: request says, held only to the edge.
+        self.roles = roles
+        self._role_view = None if roles is None else RoleView(roles)
         #: Optional :class:`~agent_substrate.principals.Authenticator`. When
         #: present, a history whose events are not attested by keys the
         #: registry holds for their actors is refused on load and on every
@@ -286,6 +298,7 @@ class AuthorityStore:
         self._binding = None
         self._policy_view = {}
         self._latest_wall = None
+        self._role_view = None if self.roles is None else RoleView(self.roles)
         self._authenticate(events)
         with self._one_origin_view():
             for ev in events:
@@ -446,7 +459,16 @@ class AuthorityStore:
             # keeps the facts the binding is judged on, and counts any
             # recorded withdrawal -- the direction that fails closed.
             if ev.action in (_POLICY_PUBLISH, _POLICY_WITHDRAW):
+                if self._role_view is not None:
+                    self._require_policy_owner(ev)
                 self._fold_policy_record(ev)
+            # And the delegations a role is held through (AUD-011), when a
+            # registry is enforced: a refused one refuses the history.
+            if self._role_view is not None and ev.action in ROLE_ACTIONS:
+                try:
+                    self._role_view.fold(ev)
+                except RoleError as exc:
+                    raise StoreError(str(exc)) from exc
             self._loaded_through, self._loaded_hash = ev.seq, ev.hash
             return
         p = ev.payload
@@ -510,6 +532,14 @@ class AuthorityStore:
                     f"its proposer but was appended by {ev.actor!r}; who "
                     "proposed a record is the log's to say, and separation "
                     "of duties is measured from it")
+            if self._role_view is not None:
+                refusal = self._role_view.refusal(
+                    ev.actor, PROPOSER, f"kind:{p['kind']}", ev.seq)
+                if refusal is not None:
+                    raise StoreError(
+                        f"seq {ev.seq}: {rid!r} was proposed by "
+                        f"{ev.actor!r}: {refusal[0]}: {refusal[1]}. "
+                        "Presence in the log is not authority.")
             evidence = dict(p.get("evidence", {}))
             for k, v in evidence.items():
                 # FORM, not resolution: evidence may legitimately have been
@@ -585,6 +615,18 @@ class AuthorityStore:
                     f"seq {ev.seq}: {rid!r} {cur.state.value} -> "
                     f"{p.get('dst')} would be refused today: {exc}. Presence "
                     "in the log is not authority.") from exc
+            # WHO HOLDS THE ROLE CLAIMED (AUD-011), at this position.
+            if self._role_view is not None:
+                try:
+                    self._role_view.require(
+                        ev.actor, AUTHORITY_ROLES[p["role"]],
+                        f"kind:{cur.kind}", ev.seq)
+                except RoleRefused as exc:
+                    raise StoreError(
+                        f"seq {ev.seq}: {rid!r} {cur.state.value} -> "
+                        f"{p.get('dst')} by {ev.actor!r} as {p['role']}: "
+                        f"{exc}. Presence in the log is not authority."
+                    ) from exc
             # AND RE-ADMIT, FOR A SCIENTIFIC RESULT. The edge above checks
             # roles and that evidence is SHAPED like a digest; for this kind
             # that is not authority. The cited bundle and report are read,
@@ -671,6 +713,8 @@ class AuthorityStore:
                                "withdrawn_seq": v["withdrawn_seq"]}
                          for pid, v in sorted(self._policy_view.items())},
             "latest_wall": self._latest_wall,
+            **({} if self._role_view is None
+               else {"roles": self._role_view.export()}),
         }
 
     def snapshot_digest(self) -> str:
@@ -785,6 +829,13 @@ class AuthorityStore:
             raise StoreError("snapshot latest_wall is malformed")
         self._latest_wall = latest
         self._binding = binding
+        if self._role_view is not None:
+            # Same registry, or load_from would not have restored it
+            # (_foreign_roles): the delegations it folded stand.
+            try:
+                self._role_view.restore(snap.get("roles"))
+            except RoleError as exc:
+                raise StoreError(f"snapshot roles: {exc}") from exc
         self._policy_view = {pid: {"publisher": v.get("publisher"),
                                    "published": [list(x)
                                                  for x in v["published"]],
@@ -886,7 +937,7 @@ class AuthorityStore:
 
     @classmethod
     def recover(cls, log, checkpoints, *, blobs, evidence=None,
-                origins=None) -> tuple:
+                origins=None, roles=None) -> tuple:
         """Restart a projection, deciding by the checkpoint audit how.
 
         THE PRODUCTION RECOVERY PATH (R41). A restarting process asks the
@@ -921,7 +972,8 @@ class AuthorityStore:
         if audit.verdict in ("USABLE", "UNPARSEABLE"):
             try:
                 store = cls.load_from(log, checkpoints, blobs=blobs,
-                                      evidence=evidence, origins=origins)
+                                      evidence=evidence, origins=origins,
+                                      roles=roles)
             except StoreError as exc:
                 # A checkpoint the audit could not fault -- it parses and
                 # names this log's bytes -- that load_from refuses anyway: its
@@ -929,7 +981,8 @@ class AuthorityStore:
                 # not resolve. A restart must not depend on it and must not
                 # fail on it either: a full replay, reported as the unhealthy
                 # recovery it is (D-2026-116).
-                store = cls(log, evidence=evidence, origins=origins).load()
+                store = cls(log, evidence=evidence, origins=origins,
+                            roles=roles).load()
                 report.update(mode="FULL_REPLAY", checkpoint_seq=None,
                               prefix_verified=store.loaded_prefix_verified,
                               refusal=str(exc), healthy=False)
@@ -943,7 +996,8 @@ class AuthorityStore:
                 refusal=refusal,
                 healthy=audit.verdict == "USABLE" and not refusal)
             return store, report
-        store = cls(log, evidence=evidence, origins=origins).load()
+        store = cls(log, evidence=evidence, origins=origins,
+                    roles=roles).load()
         report.update(mode="FULL_REPLAY", checkpoint_seq=None,
                       prefix_verified=store.loaded_prefix_verified,
                       refusal=None, healthy=audit.verdict == "EMPTY")
@@ -951,12 +1005,14 @@ class AuthorityStore:
 
     @classmethod
     def recover_and_compare(cls, log, checkpoints, *, blobs, evidence=None,
-                            origins=None) -> tuple:
+                            origins=None, roles=None) -> tuple:
         """:meth:`recover`, then a full replay, and the two compared record
         by record: ``(store, report)`` with ``report["agrees"]``."""
         store, report = cls.recover(log, checkpoints, blobs=blobs,
-                                    evidence=evidence, origins=origins)
-        full = cls(log, evidence=evidence, origins=origins).load()
+                                    evidence=evidence, origins=origins,
+                                    roles=roles)
+        full = cls(log, evidence=evidence, origins=origins,
+                   roles=roles).load()
         a = {k: (v.state.value, v.evidence, v.proposer)
              for k, v in store.all_records().items()}
         b = {k: (v.state.value, v.evidence, v.proposer)
@@ -967,7 +1023,7 @@ class AuthorityStore:
 
     @classmethod
     def load_from(cls, log, checkpoints, *, blobs, evidence=None,
-                  origins=None, authenticator=None,
+                  origins=None, authenticator=None, roles=None,
                   require_checkpoint: bool = False) -> "AuthorityStore":
         """Load by restoring the newest usable snapshot and replaying the tail.
 
@@ -990,7 +1046,7 @@ class AuthorityStore:
         from . import checkpoint as cp_mod
 
         store = cls(log, evidence=evidence, origins=origins,
-                    authenticator=authenticator)
+                    authenticator=authenticator, roles=roles)
         if authenticator is not None:
             # A snapshot says nothing about who wrote the records before
             # it, so an authenticated load reads them all.
@@ -1021,7 +1077,7 @@ class AuthorityStore:
         # neither version of the code computes from the log. Checked before
         # anything is restored, because the only correct response is to not
         # use the snapshot at all.
-        refusal = cls._foreign_reducer(snap)
+        refusal = cls._foreign_reducer(snap) or store._foreign_roles(snap)
         if refusal is not None:
             if require_checkpoint:
                 raise StoreError(
@@ -1134,6 +1190,30 @@ class AuthorityStore:
         return identity_of(cls, projection_kind=PROJECTION_KIND,
                            reducer="_apply", reducer_version=REDUCER_VERSION,
                            projection_schema_version=SNAPSHOT_VERSION)
+
+    def _foreign_roles(self, snap) -> str | None:
+        """Why ``snap`` was folded under other role grants than this
+        reader enforces, or None.
+
+        A snapshot's records were decided under the registry its store held.
+        Restored by a reader holding another one, or none, they would stand
+        unexamined under grants nobody checked them against. The way a role
+        would be gained through recovery is closed here. The snapshot is not
+        used, and a full replay decides every record under this reader's
+        registry."""
+        held = snap.get("roles") if isinstance(snap, dict) else None
+        if self._role_view is None:
+            return None if held is None else (
+                "the snapshot was folded under a role registry, and this "
+                "reader enforces none")
+        if not isinstance(held, dict):
+            return ("the snapshot was folded without a role registry, and "
+                    "this reader enforces one")
+        if held.get("registry") != self.roles.digest:
+            return (f"the snapshot was folded under role registry "
+                    f"{str(held.get('registry'))[:12]}, and this reader "
+                    f"enforces {self.roles.digest[:12]}")
+        return None
 
     @classmethod
     def _foreign_reducer(cls, snap) -> str | None:
@@ -1262,6 +1342,14 @@ class AuthorityStore:
                     raise StoreError(
                         f"dependency {dep!r} does not exist; a record may "
                         "not depend on something unrecorded")
+            # WHO MAY PROPOSE (AUD-011), at the position this is written at.
+            if self._role_view is not None:
+                try:
+                    self._role_view.require(
+                        proposer, PROPOSER, f"kind:{kind}",
+                        self._loaded_through + 1, what=f"{record_id!r}: ")
+                except RoleRefused as exc:
+                    raise StoreError(str(exc)) from exc
             return dict(
                 actor=proposer, action=ACT_CREATE, target=record_id,
                 payload={"record_id": record_id, "kind": kind,
@@ -1313,6 +1401,17 @@ class AuthorityStore:
             # raises TransitionError if not permitted, including when a
             # cited digest does not resolve in the attached evidence store
             edge = check(req, resolve=self._resolver)
+            # The edge permits the role; the registry says whether THIS
+            # actor holds it, here (AUD-011).
+            if self._role_view is not None:
+                try:
+                    self._role_view.require(
+                        actor, AUTHORITY_ROLES[role.value],
+                        f"kind:{cur.kind}", self._loaded_through + 1,
+                        what=f"{record_id} {cur.state.value} -> "
+                             f"{dst.value} as {role.value}: ")
+                except RoleRefused as exc:
+                    raise TransitionError(str(exc)) from exc
             # decided BEFORE the append, so the refused edge never reaches
             # the log; replay refuses it too (_admit), for a log written
             # by something other than this method
@@ -1375,6 +1474,25 @@ class AuthorityStore:
 
         self._append_decided(build)
         return self.policy_binding or {}
+
+    def _require_policy_owner(self, ev) -> None:
+        """Under a role registry, a policy version a promotion may stand on
+        was published by a POLICY_OWNER of that policy (AUD-011). The
+        policy store refuses any other; so does this reader, rather than
+        letting a promotion stand on a version that store refused."""
+        view = self._role_view
+        p = ev.payload if isinstance(ev.payload, dict) else {}
+        doc = p.get("document") if ev.action == _POLICY_PUBLISH else None
+        pid = doc.get("policy_id") if isinstance(doc, dict) else None
+        if view is None or not isinstance(pid, str):
+            return
+        refusal = view.refusal(ev.actor, POLICY_OWNER, f"policy:{pid}",
+                               ev.seq)
+        if refusal is not None:
+            raise StoreError(
+                f"seq {ev.seq}: {ev.actor!r} published a version of {pid!r}: "
+                f"{refusal[0]}: {refusal[1]}. Presence in the log is not "
+                "authority.")
 
     def _fold_policy_record(self, ev) -> None:
         p = ev.payload if isinstance(ev.payload, dict) else {}
