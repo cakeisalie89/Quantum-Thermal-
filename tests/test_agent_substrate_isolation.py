@@ -188,6 +188,12 @@ ALLOWED_IMPORTERS = {
     "tests/test_transparency.py",
     # Phase C: the witness protocol over the tree
     "tests/test_witness_tree.py",
+    # Phase C: archived segments of the log, and what they cost to check.
+    # The instrument builds logs of real records and seals them through
+    # the package; it changes nothing in the package and computes no
+    # scientific result.
+    "tests/test_archive.py",
+    "tools/archive_costs.py",
     # Section 6.1: the causal assurance graph, and the withdrawal it predicts
     "tests/test_assurance_graph.py",
     # Section 6.2: the policy engine against an independent reference model
@@ -375,6 +381,10 @@ LAYERS = ("canonical", "projection", "hostid",
           # the log's record type, the signature seam and, for its tree
           # checkpoints (Phase C), the Merkle tree; nothing else.
           "witness",
+          # Phase C: archived segments of the log, sealed and checked against
+          # a tree checkpoint. Imports the log's reader, the canonical form
+          # and the Merkle tree; nothing imports it.
+          "archive",
           # Assurance F: freshness policies and what an observation is now.
           # Imports nothing internal; the research ledger judges with it.
           "freshness",

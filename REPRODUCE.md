@@ -112,5 +112,6 @@ These are not hidden behind any step above:
 - **Machine-checked proofs in Lean.** None was run here.
 - **A production deployment.** That includes independent witnesses, a role
   registry, a vetted signature provider and a release trust root. Each is
-  an owner action (`docs/security/owner_actions.md`), and no step above
-  can stand in for it.
+  an owner action or decision (`docs/audit/AUDIT_REPORT.md`, section 7,
+  and `docs/security/owner_actions.md`), and no step above can stand in
+  for it.

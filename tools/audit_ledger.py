@@ -136,7 +136,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/witness_tree.json",
                # The external reproduction guide, and the test that holds
                # it to what CI runs (Phase F).
-               "REPRODUCE.md", "tests/test_reproduce_guide.py")
+               "REPRODUCE.md", "tests/test_reproduce_guide.py",
+               # Archived segments of the log (Phase C).
+               "agent_substrate/archive.py", "tests/test_archive.py",
+               "tools/archive_costs.py", "tools/mutations/archive.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

@@ -1,6 +1,6 @@
 {
  "title": "The Merkle transparency commitments are RFC 9162's, and a proof that does not prove is refused",
- "note": "Phase C. Each mutation removes one rule of agent_substrate/transparency.py: the domain separation of leaves and nodes, the split at the largest power of two, a bound on positions and sizes, the side a sibling is hashed on, the exhaustion of the path, the comparison of the old and the new roots. tests/test_transparency.py holds each with the CT project's published roots for RFC 6962's test leaves and with proofs offered for the wrong leaf, position or root.",
+ "note": "Phase C. Each mutation removes one rule of agent_substrate/transparency.py: the domain separation of leaves and nodes, the split at the largest power of two, a bound on positions and sizes, the side a sibling is hashed on, the exhaustion of the path, the comparison of the old and the new roots. tests/test_transparency.py holds each with the CT project's published roots for RFC 6962's test leaves and with proofs offered for the wrong leaf, position or root. TR16 to TR27 hold the frontier a segment is checked from: its subtrees largest first, its size and length, the merge of equal subtrees, the fold from the right, and a segment that is no segment.",
  "suites": [
   "tests/test_transparency.py"
  ],
@@ -102,6 +102,90 @@
    "find": "            sr = node_hash(sr, c)",
    "replace": "            sr = node_hash(c, sr)",
    "rationale": "the new tree's right-hand subtrees are hashed on the wrong side"
+  },
+  {
+   "name": "TR16_frontier_ascending",
+   "path": "agent_substrate/transparency.py",
+   "find": "    return [1 << i for i in reversed(range(size.bit_length()))",
+   "replace": "    return [1 << i for i in range(size.bit_length())",
+   "rationale": "a frontier's subtrees are taken smallest first, so extending it merges the wrong ones"
+  },
+  {
+   "name": "TR17_frontier_size_truth_value",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if isinstance(size, bool) or not isinstance(size, int) or size < 0:\n        raise ProofError(f\"{size!r} is not a number of leaves\")",
+   "replace": "    if not isinstance(size, int) or size < 0:\n        raise ProofError(f\"{size!r} is not a number of leaves\")",
+   "rationale": "a truth value is read as a number of leaves"
+  },
+  {
+   "name": "TR18_frontier_size_negative",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if isinstance(size, bool) or not isinstance(size, int) or size < 0:\n        raise ProofError(f\"{size!r} is not a number of leaves\")",
+   "replace": "    if isinstance(size, bool) or not isinstance(size, int):\n        raise ProofError(f\"{size!r} is not a number of leaves\")",
+   "rationale": "a negative number of leaves is read as one with a frontier"
+  },
+  {
+   "name": "TR19_frontier_length",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if len(front) != bin(size).count(\"1\"):",
+   "replace": "    if False:",
+   "rationale": "a frontier of the wrong length is folded"
+  },
+  {
+   "name": "TR20_frontier_hash_shape",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if not all(isinstance(h, bytes) and len(h) == 32 for h in front):",
+   "replace": "    if False:",
+   "rationale": "a frontier of things that are not 32-byte hashes is folded"
+  },
+  {
+   "name": "TR21_merge_unequal",
+   "path": "agent_substrate/transparency.py",
+   "find": "        while sizes and sizes[-1] == s:",
+   "replace": "        while sizes and sizes[-1] >= s:",
+   "rationale": "a new leaf is merged into a larger subtree"
+  },
+  {
+   "name": "TR22_merged_size_kept",
+   "path": "agent_substrate/transparency.py",
+   "find": "            s += sizes.pop()",
+   "replace": "            sizes.pop()",
+   "rationale": "a merged subtree keeps the size of its right half"
+  },
+  {
+   "name": "TR23_empty_frontier_root",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if size == 0:\n        return EMPTY_ROOT\n    folded = front[-1]",
+   "replace": "    folded = front[-1]",
+   "rationale": "the frontier of no leaves has no root"
+  },
+  {
+   "name": "TR24_fold_order",
+   "path": "agent_substrate/transparency.py",
+   "find": "        folded = node_hash(h, folded)",
+   "replace": "        folded = node_hash(folded, h)",
+   "rationale": "the frontier is folded with its halves swapped"
+  },
+  {
+   "name": "TR25_empty_segment",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if not isinstance(start, int) or not entries:",
+   "replace": "    if not isinstance(start, int):",
+   "rationale": "no entries at all verify as a segment"
+  },
+  {
+   "name": "TR26_start_not_a_number",
+   "path": "agent_substrate/transparency.py",
+   "find": "    if not isinstance(start, int) or not entries:",
+   "replace": "    if not entries:",
+   "rationale": "a start that is not a number escapes as a type error"
+  },
+  {
+   "name": "TR27_bad_frontier_raises",
+   "path": "agent_substrate/transparency.py",
+   "find": "    except ProofError:\n        return False\n    return verify_consistency(end, size, end_root, size_root, proof)",
+   "replace": "    except ProofError:\n        raise\n    return verify_consistency(end, size, end_root, size_root, proof)",
+   "rationale": "a frontier that is not one raises instead of failing to verify"
   }
  ]
 }

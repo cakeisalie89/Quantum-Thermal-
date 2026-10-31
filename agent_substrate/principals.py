@@ -860,4 +860,9 @@ READER_COVERAGE = {
     # AUD-011: the delegations of a role registry's grants, folded from the
     # history through the gated primitives like every other ledger here.
     "agent_substrate.roles.RoleDelegations": GATED,
+    # Phase C: sealing an archive reads the log through read_verified.
+    # Checking an archive authenticates no one, and hands back no record of
+    # a REQUIRED history: those are read after restore(), through this
+    # table's readers.
+    "agent_substrate.archive.seal": GATED,
 }

@@ -31,7 +31,7 @@ Where this report and those files disagree, the files are right.
 
 ## 1. Coverage ledger
 
-The pull request changes 1034 files, counting the audit's own (`git diff
+The pull request changes 1038 files, counting the audit's own (`git diff
 --name-status` from the merge base, with rename detection, not the web
 diff). Each has one entry.
 
@@ -40,11 +40,12 @@ diff). Each has one entry.
 | REVIEWED_IN_FULL | 11 | every line read, bound to the blob read |
 | REVIEWED_IN_PART | 24 | the parts named in the entry read, bound to the blob |
 | INSPECTED_BINARY | 20 | a binary, identified and inspected |
-| AUDIT_ARTIFACT | 45 | written by this audit, not independently reviewed |
+| AUDIT_ARTIFACT | 49 | written by this audit, not independently reviewed |
 | NOT_REVIEWED | 934 | not examined, with the reason |
 
-Of the 55 changed `agent_substrate` modules, 19 have been read, and two,
-`roles` and `transparency`, were written by the audit (AUDIT_ARTIFACT):
+Of the 56 changed `agent_substrate` modules, 19 have been read, and three,
+`roles`, `transparency` and `archive`, were written by the audit
+(AUDIT_ARTIFACT):
 
 - in full: `authority`, `canonical`, `checkpoint`, `events`, `principals`, `projection` and `store`;
 - in part: `agents`, `capability`, `governed_tasks`, `idempotency`, `memory`, `netauth`, `policy`, `proposals`, `reconstruct`, `scheduler`, `secrets` and `witness`.
@@ -385,6 +386,11 @@ production registry is the owner action below.
   memoized prefix digest.
 - **AUD-001.** Archive the six bundled histories before any purge of
   history.
+- **Independent witnesses and a vetted signature provider.** Every witness
+  and every key here is a TEST fixture, signed by the REFERENCE_ONLY
+  provider. A log, or an archived segment of one, is independently
+  witnessed only when the owner deploys witnesses a reader trusts, holds
+  their keys with a vetted provider, and publishes the trust root.
 
 **The existing decisions, unchanged by the audit.** None is satisfiable
 from this branch.
@@ -433,7 +439,7 @@ Each line names its weakest point. No aggregate is given.
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
 | Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; no role registry provisioned |
 | Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
-| Merge readiness | not assessed as ready | 934 of 1034 files not reviewed; hosted runs green at 2497d87, not yet at the audit's head |
+| Merge readiness | not assessed as ready | 934 of 1038 files not reviewed; hosted runs all green at 0683097, not yet at the audit's head |
 
 ## 9. What remains unknown
 

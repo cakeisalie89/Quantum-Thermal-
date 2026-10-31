@@ -32,6 +32,7 @@ from agent_substrate import events as ev_mod  # noqa: E402
 from agent_substrate import principals as pr  # noqa: E402
 from agent_substrate import signature  # noqa: E402
 from agent_substrate.agents import AgentDirectory  # noqa: E402
+from agent_substrate.archive import seal  # noqa: E402
 from agent_substrate.audit import AuditIndex  # noqa: E402
 from agent_substrate.canonical import canonical_bytes, digest  # noqa: E402
 from agent_substrate.capability import CapabilityLedger  # noqa: E402
@@ -512,6 +513,7 @@ BEHAVIOUR = {
     "agent_substrate.prov_export.export_log": lambda log: export_log(log),
     "agent_substrate.roles.RoleDelegations":
         lambda log: RoleDelegations(log, RoleRegistry([])).load(),
+    "agent_substrate.archive.seal": lambda log: seal(log, 2),
 }
 STRUCTURAL_ONLY = {"agent_substrate.governed_tasks.GovernedTasks",
                    "agent_substrate.governed_model.GovernedOrigins",

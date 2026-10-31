@@ -153,3 +153,87 @@ def test_a_position_outside_the_tree_never_verifies():
     assert not T.verify_inclusion(0, 0, T.leaf_hash(D[0]), [], T.root([]))
     assert not T.verify_consistency(0, 4, T.root([]), r, [])
     assert not T.verify_consistency(5, 4, r, r, [])
+
+
+# ---- archived segments: a prefix's frontier ----------------------------------
+@pytest.mark.parametrize("n", range(0, 9))
+def test_a_frontier_folds_to_the_published_root(n):
+    front = T.frontier(LEAVES[:n])
+    assert len(front) == bin(n).count("1")
+    want = ROOTS[n - 1] if n else hashlib.sha256(b"").hexdigest()
+    assert T.frontier_root(front, n).hex() == want
+
+
+def test_a_frontier_extended_is_the_frontier_of_the_whole():
+    for n in range(0, 65):
+        assert T.frontier_root(T.frontier(D[:n]), n) == T.root(D[:n])
+        for a in range(0, n + 1):
+            assert T.extend(T.frontier(D[:a]), a, D[a:n]) == \
+                T.frontier(D[:n])
+
+
+def test_every_segment_verifies_and_no_wrong_one_does():
+    """Every contiguous segment of every tree up to 32 leaves verifies
+    from its frontier and a consistency proof, and none verifies with a
+    wrong root, reordered, one short, one entry altered, moved one place
+    either way with that place's own frontier, or with a frontier hash
+    bent."""
+    for size in range(1, 33):
+        r = T.root(D[:size])
+        for a in range(size):
+            fr = T.frontier(D[:a])
+            for b in range(a + 1, size + 1):
+                pr = T.consistency_proof(b, D[:size]) if b < size else []
+                seg = D[a:b]
+                assert T.verify_segment(a, seg, fr, size, r, pr)
+                assert not T.verify_segment(a, seg, fr, size, r[::-1], pr)
+                assert not T.verify_segment(a, seg[:-1] + [b"\x01" * 32],
+                                            fr, size, r, pr)
+                if b - a > 1:
+                    assert not T.verify_segment(a, seg[::-1], fr, size, r,
+                                                pr)
+                    assert not T.verify_segment(a, seg[:-1], fr, size, r,
+                                                pr)
+                if a > 0:
+                    earlier = T.consistency_proof(b - 1, D[:size])
+                    assert not T.verify_segment(a - 1, seg,
+                                                T.frontier(D[:a - 1]), size,
+                                                r, earlier)
+                    bent = [b"\x02" * 32] + fr[1:]
+                    assert not T.verify_segment(a, seg, bent, size, r, pr)
+                if b < size:
+                    later = T.consistency_proof(b + 1, D[:size]) \
+                        if b + 1 < size else []
+                    assert not T.verify_segment(a + 1, seg,
+                                                T.frontier(D[:a + 1]), size,
+                                                r, later)
+
+
+@pytest.mark.parametrize("front, size", [
+    ([b"\x00" * 32], True), ([b"\x00" * 32], -1), ([b"\x00" * 32], 1.0),
+    ([b"\x00" * 32], 0), ([], 1), ([b"\x00" * 31], 1), (["x" * 32], 1),
+])
+def test_a_frontier_that_is_not_one_is_refused(front, size):
+    with pytest.raises(T.ProofError):
+        T.frontier_root(front, size)
+    with pytest.raises(T.ProofError):
+        T.extend(front, size, [D[0]])
+
+
+def test_a_segment_that_is_not_one_is_refused():
+    r = T.root(D[:8])
+    assert T.verify_segment(2, D[2:4], T.frontier(D[:2]), 8, r,
+                            T.consistency_proof(4, D[:8]))
+    # nothing is not a segment, though the frontier it stands on is true
+    assert not T.verify_segment(2, [], T.frontier(D[:2]), 8, r,
+                                T.consistency_proof(2, D[:8]))
+    # a start that is not a number, and one that is a truth value
+    assert not T.verify_segment("2", D[2:4], T.frontier(D[:2]), 8, r,
+                                T.consistency_proof(4, D[:8]))
+    assert not T.verify_segment(True, D[1:2], T.frontier(D[:1]), 8, r,
+                                T.consistency_proof(2, D[:8]))
+    # a segment past the tree's end, and a frontier not of its start
+    assert not T.verify_segment(6, D[6:8] + [D[0]], T.frontier(D[:6]), 8,
+                                r, [])
+    assert not T.verify_segment(2, D[2:4], T.frontier(D[:3]), 8, r,
+                                T.consistency_proof(4, D[:8]))

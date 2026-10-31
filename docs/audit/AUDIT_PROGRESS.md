@@ -1262,3 +1262,152 @@ status and the manifest.
 
 **Not established.** That a reader outside this project can follow the
 guide to the end: nobody outside it has tried.
+
+### Phase C, third item: archived history segments
+
+The log is one file, verified from its first record. A reader who holds
+part of an old history, and a checkpoint of a later tree, could not check
+that part alone. A hash chain's records link backwards, so a piece of it
+is only as good as every record after it, up to a head somebody vouched
+for. `agent_substrate/archive.py` seals the log in pieces that can each be
+checked alone.
+
+**The frontier.** `agent_substrate/transparency.py` gains the frontier of
+a prefix: the roots of the perfect subtrees covering its first `start`
+leaves, largest first, one for each bit set in `start`.
+
+- `extend` takes a frontier and the entries after it to the frontier of
+  the whole.
+- `frontier_root` folds a frontier from the right into RFC 9162's root.
+- `verify_segment` checks that entries are leaves start..end-1 of a tree
+  of `size` leaves. It needs the frontier of `start` and a consistency
+  proof from `end` to `size`.
+
+Held to the published roots of RFC 6962's test leaves:
+
+- every frontier of up to 64 leaves folds to `root`;
+- every extension equals the frontier of the whole;
+- every contiguous segment of every tree up to 32 leaves verifies;
+- none verifies with a wrong root, reordered, one entry short, one
+  altered, moved one place either way with that place's own frontier, or
+  with a frontier hash bent.
+
+**A segment** is the canonical lines of records start..end-1, sealed
+with:
+
+- its digest;
+- the frontier before it;
+- the root after it;
+- its first link and its last hash.
+
+**A manifest** lists an archive's segments. It is never trusted: every
+hash in it is recomputed from the segments' bytes, and only the last root
+needs a proof from outside.
+
+**What each check establishes.**
+
+- `verify_segment` checks one segment against a checkpoint's size and
+  root:
+  - each line is read as the log's own reader reads it, with
+    `_parse_line` and `_check_link` themselves rather than a copy;
+  - the records chain from the segment's first link;
+  - they are the checkpoint's leaves at their positions.
+
+  It costs O(log n) hashes beyond the segment's own bytes.
+- `verify_archive` checks every segment from genesis. It also checks
+  their positions, frontiers and links across each boundary, and the last
+  root against the checkpoint. It reports how far the archive reaches, and
+  an archive of a prefix verifies as a prefix, with `complete` false. It
+  reports the profile the history declares, by the log's own rule.
+- `restore` writes the verified records back as a log that must not
+  already exist.
+
+**Neither check authenticates anyone,** and neither hands back a record of
+a history that requires authentication. An archive carries no
+attestations, and the log's own reader hands no event of such a history to
+a reader without an authenticator. A first draft returned the records with
+the profile beside them. The full suite caught that `seal`, a new reader of
+the log, was missing from `READER_COVERAGE` in `principals.py`, and the
+archive was made to follow the log's rule instead of being listed around
+it:
+
+- `seal` is GATED. It refuses a REQUIRED history without an authenticator,
+  and reads it with one, as the coverage test's behaviour table now shows.
+- `verify_archive` and `verify_segment` check such a history in full and
+  return no records. A segment does not hold the first record, so it is
+  told the profile, as a deployment pins a log's. A first segment pinned
+  the wrong way is refused by its own first record.
+- Restored, the history gives no events to a reader without its
+  authenticator, and every event to one with it.
+
+**Attacks refused.** `tests/test_archive.py` has 31 tests. Each forgery a
+keeper of the archive could make is refused:
+
+- a byte changed;
+- records reordered;
+- a record dropped, with or without the end moved;
+- a blank line;
+- a line not canonical;
+- a torn final newline;
+- a record edited, re-hashed and its chain repaired;
+- the sealed root or last hash changed;
+- all of the above re-sealed, root included, which the checkpoint still
+  refuses;
+- a segment moved, or given a bent frontier or one of the wrong length;
+- a checkpoint too old to cover the segment;
+- a fork's checkpoint, with either log's proof;
+- manifests with a gap, an overlap, a reordering or no genesis;
+- a splice of two logs, caught by the frontier and, once that is made to
+  fit, by the first link;
+- missing bytes, a wrong schema, malformed records, checkpoints and
+  proofs.
+
+A segment from before a fork verifies against the fork's checkpoint, as it
+should, since it is in both histories. Sealing refuses a log that does not
+verify, and leaves the log byte-identical.
+
+**What the full suite found that the focused runs did not:**
+
+- `seal` was a reader of the log missing from `READER_COVERAGE`, which led
+  to the authentication rule above;
+- a `type: ignore` without the reason this repository's typing rule
+  requires.
+
+The suite's last run was on this tree before that reason, a one-line
+comment, was added: 6,705 passed, 19 skipped, and the typing test failed.
+After the comment, the typing test, the archive, authentication, manifest
+and ledger tests, and AR1 to AR26 were run again, and all pass.
+
+**Mutations.** Every mutation is killed:
+
+- AR1 to AR26 (`tools/mutations/archive.json`), AR23 to AR26 holding
+  the authentication rule;
+- TR16 to TR27, added to `tools/mutations/transparency.json`;
+- TR1 to TR14, still killed with the frontier code present.
+
+**Measured** with `python tools/archive_costs.py --sizes
+1000,10000,100000 --every 1000`, on this host. Bytes and hash counts are
+fixed; seconds vary between runs.
+
+| Records | Log | Full verified read | Seal | Whole archive | Manifest | One segment of 1,000 | Its frontier + proof |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1,000 | 317 KB | 0.023 s | 0.028 s | 0.023 s | 402 B | 0.022 to 0.024 s | 0 hashes |
+| 10,000 | 3.2 MB | 0.21 s | 0.28 s | 0.24 s | 7.4 KB | 0.023 to 0.025 s | at most 16 hashes |
+| 100,000 | 32 MB | 2.33 s | 3.62 s | 2.80 s | 82 KB | 0.022 to 0.027 s | at most 21 hashes |
+
+Checking one segment at 100,000 records costs what it costs at 10,000.
+The full verified read grows with the log. The frontier and proof never
+exceed 21 hashes (672 B) here. The manifest is about 820 B per segment.
+
+**Not established.**
+
+- **No independent witness.** No witness outside this project cosigned
+  any checkpoint. The checkpoint's trust is the reader's decision, and an
+  independent witness is an owner action.
+- **No authentication from the archive alone.** The archive does not carry
+  the attestations a REQUIRED history is authenticated by.
+- **No compaction.** Nothing truncates or compacts a log, and the live log
+  is unchanged. Hot and cold storage stay unseparated: the archive is a
+  checkable copy, not a replacement.
+- **Memory.** `verify_archive` holds the whole archive's records in
+  memory. `verify_segment` holds one segment.

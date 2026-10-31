@@ -24,8 +24,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 41556,
-      "sha256": "cc231f293fb22eea77dd80a5df6b6f190834457039922519ed3f25dc472f36fd"
+      "size_bytes": 41599,
+      "sha256": "6ca4179049bfde600a6caf5e34dcf453e21893cc7bb4d914317fd7d9dfc76748"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -59,8 +59,8 @@
     },
     {
       "filename": "AGENT_SUBSTRATE.md",
-      "size_bytes": 74059,
-      "sha256": "ece2827d0cfdb766535f8d0f0838ec5284238e39bc61b505e1773f1d7942f637"
+      "size_bytes": 75146,
+      "sha256": "f3e1e734eeb24956ea0a8447db11091e67013effe61deb5a4c8d14187ca1d8f2"
     },
     {
       "filename": "ARCHITECTURE.md",
@@ -90,7 +90,7 @@
     {
       "filename": "HARNESS_STATUS.md",
       "size_bytes": 6758,
-      "sha256": "080fb76aed0607a7bb4d81cdcdfd2c40489f0bf36e12d7485926022f069bda90"
+      "sha256": "7c4148f1b2c1765da4acac27f0161a66c3911e4918a5e003801d707e2b76c1d7"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -119,8 +119,8 @@
     },
     {
       "filename": "REPRODUCE.md",
-      "size_bytes": 4970,
-      "sha256": "c64021b3c170539d60893dad0df5e2d66f28fa2355a2ad0f25d869ce964a1ba7"
+      "size_bytes": 5029,
+      "sha256": "4954f5df4b7fc69557f50ddbd493987c765da490ce74dc8f7a76cc1a18d943d9"
     },
     {
       "filename": "RO_CRATE_PROFILE.md",
@@ -191,6 +191,11 @@
       "filename": "agent_substrate/agents.py",
       "size_bytes": 63683,
       "sha256": "af2369f6b26151ac6d9ea5da2701028a34760bb29fce86a47851cac632de6698"
+    },
+    {
+      "filename": "agent_substrate/archive.py",
+      "size_bytes": 16420,
+      "sha256": "48c1484b1cba2a2055384fa0c0b3b8b243fd6ccb2f13496b69c2297c224f05f0"
     },
     {
       "filename": "agent_substrate/assurance_graph.py",
@@ -324,8 +329,8 @@
     },
     {
       "filename": "agent_substrate/principals.py",
-      "size_bytes": 39268,
-      "sha256": "1db0bb6f8c80faafa22156c630a7a515af8bcaa2ab4fe70884cbc40e208614e3"
+      "size_bytes": 39552,
+      "sha256": "8bb0aabf769e1f65cc7dea61dad3e20492edea7bfa7029194d45fc28782ccd26"
     },
     {
       "filename": "agent_substrate/projection.py",
@@ -419,8 +424,8 @@
     },
     {
       "filename": "agent_substrate/transparency.py",
-      "size_bytes": 5502,
-      "sha256": "467c4c51f45d0586f2f8ec34b332b59c590baeaf1cf9fb93975e9f828ec77677"
+      "size_bytes": 8786,
+      "sha256": "4fb9b1e54d49662ae4392ead21380b7eb0667c4c1bd7eeb1a43661b3f8437436"
     },
     {
       "filename": "agent_substrate/trust_labels.py",
@@ -554,13 +559,13 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 58869,
-      "sha256": "491584f9587fa00caf8b18a6359272f9f12f8a3c0f5620fd94af4151447bf07c"
+      "size_bytes": 65793,
+      "sha256": "bcca0fc7d662f507e558f62d7d1496ea3e994971cc998d5ec60a531838d9eae1"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
-      "size_bytes": 25090,
-      "sha256": "83276ea4e1f77f82c559e3d1034cdb59441f12261706b51c0367e64ddb806f1c"
+      "size_bytes": 25458,
+      "sha256": "0bb38809456ac6b6cfc33901889f5584aac5d8871564a30542aa2cbe66679191"
     },
     {
       "filename": "docs/audit/findings.json",
@@ -574,8 +579,8 @@
     },
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
-      "size_bytes": 480039,
-      "sha256": "734898cd46a36c79a75b5ed659dda2d1a5e54669be48e8f411ed974219506e02"
+      "size_bytes": 481689,
+      "sha256": "a30cf773bf3febe892443c08fe2b00bf066576259cb5fefcbc0308062d4c2bbb"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -589,13 +594,13 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 254875,
-      "sha256": "af8fad2808e9e8fa7bb69c3501256a1e08669c686c563a763e3e3e09946aba65"
+      "size_bytes": 254955,
+      "sha256": "3fbe042a146e742dc99367211d1851f90c49d283a27706d00a1798f023d5b400"
     },
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5788,
-      "sha256": "7d391ffeb59f5fbee7176ecda629a4c6d7b2c09078cc2df25a614837591dddd7"
+      "sha256": "c2efe26a8ff1f24a912584e605d02e1aeb245d6b6713a1f1546abb4fe82c9d70"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -660,7 +665,7 @@
     {
       "filename": "docs/harness_status.json",
       "size_bytes": 15788,
-      "sha256": "ff51e66ea8d28f7f72a74b1ac4048c48f425ff43f9bef12aeed7f99354be7e3e"
+      "sha256": "69fbbea94c8747e9baecdc212721b4d985549b535fade8c9a122f28c50e04224"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -780,7 +785,7 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2935,
-      "sha256": "23ea56909cd6d698a3cdb2fa22bf410b90e62d8ba186eab30840bf843e88d753"
+      "sha256": "1de512ec52a93ff7f721c9cfa2a2bd3c1d93c37cdb5b9b7520dfd7f2a3686a57"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -849,8 +854,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 283547,
-      "sha256": "d56aeed111f41e7b935f2dd2300defb5b426fed41e9d8cd9a8ceecf0946c389d"
+      "size_bytes": 285132,
+      "sha256": "a3886bca97e22535454d5e3eb718888450807ae022a42f72489b0c8c18bd76d2"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -895,7 +900,7 @@
     {
       "filename": "docs/typing_scope.json",
       "size_bytes": 772,
-      "sha256": "2986df560f3d4def4ef806df4e2b6d267f68cfd9e06305fea91d6216cf8666ec"
+      "sha256": "58fafb3141a9d1abb18a01f48804ac81f71ab273a65fbf276515bca251681600"
     },
     {
       "filename": "generate_manifest.py",
@@ -985,7 +990,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "9c88ee4392962be5f1abc35da3ccfaecce86c7d4402ec92efa0a53e1e368568f"
+      "sha256": "6ba23f82b5ba7fee3c4a89f3ac89f0f69207622c10d9c8e1608b92cc2a9d59fd"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -1624,8 +1629,8 @@
     },
     {
       "filename": "tests/test_agent_substrate_isolation.py",
-      "size_bytes": 55223,
-      "sha256": "41dd02a0865d95a0fd12070b3af0cded4a4ef70491e191c99af4fa8fb8f5dfb0"
+      "size_bytes": 55750,
+      "sha256": "afb63ab08b0b8aa79358c63f62aa1768d15f67ede8861c79488b0cb9a201cbaf"
     },
     {
       "filename": "tests/test_agent_substrate_properties.py",
@@ -1636,6 +1641,11 @@
       "filename": "tests/test_agent_toctou.py",
       "size_bytes": 9714,
       "sha256": "5c2836556d8686b86963047bb009fe7b3385a529b53c268ca21318cb34595d04"
+    },
+    {
+      "filename": "tests/test_archive.py",
+      "size_bytes": 21224,
+      "sha256": "ff48be8ed6be45e7c82ad2d7c209b49518ea02dcdab252b15123a68baf3d62a1"
     },
     {
       "filename": "tests/test_assurance_graph.py",
@@ -1659,8 +1669,8 @@
     },
     {
       "filename": "tests/test_authenticated_history.py",
-      "size_bytes": 30548,
-      "sha256": "b9a161e0cea866b4d4af9d97fb66e07cef6151ab5a7fbc00b6ca780ef4f9bbdd"
+      "size_bytes": 30665,
+      "sha256": "3b83c423cdb9cbb4a641934cfbd8a9e95c53f33580ffcba44f0862e3368b72fb"
     },
     {
       "filename": "tests/test_authority_inventory.py",
@@ -2244,8 +2254,8 @@
     },
     {
       "filename": "tests/test_transparency.py",
-      "size_bytes": 6623,
-      "sha256": "60d95c30f3de1f104bd2990e7e1b5792c65ae714db05b814ec7bb1a74d4493c9"
+      "size_bytes": 10677,
+      "sha256": "f2d775b895fe1b3f1d9f430437bb85b8ba89256a36b26fb3a86f2a24beb2c714"
     },
     {
       "filename": "tests/test_trust_labels.py",
@@ -2293,6 +2303,11 @@
       "sha256": "425330cb5ef155ab76b55e9c2fafe40aecfba81f43415ac75b1e3f3072f799de"
     },
     {
+      "filename": "tools/archive_costs.py",
+      "size_bytes": 4166,
+      "sha256": "d6e9640861580994099a10e91360417ae41b6ed0d3ed60ee90122f2d48b4991d"
+    },
+    {
       "filename": "tools/assurance_package.py",
       "size_bytes": 30318,
       "sha256": "ab47d1c3c65d2e0eacb4ae9b5e90256a80c72483a138dbe7c9692a981805a6e4"
@@ -2304,8 +2319,8 @@
     },
     {
       "filename": "tools/audit_ledger.py",
-      "size_bytes": 20905,
-      "sha256": "3b4b3087628de90cde8b6c51d226b40c8a712b0c596eb0bb59f6efe9c0fb9904"
+      "size_bytes": 21105,
+      "sha256": "89263cde06df6873b7e6df89ef8783939bd78038d5cb122a948c0fe6a5cf594e"
     },
     {
       "filename": "tools/audit_log.py",
@@ -2641,6 +2656,11 @@
       "filename": "tools/mutations/agent_toctou.json",
       "size_bytes": 4335,
       "sha256": "6e754cdd86601894ff255171bb8ccb7f06342e9f7cfeaea39c9bd55e9ff58921"
+    },
+    {
+      "filename": "tools/mutations/archive.json",
+      "size_bytes": 8485,
+      "sha256": "526d4ef1df6731fe0c1c206a8b50ebd80000267b3bf824262e551fd8cce24dad"
     },
     {
       "filename": "tools/mutations/assurance_graph.json",
@@ -3099,8 +3119,8 @@
     },
     {
       "filename": "tools/mutations/transparency.json",
-      "size_bytes": 4782,
-      "sha256": "2910eb3bf3a26d2e26038ec2de865133455bd07f7484a675560ac12a479b1d1f"
+      "size_bytes": 8749,
+      "sha256": "bf91482bab77e0152042c0d8e0a2999883d62283b448907c95334bb0e7a6b4b6"
     },
     {
       "filename": "tools/mutations/trust_labels.json",
