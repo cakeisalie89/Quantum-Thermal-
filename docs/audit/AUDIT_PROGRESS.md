@@ -1488,3 +1488,49 @@ names those tests for `NoSplitView`, as it does for protocols 2 and 4.
   witness's alone, and equal roots are equal records.
 - How many faults a deployment should tolerate. That is the owner's to
   choose when independent witnesses are deployed, and none is deployed.
+
+### Phase D, first item: counterfactual cases in the offline evaluation
+
+The offline adversarial evaluation (`tools/adversarial_eval.py`) judges
+its task against one answer, SUPPORTED. A loop that concluded SUPPORTED
+whatever its evidence said would pass that task, and so would an
+evaluation whose oracle could not be anything else.
+
+Four counterfactual cases ask the owner's question of other worlds:
+
+- CF1, below 320 K: REFUTED;
+- CF2, below 340 K: SUPPORTED;
+- CF3, below 1000 K with a hundred times the source: REFUTED;
+- CF4, below 1000 K with ten times the source: SUPPORTED.
+
+Each world's answer comes from the slab's closed-form solution in
+`tools/verify_assurance.py`. It is not computed by the model the loop
+runs, and no agent is shown it. At the documented point the closed form
+agrees with `docs/assurance/slab_uq.json`'s reference to 1e-9 K. A case
+within 1 K of its threshold is refused. Every case is concluded as its
+world answers.
+
+The default world is unchanged. The objective's statement is still
+written "1000 K", and every result already recorded, for the benign run
+and the sixteen scenarios under both conditions, is regenerated
+identically. The results only gain the counterfactual rows. The portable
+assurance package, built from the same world, is still current.
+
+**The positive control.** A research ledger whose verdict rule calls every
+decided hypothesis SUPPORTED passes the evaluation's task, and fails CF1
+and CF3, exactly where the answer is REFUTED.
+
+**Mutations.** CE1 to CE4 (`tools/mutations/counterfactual_eval.json`)
+are each killed. Three make the harness vacuous; CE4 is the rubber stamp
+in `agent_substrate/research.py`. Run against other suites, CE4 is killed:
+
+- by the research ledger's own test of a resolved REFUTED prediction;
+- not by the evaluation's own suites before these cases. At 97448ba,
+  `tests/test_adversarial_eval.py`, `test_adversarial_scenarios.py` and
+  `test_adversarial_controls.py` reproduce every recorded result of the
+  sixteen scenarios, and CE4 survived them all: none of those results
+  turns on a REFUTED verdict.
+
+**Not established.** Anything about a language model, since the agent is
+scripted. These are four worlds of one question, not a benchmark of
+judgment.

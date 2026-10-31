@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "74de4296c40c64f4b4781036fbd9d52c0acb7b88c983a03220d12af3f44ae81f",
+  "entries_digest": "84e1c7dcfdcdc37dfdc39a68c158b8e32a4a922930d6e33ad4a4672a2961eb69",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "feac3c8dbc7628576e6fe3ec02e8d4958ec57a5fb1f57bacfeb442656fded9a6"
+      "sha256": "bc1c0ee0c4b8a2e985ee73a0763da36360e0c553bac9a87ca617ece7a764312d"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/assurance/ADVERSARIAL_EVAL.md",
-      "sha256": "5fd1e87359bf495d1fda0ce5890ef2bc137792c426a0e08d41079a74efbc2e42"
+      "sha256": "d132599b426a617530fb4d3b0720ac00a5cb5dc86a72c9bb799b8d4c0b3ce013"
     },
     {
       "path": "docs/assurance/package/slab-mid-plane/README.md",
@@ -98,11 +98,11 @@
     },
     {
       "path": "docs/audit/AUDIT_PROGRESS.md",
-      "sha256": "4d598b0a3daff8a5cea2c89db87b1760a2ea41c3d8313193b57ed10f89caacb3"
+      "sha256": "d2afa5eea8c57effc43b4467e6105096690bfe52d5bcd2a54ce544cb3edf3836"
     },
     {
       "path": "docs/audit/AUDIT_REPORT.md",
-      "sha256": "125d56b458812fb0cb83615cd51a805b621f33b74493f1d7c8cde79841935dca"
+      "sha256": "6cad47e66c50c15bce60274a62f4b051f751c0efc384b42c4e2991008c7c0168"
     },
     {
       "path": "docs/formal/README.md",

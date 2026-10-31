@@ -213,6 +213,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_adversarial_eval.py",
     "tests/test_adversarial_scenarios.py",
     "tests/test_adversarial_controls.py",
+    # Phase D: the counterfactual cases, and their rubber-stamp control
+    "tests/test_counterfactual_eval.py",
     # Gate F: model contracts shown to the loop, and the scientific context
     # an observation keeps, read from the bundle it cites
     "tests/test_research_science.py",

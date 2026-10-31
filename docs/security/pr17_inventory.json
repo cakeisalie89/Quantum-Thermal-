@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 625,
+   "ADDED": 627,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 60,
-   "LOW": 218,
-   "MEDIUM": 354
+   "LOW": 219,
+   "MEDIUM": 355
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 133,
+   "assurance": 134,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 193,
+   "tests": 194,
    "tooling": 55,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 657
+  "files": 659
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -569,6 +569,7 @@
      "tests/test_composed_campaigns.py",
      "tests/test_concurrent_scope.py",
      "tests/test_confinement_probe.py",
+     "tests/test_counterfactual_eval.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
@@ -2049,6 +2050,7 @@
     "mutation_specs": [
      "tools/mutations/adversarial_eval.json",
      "tools/mutations/composed_campaigns.json",
+     "tools/mutations/counterfactual_eval.json",
      "tools/mutations/freshness.json",
      "tools/mutations/research.json",
      "tools/mutations/research_science.json",
@@ -2060,6 +2062,7 @@
      "tests/test_authenticated_history.py",
      "tests/test_claim_check.py",
      "tests/test_composed_campaigns.py",
+     "tests/test_counterfactual_eval.py",
      "tests/test_decision_proof.py",
      "tests/test_freshness.py",
      "tests/test_integration_demo.py",
@@ -6873,6 +6876,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_counterfactual_eval.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_decided_appends.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8701,6 +8721,7 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/adversarial_eval_harness.json",
+     "tools/mutations/counterfactual_eval.json",
      "tools/mutations/research_horizon_resume.json"
     ],
     "tests": [
@@ -8708,6 +8729,7 @@
      "tests/test_adversarial_eval.py",
      "tests/test_adversarial_scenarios.py",
      "tests/test_agent_substrate_isolation.py",
+     "tests/test_counterfactual_eval.py",
      "tests/test_integration_demo.py",
      "tests/test_research_horizon_resume.py",
      "tests/test_research_science.py"
@@ -10023,6 +10045,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/corpus_allowlist.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/counterfactual_eval.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

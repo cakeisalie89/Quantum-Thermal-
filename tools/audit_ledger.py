@@ -142,7 +142,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/archive_costs.py", "tools/mutations/archive.json",
                # Witness quorums against a split view (Phase E, AUD-018).
                "docs/formal/WitnessQuorum.tla", "tests/test_witness_quorum.py",
-               "tools/mutations/witness_quorum.json")
+               "tools/mutations/witness_quorum.json",
+               # Counterfactual cases of the offline evaluation (Phase D).
+               "tests/test_counterfactual_eval.py",
+               "tools/mutations/counterfactual_eval.json")
 
 #: (glob, kind). First match wins.
 KINDS = (
