@@ -139,7 +139,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "REPRODUCE.md", "tests/test_reproduce_guide.py",
                # Archived segments of the log (Phase C).
                "agent_substrate/archive.py", "tests/test_archive.py",
-               "tools/archive_costs.py", "tools/mutations/archive.json")
+               "tools/archive_costs.py", "tools/mutations/archive.json",
+               # Witness quorums against a split view (Phase E, AUD-018).
+               "docs/formal/WitnessQuorum.tla", "tests/test_witness_quorum.py",
+               "tools/mutations/witness_quorum.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

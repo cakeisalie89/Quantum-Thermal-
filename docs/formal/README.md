@@ -1,6 +1,6 @@
-# Formal models of six protocols (Assurance B)
+# Formal models of seven protocols (Assurance B and Phase E)
 
-Six small TLA+ specifications, checked by TLC, each with deliberately broken
+Seven small TLA+ specifications, checked by TLC, each with deliberately broken
 variants that must be refuted. Each is tied to the Python it describes by
 `tests/test_formal_conformance.py`. The record is
 [`results.json`](results.json) (outcomes, state counts, counterexamples) and
@@ -24,9 +24,10 @@ implementation is correct.**
 | 4. Crash recovery, retry, idempotency | `CrashRetry.tla` | `governed_tasks` (binding, lease, decided execution record, `recover`, `_resume`) | 442 | one task per key; recorded once; recorded only by the lease holder; external effects at most once | the request reaches an outcome (done, or handed to a human) | rebinding a key; no lease check at record; re-running an external tool; no recovery (liveness) |
 | 5. Dependency invalidation | `Invalidation.tla` | `invalidation.plan_from`, `GovernedModelRuns.settle` | 244 | every plan reaches everything resting on the withdrawn origin that still stands; only that is made STALE, and only from a state with an edge to STALE | once the origin is withdrawn, consistency is reached and kept | one level only; traversal stops at a SUPERSEDED record; no settle; over-eager plan |
 | 6. Context and policy freshness at decision time | `ContextFreshness.tla` | `InferenceGateway._policy_problem` under the writer lock | 91 | every decision was made on a context whose policy was in force, and not withdrawn, when written | none | check at build only; check then act (outside the lock); ignore withdrawal |
+| 7. Witness quorums against a split view | `WitnessQuorum.tla` | `witness.TreeWitness`, `TrustRoot`, `verify_tree_witnessed` | 745,361 | no split view: every two trees a quorum has ever witnessed are consistent, with four witnesses, a quorum of three and one faulty witness (one that cosigns anything, or lost its state) | none | a quorum of two, not a majority (AUD-018); a witness that accepts any tree no shorter than its own; a re-provisioned witness not counted faulty (AUD-019) |
 
 Every correct model passes; every broken variant fails on the property it
-targets (29 model runs). For a liveness violation only the verdict is
+targets (33 model runs). For a liveness violation only the verdict is
 recorded: TLC checks liveness on its own timed schedule, so the number of
 states it had seen, and the lasso it reports, differ between runs. TLC 1.7.4 runs with one worker and fixed seeds, so
 `formal_check.py verify` reproduces the record exactly. CI runs it with the
@@ -52,6 +53,12 @@ pinned one.
 - **Counterexamples refused.** Each safety counterexample of a broken variant
   is replayed, and the implementation must refuse it, writing nothing it would
   not record, before the violating state.
+- **Witnesses, tree for tree.** For every pair of protocol 7's trees, a real
+  `TreeWitness` holding one cosigns the other exactly when the model's witness
+  does. The counterexamples of `small_quorum` and `loss_uncounted` are replayed
+  with real witnesses: the first is now refused by the trust root, and the
+  second needs one more faulty witness than the quorum tolerates
+  (`tests/test_witness_quorum.py`).
 - **Named tests for the rest.** Protocols 2 and 4 need real processes (flock,
   subprocess tools) and are not replayed here. Each of their properties is
   tied to named tests of the implementation, and the conformance test fails
@@ -95,6 +102,16 @@ history (D-2026-165). `InferenceBudget.tla`'s `double_dispatch` variant is
 that defect, and the conformance test replays its counterexample against the
 fixed gateway.
 
+- **A quorum must be a majority, and a forgetful witness is a faulty one.**
+  Protocol 7 holds exactly when two quorums share more witnesses than can be
+  faulty: 2q - n > f. TLC refutes a quorum of two of four with one faulty
+  witness, and the trust root accepted any quorum from one to n: with a
+  quorum of half or fewer, two disjoint groups of honest witnesses can each
+  witness one fork (AUD-018, now refused). A witness that lost its state and
+  was provisioned again cosigns a fork of what it forgot; counted as honest,
+  it gives the operator a split view (AUD-019). The code cannot see that a
+  witness forgot, so counting it is the trust root owner's to do.
+
 ## Not claimed
 
 - That the Python implementation is formally verified. The specifications are
@@ -106,6 +123,10 @@ fixed gateway.
   strong fairness of the operator's lock acquisition in protocol 2).
 - Protection against an adversary who can write to the log file directly. The
   authenticated-history profile and the witnesses are about that.
+- For protocol 7: signatures and hashes (a cosignature is its witness's alone,
+  and a tree is its sequence of records), more than four witnesses or
+  histories of more than three records, and the readers themselves, beyond
+  accepting what a quorum witnessed.
 
 ## Running it
 

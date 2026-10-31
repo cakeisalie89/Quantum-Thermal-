@@ -31,7 +31,7 @@ Where this report and those files disagree, the files are right.
 
 ## 1. Coverage ledger
 
-The pull request changes 1038 files, counting the audit's own (`git diff
+The pull request changes 1041 files, counting the audit's own (`git diff
 --name-status` from the merge base, with rename detection, not the web
 diff). Each has one entry.
 
@@ -40,7 +40,7 @@ diff). Each has one entry.
 | REVIEWED_IN_FULL | 11 | every line read, bound to the blob read |
 | REVIEWED_IN_PART | 24 | the parts named in the entry read, bound to the blob |
 | INSPECTED_BINARY | 20 | a binary, identified and inspected |
-| AUDIT_ARTIFACT | 49 | written by this audit, not independently reviewed |
+| AUDIT_ARTIFACT | 52 | written by this audit, not independently reviewed |
 | NOT_REVIEWED | 934 | not examined, with the reason |
 
 Of the 56 changed `agent_substrate` modules, 19 have been read, and three,
@@ -56,7 +56,7 @@ git.
 
 ## 2. Findings register
 
-Seventeen findings. Severity follows the register's scale: P0 is an
+Nineteen findings. Severity follows the register's scale: P0 is an
 authority bypass or integrity failure, P3 is information for the owner.
 
 | ID | Sev | Established | Resolution | In brief |
@@ -78,6 +78,8 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-015 | P1 | REPRODUCED | FIXED | anyone could publish an owner's next policy version, and bound promotions stood on it |
 | AUD-016 | P3 | REPRODUCED | FIXED | the process-tree negative control left its escaped grandchild running |
 | AUD-017 | P3 | CONFIRMED | FIXED | nothing said who may issue a secret or an egress grant; the registry's issuing roles now do |
+| AUD-018 | P2 | REPRODUCED | FIXED | a trust root accepted a quorum that is not a majority, under which honest witnesses can witness two forks |
+| AUD-019 | P3 | REPRODUCED | OWNER | a witness provisioned again after losing its state cosigns a fork of what it forgot |
 
 **How far each is established.** REPRODUCED means shown failing by a
 test or a script; CONFIRMED means established by reading, not executed.
@@ -363,7 +365,7 @@ The audit restored none of it.
 ## 7. Owner decisions
 
 **Fixable here, and fixed.** AUD-002 to AUD-009 and AUD-011 to
-AUD-017. For AUD-011 and AUD-017 the mechanism is what was
+AUD-018. For AUD-011 and AUD-017 the mechanism is what was
 fixed, and it holds where a reader is given a registry. Provisioning the
 production registry is the owner action below.
 
@@ -390,7 +392,12 @@ production registry is the owner action below.
   and every key here is a TEST fixture, signed by the REFERENCE_ONLY
   provider. A log, or an archived segment of one, is independently
   witnessed only when the owner deploys witnesses a reader trusts, holds
-  their keys with a vetted provider, and publishes the trust root.
+  their keys with a vetted provider, and publishes the trust root. Its
+  quorum must be a majority (AUD-018), and how many faulty witnesses it
+  tolerates is the owner's choice (`TrustRoot.tolerates`).
+- **AUD-019.** Count a witness that lost its state and was provisioned
+  again as faulty against that budget. The code cannot see that it
+  forgot.
 
 **The existing decisions, unchanged by the audit.** None is satisfiable
 from this branch.
@@ -431,7 +438,7 @@ Each line names its weakest point. No aggregate is given.
 | Event-sourcing correctness | improved, not complete | log defects fixed: AUD-002, AUD-003, AUD-005, AUD-006 (P1/P2) and AUD-008 (P3); the second reader shares the parser (common mode) |
 | Incremental-verification maturity | partial | suffix reads bound to verified anchors and to the folded hash (AUD-003, AUD-006); governed folds still re-verify from genesis by decision (AUD-010) |
 | Recovery maturity | partial | crash-window checkpoint fixed (AUD-009); per-step campaign recovery measured; whole-process campaign recovery tested at twelve kill points, a rollback refused and competing processes refused (AUD-013); recovery across the loss of the machine needs durable storage |
-| Witness deployment maturity | not deployed | protocol implemented and tested; no production witness or trust root |
+| Witness deployment maturity | not deployed | protocol implemented and tested; quorums model-checked (protocol 7); a quorum must be a majority (AUD-018); a re-provisioned witness is the owner's to count (AUD-019); no production witness or trust root |
 | Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
 | Execution isolation | partial, honestly classified | kernel namespaces, filesystem, network, process tree and quotas; syscall filtering NOT_PROVIDED |
 | Scientific verification | bounded, honest | numerical cross-checks of three models; one result packaged for offline checking, rechecked by a standalone verifier against its own closed-form solution; no experimental validation; FEniCSx not exercised on this host |
@@ -439,7 +446,7 @@ Each line names its weakest point. No aggregate is given.
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
 | Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; no role registry provisioned |
 | Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
-| Merge readiness | not assessed as ready | 934 of 1038 files not reviewed; hosted runs all green at 0683097, not yet at the audit's head |
+| Merge readiness | not assessed as ready | 934 of 1041 files not reviewed; hosted runs all green at 0683097, not yet at the audit's head |
 
 ## 9. What remains unknown
 

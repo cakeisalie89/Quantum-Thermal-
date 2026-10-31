@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 622,
+   "ADDED": 625,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 60,
-   "LOW": 217,
-   "MEDIUM": 352
+   "LOW": 218,
+   "MEDIUM": 354
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 132,
+   "assurance": 133,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 25,
-   "evidence": 70,
+   "evidence": 71,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 192,
+   "tests": 193,
    "tooling": 55,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 654
+  "files": 657
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -627,6 +627,7 @@
      "tests/test_typecheck_scope.py",
      "tests/test_verified_read_guard.py",
      "tests/test_witness.py",
+     "tests/test_witness_quorum.py",
      "tests/test_witness_tree.py",
      "tests/test_work_counts.py"
     ]
@@ -1218,6 +1219,7 @@
      "tests/test_typecheck_scope.py",
      "tests/test_verified_read_guard.py",
      "tests/test_witness.py",
+     "tests/test_witness_quorum.py",
      "tests/test_witness_tree.py",
      "tests/test_work_counts.py"
     ]
@@ -2473,12 +2475,14 @@
     "mutation_specs": [
      "tools/mutations/composed_campaigns.json",
      "tools/mutations/witness.json",
+     "tools/mutations/witness_quorum.json",
      "tools/mutations/witness_tree.json"
     ],
     "tests": [
      "tests/test_archive.py",
      "tests/test_composed_campaigns.py",
      "tests/test_witness.py",
+     "tests/test_witness_quorum.py",
      "tests/test_witness_tree.py"
     ]
    }
@@ -3055,6 +3059,21 @@
     "findings": [],
     "mutation_specs": [],
     "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/formal/WitnessQuorum.tla",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_witness_quorum.py"
+    ]
    }
   },
   {
@@ -8594,6 +8613,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_witness_quorum.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_witness_tree.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8972,7 +9008,8 @@
      "tools/mutations/formal.json"
     ],
     "tests": [
-     "tests/test_formal_conformance.py"
+     "tests/test_formal_conformance.py",
+     "tests/test_witness_quorum.py"
     ]
    }
   },
@@ -11071,6 +11108,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/witness.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/witness_quorum.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

@@ -621,6 +621,58 @@
    "residual_risk": "Enforced only where the store is given a registry. No production registry is provisioned. Egress mediation remains an application control over the runner's own sockets, and the kernel network namespace still contains a tool. Mutations RA25-RA29 and RR6 are each killed.",
    "verification": "CONFIRMED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-018",
+   "title": "A trust root accepted a quorum that is not a majority, under which honest witnesses can witness two forks",
+   "severity": "P2",
+   "subsystem": "witnesses / trust root",
+   "files": [
+    {
+     "path": "agent_substrate/witness.py",
+     "lines": "TrustRoot.__post_init__: a quorum was checked to be between 1 and the number of witnesses, and nothing more"
+    }
+   ],
+   "behavior": "TrustRoot accepted any quorum from one to the number of witnesses. A log operator shows each witness whatever history it likes. With four witnesses and a quorum of two, it showed w1 and w2 one fork and w3 and w4 the other: every witness was honest and cosigned only what extended what it held, and verify_tree_witnessed reported each reader's own fork witnessed through record 1, with no problem.",
+   "invariant": "Witnessing exists so that two readers who accept witnessed histories accept consistent ones: every two trees a quorum witnessed are one a prefix of the other (docs/formal/WitnessQuorum.tla, NoSplitView).",
+   "mechanism": "Two quorums of q among n witnesses share at least 2q - n of them. When 2q <= n they can share none, so no honest witness stands in both, and nothing stops each from cosigning one side of a fork.",
+   "reproduction": "tests/test_witness_quorum.py::test_a_minority_quorum_let_honest_witnesses_witness_two_forks, with the trust root restored to quorum two as it was accepted before; TLC refutes the small_quorum variant of protocol 7 (docs/formal/results.json).",
+   "observed": "Two readers holding different forks of one log each verified their own as witnessed by a quorum of two of four honest witnesses.",
+   "expected": "A trust root whose quorum two disjoint groups of witnesses can each reach is refused.",
+   "correction": "TrustRoot refuses a quorum that is not a majority of its witnesses. TrustRoot.tolerates states how many faulty witnesses the quorum survives, 2q - n - 1, which is the condition TLC checks protocol 7 under.",
+   "regression_tests": [
+    "tests/test_witness_quorum.py::test_a_minority_quorum_let_honest_witnesses_witness_two_forks",
+    "tests/test_witness_quorum.py::test_every_quorum_of_half_or_fewer_is_refused",
+    "tests/test_witness_quorum.py::test_how_many_faulty_witnesses_a_quorum_tolerates"
+   ],
+   "residual_risk": "No trust root in this repository used a minority quorum, and no production trust root exists. A bare majority, 2q = n + 1, tolerates no faulty witness; how many to tolerate is the owner's choice when witnesses are deployed. Mutations WQ1 to WQ3 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-019",
+   "title": "A witness provisioned again after losing its state cosigns a fork of what it forgot",
+   "severity": "P3",
+   "subsystem": "witnesses / recovery",
+   "files": [
+    {
+     "path": "agent_substrate/witness.py",
+     "lines": "TreeWitness.provision_tree and Witness.provision: provisioning is at the first record, once per state"
+    }
+   ],
+   "behavior": "A witness that lost its state refuses everything until the owner provisions it again, at the first record's tree. It then holds that tree and nothing of what it cosigned before, so the operator can show it a fork of a tree it had cosigned, and it cosigns that too. With four witnesses, a quorum of three and one witness that cosigns anything, w1 cosigned one fork, lost its state, was provisioned again and cosigned the other: each fork then had a quorum of three.",
+   "invariant": "NoSplitView holds when no more witnesses are faulty than the quorum tolerates (docs/formal/WitnessQuorum.tla).",
+   "mechanism": "A witness's state is what makes it refuse a fork. A witness without its state is, for the trees it cosigned before, as faulty as one that cosigns anything, and nothing in the code can see that it forgot.",
+   "reproduction": "tests/test_witness_quorum.py::test_a_reprovisioned_witness_cosigns_a_fork_of_what_it_forgot replays TLC's counterexample to the loss_uncounted variant of protocol 7 with real witnesses.",
+   "observed": "The split view needed two faulty witnesses, the forgetful one and the one that cosigns anything; a quorum of three of four tolerates one.",
+   "expected": "A witness that lost its state counts against the faults the trust root tolerates.",
+   "correction": "None in code: the code cannot see a lost state. witness.py states the rule, and TrustRoot.tolerates gives the budget it is counted against. The owner who deploys witnesses counts a re-provisioned witness as faulty, or sizes the quorum to tolerate it.",
+   "regression_tests": [
+    "tests/test_witness_quorum.py::test_a_reprovisioned_witness_cosigns_a_fork_of_what_it_forgot"
+   ],
+   "residual_risk": "A deployment that re-provisions witnesses without counting them can be shown a split view. Durable witness state makes the loss rare, and does not make it impossible.",
+   "verification": "REPRODUCED",
+   "resolution": "OWNER"
   }
  ]
 }

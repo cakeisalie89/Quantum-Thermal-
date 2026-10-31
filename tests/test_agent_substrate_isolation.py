@@ -188,6 +188,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_transparency.py",
     # Phase C: the witness protocol over the tree
     "tests/test_witness_tree.py",
+    # Phase E: witness quorums against a split view (AUD-018, AUD-019)
+    "tests/test_witness_quorum.py",
     # Phase C: archived segments of the log, and what they cost to check.
     # The instrument builds logs of real records and seals them through
     # the package; it changes nothing in the package and computes no

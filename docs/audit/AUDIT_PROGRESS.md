@@ -1411,3 +1411,80 @@ exceed 21 hashes (672 B) here. The manifest is about 820 B per segment.
   checkable copy, not a replacement.
 - **Memory.** `verify_archive` holds the whole archive's records in
   memory. `verify_segment` holds one segment.
+
+### Phase E, first item: witness quorums against a split view, model-checked
+
+Witnesses exist so that two readers who accept witnessed histories accept
+consistent ones. Nothing had checked when that holds across witnesses: a
+log operator can show each witness whatever history it likes. It wins if
+two forks of one log are each witnessed by a quorum, because two readers
+then accept two different pasts.
+
+**The model.** `docs/formal/WitnessQuorum.tla` is protocol 7. It has four
+witnesses, a quorum of three, at most one faulty witness, and histories of
+up to three records, each "a" or "b" after the first.
+
+- A witness cosigns a tree only when the tree it holds is a prefix of it.
+- It can lose its state, and the owner can provision it again at the
+  first record.
+- A faulty witness cosigns anything.
+- `witnessed` is every tree a quorum has ever vouched for.
+
+The claim, `NoSplitView`, is that every two witnessed trees are
+consistent. TLC explores 745,361 distinct states and finds no violation,
+and it refutes three broken variants:
+
+- `small_quorum`, a quorum of two, refuted in 4 steps;
+- `no_consistency`, where a witness accepts any tree no shorter than its
+  own, refuted in 6 steps;
+- `loss_uncounted`, where a witness provisioned again is counted honest,
+  refuted in 8 steps, after 1,343,333 states.
+
+**What it found in the code.**
+
+- **AUD-018 (P2, fixed).** `TrustRoot` accepted any quorum from one to n.
+  With a quorum of half the witnesses or fewer, two disjoint groups of
+  honest witnesses can each witness one fork. This was reproduced with
+  four real witnesses and a quorum of two: each reader verified its own
+  fork as witnessed, with no problem. `TrustRoot` now refuses a quorum
+  that is not a majority. `TrustRoot.tolerates` states how many faulty
+  witnesses a quorum survives, 2q - n - 1, which is the condition the
+  model is checked under. No trust root in the repository used a minority
+  quorum.
+- **AUD-019 (P3, owner).** A witness provisioned again after losing its
+  state has forgotten what it cosigned, and cosigns a fork of it. TLC's
+  counterexample, replayed with real witnesses, gives each fork a quorum
+  of three. It took two faulty witnesses, and a quorum of three of four
+  tolerates one. The code cannot see that a witness forgot, so
+  `witness.py` states the rule and the owner counts it.
+
+**Tied to the code** by `tests/test_witness_quorum.py`, which has 15
+tests:
+
+- for each of the 49 pairs of the model's trees, a real `TreeWitness`
+  cosigns exactly when the model's witness does, and holds afterwards
+  what the model's holds;
+- both counterexamples are replayed with real witnesses;
+- `tolerates` is checked for eight configurations;
+- every quorum of half or fewer is refused.
+
+On the unfixed module, 14 of the 15 fail. The one that passes holds
+behaviour that was already right. `tests/test_formal_conformance.py`
+names those tests for `NoSplitView`, as it does for protocols 2 and 4.
+
+**Checks.**
+
+- WQ1 to WQ3 (`tools/mutations/witness_quorum.json`) are each killed.
+- The head and tree witness specifications are still fully killed, 23
+  and 19, and so is the formal record's own specification, 10.
+- `formal_check.py run` reproduces the 29 earlier results unchanged and
+  adds four, 33 in all. It took 3 minutes on this host.
+
+**Not established.**
+
+- Anything outside the finite model: more witnesses, longer histories,
+  or a fault budget other than one.
+- Signatures and hashes, which are assumed: a cosignature is its
+  witness's alone, and equal roots are equal records.
+- How many faults a deployment should tolerate. That is the owner's to
+  choose when independent witnesses are deployed, and none is deployed.

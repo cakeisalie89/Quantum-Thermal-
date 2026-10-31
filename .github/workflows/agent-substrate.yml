@@ -405,7 +405,7 @@ jobs:
               tools/mutations/authority_inventory.json
               tools/mutations/checkpoint_recovery.json
               tools/mutations/claim_hygiene.json
-              tools/mutations/external_models.json
+              tools/mutations/container.json
               tools/mutations/harness_status.json
               tools/mutations/history_time.json
               tools/mutations/repository_content.json
@@ -424,22 +424,24 @@ jobs:
               tools/mutations/memory_trust.json
               tools/mutations/model_check.json
               tools/mutations/mutation_harness.json
+              tools/mutations/performance_telemetry.json
               tools/mutations/proposal_ingress.json
               tools/mutations/scientific_authority_replay.json
               tools/mutations/scientific_invalidation.json
               tools/mutations/signed_append_lifecycle.json
               tools/mutations/test_isolation.json
-              tools/mutations/typecheck_scope.json
               tools/mutations/verified_read_guard.json
           - shard: 3
             specs: >-
               tools/mutations/agent_recovery.json
               tools/mutations/agent_scheduler.json
               tools/mutations/agent_service_authority.json
+              tools/mutations/assurance_graph.json
               tools/mutations/completion_matrix.json
               tools/mutations/generic_consistency.json
               tools/mutations/identity_inventory.json
               tools/mutations/neural_parallel.json
+              tools/mutations/performance_counters.json
               tools/mutations/prov_export.json
               tools/mutations/ranking_equivalence.json
               tools/mutations/reproduction_policy.json
@@ -457,9 +459,9 @@ jobs:
               tools/mutations/agent_toctou.json
               tools/mutations/composed_campaigns.json
               tools/mutations/deployment_evidence.json
+              tools/mutations/external_models.json
               tools/mutations/harness_integrations.json
               tools/mutations/inference_gateway.json
-              tools/mutations/performance_telemetry.json
               tools/mutations/policy_binding.json
               tools/mutations/policy_semantics.json
               tools/mutations/proposal_crash_recovery.json
@@ -475,7 +477,6 @@ jobs:
               tools/mutations/agent_snapshot_coherence.json
               tools/mutations/claim_check.json
               tools/mutations/corpus_allowlist.json
-              tools/mutations/evidence_terms.json
               tools/mutations/formal.json
               tools/mutations/governed_model_reuse.json
               tools/mutations/governed_tasks_authority.json
@@ -486,6 +487,7 @@ jobs:
               tools/mutations/replay_origin_view.json
               tools/mutations/research_science.json
               tools/mutations/second_reader_audit_actions.json
+              tools/mutations/witness_quorum.json
               tools/mutations/witness_tree.json
           - shard: 6
             specs: >-
@@ -498,7 +500,7 @@ jobs:
               tools/mutations/claims_boundary.json
               tools/mutations/decided_appends.json
               tools/mutations/decision_proof.json
-              tools/mutations/enforcement_asserts.json
+              tools/mutations/evidence_terms.json
               tools/mutations/governed_breadth.json
               tools/mutations/governed_model.json
               tools/mutations/neural_accounting.json
@@ -517,7 +519,6 @@ jobs:
               tools/mutations/agent_secrets.json
               tools/mutations/agent_substrate.json
               tools/mutations/archive.json
-              tools/mutations/assurance_graph.json
               tools/mutations/authenticated_history.json
               tools/mutations/ci_authority.json
               tools/mutations/filesystem_confinement.json
@@ -525,8 +526,8 @@ jobs:
               tools/mutations/manifest.json
               tools/mutations/neural_authority.json
               tools/mutations/neural_routing.json
-              tools/mutations/performance_counters.json
               tools/mutations/surface_adsorption.json
+              tools/mutations/typecheck_scope.json
               tools/mutations/verify_assurance.json
           - shard: 8
             specs: >-
@@ -537,7 +538,7 @@ jobs:
               tools/mutations/agent_policy.json
               tools/mutations/agent_readpath.json
               tools/mutations/agent_separate_verify.json
-              tools/mutations/container.json
+              tools/mutations/enforcement_asserts.json
               tools/mutations/execution_containment.json
               tools/mutations/freshness.json
               tools/mutations/fuzz_harness.json

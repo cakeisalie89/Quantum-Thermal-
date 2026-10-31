@@ -83,6 +83,12 @@ FAILURE AND RECOVERY
 * A witness that lost its state refuses that origin until it is
   re-provisioned. It never trusts whatever it is shown first: a witness
   that forgot is a witness an attacker can restart.
+* A witness provisioned again after losing its state has still forgotten
+  what it cosigned, and can be shown a fork of it, which it will cosign.
+  It counts as faulty against :attr:`TrustRoot.tolerates`, and
+  provisioning it again does not change that. TLC finds the split view
+  that results when it is not counted (``docs/formal/WitnessQuorum.tla``,
+  the ``loss_uncounted`` variant).
 * A witness shown a fork or a rollback refuses and keeps its state. The
   refusal is the evidence.
 """
@@ -333,7 +339,18 @@ class Witness:
 
 @dataclass(frozen=True)
 class TrustRoot:
-    """Which witnesses may vouch for which log, and how many must."""
+    """Which witnesses may vouch for which log, and how many must.
+
+    THE QUORUM IS A MAJORITY (AUD-018). A log operator shows each witness
+    whatever history it likes. With a quorum of half the witnesses or
+    fewer, two disjoint quorums can each cosign one of two forks of the
+    same log with every witness honest, and two readers then accept two
+    different pasts. Two majorities always share a witness, and an honest
+    witness never cosigns both sides of a fork, so while every witness is
+    honest a majority quorum witnesses no split view. How many faulty
+    witnesses it survives is :attr:`tolerates`. TLC checks the claim, and
+    refutes the smaller quorum, in ``docs/formal/WitnessQuorum.tla``.
+    """
 
     origin: str
     witnesses: dict            # witness id -> public key (bytes)
@@ -344,6 +361,19 @@ class TrustRoot:
                 or not 1 <= self.quorum <= len(self.witnesses):
             raise WitnessError(f"quorum {self.quorum!r} of "
                                f"{len(self.witnesses)} witness(es)")
+        if 2 * self.quorum <= len(self.witnesses):
+            raise WitnessError(
+                f"a quorum of {self.quorum} of {len(self.witnesses)} "
+                "witnesses is not a majority: two disjoint quorums could "
+                "each witness one fork of the log, every witness honest")
+
+    @property
+    def tolerates(self) -> int:
+        """How many witnesses may be faulty with no split view: two
+        quorums share 2q - n witnesses, and one of those must be honest. A
+        faulty witness cosigns anything, or lost its state and was
+        provisioned again, and so has forgotten what it cosigned."""
+        return 2 * self.quorum - len(self.witnesses) - 1
 
 
 @dataclass

@@ -1149,6 +1149,404 @@
    ],
    "variant": "ignore_withdrawal",
    "violated": "DecidedOnlyWhenFresh"
+  },
+  {
+   "distinct_states": 745361,
+   "expected": "PASS",
+   "loops_to": null,
+   "outcome": "PASS",
+   "spec": "WitnessQuorum",
+   "trace": [],
+   "variant": "none",
+   "violated": null
+  },
+  {
+   "distinct_states": 1064,
+   "expected": "NoSplitView",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "WitnessQuorum",
+   "trace": [
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Init"
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w1",
+      [
+       "g",
+       "a"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w2",
+      [
+       "g",
+       "b"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": [
+       "w3"
+      ]
+     },
+     "last": [
+      "Corrupt",
+      "w3"
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g",
+        "a"
+       ],
+       [
+        "g",
+        "b"
+       ],
+       [
+        "g"
+       ]
+      ]
+     }
+    }
+   ],
+   "variant": "small_quorum",
+   "violated": "NoSplitView"
+  },
+  {
+   "distinct_states": 128382,
+   "expected": "NoSplitView",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "WitnessQuorum",
+   "trace": [
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Init"
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w1",
+      [
+       "g",
+       "a"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w1",
+      [
+       "g",
+       "b"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w2",
+      [
+       "g",
+       "a"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w2",
+      [
+       "g",
+       "b"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": [
+       "w3"
+      ]
+     },
+     "last": [
+      "Corrupt",
+      "w3"
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g",
+        "a"
+       ],
+       [
+        "g",
+        "b"
+       ],
+       [
+        "g"
+       ]
+      ]
+     }
+    }
+   ],
+   "variant": "no_consistency",
+   "violated": "NoSplitView"
+  },
+  {
+   "distinct_states": 1343333,
+   "expected": "NoSplitView",
+   "loops_to": null,
+   "outcome": "VIOLATED",
+   "spec": "WitnessQuorum",
+   "trace": [
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Init"
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w1",
+      [
+       "g",
+       "a"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Lose",
+      "w1"
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Reprovision",
+      "w1"
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w1",
+      [
+       "g",
+       "b"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w2",
+      [
+       "g",
+       "a"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": []
+     },
+     "last": [
+      "Cosign",
+      "w3",
+      [
+       "g",
+       "b"
+      ]
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g"
+       ]
+      ]
+     }
+    },
+    {
+     "faulty": {
+      "$set": [
+       "w4"
+      ]
+     },
+     "last": [
+      "Corrupt",
+      "w4"
+     ],
+     "witnessed": {
+      "$set": [
+       [
+        "g",
+        "a"
+       ],
+       [
+        "g",
+        "b"
+       ],
+       [
+        "g"
+       ]
+      ]
+     }
+    }
+   ],
+   "variant": "loss_uncounted",
+   "violated": "NoSplitView"
   }
  ],
  "schema": "formal-results/1",
@@ -1158,7 +1556,8 @@
   "CrashRetry": "712ad314e406ecfea58209b14d5916e61187271e16645da6007c96c7a369d80a",
   "InferenceBudget": "fcbec324b0a371f40bd7f2330ac44bd2f00bc47a4eeb6d733ef4012ce6d765d5",
   "Invalidation": "9724c39cfdfaf7ae5c1ffc9f891cbec34f74dac25f48e0bf2e3ef647ab806225",
-  "LogAppend": "8bbb26fcbf79173ad42e86872284be5a111636689b45224961a988a4d4a725aa"
+  "LogAppend": "8bbb26fcbf79173ad42e86872284be5a111636689b45224961a988a4d4a725aa",
+  "WitnessQuorum": "1a3b736002e5eb924a92709e2513f3c2906f8af53b11eb230b6bf89e9eff7253"
  },
  "tla2tools": {
   "sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",

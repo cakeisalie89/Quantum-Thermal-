@@ -151,6 +151,18 @@ MODELS: tuple[dict[str, Any], ...] = (
                   "ignore_withdrawal": "DecidedOnlyWhenFresh"},
      "observe": ("version", "withdrawn", "contexts"),
      "simulate": (25, 10)},
+    {"spec": "WitnessQuorum",
+     "constants": {"Witnesses": '{"w1", "w2", "w3", "w4"}', "F": "1",
+                   "Quorum": "3", "SmallQuorum": "2",
+                   "Values": '{"a", "b"}', "MaxLen": "3"},
+     "invariants": ("TypeOK", "NoSplitView"),
+     "properties": (),
+     "deadlock": False,
+     "variants": {"none": PASS, "small_quorum": "NoSplitView",
+                  "no_consistency": "NoSplitView",
+                  "loss_uncounted": "NoSplitView"},
+     "observe": ("faulty", "witnessed"),
+     "simulate": None},
 )
 
 

@@ -13,7 +13,8 @@ implementation, and they are the reason a model here is worth having:
   code does not have the bug the variant has;
 * the protocols too heavy to replay here (concurrent append, governed task
   recovery) are tied to named tests of the implementation that state the
-  same properties, and those tests must exist.
+  same properties, and those tests must exist; so is the witness quorum,
+  whose counterexamples those tests replay with real witnesses.
 
 None of this makes the implementation formally verified. A replayed trace
 shows the code agrees with the model on that trace; the traces are a sample.
@@ -482,6 +483,15 @@ BY_TESTS = {
         "test_recovery_from_each_stage_finishes_once_and_verified",
         "test_proposal_crash_recovery.py::"
         "test_a_lapsed_lease_is_taken_up_as_a_new_attempt"),
+    # Protocol 7: real witnesses accept the model's trees, and its
+    # counterexamples, replayed, are refused or need a fault too many.
+    "WitnessQuorum.NoSplitView": (
+        "test_witness_quorum.py::"
+        "test_a_tree_witness_accepts_exactly_the_trees_the_model_s_does",
+        "test_witness_quorum.py::"
+        "test_a_minority_quorum_let_honest_witnesses_witness_two_forks",
+        "test_witness_quorum.py::"
+        "test_a_reprovisioned_witness_cosigns_a_fork_of_what_it_forgot"),
 }
 
 
