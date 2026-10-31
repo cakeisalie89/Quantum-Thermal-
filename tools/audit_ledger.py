@@ -113,7 +113,12 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/role_authority.json",
                # The campaign's resumption tests and mutations (AUD-013).
                "tests/test_research_horizon_resume.py",
-               "tools/mutations/research_horizon_resume.json")
+               "tools/mutations/research_horizon_resume.json",
+               # The uncertainty layer and the slab's error budget (the
+               # directive's Part VI, item 20).
+               "scientific/uncertainty.py", "tools/slab_uq.py",
+               "tests/test_slab_uq.py", "tools/mutations/slab_uq.json",
+               "docs/assurance/slab_uq.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

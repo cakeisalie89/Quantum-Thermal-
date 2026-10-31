@@ -889,3 +889,51 @@ Commits, in order:
 4. Phase B on this host: an uncertainty budget for the slab model, and a
    portable assurance package with a fail-closed verifier.
 5. The ledger: 935 files are still NOT_REVIEWED.
+
+### Phase B, first item: an error budget for one model (Part VI, item 20)
+
+`scientific/uncertainty.py` is a small layer.
+
+- **Bases.** Each contribution to an output's error states its basis:
+  MEASURED against an independent reference, ESTIMATED from the method's own
+  theory, ASSUMED from declared input distributions, or NOT_ESTABLISHED.
+  The last is listed and never summed.
+- **Combination.** A measurement replaces the estimate it checks in the
+  total, and the estimate is kept and held to it. Contributions are added
+  linearly: a systematic numerical error is not a standard deviation.
+- **Propagation.** Parameter uncertainty is propagated twice, in ways that
+  share no step: linearly through central differences, and by Monte Carlo
+  with a fixed seed. The two are compared at the Monte Carlo standard
+  error.
+
+`tools/slab_uq.py` applies it to the slab's T_at_half at the campaign's
+documented point, and records `docs/assurance/slab_uq.json`:
+
+- **Discretization.** It was measured against the closed-form series at
+  1.1158e-4 K. The model's Richardson estimate, 1.1158e-4 K, falls short of
+  that by a factor of 1.0000343, and the record says
+  ESTIMATE_DOES_NOT_COVER. Richardson's is an estimate, not a bound, and
+  the first draft of this budget had called it a bound.
+- **Parameters.** The declared spreads are illustrative and not measured.
+  The linear standard deviation is 2.293 K and the Monte Carlo one 2.234 K
+  over 1,000 samples, agreeing within three Monte Carlo standard errors. The
+  variance is carried by q (46%), rho c (39%) and T0 (14%).
+- **Statement.** T_at_half = 331.018 +/- 4.24 K. The parametric part is at
+  95% under the declared spreads. Model form and measurement are NOT
+  ESTABLISHED, because no real slab was observed.
+
+`tests/test_slab_uq.py` (15 tests) holds the record to the tool and the
+rules to the layer. CI re-derives the record with `tools/slab_uq.py
+--check`, which refuses a record edited by hand. Two negative controls stand beside them: a reference 2%
+off in conductivity leaves the estimate uncovered by a factor above 10, and
+exp(3x) over a wide spread makes the propagations DIFFER. Mutations SU1 to
+SU8 (`tools/mutations/slab_uq.json`) are each killed.
+
+Not established:
+
+- any physical validity;
+- input distributions that are measured rather than declared;
+- interval-arithmetic or certified bounds;
+- a Bayesian treatment;
+- model discrepancy.
+

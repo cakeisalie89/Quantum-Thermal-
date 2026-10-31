@@ -1,0 +1,214 @@
+{
+ "authority": "NON_AUTHORITATIVE",
+ "budget": {
+  "authority": "NON_AUTHORITATIVE",
+  "contributions": [
+   {
+    "basis": "ESTIMATED",
+    "class": "NUMERICAL",
+    "half_width": 0.00011157768841485449,
+    "method": "Richardson, second order: |T(n=80, m=240) - T(n=40, m=120)| / 3",
+    "name": "discretization",
+    "note": "the model's own estimate, published with the output",
+    "supersedes": null
+   },
+   {
+    "basis": "MEASURED",
+    "class": "NUMERICAL",
+    "half_width": 0.00011158151062318211,
+    "method": "|T(finite volume) - T(eigenfunction series)| at L/2",
+    "name": "discretization_against_the_series",
+    "note": "the estimate estimate does not cover (measured / estimated = 1.0000343)",
+    "supersedes": "discretization"
+   },
+   {
+    "basis": "ESTIMATED",
+    "class": "NUMERICAL",
+    "half_width": 0.0,
+    "method": "terms summed until the next decay factor underflows; the initial condition projected by 64-point Gauss-Legendre quadrature",
+    "name": "series_reference",
+    "note": "taken as beneath the discretization error and not bounded here: the measured difference includes it",
+    "supersedes": null
+   },
+   {
+    "basis": "ESTIMATED",
+    "class": "NUMERICAL",
+    "half_width": 4.704052941982652e-12,
+    "method": "64 eps |T|, the model's own rounding bound",
+    "name": "rounding",
+    "note": "far beneath the discretization error",
+    "supersedes": null
+   },
+   {
+    "basis": "ASSUMED",
+    "class": "PARAMETRIC",
+    "half_width": 4.238096218504268,
+    "method": "Monte Carlo, 1000 samples, seed 20261031: half the central 95% interval",
+    "name": "parameters",
+    "note": "conditional on the declared input spreads, which are illustrative and not measured; the linear propagation is the cross-check",
+    "supersedes": null
+   },
+   {
+    "basis": "NOT_ESTABLISHED",
+    "class": "MODEL_FORM",
+    "half_width": null,
+    "method": "nothing compares the model with a real slab",
+    "name": "model_form",
+    "note": "constant properties, no radiation, uniform heating: the applicability the model declares",
+    "supersedes": null
+   },
+   {
+    "basis": "NOT_ESTABLISHED",
+    "class": "MEASUREMENT",
+    "half_width": null,
+    "method": "no temperature was measured",
+    "name": "measurement",
+    "note": "MODEL_ONLY",
+    "supersedes": null
+   }
+  ],
+  "model": "thermal.slab_transient@1.0.0",
+  "output": "T_at_half",
+  "schema": "error-budget/1",
+  "statement": "T_at_half = 331.018 +/- 4.24 K: the parametric part at 95% under the declared input distributions, the numerical part as measured or estimated, each said which; not established: model_form, measurement",
+  "total": {
+   "combination": "linear sum of every established contribution not replaced by a measurement",
+   "excludes_not_established": [
+    "model_form",
+    "measurement"
+   ],
+   "half_width": 4.238207800019595,
+   "includes": [
+    "discretization_against_the_series",
+    "series_reference",
+    "rounding",
+    "parameters"
+   ],
+   "replaced_by_a_measurement": [
+    "discretization"
+   ]
+  },
+  "unit": "K",
+  "value": 331.01829807256496
+ },
+ "estimate_covers_measured": {
+  "estimate": 0.00011157768841485449,
+  "measured": 0.00011158151062318211,
+  "ratio": 1.0000342560271853,
+  "verdict": "ESTIMATE_DOES_NOT_COVER"
+ },
+ "model": {
+  "id": "thermal.slab_transient",
+  "implementation_digest": "7a890c3eb8489beb67a54a2a27a718c3da1d81e44bcea8a882d1db63bf23f1b6",
+  "version": "1.0.0"
+ },
+ "point": {
+  "L_m": 0.05,
+  "T0_K": 300.0,
+  "T_inf_K": 300.0,
+  "h_W_m2_K": 50.0,
+  "k_W_m_K": 15.0,
+  "n_cells": 80,
+  "n_steps": 240,
+  "q_W_m3": 200000.0,
+  "rho_c_J_m3_K": 3600000.0,
+  "t_end_s": 600.0
+ },
+ "propagation": {
+  "agreement": {
+   "gap": 0.059469462142240914,
+   "monte_carlo_standard_error": 0.04996971438286519,
+   "reading": "the response is close to linear over the declared spread",
+   "std_linear": 2.2930653894082353,
+   "std_monte_carlo": 2.2335959272659944,
+   "verdict": "AGREE_WITHIN_SAMPLING"
+  },
+  "linear": {
+   "assumes": "independent inputs; a response linear over the declared spread",
+   "evaluations": 15,
+   "method": "LINEAR_CENTRAL_DIFFERENCE",
+   "rel_step": 0.001,
+   "rows": [
+    {
+     "coefficient": 53.235764199257574,
+     "parameter": "L_m",
+     "share": 3.368636299700981e-05,
+     "sigma": 0.00025,
+     "variance_part": 0.00017712791186743466
+    },
+    {
+     "coefficient": 0.8591637718222008,
+     "parameter": "T0_K",
+     "share": 0.14038445917823456,
+     "sigma": 1.0,
+     "variance_part": 0.7381623868117507
+    },
+    {
+     "coefficient": 0.14083622817726868,
+     "parameter": "T_inf_K",
+     "share": 0.0037722102624859763,
+     "sigma": 1.0,
+     "variance_part": 0.01983484316719969
+    },
+    {
+     "coefficient": -0.0419443845294154,
+     "parameter": "h_W_m2_K",
+     "share": 0.008364784992153708,
+     "sigma": 5.0,
+     "variance_part": 0.04398328483878655
+    },
+    {
+     "coefficient": -0.01881890743220538,
+     "parameter": "k_W_m_K",
+     "share": 3.788597428910475e-05,
+     "sigma": 0.75,
+     "variance_part": 0.0001992100932798271
+    },
+    {
+     "coefficient": 0.00015509149034073744,
+     "parameter": "q_W_m3",
+     "share": 0.45744939758428294,
+     "sigma": 10000.0,
+     "variance_part": 2.405337037611105
+    },
+    {
+     "coefficient": -7.955227704425422e-06,
+     "parameter": "rho_c_J_m3_K",
+     "share": 0.3899575756455566,
+     "sigma": 180000.0,
+     "variance_part": 2.050454989667952
+    }
+   ],
+   "std": 2.2930653894082353,
+   "value_at_base": 331.01829807256496
+  },
+  "monte_carlo": {
+   "generator": "python random.Random (Mersenne Twister), gauss",
+   "mean": 331.05162105545736,
+   "method": "MONTE_CARLO",
+   "p2_5": 326.6540411849081,
+   "p97_5": 335.13023362191666,
+   "redrawn": 0,
+   "samples": 1000,
+   "seed": 20261031,
+   "std": 2.2335959272659944,
+   "std_standard_error": 0.04996971438286519
+  }
+ },
+ "reference": {
+  "check": "thermal.slab_series",
+  "unit": "K",
+  "value": 331.0184096540756
+ },
+ "schema": "slab-error-budget/1",
+ "spreads": {
+  "L_m": 0.00025,
+  "T0_K": 1.0,
+  "T_inf_K": 1.0,
+  "h_W_m2_K": 5.0,
+  "k_W_m_K": 0.75,
+  "q_W_m3": 10000.0,
+  "rho_c_J_m3_K": 180000.0
+ },
+ "status": "MODEL_ONLY: no physical observation; the parametric interval is conditional on declared spreads"
+}

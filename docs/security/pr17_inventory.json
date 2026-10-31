@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 590,
+   "ADDED": 595,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 58,
-   "LOW": 209,
-   "MEDIUM": 330
+   "LOW": 210,
+   "MEDIUM": 334
   },
   "by_subsystem": {
    "agent-substrate": 32,
    "ai-ingress": 3,
-   "assurance": 127,
+   "assurance": 128,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 58,
+   "evidence": 59,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -28,16 +28,16 @@
    "manifest": 3,
    "packaging": 2,
    "scientific-authority": 2,
-   "scientific-core": 32,
+   "scientific-core": 33,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 185,
-   "tooling": 51,
+   "tests": 186,
+   "tooling": 52,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 622
+  "files": 627
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -2598,6 +2598,19 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/assurance/slab_uq.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/audit/AUDIT_PROGRESS.md",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -3961,6 +3974,7 @@
      "tests/test_scientific_invalidation.py",
      "tests/test_security_findings.py",
      "tests/test_sensitivity_cross_check.py",
+     "tests/test_slab_uq.py",
      "tests/test_stack_registry.py",
      "tests/test_supply_chain.py",
      "tests/test_surface_adsorption.py",
@@ -4094,6 +4108,7 @@
      "tests/test_external_models.py",
      "tests/test_harness_integrations.py",
      "tests/test_scientific_authority_replay.py",
+     "tests/test_slab_uq.py",
      "tests/test_surface_adsorption.py"
     ]
    }
@@ -4185,7 +4200,8 @@
      "tools/mutations/harness_integrations.json"
     ],
     "tests": [
-     "tests/test_harness_integrations.py"
+     "tests/test_harness_integrations.py",
+     "tests/test_slab_uq.py"
     ]
    }
   },
@@ -4679,6 +4695,23 @@
     ],
     "tests": [
      "tests/test_sensitivity_cross_check.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "scientific/uncertainty.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "scientific-core",
+   "trust_boundary": "model execution, identity, results",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/slab_uq.json"
+    ],
+    "tests": [
+     "tests/test_slab_uq.py"
     ]
    }
   },
@@ -8062,6 +8095,21 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_slab_uq.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_stack_registry.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -10513,6 +10561,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/slab_uq.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/stress_campaign_coverage.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -10891,6 +10952,23 @@
     ],
     "tests": [
      "tests/test_ro_crate_conformance.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/slab_uq.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/slab_uq.json"
+    ],
+    "tests": [
+     "tests/test_slab_uq.py"
     ]
    }
   },
