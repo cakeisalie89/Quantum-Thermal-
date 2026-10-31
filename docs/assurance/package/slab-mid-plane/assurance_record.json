@@ -1,0 +1,264 @@
+{
+ "assumptions": [
+  "conduction in one dimension, with k and rho_c constant",
+  "a uniform volumetric source q",
+  "an insulated face at x = 0 and convection with a constant h at x = L, with no radiation",
+  "a uniform initial temperature T0",
+  "the inputs are exact at the documented point; the budget's parametric part is conditional on declared, illustrative spreads"
+ ],
+ "authority": "NON_AUTHORITATIVE",
+ "authorization": {
+  "decisions": [
+   {
+    "action": "record.transition",
+    "actor": "model-result-reviewer",
+    "hash": "0446c3096844e42a96bb9570d894059d1694a48fc05666e6c1c6918bf32de8ed",
+    "name": "verified",
+    "outcome": "VERIFIED",
+    "proof": "decision_proof_verified",
+    "role": "VERIFIER",
+    "seq": 74
+   },
+   {
+    "action": "research.status",
+    "actor": "research-controller",
+    "hash": "434a2f00cf2ffb85245a906758e527ef529683248b965480632d52fe7fcd4f4c",
+    "name": "supported",
+    "outcome": "SUPPORTED",
+    "proof": "decision_proof_supported",
+    "seq": 76
+   }
+  ],
+  "final_state": "VERIFIED",
+  "result_record": {
+   "created_seq": 49,
+   "kind": "scientific_result",
+   "proposer": "ai-researcher",
+   "record_id": "result-task-393c55c2586b"
+  },
+  "roles": "NOT_ESTABLISHED: the producing run carried no role registry, so whether each decider was entitled to decide is not recorded; no registry is provisioned for production (an owner decision)"
+ },
+ "error_budget": {
+  "evidence": "error_budget",
+  "statement": "T_at_half = 331.018 +/- 4.24 K: the parametric part at 95% under the declared input distributions, the numerical part as measured or estimated, each said which; not established: model_form, measurement",
+  "total_half_width": 4.238207800019595
+ },
+ "establishment": {
+  "EXPERIMENTALLY_VALIDATED": "NOT_RUN: no temperature of a real slab was observed",
+  "FORMALLY_PROVED": "NOT_RUN: no proof exists",
+  "INDEPENDENTLY_REPRODUCED": "NOT_ESTABLISHED: no party but the producer has run the verifier on this package; a reader who runs it holds their own evidence, which this record does not claim",
+  "MODEL_ASSESSED": "NOT_RUN: every proposal came from a scripted agent; no language model assessed anything",
+  "NUMERICALLY_VERIFIED": "CLAIMED: an independent method-of-lines check passed, and the closed-form series measured the discretization; the verifier re-derives the agreement"
+ },
+ "evidence": {
+  "decision_proof_supported": "aa3e9e91c065bd7ee39135498f60ccd902736078336b4a4a30cea69c45d65314",
+  "decision_proof_verified": "c70c252333a716ba19e5a209c6e54f938901dd6536c65e955d95532961bea899",
+  "error_budget": "e3e5ff16b842264d58f9f5d39d2a67a7cd55d2aa670868385612b60acfa7943a",
+  "result_bundle": "1478106d59e554c53c967b64aeb7a5ebc83b5b8a0012ab6ca70881123281513f",
+  "run_identity": "61065aee364df9e2aefe9cc05717765f7b9a3a3282738724a409d4d5d0f6528e",
+  "temperature_field": "f73b33685d13ca2dc15c2f1220d9807546eb58390b115f6a33a740623d111dac",
+  "verification_report": "d2f18cfd84692c23dea27c381cea20578ed43d0fcf791b064315619f71aca3fd"
+ },
+ "formal": {
+  "reason": "no machine-checked proof of any statement here exists: the Lean toolchain was not permitted to execute where this was produced, an owner decision that is pending",
+  "status": "NOT_RUN"
+ },
+ "history": {
+  "anchored_by": "nothing outside this package: compare the head with one obtained independently (--expect-head)",
+  "events": 85,
+  "head": {
+   "hash": "8291afe7832b632a45406a36f7bf426bb9b54ac590765934fa8e04006f640902",
+   "seq": 84
+  },
+  "log": "history/log.jsonl"
+ },
+ "hypothesis": {
+  "hypothesis_id": "h1",
+  "prediction": {
+   "model_id": "thermal.slab_transient",
+   "op": "<",
+   "quantity": "T_at_half",
+   "unit": "K",
+   "value": 1000.0
+  },
+  "proposed_by": "ai-researcher",
+  "statement": "the mid-plane temperature stays < 1000.0 K at the documented point"
+ },
+ "independent_checks": [
+  {
+   "check_id": "thermal.slab_method_of_lines",
+   "establishes": "INDEPENDENT_NUMERICAL_AGREEMENT",
+   "evidence": "verification_report",
+   "independence": "DIFFERENT_DISCRETIZATION",
+   "run_by": "the producer's governed check task, verified separately before the reviewer decided",
+   "status": "PASS"
+  },
+  {
+   "check_id": "thermal.slab_series",
+   "establishes": "the model's discretization error at the point, against the closed-form series",
+   "evidence": "error_budget",
+   "run_by": "tools/slab_uq.py",
+   "status": "MEASURED"
+  },
+  {
+   "check_id": "verify_assurance.exact_solution",
+   "establishes": "agreement with the verifier's own closed-form solution, and the verdict it gives",
+   "evidence": null,
+   "run_by": "whoever runs the verifier: the result is in their report, never in this record",
+   "status": "RUN_BY_THE_VERIFIER"
+  }
+ ],
+ "inputs": {
+  "L_m": {
+   "unit": "m",
+   "value": 0.05
+  },
+  "T0_K": {
+   "unit": "K",
+   "value": 300.0
+  },
+  "T_inf_K": {
+   "unit": "K",
+   "value": 300.0
+  },
+  "h_W_m2_K": {
+   "unit": "W m^-2 K^-1",
+   "value": 50.0
+  },
+  "k_W_m_K": {
+   "unit": "W m^-1 K^-1",
+   "value": 15.0
+  },
+  "n_cells": {
+   "unit": "1",
+   "value": 80
+  },
+  "n_steps": {
+   "unit": "1",
+   "value": 240
+  },
+  "q_W_m3": {
+   "unit": "W m^-3",
+   "value": 200000.0
+  },
+  "rho_c_J_m3_K": {
+   "unit": "J m^-3 K^-1",
+   "value": 3600000.0
+  },
+  "t_end_s": {
+   "unit": "s",
+   "value": 600.0
+  }
+ },
+ "mathematical_statement": {
+  "discretization": "the model: cell-centred finite volume with Crank-Nicolson in time, at n_cells and n_steps; samples interpolated linearly between cell centres",
+  "equations": [
+   "rho_c dT/dt = k d2T/dx2 + q, for 0 < x < L and t > 0",
+   "dT/dx = 0 at x = 0: the face is insulated (the slab's symmetry plane)",
+   "-k dT/dx = h (T - T_inf) at x = L: convection to the surroundings",
+   "T = T0 at t = 0, everywhere"
+  ],
+  "exact_solution": "T = T_s(x) + sum_n c_n exp(-k t z_n^2 / (rho_c L^2)) cos(z_n x / L), T_s = T_inf + q L / h + q (L^2 - x^2) / (2 k), z_n tan z_n = h L / k, c_n the projection of T0 - T_s on cos(z_n x / L)",
+  "output": "T_at_half = T(L/2, t_end)",
+  "problem": "slab-1d-insulated-convective/1"
+ },
+ "model": {
+  "implementation_digest": "7a890c3eb8489beb67a54a2a27a718c3da1d81e44bcea8a882d1db63bf23f1b6",
+  "method": "cell-centred finite volume, Crank-Nicolson",
+  "model_id": "thermal.slab_transient",
+  "model_version": "1.0.0"
+ },
+ "not_established": [
+  {
+   "id": "PACKAGE_ORIGIN",
+   "why": "that this is the package that was published: a package anyone assembled consistently passes every level. Supply --expect-package-digest, obtained independently of the package."
+  },
+  {
+   "id": "HISTORY_ANCHORED",
+   "why": "that the history is the producer's whole history and not a consistent rewrite: the chain binds its records to one another, not to anything outside. Supply --expect-head from an independent witness."
+  },
+  {
+   "id": "PRODUCER_EXECUTION",
+   "why": "that the producer's processes did what the log records: the log is the producer's statement, chained and unsigned."
+  },
+  {
+   "id": "MODEL_IMPLEMENTATION",
+   "why": "that the code at the stated implementation digest computed the bundle: re-running it needs the producer's source."
+  },
+  {
+   "id": "ROLE_ENTITLEMENT",
+   "why": "that the deciding parties were entitled to decide: the producing run carried no role registry, and none is provisioned for production."
+  },
+  {
+   "id": "FORMAL_PROOF",
+   "why": "any machine-checked proof: the package carries none."
+  },
+  {
+   "id": "PHYSICAL_VALIDITY",
+   "why": "that the equations describe any real slab: no temperature of one was observed."
+  },
+  {
+   "id": "INPUT_DISTRIBUTIONS",
+   "why": "that the declared input spreads are right: they are declared, not measured."
+  },
+  {
+   "id": "PRODUCER_TOOLCHAIN",
+   "why": "the producer's interpreter, libraries and machine: the bundle states them, and nothing here can see them."
+  },
+  {
+   "id": "WALL_TIMES",
+   "why": "when anything happened: the times in the log are the producer's clock."
+  },
+  {
+   "id": "HISTORY_SEMANTICS",
+   "why": "what the history's other records mean: the verifier reads the objective, the hypothesis, the result's creation and transitions, the captured evidence, the observation and the hypothesis's statuses. Every other record is chained and not interpreted."
+  }
+ ],
+ "package_id": "slab-mid-plane",
+ "question": {
+  "asked_by": "owner",
+  "objective_id": "slab-q",
+  "registered_seq": 12,
+  "statement": "does T_at_half stay below 1000 K at the documented point?"
+ },
+ "reproduction": [
+  "1. Obtain the package: the directory docs/assurance/package/slab-mid-plane of the repository at a commit you trust, and tools/verify_assurance.py from that commit or another you trust.",
+  "2. Verify its integrity and origin: python3 -I verify_assurance.py PACKAGE --expect-package-digest DIGEST, with DIGEST the sha256 of SHA256SUMS as your trusted channel gives it.",
+  "3. Identify its dependencies: verifying needs only Python 3 and its standard library. Re-running the model needs the repository at a commit whose model closure digests to the record's implementation_digest, with its locked environment (uv sync).",
+  "4. Run the independent check: the verifier's RECHECK level solves the stated equations in closed form and reports what it measured.",
+  "5. Inspect the assumptions: the record's mathematical_statement and assumptions, the budget's contributions and the check's limitations (evidence files named in the record).",
+  "6. Confirm the authority decision: the verifier's DECISION level; with the repository, python tools/assurance_package.py --check also re-runs the model at the recorded inputs.",
+  "7. Corrupt an artifact and observe the refusal: change one byte of any file of a copy and run the verifier again; it refuses at INTEGRITY and names the file."
+ ],
+ "results": {
+  "T_at_half": {
+   "resolution": 0.00011157768841485449,
+   "resolution_basis": "Richardson, second order: |T(n=80, m=240) - T(n=40, m=120)| / 3",
+   "unit": "K",
+   "value": 331.01829807256496
+  }
+ },
+ "schema": "scientific-assurance-record/1",
+ "toolchain": {
+  "distributions": {
+   "numpy": "2.4.4",
+   "scipy": "1.17.1"
+  },
+  "environment_digest": "396f302a8d71df677ba2e15b1a566050117839a1ba2b2bc0af13b520b6ff8448",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "python": "3.12.3",
+  "stated_by": "producer"
+ },
+ "trust_roots": [
+  "the verifier, tools/verify_assurance.py, obtained independently of this package, from the repository at a commit you trust; this package does not carry it",
+  "a Python 3 interpreter and its standard library",
+  "for the package's origin: the sha256 of SHA256SUMS, obtained from a channel independent of the package, such as the repository's history at a commit you trust; the package is not signed, because signing needs an identity only the owner can provision",
+  "for the history: a head (seq and hash) from a witness independent of the producer; none is offered here"
+ ],
+ "verifier": {
+  "obtain": "from the repository at a commit you trust; never from this package, which does not carry it",
+  "program": "tools/verify_assurance.py",
+  "version": 1
+ }
+}

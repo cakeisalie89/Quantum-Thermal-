@@ -1,0 +1,75 @@
+{
+ "accepted": true,
+ "decision": {
+  "action": "record.transition",
+  "actor": "model-result-reviewer",
+  "hash": "0446c3096844e42a96bb9570d894059d1694a48fc05666e6c1c6918bf32de8ed",
+  "kind": "record",
+  "outcome": "VERIFIED",
+  "role": "VERIFIER",
+  "seq": 74,
+  "subject": "result-task-393c55c2586b"
+ },
+ "evidence_held": {
+  "result_bundle": true,
+  "run_identity": true,
+  "verification_report": true
+ },
+ "execution": {
+  "capabilities": [
+   "cap-a96fc111",
+   "cap-read-92e4ce1f",
+   "cap-reverify-ad946bf0"
+  ],
+  "captured_seq": 39,
+  "executor": "stage10-worker",
+  "proposal": {
+   "agent_id": "ai-researcher",
+   "bound_by": "ai-researcher",
+   "context": {
+    "manifest_digest": "aa52402586429523581fa75fc814992cbe692e5ae527f34cb4f0fb3247c3a15d",
+    "policy_identity": "research.default@1",
+    "policy_in_force": true,
+    "recorded_seq": 20
+   },
+   "envelope_digest": "79cc18fef2c42e3f80767bed424584adbf2eb2f05d8f542d90a811f55d8e4e30",
+   "inference": {
+    "attempt": 1,
+    "budget_id": "research",
+    "granted": true,
+    "outcome": "OK",
+    "request_id": "infer-e022f93bc21c00665be1c153dae35bc0c9df874329ff616d601dfdb6fdccc090",
+    "reserve_seq": 21
+   },
+   "kind": "MODEL_RUN",
+   "proposal_id": "prop-7aace39ca0779ff0f3521ee19eadd3c6e5ca15312f323675d8463d3715eba572",
+   "received_seq": 24
+  },
+  "task_id": "task-393c55c2586b",
+  "task_verifier": "stage10-verifier"
+ },
+ "head": {
+  "hash": "2658f1c215226d1b677ff6c2ef79ff96d8ab7f094d915a2f765e97858f62ddd1",
+  "seq": 73
+ },
+ "record": {
+  "admission": "ADMITTED",
+  "created_seq": 49,
+  "depends_on": {},
+  "evidence": {
+   "result_bundle": "1478106d59e554c53c967b64aeb7a5ebc83b5b8a0012ab6ca70881123281513f",
+   "run_identity": "61065aee364df9e2aefe9cc05717765f7b9a3a3282738724a409d4d5d0f6528e",
+   "verification_report": "d2f18cfd84692c23dea27c381cea20578ed43d0fcf791b064315619f71aca3fd"
+  },
+  "kind": "scientific_result",
+  "policy_id": "stage10.governed",
+  "proposer": "ai-researcher",
+  "record_id": "result-task-393c55c2586b"
+ },
+ "schema": "decision-proof/1",
+ "separation_of_duties": {
+  "decider": "model-result-reviewer",
+  "distinct": true,
+  "proposer": "ai-researcher"
+ }
+}

@@ -118,7 +118,15 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                # directive's Part VI, item 20).
                "scientific/uncertainty.py", "tools/slab_uq.py",
                "tests/test_slab_uq.py", "tools/mutations/slab_uq.json",
-               "docs/assurance/slab_uq.json")
+               "docs/assurance/slab_uq.json",
+               # The portable assurance package, its build and its
+               # standalone verifier (Part X, item 34; Part XI, items 35
+               # and 36).
+               "tools/verify_assurance.py", "tools/assurance_package.py",
+               "tests/test_assurance_package.py",
+               "tests/test_assurance_package_build.py",
+               "tools/mutations/verify_assurance.json",
+               "docs/assurance/package/*")
 
 #: (glob, kind). First match wins.
 KINDS = (

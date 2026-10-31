@@ -36,6 +36,12 @@ PKG = ROOT / "agent_substrate"
 #: that matters is unchanged -- nothing that computes a scientific result may
 #: appear in this set.
 ALLOWED_IMPORTERS = {
+    # The portable assurance package's build (Part X, item 34). It drives
+    # the adversarial evaluation's legitimate run of the governed path and
+    # asks the second reader for its decision proofs. It computes no gate,
+    # and its scientific result comes from scientific.models, decided by
+    # the store like any other.
+    "tools/assurance_package.py",
     # A verification tool, not a test: it fuzzes every parser in the package
     # and therefore has to import them. It computes nothing.
     "tools/fuzz_substrate.py",

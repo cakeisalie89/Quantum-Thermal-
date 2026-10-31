@@ -937,3 +937,144 @@ Not established:
 - a Bayesian treatment;
 - model discrepancy.
 
+
+### Hosted CI at 2497d87
+
+Every workflow run at 2497d87 succeeded, on both push and pull_request:
+agent-substrate (the full suite, the eight mutation shards, the second
+interpreter and the dispatch-sensitivity job), stack-verify,
+harness-integrations, supply-chain and container-verify. It is the first
+hosted run to cover 824a514 (the role registry), c7c0ce9, 22dacc3 (the
+campaign's resumption), bbf58f2 and 2497d87 (the error budget).
+
+The readiness rows CI-4 and SUB-1 to SUB-4 stay IMPLEMENTED. `tools/
+readiness.py attach` re-fetches every run itself with `gh api` and digests
+the rows' files from the commit's tree, so that the party attaching cannot
+assert the evidence. The `gh` token in this session is invalid, so the tool
+cannot fetch, and the runs were not attached through another channel.
+CI-4's implementation also includes the workflow that the next commit
+changes, so CI-4 could be attached only from a run of that commit.
+
+### Phase B, second item: a portable assurance package (Part X, item 34; Part XI, items 35 and 36)
+
+**What is packaged.** One governed answer to the owner's question, "does
+T_at_half stay below 1000 K at the documented point?". It is the run that
+the adversarial evaluation already calls legitimate: the scripted agent's
+model run on the governed path, its independent method-of-lines check, the
+reviewer's VERIFIED decision and the research ledger's SUPPORTED verdict.
+Beside it are the slab's error budget and the second reader's proofs of
+both decisions (decision-proof/1).
+`docs/assurance/package/slab-mid-plane/` (152 KB) holds:
+
+- the record (`scientific-assurance-record/1`), which states the question,
+  the hypothesis, the equations, the assumptions, the model, the inputs
+  with their units, the results, the budget, the checks, the decisions,
+  the history's head, the trust roots and the gaps;
+- a guide (`README.md`) that follows the directive's seven reproduction
+  steps;
+- the run's 85-record event log;
+- seven evidence files, each named by its digest;
+- `SHA256SUMS`.
+
+`tools/assurance_package.py --write` builds it from a fresh run. It keeps
+the package only if the verifier accepts it in a process of its own.
+
+**The verifier.** `tools/verify_assurance.py` imports the standard library
+and nothing else. It refuses to run from inside a package. It holds a
+package at five levels, each needing the one before:
+
+- INTEGRITY: every file is exactly the one SHA256SUMS lists, nothing is
+  missing, added or linked, and evidence is named by its digest;
+- CONSISTENCY: the record and the evidence say the same things, and the
+  record claims nothing the package cannot carry and names every gap;
+- HISTORY: the log is one canonical hash chain, ending at the stated head;
+- DECISION: the question, the hypothesis, the proposal, the separate
+  verification, the observation and the verdict are in that history as
+  reported, cite exactly this package's evidence, and still stand at the
+  head. The producer's proofs are about these same records.
+- RECHECK: the verifier solves the slab equations itself, in closed form.
+  It integrates the eigenfunction coefficients exactly and finds the
+  eigenvalues by bracketed Newton iteration. The producer's series check
+  uses quadrature and bisection instead.
+
+At RECHECK, on the committed package:
+
+- **Exact solution.** T(L/2) = 331.0184097 K.
+- **The model against it.** It differs by 1.12e-4 K, within three times its
+  own estimate. Its whole 80-cell final profile is within 2.6e-5 K.
+- **The parametric spread.** It is re-derived from the same declared draws,
+  propagated through the exact solution instead of the model. The
+  half-width agrees with the recorded one to 1.3e-5 K, against a tolerance
+  of 3.35e-4 K (three times the measured discretization).
+- **The verdict.** The hypothesis is re-evaluated: SUPPORTED, with a margin
+  of 669 K.
+
+The claim's verdict therefore does not rest on the producer's model, but on
+the verifier's own solution of the stated equations. That is a statement
+about the equations, not about any real slab.
+
+**What it cannot establish.** It lists these on every run, and refuses a
+record that leaves one out. There are eleven:
+
+- PACKAGE_ORIGIN and HISTORY_ANCHORED, which an operator can supply with
+  `--expect-package-digest` and `--expect-head`;
+- PRODUCER_EXECUTION;
+- MODEL_IMPLEMENTATION;
+- ROLE_ENTITLEMENT;
+- FORMAL_PROOF;
+- PHYSICAL_VALIDITY;
+- INPUT_DISTRIBUTIONS;
+- PRODUCER_TOOLCHAIN;
+- WALL_TIMES;
+- HISTORY_SEMANTICS.
+
+**The controls.** `--check` runs these in CI.
+
+- **Currency.** The package is held to the code as it is: the model's and
+  the check's implementation digests, the committed budget, and a fresh
+  run of the model at the recorded inputs.
+- **Changed bytes.** One byte changed in any of the 11 files is refused at
+  INTEGRITY, and the refusal names the file.
+- **Consistent forgeries.** Each rewrites every digest, every hash and
+  SHA256SUMS.
+  - The temperature moved by 0.01 K is refused at RECHECK.
+  - The proposer verifying its own result is refused at DECISION.
+  - A forgery that changes nothing passes every level. It is refused only
+    against the honest package digest, obtained independently.
+- **What that shows.** Consistency is not origin, and the guide says so.
+
+CI runs the verifier a second way too: with the runner's own interpreter,
+`python3 -I`, outside the project's environment.
+
+**Tests.**
+
+- `tests/test_assurance_package.py` has 130 tests. Each corruption is
+  refused at the level and the check that should catch it and at no
+  earlier one, and every later level is NOT_REACHED.
+- `tests/test_assurance_package_build.py` builds a fresh package and holds
+  it to the committed one.
+- The mutations are VA1 to VA102 (`tools/mutations/verify_assurance.json`),
+  one per rule of the verifier. All 102 are killed, each by a test aimed at
+  that rule.
+
+**Defects found in this work, before commit.**
+
+- The verifier first read the JSON number `1e400` as infinity, because
+  `parse_constant` never sees it. Such numbers are now refused.
+- Two of the verifier's branches could never run: an empty manifest is
+  already refused for its missing newline, and an empty log for the same
+  reason. They were removed rather than kept as checks no test can reach.
+- The first test of an oversized propagation would have had a mutant
+  compute a million samples before failing. It now asks for 20,001.
+
+**Not established.**
+
+- Reproduction by anyone but the producer.
+- The package's origin. It is not signed: signing needs an identity that
+  only the owner can provision.
+- Whether the deciders were entitled to decide: the run had no role
+  registry.
+- The model re-run offline: that needs the source, and `--check` re-runs it
+  only with the repository.
+- What the history's other records mean.
+- Any physical validity.

@@ -133,6 +133,9 @@ AREAS = (
     ("tests/*", "TESTS"),
     # the TLA+ models, their record and their simulated traces (Assurance B)
     ("docs/formal/*", "SOFTWARE_ASSURANCE"),
+    # portable scientific assurance packages (tools/assurance_package.py):
+    # a record, a guide, a run's event log and its evidence by digest
+    ("docs/assurance/package/*", "SCIENTIFIC_ASSURANCE_PACKAGE"),
     ("docs/neural/dev/*", "LEARNED_MODEL_EVIDENCE"),
     ("docs/neural/*", "LEARNED_MODEL_SPECIFICATION"),
     ("docs/*.json", "REGISTRY_OR_DERIVED_STATUS"),

@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 595,
+   "ADDED": 611,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 58,
-   "LOW": 210,
-   "MEDIUM": 334
+   "LOW": 212,
+   "MEDIUM": 348
   },
   "by_subsystem": {
    "agent-substrate": 32,
    "ai-ingress": 3,
-   "assurance": 128,
+   "assurance": 129,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 24,
-   "evidence": 59,
+   "evidence": 70,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 186,
-   "tooling": 52,
+   "tests": 188,
+   "tooling": 54,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 627
+  "files": 643
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -367,6 +367,7 @@
      "tests/test_agent_fuzz.py",
      "tests/test_agent_governed_breadth.py",
      "tests/test_agent_retrieval.py",
+     "tests/test_assurance_package.py",
      "tests/test_completion_matrix.py",
      "tests/test_stack_registry.py",
      "tests/test_supply_chain.py"
@@ -2583,6 +2584,149 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/README.md",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/SHA256SUMS",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/assurance_record.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/1478106d59e554c53c967b64aeb7a5ebc83b5b8a0012ab6ca70881123281513f",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/61065aee364df9e2aefe9cc05717765f7b9a3a3282738724a409d4d5d0f6528e",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/aa3e9e91c065bd7ee39135498f60ccd902736078336b4a4a30cea69c45d65314",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/c70c252333a716ba19e5a209c6e54f938901dd6536c65e955d95532961bea899",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/d2f18cfd84692c23dea27c381cea20578ed43d0fcf791b064315619f71aca3fd",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/e3e5ff16b842264d58f9f5d39d2a67a7cd55d2aa670868385612b60acfa7943a",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/f73b33685d13ca2dc15c2f1220d9807546eb58390b115f6a33a740623d111dac",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/history/log.jsonl",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/assurance/research_horizon_results.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -3924,6 +4068,7 @@
      "tests/test_agent_result_rules.py",
      "tests/test_agent_retrieval.py",
      "tests/test_agent_substrate_isolation.py",
+     "tests/test_assurance_package.py",
      "tests/test_backend_identity.py",
      "tests/test_claim_check.py",
      "tests/test_claim_hygiene.py",
@@ -4105,6 +4250,7 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_agent_result_rules.py",
+     "tests/test_assurance_package.py",
      "tests/test_external_models.py",
      "tests/test_harness_integrations.py",
      "tests/test_scientific_authority_replay.py",
@@ -4200,6 +4346,7 @@
      "tools/mutations/harness_integrations.json"
     ],
     "tests": [
+     "tests/test_assurance_package.py",
      "tests/test_harness_integrations.py",
      "tests/test_slab_uq.py"
     ]
@@ -6344,6 +6491,36 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_assurance_package.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_assurance_package_build.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_assurance_package_build.py",
+   "risk": "LOW",
+   "runtime_dependencies": [],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_audit_ledger.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8369,6 +8546,23 @@
      "tests/test_integration_demo.py",
      "tests/test_research_horizon_resume.py",
      "tests/test_research_science.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/assurance_package.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_assurance_package.py",
+     "tests/test_assurance_package_build.py"
     ]
    }
   },
@@ -10693,6 +10887,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/verify_assurance.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/witness.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -11082,6 +11289,24 @@
     "findings": [],
     "mutation_specs": [],
     "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/verify_assurance.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/verify_assurance.json"
+    ],
+    "tests": [
+     "tests/test_assurance_package.py",
+     "tests/test_assurance_package_build.py"
+    ]
    }
   },
   {

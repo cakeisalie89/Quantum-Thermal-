@@ -1,0 +1,107 @@
+{
+ "accepted": true,
+ "basis": [
+  {
+   "bundle_held": true,
+   "freshness": "HISTORICAL",
+   "observation_id": "obs-slab-q-2",
+   "record_id": "result-task-393c55c2586b",
+   "record_state": "VERIFIED",
+   "result_bundle": "1478106d59e554c53c967b64aeb7a5ebc83b5b8a0012ab6ca70881123281513f",
+   "values": {
+    "T_at_0": {
+     "resolution": 0.00010662129094877552,
+     "unit": "K",
+     "value": 331.5453069983014
+    },
+    "T_at_L": {
+     "resolution": 0.00012597679307191356,
+     "unit": "K",
+     "value": 329.29416109740384
+    },
+    "T_at_half": {
+     "resolution": 0.00011157768841485449,
+     "unit": "K",
+     "value": 331.01829807256496
+    },
+    "T_at_quarter": {
+     "resolution": 0.00010786777998343193,
+     "unit": "K",
+     "value": 331.41580187355214
+    },
+    "T_at_three_quarter": {
+     "resolution": 0.00011766268816397012,
+     "unit": "K",
+     "value": 330.3259184704682
+    },
+    "energy_in": {
+     "resolution": 1.7053025658242404e-06,
+     "unit": "J m^-2",
+     "value": 6000000.0
+    },
+    "energy_out": {
+     "resolution": 1.7053025658242404e-06,
+     "unit": "J m^-2",
+     "value": 452315.37119238277
+    },
+    "energy_relative_residual": {
+     "resolution": 1e-09,
+     "unit": "1",
+     "value": 3.194436430931091e-13
+    },
+    "stored_energy_change": {
+     "resolution": 1.7053025658242404e-06,
+     "unit": "J m^-2",
+     "value": 5547684.628805701
+    }
+   }
+  }
+ ],
+ "decision": {
+  "action": "research.status",
+  "actor": "research-controller",
+  "hash": "434a2f00cf2ffb85245a906758e527ef529683248b965480632d52fe7fcd4f4c",
+  "kind": "research",
+  "outcome": "SUPPORTED",
+  "seq": 76,
+  "subject": "h1"
+ },
+ "head": {
+  "hash": "5bd2d0b03addef7f72e385f46078b68844b5ea75d965a863553a5e179be7441c",
+  "seq": 75
+ },
+ "hypothesis": {
+  "hypothesis_id": "h1",
+  "prediction": {
+   "model_id": "thermal.slab_transient",
+   "op": "<",
+   "quantity": "T_at_half",
+   "unit": "K",
+   "value": 1000.0
+  },
+  "proposal_id": "prop-595b48769c5902a7ef1852d44e91e844c62590d19d5d0571e956e6a91ca8bd68",
+  "proposed_by": "ai-researcher"
+ },
+ "proposal": {
+  "agent_id": "ai-researcher",
+  "context": {
+   "manifest_digest": "bf6b0e61b4dc767fcb0307beae4590cac5b49fa2a2ce1a466ea582d1ec77adad",
+   "policy_identity": "research.default@1",
+   "policy_in_force": true,
+   "recorded_seq": 13
+  },
+  "envelope_digest": "b8246f36e3b3c05ade36e7072739132954cce77a15cafcf8ad5606ba190893d4",
+  "inference": {
+   "attempt": 1,
+   "budget_id": "research",
+   "granted": true,
+   "outcome": "OK",
+   "request_id": "infer-64ebd8038cbf4ba4579c511082a82669a499860e8c53b3fd20babcd0ed949369",
+   "reserve_seq": 14
+  },
+  "kind": "HYPOTHESIS",
+  "proposal_id": "prop-595b48769c5902a7ef1852d44e91e844c62590d19d5d0571e956e6a91ca8bd68",
+  "received_seq": 17
+ },
+ "schema": "decision-proof/1"
+}
