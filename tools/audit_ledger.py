@@ -110,7 +110,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                # The role registry, written by the audit as the remediation
                # of AUD-011 and AUD-017: not independently reviewed.
                "agent_substrate/roles.py", "tests/test_role_authority.py",
-               "tools/mutations/role_authority.json")
+               "tools/mutations/role_authority.json",
+               # The campaign's resumption tests and mutations (AUD-013).
+               "tests/test_research_horizon_resume.py",
+               "tools/mutations/research_horizon_resume.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

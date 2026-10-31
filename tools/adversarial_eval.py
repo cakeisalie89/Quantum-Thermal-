@@ -154,11 +154,20 @@ class World:
     """One log, its stores, the owner's objective and the two agents."""
 
     def __init__(self, name: str, script: Callable, *, redact=(),
-                 calls: int = 50, clock: Callable = time.time):
+                 calls: int = 50, clock: Callable = time.time,
+                 resume: bool = False):
         self.base = ROOT / WS / name
-        if self.base.exists():
-            shutil.rmtree(self.base)
-        self.base.mkdir(parents=True)
+        if resume:
+            # The world a stopped process left, opened as it is: nothing
+            # deleted, and the bootstrap below not written a second time
+            # (AUD-013). What it holds is the log's to say.
+            if not (self.base / "log.jsonl").exists():
+                raise FileNotFoundError(
+                    f"no world {name!r} to resume at {self.base}")
+        else:
+            if self.base.exists():
+                shutil.rmtree(self.base)
+            self.base.mkdir(parents=True)
         self.ws = f"{WS}/{name}"
         self.script = script
         #: the gateway's clock: leases and their recovery are judged on it
@@ -167,6 +176,19 @@ class World:
         self.redactor = Redactor({f"s{i}": v for i, v in enumerate(redact)})
         log = self.log = EventLog(self.base / "log.jsonl")
         self.evidence = EvidenceStore(self.base / "evidence")
+        if not resume:
+            self._bootstrap(log, calls)
+        self.memory = MemoryStore(log, evidence=self.evidence).load()
+        self.ingress = PR.ProposalIngress(
+            log, inference_check=self.gateway().binding_problems)
+        self.sources: Callable | None = None
+        #: the model contracts a deployment offers; the evaluation offers
+        #: none, so each scenario meets the loop's own refusals
+        self.contracts: list | None = None
+
+    def _bootstrap(self, log, calls: int) -> None:
+        """The parties, the policy, the budget and the objective, written
+        once, when the world is made."""
         g = GovernedModelRuns(root=ROOT, log=log, evidence=self.evidence)
         for agent in (AGENT, OTHER):
             g.gov.agents.register(identity(
@@ -189,13 +211,6 @@ class World:
             objective_id=OBJECTIVE, statement="does T_at_half stay below "
             "1000 K at the documented point?", owner="owner",
             max_steps=6, max_inference_calls=8, question=QUESTION)
-        self.memory = MemoryStore(log, evidence=self.evidence).load()
-        self.ingress = PR.ProposalIngress(
-            log, inference_check=self.gateway().binding_problems)
-        self.sources: Callable | None = None
-        #: the model contracts a deployment offers; the evaluation offers
-        #: none, so each scenario meets the loop's own refusals
-        self.contracts: list | None = None
 
     def _provider(self, req, prompt, n):
         self.prompts.append(bytes(prompt))

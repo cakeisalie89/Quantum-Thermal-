@@ -711,3 +711,74 @@ only because shard 5 did not finish. The run was lost to the runner, not
 failed by a test. Pushing 5900f3b superseded it. 5900f3b's local full suite
 passed: 6,349 passed, 19 skipped.
 
+
+### AUD-013: the campaign resumes after its process dies
+
+`tools/research_horizon.py` keeps its own state in `campaign_state.json`
+beside the world. The file is written atomically before each objective,
+after each stage and after each withdrawal, and is bound to the log
+position it describes. `--resume` opens the same world, which
+`World(resume=True)` no longer deletes or rebuilds. The log is the
+authority:
+
+- a log rolled back behind the recorded position is refused;
+- an objective the log registered after the last save is finished, or
+  counted once if the dead process had finished it;
+- a stage measured and not saved is measured again;
+- a withdrawal made and not recorded is settled, not repeated.
+
+One process holds a campaign at a time, through an flock.
+
+`tests/test_research_horizon_resume.py` has 18 tests. Each kills the
+campaign's process with `os._exit` in a subprocess, at one of twelve
+points, and resumes it in another:
+
+- before a step executes;
+- during a step (three points);
+- after the governed run's external effect;
+- after the check, before the decision;
+- after the decision, before the step that acknowledges it;
+- between an objective and its save;
+- after a stage's withdrawal;
+- inside a checkpoint, between its anchor and its file;
+- after a stage is measured;
+- three objectives into a stage.
+
+Against an uninterrupted run of the same campaign:
+
+- every counter taken from the log is equal;
+- the logs differ action by action only in two named kinds: a re-measured
+  checkpoint, and one context assembled for a model call the dead process
+  never made (found by the first run of the test, which compared raw event
+  counts);
+- nothing was executed, received or answered twice;
+- the second reader agrees and the checkpointed load is equal.
+
+The other tests: a second process is refused while a live one holds the
+lock and admitted once it is gone; a history restored from an earlier copy
+is refused; a lagging head witness still resumes; a torn temporary state
+file is never read; a missing state is refused.
+
+Mutations RHR1 to RHR11 (`tools/mutations/research_horizon_resume.json`)
+are each killed.
+
+Not established:
+
+- recovery across the loss of the machine, which needs durable storage;
+- a death between the two halves of a stage boundary's withdrawal;
+- the 5,000 and 10,000 stages.
+
+### Lean 4: obtainable, not run
+
+The pinned toolchain is obtainable. `lean-4.14.0-linux.zip` was retrieved
+from the official release URL, with sha256
+`54f3ae8b9ef7a472d27563633c084e1d38e00ee9ef1d226cb3b8b823b6c4cd74` on
+2026-10-31.
+
+Extracting and executing it was refused by this session's permission
+system, and the audit did not work around that. No Lean source is
+committed: a proof nobody kernel-checked would be a claim without a check.
+The model and theorems planned (the authority edge table generated from
+`authority.EDGES`, I1 to I3 and terminal retraction, with negative
+controls) wait on the owner's permission to run a third-party toolchain
+here, or on a CI job that installs it by digest.

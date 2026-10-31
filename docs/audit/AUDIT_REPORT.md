@@ -31,17 +31,17 @@ Where this report and those files disagree, the files are right.
 
 ## 1. Coverage ledger
 
-The pull request changes 1004 files, counting the audit's own (`git diff
+The pull request changes 1006 files, counting the audit's own (`git diff
 --name-status` from the merge base, with rename detection, not the web
 diff). Each has one entry.
 
 | Disposition | Files | Meaning |
 |---|---|---|
-| REVIEWED_IN_FULL | 10 | every line read, bound to the blob read |
-| REVIEWED_IN_PART | 22 | the parts named in the entry read, bound to the blob |
+| REVIEWED_IN_FULL | 11 | every line read, bound to the blob read |
+| REVIEWED_IN_PART | 23 | the parts named in the entry read, bound to the blob |
 | INSPECTED_BINARY | 20 | a binary, identified and inspected |
-| AUDIT_ARTIFACT | 15 | written by this audit, not independently reviewed |
-| NOT_REVIEWED | 937 | not examined, with the reason |
+| AUDIT_ARTIFACT | 17 | written by this audit, not independently reviewed |
+| NOT_REVIEWED | 935 | not examined, with the reason |
 
 Of the 54 changed `agent_substrate` modules, 18 have been read, and one,
 `roles`, was written by the audit (AUDIT_ARTIFACT):
@@ -72,7 +72,7 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-010 | P2 | REPRODUCED | OWNER | full verified reads grow quadratically with a campaign |
 | AUD-011 | P2 | REPRODUCED | FIXED | roles were self-asserted, and agent admission conferred them; a registry outside the log now roots them |
 | AUD-012 | P1 | REPRODUCED | FIXED | a REQUIRED history read as authenticated by a scoped authenticator |
-| AUD-013 | P2 | CONFIRMED | DOCUMENTED | the long-horizon campaign cannot resume after its process dies |
+| AUD-013 | P2 | CONFIRMED | FIXED | the long-horizon campaign could not resume after its process died |
 | AUD-014 | P1 | REPRODUCED | FIXED | a refused capability mint was written first, and every later load refused the log |
 | AUD-015 | P1 | REPRODUCED | FIXED | anyone could publish an owner's next policy version, and bound promotions stood on it |
 | AUD-016 | P3 | REPRODUCED | FIXED | the process-tree negative control left its escaped grandchild running |
@@ -361,15 +361,10 @@ The audit restored none of it.
 
 ## 7. Owner decisions
 
-**Fixable here, and fixed.** AUD-002 to AUD-009, AUD-011, AUD-012 and
-AUD-014 to AUD-017. For AUD-011 and AUD-017 the mechanism is what was
+**Fixable here, and fixed.** AUD-002 to AUD-009 and AUD-011 to
+AUD-017. For AUD-011 and AUD-017 the mechanism is what was
 fixed, and it holds where a reader is given a registry. Provisioning the
 production registry is the owner action below.
-
-**Fixable here, not yet done.**
-
-- AUD-013: a resumable campaign that persists its counters beside the
-  world.
 
 **Owner decisions the audit found:**
 
@@ -429,20 +424,20 @@ Each line names its weakest point. No aggregate is given.
 |---|---|---|
 | Event-sourcing correctness | improved, not complete | log defects fixed: AUD-002, AUD-003, AUD-005, AUD-006 (P1/P2) and AUD-008 (P3); the second reader shares the parser (common mode) |
 | Incremental-verification maturity | partial | suffix reads bound to verified anchors and to the folded hash (AUD-003, AUD-006); governed folds still re-verify from genesis by decision (AUD-010) |
-| Recovery maturity | partial | crash-window checkpoint fixed (AUD-009); per-step campaign recovery measured; whole-process campaign recovery absent (AUD-013) |
+| Recovery maturity | partial | crash-window checkpoint fixed (AUD-009); per-step campaign recovery measured; whole-process campaign recovery tested at twelve kill points, a rollback refused and competing processes refused (AUD-013); recovery across the loss of the machine needs durable storage |
 | Witness deployment maturity | not deployed | protocol implemented and tested; no production witness or trust root |
 | Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
 | Execution isolation | partial, honestly classified | kernel namespaces, filesystem, network, process tree and quotas; syscall filtering NOT_PROVIDED |
 | Scientific verification | bounded, honest | numerical cross-checks of three models; no experimental validation; FEniCSx not exercised on this host |
-| Long-horizon reliability | measured to 1,000 decisions | not resumable (AUD-013); per-decision cost rising (AUD-010) |
+| Long-horizon reliability | measured to 1,000 decisions | resumable across the death of its process (AUD-013); the 5,000 and 10,000 stages not run; per-decision cost rising (AUD-010) |
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
 | Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; no role registry provisioned |
 | Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
-| Merge readiness | not assessed as ready | 937 of 1004 files not reviewed; hosted runs of the audit's head not complete |
+| Merge readiness | not assessed as ready | 935 of 1006 files not reviewed; hosted runs of the audit's head not complete |
 
 ## 9. What remains unknown
 
-- **The files not reviewed.** Everything in the 937 NOT_REVIEWED files.
+- **The files not reviewed.** Everything in the 935 NOT_REVIEWED files.
 - **Unmeasured costs.** Resident memory per operation, a governed task
   transition on its own, and what the campaign's reads are (section 4).
 - **Long horizons.** Whether the campaign holds past 1,000 decisions.

@@ -458,11 +458,11 @@
    "files": [
     {
      "path": "tools/research_horizon.py",
-     "lines": "Campaign.__init__, Campaign.run(), main(): c.clean() in finally"
+     "lines": "Campaign.__init__, _save, _resume, run(), invalidate_one(), measure(), main(): the state beside the world, the lock, the resume"
     },
     {
      "path": "tools/adversarial_eval.py",
-     "lines": "World.__init__: an existing workspace is deleted; World.clean()"
+     "lines": "World.__init__: resume=True opens an existing workspace and writes no bootstrap"
     }
    ],
    "behavior": "World(name) deletes any workspace of that name before it builds a fresh one, and main() deletes the workspace when the run ends, normally or not. The campaign's own counters (resets, restarts, recovery failures, objectives, the stage clock) live in its process. Inside it, the governed loop does recover a crash mid-step from the log, in a freshly built controller, but only within the same process. Nothing resumes the campaign itself.",
@@ -471,11 +471,19 @@
    "reproduction": "Read: tools/adversarial_eval.py World.__init__ (shutil.rmtree of an existing base) and clean(); tools/research_horizon.py main(). Recorded: docs/assurance/research_horizon_results.json at 8f53500.",
    "observed": "The recorded run asked for 10,000 decisions and holds the 50, 100 and 1,000 stages with complete=false. FINAL_REPORT.md says the process went with a reclaimed container after 1,547 decisions in 76 minutes, and the 5,000 and 10,000 stages are not claimed.",
    "expected": "Counters and stage bookkeeping that persist beside the world, and a campaign resumed from the log in a new process that reaches the counters an uninterrupted run reaches.",
-   "correction": "None in this audit yet. It is stated as unresolved in docs/tranche_h/FINAL_REPORT.md, and recorded here so that it stays visible as unresolved.",
-   "regression_tests": [],
-   "residual_risk": "Long-horizon reliability beyond 1,000 decisions is unmeasured. The governed loop's per-step crash recovery is measured (14 restarts by the 1,000 stage, no recovery failure), and recovery of the whole process is not.",
+   "correction": "tools/research_horizon.py keeps the campaign's own state in campaign_state.json beside the world. The file is written atomically (a temporary file, fsync, os.replace and a directory fsync) before each objective, after each stage and after each withdrawal, and it is bound to the log position (seq, hash) it describes. --resume opens the same world without rebuilding it (World(resume=True)). The log is the authority over what happened. A log that no longer holds the recorded position, because it was rolled back or rewritten, is refused. The log may register one objective more than the state records. If that objective is still OPEN, a new controller finishes it. If it was finished before the process died, it is counted once. A stage measured and not saved is measured again, and a withdrawal the dead process made and did not record is settled (GovernedModelRuns.settle) and not repeated. One process holds a campaign at a time, through an flock the kernel releases when the process dies. The workspace is kept when a run stops. Counters derived from the log cannot be counted twice. process_restarts counts the campaign's own resumptions, and restarts still counts scripted crashes in a process that lived to record them.",
+   "regression_tests": [
+    "tests/test_research_horizon_resume.py::test_a_campaign_killed_at_a_point_resumes_to_the_uninterrupted_result",
+    "tests/test_research_horizon_resume.py::test_a_crash_deep_in_a_stage_resumes_from_the_objective_last_saved",
+    "tests/test_research_horizon_resume.py::test_a_second_process_is_refused_while_one_holds_the_campaign",
+    "tests/test_research_horizon_resume.py::test_a_history_rolled_back_behind_the_state_is_refused",
+    "tests/test_research_horizon_resume.py::test_a_lagging_head_witness_does_not_stop_a_resume",
+    "tests/test_research_horizon_resume.py::test_a_torn_state_write_leaves_the_last_whole_state",
+    "tests/test_research_horizon_resume.py::test_a_campaign_with_no_state_is_not_resumed"
+   ],
+   "residual_risk": "The state survives only where the workspace survives. A machine reclaimed with its disk takes both, as the recorded 10,000-decision run's container did, and resuming that needs durable storage a deployment provides. A process killed between the two halves of a stage boundary's withdrawal (the task, then its bytes) is settled, but the second half is not made again; no test reaches that point. The scripted fault of the objective in flight is lost with the process, so restarts can read one lower than in an uninterrupted run, while every counter taken from the log agrees. The 5,000 and 10,000 stages have still not been run. Twelve kill points are tested, each in a separate process killed with os._exit, with every action-level difference from an uninterrupted run named: a stage's checkpoint measured again, and one context assembled for a model call that was never made. Mutations RHR1-RHR11 (tools/mutations/research_horizon_resume.json).",
    "verification": "CONFIRMED",
-   "resolution": "DOCUMENTED"
+   "resolution": "FIXED"
   },
   {
    "id": "AUD-014",

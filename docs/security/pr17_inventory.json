@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 588,
+   "ADDED": 590,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 58,
-   "LOW": 208,
-   "MEDIUM": 329
+   "LOW": 209,
+   "MEDIUM": 330
   },
   "by_subsystem": {
    "agent-substrate": 32,
    "ai-ingress": 3,
-   "assurance": 126,
+   "assurance": 127,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 32,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 184,
+   "tests": 185,
    "tooling": 51,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 620
+  "files": 622
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -7765,6 +7765,21 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_research_horizon_resume.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_research_ledger.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8295,7 +8310,8 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/adversarial_eval_harness.json"
+     "tools/mutations/adversarial_eval_harness.json",
+     "tools/mutations/research_horizon_resume.json"
     ],
     "tests": [
      "tests/test_adversarial_controls.py",
@@ -8303,6 +8319,7 @@
      "tests/test_adversarial_scenarios.py",
      "tests/test_agent_substrate_isolation.py",
      "tests/test_integration_demo.py",
+     "tests/test_research_horizon_resume.py",
      "tests/test_research_science.py"
     ]
    }
@@ -10314,6 +10331,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/research_horizon_resume.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/research_science.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -10837,11 +10867,13 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/research_horizon.json"
+     "tools/mutations/research_horizon.json",
+     "tools/mutations/research_horizon_resume.json"
     ],
     "tests": [
      "tests/test_agent_substrate_isolation.py",
-     "tests/test_research_horizon.py"
+     "tests/test_research_horizon.py",
+     "tests/test_research_horizon_resume.py"
     ]
    }
   },
