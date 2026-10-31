@@ -99,8 +99,8 @@
     {
       "name": "AA14_the_store_load_does_not_authenticate",
       "path": "agent_substrate/store.py",
-      "find": "        self._latest_wall = None\n        self._authenticate(events)\n",
-      "replace": "        self._latest_wall = None\n",
+      "find": "        self._role_view = None if self.roles is None else RoleView(self.roles)\n        self._authenticate(events)\n",
+      "replace": "        self._role_view = None if self.roles is None else RoleView(self.roles)\n",
       "rationale": "a load reads an unattested history as it always did; anchor moved by D-2026-148"
     },
     {

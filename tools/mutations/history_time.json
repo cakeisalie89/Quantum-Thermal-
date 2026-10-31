@@ -17,8 +17,8 @@
   {
    "name": "HT2_the_policy_store_does_not_track_the_history_s_time",
    "path": "agent_substrate/policy.py",
-   "find": "        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)\n        if ev.action == ACT_POLICY_PUBLISH:",
-   "replace": "        if ev.action == ACT_POLICY_PUBLISH:",
+   "find": "        self._latest_wall = judged_at(self._latest_wall, ev.wall_time)\n        if self._role_view is not None and ev.action in ROLE_ACTIONS:",
+   "replace": "        if self._role_view is not None and ev.action in ROLE_ACTIONS:",
    "rationale": "D-2026-168: the policy store's replay and writes judge expiry by one clock reading"
   },
   {
@@ -66,8 +66,8 @@
   {
    "name": "HT9_a_snapshot_forgets_the_history_s_time",
    "path": "agent_substrate/store.py",
-   "find": "            \"latest_wall\": self._latest_wall,\n        }",
-   "replace": "        }",
+   "find": "            \"latest_wall\": self._latest_wall,\n            **({} if self._role_view is None",
+   "replace": "            **({} if self._role_view is None",
    "rationale": "D-2026-168: loaded from a checkpoint, the tail's clock alone judges the expiry"
   },
   {

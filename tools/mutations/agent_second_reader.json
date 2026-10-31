@@ -122,8 +122,8 @@
     {
       "name": "D17_the_second_reader_skips_the_scheduler_entirely",
       "path": "agent_substrate/reconstruct.py",
-      "find": "        if a == \"scheduler.enqueue\":",
-      "replace": "        if False:",
+      "find": "        elif a == \"scheduler.enqueue\":",
+      "replace": "        elif False:",
       "rationale": "the reader agrees by covering nothing, which is the quieter failure: an empty second projection diffs clean against anything"
     },
     {
