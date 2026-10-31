@@ -126,10 +126,10 @@
   {
    "@id": "README.md",
    "@type": "File",
-   "contentSize": "7431",
+   "contentSize": "7639",
    "description": "what the harness is and how to run it",
    "name": "README.md",
-   "sha256": "e5f50da344c78c3578b7bb161221f21de48aee9bc185661ce0e8b7b418e25d67"
+   "sha256": "235d5e60f78127d3ef5a01a87589882c35c5a81767b20adcb3de128d51ccaafe"
   },
   {
    "@id": "Snakefile",
@@ -180,7 +180,7 @@
    "contentSize": "15788",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "c722f0a54fd8789272c2da768ee59bee091922cbe196b07a4a90ee751fb860ee"
+   "sha256": "ff51e66ea8d28f7f72a74b1ac4048c48f425ff43f9bef12aeed7f99354be7e3e"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -204,7 +204,7 @@
    "contentSize": "2935",
    "description": "the repository content audit of the current tree",
    "name": "repo_content_audit.json",
-   "sha256": "013f02f5c579a5f8646f62cca09acc6795dfcb554a9cfa9583f55a61fb563193"
+   "sha256": "23ea56909cd6d698a3cdb2fa22bf410b90e62d8ba186eab30840bf843e88d753"
   },
   {
    "@id": "docs/repository_inventory.json",

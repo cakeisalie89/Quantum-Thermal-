@@ -1229,3 +1229,36 @@ accepted the committed package. `tools/assurance_package.py --check` found
 the package current on the runner's machine: the model's outputs at the
 recorded inputs agree with the package's to 1e-9 relative. Every corrupted
 copy was refused where it should be.
+
+### Phase F, first item: an external reproduction guide
+
+`REPRODUCE.md` is written for someone who trusts none of the people, agents
+or CI runs behind this repository. It names what such a reader must still
+trust: the commit, the interpreter and the lock, and the tools pinned by
+digest. It then gives the steps:
+
+- the portable assurance package, checked with nothing but the standard
+  library and the package digest from the reader's own clone;
+- every re-derivation CI runs: the scientific results, the governed agent
+  path (scripted, with no language model), the formal model checks, the
+  repository's derived records, the tests and the mutation matrices;
+- what no step can reproduce: a language model's behaviour, a physical
+  experiment, the flagship model, Lean proofs, and a production
+  deployment.
+
+The guide is held by a test (`tests/test_reproduce_guide.py`):
+
+- every script it names exists;
+- every re-derivation it lists is a command the agent-substrate workflow
+  runs, character for character;
+- its standalone check is the one CI runs;
+- section 3 still names every gap.
+
+Two negative controls fail it: a guide listing `slab_uq.py --write`, which
+CI does not run, and one naming a script that does not exist. The commands
+that run quickly were also run here as written, and exited 0: the formal
+model check, the readiness and model-evidence registries, the harness
+status and the manifest.
+
+**Not established.** That a reader outside this project can follow the
+guide to the end: nobody outside it has tried.

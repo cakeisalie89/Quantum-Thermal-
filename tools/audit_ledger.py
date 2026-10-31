@@ -133,7 +133,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/transparency.json",
                # The witness's tree checkpoints (Phase C).
                "tests/test_witness_tree.py",
-               "tools/mutations/witness_tree.json")
+               "tools/mutations/witness_tree.json",
+               # The external reproduction guide, and the test that holds
+               # it to what CI runs (Phase F).
+               "REPRODUCE.md", "tests/test_reproduce_guide.py")
 
 #: (glob, kind). First match wins.
 KINDS = (

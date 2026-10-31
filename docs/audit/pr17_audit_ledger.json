@@ -880,13 +880,13 @@
    "kind": "documentation",
    "method": "",
    "mode": "100644",
-   "new_blob": "5e39ec496d4ae264b5c5a666d36ae8776bdc32eb",
+   "new_blob": "70e94faa97edbe8e70fcec78715f0ada71f5c8d1",
    "note": "not yet examined",
    "old_blob": "74712202ee50fe93148068418eef2b89f617a5f7",
    "path": "README.md",
    "reviewed_blob": null,
-   "sha256": "e5f50da344c78c3578b7bb161221f21de48aee9bc185661ce0e8b7b418e25d67",
-   "size": 7431,
+   "sha256": "235d5e60f78127d3ef5a01a87589882c35c5a81767b20adcb3de128d51ccaafe",
+   "size": 7639,
    "status": "NOT_REVIEWED"
   },
   {
@@ -920,6 +920,22 @@
    "sha256": "c94b35c178a36170b9013c96481627a83a08698477323b5354d238587ea4813a",
    "size": 22388,
    "status": "NOT_REVIEWED"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "documentation",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "not independently reviewed",
+   "old_blob": null,
+   "path": "REPRODUCE.md",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,
@@ -12554,6 +12570,22 @@
    "sha256": "49d82c1c1c81ab2ca97c072927b0e04fd1ab23201b2f1ec66229558ae1e2c682",
    "size": 7906,
    "status": "NOT_REVIEWED"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "test",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "not independently reviewed",
+   "old_blob": null,
+   "path": "tests/test_reproduce_guide.py",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,

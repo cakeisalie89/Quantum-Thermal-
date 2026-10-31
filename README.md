@@ -128,6 +128,9 @@ uv run python tools/harness_status.py verify
 `INSTALL.md` has the details, `TESTING.md` the test discipline,
 `AUTHORITIES.md` which module owns which concept, and
 `docs/DEFECT_LEDGER.md` every defect found and how it was closed.
+`REPRODUCE.md` is for someone who trusts none of this and checks it
+anyway: the portable assurance package and its standard-library verifier,
+every re-derivation CI runs, and what no step here can reproduce.
 
 ## Repository map
 

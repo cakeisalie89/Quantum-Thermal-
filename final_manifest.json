@@ -90,7 +90,7 @@
     {
       "filename": "HARNESS_STATUS.md",
       "size_bytes": 6758,
-      "sha256": "e96a33482f3bf18d000f93117e2aaf6448820786693330b7d886c306650816e8"
+      "sha256": "080fb76aed0607a7bb4d81cdcdfd2c40489f0bf36e12d7485926022f069bda90"
     },
     {
       "filename": "HDF5_DATA_MODEL.md",
@@ -114,8 +114,13 @@
     },
     {
       "filename": "README.md",
-      "size_bytes": 7431,
-      "sha256": "e5f50da344c78c3578b7bb161221f21de48aee9bc185661ce0e8b7b418e25d67"
+      "size_bytes": 7639,
+      "sha256": "235d5e60f78127d3ef5a01a87589882c35c5a81767b20adcb3de128d51ccaafe"
+    },
+    {
+      "filename": "REPRODUCE.md",
+      "size_bytes": 4970,
+      "sha256": "c64021b3c170539d60893dad0df5e2d66f28fa2355a2ad0f25d869ce964a1ba7"
     },
     {
       "filename": "RO_CRATE_PROFILE.md",
@@ -549,13 +554,13 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 57337,
-      "sha256": "aaa3a8cec037f95c18c5a6028977b7d3b7d3fe3723f86f720461bec019d43187"
+      "size_bytes": 58869,
+      "sha256": "491584f9587fa00caf8b18a6359272f9f12f8a3c0f5620fd94af4151447bf07c"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
       "size_bytes": 25090,
-      "sha256": "38c6621d001780ecb3c261feb3d59d4bb43d0f02aa4f1cea297b5d23c9ef0ae9"
+      "sha256": "83276ea4e1f77f82c559e3d1034cdb59441f12261706b51c0367e64ddb806f1c"
     },
     {
       "filename": "docs/audit/findings.json",
@@ -569,8 +574,8 @@
     },
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
-      "size_bytes": 479311,
-      "sha256": "63664d1ebc0aca80156e918c7f6eb21467093c7efd817be3b8d2ff11a1749322"
+      "size_bytes": 480039,
+      "sha256": "734898cd46a36c79a75b5ed659dda2d1a5e54669be48e8f411ed974219506e02"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -589,8 +594,8 @@
     },
     {
       "filename": "docs/corpus_allowlist.json",
-      "size_bytes": 5662,
-      "sha256": "94fa332568817c3cc73c9a1f2a350d27fd8c441ce7ca5625303bc1de5995c9d3"
+      "size_bytes": 5788,
+      "sha256": "7d391ffeb59f5fbee7176ecda629a4c6d7b2c09078cc2df25a614837591dddd7"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -655,7 +660,7 @@
     {
       "filename": "docs/harness_status.json",
       "size_bytes": 15788,
-      "sha256": "c722f0a54fd8789272c2da768ee59bee091922cbe196b07a4a90ee751fb860ee"
+      "sha256": "ff51e66ea8d28f7f72a74b1ac4048c48f425ff43f9bef12aeed7f99354be7e3e"
     },
     {
       "filename": "docs/identity_inventory.json",
@@ -775,7 +780,7 @@
     {
       "filename": "docs/repo_content_audit.json",
       "size_bytes": 2935,
-      "sha256": "013f02f5c579a5f8646f62cca09acc6795dfcb554a9cfa9583f55a61fb563193"
+      "sha256": "23ea56909cd6d698a3cdb2fa22bf410b90e62d8ba186eab30840bf843e88d753"
     },
     {
       "filename": "docs/repository_inventory.json",
@@ -844,8 +849,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 282828,
-      "sha256": "060b9c5c8322ab0c1785ba760cbf28d89809cc86cda39809665222c1caa7df47"
+      "size_bytes": 283547,
+      "sha256": "d56aeed111f41e7b935f2dd2300defb5b426fed41e9d8cd9a8ceecf0946c389d"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -890,7 +895,7 @@
     {
       "filename": "docs/typing_scope.json",
       "size_bytes": 772,
-      "sha256": "4d0c29e19223a08df0fb229aa6348d518326db7b4eb398a2520df3fc0f5ed951"
+      "sha256": "2986df560f3d4def4ef806df4e2b6d267f68cfd9e06305fea91d6216cf8666ec"
     },
     {
       "filename": "generate_manifest.py",
@@ -980,7 +985,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 8590,
-      "sha256": "5512ac2c946a5cf223fd01ff1767e65ea9d14ea9339ba57f328b41f73be84d2c"
+      "sha256": "9c88ee4392962be5f1abc35da3ccfaecce86c7d4402ec92efa0a53e1e368568f"
     },
     {
       "filename": "ro_crate_tools.py",
@@ -2088,6 +2093,11 @@
       "sha256": "49d82c1c1c81ab2ca97c072927b0e04fd1ab23201b2f1ec66229558ae1e2c682"
     },
     {
+      "filename": "tests/test_reproduce_guide.py",
+      "size_bytes": 2871,
+      "sha256": "a663e38530fb29e3016f40ff95effc468b6fa1ac156880db0d09e4962fbcddf0"
+    },
+    {
       "filename": "tests/test_reproduction_verdict.py",
       "size_bytes": 17200,
       "sha256": "4cae53ad239df191ef8479aae823284f5a1347d07a4e5ca7641bba12aaa9f1d9"
@@ -2294,8 +2304,8 @@
     },
     {
       "filename": "tools/audit_ledger.py",
-      "size_bytes": 20720,
-      "sha256": "4b1bcf42a63d35b05b148c42b4b7165653914c39400351766d67a75a40c22949"
+      "size_bytes": 20905,
+      "sha256": "3b4b3087628de90cde8b6c51d226b40c8a712b0c596eb0bb59f6efe9c0fb9904"
     },
     {
       "filename": "tools/audit_log.py",

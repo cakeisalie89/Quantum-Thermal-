@@ -1,13 +1,13 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 616,
+   "ADDED": 618,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 59,
-   "LOW": 214,
+   "LOW": 216,
    "MEDIUM": 350
   },
   "by_subsystem": {
@@ -19,7 +19,7 @@
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
-   "documentation": 24,
+   "documentation": 25,
    "evidence": 70,
    "execution": 1,
    "identity": 5,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 190,
+   "tests": 191,
    "tooling": 54,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 648
+  "files": 650
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -371,6 +371,21 @@
      "tests/test_completion_matrix.py",
      "tests/test_stack_registry.py",
      "tests/test_supply_chain.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "REPRODUCE.md",
+   "risk": "LOW",
+   "runtime_dependencies": [],
+   "subsystem": "documentation",
+   "trust_boundary": "documentation and configuration",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_reproduce_guide.py"
     ]
    }
   },
@@ -3786,6 +3801,7 @@
      "tests/test_manifest_completeness.py",
      "tests/test_manifest_policy.py",
      "tests/test_no_enforcing_asserts.py",
+     "tests/test_reproduce_guide.py",
      "tests/test_typecheck_scope.py"
     ]
    }
@@ -7966,6 +7982,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_reproduce_guide.py",
+   "risk": "LOW",
+   "runtime_dependencies": [],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_reproduction_verdict.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -11389,7 +11418,8 @@
     ],
     "tests": [
      "tests/test_assurance_package.py",
-     "tests/test_assurance_package_build.py"
+     "tests/test_assurance_package_build.py",
+     "tests/test_reproduce_guide.py"
     ]
    }
   },
@@ -11432,6 +11462,7 @@
      "tests/test_dependency_declarations.py",
      "tests/test_mutation_shards.py",
      "tests/test_repo_contract.py",
+     "tests/test_reproduce_guide.py",
      "tests/test_workflow_exit_checks.py"
     ]
    }

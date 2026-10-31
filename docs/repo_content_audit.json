@@ -40,7 +40,7 @@
  "by_area": {
   "AGENT_SUBSTRATE": 55,
   "CONTAINER": 3,
-  "DOCUMENTATION": 32,
+  "DOCUMENTATION": 33,
   "HOSTED_CI": 6,
   "INTEGRATION_ASSETS": 15,
   "LEARNED_MODEL_EVIDENCE": 10,
@@ -53,10 +53,10 @@
   "SCIENTIFIC_ASSURANCE_PACKAGE": 11,
   "SCIENTIFIC_COMPUTING": 40,
   "SOFTWARE_ASSURANCE": 201,
-  "TESTS": 191,
+  "TESTS": 192,
   "WORKFLOW": 1
  },
- "files": 648,
+ "files": 650,
  "finding_counts": {},
  "findings": [],
  "label": "The current tree read for retired content. Zero findings is the transformation's acceptance condition for repository content; it says nothing about scientific correctness.",
