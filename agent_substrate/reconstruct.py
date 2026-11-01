@@ -4672,6 +4672,28 @@ def _at(report, events: list, upto: int) -> EventLog:
     return cast(EventLog, _Prefix(report, events, upto))
 
 
+class _PrefixAuthenticator:
+    """An authenticator read over a PREFIX of the history: the attestations
+    of the records after it are in the file, and a whole-history read would
+    call each of them dangling. The prefix is read as the catch-up it is;
+    the registry and the scope are the authenticator's own."""
+
+    def __init__(self, authenticator):
+        self._authenticator = authenticator
+        self.registry = getattr(authenticator, "registry", None)
+        self.require = getattr(authenticator, "require", None)
+
+    def __call__(self, events, *, complete: bool = True):
+        return self._authenticator(events, complete=False)
+
+
+def _prefix_roots(authenticator, roles) -> dict:
+    """What a reader of a prefix is given: the history's roots, with the
+    authenticator reading it as a prefix."""
+    return {"authenticator": None if authenticator is None
+            else _PrefixAuthenticator(authenticator), "roles": roles}
+
+
 def _resolves(evidence, digest_) -> bool:
     """``evidence`` holds bytes for ``digest_`` that re-hash to it. Re-hashed
     HERE: whatever ``evidence`` is, it is not trusted to say so."""
@@ -4798,11 +4820,17 @@ def _execution(events: list, bundle, before: int) -> dict | None:
     return out
 
 
-def derive_decision_proof(log, seq: int, *, evidence=None) -> dict:
+def derive_decision_proof(log, seq: int, *, evidence=None,
+                          authenticator=None, roles=None) -> dict:
     """The justification of the decision recorded at ``seq``, as this
     reader derives it from the verified history alone. ``evidence`` is
     anything with ``get(digest) -> bytes``; what it returns is re-hashed
-    here, and without it no cited bytes are held."""
+    here, and without it no cited bytes are held.
+
+    ``authenticator`` and ``roles`` are the history's roots, for an
+    authenticated or GOVERNED history: the decision is re-derived under
+    them, and a GOVERNED history read without them folds nothing, so no
+    decision of it is accepted."""
     report, events = log.read_verified()
     report.raise_if_bad()
     ev = next((e for e in events if e.seq == seq), None)
@@ -4814,17 +4842,20 @@ def derive_decision_proof(log, seq: int, *, evidence=None) -> dict:
             "decision": {"seq": seq, "hash": ev.hash, "actor": ev.actor,
                          "action": ev.action, "subject": ev.target},
             "head": {"seq": seq - 1, "hash": prev.hash if prev else ""}}
+    roots = _prefix_roots(authenticator, roles)
     if ev.action == "record.transition":
-        return _record_proof(base, report, events, ev, p, evidence)
+        return _record_proof(base, report, events, ev, p, evidence, roots)
     if ev.action == "research.status" and p.get("status") in _VERDICTS:
-        return _research_proof(base, report, events, ev, p, evidence)
+        return _research_proof(base, report, events, ev, p, evidence,
+                               roots)
     raise ValueError(f"seq {seq} is {ev.action}, not a decision this "
                      "reader proves")
 
 
-def _record_proof(base, report, events, ev, p, evidence):
+def _record_proof(base, report, events, ev, p, evidence, roots):
     rid, outcome = p.get("record_id"), p.get("dst")
-    after = reconstruct(_at(report, events, ev.seq), evidence=evidence)
+    after = reconstruct(_at(report, events, ev.seq), evidence=evidence,
+                        **roots)
     rec = after.records.get(rid) or {}
     cited = dict(rec.get("evidence") or {})
     base["decision"].update(kind="record", outcome=outcome,
@@ -4849,10 +4880,11 @@ def _record_proof(base, report, events, ev, p, evidence):
     return base
 
 
-def _research_proof(base, report, events, ev, p, evidence):
+def _research_proof(base, report, events, ev, p, evidence, roots):
     hid, outcome = ev.target, p.get("status")
-    sub = reconstruct_subsystems(_at(report, events, ev.seq))
-    recs = reconstruct(_at(report, events, ev.seq)).records
+    sub = reconstruct_subsystems(_at(report, events, ev.seq),
+                                 roles=roots["roles"])
+    recs = reconstruct(_at(report, events, ev.seq), **roots).records
     hyp = next((e.payload.get("hypothesis") or {} for e in events
                 if e.action == "research.hypothesis" and e.target == hid
                 and e.seq < ev.seq), {})
@@ -4870,7 +4902,8 @@ def _research_proof(base, report, events, ev, p, evidence):
         "proposed_by": hyp.get("proposed_by")}
     # what each observation was AT the decision: judged against the history
     # before it, at the time the decision record carries (Assurance F)
-    before = reconstruct_subsystems(_at(report, events, ev.seq - 1))
+    before = reconstruct_subsystems(_at(report, events, ev.seq - 1),
+                                    roles=roots["roles"])
     at = judged_at(before.latest_wall, ev.wall_time)
     basis = []
     for oid in p.get("basis") or ():
@@ -4964,7 +4997,8 @@ def _conditions(d: dict) -> list:
     return out
 
 
-def verify_decision_proof(log, proof, *, evidence=None) -> list:
+def verify_decision_proof(log, proof, *, evidence=None, authenticator=None,
+                          roles=None) -> list:
     """Every way ``proof`` departs from the history, and every condition
     the decision does not meet -- [] when the proof is the history's own
     account of a decision that holds. The proof's claims are compared,
@@ -4975,7 +5009,9 @@ def verify_decision_proof(log, proof, *, evidence=None) -> list:
     if isinstance(seq, bool) or not isinstance(seq, int):
         return ["the proof names no decision position"]
     try:
-        derived = derive_decision_proof(log, seq, evidence=evidence)
+        derived = derive_decision_proof(log, seq, evidence=evidence,
+                                        authenticator=authenticator,
+                                        roles=roles)
     except ValueError as exc:
         return [str(exc)]
     return _differences(proof, derived) + _conditions(derived)

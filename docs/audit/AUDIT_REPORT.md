@@ -31,7 +31,7 @@ Where this report and those files disagree, the files are right.
 
 ## 1. Coverage ledger
 
-The pull request changes 1045 files, counting the audit's own (`git diff
+The pull request changes 1050 files, counting the audit's own (`git diff
 --name-status` from the merge base, with rename detection, not the web
 diff). Each has one entry.
 
@@ -40,7 +40,7 @@ diff). Each has one entry.
 | REVIEWED_IN_FULL | 11 | every line read, bound to the blob read |
 | REVIEWED_IN_PART | 24 | the parts named in the entry read, bound to the blob |
 | INSPECTED_BINARY | 20 | a binary, identified and inspected |
-| AUDIT_ARTIFACT | 56 | written by this audit, not independently reviewed |
+| AUDIT_ARTIFACT | 61 | written by this audit, not independently reviewed |
 | NOT_REVIEWED | 934 | not examined, with the reason |
 
 Of the 56 changed `agent_substrate` modules, 19 have been read, and three,
@@ -56,7 +56,7 @@ git.
 
 ## 2. Findings register
 
-Twenty findings. Severity follows the register's scale: P0 is an
+Twenty-three findings. Severity follows the register's scale: P0 is an
 authority bypass or integrity failure, P3 is information for the owner.
 
 | ID | Sev | Established | Resolution | In brief |
@@ -81,6 +81,9 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-018 | P2 | REPRODUCED | FIXED | a trust root accepted a quorum that is not a majority, under which honest witnesses can witness two forks |
 | AUD-019 | P3 | REPRODUCED | OWNER | a witness provisioned again after losing its state cosigns a fork of what it forgot |
 | AUD-020 | P1 | REPRODUCED | FIXED | no history could require its role registry; a GOVERNED history now binds every reader to the registries it declares |
+| AUD-021 | P2 | REPRODUCED | FIXED | no governed writer could write an authenticated history; a log handle now signs every record its writers append |
+| AUD-022 | P1 | REPRODUCED | FIXED | the separate process reported a history clean while its own readers refused acts in it |
+| AUD-023 | P2 | REPRODUCED | FIXED | the independent readers could not read a governed history; the separate process is now handed its public roots |
 
 **How far each is established.** REPRODUCED means shown failing by a
 test or a script; CONFIRMED means established by reading, not executed.
@@ -359,6 +362,8 @@ The audit restored none of it.
 | AUD-012 | A REQUIRED history is authenticated only by an authenticator that asks every actor | `events._security_gate`; `reconstruct` |
 | AUD-011, AUD-017 | A role, and each issuing act, is held to a registry outside the log, live and on replay; a registration confers none | `roles.RoleView` in `AuthorityStore`, `PolicyStore`, `SecretStore`, `NetworkAuthority`, `GovernedTasks`; restated in the second reader. Where a registry is given |
 | AUD-004 | A verification is a report the transition brought, not one the record already carried | `authority.check` (I3); `reconstruct` |
+| AUD-021 | Every writer of an authenticated history writes through its live checks, each record signed by its actor's key before it exists | `EventLog(signing=)`; `principals.Signing` |
+| AUD-022, AUD-023 | The separate process says a history is clean only when none of its readers refuses anything in it, and reads a governed history under the roots it declares | `tools/independent_verify.py`; `separate_verify`; the restated authentication in `tools/verify_assurance.py` |
 | AUD-014 | A refused write leaves the log as it was: a capability mint is authorized before its record exists | `CapabilityLedger.issue` |
 | AUD-015 | A policy's later versions are its owner's, and a binding judges the publisher of the version in force | `PolicyStore`; `AuthorityStore`; `reconstruct` |
 | AUD-016 | A test leaves no process behind: the grandchild the control lets escape is stopped after the reading, and ends at its own bound if the probe is stopped first | `isolation_contract.probe_process_tree`; `tests/test_isolation_contract.py` |
@@ -366,7 +371,7 @@ The audit restored none of it.
 ## 7. Owner decisions
 
 **Fixable here, and fixed.** AUD-002 to AUD-009, AUD-011 to
-AUD-018, and AUD-020. For AUD-011 and AUD-017 the mechanism is what was
+AUD-018, and AUD-020 to AUD-023. For AUD-011 and AUD-017 the mechanism is what was
 fixed, and it holds where a reader is given a registry. Provisioning the
 production registry is the owner action below.
 
@@ -440,14 +445,14 @@ Each line names its weakest point. No aggregate is given.
 | Incremental-verification maturity | partial | suffix reads bound to verified anchors and to the folded hash (AUD-003, AUD-006); governed folds still re-verify from genesis by decision (AUD-010) |
 | Recovery maturity | partial | crash-window checkpoint fixed (AUD-009); per-step campaign recovery measured; whole-process campaign recovery tested at twelve kill points, a rollback refused and competing processes refused (AUD-013); recovery across the loss of the machine needs durable storage |
 | Witness deployment maturity | not deployed | protocol implemented and tested; quorums model-checked (protocol 7); a quorum must be a majority (AUD-018); a re-provisioned witness is the owner's to count (AUD-019); no production witness or trust root |
-| Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); a GOVERNED history binds every reader to the key and role registries it declares (AUD-020), and none exists outside tests; authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
+| Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); a GOVERNED history binds every reader to the key and role registries it declares (AUD-020), is written by the governed path, each record signed through its handle (AUD-021), and is read by the separate process under its roots (AUD-023), and none exists outside tests; authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
 | Execution isolation | partial, honestly classified | kernel namespaces, filesystem, network, process tree and quotas; syscall filtering NOT_PROVIDED |
 | Scientific verification | bounded, honest | numerical cross-checks of three models; one result packaged for offline checking, rechecked by a standalone verifier against its own closed-form solution; no experimental validation; FEniCSx not exercised on this host |
 | Long-horizon reliability | measured to 1,000 decisions | resumable across the death of its process (AUD-013); the 5,000 and 10,000 stages not run; per-decision cost rising (AUD-010) |
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
 | Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; no role registry provisioned |
 | Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
-| Merge readiness | not assessed as ready | 934 of 1045 files not reviewed; hosted runs all green at df53837 (every run, read from the API), not yet at the audit's head |
+| Merge readiness | not assessed as ready | 934 of 1050 files not reviewed; hosted runs all green at df53837 (every run, read from the API), not yet read at the audit's later commits |
 
 ## 9. What remains unknown
 

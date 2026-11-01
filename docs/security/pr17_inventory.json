@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 629,
+   "ADDED": 634,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 60,
-   "LOW": 220,
-   "MEDIUM": 356
+   "LOW": 223,
+   "MEDIUM": 358
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 135,
+   "assurance": 137,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 195,
+   "tests": 198,
    "tooling": 55,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 661
+  "files": 666
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -611,13 +611,16 @@
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
      "tests/test_research_science.py",
+     "tests/test_restated_authentication.py",
      "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
      "tests/test_security_findings.py",
+     "tests/test_separate_reads_governed.py",
      "tests/test_signed_append_lifecycle.py",
+     "tests/test_signing_seam.py",
      "tests/test_simulation_gateway.py",
      "tests/test_simulation_research.py",
      "tests/test_supply_chain.py",
@@ -886,6 +889,8 @@
      "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
+     "tests/test_separate_reads_governed.py",
+     "tests/test_signing_seam.py",
      "tests/test_supply_chain.py",
      "tests/test_trust_labels.py"
     ]
@@ -1038,7 +1043,8 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_replay_origin_view.py",
      "tests/test_role_authority.py",
-     "tests/test_scientific_authority_replay.py"
+     "tests/test_scientific_authority_replay.py",
+     "tests/test_signing_seam.py"
     ]
    }
   },
@@ -1133,6 +1139,7 @@
      "tools/mutations/governed_history.json",
      "tools/mutations/history_time.json",
      "tools/mutations/signed_append_lifecycle.json",
+     "tools/mutations/signing_seam.json",
      "tools/mutations/t2_closure.json",
      "tools/mutations/verified_read_guard.json"
     ],
@@ -1212,12 +1219,15 @@
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
      "tests/test_research_science.py",
+     "tests/test_restated_authentication.py",
      "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_separate_reads_governed.py",
      "tests/test_signed_append_lifecycle.py",
+     "tests/test_signing_seam.py",
      "tests/test_simulation_research.py",
      "tests/test_t2_closure.py",
      "tests/test_t2_governed.py",
@@ -1306,6 +1316,8 @@
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_separate_reads_governed.py",
+     "tests/test_signing_seam.py",
      "tests/test_simulation_research.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py",
@@ -1463,6 +1475,7 @@
      "tools/mutations/proposal_crash_recovery.json",
      "tools/mutations/role_authority.json",
      "tools/mutations/scientific_invalidation.json",
+     "tools/mutations/separate_governed.json",
      "tools/mutations/t2_closure.json",
      "tools/mutations/task_execution_phase.json"
     ],
@@ -1496,6 +1509,7 @@
      "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
+     "tests/test_separate_reads_governed.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py"
     ]
@@ -1677,6 +1691,7 @@
      "tests/test_prov_export.py",
      "tests/test_refused_fold.py",
      "tests/test_scientific_invalidation.py",
+     "tests/test_separate_reads_governed.py",
      "tests/test_trust_labels.py"
     ]
    }
@@ -1693,13 +1708,15 @@
      "M-3"
     ],
     "mutation_specs": [
-     "tools/mutations/memory_trust.json"
+     "tools/mutations/memory_trust.json",
+     "tools/mutations/separate_governed.json"
     ],
     "tests": [
      "tests/test_agent_memory.py",
      "tests/test_composed_campaigns.py",
      "tests/test_evidence_terms.py",
-     "tests/test_memory_trust.py"
+     "tests/test_memory_trust.py",
+     "tests/test_separate_reads_governed.py"
     ]
    }
   },
@@ -1819,7 +1836,8 @@
      "tools/mutations/actor_authentication.json",
      "tools/mutations/authenticated_history.json",
      "tools/mutations/governed_history.json",
-     "tools/mutations/signed_append_lifecycle.json"
+     "tools/mutations/signed_append_lifecycle.json",
+     "tools/mutations/signing_seam.json"
     ],
     "tests": [
      "tests/test_actor_authentication.py",
@@ -1828,8 +1846,11 @@
      "tests/test_governed_history.py",
      "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
+     "tests/test_restated_authentication.py",
      "tests/test_role_authority.py",
-     "tests/test_signed_append_lifecycle.py"
+     "tests/test_separate_reads_governed.py",
+     "tests/test_signed_append_lifecycle.py",
+     "tests/test_signing_seam.py"
     ]
    }
   },
@@ -1991,6 +2012,7 @@
      "tools/mutations/role_authority.json",
      "tools/mutations/scientific_authority_replay.json",
      "tools/mutations/second_reader_audit_actions.json",
+     "tools/mutations/separate_governed.json",
      "tools/mutations/t2_closure.json",
      "tools/mutations/task_execution_phase.json"
     ],
@@ -2042,6 +2064,8 @@
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_separate_reads_governed.py",
+     "tests/test_signing_seam.py",
      "tests/test_simulation_gateway.py",
      "tests/test_simulation_research.py",
      "tests/test_t2_closure.py",
@@ -2152,7 +2176,9 @@
     "tests": [
      "tests/test_authenticated_history.py",
      "tests/test_governed_history.py",
-     "tests/test_role_authority.py"
+     "tests/test_role_authority.py",
+     "tests/test_separate_reads_governed.py",
+     "tests/test_signing_seam.py"
     ]
    }
   },
@@ -2268,11 +2294,13 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/agent_separate_verify.json"
+     "tools/mutations/agent_separate_verify.json",
+     "tools/mutations/separate_governed.json"
     ],
     "tests": [
      "tests/test_agent_separate_verify.py",
-     "tests/test_decision_proof.py"
+     "tests/test_decision_proof.py",
+     "tests/test_separate_reads_governed.py"
     ]
    }
   },
@@ -2374,6 +2402,8 @@
      "tests/test_scientific_identity.py",
      "tests/test_second_reader_audit_actions.py",
      "tests/test_security_findings.py",
+     "tests/test_separate_reads_governed.py",
+     "tests/test_signing_seam.py",
      "tests/test_verified_read_guard.py",
      "tests/test_work_counts.py"
     ]
@@ -2413,6 +2443,7 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_role_authority.py",
      "tests/test_scientific_invalidation.py",
+     "tests/test_separate_reads_governed.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py"
     ]
@@ -6480,7 +6511,8 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
-     "tests/test_agent_substrate_isolation.py"
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_separate_reads_governed.py"
     ]
    }
   },
@@ -8208,6 +8240,24 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_restated_authentication.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_separate_reads_governed.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_ro_crate_conformance.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8387,7 +8437,41 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_separate_reads_governed.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_signed_append_lifecycle.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_signing_seam.py",
    "risk": "LOW",
    "runtime_dependencies": [
     "pytest"
@@ -9311,14 +9395,16 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/agent_separate_verify.json"
+     "tools/mutations/agent_separate_verify.json",
+     "tools/mutations/separate_governed.json"
     ],
     "tests": [
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_substrate_isolation.py",
      "tests/test_authenticated_history.py",
      "tests/test_completion_matrix.py",
-     "tests/test_repo_contract.py"
+     "tests/test_repo_contract.py",
+     "tests/test_separate_reads_governed.py"
     ]
    }
   },
@@ -11005,7 +11091,33 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/separate_governed.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/signed_append_lifecycle.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/signing_seam.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",
@@ -11616,12 +11728,15 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/separate_governed.json",
      "tools/mutations/verify_assurance.json"
     ],
     "tests": [
      "tests/test_assurance_package.py",
      "tests/test_assurance_package_build.py",
-     "tests/test_reproduce_guide.py"
+     "tests/test_reproduce_guide.py",
+     "tests/test_restated_authentication.py",
+     "tests/test_separate_reads_governed.py"
     ]
    }
   },

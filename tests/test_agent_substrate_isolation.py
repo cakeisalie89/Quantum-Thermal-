@@ -88,6 +88,12 @@ ALLOWED_IMPORTERS = {
     # AUD-020: a history that declares the registries it is read under,
     # and every reader, the second one too, held to them.
     "tests/test_governed_history.py",
+    # Stage 2 (AUD-021 to AUD-023): every writer signs through its handle,
+    # the authentication restated without the key layer, and the separate
+    # process reading a governed history under its roots.
+    "tests/test_signing_seam.py",
+    "tests/test_restated_authentication.py",
+    "tests/test_separate_reads_governed.py",
     "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",

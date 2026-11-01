@@ -666,6 +666,69 @@ def _preparer(attestations: Attestations, signer: Signer,
     return prepare
 
 
+class Signing:
+    """The keys one log handle writes with (S2a).
+
+    ``EventLog(..., signing=Signing(attestations, signers))`` signs every
+    record the handle writes -- whichever writer writes it: the authority
+    store, the policy store, the research ledger, the task runner -- with
+    the key of the record's actor, by the same protocol as
+    :func:`signed_append`: under the writer lock, the key is checked to be
+    one the registry lets sign that seq, and the attestation is made durable
+    before the record. Without it, no authority-layer writer could write an
+    authenticated history at all: each refuses an unsigned record there.
+
+    WHAT IT DOES NOT CHANGE. A signature binds a record to a key, not to an
+    authority: a GOVERNED history's role registry still decides what the
+    actor may do, live and on every replay. And a handle holding several
+    principals' keys can write as any of them: separation between parties
+    is exactly as strong as the custody of their keys, which is a
+    deployment's to arrange. Here every key is a TEST identity.
+
+    REFUSED, BEFORE A BYTE IS WRITTEN: an actor the handle holds no key for;
+    a key the registry does not hold, holds for another principal, or does
+    not let sign that seq; and an attestation file other than the one the
+    log's authenticator reads, where a reader would never find the
+    attestation and the record would read as unattested."""
+
+    def __init__(self, attestations: Attestations, signers, *,
+                 registry: "KeyRegistry | None" = None):
+        if not isinstance(attestations, Attestations):
+            raise AuthenticationError(
+                "a signing handle needs the attestation file it writes to")
+        held: dict = {}
+        for s in signers:
+            if not isinstance(s, Signer):
+                raise AuthenticationError(f"{s!r} is not a signer")
+            if s.principal in held:
+                raise AuthenticationError(
+                    f"two keys for {s.principal!r}: a handle signs each "
+                    "principal's records with one key")
+            held[s.principal] = s
+        if not held:
+            raise AuthenticationError("a signing handle holds no key")
+        self.attestations = attestations
+        self.signers = held
+        self.registry = registry
+
+    def prepare(self, log, ev) -> None:
+        signer = self.signers.get(ev.actor)
+        if signer is None:
+            raise AuthenticationError(
+                f"this log handle holds no key for {ev.actor!r}; it writes "
+                f"only as {sorted(self.signers)}, and nothing was written")
+        reads = getattr(getattr(log, "authenticator", None), "attestations",
+                        None)
+        if reads is not None and Path(reads.path).resolve() != \
+                self.attestations.path.resolve():
+            raise AuthenticationError(
+                f"this handle would attest to {self.attestations.path}, and "
+                f"its log's authenticator reads {reads.path}: the record "
+                "would read as unattested, and nothing was written")
+        _preparer(self.attestations, signer,
+                  _write_registry(log, self.registry))(ev)
+
+
 @dataclass
 class AuthenticationReport:
     authenticated: int = 0

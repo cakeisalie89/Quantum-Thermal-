@@ -148,7 +148,15 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/counterfactual_eval.json",
                # A history that declares its authorization roots (AUD-020).
                "tests/test_governed_history.py",
-               "tools/mutations/governed_history.json")
+               "tools/mutations/governed_history.json",
+               # Stage 2: signing through the handle, the restated
+               # authentication, the separate process under the roots
+               # (AUD-021 to AUD-023).
+               "tests/test_signing_seam.py",
+               "tests/test_restated_authentication.py",
+               "tests/test_separate_reads_governed.py",
+               "tools/mutations/signing_seam.json",
+               "tools/mutations/separate_governed.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

@@ -64,8 +64,8 @@
     {
       "name": "S9_the_production_path_does_not_consult_another_process",
       "path": "agent_substrate/governed_tasks.py",
-      "find": "        if ok:\n            sep = verify_in_separate_process(self.log.path, root=self.root)",
-      "replace": "        if False:\n            sep = verify_in_separate_process(self.log.path, root=self.root)",
+      "find": "        if ok:\n            sep = verify_in_separate_process(\n                self.log.path, root=self.root,",
+      "replace": "        if False:\n            sep = verify_in_separate_process(\n                self.log.path, root=self.root,",
       "rationale": "the mechanism exists and nothing calls it, which is the shape of a defence with no caller"
     },
     {

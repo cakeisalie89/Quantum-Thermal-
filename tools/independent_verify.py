@@ -118,6 +118,41 @@ class _FileEvidence:
         return (self.root / digest[:2] / digest[2:]).read_bytes()
 
 
+def _roots(args):
+    """The authenticator and the role registry the arguments name, built
+    from the restated authentication alone. (None, None) when none is
+    named; an argument that cannot be read raises, and the caller reports
+    the log unreadable rather than reading it without its roots."""
+    if args.key_registry is None and args.role_registry is None:
+        if args.attestations is not None:
+            raise ValueError("--attestations without --key-registry")
+        return None, None
+    import importlib.util
+    where = Path(args.root) / "tools" / "verify_assurance.py"
+    spec = importlib.util.spec_from_file_location(
+        "verify_assurance_restated", where)
+    if spec is None or spec.loader is None:
+        raise ValueError(f"the restated authentication cannot be loaded "
+                         f"from {where}")
+    restated = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(restated)
+    authenticator = None
+    if args.key_registry is not None:
+        if args.attestations is None:
+            raise ValueError("--key-registry without --attestations")
+        doc = restated.strict_json(Path(args.key_registry).read_bytes(),
+                                   "the key registry")
+        authenticator = restated.RestatedAuthenticator(
+            args.attestations, doc, allow_test_keys=args.allow_test_keys,
+            require=None if args.require is None
+            else frozenset(p for p in args.require.split(",") if p))
+    roles = None
+    if args.role_registry is not None:
+        roles = restated.held_document(restated.strict_json(
+            Path(args.role_registry).read_bytes(), "the role registry"))
+    return authenticator, roles
+
+
 def main() -> int:
     # Installed FIRST, before agent_substrate is touched at all, so the guard
     # is in place for every import this program will ever do.
@@ -135,6 +170,24 @@ def main() -> int:
     ap.add_argument("--evidence", default=None,
                     help="the evidence store's directory, for the bytes a "
                          "decision cites")
+    # The history's roots, for an authenticated or GOVERNED history (S2-2):
+    # public documents, never a secret. They are read with the restated
+    # authentication of tools/verify_assurance.py -- this process may not
+    # import agent_substrate.principals -- and a GOVERNED history read
+    # without them, or with others than it declares, reads nothing.
+    ap.add_argument("--attestations", default=None,
+                    help="the attestation file beside the log")
+    ap.add_argument("--key-registry", default=None,
+                    help="the key-registry document the history is read "
+                         "under")
+    ap.add_argument("--role-registry", default=None,
+                    help="the role-registry document the history is read "
+                         "under")
+    ap.add_argument("--allow-test-keys", action="store_true",
+                    help="admit TEST keys in the key registry")
+    ap.add_argument("--require", default=None,
+                    help="comma-separated principals the authenticator "
+                         "asks; every actor when absent")
     args = ap.parse_args()
 
     if args.root not in sys.path:
@@ -154,7 +207,8 @@ def main() -> int:
 
     path = Path(args.log)
     try:
-        log = EventLog(path)
+        authenticator, roles = _roots(args)
+        log = EventLog(path, authenticator=authenticator, roles=roles)
         report = log.verify()
     except Exception as exc:                            # noqa: BLE001
         print(json.dumps({
@@ -176,7 +230,8 @@ def main() -> int:
             proof = json.loads(Path(args.proof).read_text(encoding="utf-8"))
             findings.extend(verify_decision_proof(
                 log, proof, evidence=_FileEvidence(args.evidence)
-                if args.evidence else None))
+                if args.evidence else None, authenticator=authenticator,
+                roles=roles))
         except Exception as exc:                        # noqa: BLE001
             print(json.dumps({
                 **result, "ok": False,
@@ -194,9 +249,9 @@ def main() -> int:
         return 1 if findings else 0
 
     try:
-        subs = reconstruct_subsystems(log)
-        recs = reconstruct(log)
-        tasks = reconstruct_tasks(log)
+        subs = reconstruct_subsystems(log, roles=roles)
+        recs = reconstruct(log, authenticator=authenticator, roles=roles)
+        tasks = reconstruct_tasks(log, roles=roles)
     except Exception as exc:                            # noqa: BLE001
         print(json.dumps({
             **result, "ok": False,
@@ -207,6 +262,15 @@ def main() -> int:
     findings.extend(subs.anomalies)
     findings.extend(getattr(recs, "anomalies", ()) or ())
     findings.extend(getattr(tasks, "anomalies", ()) or ())
+    # What each reader REFUSED is a finding too (S2-2). A transition the
+    # machine would not take, or a record by a party that may not make it,
+    # is kept out of the state and listed as unauthorized, not as an
+    # anomaly; a log carrying one was reported clean here while the same
+    # reader, in-process, refused it. ``unverifiable`` is not counted: it
+    # says this process was given no evidence to decide an admission with,
+    # which is not a fault of the log.
+    findings.extend(getattr(recs, "unauthorized", ()) or ())
+    findings.extend(getattr(tasks, "unauthorized", ()) or ())
 
     result.update({
         "events_replayed": subs.events_replayed,

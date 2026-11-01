@@ -1467,7 +1467,10 @@ class GovernedTasks:
             why = why + "; " + again if ok else again
 
         if ok:
-            sep = verify_in_separate_process(self.log.path, root=self.root)
+            sep = verify_in_separate_process(
+                self.log.path, root=self.root,
+                authenticator=getattr(self.log, "authenticator", None),
+                roles=getattr(self.log, "roles", None))
             self.log.append(
                 actor=verifier, action=ACT_SEPARATE_VERIFY, target=task_id,
                 payload={"task_id": task_id, **sep.to_record()})

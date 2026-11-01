@@ -238,6 +238,40 @@ def test_a_log_with_findings_is_refused(log):
         v.raise_if_bad()
 
 
+def test_a_transition_the_second_reader_refuses_is_a_finding(log):
+    """It was not (S2-2). The child counted the second reader's anomalies
+    and dropped what it REFUSES: a transition the state machine would not
+    take is recorded as unauthorized, not as an anomaly. r0 taken PROPOSED
+    -> PROMOTED, an edge the machine does not have, read as a clean log in
+    the separate process while the second reader refused it in-process."""
+    log.append(actor="mallory", action="record.transition", target="r0",
+               payload={"record_id": "r0", "src": "PROPOSED",
+                        "dst": "PROMOTED", "role": "PROMOTER",
+                        "evidence": {}, "policy_id": None,
+                        "stale_reason": None, "edge_reason": "",
+                        "idempotency_key": None})
+    v = verify_in_separate_process(log.path, root=ROOT)
+    assert not v.ok and v.exit_status == EXIT_FINDINGS, v.reason
+    assert any("PROPOSED -> PROMOTED" in f for f in v.findings), v.findings
+
+
+def test_a_task_record_the_second_reader_refuses_is_a_finding(gov):
+    """The same for the task reader: an execution record appended after the
+    verdict, by a party that holds no lease, would rename who executed work
+    already judged. The task reader refuses it; the separate process
+    reported the log clean."""
+    run = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov))
+    assert run.state is TaskState.VERIFIED
+    _, events = EventLog(gov.log.path).read_verified()
+    done = [e for e in events if e.action == "task.execution"][-1]
+    gov.log.append(actor="mallory", action="task.execution",
+                   target=done.target, payload=dict(done.payload))
+    v = verify_in_separate_process(gov.log.path, root=ROOT)
+    assert not v.ok and v.exit_status == EXIT_FINDINGS, v.reason
+    assert any("execution record while VERIFIED" in f for f in v.findings), \
+        v.findings
+
+
 def test_an_unreadable_log_is_refused(tmp_path):
     bad = tmp_path / "not-a-log.jsonl"
     bad.write_text("{ this is not json\n", encoding="utf-8")

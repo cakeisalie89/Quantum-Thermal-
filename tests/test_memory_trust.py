@@ -353,8 +353,8 @@ def test_a_second_reader_that_disagrees_is_reported(tmp_path, monkeypatch):
     mem.remember(memory_id="m1", text=TEXT, author="alice")
     real = MT.reconstruct_subsystems
 
-    def forgetting(log_):
-        out = real(log_)
+    def forgetting(log_, **roots):
+        out = real(log_, **roots)
         out.memory.pop("m1")
         return out
 
@@ -363,8 +363,8 @@ def test_a_second_reader_that_disagrees_is_reported(tmp_path, monkeypatch):
     assert t.answers["consistently_reconstructed"].value == NO
     assert "does not hold it" in t.answers["consistently_reconstructed"].why
 
-    def flagging(log_):
-        out = real(log_)
+    def flagging(log_, **roots):
+        out = real(log_, **roots)
         out.anomalies.append("seq 0: memory 'm1' disputed")
         return out
 

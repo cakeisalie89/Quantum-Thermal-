@@ -593,7 +593,8 @@ class EventLog:
     LOCK_TIMEOUT_S = 30.0
 
     def __init__(self, path: Path | str, *, authenticator=None,
-                 required_profile: str | None = None, roles=None):
+                 required_profile: str | None = None, roles=None,
+                 signing=None):
         self.path = Path(path)
         if required_profile is not None and required_profile not in PROFILES:
             raise EventLogError(
@@ -616,6 +617,16 @@ class EventLog:
         #: is the one the history declares; the readers that enforce roles
         #: enforce this one.
         self.roles = roles
+        #: The keys this handle writes with (S2a): an object whose
+        #: ``prepare(log, event)`` attests the exact record before it is
+        #: written, under the writer lock -- in practice
+        #: :class:`agent_substrate.principals.Signing`, which this module
+        #: does not import. With one, every append the handle makes is signed
+        #: by its actor's key, whichever writer makes it, and an actor the
+        #: handle holds no key for is refused before anything is written.
+        #: An append given its own ``before_write`` (a signed append) is
+        #: signed by that, not by this.
+        self.signing = signing
         #: The declared profile, once a read has established it. Genesis
         #: never changes, so it is learned once per object.
         self._profile: str | None = None
@@ -1564,6 +1575,8 @@ class EventLog:
         """Build, bound-check and durably write one record. One writer."""
         import uuid
 
+        if before_write is None and self.signing is not None:
+            before_write = functools.partial(self.signing.prepare, self)
         payload = dict(payload or {})
         if action == ACT_SECURITY_PROFILE and (
                 head_seq != -1 or _declaration_problem(payload) is not None):
@@ -1621,10 +1634,13 @@ class EventLog:
                 declares
                 or self.required_profile in AUTHENTICATED_PROFILES
                 or current in AUTHENTICATED_PROFILES):
+            named = (payload.get("profile") if declares
+                     else current if current in AUTHENTICATED_PROFILES
+                     else self.required_profile)
             raise EventLogError(
-                f"an {PROFILE_AUTHENTICATED_REQUIRED} history is written "
-                "only with the record's attestation prepared before it "
-                "(agent_substrate.principals.signed_append)")
+                f"this history ({named}) is written only with the record's "
+                "attestation prepared before it (a log opened with "
+                "signing=, or agent_substrate.principals.signed_append)")
         if before_write is not None:
             before_write(ev)
 

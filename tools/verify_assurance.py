@@ -466,6 +466,419 @@ def _field(raw: bytes) -> tuple:
             struct.unpack(f"<{n}d", body[8 * n:]))
 
 
+# ------------------------------------------------ authentication, restated
+#
+# WHO WROTE EACH RECORD, checked from the RFC and the documents alone. The
+# producer authenticates its history with agent_substrate.principals and
+# agent_substrate.ed25519; nothing here imports either, and the separate
+# process (tools/independent_verify.py, which may not import them) reads a
+# governed history with this code instead. Each rule below restates the
+# producer's, finding kind for finding kind, so the two can be held to the
+# same histories and made to disagree when either changes.
+
+#: RFC 8032 section 5.1: the field prime, the group order, the curve
+#: constant d, and a square root of -1.
+_ED_P = 2 ** 255 - 19
+_ED_L = 2 ** 252 + 27742317777372353535851937790883648493
+_ED_D = -121665 * pow(121666, _ED_P - 2, _ED_P) % _ED_P
+_ED_I = pow(2, (_ED_P - 1) // 4, _ED_P)
+#: what an attestation signs: the domain, then the event's hash in ASCII
+ATTESTATION_DOMAIN = b"qta-agent/event-attestation/v1\x00"
+KEY_SCHEMA_V1 = "qta-agent/key-registry/v1"
+KEY_SCHEMA_V2 = "qta-agent/key-registry/v2"
+_KEY_FIELDS_V1 = frozenset({"key_id", "principal", "scheme", "public"})
+_KEY_FIELDS_V2 = _KEY_FIELDS_V1 | {
+    "status", "valid_from_seq", "valid_until_seq", "revoked_at_seq",
+    "revocation_reason", "compromised_from_seq", "replacement_key"}
+_MAX_KEYS = 4096
+_MAX_NAME = 256
+_LOWER = re.compile(r"[0-9a-f]*")
+
+
+def _ed_x(y: int, sign: int):
+    """The x of the point with ``y``, or None: RFC 8032 5.1.3."""
+    if y >= _ED_P:
+        return None
+    u, v = (y * y - 1) % _ED_P, (_ED_D * y * y + 1) % _ED_P
+    x2 = u * pow(v, _ED_P - 2, _ED_P) % _ED_P
+    if x2 == 0:
+        return None if sign else 0
+    x = pow(x2, (_ED_P + 3) // 8, _ED_P)
+    if (x * x - x2) % _ED_P:
+        x = x * _ED_I % _ED_P
+    if (x * x - x2) % _ED_P:
+        return None
+    return _ED_P - x if (x & 1) != sign else x
+
+
+def _ed_point(raw: bytes):
+    """Extended coordinates of an encoded point, or None."""
+    if len(raw) != 32:
+        return None
+    n = int.from_bytes(raw, "little")
+    y, sign = n & ((1 << 255) - 1), n >> 255
+    x = _ed_x(y, sign)
+    return None if x is None else (x, y, 1, x * y % _ED_P)
+
+
+def _ed_add(a, b):
+    """RFC 8032 5.1.4, the unified addition in extended coordinates."""
+    (x1, y1, z1, t1), (x2, y2, z2, t2) = a, b
+    aa = (y1 - x1) * (y2 - x2) % _ED_P
+    bb = (y1 + x1) * (y2 + x2) % _ED_P
+    cc = 2 * _ED_D * t1 * t2 % _ED_P
+    dd = 2 * z1 * z2 % _ED_P
+    e, f, g, h = bb - aa, dd - cc, dd + cc, bb + aa
+    return (e * f % _ED_P, g * h % _ED_P, f * g % _ED_P, e * h % _ED_P)
+
+
+def _ed_times(k: int, pt):
+    out = (0, 1, 1, 0)
+    while k:
+        if k & 1:
+            out = _ed_add(out, pt)
+        pt, k = _ed_add(pt, pt), k >> 1
+    return out
+
+
+#: the base point B: y = 4/5, x even
+_ED_BY = 4 * pow(5, _ED_P - 2, _ED_P) % _ED_P
+_ED_BX = _ed_x(_ED_BY, 0)
+_ED_B = (_ED_BX, _ED_BY, 1, _ED_BX * _ED_BY % _ED_P)
+
+
+def ed25519_verify(public: bytes, message: bytes, signature: bytes) -> bool:
+    """RFC 8032 5.1.7, with the equation [S]B = R + [k]A that the RFC
+    allows in place of the cofactored one; the producer checks the same
+    equation, so the two cannot disagree on a small-order component. Bytes
+    an adversary wrote: anything malformed is False, never an exception."""
+    if not (isinstance(public, (bytes, bytearray)) and len(public) == 32
+            and isinstance(signature, (bytes, bytearray))
+            and len(signature) == 64):
+        return False
+    a, r = _ed_point(bytes(public)), _ed_point(bytes(signature[:32]))
+    s = int.from_bytes(signature[32:], "little")
+    if a is None or r is None or s >= _ED_L:
+        return False
+    k = int.from_bytes(hashlib.sha512(
+        bytes(signature[:32]) + bytes(public) + message).digest(),
+        "little") % _ED_L
+    lhs, rhs = _ed_times(s, _ED_B), _ed_add(r, _ed_times(k, a))
+    return ((lhs[0] * rhs[2] - rhs[0] * lhs[2]) % _ED_P == 0
+            and (lhs[1] * rhs[2] - rhs[1] * lhs[2]) % _ED_P == 0)
+
+
+def _hex_of(value, length: int) -> bool:
+    """Exactly ``length`` lowercase hex digits: the one encoding a signer
+    writes, so one signature has one record."""
+    return (isinstance(value, str) and len(value) == length
+            and _LOWER.fullmatch(value) is not None)
+
+
+def _seq_or_none(value, what: str):
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise Refused("every key's lifecycle is in log positions",
+                      f"{what} is {value!r}")
+    return value
+
+
+def _key_name(value, what: str) -> str:
+    if not isinstance(value, str) or not value or len(value) > _MAX_NAME:
+        raise Refused("every key names itself and its principal",
+                      f"{what} is {value!r}")
+    return value
+
+
+def derived_key_id(public: bytes, *, test: bool) -> str:
+    """A key's id is derived from the key, never chosen."""
+    kid = f"ed25519:{hashlib.sha256(public).hexdigest()[:32]}"
+    return "test:" + kid if test else kid
+
+
+def read_key_registry(doc, *, allow_test_keys: bool) -> dict:
+    """``key_id -> key``, from a key-registry document (v1 or v2). Every
+    rule the producer's registry keeps is restated; a document either
+    reading would refuse is refused."""
+    if not isinstance(doc, dict) or doc.get("schema") not in (
+            KEY_SCHEMA_V1, KEY_SCHEMA_V2):
+        shown = doc.get("schema") if isinstance(doc, dict) else doc
+        raise Refused("the key registry is a key-registry document",
+                      f"schema {shown!r}")
+    v2 = doc["schema"] == KEY_SCHEMA_V2
+    if v2 and (set(doc) != {"schema", "registry_version", "keys"}
+               or not isinstance(doc.get("registry_version"), int)
+               or isinstance(doc.get("registry_version"), bool)):
+        raise Refused("the key registry's header is readable", sorted(doc))
+    entries = doc.get("keys")
+    if not isinstance(entries, list) or len(entries) > _MAX_KEYS:
+        raise Refused("the key registry lists its keys", type(entries))
+    keys: dict = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != (
+                _KEY_FIELDS_V2 if v2 else _KEY_FIELDS_V1):
+            raise Refused("every key entry has exactly its fields",
+                          sorted(entry) if isinstance(entry, dict)
+                          else entry)
+        kid = _key_name(entry["key_id"], "key_id")
+        if entry["scheme"] != "ed25519" or not _hex_of(entry["public"], 64):
+            raise Refused("every key is an Ed25519 public key in lowercase "
+                          "hex", kid)
+        public = bytes.fromhex(entry["public"])
+        test = kid.startswith("test:")
+        if kid != derived_key_id(public, test=test):
+            raise Refused("every key id is derived from its key", kid)
+        if test and not allow_test_keys:
+            raise Refused("no TEST key is read where test keys are not "
+                          "admitted", kid)
+        if kid in keys:
+            raise Refused("no key is registered twice", kid)
+        key: dict[str, Any] = {
+               "key_id": kid,
+               "principal": _key_name(entry["principal"], "principal"),
+               "public": public, "valid_from_seq": 0,
+               "valid_until_seq": None, "revoked_at_seq": None,
+               "revocation_reason": None, "compromised_from_seq": None,
+               "replacement_key": None}
+        if v2:
+            key.update(
+                valid_from_seq=_seq_or_none(entry["valid_from_seq"],
+                                            "valid_from_seq") or 0,
+                valid_until_seq=_seq_or_none(entry["valid_until_seq"],
+                                             "valid_until_seq"),
+                revoked_at_seq=_seq_or_none(entry["revoked_at_seq"],
+                                            "revoked_at_seq"),
+                revocation_reason=None if entry["revocation_reason"] is None
+                else _key_name(entry["revocation_reason"],
+                               "revocation_reason"),
+                compromised_from_seq=_seq_or_none(
+                    entry["compromised_from_seq"], "compromised_from_seq"),
+                replacement_key=None if entry["replacement_key"] is None
+                else _key_name(entry["replacement_key"], "replacement_key"))
+            status = ("REVOKED" if key["revoked_at_seq"] is not None else
+                      "ROTATED" if key["valid_until_seq"] is not None else
+                      "ACTIVE")
+            if entry["status"] != status:
+                raise Refused("every key's status is what its lifecycle "
+                              "says", f"{kid}: {entry['status']!r}, the "
+                              f"lifecycle says {status}")
+        if (key["valid_until_seq"] is not None
+                and key["valid_until_seq"] < key["valid_from_seq"]):
+            raise Refused("no key expires before it begins", kid)
+        if (key["revoked_at_seq"] is None) != (
+                key["revocation_reason"] is None):
+            raise Refused("a revocation names both where and why", kid)
+        keys[kid] = key
+    for key in keys.values():
+        nxt = keys.get(key["replacement_key"]) \
+            if key["replacement_key"] is not None else None
+        if key["replacement_key"] is not None and (
+                nxt is None or nxt["principal"] != key["principal"]):
+            raise Refused("a key's replacement is a key of the same "
+                          "principal", key["key_id"])
+    return keys
+
+
+def key_refusal_at(key: dict, seq: int):
+    """``(kind, detail)`` when ``key`` may not sign the event at ``seq``:
+    the producer's lifecycle rule, in its order."""
+    kid = key["key_id"]
+    if key["compromised_from_seq"] is not None and \
+            seq >= key["compromised_from_seq"]:
+        return ("KEY_COMPROMISED", f"{kid!r} is declared compromised from "
+                f"seq {key['compromised_from_seq']}")
+    if key["revoked_at_seq"] is not None and seq >= key["revoked_at_seq"]:
+        return ("KEY_REVOKED", f"{kid!r} was revoked at seq "
+                f"{key['revoked_at_seq']} ({key['revocation_reason']})")
+    if seq < key["valid_from_seq"]:
+        return ("KEY_NOT_YET_VALID",
+                f"{kid!r} speaks from seq {key['valid_from_seq']}")
+    if key["valid_until_seq"] is not None and seq > key["valid_until_seq"]:
+        return ("KEY_EXPIRED", f"{kid!r} spoke until seq "
+                f"{key['valid_until_seq']}")
+    return None
+
+
+def read_attestation_file(raw: bytes) -> dict:
+    """The attestation file: each line an attestation or an abort record.
+    A last line with no newline is a prepare a crash tore, and is skipped,
+    as the producer skips it. A line in any other shape is MALFORMED."""
+    out: dict = {"by_hash": {}, "malformed": [], "aborted": set(),
+                 "torn_tail": False}
+    lines = raw.split(b"\n")
+    if lines and lines[-1] == b"":
+        lines.pop()
+    elif lines:
+        out["torn_tail"] = True
+        lines.pop()
+    for n, line in enumerate(lines, 1):
+        try:
+            rec = strict_json(line, f"attestation line {n}")
+        except Refused:
+            out["malformed"].append(n)
+            continue
+        seq = rec.get("seq") if isinstance(rec, dict) else None
+        good_seq = isinstance(seq, int) and not isinstance(seq, bool) \
+            and seq >= 0
+        if isinstance(rec, dict) and set(rec) == {"abort", "seq"} and \
+                good_seq and _hex_of(rec["abort"], 64):
+            out["aborted"].add(rec["abort"])
+        elif (isinstance(rec, dict)
+              and set(rec) == {"seq", "event_hash", "key_id", "sig"}
+              and good_seq and _hex_of(rec["event_hash"], 64)
+              and isinstance(rec["key_id"], str)
+              and 0 < len(rec["key_id"]) <= _MAX_NAME
+              and _hex_of(rec["sig"], 128)):
+            out["by_hash"].setdefault(rec["event_hash"], []).append(rec)
+        else:
+            out["malformed"].append(n)
+    return out
+
+
+def _field_of(ev, name: str):
+    return ev[name] if isinstance(ev, dict) else getattr(ev, name)
+
+
+def authenticate_events(events, attested: dict, keys: dict, *,
+                        complete: bool = True, require=None) -> dict:
+    """Every event whose actor must authenticate (every actor when
+    ``require`` is None) carries an attestation by a key the registry holds
+    for that actor, valid at the event's position, whose signature verifies
+    over the domain and the event's hash. ``findings`` are ``(seq, kind,
+    detail)``, seq None for a finding about the file; ``refused`` the
+    positions of the events that did not authenticate."""
+    events = list(events)
+    by_hash, aborted = attested["by_hash"], attested["aborted"]
+    findings: list = [(None, "MALFORMED",
+                       f"attestation line {n} is not an attestation")
+                      for n in attested["malformed"]]
+    committed = {_field_of(ev, "hash") for ev in events}
+    findings += [(None, "ABORTED_COMMITTED",
+                  f"an abort names committed event {h[:16]}...; no writer "
+                  "aborts what it committed")
+                 for h in sorted(aborted & committed)]
+    principals = {k["principal"] for k in keys.values()}
+    refused: set = set()
+    seen: set = set()
+    authenticated = 0
+    for ev in events:
+        seq, actor, h = (_field_of(ev, "seq"), _field_of(ev, "actor"),
+                         _field_of(ev, "hash"))
+        if require is not None and actor not in require:
+            continue
+        seen.add(h)
+        atts = by_hash.get(h, [])
+        if actor not in principals:
+            findings.append((seq, "NO_KEY",
+                             f"no key is registered for {actor!r}"))
+            refused.add(seq)
+            continue
+        if not atts:
+            findings.append((seq, "MISSING",
+                             f"no attestation of this event by {actor!r}"))
+            refused.add(seq)
+            continue
+        why: list = []
+        for att in atts:
+            key = keys.get(att["key_id"])
+            if key is None:
+                why.append(("UNKNOWN_KEY", f"{att['key_id']!r} is not a "
+                            "registered key"))
+            elif key["principal"] != actor:
+                why.append(("WRONG_PRINCIPAL", f"signed by a key of "
+                            f"{key['principal']!r}, and the event names "
+                            f"{actor!r}"))
+            elif key_refusal_at(key, seq) is not None:
+                why.append(key_refusal_at(key, seq))
+            elif att["seq"] != seq or not ed25519_verify(
+                    key["public"], ATTESTATION_DOMAIN + h.encode("ascii"),
+                    bytes.fromhex(att["sig"])):
+                why.append(("BAD_SIGNATURE",
+                            f"{key['key_id']!r} did not sign this event"))
+            else:
+                why = []
+                break
+        if why:
+            findings += [(seq, k, d) for k, d in why]
+            refused.add(seq)
+        else:
+            authenticated += 1
+    head = _field_of(events[-1], "seq") if events else -1
+    pending = {h for h, atts in by_hash.items()
+               if h not in seen and h not in aborted
+               and all(a["seq"] == head + 1 for a in atts)}
+    if len(pending) > 1:
+        pending = set()
+    for h in sorted(set(by_hash) - seen - aborted - pending) \
+            if complete else ():
+        if require is None or any(
+                keys.get(a["key_id"]) is not None
+                and keys[a["key_id"]]["principal"] in require
+                for a in by_hash[h]):
+            findings.append((None, "DANGLING",
+                             f"an attestation names event hash {h[:16]}..., "
+                             "which is in no event of this history"))
+    return {"findings": findings, "refused": refused,
+            "authenticated": authenticated}
+
+
+class _Held:
+    """A document a reader holds and compares by its digest."""
+
+    def __init__(self, doc):
+        self._doc = json.loads(json.dumps(doc))
+
+    def to_document(self):
+        return json.loads(json.dumps(self._doc))
+
+
+class _AuthenticationReport:
+    def __init__(self, result: dict):
+        self.findings = result["findings"]
+        self.refused = result["refused"]
+        self.authenticated = result["authenticated"]
+
+    @property
+    def ok(self) -> bool:
+        return not self.findings
+
+    def lines(self) -> list:
+        return [f"seq {s}: {k}: {d}" if s is not None else f"{k}: {d}"
+                for s, k, d in self.findings]
+
+
+class RestatedAuthenticator:
+    """What a reader of the event log is given to authenticate a history,
+    built from this file's code alone: the attestation file's path and the
+    key-registry document. Shaped as the log expects an authenticator to
+    be -- called with the events, ``require``, and a ``registry`` whose
+    document the log compares with what a GOVERNED history declares."""
+
+    def __init__(self, attestations, registry_doc, *,
+                 allow_test_keys: bool = False, require=None):
+        self.require = None if require is None else frozenset(require)
+        self.attestations_path = Path(attestations)
+        self.keys = read_key_registry(registry_doc,
+                                      allow_test_keys=allow_test_keys)
+        self.registry = _Held(registry_doc)
+
+    def __call__(self, events, *, complete: bool = True):
+        try:
+            raw = self.attestations_path.read_bytes()
+        except FileNotFoundError:
+            raw = b""
+        return _AuthenticationReport(authenticate_events(
+            events, read_attestation_file(raw), self.keys,
+            complete=complete, require=self.require))
+
+
+def held_document(doc):
+    """A role registry, or any other document a reader is given to compare
+    by digest and read as a document: nothing is imported to hold it."""
+    return _Held(doc)
+
+
 # ------------------------------------------------------------ the levels
 
 def _level_integrity(ctx, check):

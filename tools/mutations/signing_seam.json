@@ -1,0 +1,65 @@
+{
+  "title": "Every writer signs through the handle it writes with",
+  "note": "Stage 2, S2-1. SS1 removes the seam itself. SS2 to SS4 remove each refusal a signing handle makes before a byte is written: an actor it holds no key for, an attestation file its reader does not read, a key the registry does not let sign. SS5 to SS8 remove each check on how a handle is built. tests/test_signing_seam.py holds each with a real GOVERNED history and the stores that govern it.",
+  "suites": [
+    "tests/test_signing_seam.py"
+  ],
+  "mutations": [
+    {
+      "name": "SS1_the_log_never_signs_with_its_handle",
+      "path": "agent_substrate/events.py",
+      "find": "        if before_write is None and self.signing is not None:\n            before_write = functools.partial(self.signing.prepare, self)\n",
+      "replace": "        if False:\n            before_write = functools.partial(self.signing.prepare, self)\n",
+      "rationale": "a store given a signing handle cannot write a governed history: every record it writes is refused unsigned"
+    },
+    {
+      "name": "SS2_a_handle_signs_with_any_key_it_holds",
+      "path": "agent_substrate/principals.py",
+      "find": "        signer = self.signers.get(ev.actor)\n",
+      "replace": "        signer = self.signers.get(ev.actor) or next(iter(self.signers.values()))\n",
+      "rationale": "a handle writes a record for an actor it holds no key for, signed (or refused only by the signer's own check) with another principal's key"
+    },
+    {
+      "name": "SS3_the_attestation_file_is_not_checked",
+      "path": "agent_substrate/principals.py",
+      "find": "        if reads is not None and Path(reads.path).resolve() != \\\n                self.attestations.path.resolve():",
+      "replace": "        if False:",
+      "rationale": "a handle attests to a file its log's reader never reads, so the record it writes reads as unattested by every reader"
+    },
+    {
+      "name": "SS4_the_registry_is_not_asked_whether_the_key_may_sign",
+      "path": "agent_substrate/principals.py",
+      "find": "        _preparer(self.attestations, signer,\n                  _write_registry(log, self.registry))(ev)\n",
+      "replace": "        self.attestations.prepare(signer.attest(ev))\n",
+      "rationale": "a key the registry does not hold, or holds for another principal, signs a record and the record is written"
+    },
+    {
+      "name": "SS5_two_keys_for_one_principal_are_held",
+      "path": "agent_substrate/principals.py",
+      "find": "            if s.principal in held:\n                raise AuthenticationError(\n                    f\"two keys for {s.principal!r}",
+      "replace": "            if False:\n                raise AuthenticationError(\n                    f\"two keys for {s.principal!r}",
+      "rationale": "a handle holds two keys for one principal and signs with whichever was given last"
+    },
+    {
+      "name": "SS6_a_handle_with_no_key_is_built",
+      "path": "agent_substrate/principals.py",
+      "find": "        if not held:\n            raise AuthenticationError(\"a signing handle holds no key\")",
+      "replace": "        if False:\n            raise AuthenticationError(\"a signing handle holds no key\")",
+      "rationale": "a signing handle holding no key is built, and every write through it is refused only later"
+    },
+    {
+      "name": "SS7_anything_is_taken_for_a_signer",
+      "path": "agent_substrate/principals.py",
+      "find": "            if not isinstance(s, Signer):\n                raise AuthenticationError(f\"{s!r} is not a signer\")",
+      "replace": "            if False:\n                raise AuthenticationError(f\"{s!r} is not a signer\")",
+      "rationale": "a name is taken for a signer, and the handle fails when it first signs instead of when it is built"
+    },
+    {
+      "name": "SS8_anything_is_taken_for_an_attestation_file",
+      "path": "agent_substrate/principals.py",
+      "find": "        if not isinstance(attestations, Attestations):\n            raise AuthenticationError(\n                \"a signing handle needs the attestation file it writes to\")",
+      "replace": "        if False:\n            raise AuthenticationError(\n                \"a signing handle needs the attestation file it writes to\")",
+      "rationale": "a path string is taken for an attestation file, and the handle fails when it first signs"
+    }
+  ]
+}

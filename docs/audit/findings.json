@@ -709,7 +709,115 @@
     "tests/test_governed_history.py::test_the_independent_reader_compares_the_registry_it_is_given",
     "tests/test_governed_history.py::test_a_malformed_governed_declaration_is_refused_on_read"
    ],
-   "residual_risk": "Only a history that declares GOVERNED is bound; a deployment must pin GOVERNED to refuse the legacy profiles. No production key or role registry is provisioned (AUD-011, AUD-017). A store checkpoint is an unsigned record and cannot be written into an authenticated history: a signing checkpoint writer is not built. No authority-layer writer holds a signer: a REQUIRED or GOVERNED history is written only by principals.signed_append, record by record, so the governed run the assurance package is built from is unsigned. Agent registration, capability issuance and research conclusions are not acts the role registry governs. P1 rather than P0: no registry is provisioned, so no deployment relied on one; provisioning one would not have bound the readers. GH1-GH13 are each killed.",
+   "residual_risk": "Only a history that declares GOVERNED is bound; a deployment must pin GOVERNED to refuse the legacy profiles. No production key or role registry is provisioned (AUD-011, AUD-017). A store checkpoint is an unsigned record and cannot be written into an authenticated history: a signing checkpoint writer is not built. No authority-layer writer held a signer, so a REQUIRED or GOVERNED history could be written only by principals.signed_append, record by record: AUD-021, closed in Stage 2, where a log handle opened with signing= signs every record its writers append, a store checkpoint included. Agent registration, capability issuance and research conclusions are not acts the role registry governs. P1 rather than P0: no registry is provisioned, so no deployment relied on one; provisioning one would not have bound the readers. GH1-GH13 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-021",
+   "title": "An authenticated history could not be written by any governed writer: no store, ledger or runner held a signer",
+   "severity": "P2",
+   "subsystem": "authentication / event log write path",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "_write_event: an unsigned record in a REQUIRED or GOVERNED history is refused, and nothing gave a writer a way to sign; the refusal named AUTHENTICATED_REQUIRED for every authenticated profile"
+    },
+    {
+     "path": "agent_substrate/principals.py",
+     "lines": "signed_append: the one signing path, a function of its own beside every writer"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "AuthorityStore, and likewise PolicyStore, the research ledger, the task runner: each appends through the plain append"
+    }
+   ],
+   "behavior": "In a GOVERNED history whose role registry grants alice PROPOSER and owner POLICY_OWNER, AuthorityStore.create by alice and PolicyStore.publish by owner were each refused: 'an AUTHENTICATED_REQUIRED history is written only with the record's attestation prepared before it'. An authenticated history could be written only by principals.signed_append, record by record, by code that bypassed every store's live checks; no governed run of the harness was possible, and no store checkpoint of an authenticated history. D-2026-92 recorded 'the governed writers do not sign' as the next commit's work; D-2026-93 closed the crash window it named beside it and left this.",
+   "invariant": "Every writer of an authenticated history writes through its live checks, and every record it writes is signed with its actor's key before the record exists.",
+   "mechanism": "Signing was a property of one function, not of the log handle every writer appends through.",
+   "reproduction": "tests/test_signing_seam.py. On the Stage 1 tree (aa699b9), the same history: AuthorityStore.create by alice and PolicyStore.publish by owner, both granted, REFUSED as unsigned; EventLog took no signing argument.",
+   "observed": "Two granted principals could not write a governed history through the stores that govern it.",
+   "expected": "A handle holding a principal's key writes that principal's records, through every store, signed by the signed-append protocol.",
+   "correction": "EventLog(..., signing=principals.Signing(attestations, signers)): when an append brings no pre-write hook of its own, the record is attested by its actor's key under the writer lock before it is written, by the signed-append protocol. Refused before a byte is written: an actor the handle holds no key for, a key the registry does not let sign that seq, an attestation file the log's reader does not read, and a handle built with no key, two keys for one principal, or something that is not a signer. A signature is not an authorization: the role registry still decides, live and on replay. The unsigned refusal names the history's own profile.",
+   "regression_tests": [
+    "tests/test_signing_seam.py::test_the_store_writes_a_governed_history_through_a_signing_handle",
+    "tests/test_signing_seam.py::test_a_handle_writes_only_as_the_principals_it_holds_keys_for",
+    "tests/test_signing_seam.py::test_signing_is_not_authorization",
+    "tests/test_signing_seam.py::test_an_authenticated_history_is_checkpointed_and_restored"
+   ],
+   "residual_risk": "A handle holding several principals' keys can write as any of them: separation between parties is as strong as the custody of their keys, and every key here is a TEST identity. No production key exists (AUD-011, AUD-017). SS1-SS8 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-022",
+   "title": "The separate-process verifier reported a history clean while its own readers refused acts in it",
+   "severity": "P1",
+   "subsystem": "independent verification / separate process",
+   "files": [
+    {
+     "path": "tools/independent_verify.py",
+     "lines": "main: findings were the anomalies of the three readers; what reconstruct and reconstruct_tasks refused (unauthorized) was dropped"
+    }
+   ],
+   "behavior": "A history in which r1 is created and then taken PROPOSED -> PROMOTED by mallory, an edge the machine does not have: the second reader, in-process, refused the transition ('would be refused today: no edge PROPOSED -> PROMOTED'), and verify_in_separate_process reported ok=True, exit 0, 'reconstruction found no anomalies'. Likewise an execution record appended after a task's verdict by a party holding no lease, renaming who executed work already judged: the task reader refused it, and the separate process reported the log clean. A governed task run records this verdict, and is accepted on it.",
+   "invariant": "The separate process says a history is clean only when none of its readers refuses anything in it.",
+   "mechanism": "The child counted the readers' structural findings (anomalies) and not the acts they refused (unauthorized), which they keep out of the state they rebuild.",
+   "reproduction": "tests/test_agent_separate_verify.py::test_a_transition_the_second_reader_refuses_is_a_finding and ::test_a_task_record_the_second_reader_refuses_is_a_finding; on the Stage 1 tree both histories read ok=True, exit 0, from the separate process.",
+   "observed": "ok=True and exit 0 for a history the same reader refuses in-process.",
+   "expected": "Findings, exit 1, naming the refused act.",
+   "correction": "The child counts what reconstruct and reconstruct_tasks refuse as findings. unverifiable is not counted: it says the child was given no evidence to decide a scientific admission with, which is not a fault of the history.",
+   "regression_tests": [
+    "tests/test_agent_separate_verify.py::test_a_transition_the_second_reader_refuses_is_a_finding",
+    "tests/test_agent_separate_verify.py::test_a_task_record_the_second_reader_refuses_is_a_finding"
+   ],
+   "residual_risk": "P1 because the verdict was a false verification claim. The primary readers refused both histories, so no state was built on them; the separate process is a second line. SG1 and SG2 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-023",
+   "title": "The independent readers could not read a governed history: the separate process was handed no roots, and the decision proof and memory trust dropped them",
+   "severity": "P2",
+   "subsystem": "independent verification / decision proofs / memory trust",
+   "files": [
+    {
+     "path": "tools/independent_verify.py",
+     "lines": "EventLog(path) with no authenticator and no role registry; its import guard forbids the key layer"
+    },
+    {
+     "path": "agent_substrate/separate_verify.py",
+     "lines": "verify_in_separate_process handed the child the log's path alone"
+    },
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "the run's independent check called it with the path alone"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "derive_decision_proof re-read each prefix with no roots"
+    },
+    {
+     "path": "agent_substrate/memory_trust.py",
+     "lines": "assess rebuilt the primary projection on a fresh handle without the role registry or the pinned profile, and the second reader without roles"
+    }
+   ],
+   "behavior": "With every writer able to sign (AUD-021), a governed task run on a GOVERNED history was REJECTED by its own independent check: 'the independent process could not read the log: reconstruction raised: ChainBroken: this history is GOVERNED and the reader was given no authenticator'. derive_decision_proof of a VERIFIED decision returned accepted=False, and memory_trust.assess answered NO to consistently_reconstructed for a memory the primary store holds.",
+   "invariant": "Every independent reading of a governed history reads it under the roots the history declares, handed over as public documents, and is refused when it is not handed them.",
+   "mechanism": "The roots were attributes of the caller's log handle. The separate process was given a path, and two readers built fresh handles from the path.",
+   "reproduction": "tests/test_separate_reads_governed.py; with the signing seam and without this correction, the same governed run REJECTED, the decision not accepted, the memory NO.",
+   "observed": "A governed history the harness itself wrote was unreadable to its own independent readers.",
+   "expected": "The run confirmed by the other process, the decision accepted, the memory consistently reconstructed; and each refused when the roots are withheld or others are given.",
+   "correction": "verify_in_separate_process takes authenticator and roles and hands the child their public part: the attestation file's path and the key-registry and role-registry documents. An authenticator that cannot be handed over is refused, not dropped. The child, which may not import the key layer, authenticates with the authentication restated in tools/verify_assurance.py (RFC 8032 verification, the key registry and its lifecycle, the attestation file), which tests/test_restated_authentication.py holds to the producer's verdict on every finding kind. GovernedTasks hands over its log's roots. derive_decision_proof and verify_decision_proof take roots and read each prefix as a catch-up. memory_trust reads both of its readers under its log's roots.",
+   "regression_tests": [
+    "tests/test_separate_reads_governed.py::test_the_other_process_reads_a_governed_history_under_its_roots",
+    "tests/test_separate_reads_governed.py::test_without_its_own_roots_the_other_process_reads_nothing",
+    "tests/test_separate_reads_governed.py::test_a_governed_task_run_is_confirmed_by_the_other_process",
+    "tests/test_separate_reads_governed.py::test_a_decision_of_a_governed_history_is_proved_under_its_roots",
+    "tests/test_separate_reads_governed.py::test_memory_trust_reconstructs_a_governed_history_under_its_roots",
+    "tests/test_restated_authentication.py::test_it_gives_the_producer_s_verdict_on_every_finding_kind"
+   ],
+   "residual_risk": "The restated authentication and the producer's follow one RFC and one verification equation: two implementations, not two specifications. The child admits TEST keys when the document it is handed holds them; a production registry is handed without that admission. derive_decision_proof does not take roots from the log it is given: a caller of a governed history passes them. SG3-SG18 are each killed.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
   }

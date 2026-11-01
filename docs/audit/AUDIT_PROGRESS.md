@@ -1699,3 +1699,151 @@ changed after they ran.
   issuance and research conclusions are not acts the role registry
   governs. HUMAN_APPROVER and RELEASE_AUTHORITY are defined, and nothing
   enforces them.
+
+Stage 1 is commit aa699b9. On that exact tree the full suite gave 6,775
+passed, 19 skipped, 0 failed and 0 errors. Two earlier runs, on
+intermediate trees, were stopped before they finished, and neither is
+claimed.
+
+### Stage 2, first part: the governed path writes a governed history, and the independent process reads it
+
+Portable authority (the directive's section 13) needs a decision whose
+history is signed and governed. Building one from the harness's own
+research run found three defects first, each reproduced before its fix.
+
+**AUD-021: no governed writer could write an authenticated history (P2).**
+On the Stage 1 tree, in a GOVERNED history, alice's `AuthorityStore.create`
+and owner's `PolicyStore.publish` were both refused as unsigned. Both
+principals were granted those acts. The refusal also named
+AUTHENTICATED_REQUIRED for a GOVERNED history.
+
+Signing was a property of one function, `signed_append`. A REQUIRED or
+GOVERNED history could be written only record by record, by code that
+bypassed every store's live checks. D-2026-92 named this as the next
+commit's work, and it was never done.
+
+The closure is `EventLog(..., signing=principals.Signing(attestations,
+signers))`. Every record any writer appends through the handle is signed
+with its actor's key, by the signed-append protocol, under the writer
+lock, before the record exists. Refused before a byte is written:
+
+- an actor the handle holds no key for;
+- a key the registry does not let sign that seq;
+- an attestation file the log's reader does not read;
+- a handle built with no key, with two keys for one principal, or with
+  something that is not a signer.
+
+A signature is not an authorization: mallory's genuine key writes nothing
+the registry does not grant her. A store checkpoint of an authenticated
+history is now written and restored this way.
+
+**AUD-022: the separate process reported a history clean while its own
+readers refused acts in it (P1, a false verification claim).** The child
+counted the readers' anomalies and dropped what they refuse. Two histories
+read `ok=True`, exit 0, in the separate process:
+
+- a record taken PROPOSED -> PROMOTED, an edge the machine does not have,
+  which the same reader refuses in-process;
+- an execution record appended after a task's verdict, by a party with no
+  lease.
+
+The child now counts what each reader refuses. `unverifiable` is not
+counted: it means the child was given no evidence, not that the history
+is at fault. The legitimate research scenario still succeeds, and both of
+its separate verifications pass.
+
+**AUD-023: the independent readers could not read a governed history
+(P2).** With the seam in place, a governed task run on a GOVERNED history
+was REJECTED by its own independent check. The reason given was "the
+reader was given no authenticator". The child may not import the key
+layer, and nothing handed it the roots.
+
+`derive_decision_proof` and `memory_trust.assess` built fresh readers
+without the roots too. A VERIFIED decision read as not accepted, and a
+held memory as inconsistently reconstructed.
+
+- **The parent hands over the public roots.** `verify_in_separate_process`
+  takes `authenticator` and `roles` and hands the child the attestation
+  file's path and both registry documents. An authenticator it cannot hand
+  over is refused, not dropped. `GovernedTasks` hands over its log's roots.
+- **The child authenticates with a restatement.** It uses a second
+  implementation of authentication, written into `tools/verify_assurance.py`
+  with the standard library alone: RFC 8032 verification, the key registry
+  and its lifecycle, and the attestation file. The portable verifier will
+  use the same code.
+- **The restatement is held to the producer.**
+  `tests/test_restated_authentication.py` (30 tests) checks it against the
+  RFC vectors and against signatures the producer made. It also checks one
+  real history under every finding kind the producer names, and the
+  registry documents the producer refuses. The two implementations agree
+  on findings, refusals and counts.
+- **The other readers take roots.** The decision proof takes roots and
+  reads each prefix as a catch-up, so the attestations of later records do
+  not read as dangling. `memory_trust` reads both of its readers under its
+  log's roots.
+
+| Run | On the Stage 1 tree with the seam | After |
+|---|---|---|
+| governed task run | REJECTED by its own independent check | VERIFIED, confirmed by the other process |
+| decision proof of a VERIFIED decision | not accepted | accepted |
+| memory, consistently reconstructed | NO | YES |
+
+**Tests.** All are real, signed, GOVERNED histories:
+
+- `tests/test_signing_seam.py`: 11 tests;
+- `tests/test_restated_authentication.py`: 30 tests;
+- `tests/test_separate_reads_governed.py`: 12 tests. Among them, the other
+  process reads nothing without the roots, without the role registry, or
+  with another registry of either kind. A signed, unauthorized promotion,
+  and a record its writer did not sign, are each findings there;
+- `tests/test_agent_separate_verify.py`: two more, for AUD-022.
+
+**Mutations.** SS1 to SS8 (`tools/mutations/signing_seam.json`) each
+remove a rule of the seam, and SG1 to SG18
+(`tools/mutations/separate_governed.json`) each remove a rule of the child,
+the hand-over, the restated authentication or the readers' roots.
+
+On a first snapshot, SG15 survived: the prefix read as a whole history.
+A whole-history read of a prefix calls the attestations of records more
+than one past it dangling, and nothing of that reaches the decision proof.
+The proof uses only what the prefix reconstruction folds. So the survivor
+showed a contract no test held, not a missing check in the proof. A test
+now holds the contract on a governed history with two records after the
+prefix, and shows that the whole-history read does report DANGLING there.
+
+Two existing anchors targeted lines this change rewrote. They were
+repaired to remove the same rule, not dropped: S9 (separate verification)
+and FR39 (freshness).
+
+| Spec | Killed | Tree |
+|---|---|---|
+| signing_seam (SS) | 8 of 8 | the final tree |
+| separate_governed (SG) | 18 of 18 | the final tree (17 of 18 before the SG15 test) |
+| agent_separate_verify (S9 repaired) | 13 of 13 | the first snapshot |
+| freshness (FR39 repaired) | 40 of 40 | the first snapshot |
+| signed_append_lifecycle | 33 of 33 | the first snapshot |
+| authenticated_history | 26 of 26 | the first snapshot |
+
+The first snapshot differs from the final tree in typing annotations, one
+wrapped line, one test's schema literal and the added test. None of these
+is in a mutated line or in those four specs' suites.
+
+On the way, the repository content audit flagged the literal
+`qta-agent/key-registry/v3` in a test. It is the retired programme's name,
+outside the exact protocol identifiers that are the only place it may
+appear. The test now uses `harness/key-registry/v3`.
+
+**Not established, and not done.**
+
+- **One RFC, two implementations.** The restated authentication and the
+  producer's follow one RFC and one verification equation. They are two
+  implementations, not two specifications.
+- **A signing handle holds every key it is given.** Separation between
+  parties is as strong as the custody of their keys. Every key here is a
+  TEST identity, and the child admits TEST keys only when the registry
+  document it is handed holds them.
+- **The research run is not yet governed.** The harness's research run
+  needs a role registry granting each of its parties its acts, and the
+  assurance package does not yet carry a governed history.
+- **The decision proof does not borrow roots.** It does not take them from
+  the log it is given. A caller of a governed history passes them.

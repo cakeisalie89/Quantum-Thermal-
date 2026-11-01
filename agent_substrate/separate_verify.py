@@ -82,7 +82,8 @@ def verify_in_separate_process(
         python: str | None = None,
         timeout_s: float = DEFAULT_TIMEOUT_S,
         proof: dict | None = None,
-        evidence_root=None) -> SeparateVerification:
+        evidence_root=None, authenticator=None,
+        roles=None) -> SeparateVerification:
     """Reconstruct ``log_path`` in a child process. Never raises on a bad log.
 
     Returns a verdict rather than raising, because "the log has findings" is
@@ -98,6 +99,12 @@ def verify_in_separate_process(
     instead: it re-derives the decision's justification from the log on
     disk and the evidence under ``evidence_root``, and reports every way the
     proof departs from it and every condition the decision fails.
+
+    ``authenticator`` and ``roles`` are the history's roots (S2-2): the
+    child is handed their PUBLIC part -- the attestation file's path, the
+    key-registry and role-registry documents -- and reads the history
+    under them with its own restated authentication. A GOVERNED history
+    the child is not handed them for reads as nothing, and is refused.
     """
     root = (Path(root) if root is not None
             else Path(__file__).resolve().parent.parent)
@@ -109,6 +116,14 @@ def verify_in_separate_process(
                    "that is missing has not agreed with anything")
     argv = [python or sys.executable, str(script), str(log_path),
             "--root", str(root)]
+    import tempfile
+    roots_dir = tempfile.TemporaryDirectory(prefix="separate-roots-")
+    try:
+        argv += _root_args(authenticator, roles, Path(roots_dir.name))
+    except ValueError as exc:
+        roots_dir.cleanup()
+        return SeparateVerification(ok=False, exit_status=None,
+                                    reason=str(exc))
     held = None
     if proof is not None:
         import tempfile
@@ -124,6 +139,45 @@ def verify_in_separate_process(
     finally:
         if held is not None:
             Path(held.name).unlink(missing_ok=True)
+        roots_dir.cleanup()
+
+
+def _root_args(authenticator, roles, into: Path) -> list:
+    """The child's arguments for the history's roots: the attestation
+    file's path, and each registry's document written into ``into``. An
+    authenticator that names no registry document or no attestation file
+    cannot be handed over, and is refused rather than dropped: dropped, the
+    child would read an authenticated history with no authenticator."""
+    argv: list = []
+    if authenticator is not None:
+        document = getattr(getattr(authenticator, "registry", None),
+                           "to_document", None)
+        att = (getattr(getattr(authenticator, "attestations", None), "path",
+                       None)
+               or getattr(authenticator, "attestations_path", None))
+        if not callable(document) or att is None:
+            raise ValueError(
+                "the authenticator given names no key-registry document or "
+                "no attestation file, so the independent process cannot be "
+                "handed the history's roots; it is not run without them")
+        doc = document()
+        keys = into / "key-registry.json"
+        keys.write_text(json.dumps(doc, sort_keys=True), encoding="utf-8")
+        argv += ["--attestations", str(att), "--key-registry", str(keys)]
+        if any(str(k.get("key_id", "")).startswith("test:")
+               for k in doc.get("keys") or () if isinstance(k, dict)):
+            # a document holding a TEST key was built where test keys are
+            # admitted; the child admits them for this document only
+            argv.append("--allow-test-keys")
+        scope = getattr(authenticator, "require", None)
+        if scope is not None:
+            argv += ["--require", ",".join(sorted(scope))]
+    if roles is not None:
+        held = into / "role-registry.json"
+        held.write_text(json.dumps(roles.to_document(), sort_keys=True),
+                        encoding="utf-8")
+        argv += ["--role-registry", str(held)]
+    return argv
 
 
 def _run(argv: list, *, root: Path, timeout_s: float) -> SeparateVerification:

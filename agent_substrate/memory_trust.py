@@ -174,15 +174,21 @@ def assess(log: EventLog, memory_id: str, *, evidence=None,
     # -- reconstruction
     status = None
     try:
+        # the primary projection is read under the caller's roots -- every
+        # one of them: a GOVERNED history read without its role registry
+        # reads nothing (S2-2), and a pinned profile is not dropped
         primary = MemoryStore(
-            EventLog(log.path, authenticator=log.authenticator),
+            EventLog(log.path, authenticator=log.authenticator,
+                     roles=getattr(log, "roles", None),
+                     required_profile=getattr(log, "required_profile",
+                                              None)),
             evidence=evidence).load().get(memory_id)
     except (MemoryError_, EventLogError) as exc:
         primary = None
         answers["consistently_reconstructed"] = Answer(
             NO, f"the primary projection refuses the history: {exc}")
     try:
-        sub = reconstruct_subsystems(log)
+        sub = reconstruct_subsystems(log, roles=getattr(log, "roles", None))
     except EventLogError as exc:
         primary = None
         answers["consistently_reconstructed"] = Answer(
