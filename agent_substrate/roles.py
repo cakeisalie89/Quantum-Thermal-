@@ -467,6 +467,29 @@ def production_role_registry(*, principals=None,
         principals=principals, key_registry=key_registry)
 
 
+def declared_digest(registry) -> str:
+    """The digest a GOVERNED history declares for ``registry``: of its
+    canonical document, which is what the log's gate and the independent
+    reader each compute."""
+    return registry_digest(registry.to_document())
+
+
+def enforced(log, roles):
+    """The role registry a reader of ``log`` enforces (AUD-020): the one it
+    was given, else the one its log was opened with -- for a GOVERNED
+    history, the one the log's gate holds to the declaration, so a reader
+    built without a registry still enforces the history's. Given both, they
+    must be one registry: a reader enforcing another than its log's would
+    decide by a registry the history never declared."""
+    held = getattr(log, "roles", None)
+    if roles is None:
+        return held
+    if held is not None and declared_digest(roles) != declared_digest(held):
+        raise RoleError("the reader's role registry is not the one its log "
+                        "was opened with")
+    return roles
+
+
 class RoleView:
     """A registry, and the delegations a history made under it, folded to a
     position. The one question every enforcing reader asks it is

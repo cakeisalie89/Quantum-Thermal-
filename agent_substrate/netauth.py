@@ -86,7 +86,8 @@ from .secrets import check_egress_composition
 from .canonical import digest
 from .events import DecidedWriter, projection_load
 from .roles import ACTIONS as ROLE_ACTIONS
-from .roles import EGRESS_ISSUER, RoleError, RoleRefused, RoleView
+from .roles import (EGRESS_ISSUER, RoleError, RoleRefused, RoleView,
+                    enforced)
 
 #: Event actions. Constants so a typo cannot create an unread action.
 ACT_SERVICE_REGISTER = "network.service"
@@ -871,8 +872,9 @@ class NetworkAuthority(DecidedWriter):
         if roles is not None and log is None:
             raise NetworkError("a role registry is enforced at positions in "
                                "a log; this authority has none")
-        self.roles = roles
-        self._role_view = None if roles is None else RoleView(roles)
+        self.roles = enforced(log, roles)
+        self._role_view = (None if self.roles is None
+                           else RoleView(self.roles))
         self._grants: dict = {}
         #: grant_id -> the actor whose record issued it. Only populated in
         #: log-backed mode: with no log there is no record to attribute a

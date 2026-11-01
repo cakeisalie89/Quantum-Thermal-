@@ -123,7 +123,7 @@ from .execution import Executor, Limits, Outcome, scopes_held
 from .memory import MemoryStore
 from .netauth import NetworkAuthority, socket_guard
 from .roles import EXECUTOR, PROPOSER, VERIFIER as ROLE_VERIFIER
-from .roles import RoleDelegations, RoleRefused
+from .roles import RoleDelegations, RoleRefused, enforced
 from .readpath import (
     GovernedReader,
     ReadDenied,
@@ -491,7 +491,7 @@ class GovernedTasks:
         #: authority: anyone may register an agent holding any role. The
         #: policy and egress stores this runner opens enforce the same
         #: registry.
-        self.roles = roles
+        roles = self.roles = enforced(log, roles)
         self.role_delegations = (None if roles is None
                                  else RoleDelegations(log, roles).load())
         #: Filesystem confinement for every tool this runner starts --

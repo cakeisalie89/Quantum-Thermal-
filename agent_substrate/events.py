@@ -156,11 +156,51 @@ MAX_EVENT_BYTES = 4 * 1024 * 1024
 #: and it is refused by a deployment that pins the profile it requires
 #: (``EventLog(..., required_profile=...)``) -- the same division as the
 #: chain and its external head witness.
+#:
+#: ``GOVERNED`` is ``AUTHENTICATED_REQUIRED`` and more (AUD-020). Its
+#: declaration names the requirement it states and the digests of the key
+#: registry and the ROLE registry the history is read under. A role
+#: registry was otherwise the reader's choice: a reader built without one
+#: read a promotion by a principal holding no grant as a promotion. A log
+#: opened on a GOVERNED history without both registries, or with others,
+#: reads nothing, and every reader that enforces roles enforces the one its
+#: log was opened with (:func:`agent_substrate.roles.enforced`).
+#: ``UNAUTHENTICATED_LEGACY`` and ``AUTHENTICATED_REQUIRED`` keep their
+#: behaviour: they are the explicitly legacy profiles, and a deployment that
+#: pins GOVERNED refuses a history declaring either as a downgrade.
 ACT_SECURITY_PROFILE = "history.security_profile"
 PROFILE_UNAUTHENTICATED_LEGACY = "UNAUTHENTICATED_LEGACY"
 PROFILE_AUTHENTICATED_REQUIRED = "AUTHENTICATED_REQUIRED"
+PROFILE_GOVERNED = "GOVERNED"
 PROFILES = frozenset({PROFILE_UNAUTHENTICATED_LEGACY,
-                      PROFILE_AUTHENTICATED_REQUIRED})
+                      PROFILE_AUTHENTICATED_REQUIRED, PROFILE_GOVERNED})
+#: The profiles under which every event authenticates.
+AUTHENTICATED_PROFILES = frozenset({PROFILE_AUTHENTICATED_REQUIRED,
+                                    PROFILE_GOVERNED})
+#: How much each profile requires. A deployment that pins one refuses a
+#: history declaring less.
+_STRENGTH = {PROFILE_UNAUTHENTICATED_LEGACY: 0,
+             PROFILE_AUTHENTICATED_REQUIRED: 1, PROFILE_GOVERNED: 2}
+#: What a GOVERNED declaration states, and the fields it states it in.
+GOVERNED_REQUIREMENT = "harness/history-security/v1"
+_GOVERNED_FIELDS = frozenset({"profile", "requirement", "key_registry",
+                              "role_registry"})
+
+
+def _declaration_problem(payload) -> str | None:
+    """Why a security-profile declaration is not one, or None."""
+    profile = payload.get("profile") if isinstance(payload, dict) else None
+    if profile not in PROFILES:
+        return f"unknown security profile {profile!r}"
+    if profile == PROFILE_GOVERNED and (
+            set(payload) != _GOVERNED_FIELDS
+            or payload["requirement"] != GOVERNED_REQUIREMENT
+            or not is_digest(payload["key_registry"])
+            or not is_digest(payload["role_registry"])):
+        return (f"a {PROFILE_GOVERNED} declaration states its requirement "
+                f"({GOVERNED_REQUIREMENT}) and the sha256 digests of its "
+                "key_registry and role_registry, and nothing else")
+    return None
 
 
 def judged_at(latest: float | None, wall_time: float) -> float:
@@ -553,7 +593,7 @@ class EventLog:
     LOCK_TIMEOUT_S = 30.0
 
     def __init__(self, path: Path | str, *, authenticator=None,
-                 required_profile: str | None = None):
+                 required_profile: str | None = None, roles=None):
         self.path = Path(path)
         if required_profile is not None and required_profile not in PROFILES:
             raise EventLogError(
@@ -569,9 +609,18 @@ class EventLog:
         #: The profile the DEPLOYMENT requires. A history declaring less is
         #: a downgrade and does not read.
         self.required_profile = required_profile
+        #: The role registry this log is read under (AUD-020): an object
+        #: with ``to_document()``, in practice
+        #: :class:`agent_substrate.roles.RoleRegistry`, which this module
+        #: does not import. A GOVERNED history is read only when its digest
+        #: is the one the history declares; the readers that enforce roles
+        #: enforce this one.
+        self.roles = roles
         #: The declared profile, once a read has established it. Genesis
         #: never changes, so it is learned once per object.
         self._profile: str | None = None
+        #: Genesis's declaration, when it declares a profile.
+        self._declaration: dict | None = None
         self.head_path = self.path.with_suffix(self.path.suffix + ".head")
         #: A SIDECAR, not the log itself: the lock must outlive a log that is
         #: rotated, truncated or not yet created, and locking a file that does
@@ -860,22 +909,27 @@ class EventLog:
             # event may declare AUTHENTICATED_REQUIRED, and an anchored read
             # takes this for genesis's answer.
             self._profile = profile
-        if (self.required_profile == PROFILE_AUTHENTICATED_REQUIRED
-                and profile != PROFILE_AUTHENTICATED_REQUIRED and nonempty):
+            if whole and events[0].action == ACT_SECURITY_PROFILE:
+                self._declaration = events[0].payload
+        if (self.required_profile is not None and nonempty
+                and _STRENGTH[profile] < _STRENGTH[self.required_profile]):
             problems.append(
                 f"DOWNGRADE: this deployment requires "
-                f"{PROFILE_AUTHENTICATED_REQUIRED} and the history declares "
+                f"{self.required_profile} and the history declares "
                 f"{profile}")
             return []
-        required = PROFILE_AUTHENTICATED_REQUIRED in (profile,
-                                                      self.required_profile)
+        required = bool({profile, self.required_profile}
+                        & AUTHENTICATED_PROFILES)
+        #: what the refusals below name: the profile that requires it
+        named = (profile if profile in AUTHENTICATED_PROFILES
+                 else self.required_profile)
         if self.authenticator is None:
             # NON-EMPTY, not "returned events": an anchored read of an empty
             # tail is a writer's head check, and a writer that cannot
             # authenticate its head must not extend the history either.
             if required and nonempty:
                 problems.append(
-                    f"this history is {PROFILE_AUTHENTICATED_REQUIRED} and "
+                    f"this history is {named} and "
                     "the reader was given no authenticator: none of its "
                     "events is read")
                 return []
@@ -886,11 +940,16 @@ class EventLog:
             # every other event passes it unasked. Under REQUIRED every actor
             # authenticates, so a narrowed one reads nothing (AUD-012).
             problems.append(
-                f"this history is {PROFILE_AUTHENTICATED_REQUIRED}, so every "
+                f"this history is {named}, so every "
                 "actor authenticates, and the reader's authenticator asks "
                 f"only {sorted(str(p) for p in scope)}: none of its events "
                 "is read")
             return []
+        if profile == PROFILE_GOVERNED and nonempty:
+            why = self._governed_refusal(self._declaration)
+            if why is not None:
+                problems.append(why)
+                return []
         report = self.authenticator(events, complete=whole)
         if report.ok:
             return events
@@ -899,6 +958,28 @@ class EventLog:
             first = min(report.refused)
             return [ev for ev in events if ev.seq < first]
         return events
+
+    def _governed_refusal(self, decl) -> str | None:
+        """Why this log may not read a GOVERNED history, or None: it holds
+        the key registry and the role registry the declaration names, each
+        compared by the digest of its canonical document. The log sits
+        below both registries' modules and imports neither."""
+        if not isinstance(decl, dict):
+            return (f"this history is {PROFILE_GOVERNED} and its "
+                    "declaration cannot be read: none of its events is read")
+        for name, held in (
+                ("key", getattr(self.authenticator, "registry", None)),
+                ("role", self.roles)):
+            document = getattr(held, "to_document", None)
+            got = digest(document()) if callable(document) else None
+            want = decl[f"{name}_registry"]
+            if got != want:
+                return (f"this history is {PROFILE_GOVERNED}: it is read "
+                        f"with the {name} registry it declares "
+                        f"({want[:12]}), and this log holds "
+                        f"{'none' if got is None else got[:12]}: none of "
+                        "its events is read")
+        return None
 
     def _profile_of(self, events: list, problems: list) -> str | None:
         """The profile ``events`` -- a whole history -- declares. None, with
@@ -913,9 +994,9 @@ class EventLog:
                     f"seq {ev.seq}: a history declares its security profile "
                     "once, as its first event")
                 return None
-            if declared not in PROFILES:
-                problems.append(
-                    f"seq 0: unknown security profile {declared!r}")
+            why = _declaration_problem(ev.payload)
+            if why is not None:
+                problems.append(f"seq 0: {why}")
                 return None
             profile = declared
         return profile
@@ -942,6 +1023,8 @@ class EventLog:
                 or ev.recompute_hash() != ev.hash):
             problems.append("genesis record does not check")
             return None
+        if ev.action == ACT_SECURITY_PROFILE:
+            self._declaration = ev.payload
         return self._profile_of([ev], problems)
 
     def _verified_prefix_length(self, events, first_seq: int,
@@ -1483,10 +1566,12 @@ class EventLog:
 
         payload = dict(payload or {})
         if action == ACT_SECURITY_PROFILE and (
-                head_seq != -1 or payload.get("profile") not in PROFILES):
+                head_seq != -1 or _declaration_problem(payload) is not None):
             raise EventLogError(
                 "a security profile is declared once, as a history's first "
-                "event, and must be one of " + ", ".join(sorted(PROFILES)))
+                "event, and must be one of " + ", ".join(sorted(PROFILES))
+                + ("" if head_seq != -1 else
+                   f": {_declaration_problem(payload)}"))
         body: dict[str, Any] = {
             "seq": head_seq + 1,
             "event_id": event_id or uuid.uuid4().hex,
@@ -1520,8 +1605,7 @@ class EventLog:
         # profile is the one the head check just read -- or the one this
         # record declares, when it is genesis.
         declares = (action == ACT_SECURITY_PROFILE
-                    and payload.get("profile")
-                    == PROFILE_AUTHENTICATED_REQUIRED)
+                    and payload.get("profile") in AUTHENTICATED_PROFILES)
         current = None
         if before_write is None and head_seq >= 0:
             # Whatever path reached here, the profile is known before an
@@ -1535,8 +1619,8 @@ class EventLog:
                     "profile cannot be read (" + "; ".join(unread) + ")")
         if before_write is None and (
                 declares
-                or self.required_profile == PROFILE_AUTHENTICATED_REQUIRED
-                or current == PROFILE_AUTHENTICATED_REQUIRED):
+                or self.required_profile in AUTHENTICATED_PROFILES
+                or current in AUTHENTICATED_PROFILES):
             raise EventLogError(
                 f"an {PROFILE_AUTHENTICATED_REQUIRED} history is written "
                 "only with the record's attestation prepared before it "

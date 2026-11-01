@@ -73,7 +73,7 @@ from . import safeio
 from .canonical import digest
 from .events import DecidedWriter, projection_load
 from .roles import ACTIONS as ROLE_ACTIONS
-from .roles import SECRET_ISSUER, RoleError, RoleRefused, RoleView
+from .roles import SECRET_ISSUER, RoleError, RoleRefused, RoleView, enforced
 
 ACT_SECRET_GRANT = "secret.grant"
 ACT_SECRET_ACCESS = "secret.access"
@@ -675,8 +675,9 @@ class SecretStore(DecidedWriter):
         if roles is not None and log is None:
             raise SecretError("a role registry is enforced at positions in "
                               "a log; this store has none")
-        self.roles = roles
-        self._role_view = None if roles is None else RoleView(roles)
+        self.roles = enforced(log, roles)
+        self._role_view = (None if self.roles is None
+                           else RoleView(self.roles))
         self._values: dict = {}
         self._grants: dict = {}
         #: grant_id -> the actor that issued it, so a revocation has

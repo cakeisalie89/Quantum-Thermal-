@@ -64,7 +64,10 @@ from pathlib import Path
 
 from . import signature
 from .canonical import canonical_bytes
-from .events import ACT_SECURITY_PROFILE, PROFILE_AUTHENTICATED_REQUIRED
+from .events import (
+    ACT_SECURITY_PROFILE, GOVERNED_REQUIREMENT, PROFILE_AUTHENTICATED_REQUIRED,
+    PROFILE_GOVERNED,
+)
 
 SCHEME = "ed25519"
 REGISTRY_SCHEMA = "qta-agent/key-registry/v1"
@@ -796,19 +799,39 @@ class Authenticator:
 
 def begin_history(log, attestations: Attestations, signer: Signer, *,
                   profile: str = PROFILE_AUTHENTICATED_REQUIRED,
-                  registry: "KeyRegistry | None" = None):
+                  registry: "KeyRegistry | None" = None, roles=None):
     """Declare ``log``'s security profile as its FIRST event, attested by
     ``signer``. Refused on a log that already has a history: a profile is
     what a history is written under, not something it switches to. The key
-    must be allowed to sign seq 0, as for :func:`signed_append`."""
+    must be allowed to sign seq 0, as for :func:`signed_append`.
+
+    A GOVERNED history (AUD-020) declares the digests of the key registry
+    and the role registry it is read under: ``registry`` (default: the
+    log's authenticator's) and ``roles`` (default: the log's)."""
     registry = _write_registry(log, registry)
+    payload: dict = {"profile": profile}
+    if profile == PROFILE_GOVERNED:
+        roles = roles if roles is not None else getattr(log, "roles", None)
+        if not isinstance(registry, KeyRegistry) or not callable(
+                getattr(roles, "to_document", None)):
+            raise AuthenticationError(
+                f"a {PROFILE_GOVERNED} history declares the key registry "
+                "and the role registry it is read under: begin it with both")
+        payload = {"profile": PROFILE_GOVERNED,
+                   "requirement": GOVERNED_REQUIREMENT,
+                   "key_registry": registry_digest(registry.to_document()),
+                   "role_registry": registry_digest(roles.to_document())}
+    elif roles is not None:
+        raise AuthenticationError(
+            f"only a {PROFILE_GOVERNED} history declares a role registry")
+
     def decide(head_seq):
         if head_seq != -1:
             raise AuthenticationError(
                 "a security profile is declared by a history's first event; "
                 f"this log already reaches seq {head_seq}")
         return {"actor": signer.principal, "action": ACT_SECURITY_PROFILE,
-                "target": "history", "payload": {"profile": profile}}
+                "target": "history", "payload": payload}
     return log.append_decided(decide,
                               before_write=_preparer(attestations, signer,
                                                      registry))

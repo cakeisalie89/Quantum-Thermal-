@@ -998,7 +998,45 @@ _AUTHORITY_ACTIONS = frozenset({"record.create", "record.transition",
 #: own code as well, so a primitive that stopped refusing is disagreed with.
 _PROFILE_ACTION = "history.security_profile"
 _PROFILE_REQUIRED = "AUTHENTICATED_REQUIRED"
-_PROFILES = frozenset({"UNAUTHENTICATED_LEGACY", _PROFILE_REQUIRED})
+_PROFILE_GOVERNED = "GOVERNED"
+_GOVERNED_REQUIREMENT = "harness/history-security/v1"
+_PROFILES = frozenset({"UNAUTHENTICATED_LEGACY", _PROFILE_REQUIRED,
+                       _PROFILE_GOVERNED})
+#: The profiles under which every actor authenticates.
+_AUTHENTICATED = frozenset({_PROFILE_REQUIRED, _PROFILE_GOVERNED})
+
+
+def _profile_declared(events) -> str | None:
+    """The profile genesis declares, as this reader reads it."""
+    if (events and events[0].action == _PROFILE_ACTION
+            and isinstance(events[0].payload, dict)):
+        return events[0].payload.get("profile")
+    return None
+
+
+def _governed_problem(events, key_registry, roles) -> str | None:
+    """A GOVERNED history (AUD-020), RESTATED: it is read only with the key
+    registry and the role registry its declaration names, each compared by
+    the digest of its canonical document, computed here and not asked of
+    the read primitive, so a primitive that stopped refusing is disagreed
+    with."""
+    if _profile_declared(events) != _PROFILE_GOVERNED:
+        return None
+    decl = events[0].payload
+    if decl.get("requirement") != _GOVERNED_REQUIREMENT:
+        return (f"the history is {_PROFILE_GOVERNED} under a requirement "
+                f"this reader does not read ({decl.get('requirement')!r}): "
+                "none of its events is folded")
+    for name, held in (("key", key_registry), ("role", roles)):
+        document = getattr(held, "to_document", None)
+        got = _sci_json_digest(document()) if callable(document) else None
+        want = decl.get(f"{name}_registry")
+        if got is None or got != want:
+            return (f"the history is {_PROFILE_GOVERNED} and declares its "
+                    f"{name} registry {str(want)[:12]}; this reader was "
+                    f"given {'none' if got is None else got[:12]}: none of "
+                    "its events is folded")
+    return None
 
 
 #: D-2026-148, RESTATED. A history may declare, once, that every later
@@ -1062,14 +1100,13 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
     # signature check, not restated -- and the refusal is this reader's.
     unattested: set = set()
     scope = getattr(authenticator, "require", None)
-    if scope is not None and (
-            events and events[0].action == _PROFILE_ACTION
-            and events[0].payload.get("profile") == _PROFILE_REQUIRED):
+    declared = _profile_declared(events)
+    if scope is not None and declared in _AUTHENTICATED:
         # An authenticator asking only some actors passes the others
         # unasked, and in a REQUIRED history every actor authenticates
         # (AUD-012): refused here too, not left to the primitive.
         out.unauthorized.append(
-            f"the history is {_PROFILE_REQUIRED}, where every actor "
+            f"the history is {declared}, where every actor "
             "authenticates, and the authenticator given asks only "
             f"{sorted(str(p) for p in scope)}: none of its events is folded")
         events = []
@@ -1078,11 +1115,18 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
         out.unauthorized.extend(f"unauthenticated: {line}"
                                 for line in auth.lines())
         unattested = auth.refused
-    elif (events and events[0].action == _PROFILE_ACTION
-          and events[0].payload.get("profile") == _PROFILE_REQUIRED):
+    elif declared in _AUTHENTICATED:
         out.unauthorized.append(
-            f"the history is {_PROFILE_REQUIRED} and no authenticator was "
+            f"the history is {declared} and no authenticator was "
             "given: none of its events is folded")
+        events = []
+    # A GOVERNED history is read with the registries it declares, the key
+    # registry this reader authenticates with and the role registry it is
+    # given (AUD-020), restated.
+    why = _governed_problem(events, getattr(authenticator, "registry", None),
+                            roles)
+    if why is not None:
+        out.unauthorized.append(why)
         events = []
 
     # WHO HOLDS WHICH ROLE, when a role registry is given (AUD-011): read
@@ -1098,7 +1142,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
 
     def task_view() -> dict:
         if not held:
-            held.append(reconstruct_tasks(log).tasks)
+            held.append(reconstruct_tasks(log, roles=roles).tasks)
             out.task_replays += 1
         return held[0]
 
@@ -1431,6 +1475,12 @@ def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
     report.raise_if_bad()
     out = TaskReconstruction(head_seq=report.head_seq,
                              head_hash=report.head_hash)
+    why = _governed_problem(events, getattr(getattr(log, "authenticator",
+                                                    None), "registry", None),
+                            roles)
+    if why is not None:
+        out.unauthorized.append(why)
+        events = []
     role_grants: dict = {}
     delegations: dict = {}
     if roles is not None:
@@ -1884,6 +1934,12 @@ def reconstruct_subsystems(log: EventLog, *,
     report, events = log.read_verified()
     report.raise_if_bad()
     out = SubsystemReconstruction(head_seq=report.head_seq)
+    why = _governed_problem(events, getattr(getattr(log, "authenticator",
+                                                    None), "registry", None),
+                            roles)
+    if why is not None:
+        out.anomalies.append(why)
+        events = []
     role_grants: dict = {}
     delegations: dict = {}
     if roles is not None:

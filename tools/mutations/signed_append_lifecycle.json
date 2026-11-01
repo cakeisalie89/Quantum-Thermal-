@@ -36,8 +36,8 @@
     {
       "name": "SA5_the_pinned_profile_is_not_consulted_on_write",
       "path": "agent_substrate/events.py",
-      "find": "                or self.required_profile == PROFILE_AUTHENTICATED_REQUIRED\n                or current == PROFILE_AUTHENTICATED_REQUIRED):\n",
-      "replace": "                or current == PROFILE_AUTHENTICATED_REQUIRED):\n",
+      "find": "                or self.required_profile in AUTHENTICATED_PROFILES\n                or current in AUTHENTICATED_PROFILES):\n",
+      "replace": "                or current in AUTHENTICATED_PROFILES):\n",
       "rationale": "a deployment pinned to REQUIRED accepts an unsigned first event"
     },
     {

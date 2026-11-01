@@ -85,6 +85,9 @@ ALLOWED_IMPORTERS = {
     "tests/test_op_costs.py",
     # AUD-011 and AUD-017: the role registry's attacks and controls.
     "tests/test_role_authority.py",
+    # AUD-020: a history that declares the registries it is read under,
+    # and every reader, the second one too, held to them.
+    "tests/test_governed_history.py",
     "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",

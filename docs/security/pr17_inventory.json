@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 627,
+   "ADDED": 629,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 60,
-   "LOW": 219,
-   "MEDIUM": 355
+   "LOW": 220,
+   "MEDIUM": 356
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 134,
+   "assurance": 135,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 194,
+   "tests": 195,
    "tooling": 55,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 659
+  "files": 661
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -581,6 +581,7 @@
      "tests/test_gate_b_acceptance.py",
      "tests/test_generated_mutations.py",
      "tests/test_generic_consistency.py",
+     "tests/test_governed_history.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_grounding_bench.py",
@@ -774,7 +775,8 @@
     ],
     "tests": [
      "tests/test_archive.py",
-     "tests/test_authenticated_history.py"
+     "tests/test_authenticated_history.py",
+     "tests/test_governed_history.py"
     ]
    }
   },
@@ -1029,6 +1031,7 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
+     "tests/test_governed_history.py",
      "tests/test_history_time.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
@@ -1127,6 +1130,7 @@
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_substrate.json",
      "tools/mutations/authenticated_history.json",
+     "tools/mutations/governed_history.json",
      "tools/mutations/history_time.json",
      "tools/mutations/signed_append_lifecycle.json",
      "tools/mutations/t2_closure.json",
@@ -1186,6 +1190,7 @@
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
+     "tests/test_governed_history.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_grounding_bench.py",
@@ -1277,6 +1282,7 @@
      "tests/test_evidence_terms.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
+     "tests/test_governed_history.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_grounding_bench.py",
@@ -1726,6 +1732,7 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
+     "tests/test_governed_history.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_refused_fold.py",
      "tests/test_repo_contract.py",
@@ -1783,6 +1790,7 @@
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generated_mutations.py",
+     "tests/test_governed_history.py",
      "tests/test_history_time.py",
      "tests/test_hostile_composition.py",
      "tests/test_inference_concurrency.py",
@@ -1810,12 +1818,14 @@
     "mutation_specs": [
      "tools/mutations/actor_authentication.json",
      "tools/mutations/authenticated_history.json",
+     "tools/mutations/governed_history.json",
      "tools/mutations/signed_append_lifecycle.json"
     ],
     "tests": [
      "tests/test_actor_authentication.py",
      "tests/test_archive.py",
      "tests/test_authenticated_history.py",
+     "tests/test_governed_history.py",
      "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
      "tests/test_role_authority.py",
@@ -1968,6 +1978,7 @@
      "tools/mutations/composed_campaigns.json",
      "tools/mutations/decision_proof.json",
      "tools/mutations/freshness.json",
+     "tools/mutations/governed_history.json",
      "tools/mutations/history_time.json",
      "tools/mutations/inference_gateway.json",
      "tools/mutations/memory_trust.json",
@@ -2009,6 +2020,7 @@
      "tests/test_freshness.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
+     "tests/test_governed_history.py",
      "tests/test_grounding_bench.py",
      "tests/test_history_time.py",
      "tests/test_hostile_composition.py",
@@ -2134,10 +2146,12 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/governed_history.json",
      "tools/mutations/role_authority.json"
     ],
     "tests": [
      "tests/test_authenticated_history.py",
+     "tests/test_governed_history.py",
      "tests/test_role_authority.py"
     ]
    }
@@ -2236,6 +2250,7 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
+     "tests/test_governed_history.py",
      "tests/test_refused_fold.py",
      "tests/test_role_authority.py",
      "tests/test_second_reader_audit_actions.py",
@@ -2339,6 +2354,7 @@
      "tests/test_decision_proof.py",
      "tests/test_formal_conformance.py",
      "tests/test_freshness.py",
+     "tests/test_governed_history.py",
      "tests/test_governed_model.py",
      "tests/test_grounding_bench.py",
      "tests/test_history_time.py",
@@ -2442,6 +2458,7 @@
     ],
     "tests": [
      "tests/test_archive.py",
+     "tests/test_governed_history.py",
      "tests/test_transparency.py",
      "tests/test_witness_tree.py"
     ]
@@ -7140,6 +7157,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_governed_history.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_governed_model.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -10255,6 +10289,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/governed_breadth.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/governed_history.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

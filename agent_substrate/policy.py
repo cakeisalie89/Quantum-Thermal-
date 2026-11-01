@@ -100,7 +100,7 @@ from enum import Enum
 
 from .canonical import digest
 from .roles import ACTIONS as ROLE_ACTIONS
-from .roles import POLICY_OWNER, RoleError, RoleRefused, RoleView
+from .roles import POLICY_OWNER, RoleError, RoleRefused, RoleView, enforced
 from .events import (EventLogError, judged_at, projection_fold,
                      projection_load, require_extends)
 
@@ -626,8 +626,9 @@ class PolicyStore:
         #: well, and without a registry the first publisher becomes the
         #: owner. Withdrawal stays the owner's act: it only narrows what is
         #: authorized.
-        self.roles = roles
-        self._role_view = None if roles is None else RoleView(roles)
+        self.roles = enforced(log, roles)
+        self._role_view = (None if self.roles is None
+                           else RoleView(self.roles))
         #: policy_id -> list of (seq, PolicyDocument), version-ordered.
         self._published: dict = {}
         #: policy_id -> the actor that published version 1: its owner.

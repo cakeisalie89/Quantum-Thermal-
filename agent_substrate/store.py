@@ -50,7 +50,7 @@ from .events import (Anchor, ChainBroken, Event, EventLog, EventLogError,
 from .projection import ProjectionIdentityError, ReducerIdentity, identity_of
 from .roles import ACTIONS as ROLE_ACTIONS
 from .roles import (AUTHORITY_ROLES, POLICY_OWNER, PROPOSER, RoleError,
-                    RoleRefused, RoleView)
+                    RoleRefused, RoleView, enforced)
 
 #: What a snapshot of this store is, for :class:`ReducerIdentity`.
 PROJECTION_KIND = "authority_store"
@@ -182,8 +182,11 @@ class AuthorityStore:
         #: before the write and again on every replay. Absent -- as in
         #: production until a registry is provisioned -- a role is what the
         #: request says, held only to the edge.
-        self.roles = roles
-        self._role_view = None if roles is None else RoleView(roles)
+        #: A GOVERNED history's registry is enforced whether or not the
+        #: caller passes it: the one the log was opened with (AUD-020).
+        self.roles = enforced(log, roles)
+        self._role_view = (None if self.roles is None
+                           else RoleView(self.roles))
         #: Optional :class:`~agent_substrate.principals.Authenticator`. When
         #: present, a history whose events are not attested by keys the
         #: registry holds for their actors is refused on load and on every

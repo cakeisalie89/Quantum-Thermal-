@@ -1534,3 +1534,168 @@ in `agent_substrate/research.py`. Run against other suites, CE4 is killed:
 **Not established.** Anything about a language model, since the agent is
 scripted. These are four worlds of one question, not a benchmark of
 judgment.
+
+### Continuation, Stage 0: the baseline, re-established
+
+Recorded at the start of the continuation directive, from the repository
+itself:
+
+- **The head.** df53837, equal to its remote. The merge base is 096fb90,
+  which is `origin/main`. The PR has 287 commits and changes 1,043 files.
+  The tree was clean, with no commit after df53837.
+- **Hosted CI.** All eight workflow runs at df53837 passed. So did every
+  run at 947d0ea, 97448ba, 6675782 and fd67b01.
+- **The ledger.** 11 files reviewed in full, 24 in part, 20 binaries
+  inspected, 54 written by the audit, and 934 not reviewed.
+
+**`HARNESS_STATUS.md`'s 35 unsatisfied items, classified.**
+
+- 30 are completion-matrix rows whose hosted evidence predates their
+  current implementation.
+- 5 are stack elements, and each is unsatisfied only because a row
+  backing it is one of those 30.
+
+None of the 35 is an implementation gap: all 49 rows are
+`COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT`, with no gaps listed.
+Re-attaching hosted evidence (`tools/readiness.py attach`) fetches the
+runs from the GitHub API with `gh`. `gh` holds no valid token in this
+session, so the rows stay stale rather than being stamped by another
+route.
+
+The status's research frontier is a separate list, and it stays as it is:
+
+- no physical experiment;
+- the flagship neither allocated nor trained;
+- the development model's science unestablished;
+- no distributed accelerators;
+- no byte identity across hosts;
+- no admission policy for learned outputs;
+- a signature is not truth;
+- one benchmark is not all models.
+
+### Stage 1: a history that requires its authorization roots (AUD-020)
+
+**The gap, reproduced at df53837.** AUD-011 rooted roles in a registry
+supplied from outside the log, enforced by every reader given one. Nothing
+in a history named the registry, and every reader's `roles` defaulted to
+None, under which a role was whatever a request said.
+
+In an authenticated history, mallory promoted r1 by a signed record.
+mallory is a principal the key registry holds, and the role registry
+grants her nothing. Four readers of that one history gave:
+
+| Reader | Without the role registry | With it |
+|---|---|---|
+| `AuthorityStore` | PROMOTED | refuses the history: NOT_GRANTED |
+| `reconstruct` | PROMOTED, with no complaint | VERIFIED |
+
+**The closure: the GOVERNED profile.** The smallest compatible change is
+a third security profile, declared like the others by the history's first
+event. It states `harness/history-security/v1` and the digests of the
+key registry and the role registry, each the sha256 of its canonical
+document.
+
+- **The verified-read primitives** (`events.py`) read a GOVERNED history
+  only through a log that holds both registries, with those digests. A
+  log without one, or with another, reads nothing, and its report names
+  the registry and the digest it wanted. Writers' head checks go through
+  the same gate, so a writer without the roots cannot extend the history.
+  The declaration's shape is checked on write and on read, and it is
+  written only signed.
+- **Every role-enforcing reader** (`AuthorityStore`, `PolicyStore`,
+  `SecretStore`, `NetworkAuthority`, `GovernedTasks`) takes its registry
+  through `roles.enforced`. That is the one it was given, or else the one
+  its log was opened with. A registry given that is not its log's is
+  refused.
+- **The independent reader** (`reconstruct`, `reconstruct_tasks`,
+  `reconstruct_subsystems`) restates the requirement in its own code. It
+  reads the declaration and compares the digests of the registries it was
+  given. With the primitive's GOVERNED gate removed, it still folds none
+  of the history read without its role registry.
+- **A deployment that pins GOVERNED** refuses a history declaring less, by
+  the profiles' order: LEGACY, then REQUIRED, then GOVERNED.
+- **The legacy profiles keep their behaviour.** UNAUTHENTICATED_LEGACY
+  and AUTHENTICATED_REQUIRED are the explicitly legacy profiles, and the
+  gap test above still holds of them, by design.
+
+**Attacks, each refused with real authenticated histories**
+(`tests/test_governed_history.py`, 27 tests):
+
+- a reader with no role registry, another role registry, no key registry,
+  or another key registry;
+- an authenticated principal with no grant, as promoter and as verifier;
+- the proposer verifying her own record;
+- an unauthorized policy publication, secret grant and egress grant;
+- a reader enforcing another registry than its log's;
+- a downgrade, by a pin and by a second declaration;
+- a registry substituted after the fact;
+- an archive of a governed history, which hands back nothing and restores
+  only through the gate;
+- the second reader with the primitive's gate removed, given no role
+  registry, another role registry or another key registry;
+- malformed declarations: written signed and refused for their shape,
+  and read from a signed genesis that names the real registries and is
+  wrong only in its shape;
+- an unsigned declaration.
+
+The control beside them is the same walk by the principals the registry
+grants, which every reader reads as PROMOTED.
+
+**Mutations.** GH1 to GH13 (`tools/mutations/governed_history.json`)
+remove each rule: the gate, either registry's comparison, the pinned
+profile's strength, the declaration's shape and its signing, the readers'
+binding, the declaration's content, and the second reader's restatement.
+Six existing mutations targeted lines this change rewrote, and their
+anchors were repaired to remove the same rule in the new code, not
+dropped:
+
+- EP5, EP7, RC1 and RC3 (authenticated history);
+- RV10 (replay origin view);
+- SA5 (signed append).
+
+The first run of GH1 to GH13 never started: GH2's replacement was
+empty, which the harness refuses (and a test of the suite refuses for
+every committed spec). GH2 now replaces the key registry's entry with a
+second role entry, so only the role registry is compared. The next run
+killed 11 of 13, and both survivors were gaps in the tests:
+
+- **GH5** (the declaration's shape is not checked) survived because the
+  malformed declarations were appended unsigned. An unsigned GOVERNED
+  declaration is refused for being unsigned, with the same exception, so
+  no test reached the shape rule. Each is now also written signed and
+  refused for its shape, and two are read from a signed genesis.
+- **GH13** (the second reader compares no digest) survived because the
+  second reader was only ever given no registry. It is now given another
+  role registry, which grants mallory PROMOTER, and another key
+  registry, which holds every key and one more.
+
+| Spec | Killed |
+|---|---|
+| governed_history (GH) | 13 of 13 |
+| authenticated_history | 26 of 26 |
+| signed_append_lifecycle | 33 of 33 |
+| replay_origin_view | 11 of 11 |
+| role_authority | 44 of 44 |
+
+The last four ran before the two tests were strengthened. No suite of
+theirs includes `tests/test_governed_history.py`, and no source file
+changed after they ran.
+
+**Not established, and not done.**
+
+- **Only histories that declare GOVERNED are bound.** A deployment must
+  pin GOVERNED to refuse the legacy profiles.
+- **No production key registry or role registry is provisioned**
+  (AUD-011, AUD-017).
+- **No checkpoints of authenticated histories.** A store checkpoint is
+  an unsigned record, which an authenticated history refuses. The
+  refusal is kept, and a signing checkpoint writer is not built.
+- **No governed writer signs.** No authority-layer writer holds a
+  signer. A REQUIRED or GOVERNED history is written only record by
+  record, by `principals.signed_append`. The governed run the assurance
+  package is built from is unsigned for this reason, and the portable
+  verifier reports ROLE_ENTITLEMENT as not established.
+- **Not every act is role-governed.** Agent registration, capability
+  issuance and research conclusions are not acts the role registry
+  governs. HUMAN_APPROVER and RELEASE_AUTHORITY are defined, and nothing
+  enforces them.

@@ -78,13 +78,13 @@
    "kind": "workflow",
    "method": "",
    "mode": "100644",
-   "new_blob": "99f81e82cec169f7e9342fa4d07931abbd280d5a",
+   "new_blob": "4af215487222425adc858666a2cb0288906b27c6",
    "note": "not yet examined",
    "old_blob": null,
    "path": ".github/workflows/agent-substrate.yml",
    "reviewed_blob": null,
-   "sha256": "c68fbd5829959b920a5ef5692332c6b7d3fbf0f2bd27fd5b81e6d0717583d4b3",
-   "size": 41704,
+   "sha256": "3e4596b667a1076786a430daa051e8b06fa21e64e75d6f7573e6f212aa6538a1",
+   "size": 41756,
    "status": "NOT_REVIEWED"
   },
   {
@@ -222,13 +222,13 @@
    "kind": "documentation",
    "method": "",
    "mode": "100644",
-   "new_blob": "75553c75e7327df1d65eba698ed072c2520660d3",
+   "new_blob": "89e1cea5c99e94cd3479f0befb55e5576a442394",
    "note": "not yet examined",
    "old_blob": null,
    "path": "AGENT_SUBSTRATE.md",
    "reviewed_blob": null,
-   "sha256": "a4d2c349394cc76a8579bada3f4a873a0b4b460f08a936a2101f68520d556186",
-   "size": 75431,
+   "sha256": "cc0280c04bf17ec6284336e49133a0937831b0537eb92de95d86afdbdd7f43ec",
+   "size": 75940,
    "status": "NOT_REVIEWED"
   },
   {
@@ -1424,18 +1424,19 @@
     "AUD-005",
     "AUD-006",
     "AUD-008",
-    "AUD-012"
+    "AUD-012",
+    "AUD-020"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at the baseline blob (b0058f6) in session 1; the audit's own changes to it (AUD-002, AUD-003, AUD-005, AUD-006, AUD-008, AUD-012) written and reviewed as diffs, each with a regression test that fails before it and a killed mutation",
+   "method": "every line read at the baseline blob (b0058f6) in session 1; the audit's own changes to it (AUD-002, AUD-003, AUD-005, AUD-006, AUD-008, AUD-012) written and reviewed as diffs, each with a regression test that fails before it and a killed mutation; the audit's GOVERNED profile (AUD-020: the declaration and its shape, the gate's comparison of both registries, the profiles' order under a pin, the signed declaration, the refusals naming the profile) written and reviewed as a diff, with GH1-GH6 killed",
    "mode": "100644",
-   "new_blob": "68617ef53c8584400c54e4ac55ad0489fcf4632b",
+   "new_blob": "72a743658203739ae9bef0d9101b7af821d98c0c",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/events.py",
-   "reviewed_blob": "68617ef53c8584400c54e4ac55ad0489fcf4632b",
-   "sha256": "53a67705aa22f5c052a46fdaac86b9790bf119d8d92dffbcca7050e00a322335",
-   "size": 85474,
+   "reviewed_blob": "72a743658203739ae9bef0d9101b7af821d98c0c",
+   "sha256": "6c700bd20b32ca4771f54daf84fbc755fc10c63982b07a9b7d6a504fc7ccef50",
+   "size": 89995,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1524,18 +1525,19 @@
    "findings": [
     "AUD-003",
     "AUD-010",
-    "AUD-011"
+    "AUD-011",
+    "AUD-020"
    ],
    "kind": "source:agent_substrate",
-   "method": "read: the constructor, _bootstrap, _head_seq, projection() and _project's create, transition and execution branches, _projection_at_head, _move, the task-create and execution writes in run(), and the after-move path; profiled with tools/work_counts.py; the AUD-011 role checks written and reviewed as a diff (session 4); not read: the verification and compensation paths",
+   "method": "read: the constructor, _bootstrap, _head_seq, projection() and _project's create, transition and execution branches, _projection_at_head, _move, the task-create and execution writes in run(), and the after-move path; profiled with tools/work_counts.py; the AUD-011 role checks written and reviewed as a diff (session 4); not read: the verification and compensation paths; the binding to its log's role registry (roles.enforced, AUD-020) reviewed as a diff",
    "mode": "100644",
-   "new_blob": "f32dd5b26f69163b155e0d4cc957614486b1f426",
+   "new_blob": "2ab26c44b824b1852b0c41d6b4fece9c28608626",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/governed_tasks.py",
-   "reviewed_blob": "f32dd5b26f69163b155e0d4cc957614486b1f426",
-   "sha256": "86001c32c282ab6f4c68cfc4e7710ef0a231ac4392ad49ea637a5b65399ee4f3",
-   "size": 149863,
+   "reviewed_blob": "2ab26c44b824b1852b0c41d6b4fece9c28608626",
+   "sha256": "afba1f3f0622fa6c7ef44b81eef7c3bbce2486f6d067868673a5db997a22275e",
+   "size": 149896,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -1676,18 +1678,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-017"
+    "AUD-017",
+    "AUD-020"
    ],
    "kind": "source:agent_substrate",
-   "method": "read: NetworkAuthority's constructor, load(), the network.grant branch of apply(), issue(), _authorize_revoke(), and where the governed runner applies the authority (socket_guard, three sites in governed_tasks.py); the AUD-017 EGRESS_ISSUER check written and reviewed as a diff (session 4); not read: authorize(), the service and request branches of apply(), the label-wise host rules and socket_guard itself",
+   "method": "read: NetworkAuthority's constructor, load(), the network.grant branch of apply(), issue(), _authorize_revoke(), and where the governed runner applies the authority (socket_guard, three sites in governed_tasks.py); the AUD-017 EGRESS_ISSUER check written and reviewed as a diff (session 4); not read: authorize(), the service and request branches of apply(), the label-wise host rules and socket_guard itself; the binding to its log's role registry (roles.enforced, AUD-020) reviewed as a diff",
    "mode": "100644",
-   "new_blob": "3557b06ada2e2d7b92530d5f5a096dcc6a74b25a",
+   "new_blob": "fb3f9c6d4cdcf1e48fb076932a1717ddc8b561b4",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/netauth.py",
-   "reviewed_blob": "3557b06ada2e2d7b92530d5f5a096dcc6a74b25a",
-   "sha256": "8027069ce397004ba563dfa2c454c1236c138471a8aafb5a181f51f4e014eed7",
-   "size": 85846,
+   "reviewed_blob": "fb3f9c6d4cdcf1e48fb076932a1717ddc8b561b4",
+   "sha256": "3d3d61dd27e3c8fb650504770660c30640df52ceccdb9c388c1bad20b4de1497",
+   "size": 85932,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -1697,18 +1700,19 @@
     "AUD-003",
     "AUD-006",
     "AUD-011",
-    "AUD-015"
+    "AUD-015",
+    "AUD-020"
    ],
    "kind": "source:agent_substrate",
-   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided (session 2); apply() in full, _recheck_withdrawal(), the head of _recheck_decision(), publish(), withdraw() and the PolicyDocument fields (session 3); the audit's AUD-015 change and, in session 4, its AUD-011 POLICY_OWNER check written and reviewed as diffs; not read: the rule language, decide() and the decision records beyond their recheck",
+   "method": "read: load(), every catch-up path, the position bookkeeping in apply() and _append_decided (session 2); apply() in full, _recheck_withdrawal(), the head of _recheck_decision(), publish(), withdraw() and the PolicyDocument fields (session 3); the audit's AUD-015 change and, in session 4, its AUD-011 POLICY_OWNER check written and reviewed as diffs; not read: the rule language, decide() and the decision records beyond their recheck; the binding to its log's role registry (roles.enforced, AUD-020) reviewed as a diff",
    "mode": "100644",
-   "new_blob": "4e41c67bebb2f5386deee4a9cf9d9155cd03ff7e",
+   "new_blob": "0351980ed109edf770a970ee54afbf79f6125eb3",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/policy.py",
-   "reviewed_blob": "4e41c67bebb2f5386deee4a9cf9d9155cd03ff7e",
-   "sha256": "c93e6b2aa4bedb7ab6e6205187de17cdc7d210e8fdf6493abfd6ff38a47261b3",
-   "size": 47805,
+   "reviewed_blob": "0351980ed109edf770a970ee54afbf79f6125eb3",
+   "sha256": "3cc0337a33aa1d2ec0206462651df1de7bb029436b274280a27f88d9dc01cd7b",
+   "size": 47869,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -1716,18 +1720,19 @@
    "change": "ADDED",
    "findings": [
     "AUD-011",
-    "AUD-012"
+    "AUD-012",
+    "AUD-020"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read in session 3: key ids, the registry and its v1 and v2 documents, the key lifecycle, the attestation file and its crash ordering, signed_append and may_sign, authenticate(), Authenticator, begin_history, READER_COVERAGE; the audit's AUD-012 docstring change, its AUD-011 READER_COVERAGE entry and its archive-sealing READER_COVERAGE entry (Phase C) reviewed as diffs",
+   "method": "every line read in session 3: key ids, the registry and its v1 and v2 documents, the key lifecycle, the attestation file and its crash ordering, signed_append and may_sign, authenticate(), Authenticator, begin_history, READER_COVERAGE; the audit's AUD-012 docstring change, its AUD-011 READER_COVERAGE entry and its archive-sealing READER_COVERAGE entry (Phase C) reviewed as diffs; begin_history's GOVERNED declaration (AUD-020) reviewed as a diff, with GH9 killed",
    "mode": "100644",
-   "new_blob": "5601cc689a87fdafbe101d402f2e62e2a598bb74",
+   "new_blob": "273ed40fb8d4f654275b73d50f27186e53a53c3b",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/principals.py",
-   "reviewed_blob": "5601cc689a87fdafbe101d402f2e62e2a598bb74",
-   "sha256": "8bb0aabf769e1f65cc7dea61dad3e20492edea7bfa7029194d45fc28782ccd26",
-   "size": 39552,
+   "reviewed_blob": "273ed40fb8d4f654275b73d50f27186e53a53c3b",
+   "sha256": "f0b96eea8767e0fc8bf37834251197437116b9bc88ea674bac77371ef3c121c8",
+   "size": 40671,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1822,18 +1827,19 @@
     "AUD-011",
     "AUD-012",
     "AUD-015",
-    "AUD-017"
+    "AUD-017",
+    "AUD-020"
    ],
    "kind": "source:agent_substrate",
-   "method": "read: the authority edge restatement and _auth_refusal, the record.transition and record.depend replay, the create rule, the canonical() computation, the security-profile restatement and the authentication verdict (AUD-012 written and reviewed as a diff), the policy-binding fold, _bound_promotion_refusal, _sub_policy_publish and _sub_policy_withdraw (AUD-015 written and reviewed as a diff), the reconstruct_tasks loop and the reconstruct_subsystems dispatch (session 4); the AUD-011/AUD-017 role restatement (_roles_read, _role_refusal, _role_delegation_refusal, _role_fold) and its use in all three entry points written and reviewed as a diff; not read: scientific-admission reconstruction, and the subsystem rules other than the policy, grant and role ones",
+   "method": "read: the authority edge restatement and _auth_refusal, the record.transition and record.depend replay, the create rule, the canonical() computation, the security-profile restatement and the authentication verdict (AUD-012 written and reviewed as a diff), the policy-binding fold, _bound_promotion_refusal, _sub_policy_publish and _sub_policy_withdraw (AUD-015 written and reviewed as a diff), the reconstruct_tasks loop and the reconstruct_subsystems dispatch (session 4); the AUD-011/AUD-017 role restatement (_roles_read, _role_refusal, _role_delegation_refusal, _role_fold) and its use in all three entry points written and reviewed as a diff; not read: scientific-admission reconstruction, and the subsystem rules other than the policy, grant and role ones; the GOVERNED restatement (_profile_declared, _governed_problem and its use in reconstruct, reconstruct_tasks and reconstruct_subsystems, AUD-020) written and reviewed as a diff, with GH10-GH13 killed",
    "mode": "100644",
-   "new_blob": "12ec79281f0fd2bfdf83aa7e903607d0c55487ba",
+   "new_blob": "983b1631f2f14a1fc4cd656d7b0e2efd39f2b3e5",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/reconstruct.py",
-   "reviewed_blob": "12ec79281f0fd2bfdf83aa7e903607d0c55487ba",
-   "sha256": "efcf826490596857212e09e498264c37e9957b3e4c85f62644a41b89259b306d",
-   "size": 227894,
+   "reviewed_blob": "983b1631f2f14a1fc4cd656d7b0e2efd39f2b3e5",
+   "sha256": "07e31b5de592b4edf4579130d51473d31eadccbaeeb505a0f903ed19a232a40c",
+   "size": 230480,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -1939,18 +1945,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-017"
+    "AUD-017",
+    "AUD-020"
    ],
    "kind": "source:agent_substrate",
-   "method": "read: the module docstring's account of references and values, SecretStore's constructor, load(), apply(), issue() and revoke(); where resolve() is called from (nowhere outside the module); the AUD-017 SECRET_ISSUER check written and reviewed as a diff (session 4); not read: the providers, the redactor, resolve()/_authorize()/_reveal() in detail and the Secret wrapper",
+   "method": "read: the module docstring's account of references and values, SecretStore's constructor, load(), apply(), issue() and revoke(); where resolve() is called from (nowhere outside the module); the AUD-017 SECRET_ISSUER check written and reviewed as a diff (session 4); not read: the providers, the redactor, resolve()/_authorize()/_reveal() in detail and the Secret wrapper; the binding to its log's role registry (roles.enforced, AUD-020) reviewed as a diff",
    "mode": "100644",
-   "new_blob": "0f1434af02f4764e21547ba9c0925d39626890e8",
+   "new_blob": "eacd8e2197213f91b26d9e34c81d9f66528f08de",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/secrets.py",
-   "reviewed_blob": "0f1434af02f4764e21547ba9c0925d39626890e8",
-   "sha256": "77dff8aedf964aee1838d886f5f5d5c5c0b16375ca4d9732020888da9a024788",
-   "size": 55633,
+   "reviewed_blob": "eacd8e2197213f91b26d9e34c81d9f66528f08de",
+   "sha256": "8ea8b2a6551dc20bbfe25ff045220b835ec96490eb0e7bbeb0324a8323aae866",
+   "size": 55697,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -1994,18 +2001,19 @@
     "AUD-006",
     "AUD-007",
     "AUD-011",
-    "AUD-015"
+    "AUD-015",
+    "AUD-020"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at the baseline blob in session 1; the audit's changes (AUD-003, AUD-004, AUD-006, AUD-007, AUD-015, and in session 4 the AUD-011 role checks on create, on each transition, on the policy fold and on the snapshot) reviewed as diffs with regression tests and killed mutations",
+   "method": "every line read at the baseline blob in session 1; the audit's changes (AUD-003, AUD-004, AUD-006, AUD-007, AUD-015, and in session 4 the AUD-011 role checks on create, on each transition, on the policy fold and on the snapshot) reviewed as diffs with regression tests and killed mutations; the binding to its log's role registry (roles.enforced, AUD-020) reviewed as a diff, with GH7 and GH8 killed",
    "mode": "100644",
-   "new_blob": "76b74cb7089425af7fd56d99b4523f6ce8a0b7fe",
+   "new_blob": "40ee0550b4db7e18c818ff687a40749b9b67e714",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/store.py",
-   "reviewed_blob": "76b74cb7089425af7fd56d99b4523f6ce8a0b7fe",
-   "sha256": "a9b2befd399562ad70601480a97ea8c5eb249142cbab01e8a17897359ea47994",
-   "size": 82342,
+   "reviewed_blob": "40ee0550b4db7e18c818ff687a40749b9b67e714",
+   "sha256": "59d2f57aa5d99b26aad39d17fbcd90d5fd74c30bc0d9eec99516e4922d29583b",
+   "size": 82550,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -3624,13 +3632,13 @@
    "kind": "evidence-or-data",
    "method": "",
    "mode": "100644",
-   "new_blob": "ea6bf882186bac4a02eff222fc5243a04e144a64",
+   "new_blob": "5ec8a812cfb59c63dada8499995a28ba5c58b55c",
    "note": "not yet examined",
    "old_blob": null,
    "path": "docs/completion_matrix.json",
    "reviewed_blob": null,
-   "sha256": "81ccceef3a70b1f3ed7a11be99b2924e59ac5f2ee0a7be1a0c8fcde31f80d901",
-   "size": 255106,
+   "sha256": "be506fdb13aa7b1775627d3ee414e4a9507b2157ec85f6231b4ab9bf7270a488",
+   "size": 255218,
    "status": "NOT_REVIEWED"
   },
   {
@@ -10476,15 +10484,15 @@
     "AUD-011"
    ],
    "kind": "test",
-   "method": "read: ALLOWED_IMPORTERS, LAYERS, IO_LAYER, the narrative-document test, and the importer, layering, earlier-layer and IO-layer tests; written by the audit and reviewed as diffs: the AUD-011 entries (the role test, the roles layer, its IO entry), the assurance package's builder as an importer (it drives the governed run and asks the second reader for decision proofs), the transparency layer with its test, the witness's tree-checkpoint test with the layer notes that the witness now imports the tree, the archive layer with its test and its cost instrument as importers, the witness quorum test, and the counterfactual evaluation test; not read: the remaining structural tests",
+   "method": "read: ALLOWED_IMPORTERS, LAYERS, IO_LAYER, the narrative-document test, and the importer, layering, earlier-layer and IO-layer tests; written by the audit and reviewed as diffs: the AUD-011 entries (the role test, the roles layer, its IO entry), the assurance package's builder as an importer (it drives the governed run and asks the second reader for decision proofs), the transparency layer with its test, the witness's tree-checkpoint test with the layer notes that the witness now imports the tree, the archive layer with its test and its cost instrument as importers, the witness quorum test, the counterfactual evaluation test, and the governed-history test (AUD-020); not read: the remaining structural tests",
    "mode": "100644",
-   "new_blob": "3bb09db9af65705795af9ace240b4464ea0aa38d",
+   "new_blob": "d679b407b322696b4d8dc8fab8d953e32801a299",
    "note": "",
    "old_blob": null,
    "path": "tests/test_agent_substrate_isolation.py",
-   "reviewed_blob": "3bb09db9af65705795af9ace240b4464ea0aa38d",
-   "sha256": "e77ebf1481d72717bc42f47b8c112899d91012dc81ca568d413819a471e3580e",
-   "size": 55970,
+   "reviewed_blob": "d679b407b322696b4d8dc8fab8d953e32801a299",
+   "sha256": "628e8e9936e72ffa375952dd68a327cb2071d46f23e92a5c641380551c50990d",
+   "size": 56138,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -11417,6 +11425,22 @@
    "sha256": "91f31352190fa1df79b9e49bde2c5aa5d3efacccd59336128818cecc98f3bde7",
    "size": 9996,
    "status": "NOT_REVIEWED"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "test",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "not independently reviewed",
+   "old_blob": null,
+   "path": "tests/test_governed_history.py",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,
@@ -14746,18 +14770,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-012"
+    "AUD-012",
+    "AUD-020"
    ],
    "kind": "mutation-spec",
-   "method": "every mutation read (AP1-AP9, EP1-EP9, RC1-RC2, AR1, AH22-AH23) with its anchor and rationale; EP10, EP11 and RC3 added by the audit and killed",
+   "method": "every mutation read (AP1-AP9, EP1-EP9, RC1-RC2, AR1, AH22-AH23) with its anchor and rationale; EP10, EP11 and RC3 added by the audit and killed; EP5, EP7, RC1 and RC3's anchors repaired to the lines AUD-020 rewrote, each still removing the same rule",
    "mode": "100644",
-   "new_blob": "79204de1e54569967456a97acb76e94294ce6796",
+   "new_blob": "53eda6d60a1bf1638fd29cc5f38ae793dc56edef",
    "note": "",
    "old_blob": null,
    "path": "tools/mutations/authenticated_history.json",
-   "reviewed_blob": "79204de1e54569967456a97acb76e94294ce6796",
-   "sha256": "cf7f12ceddab892065b69671537e19b4806643368b541ceaf19813a497a267f8",
-   "size": 10979,
+   "reviewed_blob": "53eda6d60a1bf1638fd29cc5f38ae793dc56edef",
+   "sha256": "1592a716929fd76feb503f45c8ac5178092a986f0e5f046f3c4be62932b5d18f",
+   "size": 10965,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -15207,6 +15232,22 @@
    "sha256": "a7b1d158b4da722dbd33902fb0e2a61071d9db92203b59c75458bb79be9fad60",
    "size": 10564,
    "status": "NOT_REVIEWED"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "mutation-spec",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "not independently reviewed",
+   "old_blob": null,
+   "path": "tools/mutations/governed_history.json",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,
@@ -15779,13 +15820,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "156cc9e587c44142faec0ee86925502ca5b88aed",
+   "new_blob": "aa176306d7eacaa3237ee7b241df35dba62f672d",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/replay_origin_view.json",
    "reviewed_blob": null,
-   "sha256": "214755c7d22f8804c181bf212249bc4324d81aa9306aa93edab3b71bfa1a1979",
-   "size": 4766,
+   "sha256": "2442045b99aa31599de6ac5516982fc927baaff8a94fc11713a6b2c4dfbef7d9",
+   "size": 4792,
    "status": "NOT_REVIEWED"
   },
   {
@@ -16067,13 +16108,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "d4d93eabeb7a9164dbc128c31cb3b671cb01e572",
+   "new_blob": "4f67253cbc5c42babe48f60ca9db17aaf8dbe6bc",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/signed_append_lifecycle.json",
    "reviewed_blob": null,
-   "sha256": "2b835e3525f1c3f868e23bb1f5411b981abb0b43a77cb480af09ba90f29f9483",
-   "size": 17555,
+   "sha256": "16e931e356e508856c3422827c1b487f279de3f82a47f82b0679cc7d7709f910",
+   "size": 17531,
    "status": "NOT_REVIEWED"
   },
   {

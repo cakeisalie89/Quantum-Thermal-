@@ -71,8 +71,8 @@
     {
       "name": "RV10_the_reader_replays_tasks_per_admission",
       "path": "agent_substrate/reconstruct.py",
-      "find": "        if not held:\n            held.append(reconstruct_tasks(log).tasks)\n",
-      "replace": "        if True:\n            held.insert(0, reconstruct_tasks(log).tasks)\n",
+      "find": "        if not held:\n            held.append(reconstruct_tasks(log, roles=roles).tasks)\n",
+      "replace": "        if True:\n            held.insert(0, reconstruct_tasks(log, roles=roles).tasks)\n",
       "rationale": "the independent reader replays every task once per admission it decides"
     },
     {

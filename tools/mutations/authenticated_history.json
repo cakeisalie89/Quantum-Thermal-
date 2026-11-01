@@ -100,8 +100,8 @@
     {
       "name": "EP5_an_unknown_profile_is_accepted",
       "path": "agent_substrate/events.py",
-      "find": "            if declared not in PROFILES:\n",
-      "replace": "            if False:\n",
+      "find": "            why = _declaration_problem(ev.payload)\n            if why is not None:\n",
+      "replace": "            why = _declaration_problem(ev.payload)\n            if False:\n",
       "rationale": "an unknown profile is taken as whatever it says, and reads as not requiring authentication"
     },
     {
@@ -114,7 +114,7 @@
     {
       "name": "EP7_a_downgrade_is_accepted",
       "path": "agent_substrate/events.py",
-      "find": "                and profile != PROFILE_AUTHENTICATED_REQUIRED and nonempty):\n",
+      "find": "                and _STRENGTH[profile] < _STRENGTH[self.required_profile]):\n",
       "replace": "                and False):\n",
       "rationale": "a pinned deployment reads a history rewritten without its declaration"
     },
@@ -149,8 +149,8 @@
     {
       "name": "RC1_the_independent_reader_does_not_restate_the_profile",
       "path": "agent_substrate/reconstruct.py",
-      "find": "    elif (events and events[0].action == _PROFILE_ACTION\n",
-      "replace": "    elif False and (events and events[0].action == _PROFILE_ACTION\n",
+      "find": "    elif declared in _AUTHENTICATED:\n",
+      "replace": "    elif False and declared in _AUTHENTICATED:\n",
       "rationale": "the second reader relies on the primitive's gate instead of refusing in its own code"
     },
     {
@@ -163,8 +163,8 @@
     {
       "name": "RC3_the_independent_reader_folds_with_a_scoped_authenticator",
       "path": "agent_substrate/reconstruct.py",
-      "find": "    if scope is not None and (\n            events and events[0].action == _PROFILE_ACTION\n",
-      "replace": "    if False and (\n            events and events[0].action == _PROFILE_ACTION\n",
+      "find": "    if scope is not None and declared in _AUTHENTICATED:\n",
+      "replace": "    if False and declared in _AUTHENTICATED:\n",
       "rationale": "the second reader leaves the scoped authenticator to the primitive's gate and folds a REQUIRED history's unasked actors"
     },
     {

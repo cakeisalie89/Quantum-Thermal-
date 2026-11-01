@@ -145,7 +145,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/witness_quorum.json",
                # Counterfactual cases of the offline evaluation (Phase D).
                "tests/test_counterfactual_eval.py",
-               "tools/mutations/counterfactual_eval.json")
+               "tools/mutations/counterfactual_eval.json",
+               # A history that declares its authorization roots (AUD-020).
+               "tests/test_governed_history.py",
+               "tools/mutations/governed_history.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

@@ -673,6 +673,45 @@
    "residual_risk": "A deployment that re-provisions witnesses without counting them can be shown a split view. Durable witness state makes the loss rare, and does not make it impossible.",
    "verification": "REPRODUCED",
    "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-020",
+   "title": "No history could require its role registry: every role-enforcing reader enforced roles only when its caller supplied one",
+   "severity": "P1",
+   "subsystem": "authorization / role registry / verified-read primitives",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "the security-profile gate: a history declared its authentication profile, never its authorization roots"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "AuthorityStore(roles=None): no registry meant roles were what the request said; likewise PolicyStore, SecretStore, NetworkAuthority and GovernedTasks"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct, reconstruct_tasks, reconstruct_subsystems: roles=None folded every act"
+    }
+   ],
+   "behavior": "AUD-011 rooted roles in a registry supplied from outside the log, and every reader given one enforced it. Nothing in a history named the registry, so a reader built without one, which is every reader by default, folded acts no grant authorized. In an AUTHENTICATED_REQUIRED history, mallory, a principal the key registry holds and the role registry grants nothing, promoted r1 by a signed record. The AuthorityStore given the role registry refused the history; the one built without it read r1 PROMOTED; the independent reader read VERIFIED with the registry and PROMOTED, with no complaint, without it.",
+   "invariant": "Whether an act was authorized has one answer for every reader of a governed history: the one the history's declared roots give.",
+   "mechanism": "The registry was a reader parameter defaulting to None, and None meant that a role was what the request said. A history declared how it was authenticated, never under which roles it was authorized.",
+   "reproduction": "tests/test_governed_history.py::test_the_gap_in_a_history_that_declares_no_registry shows the behaviour, which remains, explicitly, for the legacy profiles; at df53837 the same history read by the four readers gave refused, PROMOTED, VERIFIED and PROMOTED.",
+   "observed": "Two readers of one history, one given the registry and one not, disagreed about whether r1 was promoted.",
+   "expected": "A history can declare the registries it is read under, and every reader of it, the independent one included, enforces them or reads nothing.",
+   "correction": "The GOVERNED profile. Its first event declares harness/history-security/v1 and the digests of the key registry and the role registry. The verified-read primitives refuse a GOVERNED history to a log that does not hold both, or holds others. roles.enforced makes AuthorityStore, PolicyStore, SecretStore, NetworkAuthority and GovernedTasks enforce their log's registry when none is passed, and refuses a reader whose registry is not its log's. reconstruct, reconstruct_tasks and reconstruct_subsystems restate the requirement from the declaration and their own inputs. A deployment that pins GOVERNED refuses a history declaring less. UNAUTHENTICATED_LEGACY and AUTHENTICATED_REQUIRED keep their behaviour, as explicitly legacy profiles.",
+   "regression_tests": [
+    "tests/test_governed_history.py::test_a_governed_history_reads_nothing_without_its_own_roots",
+    "tests/test_governed_history.py::test_mallory_s_promotion_is_refused_by_both_readers",
+    "tests/test_governed_history.py::test_a_reader_cannot_enforce_another_registry_than_its_log_s",
+    "tests/test_governed_history.py::test_the_independent_reader_restates_the_requirement",
+    "tests/test_governed_history.py::test_a_governed_history_cannot_be_downgraded",
+    "tests/test_governed_history.py::test_the_independent_reader_compares_the_registry_it_is_given",
+    "tests/test_governed_history.py::test_a_malformed_governed_declaration_is_refused_on_read"
+   ],
+   "residual_risk": "Only a history that declares GOVERNED is bound; a deployment must pin GOVERNED to refuse the legacy profiles. No production key or role registry is provisioned (AUD-011, AUD-017). A store checkpoint is an unsigned record and cannot be written into an authenticated history: a signing checkpoint writer is not built. No authority-layer writer holds a signer: a REQUIRED or GOVERNED history is written only by principals.signed_append, record by record, so the governed run the assurance package is built from is unsigned. Agent registration, capability issuance and research conclusions are not acts the role registry governs. P1 rather than P0: no registry is provisioned, so no deployment relied on one; provisioning one would not have bound the readers. GH1-GH13 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

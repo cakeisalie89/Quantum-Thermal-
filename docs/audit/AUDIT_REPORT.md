@@ -31,7 +31,7 @@ Where this report and those files disagree, the files are right.
 
 ## 1. Coverage ledger
 
-The pull request changes 1043 files, counting the audit's own (`git diff
+The pull request changes 1045 files, counting the audit's own (`git diff
 --name-status` from the merge base, with rename detection, not the web
 diff). Each has one entry.
 
@@ -40,7 +40,7 @@ diff). Each has one entry.
 | REVIEWED_IN_FULL | 11 | every line read, bound to the blob read |
 | REVIEWED_IN_PART | 24 | the parts named in the entry read, bound to the blob |
 | INSPECTED_BINARY | 20 | a binary, identified and inspected |
-| AUDIT_ARTIFACT | 54 | written by this audit, not independently reviewed |
+| AUDIT_ARTIFACT | 56 | written by this audit, not independently reviewed |
 | NOT_REVIEWED | 934 | not examined, with the reason |
 
 Of the 56 changed `agent_substrate` modules, 19 have been read, and three,
@@ -56,7 +56,7 @@ git.
 
 ## 2. Findings register
 
-Nineteen findings. Severity follows the register's scale: P0 is an
+Twenty findings. Severity follows the register's scale: P0 is an
 authority bypass or integrity failure, P3 is information for the owner.
 
 | ID | Sev | Established | Resolution | In brief |
@@ -80,6 +80,7 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-017 | P3 | CONFIRMED | FIXED | nothing said who may issue a secret or an egress grant; the registry's issuing roles now do |
 | AUD-018 | P2 | REPRODUCED | FIXED | a trust root accepted a quorum that is not a majority, under which honest witnesses can witness two forks |
 | AUD-019 | P3 | REPRODUCED | OWNER | a witness provisioned again after losing its state cosigns a fork of what it forgot |
+| AUD-020 | P1 | REPRODUCED | FIXED | no history could require its role registry; a GOVERNED history now binds every reader to the registries it declares |
 
 **How far each is established.** REPRODUCED means shown failing by a
 test or a script; CONFIRMED means established by reading, not executed.
@@ -364,8 +365,8 @@ The audit restored none of it.
 
 ## 7. Owner decisions
 
-**Fixable here, and fixed.** AUD-002 to AUD-009 and AUD-011 to
-AUD-018. For AUD-011 and AUD-017 the mechanism is what was
+**Fixable here, and fixed.** AUD-002 to AUD-009, AUD-011 to
+AUD-018, and AUD-020. For AUD-011 and AUD-017 the mechanism is what was
 fixed, and it holds where a reader is given a registry. Provisioning the
 production registry is the owner action below.
 
@@ -439,14 +440,14 @@ Each line names its weakest point. No aggregate is given.
 | Incremental-verification maturity | partial | suffix reads bound to verified anchors and to the folded hash (AUD-003, AUD-006); governed folds still re-verify from genesis by decision (AUD-010) |
 | Recovery maturity | partial | crash-window checkpoint fixed (AUD-009); per-step campaign recovery measured; whole-process campaign recovery tested at twelve kill points, a rollback refused and competing processes refused (AUD-013); recovery across the loss of the machine needs durable storage |
 | Witness deployment maturity | not deployed | protocol implemented and tested; quorums model-checked (protocol 7); a quorum must be a majority (AUD-018); a re-provisioned witness is the owner's to count (AUD-019); no production witness or trust root |
-| Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
+| Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); a GOVERNED history binds every reader to the key and role registries it declares (AUD-020), and none exists outside tests; authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
 | Execution isolation | partial, honestly classified | kernel namespaces, filesystem, network, process tree and quotas; syscall filtering NOT_PROVIDED |
 | Scientific verification | bounded, honest | numerical cross-checks of three models; one result packaged for offline checking, rechecked by a standalone verifier against its own closed-form solution; no experimental validation; FEniCSx not exercised on this host |
 | Long-horizon reliability | measured to 1,000 decisions | resumable across the death of its process (AUD-013); the 5,000 and 10,000 stages not run; per-decision cost rising (AUD-010) |
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
 | Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; no role registry provisioned |
 | Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
-| Merge readiness | not assessed as ready | 934 of 1043 files not reviewed; hosted runs all green at 0683097, not yet at the audit's head |
+| Merge readiness | not assessed as ready | 934 of 1045 files not reviewed; hosted runs all green at df53837 (every run, read from the API), not yet at the audit's head |
 
 ## 9. What remains unknown
 
