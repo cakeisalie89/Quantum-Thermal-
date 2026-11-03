@@ -1847,3 +1847,114 @@ appear. The test now uses `harness/key-registry/v3`.
   assurance package does not yet carry a governed history.
 - **The decision proof does not borrow roots.** It does not take them from
   the log it is given. A caller of a governed history passes them.
+
+### Stage 2, second part: the research decision's authority, carried and checked from the package
+
+**The research task, run governed.** `tools/adversarial_eval.World(...,
+governed=True)` runs the evaluation's legitimate task unchanged on a
+history whose first record declares GOVERNED:
+
+- the owner's slab question;
+- the researcher's model run and its independent check;
+- the reviewer's verification;
+- the ledger's verdict.
+
+Each of the thirteen parties signs with its TEST identity through the log
+handle. Every role-governed act is held to eight grants, live and on
+every replay. Each grant was found by running the task under an empty
+registry and granting, for each refusal, the act it named at the
+narrowest scope that names it. Every scope is an exact policy, tool or
+record kind, never a wildcard.
+
+`tests/test_governed_research_run.py` removes each grant in turn, and
+without any one of them the task does not succeed. A registered party
+with a genuine key and no grant signs the result's first review in a
+copy of the history. Every reader refuses it: the store, the second
+reader, and the separate process.
+
+**A gap the first part left, found here.** The decision proof of the
+governed run's VERIFIED result was not accepted. A scientific result's
+admission is decided by the task reader, which takes its key registry
+from its log's authenticator. The prefix the proof re-reads had none, so
+the task reader folded nothing, and no verification task stood behind the
+admission. The first part's test proved a note, which needs no admission,
+so it did not see this. The prefix now carries the history's roots. GR1
+removes them, and AUD-023 records the gap.
+
+**The package carries the decision's authority.** The portable assurance
+package is now format 2, built from the governed run. Beside the
+history it carries each record's attestation and the two registries the
+history's first record declares, and its record states those roots.
+
+The standalone verifier is version 2, still the standard library alone.
+It adds two levels between HISTORY and DECISION:
+
+- **AUTHENTICATION.** The first record declares GOVERNED, with the
+  digests of the carried registries. Every record is attested by a key
+  that registry holds for its actor, valid at its position, its
+  signature verified with the restated RFC 8032 code. No attestation
+  names a record outside the history.
+- **AUTHORIZATION.** Every act the role registry governs was made by a
+  party a grant names, for that role, over that scope, at that position.
+  The rules are restated, not imported. The acts are each record's
+  proposal and transitions, each governed task's submission, execution
+  and verification, and each policy publication. A history holding a
+  governed act whose rules are not restated is refused: delegations,
+  secret or egress grants, and policy withdrawals.
+
+The committed package: VERIFIED at seven levels, 86 records
+authenticated against 13 keys (all TEST identities), 19 governed acts
+judged against 8 grants.
+
+| Forgery, with every digest recomputed and every record signed again with the TEST keys anyone can derive | Refused at |
+|---|---|
+| a verification signed with a genuine key and no grant | AUTHORIZATION |
+| the reviewer's grant revoked at the verification, expired before it, not yet valid, or out of scope | AUTHORIZATION |
+| the proposer verifying its own result, holding no grant to | AUTHORIZATION |
+| the proposer granted VERIFIER, verifying its own result | DECISION (separation of duties) |
+| a delegation in the history, a grant to no key, a root role made delegable, a role registry bound to another key registry | AUTHORIZATION |
+| an attestation removed, another principal's key, a torn or stray attestation, a substituted role registry | AUTHENTICATION |
+| a history that does not declare GOVERNED, or declares twice | AUTHENTICATION |
+| the temperature, consistently | RECHECK |
+| nothing changed | passes every level; only `--expect-package-digest` refuses it |
+
+**What the verifier now says it cannot establish.** ROLE_ENTITLEMENT is
+gone: entitlement is checked against the carried registry. In its place:
+
+- **ROOT_ORIGIN.** The registries are the history's own, pinned by its
+  first record, and a history assembled with its registries passes. An
+  independently obtained package digest or head establishes them.
+- **KEY_CUSTODY.** Every key is a TEST identity, so the signatures show
+  the protocol, not who acted.
+- **VERDICT_AUTHORITY.** A research conclusion is not an act the role
+  registry governs.
+
+**Not done.** The package carries no tree checkpoint and no witness
+cosignature, so HISTORY_ANCHORED stays not established. A Merkle range
+or inclusion proof would not be enough on its own: authority depends on
+every grant-relevant record before the decision, and on every record
+after it for "still stands". So the package keeps the full history.
+
+**Tests:**
+
+- `tests/test_governed_research_run.py`: 11;
+- `tests/test_assurance_package.py`: 160 in all.
+
+Six tests encoded format 1, and each was repaired without weakening:
+
+- the proposer verifying its own result, and the reviewer claiming
+  another role, now reach DECISION only by being granted the role, so
+  DECISION's own checks stay exercised;
+- a decision position pointing nowhere is refused at AUTHORIZATION, and
+  a question position pointing nowhere keeps DECISION's position check
+  covered.
+
+**Mutations:**
+
+| Spec | Killed |
+|---|---|
+| governed_run (GR1 to GR5) | 5 of 5 |
+| freshness, with FR39 repaired a second time | 40 of 40 |
+| verify_assurance, VA103 to VA122 (new) | 20 of 20 |
+
+The 102 earlier VA mutations run in CI's shards.

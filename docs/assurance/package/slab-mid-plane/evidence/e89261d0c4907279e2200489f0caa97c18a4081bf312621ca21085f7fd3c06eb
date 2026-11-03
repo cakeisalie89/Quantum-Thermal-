@@ -5,7 +5,7 @@
    "bundle_held": true,
    "freshness": "HISTORICAL",
    "observation_id": "obs-slab-q-2",
-   "record_id": "result-task-393c55c2586b",
+   "record_id": "result-task-e3d06d6b2d95",
    "record_state": "VERIFIED",
    "result_bundle": "1478106d59e554c53c967b64aeb7a5ebc83b5b8a0012ab6ca70881123281513f",
    "values": {
@@ -60,15 +60,15 @@
  "decision": {
   "action": "research.status",
   "actor": "research-controller",
-  "hash": "434a2f00cf2ffb85245a906758e527ef529683248b965480632d52fe7fcd4f4c",
+  "hash": "abe6f74bfbde66dab7432ec95be905c818dffec9a94b599681b6030dba0b4cf4",
   "kind": "research",
   "outcome": "SUPPORTED",
-  "seq": 76,
+  "seq": 77,
   "subject": "h1"
  },
  "head": {
-  "hash": "5bd2d0b03addef7f72e385f46078b68844b5ea75d965a863553a5e179be7441c",
-  "seq": 75
+  "hash": "b1784d4b7c62e2c027e139ec2417f20e374f87aa76902235e2cf4ec6a5a95d73",
+  "seq": 76
  },
  "hypothesis": {
   "hypothesis_id": "h1",
@@ -79,29 +79,29 @@
    "unit": "K",
    "value": 1000.0
   },
-  "proposal_id": "prop-595b48769c5902a7ef1852d44e91e844c62590d19d5d0571e956e6a91ca8bd68",
+  "proposal_id": "prop-80ef9d0034182a639c541caca3115e900e2390c598bdd182b8a7cde1379ca6e6",
   "proposed_by": "ai-researcher"
  },
  "proposal": {
   "agent_id": "ai-researcher",
   "context": {
-   "manifest_digest": "bf6b0e61b4dc767fcb0307beae4590cac5b49fa2a2ce1a466ea582d1ec77adad",
+   "manifest_digest": "eef1e07f9fdb35892d8b5549a708a7db18aa085ed40326a08e57697dacfe7f46",
    "policy_identity": "research.default@1",
    "policy_in_force": true,
-   "recorded_seq": 13
+   "recorded_seq": 14
   },
-  "envelope_digest": "b8246f36e3b3c05ade36e7072739132954cce77a15cafcf8ad5606ba190893d4",
+  "envelope_digest": "58dbd36181316ec511be9b144b4f5aaf03117e2bf8b1bb6649d308c1ceb7b93c",
   "inference": {
    "attempt": 1,
    "budget_id": "research",
    "granted": true,
    "outcome": "OK",
-   "request_id": "infer-64ebd8038cbf4ba4579c511082a82669a499860e8c53b3fd20babcd0ed949369",
-   "reserve_seq": 14
+   "request_id": "infer-7da28c878eb071c542696fd885757e257a7ff5df13e75c99f9a25c232870e27d",
+   "reserve_seq": 15
   },
   "kind": "HYPOTHESIS",
-  "proposal_id": "prop-595b48769c5902a7ef1852d44e91e844c62590d19d5d0571e956e6a91ca8bd68",
-  "received_seq": 17
+  "proposal_id": "prop-80ef9d0034182a639c541caca3115e900e2390c598bdd182b8a7cde1379ca6e6",
+  "received_seq": 18
  },
  "schema": "decision-proof/1"
 }

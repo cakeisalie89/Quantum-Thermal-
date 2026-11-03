@@ -718,6 +718,146 @@
    "find": "    if expect_digest is not None and not _HEX.fullmatch(expect_digest):",
    "replace": "    if False:",
    "rationale": "a malformed expected digest is ignored rather than refused"
+  },
+  {
+   "name": "VA103_the_declaration_is_not_compared",
+   "path": "tools/verify_assurance.py",
+   "find": "          first.get(\"action\") == \"history.security_profile\"\n          and first.get(\"payload\") == {",
+   "replace": "          True or first.get(\"payload\") == {",
+   "rationale": "a history that does not declare GOVERNED, or declares other registries than the package carries, is read as governed by them"
+  },
+  {
+   "name": "VA104_a_second_declaration_is_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "    check(\"the history declares its profile once\", not again,",
+   "replace": "    check(\"the history declares its profile once\", True,",
+   "rationale": "a history that declares its profile again, after its first record, passes"
+  },
+  {
+   "name": "VA105_a_torn_attestation_file_is_read",
+   "path": "tools/verify_assurance.py",
+   "find": "          not attested[\"torn_tail\"], \"its last line is torn\")",
+   "replace": "          True, \"its last line is torn\")",
+   "rationale": "an attestation file whose last line is torn passes as a finished package's"
+  },
+  {
+   "name": "VA106_a_stray_attestation_is_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "    check(\"every attestation names a record of the history\", not stray,",
+   "replace": "    check(\"every attestation names a record of the history\", True,",
+   "rationale": "an attestation of no record of the history passes"
+  },
+  {
+   "name": "VA107_signatures_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          not result[\"findings\"] and result[\"authenticated\"] == len(events),",
+   "replace": "          True,",
+   "rationale": "a record no key vouches for, or one signed with another principal's key, passes"
+  },
+  {
+   "name": "VA108_unrestated_acts_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "          \"does not restate\", not unread, f\"it holds {unread}\")",
+   "replace": "          \"does not restate\", True, f\"it holds {unread}\")",
+   "rationale": "a history holding a delegation, a secret or egress grant, or a policy withdrawal is read as authorized without its rules"
+  },
+  {
+   "name": "VA109_ungranted_acts_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "          \"granted, over that scope, at that position\", not refused,",
+   "replace": "          \"granted, over that scope, at that position\", True,",
+   "rationale": "an act by a party no grant names, or out of scope, or at a position its grant does not hold, passes"
+  },
+  {
+   "name": "VA110_any_proposer_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "          not named, f\"at {named}\")",
+   "replace": "          True, f\"at {named}\")",
+   "rationale": "a record that names another proposer than the party that appended it passes"
+  },
+  {
+   "name": "VA111_decisions_unjudged",
+   "path": "tools/verify_assurance.py",
+   "find": "          \"judged\", not behind, f\"not judged: {behind}\")",
+   "replace": "          \"judged\", True, f\"not judged: {behind}\")",
+   "rationale": "a record naming a verification position where no governed act was judged passes AUTHORIZATION"
+  },
+  {
+   "name": "VA112_revocation_ignored",
+   "path": "tools/verify_assurance.py",
+   "find": "        if g[\"revoked_at_seq\"] is not None and seq >= g[\"revoked_at_seq\"]:",
+   "replace": "        if False:",
+   "rationale": "a grant revoked before an act still authorizes it"
+  },
+  {
+   "name": "VA113_expiry_ignored",
+   "path": "tools/verify_assurance.py",
+   "find": "        elif g[\"valid_until_seq\"] is not None and seq > g[\"valid_until_seq\"]:",
+   "replace": "        elif False:",
+   "rationale": "a grant that expired before an act still authorizes it"
+  },
+  {
+   "name": "VA114_validity_start_ignored",
+   "path": "tools/verify_assurance.py",
+   "find": "        elif seq < g[\"valid_from_seq\"]:",
+   "replace": "        elif False:",
+   "rationale": "a grant authorizes an act made before the grant holds"
+  },
+  {
+   "name": "VA115_scope_ignored",
+   "path": "tools/verify_assurance.py",
+   "find": "            if any(x == \"*\" or x == value or x == f\"{ns}:*\"\n                   for x in g[\"scope\"]):",
+   "replace": "            if True:",
+   "rationale": "a grant authorizes acts outside its scope"
+  },
+  {
+   "name": "VA116_a_grant_to_no_key",
+   "path": "tools/verify_assurance.py",
+   "find": "              and e[\"principal\"] in principals\n",
+   "replace": "              and True\n",
+   "rationale": "a grant naming a principal the key registry does not hold is read"
+  },
+  {
+   "name": "VA117_root_roles_delegable",
+   "path": "tools/verify_assurance.py",
+   "find": "              and (not e[\"may_delegate\"] or e[\"role\"] in _DELEGABLE))",
+   "replace": "              and True)",
+   "rationale": "a grant lets its holder delegate a role only the root may give"
+  },
+  {
+   "name": "VA118_another_key_registry_bound",
+   "path": "tools/verify_assurance.py",
+   "find": "    if bound is not None and bound != key_digest:",
+   "replace": "    if False:",
+   "rationale": "a role registry written against another key registry is read"
+  },
+  {
+   "name": "VA119_roots_unstated",
+   "path": "tools/verify_assurance.py",
+   "find": "          roots == {\"profile\": GOVERNED,",
+   "replace": "          True or roots == {\"profile\": GOVERNED,",
+   "rationale": "a record that states other roots than the registries the package carries passes"
+  },
+  {
+   "name": "VA120_the_roots_origin_is_never_established",
+   "path": "tools/verify_assurance.py",
+   "find": "            gaps.pop(\"PACKAGE_ORIGIN\")\n            gaps.pop(\"ROOT_ORIGIN\", None)",
+   "replace": "            gaps.pop(\"PACKAGE_ORIGIN\")\n            pass",
+   "rationale": "a package whose digest matches the published one still reports its registries' origin as not established"
+  },
+  {
+   "name": "VA121_a_root_file_may_be_absent",
+   "path": "tools/verify_assurance.py",
+   "find": "    for rel in (RECORD, LOG, README, *ROOT_FILES):",
+   "replace": "    for rel in (RECORD, LOG, README):",
+   "rationale": "a package without its attestations or a registry passes INTEGRITY and fails later, at a level that does not name the missing file"
+  },
+  {
+   "name": "VA122_test_keys_are_not_counted",
+   "path": "tools/verify_assurance.py",
+   "find": "        \"test_identities\": sum(1 for k in keys if k.startswith(\"test:\"))}",
+   "replace": "        \"test_identities\": 0}",
+   "rationale": "the report does not say that the package's keys are TEST identities"
   }
  ]
 }

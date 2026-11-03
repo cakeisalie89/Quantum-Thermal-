@@ -12,31 +12,43 @@
    {
     "action": "record.transition",
     "actor": "model-result-reviewer",
-    "hash": "0446c3096844e42a96bb9570d894059d1694a48fc05666e6c1c6918bf32de8ed",
+    "hash": "35cdb4d4c414718286452093d33a7167b57103e620546feef54b9d10fa014370",
     "name": "verified",
     "outcome": "VERIFIED",
     "proof": "decision_proof_verified",
     "role": "VERIFIER",
-    "seq": 74
+    "seq": 75
    },
    {
     "action": "research.status",
     "actor": "research-controller",
-    "hash": "434a2f00cf2ffb85245a906758e527ef529683248b965480632d52fe7fcd4f4c",
+    "hash": "abe6f74bfbde66dab7432ec95be905c818dffec9a94b599681b6030dba0b4cf4",
     "name": "supported",
     "outcome": "SUPPORTED",
     "proof": "decision_proof_supported",
-    "seq": 76
+    "seq": 77
    }
   ],
   "final_state": "VERIFIED",
   "result_record": {
-   "created_seq": 49,
+   "created_seq": 50,
    "kind": "scientific_result",
    "proposer": "ai-researcher",
-   "record_id": "result-task-393c55c2586b"
+   "record_id": "result-task-e3d06d6b2d95"
   },
-  "roles": "NOT_ESTABLISHED: the producing run carried no role registry, so whether each decider was entitled to decide is not recorded; no registry is provisioned for production (an owner decision)"
+  "roots": {
+   "attestations": "history/attestations.jsonl",
+   "key_registry": {
+    "file": "trust/key_registry.json",
+    "sha256": "b20d66a4535910bd2c9990bf11aa227296f2d3eb3b32b0638d6af425f4f2486f"
+   },
+   "profile": "GOVERNED",
+   "requirement": "harness/history-security/v1",
+   "role_registry": {
+    "file": "trust/role_registry.json",
+    "sha256": "5c4c9f13fdcff719585e25a030c0f19ec8db394f7ffc2622ab1d0cfe325a675a"
+   }
+  }
  },
  "error_budget": {
   "evidence": "error_budget",
@@ -51,8 +63,8 @@
   "NUMERICALLY_VERIFIED": "CLAIMED: an independent method-of-lines check passed, and the closed-form series measured the discretization; the verifier re-derives the agreement"
  },
  "evidence": {
-  "decision_proof_supported": "aa3e9e91c065bd7ee39135498f60ccd902736078336b4a4a30cea69c45d65314",
-  "decision_proof_verified": "c70c252333a716ba19e5a209c6e54f938901dd6536c65e955d95532961bea899",
+  "decision_proof_supported": "e89261d0c4907279e2200489f0caa97c18a4081bf312621ca21085f7fd3c06eb",
+  "decision_proof_verified": "c7f10aefb0b38aef93af9881ecf502eb0bffd036d5759c2866b52b05644010a5",
   "error_budget": "e3e5ff16b842264d58f9f5d39d2a67a7cd55d2aa670868385612b60acfa7943a",
   "result_bundle": "1478106d59e554c53c967b64aeb7a5ebc83b5b8a0012ab6ca70881123281513f",
   "run_identity": "61065aee364df9e2aefe9cc05717765f7b9a3a3282738724a409d4d5d0f6528e",
@@ -65,10 +77,10 @@
  },
  "history": {
   "anchored_by": "nothing outside this package: compare the head with one obtained independently (--expect-head)",
-  "events": 85,
+  "events": 86,
   "head": {
-   "hash": "8291afe7832b632a45406a36f7bf426bb9b54ac590765934fa8e04006f640902",
-   "seq": 84
+   "hash": "bb74f0252fd0dfe211167948831ae90c09ef6ba965c83728d9126f7f53f9826b",
+   "seq": 85
   },
   "log": "history/log.jsonl"
  },
@@ -179,15 +191,23 @@
   },
   {
    "id": "PRODUCER_EXECUTION",
-   "why": "that the producer's processes did what the log records: the log is the producer's statement, chained and unsigned."
+   "why": "that the producer's processes did what the log records: the log is the producer's statement, chained, and signed with the keys the package carries."
   },
   {
    "id": "MODEL_IMPLEMENTATION",
    "why": "that the code at the stated implementation digest computed the bundle: re-running it needs the producer's source."
   },
   {
-   "id": "ROLE_ENTITLEMENT",
-   "why": "that the deciding parties were entitled to decide: the producing run carried no role registry, and none is provisioned for production."
+   "id": "ROOT_ORIGIN",
+   "why": "that the key and role registries are the ones the producer's deployment holds: the history's first record pins their digests, so they are the history's own, and a history and registries assembled together pass. Supply --expect-package-digest or --expect-head, obtained independently of the package."
+  },
+  {
+   "id": "KEY_CUSTODY",
+   "why": "that each record was signed by the party it names: every key in the registry is a TEST identity, whose secret anyone can derive from its name, so the signatures show that the protocol was followed, not who acted. No production key is provisioned (an owner decision)."
+  },
+  {
+   "id": "VERDICT_AUTHORITY",
+   "why": "that the party that concluded the hypothesis was entitled to: a research conclusion is not an act the role registry governs."
   },
   {
    "id": "FORMAL_PROOF",
@@ -218,7 +238,7 @@
  "question": {
   "asked_by": "owner",
   "objective_id": "slab-q",
-  "registered_seq": 12,
+  "registered_seq": 13,
   "statement": "does T_at_half stay below 1000 K at the documented point?"
  },
  "reproduction": [
@@ -238,7 +258,7 @@
    "value": 331.01829807256496
   }
  },
- "schema": "scientific-assurance-record/1",
+ "schema": "scientific-assurance-record/2",
  "toolchain": {
   "distributions": {
    "numpy": "2.4.4",
@@ -254,11 +274,12 @@
   "the verifier, tools/verify_assurance.py, obtained independently of this package, from the repository at a commit you trust; this package does not carry it",
   "a Python 3 interpreter and its standard library",
   "for the package's origin: the sha256 of SHA256SUMS, obtained from a channel independent of the package, such as the repository's history at a commit you trust; the package is not signed, because signing needs an identity only the owner can provision",
-  "for the history: a head (seq and hash) from a witness independent of the producer; none is offered here"
+  "for the history: a head (seq and hash) from a witness independent of the producer; none is offered here",
+  "for authority: the key and role registries the history's first record declares, which the package carries and the verifier holds every record and every governed act to. Their keys are TEST identities, whose secrets anyone can derive from their names; a production registry is an owner decision"
  ],
  "verifier": {
   "obtain": "from the repository at a commit you trust; never from this package, which does not carry it",
   "program": "tools/verify_assurance.py",
-  "version": 1
+  "version": 2
  }
 }

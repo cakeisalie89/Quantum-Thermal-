@@ -1,26 +1,26 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 634,
+   "ADDED": 639,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 60,
-   "LOW": 223,
-   "MEDIUM": 358
+   "LOW": 224,
+   "MEDIUM": 362
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 137,
+   "assurance": 138,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
    "container": 2,
    "dependencies": 2,
    "documentation": 25,
-   "evidence": 71,
+   "evidence": 74,
    "execution": 1,
    "identity": 5,
    "integrations": 14,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 6,
    "supply-chain": 5,
-   "tests": 198,
+   "tests": 199,
    "tooling": 55,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 666
+  "files": 671
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -560,6 +560,7 @@
      "tests/test_agent_toctou.py",
      "tests/test_archive.py",
      "tests/test_assurance_graph.py",
+     "tests/test_assurance_package.py",
      "tests/test_audit_ledger.py",
      "tests/test_authenticated_history.py",
      "tests/test_authority_inventory.py",
@@ -584,6 +585,7 @@
      "tests/test_governed_history.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_governed_research_run.py",
      "tests/test_grounding_bench.py",
      "tests/test_history_time.py",
      "tests/test_hostile_composition.py",
@@ -1200,6 +1202,7 @@
      "tests/test_governed_history.py",
      "tests/test_governed_model.py",
      "tests/test_governed_model_reuse.py",
+     "tests/test_governed_research_run.py",
      "tests/test_grounding_bench.py",
      "tests/test_history_time.py",
      "tests/test_hostile_composition.py",
@@ -1842,8 +1845,10 @@
     "tests": [
      "tests/test_actor_authentication.py",
      "tests/test_archive.py",
+     "tests/test_assurance_package.py",
      "tests/test_authenticated_history.py",
      "tests/test_governed_history.py",
+     "tests/test_governed_research_run.py",
      "tests/test_grounding_bench.py",
      "tests/test_memory_trust.py",
      "tests/test_restated_authentication.py",
@@ -2000,6 +2005,7 @@
      "tools/mutations/decision_proof.json",
      "tools/mutations/freshness.json",
      "tools/mutations/governed_history.json",
+     "tools/mutations/governed_run.json",
      "tools/mutations/history_time.json",
      "tools/mutations/inference_gateway.json",
      "tools/mutations/memory_trust.json",
@@ -2043,6 +2049,7 @@
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_history.py",
+     "tests/test_governed_research_run.py",
      "tests/test_grounding_bench.py",
      "tests/test_history_time.py",
      "tests/test_hostile_composition.py",
@@ -2174,8 +2181,10 @@
      "tools/mutations/role_authority.json"
     ],
     "tests": [
+     "tests/test_assurance_package.py",
      "tests/test_authenticated_history.py",
      "tests/test_governed_history.py",
+     "tests/test_governed_research_run.py",
      "tests/test_role_authority.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_signing_seam.py"
@@ -2300,6 +2309,7 @@
     "tests": [
      "tests/test_agent_separate_verify.py",
      "tests/test_decision_proof.py",
+     "tests/test_governed_research_run.py",
      "tests/test_separate_reads_governed.py"
     ]
    }
@@ -2384,6 +2394,7 @@
      "tests/test_freshness.py",
      "tests/test_governed_history.py",
      "tests/test_governed_model.py",
+     "tests/test_governed_research_run.py",
      "tests/test_grounding_bench.py",
      "tests/test_history_time.py",
      "tests/test_hostile_composition.py",
@@ -2767,20 +2778,7 @@
   },
   {
    "change": "ADDED",
-   "path": "docs/assurance/package/slab-mid-plane/evidence/aa3e9e91c065bd7ee39135498f60ccd902736078336b4a4a30cea69c45d65314",
-   "risk": "MEDIUM",
-   "runtime_dependencies": [],
-   "subsystem": "evidence",
-   "trust_boundary": "derived documents and evidence",
-   "verification": {
-    "findings": [],
-    "mutation_specs": [],
-    "tests": []
-   }
-  },
-  {
-   "change": "ADDED",
-   "path": "docs/assurance/package/slab-mid-plane/evidence/c70c252333a716ba19e5a209c6e54f938901dd6536c65e955d95532961bea899",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/c7f10aefb0b38aef93af9881ecf502eb0bffd036d5759c2866b52b05644010a5",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -2819,6 +2817,19 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/e89261d0c4907279e2200489f0caa97c18a4081bf312621ca21085f7fd3c06eb",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/assurance/package/slab-mid-plane/evidence/f73b33685d13ca2dc15c2f1220d9807546eb58390b115f6a33a740623d111dac",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -2832,7 +2843,46 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/history/attestations.jsonl",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/assurance/package/slab-mid-plane/history/log.jsonl",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/trust/key_registry.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/trust/role_registry.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -6654,6 +6704,7 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
+     "tests/test_agent_substrate_isolation.py",
      "tests/test_assurance_package_build.py"
     ]
    }
@@ -7224,6 +7275,23 @@
   {
    "change": "ADDED",
    "path": "tests/test_governed_model_reuse.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_governed_research_run.py",
    "risk": "LOW",
    "runtime_dependencies": [
     "pytest"
@@ -8840,6 +8908,7 @@
     "mutation_specs": [
      "tools/mutations/adversarial_eval_harness.json",
      "tools/mutations/counterfactual_eval.json",
+     "tools/mutations/governed_run.json",
      "tools/mutations/research_horizon_resume.json"
     ],
     "tests": [
@@ -8848,6 +8917,7 @@
      "tests/test_adversarial_scenarios.py",
      "tests/test_agent_substrate_isolation.py",
      "tests/test_counterfactual_eval.py",
+     "tests/test_governed_research_run.py",
      "tests/test_integration_demo.py",
      "tests/test_research_horizon_resume.py",
      "tests/test_research_science.py"
@@ -10414,6 +10484,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/governed_model_reuse.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/governed_run.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

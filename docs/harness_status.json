@@ -6,7 +6,7 @@
   },
   "repository_content": {
    "committed_report_current": true,
-   "files": 666,
+   "files": 671,
    "findings": 0,
    "ok": true
   },
@@ -21,7 +21,7 @@
   }
  },
  "derived_from": {
-  "docs/completion_matrix.json": "d52ecfd118f6287f60eabf569d9c69659ea400e78371419ce991477b98f614d5",
+  "docs/completion_matrix.json": "7e0f059cdf201c8d85d04b6f257b84307ecda6911d878ba144edf495d0791e2f",
   "docs/harness_contract.json": "18e7d4ceecbd82facfe3ca711fe3298fe722afd49a4791fedb267830f523a94f",
   "docs/neural/claims.json": "2a68b01a96751124897e37a65ae0fb7b2ab2c9c480f85a764685dc99216ada87",
   "docs/neural/current_status.json": "a8916cc24d9b1d05fd8a9222a29e8c27321230e84d6063c7039f4df13526ae68",

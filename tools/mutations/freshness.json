@@ -276,8 +276,8 @@
   {
    "name": "FR39_a_proof_judges_after_the_decision",
    "path": "agent_substrate/reconstruct.py",
-   "find": "    before = reconstruct_subsystems(_at(report, events, ev.seq - 1),\n",
-   "replace": "    before = reconstruct_subsystems(_at(report, events, ev.seq),\n",
+   "find": "    before = reconstruct_subsystems(_at(report, events, ev.seq - 1, roots),\n",
+   "replace": "    before = reconstruct_subsystems(_at(report, events, ev.seq, roots),\n",
    "rationale": "Assurance F: a verdict's proof judges freshness with the decision itself already in the history"
   },
   {

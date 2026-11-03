@@ -83,6 +83,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from agent_substrate import inference as I  # noqa: E402
+from agent_substrate import principals as P  # noqa: E402
+from agent_substrate import roles as RR  # noqa: E402
 from agent_substrate import proposals as PR  # noqa: E402
 from agent_substrate import research as R  # noqa: E402
 from agent_substrate import research_loop as L  # noqa: E402
@@ -158,6 +160,48 @@ def hypothesis(hid="h1", threshold=1000.0, op="<", depends_on=()):
 QUESTION = {"prediction": hypothesis()["prediction"],
             "parameters": SLAB_RUN["parameters"]}
 
+#: The parties of a GOVERNED world (Stage 2): every principal that writes
+#: in the legitimate run, and the colleague whose proposals some scenarios
+#: record. Each signs with its TEST identity -- a secret anyone can derive
+#: from the name, so what a signature shows here is the protocol, not who
+#: acted.
+GOVERNED_PARTIES = ("owner", "system", "scheduler", AGENT, OTHER,
+                    "research-controller", "inference-gateway",
+                    "proposal-ingress", "stage10-submitter", "stage10-worker",
+                    "stage10-verifier", "model-check-worker",
+                    "model-result-reviewer")
+#: What each party may do in a governed world, and nothing more. Found by
+#: running the legitimate task under an empty registry and granting, for
+#: each refusal, the act it named at the narrowest scope that names it:
+#: exact policies, tools and record kinds, never a wildcard.
+GOVERNED_GRANTS = (
+    ("g-owner-policies", "owner", "POLICY_OWNER",
+     ("policy:research.default", "policy:stage10.governed")),
+    ("g-researcher-runs", AGENT, "PROPOSER",
+     ("tool:model.thermal.slab_transient.run",)),
+    ("g-researcher-results", AGENT, "PROPOSER", ("kind:scientific_result",)),
+    ("g-run-worker", "stage10-worker", "EXECUTOR",
+     ("tool:model.thermal.slab_transient.run",)),
+    ("g-task-verifier", "stage10-verifier", "VERIFIER",
+     ("tool:model.thermal.slab_transient.run",
+      "tool:model.independent_check")),
+    ("g-check-submitter", "stage10-submitter", "PROPOSER",
+     ("tool:model.independent_check",)),
+    ("g-check-worker", "model-check-worker", "EXECUTOR",
+     ("tool:model.independent_check",)),
+    ("g-result-reviewer", "model-result-reviewer", "VERIFIER",
+     ("kind:scientific_result",)),
+)
+
+
+def governed_roots(grants=GOVERNED_GRANTS):
+    """The signers, key registry and role registry of a governed world."""
+    signers = [P.test_identity(p) for p in GOVERNED_PARTIES]
+    keys = P.KeyRegistry([s.registered() for s in signers],
+                         allow_test_keys=True)
+    roles = RR.RoleRegistry([RR.RoleGrant(*g) for g in grants])
+    return signers, keys, roles
+
 #: The question asked of other worlds: (id, threshold in K, what the
 #: documented point changes). The closed form puts the mid-plane at 331.0 K
 #: at the documented point, 610.2 K with ten times its source and 3401.8 K
@@ -181,7 +225,8 @@ class World:
 
     def __init__(self, name: str, script: Callable, *, redact=(),
                  calls: int = 50, clock: Callable = time.time,
-                 resume: bool = False, question: dict | None = None):
+                 resume: bool = False, question: dict | None = None,
+                 governed: bool = False, grants=GOVERNED_GRANTS):
         self.base = ROOT / WS / name
         #: the owner's question this world's objective asks
         self.question = question or QUESTION
@@ -202,7 +247,25 @@ class World:
         self.clock = clock
         self.prompts: list = []                  # what the provider received
         self.redactor = Redactor({f"s{i}": v for i, v in enumerate(redact)})
-        log = self.log = EventLog(self.base / "log.jsonl")
+        #: A GOVERNED world (Stage 2) is the same task on a history that
+        #: declares its key and role registries at genesis: every record
+        #: signed with its actor's key through the log handle, and every
+        #: role-governed act held to ``grants``, live and on every replay.
+        self.governed = governed
+        self.attestations = None
+        if governed:
+            signers, keys, roles = governed_roots(grants)
+            self.attestations = P.Attestations(
+                self.base / "log.attestations.jsonl")
+            log = self.log = EventLog(
+                self.base / "log.jsonl",
+                authenticator=P.Authenticator(self.attestations, keys),
+                roles=roles, signing=P.Signing(self.attestations, signers))
+            if not resume:
+                P.begin_history(log, self.attestations, signers[0],
+                                profile="GOVERNED", roles=roles)
+        else:
+            log = self.log = EventLog(self.base / "log.jsonl")
         self.evidence = EvidenceStore(self.base / "evidence")
         if not resume:
             self._bootstrap(log, calls)
@@ -295,6 +358,12 @@ class World:
         report, events = self.log.read_verified()
         report.raise_if_bad()
         return events
+
+    def roots(self) -> dict:
+        """What an independent reader of this world's history is given:
+        its authenticator and role registry, None for a legacy world."""
+        return {"authenticator": self.log.authenticator,
+                "roles": self.log.roles}
 
     def ledger(self):
         return R.ResearchLedger(self.log, evidence=self.evidence).load()

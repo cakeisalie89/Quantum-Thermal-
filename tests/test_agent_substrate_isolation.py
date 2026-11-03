@@ -94,6 +94,13 @@ ALLOWED_IMPORTERS = {
     "tests/test_signing_seam.py",
     "tests/test_restated_authentication.py",
     "tests/test_separate_reads_governed.py",
+    # Stage 2: the research task run on a governed history, each party
+    # held to its grants.
+    "tests/test_governed_research_run.py",
+    # Stage 2: the portable package's authority levels, against forgeries
+    # signed with the producer's TEST keys and against the producer's own
+    # role-registry reader.
+    "tests/test_assurance_package.py",
     "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",

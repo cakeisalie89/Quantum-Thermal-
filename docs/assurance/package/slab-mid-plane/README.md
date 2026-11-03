@@ -17,10 +17,14 @@ every other file.
 
 The verifier imports the Python standard library and nothing else. Obtain
 it independently of this package: a package cannot vouch for its own
-checker. It reports five levels (INTEGRITY, CONSISTENCY, HISTORY, DECISION,
-RECHECK) and exits 0 only when every one holds and every expectation you
-supplied matched. At RECHECK it solves the slab equations itself, in closed
-form, and holds the package's numbers to its own.
+checker. It reports seven levels (INTEGRITY, CONSISTENCY, HISTORY,
+AUTHENTICATION, AUTHORIZATION, DECISION, RECHECK) and exits 0 only when every
+one holds and every expectation you supplied matched. At AUTHENTICATION and
+AUTHORIZATION it holds every record of the history to a key, and every act
+the role registry governs to a grant, under the two registries the
+history's first record declares and this package carries. At RECHECK it
+solves the slab equations itself, in closed form, and holds the package's
+numbers to its own.
 
 ## What you must trust
 
@@ -28,6 +32,7 @@ form, and holds the package's numbers to its own.
 - a Python 3 interpreter and its standard library
 - for the package's origin: the sha256 of SHA256SUMS, obtained from a channel independent of the package, such as the repository's history at a commit you trust; the package is not signed, because signing needs an identity only the owner can provision
 - for the history: a head (seq and hash) from a witness independent of the producer; none is offered here
+- for authority: the key and role registries the history's first record declares, which the package carries and the verifier holds every record and every governed act to. Their keys are TEST identities, whose secrets anyone can derive from their names; a production registry is an owner decision
 
 ## What no offline check establishes
 
@@ -37,9 +42,11 @@ not origin.
 
 - PACKAGE_ORIGIN: that this is the package that was published: a package anyone assembled consistently passes every level. Supply --expect-package-digest, obtained independently of the package.
 - HISTORY_ANCHORED: that the history is the producer's whole history and not a consistent rewrite: the chain binds its records to one another, not to anything outside. Supply --expect-head from an independent witness.
-- PRODUCER_EXECUTION: that the producer's processes did what the log records: the log is the producer's statement, chained and unsigned.
+- PRODUCER_EXECUTION: that the producer's processes did what the log records: the log is the producer's statement, chained, and signed with the keys the package carries.
 - MODEL_IMPLEMENTATION: that the code at the stated implementation digest computed the bundle: re-running it needs the producer's source.
-- ROLE_ENTITLEMENT: that the deciding parties were entitled to decide: the producing run carried no role registry, and none is provisioned for production.
+- ROOT_ORIGIN: that the key and role registries are the ones the producer's deployment holds: the history's first record pins their digests, so they are the history's own, and a history and registries assembled together pass. Supply --expect-package-digest or --expect-head, obtained independently of the package.
+- KEY_CUSTODY: that each record was signed by the party it names: every key in the registry is a TEST identity, whose secret anyone can derive from its name, so the signatures show that the protocol was followed, not who acted. No production key is provisioned (an owner decision).
+- VERDICT_AUTHORITY: that the party that concluded the hypothesis was entitled to: a research conclusion is not an act the role registry governs.
 - FORMAL_PROOF: any machine-checked proof: the package carries none.
 - PHYSICAL_VALIDITY: that the equations describe any real slab: no temperature of one was observed.
 - INPUT_DISTRIBUTIONS: that the declared input spreads are right: they are declared, not measured.

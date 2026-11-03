@@ -3,12 +3,12 @@
  "decision": {
   "action": "record.transition",
   "actor": "model-result-reviewer",
-  "hash": "0446c3096844e42a96bb9570d894059d1694a48fc05666e6c1c6918bf32de8ed",
+  "hash": "35cdb4d4c414718286452093d33a7167b57103e620546feef54b9d10fa014370",
   "kind": "record",
   "outcome": "VERIFIED",
   "role": "VERIFIER",
-  "seq": 74,
-  "subject": "result-task-393c55c2586b"
+  "seq": 75,
+  "subject": "result-task-e3d06d6b2d95"
  },
  "evidence_held": {
   "result_bundle": true,
@@ -17,44 +17,44 @@
  },
  "execution": {
   "capabilities": [
-   "cap-a96fc111",
-   "cap-read-92e4ce1f",
-   "cap-reverify-ad946bf0"
+   "cap-27c0c0e7",
+   "cap-read-b88669dd",
+   "cap-reverify-b3e32c8b"
   ],
-  "captured_seq": 39,
+  "captured_seq": 40,
   "executor": "stage10-worker",
   "proposal": {
    "agent_id": "ai-researcher",
    "bound_by": "ai-researcher",
    "context": {
-    "manifest_digest": "aa52402586429523581fa75fc814992cbe692e5ae527f34cb4f0fb3247c3a15d",
+    "manifest_digest": "cb634ff210a77d448556d5612342b0d075c380fb4b3986e43d90c31f48d0d60c",
     "policy_identity": "research.default@1",
     "policy_in_force": true,
-    "recorded_seq": 20
+    "recorded_seq": 21
    },
-   "envelope_digest": "79cc18fef2c42e3f80767bed424584adbf2eb2f05d8f542d90a811f55d8e4e30",
+   "envelope_digest": "33aa29ad752d4a2dca965e089a7a9fe829e6d183f5b4592f14a5e9622ab19da3",
    "inference": {
     "attempt": 1,
     "budget_id": "research",
     "granted": true,
     "outcome": "OK",
-    "request_id": "infer-e022f93bc21c00665be1c153dae35bc0c9df874329ff616d601dfdb6fdccc090",
-    "reserve_seq": 21
+    "request_id": "infer-dac24f4ed729478e602983dd5b2b9b8e751735609d37598bb61a8ed08a3e79b0",
+    "reserve_seq": 22
    },
    "kind": "MODEL_RUN",
-   "proposal_id": "prop-7aace39ca0779ff0f3521ee19eadd3c6e5ca15312f323675d8463d3715eba572",
-   "received_seq": 24
+   "proposal_id": "prop-88b52beddb0cb27ab510b9684955bca24646756823ef6019e0c971cf8d4a751d",
+   "received_seq": 25
   },
-  "task_id": "task-393c55c2586b",
+  "task_id": "task-e3d06d6b2d95",
   "task_verifier": "stage10-verifier"
  },
  "head": {
-  "hash": "2658f1c215226d1b677ff6c2ef79ff96d8ab7f094d915a2f765e97858f62ddd1",
-  "seq": 73
+  "hash": "a8fac94affc8e389788afbaba0d2b23f5c09da1bd9acdaee41123ca12d2879c8",
+  "seq": 74
  },
  "record": {
   "admission": "ADMITTED",
-  "created_seq": 49,
+  "created_seq": 50,
   "depends_on": {},
   "evidence": {
    "result_bundle": "1478106d59e554c53c967b64aeb7a5ebc83b5b8a0012ab6ca70881123281513f",
@@ -64,7 +64,7 @@
   "kind": "scientific_result",
   "policy_id": "stage10.governed",
   "proposer": "ai-researcher",
-  "record_id": "result-task-393c55c2586b"
+  "record_id": "result-task-e3d06d6b2d95"
  },
  "schema": "decision-proof/1",
  "separation_of_duties": {

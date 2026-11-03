@@ -16,15 +16,19 @@ written for the occasion: the run is the adversarial evaluation's
 legitimate one (tools/adversarial_eval.World), and every file but the
 record, the guide, the budget and the proofs is the run's own bytes.
 
-    assurance_record.json    the record (scientific-assurance-record/1)
+    assurance_record.json    the record (scientific-assurance-record/2)
     README.md                the reproduction guide
-    history/log.jsonl        the run's event log, as written
+    history/log.jsonl        the run's event log, as written: a GOVERNED
+                             history, every record signed
+    history/attestations.jsonl  each record's attestation, as written
+    trust/key_registry.json  the key registry its first record declares
+    trust/role_registry.json the role registry its first record declares
     evidence/<sha256>        each piece of evidence, named by its digest
     SHA256SUMS               every other file's digest
 
 WHAT CHECKS IT. tools/verify_assurance.py, which imports the standard
 library and nothing else, never this module, and never comes from the
-package. It holds the package at five levels and lists what it cannot
+package. It holds the package at seven levels and lists what it cannot
 establish. ``--check`` runs it on the committed package in a process of its
 own (``python -I``, an empty environment), then holds the package to the
 code as it is now (the model's implementation digest, the check's, the
@@ -102,7 +106,12 @@ TRUST_ROOTS = (
     "at a commit you trust; the package is not signed, because signing needs "
     "an identity only the owner can provision",
     "for the history: a head (seq and hash) from a witness independent of "
-    "the producer; none is offered here")
+    "the producer; none is offered here",
+    "for authority: the key and role registries the history's first "
+    "record declares, which the package carries and the verifier holds "
+    "every record and every governed act to. Their keys are TEST "
+    "identities, whose secrets anyone can derive from their names; a "
+    "production registry is an owner decision")
 
 
 def _reproduction() -> list:
@@ -156,10 +165,14 @@ every other file.
 
 The verifier imports the Python standard library and nothing else. Obtain
 it independently of this package: a package cannot vouch for its own
-checker. It reports five levels (INTEGRITY, CONSISTENCY, HISTORY, DECISION,
-RECHECK) and exits 0 only when every one holds and every expectation you
-supplied matched. At RECHECK it solves the slab equations itself, in closed
-form, and holds the package's numbers to its own.
+checker. It reports seven levels (INTEGRITY, CONSISTENCY, HISTORY,
+AUTHENTICATION, AUTHORIZATION, DECISION, RECHECK) and exits 0 only when every
+one holds and every expectation you supplied matched. At AUTHENTICATION and
+AUTHORIZATION it holds every record of the history to a key, and every act
+the role registry governs to a grant, under the two registries the
+history's first record declares and this package carries. At RECHECK it
+solves the slab equations itself, in closed form, and holds the package's
+numbers to its own.
 
 ## What you must trust
 
@@ -203,7 +216,8 @@ def build(out: Path, *, name: str | None = None) -> dict:
     if out.exists():
         raise SystemExit(f"{out} exists; a package is written whole, or not")
     budget = Q.derive()
-    world = E.World(name or f"assurance-{os.getpid()}", E.legitimate())
+    world = E.World(name or f"assurance-{os.getpid()}", E.legitimate(),
+                    governed=True)
     try:
         world.controller().run(E.OBJECTIVE)
         events = world.events()
@@ -230,8 +244,19 @@ def build(out: Path, *, name: str | None = None) -> dict:
         for role, at in (("decision_proof_verified", verified),
                          ("decision_proof_supported", verdict)):
             blobs[role] = _dump(derive_decision_proof(
-                world.log, at.seq, evidence=world.evidence))
+                world.log, at.seq, evidence=world.evidence,
+                **world.roots()))
         log_bytes = (world.base / "log.jsonl").read_bytes()
+        # the history's roots, as the package carries them: each record's
+        # attestation, and the two registries its first record declares
+        if world.attestations is None:
+            raise SystemExit("the package is built from a governed world, "
+                             "and this one has no attestations")
+        roots_files = {
+            V.ATTESTATIONS: world.attestations.path.read_bytes(),
+            V.KEY_REGISTRY: _dump(
+                world.log.authenticator.registry.to_document()),
+            V.ROLE_REGISTRY: _dump(world.log.roles.to_document())}
     finally:
         world.clean()
     ev = {role: V.sha(b) for role, b in blobs.items()}
@@ -320,10 +345,7 @@ def build(out: Path, *, name: str | None = None) -> dict:
                  "actor": verdict.actor, "outcome": "SUPPORTED",
                  "proof": "decision_proof_supported"}],
             "final_state": final.payload["dst"],
-            "roles": "NOT_ESTABLISHED: the producing run carried no role "
-                     "registry, so whether each decider was entitled to "
-                     "decide is not recorded; no registry is provisioned "
-                     "for production (an owner decision)"},
+            "roots": _roots(roots_files)},
         "history": {"log": V.LOG, "events": len(events),
                     "head": {"seq": events[-1].seq,
                              "hash": events[-1].hash},
@@ -351,7 +373,8 @@ def build(out: Path, *, name: str | None = None) -> dict:
                             for k, v in V.NOT_ESTABLISHED],
         "reproduction": _reproduction(),
     }
-    files = {V.RECORD: _dump(record), V.README: _readme(), V.LOG: log_bytes}
+    files = {V.RECORD: _dump(record), V.README: _readme(), V.LOG: log_bytes,
+             **roots_files}
     files.update({V.EVIDENCE + ev[r]: blobs[r] for r in ev})
     _write(out, files)
     rc, report = run_verifier(out)
@@ -360,6 +383,20 @@ def build(out: Path, *, name: str | None = None) -> dict:
         raise SystemExit("the package built does not verify:\n"
                          + json.dumps(report, indent=1)[:4000])
     return record
+
+
+def _roots(roots_files: dict) -> dict:
+    """What the record says of the history's roots: the profile, its
+    requirement, and each registry's file and the digest of its document,
+    which is what the history's first record declares."""
+    def digest(rel):
+        return V.sha(V.canonical(json.loads(roots_files[rel])))
+    return {"profile": V.GOVERNED, "requirement": V.GOVERNED_REQUIREMENT,
+            "attestations": V.ATTESTATIONS,
+            "key_registry": {"file": V.KEY_REGISTRY,
+                             "sha256": digest(V.KEY_REGISTRY)},
+            "role_registry": {"file": V.ROLE_REGISTRY,
+                              "sha256": digest(V.ROLE_REGISTRY)}}
 
 
 def _write(out: Path, files: dict) -> None:
@@ -401,11 +438,16 @@ def _swap(obj, mapping: dict):
 
 
 def load(package: Path) -> dict:
-    """A package as a forger holds it: every part editable."""
+    """A package as a forger holds it: every part editable, the registries
+    included."""
     package = Path(package)
     record = json.loads((package / V.RECORD).read_bytes())
     ev = record["evidence"]
     state = {"record": record,
+             "key_registry": json.loads(
+                 (package / V.KEY_REGISTRY).read_bytes()),
+             "role_registry": json.loads(
+                 (package / V.ROLE_REGISTRY).read_bytes()),
              "events": [json.loads(line) for line in
                         (package / V.LOG).read_bytes().splitlines()],
              "field": (package / V.EVIDENCE /
@@ -420,12 +462,31 @@ def load(package: Path) -> dict:
     return state
 
 
+def _sign(events: list) -> bytes:
+    """An attestation file for ``events``, each record signed with the TEST
+    identity of its actor: what anyone can do, since a TEST identity's
+    secret is derived from its name."""
+    from agent_substrate import principals as P
+    lines = []
+    for e in events:
+        signer = P.test_identity(e["actor"])
+        lines.append(V.canonical({
+            "seq": e["seq"], "event_hash": e["hash"],
+            "key_id": signer.key_id,
+            "sig": signer.provider.sign(
+                signer.secret, P.DOMAIN + e["hash"].encode("ascii")).hex()})
+            + b"\n")
+    return b"".join(lines)
+
+
 def forge(state: dict, out: Path) -> None:
     """Write ``state`` as a package a forger who rewrites everything would:
     each digest the edits changed renamed wherever it is cited, the log
-    re-chained, its hashes renamed in the proofs and the record, and
-    SHA256SUMS recomputed. Only what the verifier computes for itself, and
-    what it is given from outside, are beyond this forger's reach."""
+    re-chained with its first record declaring the registries the package
+    now carries, every record signed again with its actor's TEST key, its
+    hashes renamed in the proofs and the record, and SHA256SUMS recomputed.
+    Only what the verifier computes for itself, and what it is given from
+    outside, are beyond this forger's reach."""
     orig, js = state["original"], state["json"]
     mapping: dict = {}
 
@@ -442,21 +503,29 @@ def forge(state: dict, out: Path) -> None:
             rename(orig["subject"], V.sha(V.canonical(obj)))
         blobs[role] = _dump(obj)
         rename(orig["evidence"][role], V.sha(blobs[role]))
-    prev, lines = "0" * 64, []
+    roots_files = {V.KEY_REGISTRY: _dump(state["key_registry"]),
+                   V.ROLE_REGISTRY: _dump(state["role_registry"])}
+    genesis = state["events"][0]["payload"]
+    genesis["key_registry"] = V.sha(V.canonical(state["key_registry"]))
+    genesis["role_registry"] = V.sha(V.canonical(state["role_registry"]))
+    prev, lines, chained = "0" * 64, [], []
     for old, e in zip(orig["hashes"], state["events"]):
         e = _swap(e, mapping)
         e["prev_hash"] = prev
         e["hash"] = V.sha(V.canonical({f: e[f] for f in V._EVENT_FIELDS}))
         rename(old, e["hash"])
         prev = e["hash"]
+        chained.append(e)
         lines.append(V.canonical(e) + b"\n")
+    roots_files[V.ATTESTATIONS] = _sign(chained)
     for role in ("decision_proof_verified", "decision_proof_supported"):
         js[role] = _swap(js[role], mapping)
         blobs[role] = _dump(js[role])
         rename(orig["evidence"][role], V.sha(blobs[role]))
     record = _swap(state["record"], mapping)
+    record["authorization"]["roots"] = _roots(roots_files)
     files = {V.RECORD: _dump(record), V.README: state["readme"],
-             V.LOG: b"".join(lines)}
+             V.LOG: b"".join(lines), **roots_files}
     files.update({V.EVIDENCE + V.sha(b): b for b in blobs.values()})
     _write(Path(out), files)
 
@@ -469,6 +538,49 @@ def _first_failure(report: dict) -> tuple:
             if c["status"] == "FAIL":
                 return lv["level"], c["check"]
     return None, None
+
+
+def _resum(package: Path) -> None:
+    """SHA256SUMS written again for the files as they are: no forger is
+    stopped by a manifest it can rewrite."""
+    files = {p.relative_to(package).as_posix(): p.read_bytes()
+             for p in sorted(package.rglob("*"))
+             if p.is_file() and p.name != V.SUMS}
+    (package / V.SUMS).write_bytes("".join(
+        f"{V.sha(files[r])}  {r}\n" for r in sorted(files)).encode("ascii"))
+
+
+def _unsign_the_verification(package: Path) -> None:
+    """The verification's attestation removed, and nothing else: a record
+    no key vouches for."""
+    record = json.loads((package / V.RECORD).read_bytes())
+    h = next(d["hash"] for d in record["authorization"]["decisions"]
+             if d["name"] == "verified")
+    att = package / V.ATTESTATIONS
+    att.write_bytes(b"".join(line + b"\n" for line in
+                             att.read_bytes().splitlines()
+                             if json.loads(line).get("event_hash") != h))
+    _resum(package)
+
+
+def _substitute_the_roles(package: Path) -> None:
+    """A role registry granting the colleague VERIFIER put in the place of
+    the one the history declares, with the record's digest of it brought
+    along: the history's first record still names the other."""
+    import adversarial_eval as E
+    doc = json.loads((package / V.ROLE_REGISTRY).read_bytes())
+    doc["grants"] = sorted(doc["grants"] + [{
+        "grant_id": "g-substituted", "principal": E.OTHER,
+        "role": "VERIFIER", "scope": ["kind:scientific_result"],
+        "valid_from_seq": 0, "valid_until_seq": None,
+        "revoked_at_seq": None, "revocation_reason": None,
+        "may_delegate": False}], key=lambda g: g["grant_id"])
+    (package / V.ROLE_REGISTRY).write_bytes(_dump(doc))
+    record = json.loads((package / V.RECORD).read_bytes())
+    record["authorization"]["roots"]["role_registry"]["sha256"] = \
+        V.sha(V.canonical(doc))
+    (package / V.RECORD).write_bytes(_dump(record))
+    _resum(package)
 
 
 def controls(package: Path) -> list:
@@ -506,25 +618,76 @@ def controls(package: Path) -> list:
             for x in s["json"]["decision_proof_supported"]["basis"]:
                 x["values"]["T_at_half"]["value"] = new
 
-        def self_verified(s):
-            """The proposer verifies its own result."""
+        def decided_by(s, who):
+            """The result's verification made by ``who``, wherever the
+            package states its maker; every record re-signed by the
+            forger."""
             rid = s["record"]["authorization"]["result_record"]
             seq = next(d["seq"] for d in s["record"]["authorization"][
                 "decisions"] if d["name"] == "verified")
-            s["events"][seq]["actor"] = rid["proposer"]
+            s["events"][seq]["actor"] = who
             next(d for d in s["record"]["authorization"]["decisions"]
-                 if d["name"] == "verified")["actor"] = rid["proposer"]
+                 if d["name"] == "verified")["actor"] = who
             p = s["json"]["decision_proof_verified"]
-            p["decision"]["actor"] = rid["proposer"]
-            p["separation_of_duties"] = {"decider": rid["proposer"],
-                                         "distinct": False,
+            p["decision"]["actor"] = who
+            p["separation_of_duties"] = {"decider": who,
+                                         "distinct": who != rid["proposer"],
                                          "proposer": rid["proposer"]}
+
+        def self_verified(s):
+            """The proposer verifies its own result, and holds no grant to
+            verify anything."""
+            decided_by(s, s["record"]["authorization"]["result_record"][
+                "proposer"])
+
+        def ungranted_verifier(s):
+            """The colleague verifies the result: a party the key registry
+            holds, with a genuine key, whom the role registry grants
+            nothing. Authenticated, every record of the history included;
+            not authorized."""
+            import adversarial_eval as E
+            decided_by(s, E.OTHER)
+
+        def granted_self_verifier(s):
+            """The proposer is granted VERIFIER over the result's kind, by
+            the registry the history declares, and verifies its own result:
+            every act authorized, and separation of duties is all that
+            refuses it."""
+            rid = s["record"]["authorization"]["result_record"]
+            s["role_registry"]["grants"] = sorted(
+                s["role_registry"]["grants"] + [{
+                    "grant_id": "g-forged-self-review",
+                    "principal": rid["proposer"], "role": "VERIFIER",
+                    "scope": [f"kind:{rid['kind']}"], "valid_from_seq": 0,
+                    "valid_until_seq": None, "revoked_at_seq": None,
+                    "revocation_reason": None, "may_delegate": False}],
+                key=lambda g: g["grant_id"])
+            decided_by(s, rid["proposer"])
+
+        def revoked_before(s):
+            """The reviewer's grant is revoked at the verification's
+            position, by the registry the history declares: the review
+            before it stands, and the verification stands on a lapsed
+            grant."""
+            d = next(d for d in s["record"]["authorization"]["decisions"]
+                     if d["name"] == "verified")
+            for g in s["role_registry"]["grants"]:
+                if g["principal"] == d["actor"] and g["role"] == "VERIFIER":
+                    g.update(revoked_at_seq=d["seq"],
+                             revocation_reason="withdrawn before the "
+                                               "verification")
 
         for what, edit, level in (
                 ("a consistent forgery of the temperature", warmer,
                  "RECHECK"),
-                ("a consistent forgery of the deciding party", self_verified,
-                 "DECISION"),
+                ("a consistent forgery of the deciding party, who holds no "
+                 "grant", self_verified, "AUTHORIZATION"),
+                ("a verification signed with a genuine key and no grant",
+                 ungranted_verifier, "AUTHORIZATION"),
+                ("a grant revoked before the verification", revoked_before,
+                 "AUTHORIZATION"),
+                ("the proposer granted VERIFIER, verifying its own result",
+                 granted_self_verifier, "DECISION"),
                 ("a consistent forgery that changes nothing", None, None)):
             s = load(package)
             if edit is not None:
@@ -534,6 +697,17 @@ def controls(package: Path) -> list:
             rc, report = run_verifier(forged)
             out.append((what, level, rc, *_first_failure(report)[::-1]))
             if edit is None:
+                for what2, change in (
+                        ("a record whose attestation is removed",
+                         _unsign_the_verification),
+                        ("a role registry substituted, the history's "
+                         "declaration left", _substitute_the_roles)):
+                    changed = tmp / f"changed-{len(out)}"
+                    shutil.copytree(forged, changed)
+                    change(changed)
+                    rc, report = run_verifier(changed)
+                    out.append((what2, "AUTHENTICATION", rc,
+                                *_first_failure(report)[::-1]))
                 with open(package / V.SUMS, "rb") as fh:
                     honest = V.sha(fh.read())
                 rc, report = run_verifier(forged, "--expect-package-digest",

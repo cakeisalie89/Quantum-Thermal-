@@ -808,16 +808,17 @@
    "reproduction": "tests/test_separate_reads_governed.py; with the signing seam and without this correction, the same governed run REJECTED, the decision not accepted, the memory NO.",
    "observed": "A governed history the harness itself wrote was unreadable to its own independent readers.",
    "expected": "The run confirmed by the other process, the decision accepted, the memory consistently reconstructed; and each refused when the roots are withheld or others are given.",
-   "correction": "verify_in_separate_process takes authenticator and roles and hands the child their public part: the attestation file's path and the key-registry and role-registry documents. An authenticator that cannot be handed over is refused, not dropped. The child, which may not import the key layer, authenticates with the authentication restated in tools/verify_assurance.py (RFC 8032 verification, the key registry and its lifecycle, the attestation file), which tests/test_restated_authentication.py holds to the producer's verdict on every finding kind. GovernedTasks hands over its log's roots. derive_decision_proof and verify_decision_proof take roots and read each prefix as a catch-up. memory_trust reads both of its readers under its log's roots.",
+   "correction": "verify_in_separate_process takes authenticator and roles and hands the child their public part: the attestation file's path and the key-registry and role-registry documents. An authenticator that cannot be handed over is refused, not dropped. The child, which may not import the key layer, authenticates with the authentication restated in tools/verify_assurance.py (RFC 8032 verification, the key registry and its lifecycle, the attestation file), which tests/test_restated_authentication.py holds to the producer's verdict on every finding kind. GovernedTasks hands over its log's roots. derive_decision_proof and verify_decision_proof take roots and read each prefix as a catch-up. memory_trust reads both of its readers under its log's roots. The first correction left the decision proof's prefix without the roots the task reader asks its log for, so a governed scientific result's admission found no verification task behind it and its proof was not accepted; found when the research task ran governed, and corrected: the prefix carries the history's roots.",
    "regression_tests": [
     "tests/test_separate_reads_governed.py::test_the_other_process_reads_a_governed_history_under_its_roots",
     "tests/test_separate_reads_governed.py::test_without_its_own_roots_the_other_process_reads_nothing",
     "tests/test_separate_reads_governed.py::test_a_governed_task_run_is_confirmed_by_the_other_process",
     "tests/test_separate_reads_governed.py::test_a_decision_of_a_governed_history_is_proved_under_its_roots",
     "tests/test_separate_reads_governed.py::test_memory_trust_reconstructs_a_governed_history_under_its_roots",
-    "tests/test_restated_authentication.py::test_it_gives_the_producer_s_verdict_on_every_finding_kind"
+    "tests/test_restated_authentication.py::test_it_gives_the_producer_s_verdict_on_every_finding_kind",
+    "tests/test_governed_research_run.py::test_every_reader_agrees_under_the_roots"
    ],
-   "residual_risk": "The restated authentication and the producer's follow one RFC and one verification equation: two implementations, not two specifications. The child admits TEST keys when the document it is handed holds them; a production registry is handed without that admission. derive_decision_proof does not take roots from the log it is given: a caller of a governed history passes them. SG3-SG18 are each killed.",
+   "residual_risk": "The restated authentication and the producer's follow one RFC and one verification equation: two implementations, not two specifications. The child admits TEST keys when the document it is handed holds them; a production registry is handed without that admission. derive_decision_proof does not take roots from the log it is given: a caller of a governed history passes them. SG3-SG18 and GR1 are each killed.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
   }

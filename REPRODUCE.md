@@ -28,18 +28,24 @@ anywhere, and run:
         --expect-package-digest <sha256 of its SHA256SUMS, from your clone>
 
 **What it establishes.** The verifier imports nothing beyond the standard
-library and checks five levels:
+library and checks seven levels:
 
 - the files are the listed ones;
 - the record agrees with its evidence;
 - the event log is one hash chain;
+- the history declares the key and role registries the package carries,
+  and every record is signed by a key that registry holds for its actor;
+- every act the role registry governs was made by a party a grant names,
+  for that role, over that scope, at that position;
 - the reported decisions are in that chain;
 - its own closed-form solution of the slab equations agrees with the
   model's numbers and gives the recorded verdict.
 
 **What it does not establish.** It lists these on every run: physical
-validity (no real slab was observed), the entitlement of the deciders, the
-producer's toolchain, and more. The package's own `README.md` walks through
+validity (no real slab was observed), the registries' origin, the custody
+of the keys (every key is a TEST identity, whose secret anyone can derive
+from its name), the verdict's authority, the producer's toolchain, and
+more. The package's own `README.md` walks through
 the reproduction, including corrupting a file to watch the refusal.
 
 ## 2. With the repository: re-derive what it records

@@ -129,7 +129,11 @@ def test_the_record_and_the_guide_say_what_is_not_established():
     assert rec["formal"]["status"] == "NOT_RUN"
     for kind in V.NOT_CARRIED:
         assert rec["establishment"][kind].startswith(V.UNCLAIMED), kind
-    assert rec["authorization"]["roles"].startswith("NOT_ESTABLISHED")
+    # the authority is carried, and what it cannot carry is named: the
+    # registries' origin, the custody of TEST keys, the verdict's authority
+    assert rec["authorization"]["roots"]["profile"] == V.GOVERNED
+    gaps = {g["id"] for g in rec["not_established"]}
+    assert {"ROOT_ORIGIN", "KEY_CUSTODY", "VERDICT_AUTHORITY"} <= gaps
     guide = (PACKAGE / V.README).read_text(encoding="utf-8")
     for gap, _ in V.NOT_ESTABLISHED:
         assert gap in guide
@@ -314,7 +318,9 @@ def _first(seq, name):
 RECORD_CASES = [
     ("schema", lambda r: r.update(schema="another/1"),
      "is a scientific assurance record"),
-    ("version", lambda r: r["verifier"].update(version=2),
+    ("roots", lambda r: r["authorization"]["roots"]["role_registry"].update(
+        sha256="0" * 64), "states the history's roots"),
+    ("version", lambda r: r["verifier"].update(version=V.VERSION + 1),
      "made for this verifier's version"),
     ("problem", lambda r: r["mathematical_statement"].update(problem="x/1"),
      "the problem this verifier rechecks"),
@@ -636,7 +642,41 @@ def _unreported(s):
 
 
 def _nowhere(s):
-    _decision(s, "verified")["seq"] = 10 ** 6
+    s["record"]["question"]["registered_seq"] = 10 ** 6
+
+
+def _grant(s, principal, role, scope):
+    """A grant added to the registry the history declares: the forger
+    re-declares it at genesis and signs every record again."""
+    s["role_registry"]["grants"] = sorted(
+        s["role_registry"]["grants"] + [{
+            "grant_id": f"g-added-{principal}-{role}".lower(),
+            "principal": principal, "role": role, "scope": [scope],
+            "valid_from_seq": 0, "valid_until_seq": None,
+            "revoked_at_seq": None, "revocation_reason": None,
+            "may_delegate": False}], key=lambda g: g["grant_id"])
+
+
+def _grant_of(s, principal, role):
+    return next(g for g in s["role_registry"]["grants"]
+                if g["principal"] == principal and g["role"] == role)
+
+
+def _self_verified_granted(s):
+    """The proposer granted VERIFIER over the result's kind: every act
+    authorized, so separation of duties alone refuses it."""
+    rr = s["record"]["authorization"]["result_record"]
+    _grant(s, rr["proposer"], "VERIFIER", f"kind:{rr['kind']}")
+    _self_verified(s)
+
+
+def _other_role_granted(s):
+    """The reviewer granted PROMOTER too: the act is authorized, and the
+    record's account of it is what disagrees."""
+    d = _decision(s, "verified")
+    rr = s["record"]["authorization"]["result_record"]
+    _grant(s, d["actor"], "PROMOTER", f"kind:{rr['kind']}")
+    _other_role(s)
 
 
 def _misreported(s):
@@ -644,7 +684,8 @@ def _misreported(s):
 
 
 DECISION_CASES = [
-    ("self-verified", _self_verified, "not the one that proposed it"),
+    ("self-verified", _self_verified_granted,
+     "not the one that proposed it"),
     ("withdrawn", _withdrawn, "the result still stands"),
     ("retracted", _retracted, "the verdict still stands"),
     ("moved point", _moved_point, "answered the point the question asked"),
@@ -655,7 +696,8 @@ DECISION_CASES = [
      "the hypothesis predicts what the question asked"),
     ("other bundle", _other_bundle, "the result was proposed as the record"),
     ("uncaptured", _uncaptured, "a governed task captured"),
-    ("other role", _other_role, "the verification is in the history as"),
+    ("other role", _other_role_granted,
+     "the verification is in the history as"),
     ("other observation", _other_observation,
      "rests on an observation of this result"),
     ("proof of another", _proof_of_another,
@@ -682,7 +724,8 @@ def test_what_a_level_did_not_expect_fails_that_level(tmp_path):
     is that level's failure, never a pass and never a crash."""
     pkg = _record_case(tmp_path, lambda r: r.update(
         authorization=["a list where an object belongs"]))
-    _assert_refused(V.verify(pkg), "DECISION", "the level ran to its end")
+    _assert_refused(V.verify(pkg), "CONSISTENCY",
+                    "the level ran to its end")
 
 
 @pytest.mark.parametrize("edit, says", [
@@ -923,3 +966,216 @@ def test_the_exact_solution_is_the_series_the_producer_checks_against():
             mine = V.exact_temperature(p, frac)
             theirs = series_temperature(p, [frac * p["L_m"]])[0]
             assert abs(mine - theirs) <= 1e-9 * abs(theirs), (p, frac)
+
+
+# ------------------------------------------------- authority (Stage 2)
+#
+# The package carries the history's roots -- each record's attestation and
+# the key and role registries its first record declares -- and the verifier
+# holds every record to a key and every governed act to a grant, from the
+# package alone. Each case below is a forger who holds the TEST keys (as
+# anyone can) and rewrites everything consistently, or an editor of one
+# file; each must be refused at the level that holds the rule it breaks.
+
+def _decided_by(who):
+    def edit(s):
+        rr = s["record"]["authorization"]["result_record"]
+        d = _decision(s, "verified")
+        s["events"][d["seq"]]["actor"] = d["actor"] = who
+        p = s["json"]["decision_proof_verified"]
+        p["decision"]["actor"] = who
+        p["separation_of_duties"].update(decider=who,
+                                         distinct=who != rr["proposer"])
+    return edit
+
+
+def _lapsed(**change):
+    def edit(s):
+        d = _decision(s, "verified")
+        g = _grant_of(s, d["actor"], "VERIFIER")
+        g.update({k: (v(d["seq"]) if callable(v) else v)
+                  for k, v in change.items()})
+    return edit
+
+
+def _proposer_named(s):
+    rid = s["record"]["authorization"]["result_record"]["record_id"]
+    (create,) = _events_of(s, "record.create", rid)
+    create["payload"]["proposer"] = "ai-colleague"
+
+
+def _delegation(s):
+    _append(s, "role.delegate", "d1", "model-result-reviewer",
+            {"delegation_id": "d1", "parent": "g-result-reviewer",
+             "role": "VERIFIER", "principal": "ai-colleague",
+             "scope": ["kind:scientific_result"], "valid_until_seq": None})
+
+
+AUTHORITY_CASES = [
+    ("a genuine key, no grant", _decided_by("ai-colleague"),
+     "every act the role registry governs"),
+    ("the proposer, no grant", _self_verified,
+     "every act the role registry governs"),
+    ("revoked at the verification", _lapsed(
+        revoked_at_seq=lambda seq: seq, revocation_reason="withdrawn"),
+     "every act the role registry governs"),
+    ("expired before it", _lapsed(valid_until_seq=lambda seq: seq - 1),
+     "every act the role registry governs"),
+    ("not yet valid", _lapsed(valid_from_seq=lambda seq: seq + 1),
+     "every act the role registry governs"),
+    ("out of scope", _lapsed(scope=["kind:note"]),
+     "every act the role registry governs"),
+    ("the verification nowhere", lambda s: _decision(s, "verified").update(
+        seq=10 ** 6), "are among the acts judged"),
+    ("a proposer it does not name", _proposer_named,
+     "proposer is the party that appended it"),
+    ("an act not restated here", _delegation,
+     "whose rules this verifier does not restate"),
+    ("a grant to no key", lambda s: _grant(s, "nobody", "VERIFIER",
+                                           "kind:note"),
+     "names a principal the key registry holds"),
+    ("a root role delegable", lambda s: _grant_of(
+        s, "owner", "POLICY_OWNER").update(may_delegate=True),
+     "names a principal the key registry holds"),
+    ("bound to another key registry", lambda s: s["role_registry"].update(
+        key_registry="0" * 64),
+     "bound to the key registry the package carries"),
+]
+
+
+@pytest.mark.parametrize("name, edit, check", AUTHORITY_CASES,
+                         ids=[c[0] for c in AUTHORITY_CASES])
+def test_a_consistent_forgery_of_authority_is_refused(tmp_path, name, edit,
+                                                      check):
+    pkg = _forged(tmp_path, edit)
+    report = V.verify(pkg)
+    _assert_refused(report, "AUTHORIZATION", check)
+    # every record of it is signed, by the key its registry holds
+    assert [lv["status"] for lv in report["levels"][:4]] == ["PASS"] * 4
+
+
+def _another_key(pkg):
+    """The verification's attestation replaced by one the owner made: a
+    genuine key, of another principal than the record names."""
+    from agent_substrate import principals as P
+    h = next(d["hash"] for d in _record(pkg)["authorization"]["decisions"]
+             if d["name"] == "verified")
+    owner = P.test_identity("owner")
+    att = pkg / V.ATTESTATIONS
+    lines = []
+    for line in att.read_bytes().splitlines():
+        a = json.loads(line)
+        if a["event_hash"] == h:
+            a.update(key_id=owner.key_id, sig=owner.provider.sign(
+                owner.secret, P.DOMAIN + h.encode()).hex())
+            line = V.canonical(a)
+        lines.append(line + b"\n")
+    att.write_bytes(b"".join(lines))
+    _resum(pkg)
+
+
+def _torn(pkg):
+    with (pkg / V.ATTESTATIONS).open("ab") as fh:
+        fh.write(b'{"seq": 1, "event_ha')
+    _resum(pkg)
+
+
+def _stray(pkg):
+    with (pkg / V.ATTESTATIONS).open("ab") as fh:
+        fh.write(V.canonical({"seq": 3, "event_hash": "e" * 64,
+                              "key_id": "test:ed25519:" + "0" * 32,
+                              "sig": "0" * 128}) + b"\n")
+    _resum(pkg)
+
+
+AUTHENTICATION_CASES = [
+    ("an attestation removed", AP._unsign_the_verification, "MISSING"),
+    ("another principal's key", _another_key, "WRONG_PRINCIPAL"),
+    ("a torn attestation file", _torn, "no torn last line"),
+    ("a stray attestation", _stray, "every attestation names a record"),
+    ("a substituted role registry", AP._substitute_the_roles,
+     "declares it GOVERNED, under the registries the package carries"),
+]
+
+
+@pytest.mark.parametrize("name, edit, says", AUTHENTICATION_CASES,
+                         ids=[c[0] for c in AUTHENTICATION_CASES])
+def test_a_record_no_key_vouches_for_is_refused(tmp_path, name, edit, says):
+    pkg = _copy(tmp_path)
+    edit(pkg)
+    report = V.verify(pkg)
+    assert report["verdict"] == "REFUSED"
+    at, label = _refused_at(report)
+    failed = next(c for lv in report["levels"] for c in lv["checks"]
+                  if c["status"] == "FAIL")
+    assert at == "AUTHENTICATION", (at, label)
+    assert says in label + failed["detail"], failed
+
+
+def test_a_history_that_does_not_declare_governed_is_refused(tmp_path):
+    def edit(s):
+        s["events"][0]["payload"]["profile"] = "AUTHENTICATED_REQUIRED"
+    _assert_refused(V.verify(_forged(tmp_path, edit)), "AUTHENTICATION",
+                    "declares it GOVERNED")
+
+
+def test_the_report_says_whose_keys_these_are():
+    report = V.verify(PACKAGE)
+    keys = report["measured"]["keys"]
+    assert keys["registered"] == keys["test_identities"] > 0
+    assert report["measured"]["authenticated"] == \
+        _record(PACKAGE)["history"]["events"]
+    gaps = {g["id"] for g in report["not_established"]}
+    assert "KEY_CUSTODY" in gaps and "ROOT_ORIGIN" in gaps
+    honest = hashlib.sha256((PACKAGE / V.SUMS).read_bytes()).hexdigest()
+    anchored = V.verify(PACKAGE, expect_digest=honest)
+    gaps = {g["id"] for g in anchored["not_established"]}
+    assert "ROOT_ORIGIN" not in gaps and "KEY_CUSTODY" in gaps
+
+
+@pytest.mark.parametrize("how", [
+    "an unknown role", "a scope outside the namespaces", "a root role "
+    "delegable", "a revocation with no reason", "an end before its start",
+    "a grant twice"])
+def test_a_role_registry_the_producer_refuses_is_refused(how):
+    """The restated reader refuses each document the producer's does."""
+    from agent_substrate import roles as R
+    doc = json.loads((PACKAGE / V.ROLE_REGISTRY).read_bytes())
+    keys = json.loads((PACKAGE / V.KEY_REGISTRY).read_bytes())
+    principals = {k["principal"] for k in keys["keys"]}
+    g = doc["grants"][0]
+    if how == "an unknown role":
+        g["role"] = "AUDITOR"
+    elif how == "a scope outside the namespaces":
+        g["scope"] = ["host:example.org"]
+    elif how == "a root role delegable":
+        g.update(role="POLICY_OWNER", may_delegate=True)
+    elif how == "a revocation with no reason":
+        g["revoked_at_seq"] = 3
+    elif how == "an end before its start":
+        g.update(valid_from_seq=5, valid_until_seq=2)
+    else:
+        doc["grants"].append(dict(g))
+    with pytest.raises(R.RoleError):
+        R.RoleRegistry.from_document(doc, principals=principals)
+    with pytest.raises(V.Refused):
+        V.read_role_registry(doc, principals=principals,
+                             key_digest=V.sha(V.canonical(keys)))
+
+
+def test_a_second_declaration_is_refused(tmp_path):
+    """A history declares its profile once, as its first record."""
+    def edit(s):
+        _append(s, "history.security_profile", "history", "owner",
+                dict(s["events"][0]["payload"]))
+    _assert_refused(V.verify(_forged(tmp_path, edit)), "AUTHENTICATION",
+                    "declares its profile once")
+
+
+@pytest.mark.parametrize("rel", [V.ATTESTATIONS, V.KEY_REGISTRY,
+                                 V.ROLE_REGISTRY])
+def test_a_package_without_a_root_is_refused_at_integrity(tmp_path, rel):
+    pkg = _copy(tmp_path)
+    (pkg / rel).unlink()
+    _resum(pkg)
+    _assert_refused(V.verify(pkg), "INTEGRITY", f"{rel} is in the package")

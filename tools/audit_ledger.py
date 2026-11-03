@@ -156,7 +156,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tests/test_restated_authentication.py",
                "tests/test_separate_reads_governed.py",
                "tools/mutations/signing_seam.json",
-               "tools/mutations/separate_governed.json")
+               "tools/mutations/separate_governed.json",
+               # Stage 2: the research task on a governed history.
+               "tests/test_governed_research_run.py",
+               "tools/mutations/governed_run.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

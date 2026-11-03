@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "ada42fd65209aabc333109a0d90765f15cb78031019e899e63390d5b67a0cf0c",
+  "entries_digest": "49c18ca24d7c744af969778eea9064c7ad8b084674d0b5a62f19d912ab28d763",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "b2a1b2d273c48e0bfc4e4d4d867b70cf0bc1e803b543b0bc3673eccd804c34c1"
+      "sha256": "4f3f118a8f894719ea49ff6f3571727cb31126ff38e1b1f3e015b6e483c9fd2a"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -50,7 +50,7 @@
     },
     {
       "path": "REPRODUCE.md",
-      "sha256": "4954f5df4b7fc69557f50ddbd493987c765da490ce74dc8f7a76cc1a18d943d9"
+      "sha256": "5a8371b3c4ed729892e537daa882f9f465ba7527e01efeff98a735540b13dfc6"
     },
     {
       "path": "RO_CRATE_PROFILE.md",
@@ -94,15 +94,15 @@
     },
     {
       "path": "docs/assurance/package/slab-mid-plane/README.md",
-      "sha256": "a11bbf914d4b0b825ba1a4c5f45d03c5f236bc8736229fc40181aac7d0259e35"
+      "sha256": "bc7984d61628117ecd592bc5801470982efc84b0513ffba1f4e607a3593be49d"
     },
     {
       "path": "docs/audit/AUDIT_PROGRESS.md",
-      "sha256": "4847949541766b22f05bbafea802ffb606435374c176eda3429a61a1b5a8cc6f"
+      "sha256": "d518a21cc6adac1680be1337648367569894042eaf6e060af909b994fbae8cd8"
     },
     {
       "path": "docs/audit/AUDIT_REPORT.md",
-      "sha256": "3d551e826b62c6001e29f44f6b0b24529b4dea22c372fd5ac4769ed47aec2b0a"
+      "sha256": "2e244ca51fc3d631081db171d2e60534d15378fea2d6c8b90004e333689c43a1"
     },
     {
       "path": "docs/formal/README.md",

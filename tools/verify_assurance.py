@@ -17,9 +17,9 @@ else in the package, or to a computation of the verifier's own. The
 producing agent, its explanations, its CI logs, its workspace and its
 cached projections are not consulted: none of them is in the package.
 
-WHAT IT ESTABLISHES, IN ORDER. Five levels, each needing the one before it
-and reported separately; a level after a failed one is NOT_REACHED, never
-passed.
+WHAT IT ESTABLISHES, IN ORDER. Seven levels, each needing the one before
+it and reported separately; a level after a failed one is NOT_REACHED,
+never passed.
 
   INTEGRITY     every file is exactly the one SHA256SUMS lists, nothing is
                 missing or added, nothing is a link, and each evidence file
@@ -33,6 +33,19 @@ passed.
   HISTORY       the event log is a hash chain from its genesis, each record
                 in the canonical encoding, ending at the head the record
                 states;
+  AUTHENTICATION
+                the history's first record declares it GOVERNED, naming the
+                digests of the key and role registries the package carries,
+                and every record is attested by a key that registry holds
+                for its actor, valid at its position, its Ed25519 signature
+                verified here (RFC 8032, restated: nothing is imported);
+  AUTHORIZATION every act the role registry governs -- each record's
+                proposal and each transition, each governed task's
+                submission, execution and verification, each policy
+                publication -- was made by a party a grant names, for that
+                role, over that scope, at that position: the producer's
+                rules, restated. A history holding a governed act whose
+                rules are not restated here is refused;
   DECISION      what the record reports is in that history as reported: the
                 question the owner registered, the hypothesis, the result
                 proposed by one party and verified by another citing exactly
@@ -78,9 +91,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-VERSION = 1
-RECORD_SCHEMA = "scientific-assurance-record/1"
-REPORT_SCHEMA = "assurance-verification/1"
+VERSION = 2
+RECORD_SCHEMA = "scientific-assurance-record/2"
+REPORT_SCHEMA = "assurance-verification/2"
 #: the one problem this verifier can recheck, by name; a package about any
 #: other is refused rather than rechecked against the wrong equations
 PROBLEM = "slab-1d-insulated-convective/1"
@@ -89,6 +102,14 @@ SUMS = "SHA256SUMS"
 RECORD = "assurance_record.json"
 LOG = "history/log.jsonl"
 README = "README.md"
+#: the history's roots, which the package carries: the attestation of each
+#: record, and the key and role registries its first record declares
+ATTESTATIONS = "history/attestations.jsonl"
+KEY_REGISTRY = "trust/key_registry.json"
+ROLE_REGISTRY = "trust/role_registry.json"
+ROOT_FILES = (ATTESTATIONS, KEY_REGISTRY, ROLE_REGISTRY)
+GOVERNED = "GOVERNED"
+GOVERNED_REQUIREMENT = "harness/history-security/v1"
 EVIDENCE = "evidence/"
 MAX_FILES = 256
 MAX_DEPTH = 4
@@ -146,13 +167,25 @@ NOT_ESTABLISHED = (
      "outside. Supply --expect-head from an independent witness."),
     ("PRODUCER_EXECUTION",
      "that the producer's processes did what the log records: the log is "
-     "the producer's statement, chained and unsigned."),
+     "the producer's statement, chained, and signed with the keys the "
+     "package carries."),
     ("MODEL_IMPLEMENTATION",
      "that the code at the stated implementation digest computed the "
      "bundle: re-running it needs the producer's source."),
-    ("ROLE_ENTITLEMENT",
-     "that the deciding parties were entitled to decide: the producing run "
-     "carried no role registry, and none is provisioned for production."),
+    ("ROOT_ORIGIN",
+     "that the key and role registries are the ones the producer's "
+     "deployment holds: the history's first record pins their digests, so "
+     "they are the history's own, and a history and registries assembled "
+     "together pass. Supply --expect-package-digest or --expect-head, "
+     "obtained independently of the package."),
+    ("KEY_CUSTODY",
+     "that each record was signed by the party it names: every key in the "
+     "registry is a TEST identity, whose secret anyone can derive from its "
+     "name, so the signatures show that the protocol was followed, not who "
+     "acted. No production key is provisioned (an owner decision)."),
+    ("VERDICT_AUTHORITY",
+     "that the party that concluded the hypothesis was entitled to: a "
+     "research conclusion is not an act the role registry governs."),
     ("FORMAL_PROOF", "any machine-checked proof: the package carries none."),
     ("PHYSICAL_VALIDITY",
      "that the equations describe any real slab: no temperature of one was "
@@ -172,7 +205,8 @@ NOT_ESTABLISHED = (
      "captured evidence, the observation and the hypothesis's statuses. "
      "Every other record is chained and not interpreted."),
 )
-LEVELS = ("INTEGRITY", "CONSISTENCY", "HISTORY", "DECISION", "RECHECK")
+LEVELS = ("INTEGRITY", "CONSISTENCY", "HISTORY", "AUTHENTICATION",
+          "AUTHORIZATION", "DECISION", "RECHECK")
 
 
 class Misuse(Exception):
@@ -893,15 +927,16 @@ def _level_integrity(ctx, check):
     extra = sorted(set(present) - set(listed) - {SUMS})
     check("every listed file is present", not missing, f"missing {missing}")
     check("every file present is listed", not extra, f"unlisted {extra}")
-    for rel in (RECORD, LOG, README):
+    for rel in (RECORD, LOG, README, *ROOT_FILES):
         check(f"{rel} is in the package", rel in listed and rel in present,
               "it is not")
     for rel in sorted(listed):
         check(f"{rel} is a file the package's layout has",
               rel in (RECORD, README, LOG) or (
-                  rel.startswith(EVIDENCE) and "/" not in rel[len(EVIDENCE):]),
-              "the layout is the record, the guide, the history and "
-              "evidence/<sha256>")
+                  rel.startswith(EVIDENCE) and "/" not in rel[len(EVIDENCE):])
+              or rel in ROOT_FILES,
+              "the layout is the record, the guide, the history, its "
+              "attestations, the two registries and evidence/<sha256>")
     for rel in sorted(set(listed) & set(present)):
         data = _read(root, rel)
         d = sha(data)
@@ -1070,6 +1105,21 @@ def _level_consistency(ctx, check):
     check("the record claims no formal proof",
           (rec.get("formal") or {}).get("status") in UNCLAIMED,
           f"{rec.get('formal')}")
+    key_doc = strict_json(files[KEY_REGISTRY], KEY_REGISTRY)
+    role_doc = strict_json(files[ROLE_REGISTRY], ROLE_REGISTRY)
+    ctx.update(key_doc=key_doc, role_doc=role_doc)
+    roots = (rec.get("authorization") or {}).get("roots")
+    check("the record states the history's roots: GOVERNED, its "
+          "requirement, the attestations, and each registry's file and the "
+          "digest of its document",
+          roots == {"profile": GOVERNED,
+                    "requirement": GOVERNED_REQUIREMENT,
+                    "attestations": ATTESTATIONS,
+                    "key_registry": {"file": KEY_REGISTRY,
+                                     "sha256": sha(canonical(key_doc))},
+                    "role_registry": {"file": ROLE_REGISTRY,
+                                      "sha256": sha(canonical(role_doc))}},
+          f"record {roots}")
     gaps = {g.get("id") for g in rec.get("not_established") or ()
             if isinstance(g, dict)}
     hidden = [i for i, _ in NOT_ESTABLISHED if i not in gaps]
@@ -1142,6 +1192,266 @@ def _level_history(ctx, check):
           hist.get("events") == len(events) and hist.get("log") == LOG,
           f"record {hist.get('events')!r} at {hist.get('log')!r}, log "
           f"{len(events)}")
+
+
+# --------------------------------------------- authority, restated
+
+#: The role registry's document and its rules, restated from the producer's
+#: (agent_substrate.roles): who holds which role, over what, from and to
+#: which positions. A grant names an identity the key registry holds.
+ROLE_SCHEMA = "harness/role-registry/v1"
+_ROLE_HEADER = frozenset({"schema", "registry_version", "key_registry",
+                          "grants"})
+_GRANT_FIELDS = frozenset({"grant_id", "principal", "role", "scope",
+                           "valid_from_seq", "valid_until_seq",
+                           "revoked_at_seq", "revocation_reason",
+                           "may_delegate"})
+_ROLES = ("PROPOSER", "EXECUTOR", "VERIFIER", "PROMOTER", "POLICY_OWNER",
+          "SECRET_ISSUER", "EGRESS_ISSUER", "HUMAN_APPROVER",
+          "RELEASE_AUTHORITY")
+_DELEGABLE = ("PROPOSER", "EXECUTOR", "VERIFIER", "PROMOTER")
+_NAMESPACES = ("kind", "tool", "policy", "secret", "egress", "approval",
+               "release")
+_MAX_GRANTS = 4096
+_MAX_SCOPE = 256
+#: The registry roles that may stand behind each role a transition of the
+#: authority state machine claims; SYSTEM is held by a VERIFIER or PROMOTER.
+_RECORD_ROLES = {"PROPOSER": ("PROPOSER",), "VERIFIER": ("VERIFIER",),
+                 "PROMOTER": ("PROMOTER",),
+                 "SYSTEM": ("VERIFIER", "PROMOTER")}
+#: The registry role behind each party to a governed task; the scheduler's
+#: moves are not acts the registry governs.
+_TASK_ROLES = {"SUBMITTER": "PROPOSER", "WORKER": "EXECUTOR",
+               "VERIFIER": "VERIFIER"}
+#: Acts the registry governs whose rules this verifier does not restate. A
+#: history holding one is refused rather than read as authorized.
+UNREAD_GOVERNED_ACTS = ("role.delegate", "role.revoke", "secret.grant",
+                        "network.grant", "policy.withdraw")
+
+
+def _seq_ok(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) \
+        and value >= 0
+
+
+def _scope_entry(value) -> bool:
+    if value == "*":
+        return True
+    ns, sep, rest = value.partition(":") if isinstance(value, str) and \
+        0 < len(value) <= _MAX_NAME else ("", "", "")
+    return bool(sep) and ns in _NAMESPACES and bool(rest)
+
+
+def read_role_registry(doc, *, principals, key_digest: str) -> list:
+    """The grants of a role-registry document, each typed and checked as
+    the producer's registry checks it; every grant names a principal the
+    key registry holds, and a document bound to another key registry is
+    refused."""
+    if not isinstance(doc, dict) or set(doc) != _ROLE_HEADER or \
+            doc.get("schema") != ROLE_SCHEMA:
+        raise Refused("the role registry is a role-registry document",
+                      sorted(doc) if isinstance(doc, dict) else doc)
+    if not _seq_ok(doc["registry_version"]):
+        raise Refused("the role registry's version is readable",
+                      doc["registry_version"])
+    bound = doc["key_registry"]
+    if bound is not None and bound != key_digest:
+        raise Refused("the role registry is bound to the key registry the "
+                      "package carries", f"bound to {bound!r}")
+    entries = doc["grants"]
+    if not isinstance(entries, list) or len(entries) > _MAX_GRANTS:
+        raise Refused("the role registry lists its grants", type(entries))
+    grants, seen = [], set()
+    for e in entries:
+        if not isinstance(e, dict) or set(e) != _GRANT_FIELDS:
+            raise Refused("every grant has exactly its fields",
+                          sorted(e) if isinstance(e, dict) else e)
+        gid = e["grant_id"]
+        ok = (isinstance(gid, str) and 0 < len(gid) <= _MAX_NAME
+              and gid not in seen
+              and isinstance(e["principal"], str)
+              and e["principal"] in principals
+              and e["role"] in _ROLES
+              and isinstance(e["scope"], list)
+              and 0 < len(e["scope"]) <= _MAX_SCOPE
+              and all(_scope_entry(x) for x in e["scope"])
+              and _seq_ok(e["valid_from_seq"])
+              and all(e[f] is None or _seq_ok(e[f])
+                      for f in ("valid_until_seq", "revoked_at_seq"))
+              and (e["valid_until_seq"] is None
+                   or e["valid_until_seq"] >= e["valid_from_seq"])
+              and (e["revoked_at_seq"] is None) ==
+              (e["revocation_reason"] is None)
+              and (e["revocation_reason"] is None or (
+                  isinstance(e["revocation_reason"], str)
+                  and 0 < len(e["revocation_reason"]) <= _MAX_NAME))
+              and isinstance(e["may_delegate"], bool)
+              and (not e["may_delegate"] or e["role"] in _DELEGABLE))
+        if not ok:
+            raise Refused("every grant is well formed, and names a "
+                          "principal the key registry holds", repr(gid))
+        seen.add(gid)
+        grants.append(e)
+    return sorted(grants, key=lambda g: g["grant_id"])
+
+
+def grant_refusal(grants, principal, role: str, value: str, seq: int):
+    """``(kind, detail)`` when no grant lets ``principal`` act as ``role``
+    over ``value`` at ``seq``; None when one does. The producer's order:
+    its grants by id, the first refusal met is the answer."""
+    held = [g for g in grants if g["principal"] == principal
+            and g["role"] == role]
+    if not held:
+        return ("NOT_GRANTED", f"{principal!r} holds no {role} grant")
+    first = None
+    for g in held:
+        gid = g["grant_id"]
+        if g["revoked_at_seq"] is not None and seq >= g["revoked_at_seq"]:
+            lapse = ("REVOKED", f"grant {gid!r} was revoked at seq "
+                     f"{g['revoked_at_seq']} ({g['revocation_reason']})")
+        elif seq < g["valid_from_seq"]:
+            lapse = ("NOT_YET_VALID", f"grant {gid!r} holds from seq "
+                     f"{g['valid_from_seq']}")
+        elif g["valid_until_seq"] is not None and seq > g["valid_until_seq"]:
+            lapse = ("EXPIRED", f"grant {gid!r} held until seq "
+                     f"{g['valid_until_seq']}")
+        else:
+            ns = value.partition(":")[0]
+            if any(x == "*" or x == value or x == f"{ns}:*"
+                   for x in g["scope"]):
+                return None
+            lapse = ("OUT_OF_SCOPE", f"{role} {gid!r} ranges over "
+                     f"{sorted(g['scope'])}, not {value!r}")
+        first = first or lapse
+    return first
+
+
+def governed_acts(events: list) -> tuple:
+    """Every act in the history the role registry governs, as
+    ``(seq, actor, roles, value, what)``, and the ones it does not, by
+    action. A record or task is judged by the kind or tool its creation
+    named."""
+    kinds: dict = {}
+    tools: dict = {}
+    acts: list = []
+    other: dict = {}
+    for e in events:
+        a, p, seq, who = e["action"], e["payload"] or {}, e["seq"], \
+            e["actor"]
+        if a == "record.create":
+            kinds[e["target"]] = p.get("kind")
+            acts.append((seq, who, ("PROPOSER",), f"kind:{p.get('kind')}",
+                         f"{e['target']} proposed"))
+        elif a == "record.transition":
+            rid = p.get("record_id")
+            acts.append((seq, who, _RECORD_ROLES.get(str(p.get("role")), ()),
+                         f"kind:{kinds.get(rid)}",
+                         f"{rid} {p.get('src')} -> {p.get('dst')} as "
+                         f"{p.get('role')}"))
+        elif a == "policy.publish":
+            given = p.get("document")
+            doc = given if isinstance(given, dict) else {}
+            acts.append((seq, who, ("POLICY_OWNER",),
+                         f"policy:{doc.get('policy_id')}",
+                         f"policy {doc.get('policy_id')} published"))
+        elif a == "task.create":
+            tools[e["target"]] = p.get("tool_id")
+            acts.append((seq, who, ("PROPOSER",), f"tool:{p.get('tool_id')}",
+                         f"{e['target']} submitted"))
+        elif a == "task.transition" and p.get("role") in _TASK_ROLES:
+            acts.append((seq, who, (_TASK_ROLES[p["role"]],),
+                         f"tool:{tools.get(e['target'])}",
+                         f"{e['target']} {p.get('src')} -> {p.get('dst')} "
+                         f"as {p.get('role')}"))
+        elif a == "task.execution":
+            acts.append((seq, who, ("EXECUTOR",),
+                         f"tool:{tools.get(e['target'])}",
+                         f"{e['target']} executed"))
+        else:
+            other[a] = other.get(a, 0) + 1
+    return acts, other
+
+
+def _level_authentication(ctx, check):
+    events = ctx["events"]
+    key_doc, role_doc = ctx["key_doc"], ctx["role_doc"]
+    first = events[0] if events else {}
+    check("the history's first record declares it GOVERNED, under the "
+          "registries the package carries",
+          first.get("action") == "history.security_profile"
+          and first.get("payload") == {
+              "profile": GOVERNED, "requirement": GOVERNED_REQUIREMENT,
+              "key_registry": sha(canonical(key_doc)),
+              "role_registry": sha(canonical(role_doc))},
+          f"seq 0 is {first.get('action')!r}: {first.get('payload')}")
+    again = [e["seq"] for e in events[1:]
+             if e["action"] == "history.security_profile"]
+    check("the history declares its profile once", not again,
+          f"again at {again}")
+    keys = read_key_registry(key_doc, allow_test_keys=True)
+    ctx["keys"] = keys
+    ctx["measured"]["keys"] = {
+        "registered": len(keys),
+        "test_identities": sum(1 for k in keys if k.startswith("test:"))}
+    attested = read_attestation_file(ctx["files"][ATTESTATIONS])
+    check("the attestation file is whole: no torn last line",
+          not attested["torn_tail"], "its last line is torn")
+    hashes = {e["hash"] for e in events}
+    stray = sorted(h for h in set(attested["by_hash"]) - hashes
+                   if h not in attested["aborted"])
+    check("every attestation names a record of the history", not stray,
+          f"{len(stray)} name none, e.g. {stray[:1]}")
+    result = authenticate_events(events, attested, keys, complete=True)
+    check("every record is attested by a key the registry holds for its "
+          "actor, valid at its position, whose signature verifies",
+          not result["findings"] and result["authenticated"] == len(events),
+          "; ".join(f"seq {s}: {k}: {d}" if s is not None else f"{k}: {d}"
+                    for s, k, d in result["findings"][:4]))
+    ctx["measured"]["authenticated"] = result["authenticated"]
+
+
+def _level_authorization(ctx, check):
+    events, rec = ctx["events"], ctx["record"]
+    principals = {k["principal"] for k in ctx["keys"].values()}
+    grants = read_role_registry(ctx["role_doc"], principals=principals,
+                                key_digest=sha(canonical(ctx["key_doc"])))
+    unread = sorted({e["action"] for e in events
+                     if e["action"] in UNREAD_GOVERNED_ACTS})
+    check("the history holds no governed act whose rules this verifier "
+          "does not restate", not unread, f"it holds {unread}")
+    acts, other = governed_acts(events)
+    refused = []
+    for seq, who, roles, value, what in acts:
+        why = ("NOT_GRANTED", "the act names no role a grant could hold") \
+            if not roles else None
+        for role in roles:
+            r = grant_refusal(grants, who, role, value, seq)
+            if r is None:
+                why = None
+                break
+            why = why or r
+        if why is not None:
+            refused.append(f"seq {seq}: {what} by {who!r}: {why[0]}: "
+                           f"{why[1]}")
+    check("every act the role registry governs was made by a party it "
+          "granted, over that scope, at that position", not refused,
+          "; ".join(refused[:3]))
+    creates = [e for e in events if e["action"] == "record.create"]
+    named = [e["seq"] for e in creates
+             if (e["payload"] or {}).get("proposer") != e["actor"]]
+    check("every record's proposer is the party that appended it",
+          not named, f"at {named}")
+    rr = (rec.get("authorization") or {}).get("result_record") or {}
+    decided = {seq for seq, *_ in acts}
+    behind = [s for s in [rr.get("created_seq")] + [
+        d.get("seq") for d in (rec.get("authorization") or {}).get(
+            "decisions") or () if d.get("name") == "verified"]
+        if s not in decided]
+    check("the result's proposal and its verification are among the acts "
+          "judged", not behind, f"not judged: {behind}")
+    ctx["measured"]["authorization"] = {
+        "acts_judged": len(acts), "grants": len(grants),
+        "not_governed": dict(sorted(other.items()))}
 
 
 def _at(events: list, seq) -> dict:
@@ -1492,7 +1802,8 @@ def verify(package, *, expect_digest: str | None = None,
                     "package": str(root), "levels": []}
     reached = True
     for name, fn in zip(LEVELS, (_level_integrity, _level_consistency,
-                                 _level_history, _level_decision,
+                                 _level_history, _level_authentication,
+                                 _level_authorization, _level_decision,
                                  _level_recheck)):
         if not reached:
             report["levels"].append({"level": name, "status": "NOT_REACHED",
@@ -1529,6 +1840,7 @@ def verify(package, *, expect_digest: str | None = None,
             f"MISMATCH: the package's is {digest_}")
         if digest_ == expect_digest:
             gaps.pop("PACKAGE_ORIGIN")
+            gaps.pop("ROOT_ORIGIN", None)
     if head is not None:
         events = ctx.get("events") or []
         seq, h = head
@@ -1539,6 +1851,7 @@ def verify(package, *, expect_digest: str | None = None,
             "MISMATCH: the history ends before that head")
         if found == h:
             gaps.pop("HISTORY_ANCHORED")
+            gaps.pop("ROOT_ORIGIN", None)
     report["package_digest"] = digest_
     report["expectations"] = expectations
     report["measured"] = ctx["measured"]

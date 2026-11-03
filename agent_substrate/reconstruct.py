@@ -4654,8 +4654,15 @@ class _Prefix:
     the first records of a chain verified whole. A prefix of a verified
     chain is a verified chain."""
 
-    def __init__(self, report, events: list, upto: int):
+    def __init__(self, report, events: list, upto: int, *,
+                 authenticator=None, roles=None):
         import dataclasses
+        #: The history's roots, for a reader that asks its log for them:
+        #: the task reader takes its key registry from its log's
+        #: authenticator, and without it folds nothing of a GOVERNED
+        #: history -- so no verification task stood behind any admission.
+        self.authenticator = authenticator
+        self.roles = roles
         self._events = [e for e in events if e.seq <= upto]
         last = self._events[-1] if self._events else None
         self._report = dataclasses.replace(
@@ -4666,10 +4673,10 @@ class _Prefix:
         return self._report, list(self._events)
 
 
-def _at(report, events: list, upto: int) -> EventLog:
+def _at(report, events: list, upto: int, roots=None) -> EventLog:
     """The history at ``upto``, for readers that take a log: they call
-    nothing on it but ``read_verified``."""
-    return cast(EventLog, _Prefix(report, events, upto))
+    nothing on it but ``read_verified``, and ask it for its roots."""
+    return cast(EventLog, _Prefix(report, events, upto, **(roots or {})))
 
 
 class _PrefixAuthenticator:
@@ -4854,8 +4861,8 @@ def derive_decision_proof(log, seq: int, *, evidence=None,
 
 def _record_proof(base, report, events, ev, p, evidence, roots):
     rid, outcome = p.get("record_id"), p.get("dst")
-    after = reconstruct(_at(report, events, ev.seq), evidence=evidence,
-                        **roots)
+    after = reconstruct(_at(report, events, ev.seq, roots),
+                        evidence=evidence, **roots)
     rec = after.records.get(rid) or {}
     cited = dict(rec.get("evidence") or {})
     base["decision"].update(kind="record", outcome=outcome,
@@ -4882,9 +4889,9 @@ def _record_proof(base, report, events, ev, p, evidence, roots):
 
 def _research_proof(base, report, events, ev, p, evidence, roots):
     hid, outcome = ev.target, p.get("status")
-    sub = reconstruct_subsystems(_at(report, events, ev.seq),
+    sub = reconstruct_subsystems(_at(report, events, ev.seq, roots),
                                  roles=roots["roles"])
-    recs = reconstruct(_at(report, events, ev.seq), **roots).records
+    recs = reconstruct(_at(report, events, ev.seq, roots), **roots).records
     hyp = next((e.payload.get("hypothesis") or {} for e in events
                 if e.action == "research.hypothesis" and e.target == hid
                 and e.seq < ev.seq), {})
@@ -4902,7 +4909,7 @@ def _research_proof(base, report, events, ev, p, evidence, roots):
         "proposed_by": hyp.get("proposed_by")}
     # what each observation was AT the decision: judged against the history
     # before it, at the time the decision record carries (Assurance F)
-    before = reconstruct_subsystems(_at(report, events, ev.seq - 1),
+    before = reconstruct_subsystems(_at(report, events, ev.seq - 1, roots),
                                     roles=roots["roles"])
     at = judged_at(before.latest_wall, ev.wall_time)
     basis = []
