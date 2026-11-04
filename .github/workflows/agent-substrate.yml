@@ -314,10 +314,13 @@ jobs:
         # state how much it reached: a target that raises at import or a
         # mutation operator that started returning b"" collapses these
         # numbers long before it stops printing "no findings". Set well
-        # below what a healthy run measures (2814 lines, 72 transitions)
-        # so ordinary variation passes and a collapse does not.
+        # below what a healthy run measures, so ordinary variation passes
+        # and a collapse does not: at 998b468, 4000 cases reached 4520 to
+        # 4718 lines and 67 to 86 transitions over 32 seeds. At 2000 cases
+        # a seed reached 54, under the floor, on unchanged code
+        # (D-2026-192), so the campaign is sized and the floors are not.
         run: |
-          uv run python tools/fuzz_substrate.py --cases 2000 \
+          uv run python tools/fuzz_substrate.py --cases 4000 \
             --min-lines 2200 --min-features 55
       - name: the governed production path actually runs
         # The point of a production caller is that it is exercised. This runs

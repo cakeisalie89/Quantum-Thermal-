@@ -2806,3 +2806,29 @@ test, and the three that hold the workflow's shard matrix to the plan
 (two in `test_mutation_shards.py`, one in `test_repo_contract.py`). On
 tree d3c1806, which is this commit but for this paragraph and the
 files derived from it: 7,143 passed, 19 skipped, none failed.
+
+### Hosted CI at 998b468, and the fuzz floor (D-2026-192)
+
+**What passed.** Read from the API: every job of the agent-substrate push
+run but one. That includes the full suite, dispatch sensitivity, the
+second interpreter and all eight mutation shards. The shards took 51 to
+94 minutes on the re-measured weights, where the a5cf136 plan's took 61
+to 119.
+
+**What failed.** The agent-substrate job's fuzz step, in the push run and
+in the pull-request run. Its floor of 55 state transitions sits inside
+the campaign's own spread: seed 743177984 reaches 54 at a5cf136 too. The
+five steps after it did not run at 998b468:
+
+- the governed production path;
+- the read-only auditor;
+- the governed scientific-model path;
+- the two tree checks.
+
+**The repair (D-2026-192).** The campaign doubles to 4000 cases, and
+the floors stay where they are. Over 32 seeds it reaches 67 to 86
+transitions. The pull-request run's 47, at a seed that reaches 70 here
+on the same tree, is not reproduced, and its cause is not established.
+This change is the workflow alone. No test reads the step's arguments.
+Its checks are the workflow contract, the shard check, the tests that
+read the workflow file, and the fuzz step run as CI runs it.

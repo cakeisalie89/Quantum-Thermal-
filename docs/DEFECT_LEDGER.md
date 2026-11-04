@@ -12064,3 +12064,40 @@ the plan. The planner's mutation spec: 12 of 12 killed.
 
 **WHAT THIS IS NOT.** A weight decides where a spec runs, never whether
 it runs. Every spec still runs in exactly one shard on every cycle.
+
+## D-2026-192 — The fuzz floor sat inside the campaign's own spread
+
+**FOUND BY HOSTED CI.** At 998b468 both agent-substrate runs failed one
+step, the fuzz campaign's floor of 55 state-transition features. Neither
+found anything:
+
+- the push run, seed 743177984, reached 54;
+- the pull-request run, seed 1842676499, reached 47.
+
+The floor's comment says it is set "well below what a healthy run
+measures ... so ordinary variation passes and a collapse does not". It
+was not. Seed 743177984 reaches 54 at a5cf136 too, so the step fails on
+unchanged code for some seeds.
+
+**MEASURED HERE**, at 998b468 with 2000 cases:
+
+- seeds 1 to 40 reach 57 to 85 features, mean 67;
+- seed 743177984 reaches 54, with 4467 lines, as the hosted run did;
+- seed 1842676499 reaches 70.
+
+That last seed's 70 holds whatever the hash seed, with the CI job's
+environment variables, and with every core loaded. The pull-request run
+tested the same tree, since the base branch is an ancestor of 998b468.
+Its 47 is not reproduced here, and its cause is not established.
+
+**THE REPAIR.** The campaign doubles to 4000 cases, and the floors stay
+where they are. Over 32 seeds at 4000 cases (1 to 30, and the two that
+failed) it reaches 67 to 86 features and 4520 to 4718 lines. The floor
+of 55 is now 12 below the lowest. Three runs as CI runs them, with
+random seeds, reached 74, 82 and 86. The step takes about five seconds
+more.
+
+**WHAT THIS IS NOT.** No floor is lowered. The seed still varies from run
+to run, so each run explores differently. A floor that a larger campaign
+clears is not a promise that every seed clears it. The hosted run that
+reached 47 is still unexplained, and is recorded here as such.

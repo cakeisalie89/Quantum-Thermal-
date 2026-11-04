@@ -24,8 +24,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 42012,
-      "sha256": "b7dadbb04e50d1cdc80004c992b14ad057f3dd34b5aca6ebfe5fa9e77c6866db"
+      "size_bytes": 42235,
+      "sha256": "2c3176620816d729b4e2c6b87c7b45324fc410c2d2d49517975bbbd5aa4aac6b"
     },
     {
       "filename": ".github/workflows/claude.yml",
@@ -459,8 +459,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 654240,
-      "sha256": "bb736e20501c1000e467062d4424282bbcbfa761ecf7292a2a137d319a620493"
+      "size_bytes": 655928,
+      "sha256": "3a8091e8f8ec656b3931aba22f3a7c4bad2b538a5ab433a4decd5bb482501762"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -574,8 +574,8 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 137096,
-      "sha256": "6cc5a798d91a211f716409276bf028cb86722c4f51a9f4c39ec8c1cdd3f600fc"
+      "size_bytes": 138313,
+      "sha256": "b5c2b6b91247fd82e5d9c9ab7fdeb2227038b90f4995f4dbb462260f139fc182"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
@@ -594,8 +594,8 @@
     },
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
-      "size_bytes": 530330,
-      "sha256": "1402f88a483af2725db1374951f5bae1df44d349b95d0e820d20ddd127adc437"
+      "size_bytes": 530519,
+      "sha256": "8a05bf69dd0235aa706f35ded1a456c5e17fe435e94fafbee710bd0a82bccd81"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -615,7 +615,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5788,
-      "sha256": "42e7b96c209188f327968afab23825b00817a25c8df1a5c260ef70cf1a68cb1f"
+      "sha256": "756b529d8ed3fe9eab1bf79c69cfb2eef9418b4b6fff781c780cf9d0aa3d0737"
     },
     {
       "filename": "docs/dependency_inventory.json",
