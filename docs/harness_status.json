@@ -50,8 +50,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 12,
-   "PREDATES_CURRENT_IMPLEMENTATION": 37
+   "COVERS_CURRENT_IMPLEMENTATION": 11,
+   "PREDATES_CURRENT_IMPLEMENTATION": 38
   },
   "rows": 49
  },
@@ -146,12 +146,12 @@
    "rows": {
     "R64": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "fenicsx": {
@@ -431,6 +431,12 @@
   },
   {
    "external": false,
+   "id": "containers",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
    "id": "fenicsx",
    "kind": "stack",
    "status": "ADOPTED"
@@ -684,6 +690,12 @@
   {
    "external": false,
    "id": "R63",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R64",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },

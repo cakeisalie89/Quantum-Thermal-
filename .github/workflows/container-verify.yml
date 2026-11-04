@@ -32,7 +32,11 @@ permissions: {}             # default-deny
 jobs:
   container-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Measured, not guessed: the in-container verification took 42 minutes
+    # at 7a18167, and needed about 65 on the runners 549e9a4 and 3ddce54
+    # drew, every stretch of its suite 1.4 to 1.6 times slower; 60 cut both
+    # off at 91%. 90 leaves a slow runner its margin and still ends a hang.
+    timeout-minutes: 90
     permissions:
       contents: read        # checkout only; deliberately nothing else
     steps:

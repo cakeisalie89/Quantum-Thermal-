@@ -977,7 +977,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: (AUD-032, scientific/checks/fenicsx_slab.py, cited by R62). All three
 #: predate their implementation until the evidence commit after hosted
 #: CI.
-EXPECTED_EVIDENCE_COVERS = 12
+#: 12 -> 11 when the container job's timeout went from 60 to 90 minutes:
+#: the in-container verification needed about 65 minutes on the runners
+#: 549e9a4 and 3ddce54 drew, and 60 cut both off at 91%.
+#: .github/workflows/container-verify.yml is cited by R64, which predates
+#: it until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 11
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

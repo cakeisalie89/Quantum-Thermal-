@@ -118,7 +118,9 @@
     "mutation_specs": [
      "tools/mutations/container.json"
     ],
-    "tests": []
+    "tests": [
+     "tests/test_completion_matrix.py"
+    ]
    }
   },
   {

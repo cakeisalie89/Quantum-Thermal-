@@ -9,7 +9,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 | element | status | backing rows | satisfied |
 |---|---|---|---|
 | authority-substrate | ADOPTED | R40 (COMPLETE, PREDATES), R42 (COMPLETE, PREDATES) | NO |
-| containers | ADOPTED | R64 (COMPLETE, COVERS) | yes |
+| containers | ADOPTED | R64 (COMPLETE, PREDATES) | NO |
 | fenicsx | ADOPTED | R62 (COMPLETE, PREDATES) | NO |
 | fmi | ADOPTED | R63 (COMPLETE, PREDATES) | NO |
 | generic-scientific-layer | ADOPTED | R61 (COMPLETE, PREDATES) | NO |
@@ -30,7 +30,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 ## Completion matrix
 
-49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 12, PREDATES_CURRENT_IMPLEMENTATION 37.
+49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 11, PREDATES_CURRENT_IMPLEMENTATION 38.
 
 ## Audits
 
@@ -45,9 +45,10 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * flagship_not_allocated_or_trained: holds
 * flagship_architecture_as_declared: holds
 
-## Unsatisfied (47)
+## Unsatisfied (49)
 
 * stack authority-substrate: ADOPTED
+* stack containers: ADOPTED
 * stack fenicsx: ADOPTED
 * stack fmi: ADOPTED
 * stack generic-scientific-layer: ADOPTED
@@ -91,6 +92,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * row R61: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R62: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R63: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R64: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R66: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R70: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R71: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps

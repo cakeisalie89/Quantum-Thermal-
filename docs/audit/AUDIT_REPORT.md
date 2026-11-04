@@ -482,7 +482,7 @@ Each line names its weakest point. No aggregate is given.
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
 | Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; no role registry provisioned |
 | Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
-| Merge readiness | not assessed as ready | 874 of 1061 files not reviewed; hosted runs all green at cbc9bed (all eight workflow runs, read from the API), not yet read at the audit's later commits |
+| Merge readiness | not assessed as ready | 874 of 1061 files not reviewed; hosted runs all green at 7a18167 (all eight workflow runs, read from the API); at 549e9a4 and 3ddce54 seven of eight, the container job cut off by its 60-minute budget on slower runners (now 90), not yet read at the audit's later commits |
 
 ## 9. What remains unknown
 

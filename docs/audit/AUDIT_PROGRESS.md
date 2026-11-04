@@ -2510,3 +2510,27 @@ commit after hosted CI.
 paragraph and the files derived from it: 7036 passed, 19 skipped, none
 failed. That is 18 more than Stage 5's 7018: the two readiness tests RUN-1
 broke, and the sixteen new cases.
+
+### Hosted CI after Stage 5, and the container job's time budget
+
+**At 7a18167** (Stage 3), all eight workflow runs passed, read from the
+API. That includes every job of both agent-substrate runs, 13 each: the
+full suite, the second interpreter, dispatch sensitivity, the eight
+mutation shards and the shard check.
+
+**At 549e9a4 and 3ddce54**, seven of eight runs passed. container-verify
+was cancelled in both at its 60-minute job timeout. At 3ddce54 the
+in-container suite was at 91% when it was cut off, and still advancing.
+No test had failed or hung.
+
+The in-container suite took 42 minutes at 7a18167. At 3ddce54 every
+stretch of its progress ran 1.35 to 1.57 times slower. That includes the
+first stretch, which is heavy in ed25519 verification and where AUD-026
+changed code. A uniform slowdown like this is the signature of a slower
+runner, not of a slower test: a code regression would slow the files it
+touches and leave the others alone. Over the same commits the native
+full-suite job grew from 34 to 39 minutes.
+
+The container job's budget is now 90 minutes. R64 cites the workflow, so
+it predates its evidence until the evidence commit after hosted CI, and
+the pinned count goes from 12 to 11.
