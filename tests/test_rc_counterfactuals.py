@@ -508,6 +508,121 @@ def test_the_check_passes_a_perfect_producer_and_fails_a_near_miss():
     assert K.run_check(owned, verifier_id="test").status is Status.PASS
 
 
+def test_the_check_states_its_own_answer_as_its_agreement():
+    """AUD-025: the RC check's agreement is its own march at each output it
+    compares, with the error its criterion credits it -- three times its
+    stated error, plus rounding -- which ``test_the_check_keeps_the_error_
+    it_states`` holds against the 90-digit value."""
+    r = K.run_check(MODEL.run(POINT), verifier_id="test")
+    own = K.solve(MODEL.validate(POINT))
+    got = dict(r.agreement)
+    assert set(got) == set(K.OUTPUT_NAMES)
+    for name, (value, err) in zip(K.OUTPUT_NAMES, own):
+        assert (got[name].value, got[name].unit) == (value, "K")
+        assert got[name].resolution == K.GCI_SAFETY * err \
+            + 64 * EPS * abs(value)
+
+
+def _understated():
+    """AUD-025's producer: T1 5e-10 K off the exact value, stated to
+    1e-13 K, and its independent check -- which PASSes it, its own error
+    being larger than the understatement."""
+    b = MODEL.run(POINT)
+    exact = _exact(MODEL.validate(POINT))
+    off = _with(b, {"T1": exact["T1"] + 5e-10, "T2": exact["T2"]}, 1e-13)
+    report = K.run_check(off, verifier_id="test")
+    pred = {"model_id": MODEL.model_id, "quantity": "T1", "op": "<",
+            "value": exact["T1"] + 2.5e-10, "unit": "K"}
+    return exact, off.to_record(), report, pred
+
+
+def test_a_verdict_claims_no_more_than_the_check_verified():
+    """AUD-025, at the RC network's documented point. The check PASSes a
+    producer 5e-10 K off stating 1e-13 K; read with the producer's
+    resolution, "T1 < exact + 2.5e-10 K" was decided REFUTED, and the world
+    answers SUPPORTED. Read as the check's agreement supports -- |v_producer
+    - v_check| + r_check -- the interval holds the exact value, and the
+    ledger abstains."""
+    exact, bundle, report, pred = _understated()
+    assert report.status is Status.PASS and report.measured.value < 1.0
+    (name, q), = [a for a in report.agreement if a[0] == "T1"]
+    v_check, r_check = q.value, q.resolution
+    assert abs(v_check - exact["T1"]) <= r_check       # the check is honest
+    assert r_check > 5e-10 - 2.5e-10                   # and wider than the gap
+    then = R.evaluate(pred, [{"model_id": MODEL.model_id,
+                              "values": R.values_of(bundle)}])
+    assert then[0] == "REFUTED"                        # the defect, as it was
+    seen = R.observed_values(bundle, report.to_record())
+    t1 = seen["T1"]
+    assert t1["resolution"] == abs(t1["value"] - v_check) + r_check
+    assert abs(t1["value"] - exact["T1"]) <= t1["resolution"]
+    now = R.evaluate(pred, [{"model_id": MODEL.model_id, "values": seen}])
+    assert now[0] == "INCONCLUSIVE", now
+
+
+def test_only_what_the_check_compared_is_observed():
+    """The check compares T1 and T2; the energies nobody compared are not
+    observed, and no compared output is observed more precisely than its
+    producer stated."""
+    _, bundle, report, _ = _understated()
+    seen = R.observed_values(bundle, report.to_record())
+    assert set(seen) == {n for n, _ in report.agreement} == {"T1", "T2"}
+    own = R.values_of(bundle)
+    for n, v in seen.items():
+        assert v["value"] == own[n]["value"] and v["unit"] == own[n]["unit"]
+        assert v["resolution"] >= own[n]["resolution"]
+
+
+def test_the_observation_is_never_more_precise_than_its_producer_says():
+    """Where the producer's own stated error is the wider -- here 1e-6 K on
+    the exact values, a thousand times the check's -- the observation keeps
+    it: the agreement bounds the producer's value, it never narrows what
+    the producer claimed."""
+    b = MODEL.run(POINT)
+    exact = _exact(MODEL.validate(POINT))
+    modest = _with(b, {"T1": exact["T1"], "T2": exact["T2"]}, 1e-6)
+    report = K.run_check(modest, verifier_id="test")
+    assert report.status is Status.PASS
+    seen = R.observed_values(modest.to_record(), report.to_record())
+    for n, q in report.agreement:
+        assert abs(seen[n]["value"] - q.value) + q.resolution < 1e-6
+        assert seen[n]["resolution"] == 1e-6
+
+
+def test_a_report_written_before_the_agreement_is_read_as_it_was():
+    """A report with no agreement -- every report decided under
+    admission/1 -- leaves the producer's values as that history recorded
+    them: the old verdict replays as it was decided, not reinterpreted."""
+    _, bundle, report, pred = _understated()
+    old = {k: v for k, v in report.to_record().items() if k != "agreement"}
+    assert R.observed_values(bundle, old) == R.values_of(bundle)
+    assert R.observed_values(bundle, None) == R.values_of(bundle)
+    assert R.evaluate(pred, [{"model_id": MODEL.model_id, "values":
+                              R.observed_values(bundle, old)}])[0] == \
+        "REFUTED"
+
+
+@pytest.mark.parametrize("entry", [
+    "T1", ["T1"], ["T1", {"value": float("nan"), "resolution": 1.0}],
+    ["T1", {"value": 300.0, "resolution": -1.0}],
+    ["T1", {"value": 300.0, "resolution": float("inf")}],
+    ["T1", {"value": True, "resolution": 1.0}],
+    ["T1", "300 K"],
+    ["T1", {"value": 10 ** 400, "resolution": 1.0}],
+    ["T1", {"value": 300.0, "resolution": 10 ** 400}],
+])
+def test_an_agreement_entry_it_cannot_read_widens_nothing_and_observes_nothing(
+        entry):
+    """The ledger never narrows on what it cannot read: an unreadable entry
+    is no agreement, so its output is not observed (the store refuses such
+    a report under admission/2; this reader stays safe without the store)."""
+    _, bundle, report, _ = _understated()
+    rec = report.to_record()
+    rec["agreement"] = [e for e in rec["agreement"] if e[0] != "T1"] + [entry]
+    seen = R.observed_values(bundle, rec)
+    assert "T1" not in seen and set(seen) == {"T2"}
+
+
 def test_a_network_too_stiff_or_a_failed_output_is_not_run():
     stiff = MODEL.run({**POINT, "C1_J_K": 1e-3, "t_end_s": 1e6})
     r = K.run_check(stiff, verifier_id="test")

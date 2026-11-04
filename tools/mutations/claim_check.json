@@ -130,6 +130,55 @@
    "find": "            except ValueError as exc:\n                return (Verdict.UNVERIFIABLE,",
    "replace": "            except ValueError as exc:\n                return (Verdict.SUPPORTED,",
    "rationale": "H: a Celsius value whose kind nobody knows, or a mass for a heat flux, is called support"
+  },
+  {
+   "name": "CC19_the_bytes_are_not_compared_with_the_observation",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        elif not bytes_say(json.loads(evidence.get(dg)), body[\"values\"]):\n",
+   "replace": "        elif False:\n",
+   "rationale": "an observation planted with values its bundle does not hold is cited INTACT by a reader whose ledger could not hold it to its bytes"
+  },
+  {
+   "name": "CC20_a_narrower_resolution_is_what_the_bytes_say",
+   "path": "agent_substrate/claim_check.py",
+   "find": "                not _finite(r) or r < o[\"resolution\"]:\n",
+   "replace": "                not _finite(r):\n",
+   "rationale": "AUD-025: an observation more precise than its bundle states is read as what the bytes say"
+  },
+  {
+   "name": "CC21_another_value_is_what_the_bytes_say",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        if v[\"value\"] != o[\"value\"] or v[\"unit\"] != o[\"unit\"] or \\\n",
+   "replace": "        if v[\"unit\"] != o[\"unit\"] or \\\n",
+   "rationale": "an observation of another value is read as what the bytes say"
+  },
+  {
+   "name": "CC22_another_unit_is_what_the_bytes_say",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        if v[\"value\"] != o[\"value\"] or v[\"unit\"] != o[\"unit\"] or \\\n",
+   "replace": "        if v[\"value\"] != o[\"value\"] or \\\n",
+   "rationale": "an observation in another unit is read as what the bytes say"
+  },
+  {
+   "name": "CC23_an_output_the_bundle_does_not_hold",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        if o is None or not isinstance(v, dict) or \\\n                set(v) != {\"value\", \"unit\", \"resolution\"}:\n",
+   "replace": "        if not isinstance(v, dict):\n",
+   "rationale": "an observation naming an output its bundle does not hold, or carrying more than a value, unit and resolution, is read"
+  },
+  {
+   "name": "CC24_a_boolean_resolution_is_a_number",
+   "path": "agent_substrate/claim_check.py",
+   "find": "    if isinstance(v, bool) or not isinstance(v, (int, float)):\n        return False\n    try:\n        return math.isfinite(v)\n",
+   "replace": "    if not isinstance(v, (int, float)):\n        return False\n    try:\n        return math.isfinite(v)\n",
+   "rationale": "True read as a resolution of 1"
+  },
+  {
+   "name": "CC25_an_integer_no_float_holds_raises",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
+   "replace": "        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
+   "rationale": "AUD-025: a 400-digit integer as an observation's resolution raises OverflowError out of the citation check instead of reading the citation BROKEN"
   }
  ]
 }

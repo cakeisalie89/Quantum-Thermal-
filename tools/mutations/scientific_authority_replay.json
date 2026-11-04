@@ -52,7 +52,7 @@
     {
       "name": "SA7_any_policy_name_is_the_current_one",
       "path": "agent_substrate/result_rules.py",
-      "find": "    if policy != POLICY_V1:\n",
+      "find": "    if policy not in POLICIES:\n",
       "replace": "    if False:\n",
       "rationale": "an unknown policy is silently decided under the current rule"
     },
@@ -108,7 +108,7 @@
     {
       "name": "RX2_the_second_reader_reads_no_content",
       "path": "agent_substrate/reconstruct.py",
-      "find": "    failed = [asked for asked, question in _SCI_CONTENT\n              if not question(bundle, report, subject)]\n",
+      "find": "    failed = [asked for asked, question in _sci_content(policy)\n              if not question(bundle, report, subject)]\n",
       "replace": "    failed = []\n",
       "rationale": "the second reader admits a FAIL report from a governed check"
     },
@@ -181,6 +181,111 @@
       "find": "            if self.origins.problems(\n",
       "replace": "            if False and self.origins.problems(\n",
       "rationale": "a result whose check has since been invalidated is reused"
+    },
+    {
+      "name": "RX10_the_second_reader_asks_no_agreement",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if policy == _SCI_POLICY_V2:\n        rows += ((\"the report states the check's own value and error for \"\n",
+      "replace": "    if False:\n        rows += ((\"the report states the check's own value and error for \"\n",
+      "rationale": "AUD-025: the second reader admits under admission/2 what the store refuses"
+    },
+    {
+      "name": "RX11_every_policy_asks_the_newer_fields",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    fields = (_SCI_REPORT_FIELDS_V2 if policy == _SCI_POLICY_V2\n              else _SCI_REPORT_FIELDS)\n",
+      "replace": "    fields = _SCI_REPORT_FIELDS_V2\n",
+      "rationale": "AUD-025 migration: the second reader refuses every history admitted under admission/1"
+    },
+    {
+      "name": "RX12_every_policy_asks_the_older_fields",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    fields = (_SCI_REPORT_FIELDS_V2 if policy == _SCI_POLICY_V2\n              else _SCI_REPORT_FIELDS)\n",
+      "replace": "    fields = _SCI_REPORT_FIELDS\n",
+      "rationale": "AUD-025: the second reader refuses the reports the package writes"
+    },
+    {
+      "name": "RX13_an_empty_agreement_is_an_agreement",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not isinstance(agree, list) or not agree:\n        return False\n",
+      "replace": "    if not isinstance(agree, list):\n        return False\n",
+      "rationale": "AUD-025: the second reader admits an agreement on nothing"
+    },
+    {
+      "name": "RX14_an_output_may_be_named_twice",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                and isinstance(entry[1], dict)) or entry[0] in seen:\n",
+      "replace": "                and isinstance(entry[1], dict)):\n",
+      "rationale": "AUD-025: two agreements on one output pass the second reader"
+    },
+    {
+      "name": "RX15_an_entry_of_any_shape_is_read",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if not (isinstance(entry, list) and len(entry) == 2\n                and isinstance(entry[0], str)\n                and isinstance(entry[1], dict)) or entry[0] in seen:\n",
+      "replace": "        if entry[0] in seen:\n",
+      "rationale": "AUD-025: an entry that is not [output, quantity] reaches the second reader's reading of its fields"
+    },
+    {
+      "name": "RX16_a_failed_output_may_be_agreed_on",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if (o is None or o.get(\"status\") != \"OK\"\n",
+      "replace": "        if (o is None\n",
+      "rationale": "AUD-025: the second reader admits an agreement on an output the producer did not compute"
+    },
+    {
+      "name": "RX17_the_check_value_need_not_be_a_number",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                or not _sci_number(v)\n",
+      "replace": "                or False\n",
+      "rationale": "AUD-025: the second reader admits a check value that is no number"
+    },
+    {
+      "name": "RX18_the_check_error_need_not_be_a_number",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                or not _sci_number(r)\n",
+      "replace": "                or False\n",
+      "rationale": "AUD-025: the second reader admits a check error that is no number"
+    },
+    {
+      "name": "RX19_a_negative_check_error_bounds",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                or r < 0\n",
+      "replace": "                or False\n",
+      "rationale": "AUD-025: the second reader admits a negative check error"
+    },
+    {
+      "name": "RX20_the_agreement_unit_is_not_held",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                or q.get(\"unit\") != oq.get(\"unit\")):\n",
+      "replace": "                or False):\n",
+      "rationale": "AUD-025: the second reader admits a check value in another unit"
+    },
+    {
+      "name": "RX21_a_boolean_is_a_number",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if isinstance(v, bool) or not isinstance(v, (int, float)):\n        return False\n    try:\n        f = float(v)\n",
+      "replace": "    if not isinstance(v, (int, float)):\n        return False\n    try:\n        f = float(v)\n",
+      "rationale": "AUD-025: the second reader reads True as a check value"
+    },
+    {
+      "name": "RX22_admission_1_is_not_read",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "_SCI_POLICIES = frozenset({\"scientific_result.admission/1\", _SCI_POLICY_V2})\n",
+      "replace": "_SCI_POLICIES = frozenset({_SCI_POLICY_V2})\n",
+      "rationale": "AUD-025 migration: the second reader stops reading every history admitted before the agreement"
+    },
+    {
+      "name": "RX23_an_integer_no_float_holds_raises",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        f = float(v)\n    except OverflowError:\n",
+      "replace": "        f = float(v)\n    except ZeroDivisionError:\n",
+      "rationale": "AUD-025: the second reader raises on a 400-digit integer in a report's agreement, where it must refuse"
+    },
+    {
+      "name": "RX24_an_infinite_value_is_a_number",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    return -_SCI_INF < f < _SCI_INF\n",
+      "replace": "    return True\n",
+      "rationale": "AUD-025: the second reader takes an infinite check value, which bounds nothing, as a number"
     }
   ]
 }

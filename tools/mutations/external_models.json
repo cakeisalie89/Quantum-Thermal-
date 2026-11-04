@@ -39,6 +39,20 @@
    "find": "    if (fmi.get(\"claim_boundary\") or {}).get(\"authority\") != \\\n            spec[\"authority\"]:\n",
    "replace": "    if False:\n",
    "rationale": "an external model claiming authority is admitted"
+  },
+  {
+   "name": "EM_AG1_the_fmu_agreement_states_the_fmu_s_value",
+   "path": "scientific/checks/fmu_rc2.py",
+   "find": "        agree.append(agreement(o, r.value, resolution(r),\n",
+   "replace": "        agree.append(agreement(o, q.value, resolution(r),\n",
+   "rationale": "AUD-025: the FMU check states the FMU's value as the closed form's"
+  },
+  {
+   "name": "EM_AG2_the_fmu_agreement_states_the_fmu_s_error",
+   "path": "scientific/checks/fmu_rc2.py",
+   "find": "        agree.append(agreement(o, r.value, resolution(r),\n",
+   "replace": "        agree.append(agreement(o, r.value, resolution(q),\n",
+   "rationale": "AUD-025: the closed form is credited with the FMU's error instead of its own"
   }
  ]
 }

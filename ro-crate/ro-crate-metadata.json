@@ -126,10 +126,10 @@
   {
    "@id": "README.md",
    "@type": "File",
-   "contentSize": "7639",
+   "contentSize": "7917",
    "description": "what the harness is and how to run it",
    "name": "README.md",
-   "sha256": "235d5e60f78127d3ef5a01a87589882c35c5a81767b20adcb3de128d51ccaafe"
+   "sha256": "73f937eb27d806dde76ea068144d0d7a415533ffe7cbb0d149aacf3619fe41a7"
   },
   {
    "@id": "Snakefile",
@@ -145,10 +145,10 @@
   {
    "@id": "authorities.json",
    "@type": "File",
-   "contentSize": "19072",
+   "contentSize": "19192",
    "description": "which module owns which concept",
    "name": "authorities.json",
-   "sha256": "7e95e5f581a1726ef1a6112e65238413b14aeed8f36ed20bc38af19168d6828c"
+   "sha256": "f8591d5d4123a9672321ec72271ec40c1127a0b394d065fa79449e654b9d75c7"
   },
   {
    "@id": "docs/completion_matrix.json",
@@ -177,10 +177,10 @@
   {
    "@id": "docs/harness_status.json",
    "@type": "File",
-   "contentSize": "17765",
+   "contentSize": "17937",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "b4ab2a7ba502072fd8f0e5ae611e75d33344d8b3fe029f94e46aec3709897c14"
+   "sha256": "eb3cb366576a0f585dc583308882dd008792730cf4e023a84984d23339719677"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -217,7 +217,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "120418",
+   "contentSize": "120426",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"

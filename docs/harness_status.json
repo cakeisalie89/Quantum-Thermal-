@@ -50,8 +50,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 11,
-   "PREDATES_CURRENT_IMPLEMENTATION": 38
+   "COVERS_CURRENT_IMPLEMENTATION": 10,
+   "PREDATES_CURRENT_IMPLEMENTATION": 39
   },
   "rows": 49
  },
@@ -600,6 +600,12 @@
   {
    "external": false,
    "id": "R42",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R43",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },

@@ -180,6 +180,69 @@
       "find": "        return _digest(self.to_record())\n",
       "replace": "        return _digest(self.quantity.to_record())\n",
       "rationale": "trust wrong evidence: two observations with different lineage share a digest"
+    },
+    {
+      "name": "VR1_an_output_may_be_agreed_on_twice",
+      "path": "scientific/verification.py",
+      "find": "    if len(set(names)) != len(names):\n",
+      "replace": "    if False:\n",
+      "rationale": "AUD-025: a result states two agreements on one output"
+    },
+    {
+      "name": "VR2_a_check_value_need_not_state_its_error",
+      "path": "scientific/verification.py",
+      "find": "        if not isinstance(q, Quantity) or q.resolution is None:\n",
+      "replace": "        if not isinstance(q, Quantity):\n",
+      "rationale": "AUD-025: an agreement whose check value bounds nothing"
+    },
+    {
+      "name": "VR3_an_agreement_entry_need_not_name_an_output",
+      "path": "scientific/verification.py",
+      "find": "        if not isinstance(name, str) or not name.strip():\n",
+      "replace": "        if False:\n",
+      "rationale": "AUD-025: an agreement on an output with no name"
+    },
+    {
+      "name": "VR4_a_check_that_compared_nothing_agrees",
+      "path": "scientific/verification.py",
+      "find": "    if out and result.status not in (Status.PASS, Status.FAIL):\n",
+      "replace": "    if False:\n",
+      "rationale": "AUD-025: NOT_RUN or INCONCLUSIVE states values it never compared"
+    },
+    {
+      "name": "VR5_the_agreement_is_not_in_output_order",
+      "path": "scientific/verification.py",
+      "find": "    return tuple(sorted(out, key=lambda e: e[0]))\n",
+      "replace": "    return tuple(out)\n",
+      "rationale": "AUD-025: two results stating the same agreement in another order are different records and digests"
+    },
+    {
+      "name": "VR6_the_record_drops_the_agreement",
+      "path": "scientific/verification.py",
+      "find": "            \"agreement\": [[name, q.to_record()]\n                          for name, q in self.agreement],\n",
+      "replace": "            \"agreement\": [],\n",
+      "rationale": "AUD-025: the report written to evidence says nothing of what the check measured"
+    },
+    {
+      "name": "VR7_reading_a_record_drops_the_agreement",
+      "path": "scientific/verification.py",
+      "find": "                      \"agreement\": tuple(\n                          (name, Quantity.from_record(q))\n                          for name, q in agreement)})\n",
+      "replace": "                      \"agreement\": ()})\n",
+      "rationale": "AUD-025: a report read back loses its agreement"
+    },
+    {
+      "name": "VR8_a_record_of_any_fields_is_read",
+      "path": "scientific/verification.py",
+      "find": "        if not isinstance(rec, dict) or set(rec) not in (\n                keys, keys | {\"agreement\"}):\n",
+      "replace": "        if not isinstance(rec, dict):\n",
+      "rationale": "a verification record with fields no VerificationResult has is read as one"
+    },
+    {
+      "name": "VR9_a_malformed_agreement_record_is_read",
+      "path": "scientific/verification.py",
+      "find": "        if not isinstance(agreement, list) or not all(\n                isinstance(a, list) and len(a) == 2 for a in agreement):\n",
+      "replace": "        if False:\n",
+      "rationale": "AUD-025: an agreement that is no list of pairs is read as some agreement, or fails as something other than a VerificationError"
     }
   ]
 }

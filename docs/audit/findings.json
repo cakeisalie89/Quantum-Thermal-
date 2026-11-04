@@ -852,7 +852,7 @@
   },
   {
    "id": "AUD-025",
-   "title": "A verdict is decided with the producer's stated resolution, which the independent check bounds only to the sum of both stated errors",
+   "title": "A verdict was decided with the producer's stated resolution, which the independent check bounds only to the sum of both stated errors",
    "severity": "P2",
    "subsystem": "research ledger / scientific verification",
    "files": [
@@ -863,6 +863,42 @@
     {
      "path": "scientific/checks/rc2_rk4.py",
      "lines": "the criterion |T_producer - T_check| <= 3 (r_producer + r_check), as in every check here: agreement within the sum of both stated errors"
+    },
+    {
+     "path": "scientific/verification.py",
+     "lines": "VerificationResult.agreement and _agreement: for each output compared, the check's own value as a Quantity with a stated resolution, each output once, none on NOT_RUN or INCONCLUSIVE; to_record / from_record (a record without it reads as stating none)"
+    },
+    {
+     "path": "scientific/checks/__init__.py, slab_series.py, slab_mol.py, rc2_rk4.py, langmuir_rk4.py, fmu_rc2.py, fenicsx_slab.py",
+     "lines": "agreement(): each check states its own value and the error its criterion credits it with (three times its Richardson estimate plus rounding; the series and the flux to rounding; the closed form's own resolution; RK4_REL_ERROR = 1e-10 relative in the Langmuir capture)"
+    },
+    {
+     "path": "agent_substrate/result_rules.py",
+     "lines": "POLICY_V2 = scientific_result.admission/2, CURRENT_POLICY, POLICIES, REPORT_KEYS_V2, report_keys, agreement_problems; verification_problems, record_problems and admission_problems decide under the policy the transition names"
+    },
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "observed_values: max(r_producer, |v_producer - v_check| + r_check), only the outputs the check compared; _report_of; observe and _apply_observation"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_SCI_POLICIES, _SCI_REPORT_FIELDS_V2, _sci_agreement_ok, _sci_content(policy): the second reader's statement of the same rule"
+    },
+    {
+     "path": "agent_substrate/governed_model.py",
+     "lines": "_reusable: the decision re-derived under the policy that admitted it"
+    },
+    {
+     "path": "tools/verify_assurance.py",
+     "lines": "_agreement, _observed: the package's agreement read strictly, the decision's policy matched to the report's shape, the observation held to the widened resolution, the check's own values rechecked against the exact solution"
+    },
+    {
+     "path": "agent_substrate/claim_check.py",
+     "lines": "bytes_say: a citation holds each observed output to its bundle's value and unit and to a resolution no smaller than the bundle's; the exact comparison it replaces read every citation of a result admitted under admission/2 as BROKEN"
+    },
+    {
+     "path": "tools/assurance_package.py",
+     "lines": "the controls' temperature forgery recomputes the observation's resolution by the rule, so it is refused at the RECHECK it is meant for"
     }
    ],
    "behavior": "At the RC network's documented point, a producer stating T1 to 1e-13 K and 5e-10 K off the exact value PASSes the independent RK4 check (ratio 0.42: the check's own stated error is about 4e-10 K). Read as an observation, the value keeps the producer's 1e-13 K, and the ledger decides 'T1 < exact + 2.5e-10 K' REFUTED. The exact value is below the threshold: the world's answer is SUPPORTED.",
@@ -871,11 +907,32 @@
    "reproduction": "With the Stage 3 tree: run ThermalRC2Model at RC2_RUN's point, replace T1's quantity by the reference value + 5e-10 K stated to 1e-13 K, run scientific.checks.rc2_rk4.run_check (PASS), then agent_substrate.research.evaluate the prediction T1 < reference + 2.5e-10 K against research.values_of of that bundle (REFUTED).",
    "observed": "A REFUTED verdict, from a result its independent check PASSed, on a question whose answer is SUPPORTED.",
    "expected": "The observation's interval at least as wide as what the verification supports, so the verdict is INCONCLUSIVE there, or the producer's understatement refused.",
-   "correction": "Not made here. Proposed: each verification report states, per output, its own error and the agreement it measured; the admission policy records them under a new policy name; the observation's resolution becomes the larger of the producer's and the bound the agreement supports (|producer - check| + r_check); replay resolves the policy the admission named, so the change is a migration, not a reinterpretation.",
-   "regression_tests": [],
-   "residual_risk": "Open. The window is the check's own error: about 1e-10 K for the RC network's RK4 check at its worlds, larger for coarser checks. No admitted model is known to understate its resolution now -- AUD-024 corrected the one found, and tests hold the RC network to a 90-digit evaluation -- but nothing in the verification path would catch the next one.",
+   "correction": "Each independent check states its agreement: for each output it compared, its own value and the error its criterion credits it with (VerificationResult.agreement). The admission policy scientific_result.admission/2 asks everything /1 does and that agreement -- each output named once, an OK output of the bundle, a finite value and a finite, non-negative error, in the output's unit. The store stamps /2 on every new admission and decides each recorded one under the policy it names, so a history admitted under /1 is decided under /1, never reread. The research ledger observes, for each output the check compared, the producer's value with resolution max(r_producer, |v_producer - v_check| + r_check), and no output the check did not compare -- at observation and again on replay. The second reader and the standalone package verifier restate the rule in their own code; the verifier also rechecks the check's own values against its exact solution. Reuse re-derives a decision under the policy that admitted it. Two consumers of an observation's values follow it: the claim checker's citation check, which compared them with the bundle's exactly, now holds each observed output to the bundle's value and unit and to a resolution no smaller than the bundle's; and the package's temperature control recomputes the resolution it moves. Every reader of an agreement refuses a number no float holds: a 400-digit integer is valid JSON, and math.isfinite raised OverflowError on it in all five. The second reader states finiteness without the math module, which its import allow-list does not hold.",
+   "regression_tests": [
+    "tests/test_rc_counterfactuals.py::test_a_verdict_claims_no_more_than_the_check_verified",
+    "tests/test_rc_counterfactuals.py::test_only_what_the_check_compared_is_observed",
+    "tests/test_rc_counterfactuals.py::test_the_observation_is_never_more_precise_than_its_producer_says",
+    "tests/test_rc_counterfactuals.py::test_a_report_written_before_the_agreement_is_read_as_it_was",
+    "tests/test_research_science.py::test_the_observation_claims_no_more_than_its_check_verified",
+    "tests/test_research_science.py::test_an_observation_more_precise_than_its_check_is_refused_on_replay",
+    "tests/test_agent_result_rules.py::test_a_pass_under_admission_2_must_state_its_agreement",
+    "tests/test_agent_result_rules.py::test_an_agreement_the_rule_cannot_use_is_refused",
+    "tests/test_agent_result_rules.py::test_a_history_admitted_under_admission_1_replays_admitted",
+    "tests/test_scientific_authority_replay.py::test_both_readers_refuse_the_same_agreement",
+    "tests/test_scientific_authority_replay.py::test_both_readers_decide_an_older_admission_under_its_own_policy",
+    "tests/test_scientific_authority_replay.py::test_neither_reader_decides_under_a_policy_it_does_not_know",
+    "tests/test_governed_model_reuse.py::test_a_result_admitted_under_admission_1_is_reused_under_it",
+    "tests/test_assurance_package.py::test_a_package_decided_under_admission_1_still_verifies",
+    "tests/test_surface_adsorption.py::test_the_check_keeps_the_error_its_agreement_states",
+    "tests/test_claim_check.py::test_the_bytes_say_an_observation_their_check_widened",
+    "tests/test_claim_check.py::test_a_planted_observation_is_not_what_its_bytes_say",
+    "tests/test_rc_counterfactuals.py::test_an_agreement_entry_it_cannot_read_widens_nothing_and_observes_nothing",
+    "tests/test_assurance_package.py::test_evidence_that_disagrees_is_refused",
+    "tests/test_agent_second_reader.py::test_the_second_reader_imports_only_the_log_and_the_action_names"
+   ],
+   "residual_risk": "A verdict is now as good as the check's stated error. The method-of-lines, RC-network RK4 and Langmuir checks are held to theirs against the exact series, a 90-digit evaluation and a 50-digit closed form (the Langmuir capture's worst measured error is a quarter of the 1e-10 relative it states); the FMU and FEniCSx checks do not run on this host and their stated errors are not held here. The ledger widens from the cited report's content: where no evidence store is attached, or the report is no JSON object (the benches' placeholders), it observes the producer's values as before -- a store that cannot read the report cannot admit the record either (UNVERIFIABLE). A history admitted under admission/1 keeps the producer's resolution: nothing in it states the check's side, and it is not reinterpreted.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED"
   },
   {
    "id": "AUD-026",

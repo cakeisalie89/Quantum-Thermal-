@@ -81,6 +81,34 @@
    "find": "            \"observation\": {\"id\": observation_id, \"status\": obs.status,",
    "replace": "            \"observation\": {\"id\": observation_id, \"status\": \"CURRENT\",",
    "rationale": "F: a withdrawn result's context still reads as standing"
+  },
+  {
+   "name": "OB1_the_ledger_observes_the_producer_s_word",
+   "path": "agent_substrate/research.py",
+   "find": "                \"values\": observed_values(\n                    bundle, self._report_of(sci) if sci else None)}\n",
+   "replace": "                \"values\": values_of(bundle)}\n",
+   "rationale": "AUD-025: the governed loop's observation carries the producer's resolution"
+  },
+  {
+   "name": "OB2_replay_holds_the_producer_s_word",
+   "path": "agent_substrate/research.py",
+   "find": "            if observed_values(bundle, self._report_of(sci)) != \\\n",
+   "replace": "            if values_of(bundle) != \\\n",
+   "rationale": "AUD-025: replay refuses the observation the rule gives and admits the one AUD-025 found"
+  },
+  {
+   "name": "OB3_replay_holds_no_values",
+   "path": "agent_substrate/research.py",
+   "find": "            if observed_values(bundle, self._report_of(sci)) != \\\n                    b[\"values\"] or \\\n",
+   "replace": "            if False or \\\n",
+   "rationale": "AUD-025: a planted observation more precise than its check is admitted on replay"
+  },
+  {
+   "name": "OB4_the_ledger_reads_no_report",
+   "path": "agent_substrate/research.py",
+   "find": "        return doc if isinstance(doc, dict) else None\n",
+   "replace": "        return None\n",
+   "rationale": "AUD-025: the ledger never sees the agreement, and observes at the producer's word"
   }
  ]
 }

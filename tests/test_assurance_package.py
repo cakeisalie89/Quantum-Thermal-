@@ -417,6 +417,31 @@ def _th(s):
     return _first(_bundle(s)["outputs"], "T_at_half")["quantity"]
 
 
+def _agreement_of(s):
+    return s["json"]["verification_report"]["agreement"]
+
+
+def _agreed(s, name="T_at_half"):
+    return next(q for n, q in _agreement_of(s) if n == name)
+
+
+def _drop_agreed(s, name):
+    rep = s["json"]["verification_report"]
+    rep["agreement"] = [e for e in rep["agreement"] if e[0] != name]
+
+
+def _reobserve(s):
+    """The observation's T_at_half resolution, everywhere it is stated, set
+    to what the rule gives for the package as it now is:
+    max(r_producer, |v_producer - v_check| + r_check) (AUD-025)."""
+    th, q = _th(s), _agreed(s)
+    r = max(th["resolution"], abs(th["value"] - q["value"]) + q["resolution"])
+    for e in _events_of(s, "research.observation"):
+        e["payload"]["observation"]["values"]["T_at_half"]["resolution"] = r
+    for x in s["json"]["decision_proof_supported"]["basis"]:
+        x["values"]["T_at_half"]["resolution"] = r
+
+
 EVIDENCE_CASES = [
     ("parameter digest", lambda s: _bundle(s).update(
         parameter_digest="0" * 64), "parameter digest is its parameters'"),
@@ -450,6 +475,35 @@ EVIDENCE_CASES = [
         value=300.0), "the budget is of the bundle's T_at_half"),
     ("budget authority", lambda s: s["json"]["error_budget"].update(
         authority="AUTHORITATIVE"), "authorize nothing"),
+    # the check's agreement (AUD-025): read strictly, never as less
+    ("agreement not a list", lambda s: s["json"][
+        "verification_report"].update(agreement={}),
+     "the check states its agreement, if it states one"),
+    ("agreement empty", lambda s: s["json"]["verification_report"].update(
+        agreement=[]), "the check states its agreement, if it states one"),
+    ("agreement twice", lambda s: _agreement_of(s).append(
+        [_agreement_of(s)[0][0], dict(_agreement_of(s)[0][1])]),
+     "the check states its agreement, if it states one"),
+    ("agreement of no output", lambda s: _agreement_of(s)[0].__setitem__(
+        0, "T_at_5"), "the check states its agreement, if it states one"),
+    ("agreement in another unit", lambda s: _agreed(s).update(unit="degC"),
+     "the check states its agreement, if it states one"),
+    ("agreement with no error", lambda s: _agreed(s).update(
+        resolution=None), "the check states its agreement, if it states one"),
+    ("agreement with a negative error", lambda s: _agreed(s).update(
+        resolution=-1.0), "the check states its agreement, if it states one"),
+    ("agreement without T_at_half", lambda s: _drop_agreed(s, "T_at_half"),
+     "the check states its agreement, if it states one"),
+    ("agreement entry not a pair", lambda s: _agreement_of(s).__setitem__(
+        0, [_agreement_of(s)[0][0]]),
+     "the check states its agreement, if it states one"),
+    ("agreement on a boolean", lambda s: _agreed(s).update(value=True),
+     "the check states its agreement, if it states one"),
+    ("agreement no float holds", lambda s: _agreed(s).update(
+        value=10 ** 400), "the check states its agreement, if it states one"),
+    ("agreement error no float holds", lambda s: _agreed(s).update(
+        resolution=10 ** 400),
+     "the check states its agreement, if it states one"),
 ]
 
 
@@ -683,6 +737,30 @@ def _misreported(s):
     _decision(s, "supported")["actor"] = "owner"
 
 
+def _admitted_under(policy):
+    def edit(s):
+        d = _decision(s, "verified")
+        s["events"][d["seq"]]["payload"]["admission_policy"] = policy
+    return edit
+
+
+def _agreement_stripped(s):
+    """The report's agreement removed, its admission still /2: what the
+    store refuses to admit, here past the store."""
+    s["json"]["verification_report"].pop("agreement")
+
+
+def _as_precise_as_the_producer(s):
+    """AUD-025 itself: the observation keeps the producer's resolution,
+    which the check's agreement does not support."""
+    th = _th(s)
+    for e in _events_of(s, "research.observation"):
+        e["payload"]["observation"]["values"]["T_at_half"][
+            "resolution"] = th["resolution"]
+    for x in s["json"]["decision_proof_supported"]["basis"]:
+        x["values"]["T_at_half"]["resolution"] = th["resolution"]
+
+
 DECISION_CASES = [
     ("self-verified", _self_verified_granted,
      "not the one that proposed it"),
@@ -709,6 +787,20 @@ DECISION_CASES = [
     ("unreported", _unreported, "reports the result's verification"),
     ("nowhere", _nowhere, "every position the record names"),
     ("misreported", _misreported, "the verdict is in the history as"),
+    ("admitted under the older policy", _admitted_under(
+        "scientific_result.admission/1"),
+     "decided under an admission policy this verifier reads"),
+    ("admitted under no policy it reads", _admitted_under(
+        "scientific_result.admission/3"),
+     "decided under an admission policy this verifier reads"),
+    ("agreement stripped", _agreement_stripped,
+     "decided under an admission policy this verifier reads"),
+    ("as precise as the producer", _as_precise_as_the_producer,
+     "no more precise than its check's agreement supports"),
+    ("admitted under no policy it reads, stating none", lambda s: (
+        _admitted_under("scientific_result.admission/3")(s),
+        _agreement_stripped(s)),
+     "decided under an admission policy this verifier reads"),
 ]
 
 
@@ -717,6 +809,24 @@ DECISION_CASES = [
 def test_a_consistent_forgery_of_a_decision_is_refused(tmp_path, name, edit,
                                                        check):
     _assert_refused(V.verify(_forged(tmp_path, edit)), "DECISION", check)
+
+
+def _as_admission_1(s):
+    """The package as it was before AUD-025: no agreement, the verification
+    decided under admission/1, the observation at the producer's
+    resolution."""
+    _agreement_stripped(s)
+    _admitted_under("scientific_result.admission/1")(s)
+    _as_precise_as_the_producer(s)
+
+
+def test_a_package_decided_under_admission_1_still_verifies(tmp_path):
+    """Migration, not reinterpretation: a package whose result was admitted
+    before the agreement -- every statement as admission/1 made it -- still
+    verifies at every level; only a digest obtained independently tells it
+    from the committed one."""
+    report = V.verify(_forged(tmp_path, _as_admission_1))
+    assert report["verdict"] == "VERIFIED", report["levels"]
 
 
 def test_what_a_level_did_not_expect_fails_that_level(tmp_path):
@@ -777,7 +887,8 @@ def _contribution(s, name):
 
 def _warmer(s, by=0.01):
     """T_at_half moved everywhere it is stated: the bundle, the record, the
-    budget, the observation and the proof."""
+    budget, the observation and the proof -- and the observation's
+    resolution, which the move changes, recomputed by the rule."""
     th = _th(s)
     th["value"] += by
     new = th["value"]
@@ -787,6 +898,42 @@ def _warmer(s, by=0.01):
         e["payload"]["observation"]["values"]["T_at_half"]["value"] = new
     for x in s["json"]["decision_proof_supported"]["basis"]:
         x["values"]["T_at_half"]["value"] = new
+    _reobserve(s)
+
+
+def _check_too_close(s):
+    """The check's own T_at_half set to the producer's, its error to a
+    nanokelvin: the agreement then bounds less than the producer states,
+    and the observation keeps the producer's -- so only the recheck of the
+    check's value against the exact solution can refuse it."""
+    q = _agreed(s)
+    q.update(value=_th(s)["value"], resolution=1e-9)
+    _reobserve(s)
+
+
+def _check_just_outside(s):
+    """The check's own T_at_half moved to one and a half times its stated
+    error from the exact value: refused only by a criterion that is the
+    error the check states, not a looser one."""
+    q = _agreed(s)
+    e = V.exact_temperature(_bundle(s)["parameters"], 0.5)
+    q["value"] = e + (1.5 if q["value"] >= e else -1.5) * q["resolution"]
+    _reobserve(s)
+
+
+def _check_elsewhere_at_the_boundary(s):
+    """The check's own T_at_0 moved off the exact solution; the verdict is
+    about T_at_half, so only a recheck of every value the check states can
+    refuse it."""
+    _agreed(s, "T_at_0")["value"] += 1e-3
+
+
+def _check_elsewhere(s):
+    """The check's own T_at_half moved off the exact solution by more than
+    the error it states, and the observation widened to match, so only the
+    recheck of the check's value can refuse it."""
+    _agreed(s)["value"] += 1e-3
+    _reobserve(s)
 
 
 def _cooler_edge(s):
@@ -888,6 +1035,14 @@ def _samples(s):
 
 RECHECK_CASES = [
     ("warmer", _warmer, "the model's T_at_half is the exact solution's"),
+    ("check elsewhere", _check_elsewhere,
+     "the check's own T_at_half is the exact solution's"),
+    ("check elsewhere at the boundary", _check_elsewhere_at_the_boundary,
+     "the check's own T_at_0 is the exact solution's"),
+    ("check too close", _check_too_close,
+     "the check's own T_at_half is the exact solution's"),
+    ("check just outside", _check_just_outside,
+     "the check's own T_at_half is the exact solution's"),
     ("cooler edge", _cooler_edge, "the model's T_at_L is the exact"),
     ("hot cell", _hot_cell, "whole final profile"),
     ("reference", _reference, "the producer's reference is the exact"),

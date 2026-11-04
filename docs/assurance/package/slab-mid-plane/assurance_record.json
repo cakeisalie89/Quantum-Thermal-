@@ -12,7 +12,7 @@
    {
     "action": "record.transition",
     "actor": "model-result-reviewer",
-    "hash": "35cdb4d4c414718286452093d33a7167b57103e620546feef54b9d10fa014370",
+    "hash": "46307653f5641b7f2e1793c3c7a97cd5129468696ffe7b5cd59beabc5b81a4f6",
     "name": "verified",
     "outcome": "VERIFIED",
     "proof": "decision_proof_verified",
@@ -22,7 +22,7 @@
    {
     "action": "research.status",
     "actor": "research-controller",
-    "hash": "abe6f74bfbde66dab7432ec95be905c818dffec9a94b599681b6030dba0b4cf4",
+    "hash": "00319861364aa12cbbb665c7c2e858466d6117e0827da253a874a367cd684114",
     "name": "supported",
     "outcome": "SUPPORTED",
     "proof": "decision_proof_supported",
@@ -34,7 +34,7 @@
    "created_seq": 50,
    "kind": "scientific_result",
    "proposer": "ai-researcher",
-   "record_id": "result-task-e3d06d6b2d95"
+   "record_id": "result-task-1ce0d774b700"
   },
   "roots": {
    "attestations": "history/attestations.jsonl",
@@ -63,13 +63,13 @@
   "NUMERICALLY_VERIFIED": "CLAIMED: an independent method-of-lines check passed, and the closed-form series measured the discretization; the verifier re-derives the agreement"
  },
  "evidence": {
-  "decision_proof_supported": "e89261d0c4907279e2200489f0caa97c18a4081bf312621ca21085f7fd3c06eb",
-  "decision_proof_verified": "c7f10aefb0b38aef93af9881ecf502eb0bffd036d5759c2866b52b05644010a5",
+  "decision_proof_supported": "21391da49f1bf100f24b8ef3b41186bedb584b8711dc0e29deed39b74d93590a",
+  "decision_proof_verified": "702f926da187f4da3d19ea746ab5598aad79f643b0bc66279f0f4f8786020b38",
   "error_budget": "e3e5ff16b842264d58f9f5d39d2a67a7cd55d2aa670868385612b60acfa7943a",
   "result_bundle": "1478106d59e554c53c967b64aeb7a5ebc83b5b8a0012ab6ca70881123281513f",
   "run_identity": "61065aee364df9e2aefe9cc05717765f7b9a3a3282738724a409d4d5d0f6528e",
   "temperature_field": "f73b33685d13ca2dc15c2f1220d9807546eb58390b115f6a33a740623d111dac",
-  "verification_report": "d2f18cfd84692c23dea27c381cea20578ed43d0fcf791b064315619f71aca3fd"
+  "verification_report": "b944adabbe06faeb10cdc8593b032a1a1f411a8b2bc33ad9ab8dce4f5695aa52"
  },
  "formal": {
   "reason": "no machine-checked proof of any statement here exists: the Lean toolchain was not permitted to execute where this was produced, an owner decision that is pending",
@@ -79,7 +79,7 @@
   "anchored_by": "nothing outside this package: compare the head with one obtained independently (--expect-head)",
   "events": 86,
   "head": {
-   "hash": "bb74f0252fd0dfe211167948831ae90c09ef6ba965c83728d9126f7f53f9826b",
+   "hash": "c0d528073727c4cd2664c2b889f95e7b29801dc196382be39b4bc59a8c79f01f",
    "seq": 85
   },
   "log": "history/log.jsonl"

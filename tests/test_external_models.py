@@ -99,3 +99,44 @@ def test_the_governed_fmu_tool_refuses_bytes_nobody_cited(tmp_path,
     assert GF._cited(WS, str(f), good, "FMU") == b"fmu bytes"
     with pytest.raises(SystemExit, match="not the FMU cited"):
         GF._cited(WS, str(f), "0" * 64, "FMU")
+
+
+def test_the_fmu_check_states_the_closed_form_as_its_agreement():
+    """AUD-025: what the FMU check states it agrees on is the closed form's
+    answer at each output, with the resolution, class and basis the closed
+    form states -- the check's side of its criterion. The bundle is the
+    closed form's own, carrying the FMU's identity and claim boundary: no
+    FMI runtime is needed to hold what the check says it compared."""
+    import dataclasses
+    from scientific.models.thermal_rc2 import ThermalRC2Model
+    ref = ThermalRC2Model().run({"t_end_s": 3600.0})
+    # the FMU's own answer: each output off the closed form's, with an
+    # error of its own, so the check's side can be told from the FMU's
+    outs = []
+    for o in ref.outputs:
+        q = o.quantity
+        outs.append(dataclasses.replace(o, quantity=Quantity(
+            q.value * (1 + 1e-9), q.unit, resolution=1e-3 * abs(q.value),
+            resolution_class=RC.DISCRETIZATION_ESTIMATE,
+            resolution_basis="the FMU's two-step estimate (test)")))
+    b = dataclasses.replace(
+        ref, outputs=tuple(outs), model_id=fmu_rc2.FMU_MODEL_ID,
+        model_version=fmu_rc2.FMU_MODEL_VERSION,
+        provenance={**ref.provenance, "fmi": {"claim_boundary": {
+            "authority": "NON_AUTHORITATIVE",
+            "scientific_model": fmu_rc2.REF_MODEL_ID}}})
+    r = fmu_rc2.run_check(b, verifier_id="test")
+    assert r.status is not None and r.agreement
+    got = dict(r.agreement)
+    assert set(got) == set(fmu_rc2.OUTPUTS)
+    for name in fmu_rc2.OUTPUTS:                 # the two sides differ
+        mine = b.output(name).quantity
+        assert (mine.value, mine.resolution) != (
+            ref.output(name).quantity.value,
+            ref.output(name).quantity.resolution)
+    for name in fmu_rc2.OUTPUTS:
+        q, rq = got[name], ref.output(name).quantity
+        assert (q.value, q.unit, q.resolution, q.resolution_class,
+                q.resolution_basis) == (rq.value, rq.unit, rq.resolution,
+                                        rq.resolution_class,
+                                        rq.resolution_basis), name

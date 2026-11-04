@@ -42,7 +42,8 @@ required boundaries is missing. A sentence nobody enforces is not listed here.
   `VerificationResult`, produced by a governed verification task.
 * **Authority** -- evidence judged sufficient for a declared purpose, by a
   reviewer who is none of the parties above: a record's state, admitted
-  under `scientific_result.admission/1` and re-decided on every replay.
+  under `scientific_result.admission/2` (a history admitted before it,
+  under `/1`) and re-decided on every replay.
 
 None of them implies the next (EB5, EB7).
 

@@ -174,7 +174,7 @@ def test_a_bundle_that_is_not_a_simulation_result_is_not_verified(world):
 
 
 @pytest.mark.parametrize("policy", [None, "", "scientific_result.admission/0",
-                                    "scientific_result.admission/2"])
+                                    "scientific_result.admission/3"])
 def test_a_policy_this_code_does_not_know_is_refused(pair, policy):
     """Old authority is not reinterpreted under a newer rule, and a name
     nothing here defines is not read as the current one."""
@@ -192,7 +192,7 @@ def test_the_current_policy_is_the_one_transitions_record(world):
     _, events = store.log.read_verified()
     last = [e for e in events if e.action == "record.transition"][-1]
     assert last.payload["admission_policy"] == result_rules.CURRENT_POLICY
-    assert result_rules.CURRENT_POLICY == "scientific_result.admission/1"
+    assert result_rules.CURRENT_POLICY == "scientific_result.admission/2"
     rec = store.get(rid)
     assert rec.admission == result_rules.ADMITTED
     assert rec.admission_basis == {"policy": result_rules.CURRENT_POLICY,
@@ -328,6 +328,176 @@ def test_replay_refuses_a_planted_admission_of_such_a_bundle(world, token):
     store.log.append(actor=template.actor, action="record.transition",
                      target="bad",
                      payload={**template.payload, "record_id": "bad"})
+    with pytest.raises(StoreError, match="not admissible"):
+        AuthorityStore(EventLog(store.log.path), evidence=ev,
+                       origins=_EveryArtefactGoverned()).load()
+
+
+# ---- admission/2: the check's side of the agreement (AUD-025) -------------
+
+def _without_agreement(report: dict) -> dict:
+    return {k: v for k, v in report.items() if k != "agreement"}
+
+
+def test_the_package_states_the_agreement_the_rule_asks_for(pair):
+    """Held to what the scientific package writes: the check names each
+    output it compared, with its own value and error, in the output's
+    unit, and the current rule accepts exactly that."""
+    bundle, report = pair
+    outs = {o["name"]: o["quantity"] for o in bundle["outputs"]
+            if o["status"] == "OK"}
+    assert report["agreement"]
+    for name, q in report["agreement"]:
+        assert q["unit"] == outs[name]["unit"]
+        assert q["resolution"] > 0
+    assert result_rules.agreement_problems(bundle, report) == []
+
+
+def test_a_pass_under_admission_2_must_state_its_agreement(world):
+    store, ev, bundle, report = world
+    for doc, why in ((_without_agreement(report),
+                      "not a VerificationResult record under "
+                      "scientific_result.admission/2"),
+                     ({**report, "agreement": []}, "states no agreement")):
+        rid = _under_review(store, ev, bundle, rid=f"r-{len(why)}")
+        with pytest.raises(TransitionError, match=why):
+            _verify(store, rid, _put(ev, doc))
+        assert store.get(rid).state is State.UNDER_REVIEW
+
+
+def _agreement_edit(kind: str):
+    def edit(report: dict, bundle: dict) -> dict:
+        agree = [list(e) for e in report["agreement"]]
+        name, q = agree[0]
+        if kind == "not a pair":
+            agree[0] = [name]
+        elif kind == "twice":
+            agree.append([name, dict(q)])
+        elif kind == "no such output":
+            agree[0] = ["T_nowhere", q]
+        elif kind == "infinite error":
+            agree[0] = [name, {**q, "resolution": float("inf")}]
+        elif kind == "negative error":
+            agree[0] = [name, {**q, "resolution": -1.0}]
+        elif kind == "no value":
+            agree[0] = [name, {**q, "value": None}]
+        elif kind == "a boolean":
+            agree[0] = [name, {**q, "value": True}]
+        elif kind == "another unit":
+            agree[0] = [name, {**q, "unit": "degC"}]
+        elif kind == "an integer no float holds":
+            agree[0] = [name, {**q, "value": 10 ** 400}]
+        elif kind == "an error no float holds":
+            agree[0] = [name, {**q, "resolution": 10 ** 400}]
+        else:                                            # pragma: no cover
+            raise AssertionError(kind)
+        return {**report, "agreement": agree}
+    return edit
+
+
+#: (edit, what the rule says, what the store's edge says). An infinite
+#: error never reaches the rule through the store: JSON has no Infinity, and
+#: the reader refuses the bytes first. An integer of 400 digits does reach
+#: it: valid JSON, it parses to an int that no float holds.
+AGREEMENT_CASES = [
+    ("not a pair", "not [output, quantity]", None),
+    ("twice", "twice", None),
+    ("no such output", "no OK output of the bundle", None),
+    ("infinite error", "no finite value and error",
+     "cannot be read as JSON"),
+    ("negative error", "no finite value and error", None),
+    ("no value", "no finite value and error", None),
+    ("a boolean", "no finite value and error", None),
+    ("another unit", "is in 'degC'", None),
+    ("an integer no float holds", "no finite value and error", None),
+    ("an error no float holds", "no finite value and error", None),
+]
+
+
+@pytest.mark.parametrize("kind,says,edge_says", AGREEMENT_CASES,
+                         ids=[c[0] for c in AGREEMENT_CASES])
+def test_an_agreement_the_rule_cannot_use_is_refused(world, kind, says,
+                                                     edge_says):
+    """Every way an agreement could mislead a reader bounding the producer's
+    value -- a name read twice, an output that was never OK, a number that
+    is no number, a unit the comparison would silently mix -- refuses the
+    edge, and the record stays where it was."""
+    import re
+    store, ev, bundle, report = world
+    doc = _agreement_edit(kind)(report, bundle)
+    problems = result_rules.agreement_problems(bundle, doc)
+    assert any(says in p for p in problems), problems
+    rid = _under_review(store, ev, bundle)
+    with pytest.raises(TransitionError, match=re.escape(edge_says or says)):
+        _verify(store, rid, _put(ev, doc))
+    assert store.get(rid).state is State.UNDER_REVIEW
+
+
+@pytest.mark.parametrize("keep_number", [False, True])
+def test_an_agreement_on_an_output_that_failed_is_refused(pair, keep_number):
+    """An output the producer did not compute has no value to bound; an
+    agreement naming it is no agreement -- whether the output carries no
+    quantity, as a failed output is written, or still carries its number,
+    as a forger could write one, so that only its status says so."""
+    bundle, report = (json.loads(json.dumps(d)) for d in pair)
+    name = report["agreement"][0][0]
+    out = next(o for o in bundle["outputs"] if o["name"] == name)
+    out.update(status="FAILED", reason="test")
+    if not keep_number:
+        out["quantity"] = None
+    assert any(f"{name!r}, which is no OK output" in p
+               for p in result_rules.agreement_problems(bundle, report))
+
+
+def test_admission_1_decides_as_it_did_and_neither_rule_reads_the_other(
+        pair):
+    """A report written before the agreement is decided under the policy
+    its admission names, as it was; the newer shape is not read under the
+    older rule, nor the older under the newer."""
+    bundle, report = pair
+    old = _without_agreement(report)
+    assert result_rules.verification_problems(
+        bundle, old, result_rules.POLICY_V1) == []
+    assert any("under scientific_result.admission/1" in p
+               for p in result_rules.verification_problems(
+                   bundle, report, result_rules.POLICY_V1))
+    assert any("under scientific_result.admission/2" in p
+               for p in result_rules.verification_problems(
+                   bundle, old, result_rules.POLICY_V2))
+
+
+def test_a_history_admitted_under_admission_1_replays_admitted(world):
+    """Migration, not reinterpretation: a VERIFIED transition stamped
+    admission/1, citing a report written before the agreement, is admitted
+    on replay under admission/1 -- and the same stamp on a report of the
+    newer shape is not."""
+    from agent_substrate.store import StoreError
+    store, ev, bundle, report = world
+    good = _under_review(store, ev, bundle, rid="good")
+    _verify(store, good, _put(ev, report))
+    _, events = store.log.read_verified()
+    template = [e for e in events if e.action == "record.transition"
+                and e.payload.get("dst") == "VERIFIED"][-1]
+    assert template.payload["admission_policy"] == result_rules.POLICY_V2
+    old = _under_review(store, ev, bundle, rid="old")
+    store.log.append(actor=template.actor, action="record.transition",
+                     target=old, payload={
+                         **template.payload, "record_id": old,
+                         "admission_policy": result_rules.POLICY_V1,
+                         "evidence": {"verification_report": _put(
+                             ev, _without_agreement(report))}})
+    replayed = AuthorityStore(EventLog(store.log.path), evidence=ev,
+                              origins=_EveryArtefactGoverned()).load()
+    assert replayed.get(old).admission == result_rules.ADMITTED
+    assert replayed.get(old).admission_basis["policy"] == \
+        result_rules.POLICY_V1
+    assert replayed.get(good).admission_basis["policy"] == \
+        result_rules.POLICY_V2
+    newer = _under_review(replayed, ev, bundle, rid="newer")
+    replayed.log.append(actor=template.actor, action="record.transition",
+                        target=newer, payload={
+                            **template.payload, "record_id": newer,
+                            "admission_policy": result_rules.POLICY_V1})
     with pytest.raises(StoreError, match="not admissible"):
         AuthorityStore(EventLog(store.log.path), evidence=ev,
                        origins=_EveryArtefactGoverned()).load()

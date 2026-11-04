@@ -137,6 +137,97 @@
    "find": "        scale = r[\"scale_J\"] if finite and math.isfinite(r[\"scale_J\"]) \\\n            else 1.0",
    "replace": "        scale = max(abs(r[\"E_in\"]), abs(r[\"E_out\"]), abs(r[\"E_stored\"]),\n                    1e-300) if finite else 1.0",
    "rationale": "AUD-024: the energy balance held to the energies' size, which a correct short window cannot meet"
+  },
+  {
+   "name": "OV1_the_observation_keeps_the_producer_s_resolution",
+   "path": "agent_substrate/research.py",
+   "find": "            out[name] = {**v, \"resolution\": max(\n                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n",
+   "replace": "            out[name] = v\n",
+   "rationale": "AUD-025 itself: the observation claims the producer's precision, which the check bounds only to the sum of both errors"
+  },
+  {
+   "name": "OV2_the_agreement_may_narrow_the_producer",
+   "path": "agent_substrate/research.py",
+   "find": "            out[name] = {**v, \"resolution\": max(\n                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n",
+   "replace": "            out[name] = {**v, \"resolution\": abs(v[\"value\"] - vc) + rc}\n",
+   "rationale": "AUD-025: where the producer states the wider error, the observation claims more than the producer did"
+  },
+  {
+   "name": "OV3_the_distance_to_the_check_is_dropped",
+   "path": "agent_substrate/research.py",
+   "find": "                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n",
+   "replace": "                v[\"resolution\"], rc)}\n",
+   "rationale": "AUD-025: a producer off the check's value by more than either error is observed as if it agreed exactly"
+  },
+  {
+   "name": "OV4_the_check_s_own_error_is_dropped",
+   "path": "agent_substrate/research.py",
+   "find": "                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n",
+   "replace": "                v[\"resolution\"], abs(v[\"value\"] - vc))}\n",
+   "rationale": "AUD-025: the check's value is taken as exact, which no check states"
+  },
+  {
+   "name": "OV5_outputs_nobody_compared_are_observed",
+   "path": "agent_substrate/research.py",
+   "find": "                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n    return out\n",
+   "replace": "                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n    return {**vals, **out}\n",
+   "rationale": "AUD-025: an output the check did not compare is observed at the producer's word"
+  },
+  {
+   "name": "OV6_a_report_before_the_agreement_observes_nothing",
+   "path": "agent_substrate/research.py",
+   "find": "    if not isinstance(agree, list):\n        return vals\n",
+   "replace": "    if not isinstance(agree, list):\n        return {}\n",
+   "rationale": "AUD-025 migration: a history decided under admission/1 replays with no observations, every old verdict lost"
+  },
+  {
+   "name": "OV7_an_unreadable_check_value_is_read",
+   "path": "agent_substrate/research.py",
+   "find": "            if _finite(vc) and _finite(rc) and rc >= 0:\n",
+   "replace": "            if True:\n",
+   "rationale": "AUD-025: a NaN or infinite check value or error widens by NaN -- an interval every comparison reads as holding nothing"
+  },
+  {
+   "name": "OV8_a_negative_check_error_is_read",
+   "path": "agent_substrate/research.py",
+   "find": "            if _finite(vc) and _finite(rc) and rc >= 0:\n",
+   "replace": "            if _finite(vc) and _finite(rc):\n",
+   "rationale": "AUD-025: a negative check error narrows the bound"
+  },
+  {
+   "name": "OV9_a_boolean_is_a_check_value",
+   "path": "agent_substrate/research.py",
+   "find": "def _finite(v: object) -> TypeGuard[float]:\n",
+   "replace": "def _finite(v: object) -> TypeGuard[float]:\n    return isinstance(v, (int, float)) and math.isfinite(v)\n",
+   "rationale": "AUD-025: True read as a check value of 1.0"
+  },
+  {
+   "name": "OV10_an_entry_of_any_shape_is_read",
+   "path": "agent_substrate/research.py",
+   "find": "        if (isinstance(entry, list) and len(entry) == 2\n                and isinstance(entry[0], str)\n                and isinstance(entry[1], dict)):\n",
+   "replace": "        if isinstance(entry, list) and len(entry) == 2:\n",
+   "rationale": "AUD-025: an entry whose quantity is no object is read, and the ledger fails on it"
+  },
+  {
+   "name": "RK10_the_agreement_drops_the_factor_of_safety",
+   "path": "scientific/checks/rc2_rk4.py",
+   "find": "            o, tf, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),\n",
+   "replace": "            o, tf, r_check + 64 * _EPS * abs(tf),\n",
+   "rationale": "AUD-025: the check credits itself less error in its agreement than its criterion does"
+  },
+  {
+   "name": "RK11_the_agreement_states_the_producer_s_value",
+   "path": "scientific/checks/rc2_rk4.py",
+   "find": "            o, tf, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),\n",
+   "replace": "            o, q.value, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),\n",
+   "rationale": "AUD-025: the check states the producer's value as its own, so every observation keeps the producer's resolution"
+  },
+  {
+   "name": "OV11_an_integer_no_float_holds_raises",
+   "path": "agent_substrate/research.py",
+   "find": "        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
+   "replace": "        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
+   "rationale": "AUD-025: a 400-digit integer in a report's agreement raises OverflowError out of the ledger's observation instead of observing nothing for that output"
   }
  ]
 }

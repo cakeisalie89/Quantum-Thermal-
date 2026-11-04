@@ -284,8 +284,8 @@ def test_a_second_model_through_the_governed_path_is_verified(world2):
 
 
 def test_a_passing_analytic_reference_is_not_admission(world2):
-    """Admission policy scientific_result.admission/1 admits an
-    INDEPENDENT_IMPLEMENTATION check. The slab's exact-series check is an
+    """Admission policy scientific_result.admission/2, as /1 before it,
+    admits an INDEPENDENT_IMPLEMENTATION check. The slab's exact-series check is an
     ANALYTIC_REFERENCE: it passes, and the result is still REJECTED -- a
     PASS of a kind the policy does not name is not support, and nothing
     here widens the policy to make a test pass."""

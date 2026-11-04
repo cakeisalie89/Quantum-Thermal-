@@ -159,6 +159,24 @@ def test_the_mol_check_agrees_with_the_exact_series():
         assert abs(f - e) <= MOL.GCI_SAFETY * abs(c - f) / 3.0
 
 
+def test_the_mol_check_states_its_own_answer_as_its_agreement(slab_bundle):
+    """AUD-025: what the MOL check states it agrees on is its fine solution
+    at each sample, with the error its criterion credits it -- three times
+    |coarse - fine| / 3, plus rounding -- which the test above holds
+    against the exact series."""
+    r = MOL.run_check(slab_bundle, verifier_id="test")
+    coarse = MOL.mol_temperature(SLAB, MOL.NODES)
+    fine = MOL.mol_temperature(SLAB, 2 * MOL.NODES)
+    got = dict(r.agreement)
+    assert set(got) == set(MOL.SAMPLE_NAMES)
+    eps = sys.float_info.epsilon
+    for name, c, f in zip(MOL.SAMPLE_NAMES, coarse, fine):
+        q = got[name]
+        assert q.value == f and q.unit == "K"
+        assert q.resolution == MOL.GCI_SAFETY * (abs(c - f) / 3.0) \
+            + 64 * eps * abs(f)
+
+
 def _with_samples(bundle, values, resolution):
     """The bundle with its five sample outputs replaced: a producer whose
     answer is exactly ``values``, stating ``resolution`` as its error."""
@@ -232,6 +250,19 @@ def test_the_series_check_passes_the_correct_solver(slab_bundle):
 def test_the_series_check_rejects_a_wrong_solver(fk, fh):
     bad = _wrong(SLAB, fk, fh)
     assert SS.run_check(bad, verifier_id="test").status is Status.FAIL
+
+
+def test_the_series_check_states_the_series_as_its_agreement(slab_bundle):
+    """AUD-025: the series check's agreement is the series at each sample,
+    stated to the rounding its criterion credits it with."""
+    r = SS.run_check(slab_bundle, verifier_id="test")
+    xs = [f * SLAB["L_m"] for f in SS.SAMPLE_FRACTIONS]
+    ref = SS.series_temperature(SLAB, xs)
+    got = dict(r.agreement)
+    assert set(got) == set(SS.SAMPLE_NAMES)
+    for name, v in zip(SS.SAMPLE_NAMES, ref):
+        assert (got[name].value, got[name].unit) == (v, "K")
+        assert got[name].resolution == 64 * sys.float_info.epsilon * abs(v)
 
 
 def test_the_series_check_refuses_another_model():
@@ -323,6 +354,28 @@ def test_an_answer_that_agrees_reaches_a_verdict(slab_bundle, monkeypatch):
                                        "lateral_max_abs_K": 0.0})
     bad = FX.run_check(slab_bundle, verifier_id="test", exe=sys.executable)
     assert bad.status is Status.FAIL
+
+
+def test_the_fenicsx_check_states_the_answer_it_compared(slab_bundle,
+                                                         monkeypatch):
+    """AUD-025: through the stand-in, the agreement is the fine solve's
+    answer at each sample, with three times the Richardson estimate
+    |T_h - T_2h| / 3 plus rounding -- the check's side of its criterion.
+    The stand-in answers the coarse solve (half the cells) 3e-5 K warmer
+    at each successive point."""
+    vals = _producer_values(slab_bundle)
+    fine = [v + 1e-4 for v in vals]
+    coarse = [t + 3e-5 * (i + 1) for i, t in enumerate(fine)]
+    _answering(monkeypatch, lambda r: {
+        "T": fine if r["nx"] == FX.NX else coarse,
+        "lateral_max_abs_K": 0.0})
+    r = FX.run_check(slab_bundle, verifier_id="test", exe=sys.executable)
+    got = dict(r.agreement)
+    assert set(got) == set(FX.SAMPLE_NAMES)
+    for name, t, c in zip(FX.SAMPLE_NAMES, fine, coarse):
+        assert (got[name].value, got[name].unit) == (t, "K")
+        assert got[name].resolution == FX.GCI_SAFETY * (abs(t - c) / 3.0) \
+            + 64 * sys.float_info.epsilon * abs(t)
 
 
 def test_an_answer_with_no_samples_is_refused_not_passed(slab_bundle,

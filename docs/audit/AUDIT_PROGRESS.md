@@ -2534,3 +2534,275 @@ full-suite job grew from 34 to 39 minutes.
 The container job's budget is now 90 minutes. R64 cites the workflow, so
 it predates its evidence until the evidence commit after hosted CI, and
 the pinned count goes from 12 to 11.
+
+### AUD-025: an observation claims no more than its check verified
+
+**The defect, again.** A PASS establishes that producer and check agree
+within the sum of both stated errors. The ledger observed each output with
+the producer's stated error alone. A producer that understated its error
+inside the check's own was observed more precisely than anything had
+verified, and the ledger decided verdicts there. At the RC network's
+documented point, a producer 5e-10 K off stating 1e-13 K passed the RK4
+check, and "T1 < exact + 2.5e-10 K" was decided REFUTED. The world answers
+SUPPORTED.
+
+**The correction, in four places.**
+
+1. *What a check says.* `VerificationResult.agreement`: for each output
+   the check compared, its own value and the error its criterion credits
+   it with. A check that compared nothing (NOT_RUN, INCONCLUSIVE) states
+   none, each output is named once, and every value carries a stated
+   error. A record written before this has no agreement and reads as
+   stating none. All six checks state it: three times their Richardson
+   estimate plus rounding (method of lines, RC RK4, FEniCSx), the
+   series and the pressure-form flux to rounding, the closed form's own
+   resolution (FMU), and RK4's 1e-10 relative error in the Langmuir
+   capture.
+2. *What admission asks.* `scientific_result.admission/2` asks everything
+   /1 does and the agreement: a list, each entry `[output, quantity]`,
+   each output once and an OK output of the bundle, a finite value and a
+   finite, non-negative error, in the output's unit. The store stamps /2
+   on every new admission. Replay decides each admission under the policy
+   it names, so a history admitted under /1 is decided under /1 and never
+   reread. The second reader restates the rule in its own code.
+3. *What the ledger observes.* For each output the check compared, the
+   producer's value with resolution max(r_producer, |v_producer - v_check|
+   + r_check), and no output the check did not compare. This holds at
+   observation and again on replay, where a planted observation at the
+   producer's precision is refused. Reuse re-derives a decision under the
+   policy that admitted it.
+4. *What the package verifier holds.* The agreement is read strictly. The
+   decision's policy must match the report's shape (/2 states an
+   agreement, /1 does not). The observation must carry the widened
+   resolution. The check's own values are rechecked against the
+   verifier's exact solution. A package decided under /1 still verifies.
+
+**Measured, at the package's point.** The producer gives T_at_half =
+331.01829807 +/- 1.116e-4 K. The method-of-lines check gives
+331.01841270 +/- 9.13e-6 K, 3.0e-6 K from the exact solution and inside
+its error. Producer and check differ by 1.146e-4 K, more than the
+producer's own error, so the observation is now +/- 1.238e-4 K. The
+producer's actual error is 1.116e-4 K. The verdict (T_at_half < 1000 K,
+margin 669 K) is unchanged.
+
+**What a check's error rests on.** The widened bound is only as good as
+r_check.
+
+- *Method of lines:* held against the exact series.
+- *RC RK4:* held against a 90-digit evaluation.
+- *Langmuir:* its 1e-10 was an estimate in the docstring, so it was
+  measured. Over 4000 draws of the admitted domain the worst error, at
+  k t near 2, is 2.49e-11 relative: a quarter of what it states. A test
+  holds 2000 draws to between a tenth and a half of the stated error.
+- *Not held:* the series check's 64 eps |T| is held only by two
+  implementations agreeing to 1e-9. It is an ANALYTIC_REFERENCE, which
+  no policy admits. The FMU and FEniCSx checks do not run on this host.
+
+**Two consumers the change reached, found by reading them.**
+
+- *The claim checker.* Its citation check compared an observation's
+  values with the bundle's exactly. Once an observation carries the
+  widened resolution, every citation of a result admitted under /2 would
+  have read BROKEN. The claim benchmark could not show this: its
+  placeholder reports state no agreement, so its observations keep the
+  producer's values. The check now asks whether the bytes say what the
+  observation records: each output is an OK output of the bundle, with
+  its value and unit, and a resolution no smaller than the bundle's own.
+- *The package tool's temperature control.* It moved T_at_half everywhere
+  it is stated, but not the resolution that move changes, so the verifier
+  would have refused it at DECISION instead of the RECHECK the control
+  expects. No test runs those controls, only CI's `--check`. The control
+  now recomputes the resolution by the rule.
+
+The second reader never re-derives an observation's values from its
+bundle, before or after this change. A planted observation is refused by
+the ledger's replay, not by the second reader. This is recorded as a
+limit, not changed here.
+
+**What changed beyond the defect.** These tests stated the old policy and
+now state the new facts, each still holding what it held:
+
+- the current policy is /2, and /3 is the unknown name;
+- the package writes the /2 report shape, and the /1 shape is still read;
+- both readers decide under /1 and /2.
+
+The replay tests' forged-transition helper wrote the /1 literal while its
+docstring said "shaped exactly as the store writes one". With the
+literal, the forged-promotion and auditor tests were refused by the
+fields rule before the origin rule they test, so they passed for the
+wrong reason. The helper now writes the current policy. The integration
+demonstration's forged line is stamped with it too.
+
+**Recorded artifacts, each by its own tool.**
+
+- *The assurance package* was rebuilt, and `--check` reports no problem.
+  Before it was replaced, the package decided under /1 still verified
+  under the new verifier.
+- *The integration demonstration* was regenerated. Every step holds and
+  every variant is refused, as before. The record now shows /2, the
+  widened observation, and the scripted agent's prompt 103 tokens
+  shorter, because the observation names only what the check compared.
+  One variant's refusal reason changed: two controllers race on one
+  objective in two processes. Run four times on this tree, the loser was
+  refused with AttemptOutstanding three times and with KeyHeld once, and
+  each run concluded the objective and accepted nothing. That is the
+  race's timing, not a change of rule. The record keeps the run it holds.
+- *The adversarial evaluation* regenerates byte-identical.
+- *The grounding experiment, the slab's UQ and the claim benchmark* each
+  pass `--check` as recorded. Their reports are placeholders that state
+  no agreement, so their observations keep the producer's values.
+- *The multi-agent run* regenerates with only its three timings changed,
+  so the recorded measurement is kept.
+- *The research-horizon record* (10,000 decisions) was not re-run. A
+  50-decision stage on this tree gives the same counters, duplicates,
+  objective states, recovery and second-reader anomalies as its first
+  stage.
+
+**Hosted evidence.** R43 cites `governed_model.py`, so it predates its
+implementation until the evidence commit after hosted CI. The pinned count
+of rows whose evidence covers them goes from 11 to 10. I left the
+Snakefile's comment as it was; it is still true. Changing it would have
+taken R69's evidence for nothing.
+
+**Mutations.** Each spec below was run in a worktree holding this change.
+Four anchors moved with the code, and each was repaired to the same
+intent: RR17 (the report's shape), GR9 (reuse re-derives the decision),
+SA7 (the store takes no unknown policy) and RX2 (the second reader reads
+content). Every anchor in every spec matched exactly once afterwards,
+2778 before the new ones.
+
+| Spec | Added | Killed |
+|---|---|---|
+| authority_result_rules | RR20 to RR34 | 34 of 34 |
+| scientific_interfaces | VR1 to VR9 | 34 of 34 |
+| scientific_authority_replay | RX10 to RX22 | 38 of 38 |
+| governed_model_reuse | GR23 | 21 of 21 |
+| research_science | OB1 to OB4 | 15 of 15 |
+| rc_counterfactuals | OV1 to OV10, RK10, RK11 | 31 of 31 |
+| verify_assurance | VA_AG1 to VA_AG17 | 139 of 139 |
+| scientific_slab_mol | MOL8, MOL9 | 8 of 8 |
+| harness_integrations | HI_AG1 to HI_AG4 | 36 of 36 |
+| external_models | EM_AG1, EM_AG2 | 7 of 7 |
+| surface_adsorption | SA_AG1 to SA_AG5 | 30 of 30 |
+| claim_check | CC19 to CC24 | 24 of 24 |
+
+Three first runs left survivors, and each named a test that did not tell:
+
+- *RX8 and RX16* (scientific_authority_replay). Under an unknown policy
+  the second reader's fallback field set refused a /2-shaped report
+  anyway, for the wrong reason. And an agreement on a failed output was
+  refused by the missing quantity before the status clause mattered. The
+  tests added are both readers under an unknown name with an older-shape
+  report, and a failed output that still carries its number.
+- *EM_AG1 and EM_AG2* (external_models). The FMU-shaped bundle was the
+  closed form's own, so its values were the reference's and swapping them
+  changed nothing. The FMU's answer now differs from the reference's.
+
+GR23 was first run under the name GR21. The replay spec already holds a
+GR21 and a GR22 on the same file, so it was renamed after the run; its
+find and replace are unchanged.
+
+**The anchors the type check moved.** After those runs, the type check
+found three errors in the new code. They were fixed by typing the
+finiteness tests as `TypeGuard`s, reading the agreement's value and error
+into locals, and annotating the content rule's rows. That moved the lines
+OV9 and RX17 to RX19 find, so the four were repaired to the same intent.
+
+**Two faults in this change, found after its mutation runs.**
+
+- *The second reader imported `math`.* Its number test used
+  `math.isfinite`. The reader's import allow-list holds the log, the
+  action names and five standard modules, and `math` is not one of them.
+  The full suite found it
+  (`test_the_second_reader_imports_only_the_log_and_the_action_names`).
+  The test of a number is now restated without that module.
+- *A number no float holds raised.* A 400-digit integer is valid JSON,
+  and it parses to a Python int that `math.isfinite` cannot convert. Each
+  of the five readers of an agreement raised `OverflowError` on one,
+  where each must refuse it: the store's admission rule, the ledger's
+  observation, the second reader, the package verifier and the claim
+  checker. This was found by reading the number tests after the first
+  fault, and reproduced against each reader. Each now refuses such a
+  number: the store at the edge, the ledger by observing nothing for
+  that output, the second reader by not admitting, the verifier at
+  CONSISTENCY, and the claim checker by reading the citation BROKEN.
+
+The older number tests that read a JSON number have the same fault.
+`research.check_prediction` was reproduced the same way. They are not
+AUD-025's, and are taken next as a finding of their own.
+
+On the code before the fix, in a worktree holding only the new tests,
+the import test fails, and so do the new integer cases of the store's
+rule, of the two readers' shared table and of the claim checker. The
+infinite value passes there, as it should: it is there for RX24, the
+second reader's restated range test. The ledger's and the verifier's new
+cases were not run there. OV11 and VA_AG18, which put the raise back,
+are what show those two tell.
+
+The new mutations are killed: one for each reader's overflow handling
+(RR35, OV11, RX23, VA_AG18 and CC25), and RX24 for the second reader's
+restated range test. RR27, OV9, RX21, VA_AG10, CC20 and CC24, whose
+lines the fix moved, were repaired to the same intent and are killed.
+
+**The final tree.** Twenty specs ran again in four worktrees, each
+holding exactly this tree:
+
+- the seven whose code or tests changed after they last ran: the
+  overflow fix, the type check and the planner's test;
+- thirteen others that mutate or test what AUD-025 changed most.
+
+| Spec | Killed |
+|---|---|
+| verify_assurance | 140 of 140 |
+| authority_result_rules | 35 of 35 |
+| scientific_authority_replay | 40 of 40 |
+| rc_counterfactuals | 32 of 32 |
+| claim_check | 25 of 25 |
+| research_science | 15 of 15 |
+| mutation_shards | 12 of 12 |
+| agent_second_reader | 112 of 112 |
+| research | 45 of 45 |
+| freshness | 40 of 40 |
+| separate_governed | 18 of 18 |
+| scientific_invalidation | 17 of 17 |
+| simulation | 15 of 15 |
+| decision_proof | 14 of 14 |
+| replay_origin_view | 11 of 11 |
+| adversarial_eval | 10 of 10 |
+| ed25519_encodings | 8 of 8 |
+| composed_campaigns | 7 of 7 |
+| counterfactual_eval | 6 of 6 |
+| governed_model | 6 of 6 |
+
+Every source was restored byte-identical. The other specs whose files
+this change touches mutate code it leaves as it was. Every anchor in the
+140 specs matches exactly once: 2,874 mutations, 96 of them new here.
+
+**The shard plan (D-2026-191).** AUD-025's new mutations changed what
+`tools/mutation_shards.py --emit` generates, so the workflow's matrix
+was regenerated. The hosted run at a5cf136 had put every shard at 62
+minutes, and they took between 61 and 119. Four specs placed by mutation
+count took 13 to 56 minutes each. The planner's weights are now the
+seconds each of the 140 specs took in that run, so the plan puts every
+shard at 80 minutes. No spec on disk is unmeasured now, so the test that
+an unmeasured spec is weighed makes that case itself. The planner's
+mutation spec: 12 of 12 killed.
+
+**Records.** Four reviews the ledger showed STALE at a5cf136 are bound
+again to the blobs they describe:
+
+- `agent_substrate/audit.py` and `container-verify.yml` were recorded
+  against the blob before the change their method already describes;
+- `tests/test_agent_substrate_isolation.py` and
+  `tools/adversarial_eval.py` describe reviews older than later changes,
+  which were read here as diffs.
+
+The FEniCSx check's note, overwritten when its record went stale, is
+restored.
+
+**The full suite.** A first run, before the overflow and shard fixes,
+gave 7,130 passed, 19 skipped and 4 failed: the second reader's import
+test, and the three that hold the workflow's shard matrix to the plan
+(two in `test_mutation_shards.py`, one in `test_repo_contract.py`). On
+tree d3c1806, which is this commit but for this paragraph and the
+files derived from it: 7,143 passed, 19 skipped, none failed.

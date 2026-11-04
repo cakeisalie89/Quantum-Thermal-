@@ -429,6 +429,66 @@ def _copy(name) -> GovernedModelRuns:
                              evidence=EvidenceStore(base / "evidence"))
 
 
+class _OriginTaken:
+    """A view of governed execution under which every cited artefact came
+    from separated governed tasks: origin satisfied by construction, so
+    what is held is the content rule reuse re-derives. The governed path's
+    origin rule is held in ``tests/test_scientific_authority_replay.py``."""
+
+    def __init__(self, _gov):
+        pass
+
+    def problems(self, **_):
+        return []
+
+    def shared(self):
+        import contextlib
+        return contextlib.nullcontext()
+
+
+def test_a_result_admitted_under_admission_1_is_reused_under_it(
+        world, monkeypatch):
+    """AUD-025's migration, at reuse. A record admitted under admission/1,
+    citing a report written before the agreement, is judged again under
+    admission/1 when reuse re-derives its decision: not refused for lacking
+    what admission/2 asks. The same report decided under the current rule
+    is not admissible (control: the rule reuse applies is the record's)."""
+    from agent_substrate import governed_model as GM
+    from agent_substrate import result_rules
+    monkeypatch.setattr(GM, "GovernedOrigins", _OriginTaken)
+    g, first, chk, _, _ = world
+    base = ROOT / WS / "copy-admission-1"
+    g2 = _copy("copy-admission-1")
+    rid = f"{first.record_id}-admission-1"
+    rec0 = g2.authority.get(first.record_id)
+    g2.authority.create(record_id=rid, kind="scientific_result",
+                        proposer=SUBMITTER_ID, evidence={
+                            "result_bundle": first.bundle_sha256,
+                            "run_identity": rec0.evidence["run_identity"]})
+    g2.authority.transition(record_id=rid, dst=State.UNDER_REVIEW,
+                            actor=REVIEWER_ID, role=Role.VERIFIER)
+    report = _doc(g2.evidence, chk.report_sha256)
+    old = _put(g2.evidence, {k: v for k, v in report.items()
+                             if k != "agreement"})
+    assert result_rules.record_problems(
+        {"result_bundle": first.bundle_sha256, "verification_report": old},
+        g2.evidence.get)                            # not admissible now
+    _, events = g2.authority.log.read_verified()
+    template = [e for e in events if e.action == "record.transition"
+                and e.payload.get("dst") == "VERIFIED"][-1]
+    EventLog(base / "log.jsonl").append(
+        actor=REVIEWER_ID, action="record.transition", target=rid,
+        payload={**template.payload, "record_id": rid,
+                 "admission_policy": result_rules.POLICY_V1,
+                 "evidence": {"verification_report": old}})
+    g3 = GovernedModelRuns(root=ROOT, log=EventLog(base / "log.jsonl"),
+                           evidence=EvidenceStore(base / "evidence"))
+    rec = g3.authority.get(rid)
+    assert rec.admission == "ADMITTED"
+    assert rec.admission_basis["policy"] == result_rules.POLICY_V1
+    assert rid in g3.reusable(_ident(world))
+
+
 def test_a_result_whose_artefact_bytes_changed_is_not_reused(world):
     """Present is not intact: the artefact's file is still where it was,
     with other bytes in it. Every read re-hashes."""

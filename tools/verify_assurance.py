@@ -150,6 +150,13 @@ NOT_CARRIED = ("FORMALLY_PROVED", "INDEPENDENTLY_REPRODUCED",
                "EXPERIMENTALLY_VALIDATED", "MODEL_ASSESSED")
 #: decisions a record may report as the result's standing state
 STANDING = ("VERIFIED", "PROMOTED")
+#: the admission policies a scientific result's verification is decided
+#: under. The second asks the check to state its agreement -- its own value
+#: and error for each output it compared -- and an observation of the result
+#: then claims no more precision than that agreement supports (AUD-025).
+#: Restated, not imported: this file runs alone.
+ADMISSION_V1 = "scientific_result.admission/1"
+ADMISSION_V2 = "scientific_result.admission/2"
 _EVENT_FIELDS = ("seq", "event_id", "wall_time", "actor", "action", "target",
                  "payload", "prev_hash", "canonical_form_version")
 
@@ -968,6 +975,74 @@ def _q(o: dict) -> dict:
     return o.get("quantity") or {}
 
 
+def _number(v) -> bool:
+    """A number a float holds, and holds finitely: a JSON integer too
+    large for a float parses to an int ``math.isfinite`` cannot convert,
+    and is refused here rather than raised."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
+
+
+def _agreement(ver: dict, bundle: dict) -> tuple:
+    """The check's own value and error for each output it compared, as its
+    report states them: ``({name: (value, error)}, problems)``.
+
+    A report that states no agreement (one decided under admission/1) gives
+    ``{}`` and no problem; whether its admission asked for one is the
+    decision level's question. A stated agreement is read strictly: a list
+    of ``[name, quantity]`` pairs, each name once, each an OK output of the
+    bundle, each value and error a finite number (the error not negative)
+    in that output's unit -- and T_at_half among them, since the verdict is
+    about it. Anything else is a problem, never a smaller claim."""
+    if "agreement" not in ver:
+        return {}, []
+    agree = ver["agreement"]
+    if not isinstance(agree, list):
+        return {}, [f"the agreement is {agree!r}"]
+    outs = {o.get("name"): _q(o) for o in bundle.get("outputs") or ()
+            if isinstance(o, dict) and o.get("status") == "OK"}
+    found: dict = {}
+    problems = []
+    for entry in agree:
+        if not (isinstance(entry, list) and len(entry) == 2
+                and isinstance(entry[0], str)
+                and isinstance(entry[1], dict)):
+            problems.append(f"an entry {entry!r} is not [name, quantity]")
+            continue
+        name, q = entry
+        v, r = q.get("value"), q.get("resolution")
+        if name in found:
+            problems.append(f"{name} is stated twice")
+        elif name not in outs:
+            problems.append(f"{name} is not an OK output of the bundle")
+        elif not (_number(v) and _number(r) and r >= 0):
+            problems.append(f"{name}: value {v!r}, error {r!r}")
+        elif q.get("unit") != outs[name].get("unit"):
+            problems.append(f"{name} is in {q.get('unit')!r}, the output "
+                            f"in {outs[name].get('unit')!r}")
+        else:
+            found[name] = (v, r)
+    if "T_at_half" not in found and not problems:
+        problems.append("T_at_half is not among the outputs compared")
+    return found, problems
+
+
+def _observed(th: dict, agreed) -> dict:
+    """What an observation of the bundle's T_at_half may say: its value and
+    unit, and the producer's resolution widened to what the check's
+    agreement supports, ``max(r_producer, |v_producer - v_check| +
+    r_check)`` -- the producer's own resolution when no agreement is
+    stated (AUD-025)."""
+    v, r = th.get("value"), th.get("resolution")
+    if agreed is not None and _number(v) and _number(r):
+        r = max(r, abs(v - agreed[0]) + agreed[1])
+    return {"value": v, "unit": th.get("unit"), "resolution": r}
+
+
 def _level_consistency(ctx, check):
     files = ctx["files"]
     rec = strict_json(files[RECORD], RECORD)
@@ -1080,6 +1155,11 @@ def _level_consistency(ctx, check):
     check("the check establishes numerical agreement and no more",
           ver.get("establishes") == "INDEPENDENT_NUMERICAL_AGREEMENT",
           f"{ver.get('establishes')!r}")
+    agreed, unread = _agreement(ver, bundle)
+    ctx["agreement"] = agreed
+    check("the check states its agreement, if it states one, as its own "
+          "value and error for outputs it compared, T_at_half among them",
+          not unread, "; ".join(unread))
     checks = rec.get("independent_checks") or []
     first = checks[0] if checks else {}
     check("the record's check is the one in the evidence",
@@ -1553,6 +1633,15 @@ def _level_decision(ctx, check):
     check("the party that verified the result is not the one that proposed "
           "it", d["actor"] != cp.get("proposer"),
           f"both {d['actor']!r}")
+    policy = dp.get("admission_policy")
+    stated = "agreement" in ctx["verification"]
+    check("the verification was decided under an admission policy this "
+          "verifier reads, and the check states its agreement exactly when "
+          "that policy asks for it",
+          policy in (ADMISSION_V1, ADMISSION_V2)
+          and stated == (policy == ADMISSION_V2),
+          f"policy {policy!r}; the report "
+          f"{'states' if stated else 'does not state'} an agreement")
     moves = [e for e in events if e["action"] == "record.transition"
              and (e.get("payload") or {}).get("record_id") ==
              rr.get("record_id")]
@@ -1574,6 +1663,7 @@ def _level_decision(ctx, check):
     basis = set(sp.get("basis") or ())
     th = _q(next((o for o in bundle.get("outputs") or ()
                   if o.get("name") == "T_at_half"), {}))
+    observed = _observed(th, ctx["agreement"].get("T_at_half"))
     seen = [e for e in events if e["action"] == "research.observation"
             and e["target"] in basis and e["seq"] < s["seq"]]
     good = [e for e in seen if ((e.get("payload") or {}).get("observation")
@@ -1581,13 +1671,12 @@ def _level_decision(ctx, check):
             and ((e.get("payload") or {}).get("observation") or {}).get(
                 "result_bundle") == ev["result_bundle"]
             and (((e.get("payload") or {}).get("observation") or {}).get(
-                "values") or {}).get("T_at_half") == {
-                    "value": th.get("value"), "unit": th.get("unit"),
-                    "resolution": th.get("resolution")}]
-    check("the verdict rests on an observation of this result's T_at_half",
+                "values") or {}).get("T_at_half") == observed]
+    check("the verdict rests on an observation of this result's T_at_half, "
+          "no more precise than its check's agreement supports",
           bool(good) and len(good) == len(seen) == len(basis),
           f"basis {sorted(basis)}; {len(good)} of {len(seen)} observations "
-          "cite this result as it is")
+          f"cite this result as it is, {observed}")
     latest = [e for e in events if e["action"] == "research.status"
               and e["target"] == hyp.get("hypothesis_id")]
     check("the verdict still stands at the head of the history",
@@ -1664,6 +1753,14 @@ def _level_recheck(ctx, check):
               "its own discretization estimate",
               ok and abs(v - e) <= tol,
               f"model {v!r}, exact {e!r}, criterion {tol!r}")
+    for name, (vc, rc) in sorted(ctx["agreement"].items()):
+        if name in exact:
+            ex = exact[name]
+            crit = rc + 64 * _EPS * abs(ex)
+            check(f"the check's own {name} is the exact solution's, within "
+                  "the error it states for it",
+                  abs(vc - ex) <= crit,
+                  f"check {vc!r}, exact {ex!r}, criterion {crit!r}")
     xs, ts = ctx["field"]
     L = p["L_m"]
     worst = max(abs(t - exact_temperature(p, x / L)) for x, t in zip(xs, ts))

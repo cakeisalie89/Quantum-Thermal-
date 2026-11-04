@@ -604,19 +604,29 @@ def controls(package: Path) -> list:
 
         def warmer(s):
             """The temperature moved by 0.01 K everywhere it is stated: far
-            inside any physical doubt, and thirty times the criterion."""
+            inside any physical doubt, and thirty times the criterion. The
+            observation's resolution, which the move changes, is the one
+            the rule then gives -- max(r_producer, |v_producer - v_check| +
+            r_check) (AUD-025) -- so only the recheck can refuse it."""
             th = next(o for o in s["json"]["result_bundle"]["outputs"]
                       if o["name"] == "T_at_half")["quantity"]
             new = th["value"] + 0.01
             th["value"] = new
             s["record"]["results"]["T_at_half"]["value"] = new
             s["json"]["error_budget"]["budget"]["value"] = new
+            agreed = dict((n, q) for n, q in s["json"][
+                "verification_report"].get("agreement") or ())
+            r = th["resolution"]
+            if "T_at_half" in agreed:
+                q = agreed["T_at_half"]
+                r = max(r, abs(new - q["value"]) + q["resolution"])
             for e in s["events"]:
                 obs = (e["payload"].get("observation") or {})
                 if "T_at_half" in (obs.get("values") or {}):
-                    obs["values"]["T_at_half"]["value"] = new
+                    obs["values"]["T_at_half"].update(value=new,
+                                                      resolution=r)
             for x in s["json"]["decision_proof_supported"]["basis"]:
-                x["values"]["T_at_half"]["value"] = new
+                x["values"]["T_at_half"].update(value=new, resolution=r)
 
         def decided_by(s, who):
             """The result's verification made by ``who``, wherever the

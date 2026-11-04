@@ -46,6 +46,20 @@
    "find": "        **common, status=Status.PASS if ratio <= 1.0 else Status.FAIL,\n",
    "replace": "        **common, status=Status.PASS,\n",
    "rationale": "a check that cannot FAIL"
+  },
+  {
+   "name": "MOL8_the_agreement_drops_the_factor_of_safety",
+   "path": "scientific/checks/slab_mol.py",
+   "find": "            o, tf, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),\n",
+   "replace": "            o, tf, r_check + 64 * _EPS * abs(tf),\n",
+   "rationale": "AUD-025: the check credits itself less error in its agreement than its criterion does"
+  },
+  {
+   "name": "MOL9_the_agreement_states_the_coarse_solution",
+   "path": "scientific/checks/slab_mol.py",
+   "find": "            o, tf, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),\n",
+   "replace": "            o, tc, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),\n",
+   "rationale": "AUD-025: the agreement states the coarse solve, whose error r_check does not bound"
   }
  ]
 }

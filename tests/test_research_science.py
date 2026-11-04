@@ -164,12 +164,75 @@ def test_the_context_is_the_bundle_s_and_the_record_s(concluded):
         L.CHECKS["thermal.slab_transient"], "PASS")
     assert check["criterion"] and check["threshold"] and check["limitations"]
     by = {t["state"]: t for t in ctx["verification"]["transitions"]}
-    assert by["VERIFIED"]["policy"] == "scientific_result.admission/1"
+    assert by["VERIFIED"]["policy"] == "scientific_result.admission/2"
     assert by["VERIFIED"]["by"] == next(
         e.actor for e in w.events() if e.action == "record.transition"
         and e.target == rec and e.payload["dst"] == "VERIFIED")
     assert by["VERIFIED"]["by"] != by["PROPOSED"]["by"]
     assert ctx["invalidation"]["standing"] in ("FRESH", "HISTORICAL")
+
+
+def _verified_report(w, record_id) -> tuple:
+    verified = [e.payload for e in w.events()
+                if e.action == "record.transition" and e.target == record_id
+                and e.payload["dst"] == "VERIFIED"]
+    (p,) = verified
+    return p, json.loads(w.evidence.get(
+        p["evidence"]["verification_report"]))
+
+
+def test_the_observation_claims_no_more_than_its_check_verified(concluded):
+    """AUD-025, through the governed loop. The ledger observes, for each
+    output the check compared, the producer's value with the resolution the
+    check's agreement supports -- max(r_producer, |v_producer - v_check| +
+    r_check) -- and no output the check did not compare; the report is the
+    one the record's VERIFIED transition cites, decided under admission/2."""
+    w = concluded
+    led = w.ledger()
+    (oid,) = led.of(E.OBJECTIVE, "observation")
+    body = led.get(oid).body
+    bundle = json.loads(w.evidence.get(body["result_bundle"]))
+    transition, report = _verified_report(w, body["record_id"])
+    assert transition["admission_policy"] == "scientific_result.admission/2"
+    own = R.values_of(bundle)
+    agreed = {n: q for n, q in report["agreement"]}
+    assert set(body["values"]) == set(agreed) and set(agreed) < set(own)
+    widened = 0
+    for n, v in body["values"].items():
+        bound = abs(own[n]["value"] - agreed[n]["value"]) + \
+            agreed[n]["resolution"]
+        assert v == {**own[n], "resolution": max(own[n]["resolution"],
+                                                 bound)}, n
+        widened += bound > own[n]["resolution"]
+    assert widened, "the case widens nothing, so it would not tell"
+
+
+def test_an_observation_more_precise_than_its_check_is_refused_on_replay(
+        concluded, tmp_path):
+    """The ledger's replay holds a recorded observation to the same rule:
+    the observation as AUD-025 found it -- the producer's own resolution --
+    planted beside the genuine one, is not a reading of its bundle."""
+    import shutil
+    from agent_substrate.events import EventLog
+    from agent_substrate.evidence import EvidenceStore
+    w = concluded
+    led = w.ledger()
+    (oid,) = led.of(E.OBJECTIVE, "observation")
+    genuine = [e for e in w.events() if e.action == R.ACT_OBSERVATION
+               and e.target == oid][-1]
+    copy = tmp_path / "w"
+    shutil.copytree(w.base, copy)
+    bundle = json.loads(w.evidence.get(genuine.payload["observation"][
+        "result_bundle"]))
+    planted = {**genuine.payload["observation"], "observation_id":
+               f"{oid}-planted", "values": R.values_of(bundle)}
+    log = EventLog(copy / "log.jsonl")
+    log.append(actor=genuine.actor, action=R.ACT_OBSERVATION,
+               target=planted["observation_id"],
+               payload={**genuine.payload, "observation": planted})
+    with pytest.raises(R.ResearchError, match="its bundle does not hold"):
+        R.ResearchLedger(log, evidence=EvidenceStore(
+            copy / "evidence")).load()
 
 
 def test_the_context_follows_the_record_when_it_is_withdrawn():

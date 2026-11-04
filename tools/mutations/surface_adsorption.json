@@ -179,6 +179,41 @@
       "find": "    if check_id == \"surface_adsorption.rk4_pressure_form\":\n",
       "replace": "    if check_id == \"surface_adsorption.not_admitted\":\n",
       "rationale": "the model declares a check the catalog will not resolve"
+    },
+    {
+      "name": "SA_AG1_the_inventory_agreement_drops_the_rk4_error",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "                  RK4_REL_ERROR * abs(C) + 64 * _EPS * abs(N0 + C),\n",
+      "replace": "                  64 * _EPS * abs(N0 + C),\n",
+      "rationale": "AUD-025: RK4's own error in C is not credited"
+    },
+    {
+      "name": "SA_AG2_the_rk4_error_is_understated",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "RK4_REL_ERROR = 1e-10\n",
+      "replace": "RK4_REL_ERROR = 1e-11\n",
+      "rationale": "AUD-025: the check states an error its integrator does not keep (measured worst 2.5e-11)"
+    },
+    {
+      "name": "SA_AG3_the_rk4_error_is_overstated_tenfold",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "RK4_REL_ERROR = 1e-10\n",
+      "replace": "RK4_REL_ERROR = 1e-9\n",
+      "rationale": "AUD-025: the stated error no longer says what the integrator achieves; observations are widened for nothing"
+    },
+    {
+      "name": "SA_AG4_the_inventory_agreement_states_c_alone",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "        agreement(inv_out, N0 + C,\n",
+      "replace": "        agreement(inv_out, C,\n",
+      "rationale": "AUD-025: the agreement states the capture where the output is the inventory"
+    },
+    {
+      "name": "SA_AG5_the_flux_agreement_states_no_error",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "        agreement(flux_out, flux, 64 * _EPS * abs(flux),\n",
+      "replace": "        agreement(flux_out, flux, 0.0,\n",
+      "rationale": "AUD-025: the pressure-form flux is credited with no rounding"
     }
   ]
 }

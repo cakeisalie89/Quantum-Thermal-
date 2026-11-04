@@ -50,7 +50,7 @@ from ..result import OutputStatus, ResultBundle
 from ..verification import (
     CheckType, Establishes, Independence, Status, VerificationResult,
 )
-from . import quantity, resolution
+from . import agreement, quantity, resolution
 
 CHECK_ID = "thermal.slab_fenicsx"
 MODEL_ID = "thermal.slab_transient"
@@ -236,6 +236,7 @@ def run_check(bundle: ResultBundle, *, verifier_id: str,
                 f"FEniCSx unavailable: {exc}",)},
             status=Status.NOT_RUN, measured=None, threshold=None)
     ratio = 0.0
+    agree: list = []
     # strict: an answer for fewer points than there are outputs is refused
     # rather than compared on fewer (AUD-032)
     for o, t_fem, e_fem in zip(outs, fem["T"], fem["estimate"],
@@ -243,6 +244,11 @@ def run_check(bundle: ResultBundle, *, verifier_id: str,
         q = quantity(o)
         tol = GCI_SAFETY * (resolution(q) + e_fem) + 64 * _EPS * abs(t_fem)
         ratio = max(ratio, abs(q.value - t_fem) / tol)
+        agree.append(agreement(
+            o, t_fem, GCI_SAFETY * e_fem + 64 * _EPS * abs(t_fem),
+            resolution_class=RC.DISCRETIZATION_ESTIMATE,
+            basis="P1 finite elements at two resolutions: three times the "
+                  "Richardson estimate |T_h - T_2h| / 3, plus rounding"))
     if fem["lateral_max_abs_K"] > LATERAL_MAX_K:
         ratio = max(ratio, math.inf)
     evidence = (digest(fem["fine"]), digest(fem["coarse"]))
@@ -252,7 +258,7 @@ def run_check(bundle: ResultBundle, *, verifier_id: str,
         **{**common, "limitations": LIMITS + (
             f"computed with dolfinx {prov['dolfinx']}, PETSc "
             f"{prov['petsc']}, {prov['mpi']}",)},
-        status=status, evidence=evidence,
+        status=status, evidence=evidence, agreement=tuple(agree),
         measured=Quantity(ratio if math.isfinite(ratio) else 1e300, "1",
                           resolution=1e-6,
                           resolution_class=RC.SINGLE_EVALUATION,

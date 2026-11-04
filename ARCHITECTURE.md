@@ -47,7 +47,12 @@ scope).
    law -- and records a `VerificationResult`.
 4. **A decision** by a reviewer who is none of the proposer, the executor
    and the checker. The store admits a `scientific_result` to VERIFIED only
-   under `scientific_result.admission/1` (`agent_substrate/result_rules.py`).
+   under `scientific_result.admission/2` (`agent_substrate/result_rules.py`),
+   which also asks the check's own value and error for each output it
+   compared; a history admitted under `/1` is decided under `/1`. The
+   research ledger then observes each compared output with the larger of
+   the producer's stated error and `|v_producer - v_check| + r_check`
+   (AUD-025), and no output the check did not compare.
 5. **Re-decision.** The store decides again on every replay; the second
    reader (`agent_substrate/reconstruct.py`, which imports none of the
    first) decides a third time; `tools/independent_verify.py` does it in a

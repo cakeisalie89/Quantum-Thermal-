@@ -121,8 +121,8 @@
     {
       "name": "RR17_the_report_shape_is_not_held",
       "path": "agent_substrate/result_rules.py",
-      "find": "    if set(report) != REPORT_KEYS:\n",
-      "replace": "    if not REPORT_KEYS <= set(report):\n",
+      "find": "    if set(report) != keys:\n",
+      "replace": "    if not keys <= set(report):\n",
       "rationale": "a report carrying fields no VerificationResult writes is read as one"
     },
     {
@@ -138,6 +138,118 @@
       "find": "    try:\n        bundle_digest = digest(bundle)\n    except ValueError:\n        # a numeral past the float range reads as infinity, which no\n        # canonical form holds: a problem, not an exception (AUD-027)\n        bundle_digest = None\n        problems.append(\"the cited bundle has no canonical form\")",
       "replace": "    bundle_digest = digest(bundle)",
       "rationale": "AUD-027: a numeral past the float range makes the rule raise CanonicalizationError, which neither the live edge nor replay expects"
+    },
+    {
+      "name": "RR20_admission_2_asks_nothing_of_the_agreement",
+      "path": "agent_substrate/result_rules.py",
+      "find": "    if policy == POLICY_V2:\n        problems += agreement_problems(bundle, report)\n",
+      "replace": "    if False:\n        problems += agreement_problems(bundle, report)\n",
+      "rationale": "AUD-025: a PASS under admission/2 is admitted with an agreement nobody checked -- empty, duplicated, of no output, in another unit"
+    },
+    {
+      "name": "RR21_an_empty_agreement_is_an_agreement",
+      "path": "agent_substrate/result_rules.py",
+      "find": "    if not isinstance(agree, list) or not agree:\n",
+      "replace": "    if not isinstance(agree, list):\n",
+      "rationale": "AUD-025: a report stating agreement on nothing passes admission/2, and the ledger observes nothing it can bound"
+    },
+    {
+      "name": "RR22_an_entry_of_any_shape_is_read",
+      "path": "agent_substrate/result_rules.py",
+      "find": "        if not (isinstance(entry, list) and len(entry) == 2\n                and isinstance(entry[0], str) and isinstance(entry[1], dict)):\n",
+      "replace": "        if False:\n",
+      "rationale": "AUD-025: an agreement entry that is not [output, quantity] reaches the reading of its fields"
+    },
+    {
+      "name": "RR23_an_output_may_be_named_twice",
+      "path": "agent_substrate/result_rules.py",
+      "find": "        if name in seen:\n",
+      "replace": "        if False:\n",
+      "rationale": "AUD-025: two agreements on one output; a reader would keep whichever it read last"
+    },
+    {
+      "name": "RR24_a_failed_output_may_be_agreed_on",
+      "path": "agent_substrate/result_rules.py",
+      "find": "        if o is None or o.get(\"status\") != \"OK\" or not isinstance(oq, dict):\n",
+      "replace": "        if o is None:\n",
+      "rationale": "AUD-025: an agreement on an output the producer did not compute"
+    },
+    {
+      "name": "RR25_a_negative_error_bounds",
+      "path": "agent_substrate/result_rules.py",
+      "find": "        if not _finite(v) or not _finite(r) or r < 0:\n",
+      "replace": "        if not _finite(v) or not _finite(r):\n",
+      "rationale": "AUD-025: a check error below zero narrows the bound a reader takes"
+    },
+    {
+      "name": "RR26_the_check_value_need_not_be_a_number",
+      "path": "agent_substrate/result_rules.py",
+      "find": "        if not _finite(v) or not _finite(r) or r < 0:\n",
+      "replace": "        if not _finite(r) or r < 0:\n",
+      "rationale": "AUD-025: an agreement whose check value is no number (None, a boolean) is admitted"
+    },
+    {
+      "name": "RR27_a_boolean_is_a_number",
+      "path": "agent_substrate/result_rules.py",
+      "find": "    if isinstance(v, bool) or not isinstance(v, (int, float)):\n        return False\n    try:\n        return math.isfinite(v)\n",
+      "replace": "    if not isinstance(v, (int, float)):\n        return False\n    try:\n        return math.isfinite(v)\n",
+      "rationale": "AUD-025: True stated as a check value is read as 1.0"
+    },
+    {
+      "name": "RR28_the_agreement_unit_is_not_held",
+      "path": "agent_substrate/result_rules.py",
+      "find": "        if q.get(\"unit\") != oq.get(\"unit\"):\n",
+      "replace": "        if False:\n",
+      "rationale": "AUD-025: a check value in another unit is subtracted from the producer's as if in the same"
+    },
+    {
+      "name": "RR29_every_policy_asks_the_newer_shape",
+      "path": "agent_substrate/result_rules.py",
+      "find": "    return REPORT_KEYS_V2 if policy == POLICY_V2 else REPORT_KEYS\n",
+      "replace": "    return REPORT_KEYS_V2\n",
+      "rationale": "AUD-025 migration: a history decided under admission/1 is refused for lacking what admission/2 asks"
+    },
+    {
+      "name": "RR30_every_policy_asks_the_older_shape",
+      "path": "agent_substrate/result_rules.py",
+      "find": "    return REPORT_KEYS_V2 if policy == POLICY_V2 else REPORT_KEYS\n",
+      "replace": "    return REPORT_KEYS\n",
+      "rationale": "AUD-025: admission/2 refuses the reports the package writes, or (with the agreement rule) reads them under the older shape"
+    },
+    {
+      "name": "RR31_admission_1_is_no_longer_decidable",
+      "path": "agent_substrate/result_rules.py",
+      "find": "POLICIES = (POLICY_V1, POLICY_V2)\n",
+      "replace": "POLICIES = (POLICY_V2,)\n",
+      "rationale": "AUD-025 migration: every history admitted before the agreement stops loading"
+    },
+    {
+      "name": "RR32_the_store_still_writes_admission_1",
+      "path": "agent_substrate/result_rules.py",
+      "find": "CURRENT_POLICY = POLICY_V2\n",
+      "replace": "CURRENT_POLICY = POLICY_V1\n",
+      "rationale": "AUD-025: new admissions are decided without the check's side of the agreement"
+    },
+    {
+      "name": "RR33_record_problems_forgets_the_policy",
+      "path": "agent_substrate/result_rules.py",
+      "find": "    return verification_problems(docs[\"result_bundle\"],\n                                 docs[\"verification_report\"], policy)\n",
+      "replace": "    return verification_problems(docs[\"result_bundle\"],\n                                 docs[\"verification_report\"])\n",
+      "rationale": "AUD-025 migration: a transition stamped admission/1 is re-read under the current rule"
+    },
+    {
+      "name": "RR34_admission_forgets_the_policy",
+      "path": "agent_substrate/result_rules.py",
+      "find": "    problems = record_problems(evidence, fetch, policy)\n",
+      "replace": "    problems = record_problems(evidence, fetch)\n",
+      "rationale": "AUD-025 migration: replay decides an old admission under the newer rule it was never held to"
+    },
+    {
+      "name": "RR35_an_integer_no_float_holds_raises",
+      "path": "agent_substrate/result_rules.py",
+      "find": "        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
+      "replace": "        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
+      "rationale": "AUD-025: a 400-digit integer in a report's agreement raises OverflowError out of the store instead of refusing the edge"
     }
   ]
 }

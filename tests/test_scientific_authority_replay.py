@@ -98,7 +98,7 @@ def _doc(base: Path, sha: str) -> dict:
 
 def _append_transition(base: Path, rid: str, *, src: str, dst: str,
                        actor: str, role: str, evidence: dict,
-                       policy="scientific_result.admission/1",
+                       policy=result_rules.CURRENT_POLICY,
                        policy_id=None) -> None:
     """A record.transition written straight to the log -- the store never
     saw it. Shaped exactly as the store writes one."""
@@ -486,16 +486,24 @@ def test_both_readers_state_the_record_shapes_the_package_writes(world):
                                                          chk.report_sha256)
     assert set(bundle) == result_rules.BUNDLE_KEYS \
         == set(rc._SCI_BUNDLE_FIELDS)
-    assert set(report) == result_rules.REPORT_KEYS \
-        == set(rc._SCI_REPORT_FIELDS)
+    # the package writes the current shape; the older one is still read,
+    # under the policy that admitted it (AUD-025)
+    assert set(report) == result_rules.REPORT_KEYS_V2 \
+        == set(rc._SCI_REPORT_FIELDS_V2)
+    assert result_rules.REPORT_KEYS == set(rc._SCI_REPORT_FIELDS)
+    assert result_rules.REPORT_KEYS_V2 == result_rules.REPORT_KEYS \
+        | {"agreement"}
     assert rc._SCI_BUNDLE_FIELDS == tuple(sorted(rc._SCI_BUNDLE_FIELDS))
     assert rc._SCI_REPORT_FIELDS == tuple(sorted(rc._SCI_REPORT_FIELDS))
+    assert rc._SCI_REPORT_FIELDS_V2 == tuple(
+        sorted(rc._SCI_REPORT_FIELDS_V2))
 
 
 def test_both_readers_admit_the_same_tools_and_policies():
     assert rc._SCI_CHECK_TOOLS == VERIFIER_TOOLS
     assert rc._SCI_RUN_TOOLS == MODEL_RUN_TOOLS
-    assert rc._SCI_POLICIES == {result_rules.POLICY_V1}
+    assert rc._SCI_POLICIES == set(result_rules.POLICIES) == {
+        result_rules.POLICY_V1, result_rules.POLICY_V2}
     assert rc._SCI_KIND == result_rules.KIND
     assert result_rules.CURRENT_POLICY in rc._SCI_POLICIES
 
@@ -593,13 +601,14 @@ def _view(bundle_sha, report_sha, *, checker="checker", worker="worker"):
     }
 
 
-def _second_reader_admits(bundle, report, *, at_seq=20, **view):
+def _second_reader_admits(bundle, report, *, at_seq=20,
+                          policy=result_rules.CURRENT_POLICY, **view):
     blobs = _Blobs()
     b, r = blobs.put(bundle), blobs.put(report)
     return rc._sci_admission(
         record_id="r", evidence={"result_bundle": b,
                                  "verification_report": r},
-        policy=result_rules.CURRENT_POLICY, proposer="proposer",
+        policy=policy, proposer="proposer",
         actor="reviewer", at_seq=at_seq, store=blobs,
         tasks=lambda: _view(b, r, **view))
 
@@ -649,6 +658,99 @@ def test_both_readers_refuse_the_same_content(pair, which, change):
     assert result_rules.verification_problems(bundle, report), change
     verdict, why = _second_reader_admits(bundle, report)
     assert verdict is None and why.startswith("not so:"), (change, why)
+
+
+def _first_agreed(report: dict) -> list:
+    return report["agreement"][0]
+
+
+def _agreed_output_failed(keep_number: bool):
+    """The bundle's first agreed output marked FAILED, and the report made
+    about that bundle: an agreement on an output nobody computed -- with
+    no quantity, as a failed output is written, or still carrying its
+    number, as a forger could write one (then only the status says so)."""
+    def edit(r: dict, b: dict) -> None:
+        name = r["agreement"][0][0]
+        out = next(o for o in b["outputs"] if o["name"] == name)
+        out.update(status="FAILED", reason="test")
+        if not keep_number:
+            out["quantity"] = None
+        r["subject_digest"] = digest(b)
+    return edit
+
+
+AGREEMENT_CHANGES = [
+    ("none stated", lambda r, b: r.pop("agreement")),
+    ("failed output", _agreed_output_failed(False)),
+    ("failed output still carrying its number", _agreed_output_failed(True)),
+    ("empty", lambda r, b: r.update(agreement=[])),
+    ("not a list", lambda r, b: r.update(agreement={})),
+    ("not a pair", lambda r, b: r["agreement"].__setitem__(
+        0, [_first_agreed(r)[0]])),
+    ("twice", lambda r, b: r["agreement"].append(
+        [_first_agreed(r)[0], dict(_first_agreed(r)[1])])),
+    ("no such output", lambda r, b: _first_agreed(r).__setitem__(
+        0, "T_nowhere")),
+    ("negative error", lambda r, b: _first_agreed(r)[1].update(
+        resolution=-1.0)),
+    ("no error", lambda r, b: _first_agreed(r)[1].update(resolution=None)),
+    ("no value", lambda r, b: _first_agreed(r)[1].update(value="300")),
+    ("a boolean", lambda r, b: _first_agreed(r)[1].update(value=False)),
+    ("another unit", lambda r, b: _first_agreed(r)[1].update(unit="degC")),
+    ("an integer no float holds", lambda r, b: _first_agreed(r)[1].update(
+        value=10 ** 400)),
+    ("an error no float holds", lambda r, b: _first_agreed(r)[1].update(
+        resolution=10 ** 400)),
+    ("an infinite value", lambda r, b: _first_agreed(r)[1].update(
+        value=float("inf"))),
+]
+
+
+@pytest.mark.parametrize("name,edit", AGREEMENT_CHANGES,
+                         ids=[c[0] for c in AGREEMENT_CHANGES])
+def test_both_readers_refuse_the_same_agreement(pair, name, edit):
+    """admission/2's agreement rule (AUD-025), stated twice: whatever the
+    store refuses in a report's agreement, the second reader refuses."""
+    bundle, report = (json.loads(json.dumps(d)) for d in pair)
+    edit(report, bundle)
+    assert result_rules.verification_problems(bundle, report), name
+    verdict, why = _second_reader_admits(bundle, report)
+    assert verdict is None and why.startswith("not so:"), (name, why)
+
+
+def test_both_readers_decide_an_older_admission_under_its_own_policy(pair):
+    """A report written before the agreement is admitted under admission/1
+    by both readers, as it was; the newer shape is refused under the older
+    policy by both, and the older shape under the newer."""
+    bundle, report = pair
+    old = {k: v for k, v in report.items() if k != "agreement"}
+    v1 = result_rules.POLICY_V1
+    assert result_rules.verification_problems(bundle, old, v1) == []
+    assert _second_reader_admits(bundle, old, policy=v1)[0] == "ADMITTED"
+    assert result_rules.verification_problems(bundle, report, v1)
+    assert _second_reader_admits(bundle, report, policy=v1)[0] is None
+    assert result_rules.verification_problems(bundle, old)
+    assert _second_reader_admits(bundle, old)[0] is None
+
+
+@pytest.mark.parametrize("policy", [None, "", "scientific_result.admission/0",
+                                    "scientific_result.admission/3"])
+def test_neither_reader_decides_under_a_policy_it_does_not_know(pair, policy):
+    """A name neither reader defines is refused as that, by both -- even for
+    a report whose every content rule a known policy holds (the older
+    shape, which admission/1 admits). Without the report's shape to fail
+    it, nothing but the policy rule stands between such a name and an
+    admission: the name is not read as any rule it is not."""
+    bundle, report = pair
+    old = {k: v for k, v in report.items() if k != "agreement"}
+    assert result_rules.verification_problems(
+        bundle, old, result_rules.POLICY_V1) == []
+    problems = result_rules.admission_problems(
+        policy, {}, fetch=None, origins=None, proposer="p", actor="v",
+        before_seq=None)
+    assert problems and "not one this code can decide under" in problems[0]
+    verdict, why = _second_reader_admits(bundle, old, policy=policy)
+    assert verdict is None and "is not one this reader" in why, why
 
 
 def test_the_second_reader_re_hashes_what_the_store_returns(pair):

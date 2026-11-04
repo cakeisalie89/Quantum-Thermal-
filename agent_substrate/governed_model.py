@@ -558,8 +558,13 @@ class GovernedModelRuns:
             # must still resolve and still support this bundle now.
             if rec.admission != result_rules.ADMITTED:
                 continue
+            # Under the policy the admission was decided by -- an ADMITTED
+            # record's basis always names it: a result admitted under
+            # admission/1 is not refused for lacking what admission/2 asks,
+            # and is not reread as if it had it (AUD-025).
+            policy = rec.admission_basis["policy"]
             try:
-                if record_problems(rec.evidence, self.evidence.get):
+                if record_problems(rec.evidence, self.evidence.get, policy):
                     continue
             except result_rules.EvidenceUnavailable:
                 continue

@@ -27,7 +27,7 @@
    ]
   },
   "scientific_admission": {
-   "authority": "agent_substrate/result_rules.py :: admission policy scientific_result.admission/1, decided by the store live, on replay and on snapshot restore; restated independently in agent_substrate/reconstruct.py",
+   "authority": "agent_substrate/result_rules.py :: admission policy scientific_result.admission/2 (the check's stated agreement too, AUD-025; a history admitted under scientific_result.admission/1 is decided under it), decided by the store live, on replay and on snapshot restore; restated independently in agent_substrate/reconstruct.py",
    "owner": "agent_substrate",
    "schema_version": "1",
    "means": "that a scientific_result's evidence -- a PASS from an independent implementation about this exact bundle, captured by governed tasks -- supports VERIFIED or PROMOTED",

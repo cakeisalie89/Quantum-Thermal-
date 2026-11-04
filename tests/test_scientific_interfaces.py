@@ -407,6 +407,70 @@ def test_a_verification_result_round_trips():
     assert VerificationResult.from_record(v.to_record()) == v
 
 
+def _agreed(v=300.0, r=1e-3):
+    return Quantity(v, "K", resolution=r, resolution_class=RC.SINGLE_EVALUATION,
+                    resolution_basis="test check")
+
+
+def test_an_agreement_is_held_in_output_order_and_round_trips():
+    """AUD-025: the check's own value and error for each output it
+    compared, sorted by output, and read back exactly."""
+    v = _vr(agreement=(("T_b", _agreed(301.0)), ("T_a", _agreed())))
+    assert [n for n, _ in v.agreement] == ["T_a", "T_b"]
+    rec = v.to_record()
+    assert rec["agreement"] == [["T_a", _agreed().to_record()],
+                                ["T_b", _agreed(301.0).to_record()]]
+    assert VerificationResult.from_record(rec) == v
+
+
+def test_a_record_written_before_the_agreement_states_none():
+    rec = _vr().to_record()
+    del rec["agreement"]
+    assert VerificationResult.from_record(rec).agreement == ()
+
+
+@pytest.mark.parametrize("agreement, match", [
+    ((("T_a",),), "an agreement entry is \\(output, Quantity\\)"),
+    (("T_a",), "an agreement entry is \\(output, Quantity\\)"),
+    ((("", _agreed()),), "names no output"),
+    (((3, _agreed()),), "names no output"),
+    ((("T_a", 300.0),), "carries no stated resolution"),
+    ((("T_a", Quantity(300.0, "K")),), "carries no stated resolution"),
+    ((("T_a", _agreed()), ("T_a", _agreed(301.0))), "named twice"),
+])
+def test_an_agreement_that_bounds_nothing_is_refused(agreement, match):
+    with pytest.raises(VerificationError, match=match):
+        _vr(agreement=agreement)
+
+
+@pytest.mark.parametrize("status", [Status.NOT_RUN, Status.INCONCLUSIVE])
+def test_a_check_that_compared_nothing_states_no_agreement(status):
+    with pytest.raises(VerificationError, match="compared nothing"):
+        _vr(status=status, measured=None, threshold=None,
+            agreement=(("T_a", _agreed()),))
+
+
+@pytest.mark.parametrize("edit", [lambda r: r.update(surplus=1),
+                                  lambda r: r.pop("criterion")])
+def test_a_verification_record_of_other_fields_is_refused(edit):
+    """Exactly a VerificationResult's fields, with or without the agreement
+    (a record written before AUD-025 has none) -- nothing more, nothing
+    less, refused as what it is."""
+    rec = _vr().to_record()
+    edit(rec)
+    with pytest.raises(VerificationError, match="keys differ"):
+        VerificationResult.from_record(rec)
+
+
+@pytest.mark.parametrize("bad", [{}, [["T_a"]], ["T_a"],
+                                 [["T_a", {"value": 1.0}, 2]]])
+def test_a_malformed_agreement_record_is_refused(bad):
+    rec = _vr(agreement=(("T_a", _agreed()),)).to_record()
+    rec["agreement"] = bad
+    with pytest.raises(VerificationError, match="agreement must be"):
+        VerificationResult.from_record(rec)
+
+
 # --- the model contract ---------------------------------------------------------
 
 class _Toy(ModelBase):

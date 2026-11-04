@@ -7,6 +7,7 @@ up as a test that cannot fail.
 """
 from __future__ import annotations
 
+import statistics
 import sys
 from pathlib import Path
 
@@ -50,11 +51,19 @@ def test_the_weights_are_the_measured_ones_where_measured():
         "a weight for a spec that no longer exists")
 
 
-def test_an_unmeasured_spec_is_weighed_not_ignored():
-    unmeasured = [s for s in MS.specs() if s not in MS.WEIGHTS]
-    assert unmeasured, "every spec measured; this test has nothing to see"
+def test_an_unmeasured_spec_is_weighed_not_ignored(monkeypatch):
+    """A spec with no measured time is weighed at its mutation count times
+    the median measured seconds per mutation, and placed. Every spec on
+    disk has a measurement now (D-2026-191), so the case is made here: the
+    spec with the most mutations has its measurement forgotten."""
+    name = max(MS.specs(), key=lambda s: (MS._mutations(s), s))
+    rest = {s: v for s, v in MS.WEIGHTS.items() if s != name}
+    monkeypatch.setattr(MS, "WEIGHTS", rest)
+    rate = statistics.median(v / max(MS._mutations(s), 1)
+                             for s, v in rest.items())
     w = MS.weights(MS.specs())
-    assert all(w[s] > 0 for s in unmeasured)
+    assert w[name] == MS._mutations(name) * rate > 0
+    assert any(name in shard for shard in MS.plan())
 
 
 def test_the_plan_is_balanced_within_the_greedy_bound():

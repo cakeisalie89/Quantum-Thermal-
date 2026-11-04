@@ -1322,6 +1322,7 @@
      "tests/test_replay_origin_view.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
+     "tests/test_research_science.py",
      "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
@@ -1438,6 +1439,7 @@
      "tests/test_agent_long_horizon.py",
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
+     "tests/test_completion_matrix.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
@@ -2783,6 +2785,19 @@
   },
   {
    "change": "ADDED",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/21391da49f1bf100f24b8ef3b41186bedb584b8711dc0e29deed39b74d93590a",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "evidence",
+   "trust_boundary": "derived documents and evidence",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "docs/assurance/package/slab-mid-plane/evidence/61065aee364df9e2aefe9cc05717765f7b9a3a3282738724a409d4d5d0f6528e",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -2796,7 +2811,7 @@
   },
   {
    "change": "ADDED",
-   "path": "docs/assurance/package/slab-mid-plane/evidence/c7f10aefb0b38aef93af9881ecf502eb0bffd036d5759c2866b52b05644010a5",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/702f926da187f4da3d19ea746ab5598aad79f643b0bc66279f0f4f8786020b38",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -2809,7 +2824,7 @@
   },
   {
    "change": "ADDED",
-   "path": "docs/assurance/package/slab-mid-plane/evidence/d2f18cfd84692c23dea27c381cea20578ed43d0fcf791b064315619f71aca3fd",
+   "path": "docs/assurance/package/slab-mid-plane/evidence/b944adabbe06faeb10cdc8593b032a1a1f411a8b2bc33ad9ab8dce4f5695aa52",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -2823,19 +2838,6 @@
   {
    "change": "ADDED",
    "path": "docs/assurance/package/slab-mid-plane/evidence/e3e5ff16b842264d58f9f5d39d2a67a7cd55d2aa670868385612b60acfa7943a",
-   "risk": "MEDIUM",
-   "runtime_dependencies": [],
-   "subsystem": "evidence",
-   "trust_boundary": "derived documents and evidence",
-   "verification": {
-    "findings": [],
-    "mutation_specs": [],
-    "tests": []
-   }
-  },
-  {
-   "change": "ADDED",
-   "path": "docs/assurance/package/slab-mid-plane/evidence/e89261d0c4907279e2200489f0caa97c18a4081bf312621ca21085f7fd3c06eb",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "evidence",
@@ -4804,6 +4806,7 @@
      "tests/test_agent_substrate_isolation.py",
      "tests/test_backend_identity.py",
      "tests/test_dimensions.py",
+     "tests/test_external_models.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_harness_integrations.py",
      "tests/test_hdf5_bundle.py",
@@ -4834,6 +4837,7 @@
      "tests/test_agent_result_rules.py",
      "tests/test_agent_substrate_isolation.py",
      "tests/test_dimensions.py",
+     "tests/test_external_models.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_harness_integrations.py",
      "tests/test_hdf5_bundle.py",
@@ -4913,6 +4917,7 @@
     "tests": [
      "tests/test_completion_matrix.py",
      "tests/test_dimensions.py",
+     "tests/test_external_models.py",
      "tests/test_harness_integrations.py",
      "tests/test_hdf5_bundle.py",
      "tests/test_ranking_equivalence.py",
@@ -8470,7 +8475,8 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_agent_result_rules.py",
-     "tests/test_agent_substrate_isolation.py"
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_governed_model_reuse.py"
     ]
    }
   },

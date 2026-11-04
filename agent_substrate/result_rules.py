@@ -45,6 +45,18 @@ ADMISSION POLICY ``scientific_result.admission/1``
   decides the transition. A well-formed PASS written into the evidence store
   by hand satisfies every content rule above and fails this one.
 
+ADMISSION POLICY ``scientific_result.admission/2`` (current; AUD-025)
+
+Everything admission/1 asks, and the report's AGREEMENT: for each output the
+check compared, the check's own value and the error it states for that
+value, as ``[output, quantity]`` -- each output named once and an OK output
+of this bundle, a finite value and a finite, non-negative error, in the
+output's unit. A PASS establishes agreement only within the sum of both
+sides' errors, so a reader bounding the producer's value -- the research
+ledger observes ``max(r_producer, |v_producer - v_check| + r_check)`` --
+needs the check's side of that sum. A report decided under admission/1
+states none, and is decided under admission/1 as it was.
+
 Policies are named and versioned. A transition records the policy it was
 admitted under; replay resolves THAT policy, and a name this code does not
 know is refused rather than reinterpreted under whatever the current rule is.
@@ -73,6 +85,7 @@ its own code, so a weakened rule here is not reproduced by the second reader.
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 from .canonical import digest, is_digest
@@ -83,7 +96,14 @@ KIND = "scientific_result"
 #: The admission policies this code can decide under, by name. A durable
 #: transition names one; replay refuses a name that is not here.
 POLICY_V1 = "scientific_result.admission/1"
-CURRENT_POLICY = POLICY_V1
+#: AUD-025. Everything V1 asks, and also that the report state, for each
+#: output it compared, the check's own value and error: a PASS establishes
+#: agreement within the sum of both sides' errors, and a reader bounding
+#: the producer's value needs the check's side of that sum. A history
+#: decided under V1 is replayed under V1; nothing old is reinterpreted.
+POLICY_V2 = "scientific_result.admission/2"
+POLICIES = (POLICY_V1, POLICY_V2)
+CURRENT_POLICY = POLICY_V2
 
 #: The admission outcome of a scientific_result record in VERIFIED or
 #: PROMOTED. Empty for every other record.
@@ -104,6 +124,12 @@ REPORT_KEYS = frozenset({
     "observations", "producer_implementation_digest", "shared_components",
     "status", "subject_digest", "subject_model", "threshold", "verifier_id",
     "verifier_implementation_digest"})
+#: What a report decided under V2 holds: V1's fields and the agreement.
+REPORT_KEYS_V2 = REPORT_KEYS | {"agreement"}
+
+
+def report_keys(policy: str | None) -> frozenset:
+    return REPORT_KEYS_V2 if policy == POLICY_V2 else REPORT_KEYS
 
 
 def _not_json(token: str):
@@ -117,18 +143,22 @@ class EvidenceUnavailable(Exception):
     is UNVERIFIABLE, and the reason is the message."""
 
 
-def verification_problems(bundle: dict, report: dict) -> list:
-    """Every content reason ``report`` does not support ``bundle``; [] when
-    it does. Origin is not decided here -- see :func:`admission_problems`."""
+def verification_problems(bundle: dict, report: dict,
+                          policy: str = CURRENT_POLICY) -> list:
+    """Every content reason ``report`` does not support ``bundle`` under
+    ``policy``; [] when it does. Origin is not decided here -- see
+    :func:`admission_problems`."""
     if not isinstance(bundle, dict) or not isinstance(report, dict):
         return ["the cited bundle or report is not a JSON object"]
     problems = []
     if set(bundle) != BUNDLE_KEYS:
         problems.append("the cited bundle is not a ResultBundle record "
                         f"(fields {sorted(set(bundle) ^ BUNDLE_KEYS)})")
-    if set(report) != REPORT_KEYS:
+    keys = report_keys(policy)
+    if set(report) != keys:
         problems.append("the cited report is not a VerificationResult record "
-                        f"(fields {sorted(set(report) ^ REPORT_KEYS)})")
+                        f"under {policy} (fields "
+                        f"{sorted(set(report) ^ keys)})")
     try:
         bundle_digest = digest(bundle)
     except ValueError:
@@ -165,7 +195,62 @@ def verification_problems(bundle: dict, report: dict) -> list:
            if not isinstance(i, dict) or i.get("holds") is not True]
     if not invariants or bad:
         problems.append(f"invariants not holding: {bad or 'none run'}")
+    if policy == POLICY_V2:
+        problems += agreement_problems(bundle, report)
     return problems
+
+
+def _finite(v) -> bool:
+    """A number a float holds, and holds finitely. A JSON integer too
+    large for a float is valid JSON, and parses to an int that
+    ``math.isfinite`` cannot convert: it is refused here, not raised."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
+
+
+def agreement_problems(bundle: dict, report: dict) -> list:
+    """What makes a report's agreement unusable under V2 (AUD-025): none
+    stated, an entry that is not ``[output, quantity]``, an output named
+    twice or that is no OK output of the bundle, a value or error that is
+    no finite number, a unit other than the output's."""
+    agree = report.get("agreement")
+    if not isinstance(agree, list) or not agree:
+        return ["the report states no agreement; under admission/2 a PASS "
+                "names each output it compared, with the check's own value "
+                "and error"]
+    outputs = {o.get("name"): o for o in bundle.get("outputs") or ()
+               if isinstance(o, dict)}
+    out: list = []
+    seen: set = set()
+    for entry in agree:
+        if not (isinstance(entry, list) and len(entry) == 2
+                and isinstance(entry[0], str) and isinstance(entry[1], dict)):
+            out.append("an agreement entry is not [output, quantity]")
+            continue
+        name, q = entry
+        if name in seen:
+            out.append(f"the agreement names {name!r} twice")
+            continue
+        seen.add(name)
+        o = outputs.get(name)
+        oq = o.get("quantity") if isinstance(o, dict) else None
+        if o is None or o.get("status") != "OK" or not isinstance(oq, dict):
+            out.append(f"the agreement names {name!r}, which is no OK "
+                       "output of the bundle")
+            continue
+        v, r = q.get("value"), q.get("resolution")
+        if not _finite(v) or not _finite(r) or r < 0:
+            out.append(f"the agreement on {name!r} states no finite value "
+                       "and error")
+            continue
+        if q.get("unit") != oq.get("unit"):
+            out.append(f"the agreement on {name!r} is in {q.get('unit')!r} "
+                       f"and the output in {oq.get('unit')!r}")
+    return out
 
 
 def _read(evidence: dict, fetch) -> dict:
@@ -188,11 +273,12 @@ def _read(evidence: dict, fetch) -> dict:
     return docs
 
 
-def record_problems(evidence: dict, fetch) -> list:
-    """The content rule applied to a record's cited evidence. ``fetch(digest)``
-    returns the stored bytes; bytes that are not JSON are a problem, not a
-    pass. Raises :class:`EvidenceUnavailable` when a cited digest does not
-    resolve."""
+def record_problems(evidence: dict, fetch,
+                    policy: str = CURRENT_POLICY) -> list:
+    """The content rule of ``policy`` applied to a record's cited evidence.
+    ``fetch(digest)`` returns the stored bytes; bytes that are not JSON are a
+    problem, not a pass. Raises :class:`EvidenceUnavailable` when a cited
+    digest does not resolve."""
     docs = _read(evidence, fetch)
     for key in ("result_bundle", "verification_report"):
         if docs[key] is None:
@@ -202,7 +288,7 @@ def record_problems(evidence: dict, fetch) -> list:
             return [f"{key} {sha[:12]} cannot be read as JSON "
                     f"({type(docs[key]).__name__})"]
     return verification_problems(docs["result_bundle"],
-                                 docs["verification_report"])
+                                 docs["verification_report"], policy)
 
 
 def admission_problems(policy: str | None, evidence: dict, *, fetch,
@@ -217,14 +303,14 @@ def admission_problems(policy: str | None, evidence: dict, *, fetch,
     ``before_seq`` is the position the transition occupies (None: the head),
     so origin is judged against what had happened by then.
     """
-    if policy != POLICY_V1:
+    if policy not in POLICIES:
         return [f"admission policy {policy!r} is not one this code can "
                 "decide under; old authority is not reinterpreted under a "
                 "newer rule"]
     if fetch is None:
         raise EvidenceUnavailable("no evidence store is attached, so the "
                                   "cited bundle and report cannot be read")
-    problems = record_problems(evidence, fetch)
+    problems = record_problems(evidence, fetch, policy)
     if problems:
         return problems
     if origins is None:

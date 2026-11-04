@@ -46,7 +46,7 @@ from ..run_identity import RunIdentity
 from ..verification import (
     CheckType, Establishes, Independence, Status, VerificationResult,
 )
-from . import quantity, resolution
+from . import agreement, quantity, resolution
 
 CHECK_ID = "thermal.rc2_fmu"
 FMU_MODEL_ID = "fmi.thermal_rc2"
@@ -253,14 +253,19 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
             status=Status.NOT_RUN, measured=None, threshold=None)
     ref = ThermalRC2Model().run(bundle.parameters)
     ratio = 0.0
+    agree = []
     for o in outs:
         r = quantity(ref.output(o.name))
         q = quantity(o)
         tol = GCI_SAFETY * resolution(q) + resolution(r)
         ratio = max(ratio, abs(q.value - r.value) / tol)
+        agree.append(agreement(o, r.value, resolution(r),
+                               resolution_class=r.resolution_class,
+                               basis=r.resolution_basis))
     status = Status.PASS if ratio <= 1.0 else Status.FAIL
     return VerificationResult(
         **common, status=status, evidence=(ref.digest(),),
+        agreement=tuple(agree),
         measured=Quantity(ratio if math.isfinite(ratio) else 1e300, "1",
                           resolution=1e-6,
                           resolution_class=RC.SINGLE_EVALUATION,

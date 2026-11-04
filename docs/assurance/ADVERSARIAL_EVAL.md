@@ -318,8 +318,15 @@ the ingress, the ledger or the second reader.
   follows its evidence, and that the evaluation can tell it from three
   wrong verdict rules. They are not a benchmark of scientific judgment,
   and the scripted agent asks only the question it is given.
-- **The precision of a verdict.** The ledger decides with the resolution
-  the producer states. The independent check bounds the producer's value
-  only to the sum of both stated errors. A producer that understates its
-  error inside the check's own decides verdicts it should leave
-  INCONCLUSIVE (AUD-025, open).
+- **The precision of a verdict.** The independent check bounds the
+  producer's value only to the sum of both stated errors, so the ledger
+  observes each output the check compared with the larger of the
+  producer's stated error and `|v_producer - v_check| + r_check`, and no
+  output it did not compare (AUD-025, fixed: a producer 5e-10 K off
+  stating 1e-13 K, which decided a REFUTED the world does not answer, now
+  leaves the question INCONCLUSIVE). A verdict is then as good as the
+  check's stated error. Of the checks the policy admits, the
+  method-of-lines check's is held against the exact series, the RC
+  network's RK4 check's against a 90-digit evaluation and the Langmuir
+  check's against a 50-digit closed form; the FMU and FEniCSx checks do
+  not run on this host, and their stated errors are not held here.

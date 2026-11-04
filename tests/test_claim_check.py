@@ -24,6 +24,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from agent_substrate import claim_check as C  # noqa: E402
+from agent_substrate import research as R  # noqa: E402
 from agent_substrate.evidence_terms import Property  # noqa: E402
 from agent_substrate.research import evaluate  # noqa: E402
 from agent_substrate.trust_labels import TrustError, establish  # noqa: E402
@@ -188,6 +189,65 @@ def test_a_broken_citation_is_reported_and_the_claim_is_not_established(w):
     assert not forged.established                # and nothing is granted
     uncited = w.check(text)
     assert uncited.citation == "NONE" and not uncited.established
+
+
+def _bundle_of(*outputs) -> dict:
+    return {"outputs": [{"name": n, "status": "OK", "quantity": {
+        "value": v, "unit": u, "resolution": r}} for n, v, u, r in outputs]}
+
+
+def test_the_bytes_say_an_observation_their_check_widened():
+    """AUD-025: an observation of a verified result carries, for each output
+    its check compared, the resolution that check supports -- never less
+    than the producer's -- and no output the check did not compare. Its
+    bundle's bytes still say it; another value, unit or a narrower interval
+    is not what they say."""
+    from agent_substrate.research import values_of
+    bundle = _bundle_of(("T", 312.4, "K", 1e-3), ("q", 1215.0, "W m^-2",
+                                                 1e-6))
+    own = values_of(bundle)
+    assert C.bytes_say(bundle, own)
+    assert C.bytes_say(bundle, {"T": {**own["T"], "resolution": 2.5e-3}})
+    for bad in ({"T": {**own["T"], "resolution": 5e-4}},
+                {"T": {**own["T"], "value": 301.4}},
+                {"T": {**own["T"], "unit": "degC"}},
+                {"T_other": own["T"]},
+                {"T": {**own["T"], "resolution": float("nan")}},
+                {"T": {**own["T"], "resolution": True}},
+                {"T": {**own["T"], "resolution": 10 ** 400}},
+                {"T": {**own["T"], "extra": 1}},
+                {"T": None}, None, [own["T"]]):
+        assert not C.bytes_say(bundle, bad), bad
+
+
+def test_a_planted_observation_is_not_what_its_bytes_say(w):
+    """A ledger loaded without evidence cannot hold an observation to its
+    bundle; the citation check can. An observation planted beside slab-1's
+    with half the resolution its bytes state -- the precision AUD-025 says
+    nothing verified -- is cited BROKEN, and the genuine one, read the same
+    way, is cited INTACT."""
+    _, events = w.log.read_verified()
+    genuine = [e for e in events if e.action == R.ACT_OBSERVATION
+               and e.target == "o-slab-1-a"][-1]
+    obs = genuine.payload["observation"]
+    assert any(v["resolution"] > 0 for v in obs["values"].values())
+    planted = {**obs, "observation_id": "o-slab-1-planted", "values": {
+        n: {**v, "resolution": v["resolution"] / 2}
+        for n, v in obs["values"].items()}}
+    w.log.append(actor=genuine.actor, action=R.ACT_OBSERVATION,
+                 target=planted["observation_id"],
+                 payload={**genuine.payload, "observation": planted})
+    blind = R.ResearchLedger(w.log).load()      # holds no values to bytes
+    text = "T_at_half of slab-1 is below 313 K"
+    for oid, citation in (("o-slab-1-planted", "BROKEN"),
+                          ("o-slab-1-a", "INTACT")):
+        r = C.check(text, cites=[oid], objective_id=B.OBJECTIVE,
+                    ledger=blind, store=w.store, evidence=w.evidence)
+        assert r.citation == citation, (oid, r.citation_problems)
+    assert "say something other than the observation recorded" in \
+        C.check(text, cites=["o-slab-1-planted"], objective_id=B.OBJECTIVE,
+                ledger=blind, store=w.store,
+                evidence=w.evidence).citation_problems[0]
 
 
 def test_bytes_altered_after_observation_break_the_citation(w):

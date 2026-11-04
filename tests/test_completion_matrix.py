@@ -982,7 +982,11 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 549e9a4 and 3ddce54 drew, and 60 cut both off at 91%.
 #: .github/workflows/container-verify.yml is cited by R64, which predates
 #: it until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 11
+#: 11 -> 10 when an observation came to claim no more than its check
+#: verified (AUD-025): reuse re-derives a decision under the policy that
+#: admitted it (agent_substrate/governed_model.py, cited by R43), which
+#: predates it until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 10
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

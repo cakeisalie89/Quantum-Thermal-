@@ -12027,3 +12027,40 @@ that test. The demonstration's committed results are unchanged.
 **WHAT THIS IS NOT.** The model ran once. Nothing in the substrate
 changed, and no control was relaxed: an execution of a second run task
 would still be counted and reported as accepted.
+
+## D-2026-191 — Four mutation specs placed by count took 13 to 56 minutes each
+
+**FOUND BY HOSTED CI.** In the agent-substrate run at a5cf136 (hosted run
+41795363221), the plan put every mutation shard at 62 minutes. They took
+between 61 and 119, against a limit of 150. Sixteen specs had no measured
+time, being newer than the run D-2026-189 measured. Each was weighed at
+its mutation count times the median rate, 6.3 seconds a mutation. Four of
+them run tests far slower than that:
+
+- `verify_assurance.json` was placed at 13 minutes and took 56;
+- `research_horizon_resume.json` was placed at 1 and took 32;
+- `integration_demo_harness.json` was placed at under 1 and took 15;
+- `rc_counterfactuals.json` was placed at 2 and took 13.
+
+Nothing failed. Then AUD-025 adds 18 mutations to the first spec and 13 to
+the last. On the old weights, the regenerated plan puts the first in a
+shard that comes to 112 minutes at the times measured, and another shard
+at 113. At each changed spec's own rate per mutation, those two shards
+come to 120 and 128 minutes.
+
+**THE REPAIR.** `WEIGHTS` now holds the seconds each of the 140 specs took
+in that run. They were read from the eight shard logs as before: from one
+spec's header to the next. Twelve specs gained mutations after that run
+(AUD-025), and each is weighed at the time measured for its earlier form.
+The plan now puts every shard at 80 minutes. At each changed spec's own
+measured rate per mutation, the heaviest shard comes to 91.
+
+Every spec now has a measurement, so `tests/test_mutation_shards.py` can
+no longer find an unmeasured spec on disk. Its test that an unmeasured
+spec is weighed, never ignored, now makes that case itself. It forgets
+the measurement of the spec with the most mutations, then holds that spec
+to its mutation count times the median measured rate, and to a place in
+the plan. The planner's mutation spec: 12 of 12 killed.
+
+**WHAT THIS IS NOT.** A weight decides where a spec runs, never whether
+it runs. Every spec still runs in exactly one shard on every cycle.

@@ -68,7 +68,7 @@
         "tests/test_agent_result_rules.py::test_the_store_refuses_a_report_that_does_not_support_it",
         "tests/test_scientific_authority_replay.py::test_both_readers_refuse_the_same_content"
       ],
-      "note": "Admission policy scientific_result.admission/1 admits INDEPENDENT_NUMERICAL_AGREEMENT for a simulation result and refuses a report claiming more, in the store and in the independent reader."
+      "note": "Admission policy scientific_result.admission/2, as /1 before it, admits INDEPENDENT_NUMERICAL_AGREEMENT for a simulation result and refuses a report claiming more, in the store and in the independent reader."
     },
     {
       "id": "EB5",

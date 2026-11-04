@@ -2,15 +2,15 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "60b6f446f9e501e450f3d05f86b629d81ffab1bf929526823f6599f58bb59abc",
+  "entries_digest": "d1d91194731465e74a8615c05dbb7ff3ffda59e15cb0a958ccd655c446508fd7",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "92d788b4b97422d0fc5f14c46dfc0089eb322c2fab585966712145ebf0808496"
+      "sha256": "bb201795c79fc2d58a6323eab62b30be50bc292b6dcb9ab6c2a39384ee2aaa46"
     },
     {
       "path": "ARCHITECTURE.md",
-      "sha256": "144c733ebe86a7468e34fd997a9410fb522c780bcb169c442e7cbfb381c7a941"
+      "sha256": "8c9947f787e4296513b25462c417aea1032f87803d1f99dac3c58a17da582791"
     },
     {
       "path": "AUTHORITIES.md",
@@ -18,7 +18,7 @@
     },
     {
       "path": "CLAIMS_BOUNDARY.md",
-      "sha256": "377efaeddb37f140413c905f505c809d1c94dc7ab7bc47c7e7aa824e276e398e"
+      "sha256": "f45564bebb5e5ec49916adc225f46df1f1065e024fedbf982e28aacf94791739"
     },
     {
       "path": "DEPLOYMENT.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "0685442b6d71a5e6f09dac41e8fa63d92099eb17a84c66546cba318898bc065b"
+      "sha256": "b18180b9d8d8ae89a8c0086ceb61ac5baf55f27bdd65cc2cc1b97e2bdd5203e1"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -46,7 +46,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "235d5e60f78127d3ef5a01a87589882c35c5a81767b20adcb3de128d51ccaafe"
+      "sha256": "73f937eb27d806dde76ea068144d0d7a415533ffe7cbb0d149aacf3619fe41a7"
     },
     {
       "path": "REPRODUCE.md",
@@ -82,7 +82,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "ee964065f82df1ed2b369cb82b2a834047b795cb0b781d078e531cef40635cdb"
+      "sha256": "bb736e20501c1000e467062d4424282bbcbfa761ecf7292a2a137d319a620493"
     },
     {
       "path": "docs/EVIDENCE_TERMS.md",
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/assurance/ADVERSARIAL_EVAL.md",
-      "sha256": "60a4a79c873d9440987055d63cbc3c32c0fc27d761973e15fe3771f077c29733"
+      "sha256": "205f611854b23c97f8081105d49f7f6a0abe53f9b65613e5fc2e71385e8962e8"
     },
     {
       "path": "docs/assurance/package/slab-mid-plane/README.md",
@@ -98,11 +98,11 @@
     },
     {
       "path": "docs/audit/AUDIT_PROGRESS.md",
-      "sha256": "d7daffd508092f3ac991da026d3573b590209216c4dcb75b05335adff799eb6d"
+      "sha256": "6cc5a798d91a211f716409276bf028cb86722c4f51a9f4c39ec8c1cdd3f600fc"
     },
     {
       "path": "docs/audit/AUDIT_REPORT.md",
-      "sha256": "afba31875784015b3f78555a0bf659885ecd3053174ed76840195cab5978a176"
+      "sha256": "533f82ae376fd442e0c76af66452c6a135d21dc37134142ed23781bcbaebccc1"
     },
     {
       "path": "docs/formal/README.md",

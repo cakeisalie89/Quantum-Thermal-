@@ -84,10 +84,14 @@ Three meanings of "verified" are kept apart: *artifact integrity* (the same
 bytes, a digest), *scientific verification* (a bounded check passed, a
 `VerificationResult`) and *authority* (evidence judged sufficient, a record's
 state). A `scientific_result` reaches VERIFIED only under the admission
-policy `scientific_result.admission/1` (`agent_substrate/result_rules.py`):
+policy `scientific_result.admission/2` (`agent_substrate/result_rules.py`):
 a PASS from an independent implementation about that exact bundle, every
-invariant holding, both documents captured by governed tasks, and the check
-executed by none of the proposer, the decider and the model's executor. The
+invariant holding, the check's own value and error for each output it
+compared, both documents captured by governed tasks, and the check
+executed by none of the proposer, the decider and the model's executor. A
+history admitted under `/1` is decided under `/1`. An observation of the
+result claims no more precision than the check supports: the larger of the
+producer's error and `|v_producer - v_check| + r_check` (AUD-025). The
 store decides it live and again on every replay; the independent reader
 decides it a third time in its own code. Evidence that cannot be read makes
 a result UNVERIFIABLE, never silently VERIFIED.

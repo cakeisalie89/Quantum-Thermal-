@@ -88,7 +88,7 @@ import math
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, TypeGuard
 
 from . import freshness as F
 from .canonical import digest, digest_bytes, is_digest
@@ -277,6 +277,60 @@ def _off_question(objective: dict, obs: dict) -> str:
         return ("was run at parameters other than the documented point the "
                 "objective asks about")
     return ""
+
+
+def _finite(v: object) -> TypeGuard[float]:
+    """A number a float holds, and holds finitely: a JSON integer too
+    large for a float is refused, where ``math.isfinite`` would raise."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
+
+
+def _no_constant(token: str):
+    raise ValueError(f"{token} is not a JSON value")
+
+
+def observed_values(bundle: dict, report: dict | None) -> dict:
+    """What an observation of a verified result may say each output is.
+
+    A PASS establishes that producer and check agree within the sum of both
+    stated errors, so the producer's own resolution bounds nothing the
+    check verified when the check's error is the larger (AUD-025). A report
+    that states its agreement -- the check's own value and error for each
+    output it compared -- bounds the producer's value by
+    ``|v_producer - v_check| + r_check``. The observation takes that bound,
+    never less than the producer's own, and only for the outputs the check
+    compared: an output nobody compared is not observed.
+
+    A report with no agreement -- one written before admission/2, which
+    cannot carry it, or none this reader can read as JSON -- leaves the
+    producer's values as the bundle states them, as those histories
+    recorded them. The store refuses to admit a PASS under admission/2 that
+    states no agreement.
+    """
+    vals = values_of(bundle)
+    agree = report.get("agreement") if isinstance(report, dict) else None
+    if not isinstance(agree, list):
+        return vals
+    checked: dict = {}
+    for entry in agree:
+        if (isinstance(entry, list) and len(entry) == 2
+                and isinstance(entry[0], str)
+                and isinstance(entry[1], dict)):
+            vc, rc = entry[1].get("value"), entry[1].get("resolution")
+            if _finite(vc) and _finite(rc) and rc >= 0:
+                checked[entry[0]] = (vc, rc)
+    out = {}
+    for name, v in vals.items():
+        if name in checked:
+            vc, rc = checked[name]
+            out[name] = {**v, "resolution": max(
+                v["resolution"], abs(v["value"] - vc) + rc)}
+    return out
 
 
 def values_of(bundle: dict) -> dict:
@@ -529,7 +583,8 @@ class ResearchLedger(DecidedWriter):
                                 "record does not cite")
         if self.evidence is not None:
             bundle = json.loads(self.evidence.get(b["result_bundle"]))
-            if values_of(bundle) != b["values"] or \
+            if observed_values(bundle, self._report_of(sci)) != \
+                    b["values"] or \
                     bundle.get("model_id") != b["model_id"] or \
                     bundle.get("observed_at") != b.get("observed_at") or \
                     bundle.get("parameter_digest") != \
@@ -541,6 +596,21 @@ class ResearchLedger(DecidedWriter):
             self._observed_at[oid] = observed
             self._by_source.setdefault(
                 (b["objective_id"], b["model_id"]), []).append(oid)
+
+    def _report_of(self, sci: dict) -> dict | None:
+        """The verification report the record cites, as JSON, or None when
+        this ledger has no evidence store or the record cites none. A digest
+        that does not resolve raises, as a bundle's does; bytes that are no
+        JSON object are a report stating no agreement (AUD-025)."""
+        sha = (sci.get("evidence") or {}).get("verification_report")
+        if self.evidence is None or not is_digest(sha):
+            return None
+        try:
+            doc = json.loads(self.evidence.get(sha),
+                             parse_constant=_no_constant)
+        except ValueError:
+            return None
+        return doc if isinstance(doc, dict) else None
 
     def _observed_time(self, ev, b: dict) -> float | None:
         """When the source says it observed, or None. Never later than the
@@ -897,11 +967,13 @@ class ResearchLedger(DecidedWriter):
         when it was observed, if the bundle says -- are read from the bundle
         here; nobody's summary of it is accepted."""
         bundle = json.loads(bundle_bytes)
+        sci = self._sci.get(record_id)
         body = {"observation_id": observation_id,
                 "objective_id": objective_id, "record_id": record_id,
                 "result_bundle": digest_bytes(bundle_bytes),
                 "model_id": bundle.get("model_id"),
-                "values": values_of(bundle)}
+                "values": observed_values(
+                    bundle, self._report_of(sci) if sci else None)}
         for key in sorted(_OBSERVATION_OPTIONAL):
             if key in bundle:
                 body[key] = bundle[key]

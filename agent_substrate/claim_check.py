@@ -250,6 +250,43 @@ class Report:
         return Property.SEMANTICALLY_SUPPORTED in self.label.properties
 
 
+def _finite(v) -> bool:
+    """A number a float holds, and holds finitely: a JSON integer too
+    large for a float is refused, where ``math.isfinite`` would raise."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
+
+
+def bytes_say(bundle: dict, values) -> bool:
+    """Whether a result bundle's bytes say what an observation of it records.
+
+    Each output the observation names is an OK output of the bundle, with
+    the bundle's value and unit and a resolution no smaller than the bundle
+    states. The research ledger widens a resolution to what the result's
+    independent check supports (AUD-025), so a wider interval is still what
+    the bytes say; another value or unit, a narrower interval, or an output
+    the bundle does not hold is not. How wide the check makes it is the
+    ledger's rule, held on its own replay.
+    """
+    own = values_of(bundle)
+    if not isinstance(values, dict):
+        return False
+    for name, v in values.items():
+        o = own.get(name)
+        if o is None or not isinstance(v, dict) or \
+                set(v) != {"value", "unit", "resolution"}:
+            return False
+        r = v["resolution"]
+        if v["value"] != o["value"] or v["unit"] != o["unit"] or \
+                not _finite(r) or r < o["resolution"]:
+            return False
+    return True
+
+
 def check(text: str, *, cites=(), objective_id: str, ledger, store,
           evidence, checker=None, convert=None,
           claimant: Origin = Origin.MODEL_OUTPUT,
@@ -273,7 +310,7 @@ def check(text: str, *, cites=(), objective_id: str, ledger, store,
         if not evidence.contains(dg):
             problems.append(f"{oid}: its result bytes are missing or no "
                             "longer re-hash")
-        elif values_of(json.loads(evidence.get(dg))) != body["values"]:
+        elif not bytes_say(json.loads(evidence.get(dg)), body["values"]):
             problems.append(f"{oid}: its result bytes say something other "
                             "than the observation recorded")
     citation = "NONE" if not cites else "BROKEN" if problems else "INTACT"

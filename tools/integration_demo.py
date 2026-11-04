@@ -68,6 +68,7 @@ from agent_substrate import inference as I  # noqa: E402
 from agent_substrate import prov_export  # noqa: E402
 from agent_substrate import research as R  # noqa: E402
 from agent_substrate import research_loop as L  # noqa: E402
+from agent_substrate import result_rules  # noqa: E402
 from agent_substrate import witness as W  # noqa: E402
 from agent_substrate.authority import Role, State, TransitionError  # noqa: E402
 from agent_substrate.canonical import canonical_bytes, digest  # noqa: E402
@@ -741,8 +742,8 @@ def compromised_actor() -> dict:
                            "role": "VERIFIER", "evidence": cite,
                            "policy_id": None, "stale_reason": None,
                            "edge_reason": "forged", "idempotency_key": None,
-                           "admission_policy": "scientific_result."
-                                               "admission/1"})
+                           "admission_policy":
+                               result_rules.CURRENT_POLICY})
             named += 1
         loaded = _refusal(lambda: AuthorityStore(log, evidence=ev).load(),
                           StoreError)

@@ -276,6 +276,95 @@ def test_the_check_passes_on_agreement_and_says_what_it_is(model, inputs):
     assert any("law" in s for s in v.shared_components)
 
 
+#: pi to fifty digits: the check's float pi is itself an approximation
+_PI = "3.1415926535897932384626433832795028841971693993751"
+
+
+def _exact_flux_and_inventory(prm: dict) -> tuple:
+    """The pressure-form flux and N0 + C by the closed form, in 50-digit
+    decimal arithmetic from the inputs' exact binary values: what the
+    check's own values are held to (AUD-025)."""
+    from decimal import Decimal as D, localcontext
+    with localcontext() as ctx:
+        ctx.prec = 50
+        cap = D(prm["capacity_per_m2"])
+        N0 = D(prm["initial_coverage"]) * cap
+        F = D(prm["pressure_Pa"]) / (2 * D(_PI) * D(prm["mass_amu"])
+                                     * D(RK.ATOMIC_MASS_KG)
+                                     * D(RK.BOLTZMANN_J_K)
+                                     * D(prm["T_gas_K"])).sqrt()
+        kt = D(prm["sticking"]) * F / cap * D(prm["window_s"]) \
+            * prm["n_windows"]
+        return F, N0 + (cap - N0) * (1 - (-kt).exp())
+
+
+def _sampled(rng) -> dict:
+    def lu(lo, hi):
+        return math.exp(rng.uniform(math.log(lo), math.log(hi)))
+    return {"pressure_Pa": lu(1e-10, 1e5), "T_gas_K": lu(1.0, 1e4),
+            "mass_amu": lu(1.0, 1e3), "sticking": rng.uniform(0.0, 1.0),
+            "capacity_per_m2": lu(1e12, 1e21),
+            "initial_coverage": rng.choice(
+                [0.0, rng.uniform(0.0, 1.0), 1.0 - 1e-6 * rng.random()]),
+            "window_s": lu(1e-6, 1e9), "n_windows": rng.randint(1, 10_000)}
+
+
+def test_the_check_keeps_the_error_its_agreement_states():
+    """AUD-025: what the check states it agrees on -- its own flux and
+    inventory, each with the error it credits itself -- held to the closed
+    form over the admitted inputs. A reader bounds the producer's value by
+    |v_producer - v_check| + r_check, so r_check must hold. Held on the
+    check's own computation (the next test holds the agreement to be it);
+    over 4000 draws the worst inventory error measured was a quarter of
+    the stated 1e-10 relative, at k t near 2, where RK4's (k h)^4 / 120
+    bites most."""
+    import random
+    from decimal import Decimal as D
+    eps = sys.float_info.epsilon
+    rng = random.Random("langmuir-agreement")
+    worst = 0.0
+    for _ in range(2000):
+        prm = _sampled(rng)
+        cap = prm["capacity_per_m2"]
+        N0 = prm["initial_coverage"] * cap
+        F = RK.pressure_form_flux(prm["pressure_Pa"], prm["T_gas_K"],
+                                  prm["mass_amu"])
+        C = RK.captured(N0, F, prm["sticking"], cap,
+                        prm["window_s"] * prm["n_windows"])
+        F_x, N_x = _exact_flux_and_inventory(prm)
+        assert abs(D(F) - F_x) <= D(64 * eps * abs(F)), prm
+        stated = RK.RK4_REL_ERROR * abs(C) + 64 * eps * abs(N0 + C)
+        err = abs(D(N0 + C) - N_x)
+        assert err <= D(stated), prm
+        worst = max(worst, float(err / D(stated)) if stated else 0.0)
+    # held with margin, and the margin is the measured one: a stated error
+    # ten times looser than the integrator achieves would also fail here
+    assert 0.1 < worst < 0.5
+
+
+@pytest.mark.parametrize("inputs", CASES)
+def test_the_agreement_is_the_check_s_own_answer(model, inputs):
+    b = run_model(model, inputs)
+    v = RK.run_check(b, verifier_id="test")
+    prm = b.parameters
+    N0 = prm["initial_coverage"] * prm["capacity_per_m2"]
+    F = RK.pressure_form_flux(prm["pressure_Pa"], prm["T_gas_K"],
+                              prm["mass_amu"])
+    C = RK.captured(N0, F, prm["sticking"], prm["capacity_per_m2"],
+                    prm["window_s"] * prm["n_windows"])
+    got = dict(v.agreement)
+    assert set(got) == {"impingement_flux", "final_inventory"}
+    assert (got["impingement_flux"].value,
+            got["impingement_flux"].resolution) == (
+        F, 64 * sys.float_info.epsilon * abs(F))
+    assert (got["final_inventory"].value,
+            got["final_inventory"].resolution) == (
+        N0 + C, RK.RK4_REL_ERROR * abs(C)
+        + 64 * sys.float_info.epsilon * abs(N0 + C))
+    for _, q in v.agreement:
+        assert q.unit == b.output(_).quantity.unit
+
+
 def test_the_check_shares_no_code_with_the_producer():
     closure = source_closure(RK.IMPLEMENTATION_MODULES)
     assert "scientific.checks.langmuir_rk4" in closure

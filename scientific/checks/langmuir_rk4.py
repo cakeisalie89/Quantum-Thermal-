@@ -44,6 +44,7 @@ from __future__ import annotations
 from typing import Any
 
 import math
+import sys
 
 from ..identity import implementation_digest
 from ..quantity import Quantity, ResolutionClass as RC
@@ -51,7 +52,7 @@ from ..result import OutputStatus, ResultBundle
 from ..verification import (
     CheckType, Establishes, Independence, Status, VerificationResult,
 )
-from . import quantity
+from . import agreement, quantity
 
 CHECK_ID = "surface_adsorption.rk4_pressure_form"
 #: The model this check was written for -- stated, not imported, so that the
@@ -61,6 +62,11 @@ MODEL_ID = "surface.langmuir_capture"
 MODEL_VERSION = "1.0.0"
 IMPLEMENTATION_MODULES = ("scientific.checks.langmuir_rk4",)
 REL_MAX = 1e-8
+#: what RK4 at k h <= 0.01 errs on this linear equation, relative to C:
+#: the estimate the criterion's derivation states, and the error this check
+#: credits its own C with (AUD-025)
+RK4_REL_ERROR = 1e-10
+_EPS = sys.float_info.epsilon
 KH = 0.01                    # k h, the RK4 step in units of 1 / k
 KT_SATURATED = 40.0          # exp(-40) is below double precision of N_cap
 MIN_STEPS = 200
@@ -158,8 +164,19 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
     rel = max(_rel(flux, quantity(flux_out).value),
               abs(C - C_producer) / max(abs(C), floor)
               if C != C_producer else 0.0)
+    agree = (
+        agreement(flux_out, flux, 64 * _EPS * abs(flux),
+                  resolution_class=RC.SINGLE_EVALUATION,
+                  basis="the pressure-form flux: one evaluation of a closed "
+                        "form, to rounding"),
+        agreement(inv_out, N0 + C,
+                  RK4_REL_ERROR * abs(C) + 64 * _EPS * abs(N0 + C),
+                  resolution_class=RC.DISCRETIZATION_ESTIMATE,
+                  basis="the initial coverage plus C by classical RK4 at "
+                        "k h <= 0.01: its stated relative error in C, plus "
+                        "rounding"))
     return VerificationResult(
-        **common,
+        **common, agreement=agree,
         status=Status.PASS if rel <= REL_MAX else Status.FAIL,
         measured=Quantity(rel, "1", resolution=1e-10,
                           resolution_class=RC.DISCRETIZATION_ESTIMATE,

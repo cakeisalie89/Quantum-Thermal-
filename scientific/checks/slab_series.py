@@ -43,7 +43,7 @@ from ..result import OutputStatus, ResultBundle
 from ..verification import (
     CheckType, Establishes, Independence, Status, VerificationResult,
 )
-from . import quantity, resolution
+from . import agreement, quantity, resolution
 
 CHECK_ID = "thermal.slab_series"
 #: the model this check was written for -- stated, not imported, so this
@@ -173,13 +173,19 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
     xs = [f * p["L_m"] for f in SAMPLE_FRACTIONS]
     ref = series_temperature(p, xs)
     ratio = 0.0
+    agree = []
     for o, r in zip(outs, ref):
         q = quantity(o)
         tol = GCI_SAFETY * resolution(q) + 64 * _EPS * abs(r)
         ratio = max(ratio, abs(q.value - r) / tol)
+        agree.append(agreement(
+            o, r, 64 * _EPS * abs(r),
+            resolution_class=RC.ACCUMULATED_BOUND,
+            basis="the eigenfunction series summed until its terms "
+                  "underflow: exact to rounding, stated as 64 eps |T|"))
     status = Status.PASS if ratio <= 1.0 else Status.FAIL
     return VerificationResult(
-        **common, status=status,
+        **common, status=status, agreement=tuple(agree),
         measured=Quantity(ratio if math.isfinite(ratio) else 1e300, "1",
                           resolution=1e-6,
                           resolution_class=RC.SINGLE_EVALUATION,

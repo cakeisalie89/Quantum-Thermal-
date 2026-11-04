@@ -87,7 +87,7 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-022 | P1 | REPRODUCED | FIXED | the separate process reported a history clean while its own readers refused acts in it |
 | AUD-023 | P2 | REPRODUCED | FIXED | the independent readers could not read a governed history; the separate process is now handed its public roots |
 | AUD-024 | P1 | REPRODUCED | FIXED | the RC network's model stated resolutions a thousand times smaller than its error, and divided by zero on 870 of 5000 networks drawn across its admitted bounds |
-| AUD-025 | P2 | REPRODUCED | OPEN | a verdict is decided with the producer's stated resolution, which the independent check bounds only to the sum of both stated errors |
+| AUD-025 | P2 | REPRODUCED | FIXED | a verdict was decided with the producer's stated resolution, which the independent check bounds only to the sum of both stated errors; an observation now claims no more than the check's stated agreement supports |
 | AUD-026 | P2 | REPRODUCED | FIXED | a key of small order could be registered, and under it anyone could sign; the two Ed25519 verifiers also decoded one encoding differently |
 | AUD-027 | P3 | REPRODUCED | FIXED | a cited document holding a number JSON does not have made the admission rule raise instead of refusing |
 | AUD-028 | P2 | REPRODUCED | FIXED | a verdict on one objective's hypothesis could rest on another objective's observations, so an objective asking its question at a documented point could be concluded on a run elsewhere |
@@ -397,13 +397,19 @@ The audit restored none of it.
 ## 7. Owner decisions
 
 **Fixable here, and fixed.** AUD-002 to AUD-009, AUD-011 to
-AUD-018, AUD-020 to AUD-024, and AUD-026 to AUD-033. For AUD-011 and AUD-017 the mechanism is what was
+AUD-018, and AUD-020 to AUD-033. For AUD-011 and AUD-017 the mechanism is what was
 fixed, and it holds where a reader is given a registry. Provisioning the
 production registry is the owner action below.
 
-**Fixable here, and open.** AUD-025. Its correction changes the
-verification schema and the admission policy's name, with a migration
-for replay. It is proposed in the finding and left for its own stage.
+**Fixable here, and open.** One, found while fixing AUD-025 and taken
+next: the older number tests that read a JSON number raise
+`OverflowError` on an integer too large for a float, where each should
+refuse it with its own error (`research.check_prediction` reproduced).
+AUD-025 is fixed: the verification schema states each check's agreement,
+the admission policy is `scientific_result.admission/2`, and replay
+decides each admission under the policy it names, so the change is a
+migration, not a reinterpretation. Its own readers of an agreement
+refuse such an integer.
 
 **Owner decisions the audit found:**
 
@@ -477,7 +483,7 @@ Each line names its weakest point. No aggregate is given.
 | Witness deployment maturity | not deployed | protocol implemented and tested; quorums model-checked (protocol 7); a quorum must be a majority (AUD-018); a re-provisioned witness is the owner's to count (AUD-019); no production witness or trust root |
 | Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); a GOVERNED history binds every reader to the key and role registries it declares (AUD-020), is written by the governed path, each record signed through its handle (AUD-021), and is read by the separate process under its roots (AUD-023); the research task runs governed, each of its eight grants shown necessary, and none exists outside tests; authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015); a key no secret stands behind refused by every registry and verifier (AUD-026) |
 | Execution isolation | partial, honestly classified | kernel namespaces, filesystem, network, process tree and quotas; syscall filtering NOT_PROVIDED |
-| Scientific verification | bounded, honest | numerical cross-checks of three models; one result packaged for offline checking, rechecked by a standalone verifier against its own closed-form solution, and its authority checked from the package alone: every record signed and every governed act granted, under TEST keys; the RC network's model held to the resolution it states (AUD-024); a verdict decided only on its own objective's observations (AUD-028), and still with the producer's stated resolution, which its check bounds only to the sum of both errors (AUD-025, open); no experimental validation; FEniCSx not exercised on this host |
+| Scientific verification | bounded, honest | numerical cross-checks of three models; one result packaged for offline checking, rechecked by a standalone verifier against its own closed-form solution, and its authority checked from the package alone: every record signed and every governed act granted, under TEST keys; the RC network's model held to the resolution it states (AUD-024); a verdict decided only on its own objective's observations (AUD-028), each observed no more precisely than its check's stated agreement supports (AUD-025), and that agreement held against an exact or high-precision reference for the method-of-lines, RC and Langmuir checks; no experimental validation; FEniCSx not exercised on this host |
 | Long-horizon reliability | measured to 1,000 decisions | resumable across the death of its process (AUD-013); the 5,000 and 10,000 stages not run; per-decision cost rising (AUD-010) |
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
 | Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; no role registry provisioned |

@@ -228,6 +228,34 @@
    "find": "    if m and m.group(1).lower() not in (b\"utf-8\", b\"utf8\"):",
    "replace": "    if False:",
    "rationale": "D-2026-129: ISO-8859-1 parses as an FMI 3.0 description, and a codec the parser cannot look up reaches it at all"
+  },
+  {
+   "name": "HI_AG1_the_series_agreement_states_another_value",
+   "path": "scientific/checks/slab_series.py",
+   "find": "            o, r, 64 * _EPS * abs(r),\n",
+   "replace": "            o, q.value, 64 * _EPS * abs(r),\n",
+   "rationale": "AUD-025: the series check states the producer's value as its own"
+  },
+  {
+   "name": "HI_AG2_the_series_agreement_states_no_error",
+   "path": "scientific/checks/slab_series.py",
+   "find": "            o, r, 64 * _EPS * abs(r),\n",
+   "replace": "            o, r, 0.0,\n",
+   "rationale": "AUD-025: the series is credited with no rounding at all"
+  },
+  {
+   "name": "HI_AG3_the_fem_agreement_drops_the_factor_of_safety",
+   "path": "scientific/checks/fenicsx_slab.py",
+   "find": "            o, t_fem, GCI_SAFETY * e_fem + 64 * _EPS * abs(t_fem),\n",
+   "replace": "            o, t_fem, e_fem + 64 * _EPS * abs(t_fem),\n",
+   "rationale": "AUD-025: the FEM check credits itself less error in its agreement than its criterion does"
+  },
+  {
+   "name": "HI_AG4_the_fem_agreement_states_the_producer_s_value",
+   "path": "scientific/checks/fenicsx_slab.py",
+   "find": "            o, t_fem, GCI_SAFETY * e_fem + 64 * _EPS * abs(t_fem),\n",
+   "replace": "            o, q.value, GCI_SAFETY * e_fem + 64 * _EPS * abs(t_fem),\n",
+   "rationale": "AUD-025: the FEM check states the producer's value as its own"
   }
  ]
 }

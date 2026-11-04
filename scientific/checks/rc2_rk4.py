@@ -56,7 +56,7 @@ from ..result import OutputStatus, ResultBundle
 from ..verification import (
     CheckType, Establishes, Independence, Status, VerificationResult,
 )
-from . import quantity, resolution
+from . import agreement, quantity, resolution
 
 CHECK_ID = "thermal.rc2_rk4"
 #: the model this check was written for -- stated, not imported, so this
@@ -166,12 +166,20 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
             **{**common, "limitations": LIMITS + (why,)},
             status=Status.NOT_RUN, measured=None, threshold=None)
     ratio = 0.0
+    agree = []
     for o, (tf, r_check) in zip(outs, own):
         q = quantity(o)
         tol = GCI_SAFETY * (resolution(q) + r_check) + 64 * _EPS * abs(tf)
         ratio = max(ratio, abs(q.value - tf) / tol)
+        agree.append(agreement(
+            o, tf, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),
+            resolution_class=RC.DISCRETIZATION_ESTIMATE,
+            basis="classical RK4: three times its fourth-order Richardson "
+                  "estimate with the bound on the rounding its steps "
+                  "accumulate, plus rounding"))
     return VerificationResult(
         **common, status=Status.PASS if ratio <= 1.0 else Status.FAIL,
+        agreement=tuple(agree),
         measured=Quantity(ratio if math.isfinite(ratio) else 1e300, "1",
                           resolution=1e-6,
                           resolution_class=RC.SINGLE_EVALUATION,

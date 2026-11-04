@@ -41,7 +41,7 @@ from ..result import OutputStatus, ResultBundle
 from ..verification import (
     CheckType, Establishes, Independence, Status, VerificationResult,
 )
-from . import quantity, resolution
+from . import agreement, quantity, resolution
 
 CHECK_ID = "thermal.slab_method_of_lines"
 #: the model this check was written for -- stated, not imported, so this
@@ -136,13 +136,21 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
     coarse = mol_temperature(p, NODES)
     fine = mol_temperature(p, 2 * NODES)
     ratio = 0.0
+    agree = []
     for o, tc, tf in zip(outs, coarse, fine):
         q = quantity(o)
         r_check = abs(tc - tf) / 3.0       # the error of tf, not of tc
         tol = GCI_SAFETY * (resolution(q) + r_check) + 64 * _EPS * abs(tf)
         ratio = max(ratio, abs(q.value - tf) / tol)
+        agree.append(agreement(
+            o, tf, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),
+            resolution_class=RC.DISCRETIZATION_ESTIMATE,
+            basis=f"the method of lines at {NODES} and {2 * NODES} "
+                  "intervals: three times the second-order Richardson "
+                  "estimate (Roache's factor of safety), plus rounding"))
     return VerificationResult(
         **common, status=Status.PASS if ratio <= 1.0 else Status.FAIL,
+        agreement=tuple(agree),
         measured=Quantity(ratio if math.isfinite(ratio) else 1e300, "1",
                           resolution=1e-6,
                           resolution_class=RC.SINGLE_EVALUATION,

@@ -5,8 +5,8 @@ One definition, so every suite that drives a scientific result from proposal
 to authority drives the same model the same way, and a change of case is one
 edit. The check is an INDEPENDENT_IMPLEMENTATION -- a different grid,
 boundary closure, time integrator and linear solver -- the check type the
-admission policy ``scientific_result.admission/1`` admits, and it needs no
-runtime beyond this repository's. The run writes a temperature-field
+admission policies (``scientific_result.admission/1`` and ``/2``) admit, and
+it needs no runtime beyond this repository's. The run writes a temperature-field
 artefact, which the artefact-resolution rules need something to resolve.
 The physical parameters are declared (the slab has no defaults for them);
 the resolution is left to the model's defaults (80 cells, 240 steps), so a

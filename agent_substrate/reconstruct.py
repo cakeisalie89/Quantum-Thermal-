@@ -497,7 +497,8 @@ _LEARNED_PREFIX = "learned_"
 #: Admission policies this reader can decide under. A transition naming any
 #: other -- or none -- is refused: old authority is not re-read under a rule
 #: it was never admitted by.
-_SCI_POLICIES = frozenset({"scientific_result.admission/1"})
+_SCI_POLICY_V2 = "scientific_result.admission/2"
+_SCI_POLICIES = frozenset({"scientific_result.admission/1", _SCI_POLICY_V2})
 
 _SCI_ADMITTED = "ADMITTED"
 _SCI_UNVERIFIABLE = "UNVERIFIABLE"
@@ -516,6 +517,8 @@ _SCI_REPORT_FIELDS = (
     "observations", "producer_implementation_digest", "shared_components",
     "status", "subject_digest", "subject_model", "threshold", "verifier_id",
     "verifier_implementation_digest")
+#: Under admission/2 the report also states its agreement (AUD-025).
+_SCI_REPORT_FIELDS_V2 = tuple(sorted(_SCI_REPORT_FIELDS + ("agreement",)))
 
 #: Governed tools whose captured artefacts count, by what they are. A report
 #: from any other tool -- or from no tool -- is not a governed verification.
@@ -574,13 +577,59 @@ def _sci_invariants_hold(bundle) -> bool:
                     for i in inv))
 
 
+#: no finite float reaches it, and NaN compares with nothing
+_SCI_INF = float("inf")
+
+
+def _sci_number(v: object) -> TypeGuard[float]:
+    """A number a float holds, and holds finitely -- restated without the
+    math module, which this reader's allow-list does not hold. An integer
+    too large for a float is refused, not raised."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        f = float(v)
+    except OverflowError:
+        return False
+    return -_SCI_INF < f < _SCI_INF
+
+
+def _sci_agreement_ok(bundle, report) -> bool:
+    """Restated (AUD-025): the report states, for each output it compared,
+    the check's own finite value and error, in the output's unit, each
+    output named once and an OK output of this bundle."""
+    agree = report.get("agreement")
+    if not isinstance(agree, list) or not agree:
+        return False
+    outputs = {o.get("name"): o for o in bundle.get("outputs") or ()
+               if isinstance(o, dict)}
+    seen: set = set()
+    for entry in agree:
+        if not (isinstance(entry, list) and len(entry) == 2
+                and isinstance(entry[0], str)
+                and isinstance(entry[1], dict)) or entry[0] in seen:
+            return False
+        seen.add(entry[0])
+        o = outputs.get(entry[0])
+        oq = o.get("quantity") if isinstance(o, dict) else None
+        q = entry[1]
+        v, r = q.get("value"), q.get("resolution")
+        if (o is None or o.get("status") != "OK"
+                or not isinstance(oq, dict)
+                or not _sci_number(v)
+                or not _sci_number(r)
+                or r < 0
+                or q.get("unit") != oq.get("unit")):
+            return False
+    return True
+
+
 #: The content rule as a table: (what is asked, the question). Each question
-#: takes the bundle, the report, and the digest of the bundle.
+#: takes the bundle, the report, and the digest of the bundle. The report's
+#: fields, and under admission/2 its agreement, are asked by _sci_content.
 _SCI_CONTENT = (
     ("the bundle has exactly a ResultBundle's fields",
      lambda b, r, d: tuple(sorted(b)) == _SCI_BUNDLE_FIELDS),
-    ("the report has exactly a VerificationResult's fields",
-     lambda b, r, d: tuple(sorted(r)) == _SCI_REPORT_FIELDS),
     ("the report is about this bundle",
      lambda b, r, d: r.get("subject_digest") == d),
     ("the check passed",
@@ -605,6 +654,22 @@ _SCI_CONTENT = (
     ("the bundle ran invariants and every one holds",
      lambda b, r, d: _sci_invariants_hold(b)),
 )
+
+
+def _sci_content(policy) -> tuple:
+    """The content questions under ``policy``: the shared table, the
+    report's exact fields as the policy states them, and under admission/2
+    the agreement the observation is bounded by (AUD-025)."""
+    fields = (_SCI_REPORT_FIELDS_V2 if policy == _SCI_POLICY_V2
+              else _SCI_REPORT_FIELDS)
+    rows: tuple = _SCI_CONTENT + (
+        (f"the report has exactly a VerificationResult's fields under "
+         f"{policy}", lambda b, r, d: tuple(sorted(r)) == fields),)
+    if policy == _SCI_POLICY_V2:
+        rows += (("the report states the check's own value and error for "
+                  "each output it compared",
+                  lambda b, r, d: _sci_agreement_ok(b, r)),)
+    return rows
 
 
 def _sci_task_producers(tasks: dict, sha: str, tools: frozenset,
@@ -665,7 +730,7 @@ def _sci_admission(*, record_id, evidence, policy, proposer, actor, at_seq,
         subject = _sci_json_digest(bundle)
     except ValueError:
         return None, "the cited bundle has no canonical form"
-    failed = [asked for asked, question in _SCI_CONTENT
+    failed = [asked for asked, question in _sci_content(policy)
               if not question(bundle, report, subject)]
     if failed:
         return None, "not so: " + "; ".join(failed)

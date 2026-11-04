@@ -70,6 +70,42 @@ class VerificationError(ValueError):
     pass
 
 
+def _agreement(result: "VerificationResult") -> tuple:
+    """The agreement, validated and in output order (AUD-025).
+
+    Each entry names one output and carries the check's own value as a
+    Quantity with a stated resolution: a value with no stated error bounds
+    nothing. A check that compared nothing states nothing, so NOT_RUN and
+    INCONCLUSIVE carry no agreement.
+    """
+    out = []
+    for entry in result.agreement:
+        try:
+            name, q = entry
+        except (TypeError, ValueError):
+            raise VerificationError(
+                f"{result.check_id}: an agreement entry is (output, "
+                f"Quantity), not {entry!r}") from None
+        if not isinstance(name, str) or not name.strip():
+            raise VerificationError(f"{result.check_id}: an agreement entry "
+                                    "names no output")
+        if not isinstance(q, Quantity) or q.resolution is None:
+            raise VerificationError(
+                f"{result.check_id}: the agreement on {name!r} carries no "
+                "stated resolution; a check value with no error bounds "
+                "nothing")
+        out.append((name, q))
+    names = [n for n, _ in out]
+    if len(set(names)) != len(names):
+        raise VerificationError(f"{result.check_id}: an output is named "
+                                "twice in the agreement")
+    if out and result.status not in (Status.PASS, Status.FAIL):
+        raise VerificationError(
+            f"{result.check_id}: a {result.status.value} compared nothing, "
+            "so it states no agreement")
+    return tuple(sorted(out, key=lambda e: e[0]))
+
+
 @dataclass(frozen=True)
 class VerificationResult:
     check_id: str
@@ -93,6 +129,13 @@ class VerificationResult:
     limitations: tuple = ()
     #: ((observation_id, kind), ...) of measurements compared against.
     observations: tuple = ()
+    #: ((output_name, Quantity), ...): for each output the check compared,
+    #: the check's own value and the error it states for that value
+    #: (AUD-025). A PASS establishes agreement within the sum of both
+    #: sides' errors; this is what lets a reader bound the producer's value
+    #: by what the check supports, |v_producer - v_check| + r_check, rather
+    #: than by the producer's own statement alone.
+    agreement: tuple = ()
 
     def __post_init__(self):
         for f, enum in (("check_type", CheckType), ("status", Status),
@@ -111,6 +154,7 @@ class VerificationResult:
             raise VerificationError("say who ran the check")
         obs = tuple((str(i), ObservationKind(k)) for i, k in self.observations)
         object.__setattr__(self, "observations", obs)
+        object.__setattr__(self, "agreement", _agreement(self))
 
         if self.status in (Status.PASS, Status.FAIL):
             if not isinstance(self.measured, Quantity):
@@ -191,6 +235,8 @@ class VerificationResult:
             "shared_components": list(self.shared_components),
             "limitations": list(self.limitations),
             "observations": [[i, k.value] for i, k in self.observations],
+            "agreement": [[name, q.to_record()]
+                          for name, q in self.agreement],
         }
 
     def digest(self) -> str:
@@ -205,9 +251,18 @@ class VerificationResult:
                 "producer_implementation_digest", "independence",
                 "establishes", "evidence", "shared_components",
                 "limitations", "observations"}
-        if not isinstance(rec, dict) or set(rec) != keys:
+        # A report written before AUD-025 has no agreement; it is read as
+        # stating none, which the admission policy it was decided under did
+        # not ask for.
+        if not isinstance(rec, dict) or set(rec) not in (
+                keys, keys | {"agreement"}):
             raise VerificationError("verification record keys differ")
         m, t = rec["measured"], rec["threshold"]
+        agreement = rec.get("agreement", [])
+        if not isinstance(agreement, list) or not all(
+                isinstance(a, list) and len(a) == 2 for a in agreement):
+            raise VerificationError("agreement must be [[output, quantity], "
+                                    "...]")
         return cls(**{**rec,
                       "measured": Quantity.from_record(m) if m else None,
                       "threshold": Quantity.from_record(t) if t else None,
@@ -215,4 +270,7 @@ class VerificationResult:
                       "shared_components": tuple(rec["shared_components"]),
                       "limitations": tuple(rec["limitations"]),
                       "observations": tuple(tuple(o)
-                                            for o in rec["observations"])})
+                                            for o in rec["observations"]),
+                      "agreement": tuple(
+                          (name, Quantity.from_record(q))
+                          for name, q in agreement)})
