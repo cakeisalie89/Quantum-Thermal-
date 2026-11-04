@@ -13,13 +13,33 @@ its 2 x 2 matrix, the FMU integrates it numerically.
 THE SOLUTION. x = (T1, T2), dx/dt = A x + b, A has two real, distinct,
 negative eigenvalues for any admitted (positive) parameters, so
 
-    x(t) = x_s + V diag(exp(lambda_i t)) V^-1 (x0 - x_s),   x_s = -A^-1 b,
+    x(t) = x0 + V diag(expm1(lambda_i t)) V^-1 (x0 - x_s),   x_s = -A^-1 b,
 
-and the heat that left through G2a is G2a times the closed-form integral of
-T2 - Tamb, written with expm1 so a short window does not lose its digits to
-cancellation. Every output is a few dozen roundings of one closed-form
-evaluation; the stated resolution is 256 eps times the scale of the
-quantity, generous for the condition of a 2 x 2 eigenproblem with these
+the departure from the initial state, written with expm1 so a short window
+does not lose its digits; the heat that left through G2a is Q t plus G2a
+times the closed-form integral of the decaying modes of T2.
+
+WITHOUT CANCELLATION (AUD-024). Until this was found, the slow eigenvalue
+was taken as tr/2 + disc and each eigenvector as (a12, lambda - a11): both
+differences of nearly equal numbers whenever the two time constants are far
+apart. With capacities a thousand to one apart, runs whose every invariant
+held stated T1 and T2 a thousand times closer to the exact value than they
+were; and 870 of 5000 networks drawn across the admitted bounds divided by
+an eigenvalue that had cancelled to zero. Now the discriminant is a sum of
+non-negative terms, the fast root a sum of negative ones, the slow root
+comes from the product of the roots, det A = (G12 / C1)(G2a / C2), and for
+each root whichever of lambda - a11 and lambda - a22 is a sum of like-signed
+terms is computed, the other from their product, a12 a21.
+
+THE STATED RESOLUTION is 256 eps times the scale of the terms the
+computation passes through, not of the output alone: the initial and
+steady states, the modal amplitudes V^-1 (x0 - x_s) magnified by how
+nearly parallel the eigenvectors are, and, for the energies, the heat
+capacities times the temperature change those amplitudes carry. A steady
+state 1e16 K away moves a temperature of 300 K by eps 1e16; a stored energy
+over a microsecond is the difference of nothing a temperature can resolve
+-- and the resolution says so. ``tests/test_rc_counterfactuals.py`` holds
+every output to it against a 90-digit evaluation, across the admitted
 bounds.
 
 MODEL-ONLY. Every parameter is declared by the caller; nothing is measured.
@@ -65,7 +85,9 @@ _EPS = sys.float_info.epsilon
 
 
 def closed_form(p: dict, t: float) -> dict:
-    """T1, T2, E_in, E_out, E_stored at time t, exactly (to rounding)."""
+    """T1, T2, E_in, E_out, E_stored at time t, exactly (to rounding), the
+    eigenvalues, and the scales the rounding is relative to: ``scale_K``
+    for the temperatures and ``scale_J`` for the energies."""
     C1, C2, G12, G2a = p["C1_J_K"], p["C2_J_K"], p["G12_W_K"], p["G2a_W_K"]
     Q, Ta = p["Q_W"], p["Tamb_K"]
     T10, T20 = p["T1_0_K"], p["T2_0_K"]
@@ -74,29 +96,41 @@ def closed_form(p: dict, t: float) -> dict:
     # steady state: heat Q flows through G12 then G2a
     s2 = Ta + Q / G2a
     s1 = s2 + Q / G12
-    tr, det = a11 + a22, a11 * a22 - a12 * a21
-    disc = math.sqrt(tr * tr / 4.0 - det)
-    lam = (tr / 2.0 + disc, tr / 2.0 - disc) if tr < 0 else \
-        (tr / 2.0 - disc, tr / 2.0 + disc)
-    # eigenvectors (a12, lambda - a11)
-    vecs = [(a12, l_ - a11) for l_ in lam]
+    # the eigenvalues, (slow, fast), with no difference of near-equals
+    h, q = 0.5 * (a11 - a22), a12 * a21
+    disc = math.sqrt(h * h + q)
+    fast = 0.5 * (a11 + a22) - disc
+    lam = ((G12 / C1) * (G2a / C2) / fast, fast)
+    # eigenvectors (a12, lambda - a11), from (lambda - a11)(lambda - a22)
+    # = a12 a21 where lambda - a11 itself would cancel
+    mus = (q / (h + disc), -h - disc) if h >= 0 else \
+        (disc - h, q / (h - disc))
+    vecs = [(a12, m) for m in mus]
     d0 = (T10 - s1, T20 - s2)
-    # solve V c = d0
-    det_v = vecs[0][0] * vecs[1][1] - vecs[1][0] * vecs[0][1]
-    c0 = (d0[0] * vecs[1][1] - vecs[1][0] * d0[1]) / det_v
-    c1 = (vecs[0][0] * d0[1] - d0[0] * vecs[0][1]) / det_v
-    cs = (c0, c1)
-    T1 = s1 + sum(c * v[0] * math.exp(l_ * t)
-                  for c, v, l_ in zip(cs, vecs, lam))
-    T2 = s2 + sum(c * v[1] * math.exp(l_ * t)
-                  for c, v, l_ in zip(cs, vecs, lam))
-    integral_T2 = (s2 - Ta) * t + sum(c * v[1] * math.expm1(l_ * t) / l_
-                                      for c, v, l_ in zip(cs, vecs, lam))
+    # solve V c = d0; det V = a12 (fast - slow) = -2 a12 disc
+    det_v = -2.0 * a12 * disc
+    cs = ((d0[0] * mus[1] - a12 * d0[1]) / det_v,
+          (a12 * d0[1] - d0[0] * mus[0]) / det_v)
+    xs = [math.expm1(l_ * t) for l_ in lam]
+    ints = [x / l_ for x, l_ in zip(xs, lam)]   # integral_0^t exp(lambda u)
+    dT1 = sum(c * v[0] * x for c, v, x in zip(cs, vecs, xs))
+    dT2 = sum(c * v[1] * x for c, v, x in zip(cs, vecs, xs))
+    T1, T2 = T10 + dT1, T20 + dT2
     E_in = Q * t
-    E_out = G2a * integral_T2
-    E_stored = C1 * (T1 - T10) + C2 * (T2 - T20)
+    E_out = Q * t + G2a * sum(c * v[1] * i for c, v, i in zip(cs, vecs, ints))
+    E_stored = C1 * dT1 + C2 * dT2
+    # the size of what was rounded: the states, and the modal amplitudes
+    # magnified by how nearly parallel the eigenvectors are
+    modal = ((max(abs(d0[0]), abs(d0[1])) + max(abs(s1), abs(s2)))
+             * (1.0 + (a12 + a21) / (2.0 * disc)))
+    moved = modal * max(abs(xs[0]), abs(xs[1]))
     return {"T1": T1, "T2": T2, "E_in": E_in, "E_out": E_out,
-            "E_stored": E_stored, "eigenvalues": lam}
+            "E_stored": E_stored, "eigenvalues": lam,
+            "scale_K": max(abs(T1), abs(T2), abs(T10), abs(T20), moved),
+            "scale_J": max(abs(E_in), abs(E_out), abs(E_stored),
+                           (C1 + C2) * moved,
+                           G2a * modal * max(abs(ints[0]), abs(ints[1])),
+                           1e-300)}
 
 
 class ThermalRC2Model(ModelBase):
@@ -144,6 +178,16 @@ class ThermalRC2Model(ModelBase):
                   shared_components=("the network equations",),
                   limitations=("agreement of two solutions of one model, "
                                "not of the model with measurement",)),
+        CheckSpec("thermal.rc2_rk4",
+                  "the same two equations integrated by classical "
+                  "fourth-order Runge-Kutta in pure Python, at a step "
+                  "chosen from a Gershgorin bound, with its own Richardson "
+                  "and rounding estimate: no eigenvalue, eigenvector or "
+                  "steady state of this closed form",
+                  "DIFFERENT_IMPLEMENTATION",
+                  shared_components=("the network equations",),
+                  limitations=("agreement of two solutions of one model, "
+                               "not of the model with measurement",)),
     )
     applicability = Applicability(
         "two lumped heat capacities in series between a heat input and an "
@@ -164,8 +208,11 @@ class ThermalRC2Model(ModelBase):
         vals = [r[k] for k in OUTPUTS]
         nonfinite = sum(1 for v in vals if not math.isfinite(v))
         finite = nonfinite == 0
-        scale = max(abs(r["E_in"]), abs(r["E_out"]), abs(r["E_stored"]),
-                    1e-300) if finite else 1.0
+        # the energies' rounding scale (closed_form's ``scale_J``), not
+        # their size: a balance over a microsecond is the difference of
+        # nothing the temperatures can resolve (AUD-024)
+        scale = r["scale_J"] if finite and math.isfinite(r["scale_J"]) \
+            else 1.0
         gap = abs(r["E_in"] - r["E_out"] - r["E_stored"]) / scale \
             if finite else math.inf
         lam_max = max(r["eigenvalues"])
@@ -182,7 +229,8 @@ class ThermalRC2Model(ModelBase):
                             f"{BALANCE_MAX}",
                             Quantity(BALANCE_MAX, "1"),
                             "the closed form conserves heat exactly; the "
-                            "bound is rounding of the exponentials"),
+                            "bound is rounding, relative to the scale of "
+                            "the terms the energies are computed from"),
             InvariantResult("stable", bool(lam_max < 0.0),
                             Quantity(lam_max, "s^-1"),
                             "max eigenvalue < 0",
@@ -197,13 +245,16 @@ class ThermalRC2Model(ModelBase):
                 outputs.append(Output(name, OutputStatus.FAILED,
                                       reason="non-finite closed form"))
                 continue
-            sc = max(abs(v), abs(p["T1_0_K"]) if UNITS[name] == "K"
-                     else scale)
+            sc = r["scale_K"] if UNITS[name] == "K" else scale
             outputs.append(Output(name, OutputStatus.OK, Quantity(
                 float(v), UNITS[name], resolution=256 * _EPS * sc,
                 resolution_class=RC.SINGLE_EVALUATION,
                 resolution_basis="a few dozen roundings of one closed-form "
-                                 "evaluation of a 2 x 2 linear system",
+                                 "evaluation of a 2 x 2 linear system, "
+                                 "relative to the largest term it passes "
+                                 "through: the states, and the modal "
+                                 "amplitudes as the eigenvectors' "
+                                 "conditioning magnifies them",
                 reporting_digits=12)))
         return p, tuple(outputs), invariants
 

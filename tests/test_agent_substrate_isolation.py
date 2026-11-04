@@ -231,6 +231,9 @@ ALLOWED_IMPORTERS = {
     "tests/test_adversarial_controls.py",
     # Phase D: the counterfactual cases, and their rubber-stamp control
     "tests/test_counterfactual_eval.py",
+    # Stage 3: the RC network's counterfactual family, the wrong verdict
+    # rules it must tell from the ledger's, and the loop's check table
+    "tests/test_rc_counterfactuals.py",
     # Gate F: model contracts shown to the loop, and the scientific context
     # an observation keeps, read from the bundle it cites
     "tests/test_research_science.py",

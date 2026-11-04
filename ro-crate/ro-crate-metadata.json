@@ -153,10 +153,10 @@
   {
    "@id": "docs/completion_matrix.json",
    "@type": "File",
-   "contentSize": "255651",
+   "contentSize": "255974",
    "description": "the completion matrix",
    "name": "completion_matrix.json",
-   "sha256": "7e0f059cdf201c8d85d04b6f257b84307ecda6911d878ba144edf495d0791e2f"
+   "sha256": "b8704a5dfc57eda576661dc83db953b3261f9660b0c66614f9a512994af7972d"
   },
   {
    "@id": "docs/equivalence_contracts.json",
@@ -177,10 +177,10 @@
   {
    "@id": "docs/harness_status.json",
    "@type": "File",
-   "contentSize": "15788",
+   "contentSize": "16433",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "1b28af170f949a6c60e596c59dd708eed2aa9648d541f5e29259e2f6141bd406"
+   "sha256": "a19b90c768d0656f567214be33ce4320016ef95df97771dfb2574cbb90278a5b"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -204,7 +204,7 @@
    "contentSize": "2935",
    "description": "the repository content audit of the current tree",
    "name": "repo_content_audit.json",
-   "sha256": "a10b96e5bfcdece479828818dea9c4e553387586e6568408d3b3babc186f7e0b"
+   "sha256": "6dfa845718f7ce7fc46e80bea15e7a575a12e772103c7c0d2dd311dac3f412e6"
   },
   {
    "@id": "docs/repository_inventory.json",
@@ -217,7 +217,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "119360",
+   "contentSize": "120058",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -254,10 +254,10 @@
     "File",
     "SoftwareSourceCode"
    ],
-   "contentSize": "2923",
+   "contentSize": "3052",
    "description": "the admitted scientific models and their independent checks",
    "name": "catalog.py",
-   "sha256": "d08b3e6d71f4a19e18bca09e918f31effc4db6189e79216120b2dc689cd5c2e7"
+   "sha256": "ba1c75aabdeaa11da21f50dd6869fc4a07eb787335e575e977cc76990745fe2d"
   },
   {
    "@id": "stack.json",

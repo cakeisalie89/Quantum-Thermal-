@@ -150,6 +150,96 @@ killed:
   a case too close to call judged anyway;
 - CE4 is the rubber stamp itself.
 
+## The RC network's counterfactual family (Stage 3)
+
+The slab cases ask one model's question, and every one of them is decided.
+A second family asks the owner's question of a second model, the two-node
+RC network (`thermal.rc2_network`), in ten worlds. Each world differs from
+the documented point in one thing, and each change alone turns over the
+answer of the base case that asks the same question:
+
+| Case | The question asks | The world | Reference value | Answer |
+|---|---|---|---|---|
+| RC1 | T1 below 306.8 K | the documented point | 306.659 K | SUPPORTED |
+| RC2 | T1 below 306.4 K | the documented point | 306.659 K | REFUTED |
+| RC3 | T1 below 306.8 K | heat input 12 W, not 10 | 307.991 K | REFUTED |
+| RC4 | T1 below 306.8 K | both capacities halved | 306.980 K | REFUTED |
+| RC5 | T1 below 306.8 K | G12 2 W/K, not 5 | 309.537 K | REFUTED |
+| RC6 | T1 below 306.4 K | G2a 3 W/K, not 2 | 305.272 K | SUPPORTED |
+| RC7 | T1 below 306.4 K | both nodes start at 290 K | 306.031 K | SUPPORTED |
+| RC8 | T2 above 304.5 K | the documented point | 304.686 K | SUPPORTED |
+| RC9 | T2 above 304.5 K | both capacities doubled | 303.706 K | REFUTED |
+| RC10 | T1 below its own value | the documented point | 306.659 K | INCONCLUSIVE |
+
+Thresholds sit above and below the answer, both outputs are asked about,
+and both directions of comparison. RC10 is the **tie**: the threshold is
+the network's value, so no evidence that states an honest error decides
+it. Its right answer is to abstain, and any verdict is wrong. Every case
+is the legitimate scripted agent with no attack. Each is concluded, or in
+RC10 abstained, exactly as its world answers (recorded in
+`adversarial_eval_results.json`, `rc_counterfactual`).
+
+**The computation and the judgment are apart.** The network's value comes
+from `tools/rc2_reference.py`, an analytic reference that imports nothing
+of this repository. It is another closed form than the model's: Sylvester's
+formula for the matrix exponential, integrated, applied to the initial
+rates of change. The model uses eigenvectors and a steady state. The
+reference also states a bound on its own rounding, and a 90-digit
+evaluation holds it to that bound across the model's admitted parameters.
+`rc_oracle` decides from the two numbers what the world answers:
+
+- a case is clear only when its threshold is more than `RC_MARGIN_K`
+  (1 µK) from the value, beyond the reference's own error;
+- a case is a tie when the threshold is the value to within half the
+  least resolution the model ever states, 256 eps |T|, the reference's
+  error included;
+- anything between is refused as too close to call, and so is any
+  parameter set that is no network.
+
+**The loop runs the network under a deployment's check table.** The
+loop's own table (`research_loop.CHECKS`) still names no check for the
+network: scenario TL1 depends on that. The family's worlds state a table,
+`RC_CHECKS`, that names `thermal.rc2_rk4`. This is an independent check
+by classical Runge-Kutta in pure Python. Its step comes from a Gershgorin
+bound. It states its own error as Richardson's estimate plus a bound on
+the rounding its steps accumulate. It shares no code with the model.
+
+**The controls.** `STAMPS` names three wrong verdict rules. Each replaces
+the ledger's verdict whenever there is an observation to decide from. Each
+fails both families, exactly where the world's answer differs:
+
+| Verdict rule | Slab family | RC family |
+|---|---|---|
+| always SUPPORTED | the task passes; CF1 and CF3 fail | RC2, RC3, RC4, RC5, RC9 and RC10 fail |
+| always REFUTED | the task fails; CF2 and CF4 fail | RC1, RC6, RC7, RC8 and RC10 fail |
+| never decides | the task fails; all four fail | RC1 to RC9 fail; RC10 passes |
+
+These are held by `tests/test_counterfactual_eval.py` and
+`tests/test_rc_counterfactuals.py`. `tools/mutations/counterfactual_eval.json`
+adds CE5 and CE6, the mirror and the rule that never decides.
+`tools/mutations/rc_counterfactuals.json` holds the same three as RCF1 to
+RCF3, and sixteen more against the judgment, the deployment, the check
+and the model. All nineteen are killed. A twentieth, an eigenvector taken
+as a difference, was removed as equivalent: once the slow eigenvalue is
+accurate it is as accurate as the form the model uses.
+
+**What it found: AUD-024.** Against a 90-digit evaluation, the network's
+model missed the resolution it stated:
+
+- In admitted runs with every invariant holding, it missed by 1.3e3
+  times for T1 and T2 and 1.7e3 times for the stored energy. These are
+  ordinary parameters: capacities 1e4 : 1, a long window.
+- Its slow eigenvalue was tr/2 + disc, and each eigenvector
+  (a12, lambda - a11). Both are differences of near-equals.
+- On 870 of 5000 networks drawn across its admitted bounds, the slow
+  eigenvalue cancelled to exactly zero and the model raised
+  ZeroDivisionError.
+
+The model now computes both without cancellation. It states each output's
+resolution against the size of the terms it passes through, not against
+the output alone. Its energy balance is held to the same scale. No admitted
+run sampled misses: the worst is under 1 % of the stated resolution.
+
 ## What it found
 
 These are defects D-2026-178 and D-2026-179. Before the repairs, three
@@ -222,7 +312,14 @@ the ingress, the ledger or the second reader.
   fixtures, not an allowlisted corpus.
 - **Live results.** Until OD-1 and OD-6 are decided, the real-model row
   stays NOT_RUN.
-- **Judgment.** The counterfactual cases are four worlds of one model's
-  question, all answered by evidence the loop's own check admits. They show
-  that the loop's verdict follows its evidence and that the evaluation can
-  tell. They are not a benchmark of scientific judgment.
+- **Judgment.** The counterfactual cases are fourteen worlds of two
+  models' questions, all answered by evidence the loop's own checks admit.
+  One is a tie the loop must abstain on. They show that the loop's verdict
+  follows its evidence, and that the evaluation can tell it from three
+  wrong verdict rules. They are not a benchmark of scientific judgment,
+  and the scripted agent asks only the question it is given.
+- **The precision of a verdict.** The ledger decides with the resolution
+  the producer states. The independent check bounds the producer's value
+  only to the sum of both stated errors. A producer that understates its
+  error inside the check's own decides verdicts it should leave
+  INCONCLUSIVE (AUD-025, open).

@@ -821,6 +821,61 @@
    "residual_risk": "The restated authentication and the producer's follow one RFC and one verification equation: two implementations, not two specifications. The child admits TEST keys when the document it is handed holds them; a production registry is handed without that admission. derive_decision_proof does not take roots from the log it is given: a caller of a governed history passes them. SG3-SG18 and GR1 are each killed.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-024",
+   "title": "The RC network's model stated a resolution its closed form did not achieve, and raised ZeroDivisionError on part of its admitted domain",
+   "severity": "P1",
+   "subsystem": "scientific models (thermal.rc2_network)",
+   "files": [
+    {
+     "path": "scientific/models/thermal_rc2.py",
+     "lines": "closed_form: the slow eigenvalue as tr/2 + disc, each eigenvector as (a12, lambda - a11), det A as a difference of products, T as the steady state plus the modes, E_stored as C (T - T0); evaluate_outputs: each resolution 256 eps times the output's own size, the energy balance held to the energies' size"
+    }
+   ],
+   "behavior": "Against a 90-digit evaluation of the model's own formula, runs whose every invariant held -- runs the governed path would admit -- stated T1 and T2 1.3e3 times closer to the exact value than they were, E_out 1.4e3 times and E_stored 1.7e3 times. Over 1500 ordinary networks (capacities 1 to 1e5 J/K, conductances 0.01 to 100 W/K), 7 % of T1 and 14 % of T2 outputs were outside their stated resolution, and 10 % of runs failed their own energy balance. On 870 of 5000 networks drawn across the admitted bounds the slow eigenvalue cancelled to exactly zero and the model raised ZeroDivisionError.",
+   "invariant": "A quantity's stated resolution bounds its distance from the exact value of the model it reports: the research ledger decides a hypothesis from the value and that resolution, and calls it INCONCLUSIVE only when the interval straddles the threshold.",
+   "mechanism": "Cancellation. When the two time constants are far apart, tr/2 + disc is a difference of nearly equal numbers, and so is lambda - a11 for the slow root; the eigenvector, the modal amplitudes and every output inherit the lost digits. The stated resolution was relative to the output alone, not to the terms the evaluation passes through, so it understated even what a stable evaluation can achieve when the steady state is far away or the eigenvectors nearly parallel. Over a short window C (T - T0) is the difference of two temperatures a stored energy cannot be resolved from.",
+   "reproduction": "tests/test_rc_counterfactuals.py, AUD024_POINTS and the sampled tests, run against the Stage 2 model: nine tests fail there (the three points, three samples, the floor and two agreement tests); found by tools/rc2_reference.py, the analytic reference Stage 3 wrote to judge the RC counterfactual family.",
+   "observed": "A VERIFIED result of thermal.rc2_network could carry a resolution a thousand times smaller than its error, and a ledger verdict decided within that error; a sixth of the admitted parameter space could not be run at all.",
+   "expected": "Every output within its stated resolution of the exact value, across the admitted bounds; no admitted network refused by arithmetic.",
+   "correction": "The discriminant is a sum of non-negative terms, the fast root a sum of negative ones, the slow root the product of the roots, det A = (G12 / C1)(G2a / C2), divided by the fast one. For each root, whichever of lambda - a11 and lambda - a22 is a sum of like-signed terms is computed, and the other follows from their product, a12 a21. The temperatures and the stored energy are reached as increments from the initial state through expm1, and E_out as Q t plus the modes' integral. Each output's resolution is 256 eps times the scale of the terms the evaluation passes through: the initial and steady states and the modal amplitudes magnified by how nearly parallel the eigenvectors are and, for the energies, the capacities times the temperature change those amplitudes carry. The energy balance is held to the same scale.",
+   "regression_tests": [
+    "tests/test_rc_counterfactuals.py::test_where_the_stated_resolution_was_missed_it_is_kept",
+    "tests/test_rc_counterfactuals.py::test_every_output_is_within_its_stated_resolution",
+    "tests/test_rc_counterfactuals.py::test_the_resolution_is_never_below_its_floor",
+    "tests/test_rc_counterfactuals.py::test_the_reference_and_the_model_agree_inside_both_errors"
+   ],
+   "residual_risk": "The stated resolution is held to a 90-digit evaluation of the same formula over sampled networks, not proved: 750 networks a run, ordinary, anywhere in the admitted bounds and nearly defective, the worst at under 1 % of the stated resolution. Formula correctness rests on two other computations, the analytic reference (another closed form) and the RK4 check (a numerical integration), not on this test. Where the steady state is far away or the eigenvectors nearly parallel the stated resolution is honest and large, and a threshold within it is INCONCLUSIVE. RCF17, RCF19 and RCF20 are each killed. The decisive corrections are the slow root and the stated scale: RCF18, the eigenvector taken again as (a12, lambda - a11), was found equivalent once the slow root is accurate (no sampled network within 1 % of the stated resolution either way) and removed, with its reason, from tools/mutations/rc_counterfactuals.json.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-025",
+   "title": "A verdict is decided with the producer's stated resolution, which the independent check bounds only to the sum of both stated errors",
+   "severity": "P2",
+   "subsystem": "research ledger / scientific verification",
+   "files": [
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "values_of: each observed value keeps the resolution its producer states (or 0.0 when none is stated); evaluate decides from that interval"
+    },
+    {
+     "path": "scientific/checks/rc2_rk4.py",
+     "lines": "the criterion |T_producer - T_check| <= 3 (r_producer + r_check), as in every check here: agreement within the sum of both stated errors"
+    }
+   ],
+   "behavior": "At the RC network's documented point, a producer stating T1 to 1e-13 K and 5e-10 K off the exact value PASSes the independent RK4 check (ratio 0.42: the check's own stated error is about 4e-10 K). Read as an observation, the value keeps the producer's 1e-13 K, and the ledger decides 'T1 < exact + 2.5e-10 K' REFUTED. The exact value is below the threshold: the world's answer is SUPPORTED.",
+   "invariant": "A verdict claims no more precision than the evidence that admitted it verified.",
+   "mechanism": "Verification establishes agreement within the sum of the producer's and the check's stated errors; the observation the ledger reads carries the producer's error alone. A producer that understates its error -- as the RC network's model did until AUD-024 -- passes any check whose own error is larger than the understatement, and every verdict inside the gap rests on a claim nothing verified.",
+   "reproduction": "With the Stage 3 tree: run ThermalRC2Model at RC2_RUN's point, replace T1's quantity by the reference value + 5e-10 K stated to 1e-13 K, run scientific.checks.rc2_rk4.run_check (PASS), then agent_substrate.research.evaluate the prediction T1 < reference + 2.5e-10 K against research.values_of of that bundle (REFUTED).",
+   "observed": "A REFUTED verdict, from a result its independent check PASSed, on a question whose answer is SUPPORTED.",
+   "expected": "The observation's interval at least as wide as what the verification supports, so the verdict is INCONCLUSIVE there, or the producer's understatement refused.",
+   "correction": "Not made here. Proposed: each verification report states, per output, its own error and the agreement it measured; the admission policy records them under a new policy name; the observation's resolution becomes the larger of the producer's and the bound the agreement supports (|producer - check| + r_check); replay resolves the policy the admission named, so the change is a migration, not a reinterpretation.",
+   "regression_tests": [],
+   "residual_risk": "Open. The window is the check's own error: about 1e-10 K for the RC network's RK4 check at its worlds, larger for coarser checks. No admitted model is known to understate its resolution now -- AUD-024 corrected the one found, and tests hold the RC network to a 90-digit evaluation -- but nothing in the verification path would catch the next one.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
   }
  ]
 }

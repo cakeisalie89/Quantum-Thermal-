@@ -105,8 +105,157 @@
   "counterfactual": "the owner's question asked of four other worlds, each judged against the slab's closed-form answer (tools/verify_assurance.py), shown to no agent",
   "oracle": "h1 SUPPORTED; shown to no agent",
   "provider": "FixtureProvider (offline, scripted, no network)",
+  "rc_counterfactual": "the owner's question asked of the two-node RC network in ten worlds -- heat input, capacities, both conductances, the initial state, thresholds above and below, both outputs, and a tie where abstaining is right -- each judged against the network's analytic reference (tools/rc2_reference.py), shown to no agent",
   "scenarios": 16,
   "user_task": "the transient slab objective, decided from an independently checked, admitted run"
+ },
+ "rc_counterfactual": {
+  "RC1": {
+   "changed": {},
+   "error": null,
+   "op": "<",
+   "oracle": "SUPPORTED",
+   "quantity": "T1",
+   "reference_K": 306.659188,
+   "status": "CONCLUDED",
+   "task_succeeded": true,
+   "threshold_K": 306.8,
+   "verdict": "SUPPORTED"
+  },
+  "RC10": {
+   "changed": {},
+   "error": null,
+   "op": "<",
+   "oracle": "INCONCLUSIVE",
+   "quantity": "T1",
+   "reference_K": 306.659188,
+   "status": "ABSTAINED",
+   "task_succeeded": true,
+   "threshold_K": 306.65918808728037,
+   "verdict": "INCONCLUSIVE"
+  },
+  "RC2": {
+   "changed": {},
+   "error": null,
+   "op": "<",
+   "oracle": "REFUTED",
+   "quantity": "T1",
+   "reference_K": 306.659188,
+   "status": "CONCLUDED",
+   "task_succeeded": true,
+   "threshold_K": 306.4,
+   "verdict": "REFUTED"
+  },
+  "RC3": {
+   "changed": {
+    "Q_W": 12.0
+   },
+   "error": null,
+   "op": "<",
+   "oracle": "REFUTED",
+   "quantity": "T1",
+   "reference_K": 307.991026,
+   "status": "CONCLUDED",
+   "task_succeeded": true,
+   "threshold_K": 306.8,
+   "verdict": "REFUTED"
+  },
+  "RC4": {
+   "changed": {
+    "C1_J_K": 250.0,
+    "C2_J_K": 1000.0
+   },
+   "error": null,
+   "op": "<",
+   "oracle": "REFUTED",
+   "quantity": "T1",
+   "reference_K": 306.979921,
+   "status": "CONCLUDED",
+   "task_succeeded": true,
+   "threshold_K": 306.8,
+   "verdict": "REFUTED"
+  },
+  "RC5": {
+   "changed": {
+    "G12_W_K": 2.0
+   },
+   "error": null,
+   "op": "<",
+   "oracle": "REFUTED",
+   "quantity": "T1",
+   "reference_K": 309.537485,
+   "status": "CONCLUDED",
+   "task_succeeded": true,
+   "threshold_K": 306.8,
+   "verdict": "REFUTED"
+  },
+  "RC6": {
+   "changed": {
+    "G2a_W_K": 3.0
+   },
+   "error": null,
+   "op": "<",
+   "oracle": "SUPPORTED",
+   "quantity": "T1",
+   "reference_K": 305.271589,
+   "status": "CONCLUDED",
+   "task_succeeded": true,
+   "threshold_K": 306.4,
+   "verdict": "SUPPORTED"
+  },
+  "RC7": {
+   "changed": {
+    "T1_0_K": 290.0,
+    "T2_0_K": 290.0
+   },
+   "error": null,
+   "op": "<",
+   "oracle": "SUPPORTED",
+   "quantity": "T1",
+   "reference_K": 306.031179,
+   "status": "CONCLUDED",
+   "task_succeeded": true,
+   "threshold_K": 306.4,
+   "verdict": "SUPPORTED"
+  },
+  "RC8": {
+   "changed": {},
+   "error": null,
+   "op": ">",
+   "oracle": "SUPPORTED",
+   "quantity": "T2",
+   "reference_K": 304.685995,
+   "status": "CONCLUDED",
+   "task_succeeded": true,
+   "threshold_K": 304.5,
+   "verdict": "SUPPORTED"
+  },
+  "RC9": {
+   "changed": {
+    "C1_J_K": 1000.0,
+    "C2_J_K": 4000.0
+   },
+   "error": null,
+   "op": ">",
+   "oracle": "REFUTED",
+   "quantity": "T2",
+   "reference_K": 303.706336,
+   "status": "CONCLUDED",
+   "task_succeeded": true,
+   "threshold_K": 304.5,
+   "verdict": "REFUTED"
+  }
+ },
+ "rc_counterfactual_summary": {
+  "answers": {
+   "INCONCLUSIVE": 1,
+   "REFUTED": 5,
+   "SUPPORTED": 4
+  },
+  "task_success": {
+   "n": 10,
+   "true": 10
+  }
  },
  "scenarios": {
   "CO1": {

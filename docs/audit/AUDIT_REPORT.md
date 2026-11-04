@@ -56,7 +56,7 @@ git.
 
 ## 2. Findings register
 
-Twenty-three findings. Severity follows the register's scale: P0 is an
+Twenty-five findings. Severity follows the register's scale: P0 is an
 authority bypass or integrity failure, P3 is information for the owner.
 
 | ID | Sev | Established | Resolution | In brief |
@@ -84,6 +84,8 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-021 | P2 | REPRODUCED | FIXED | no governed writer could write an authenticated history; a log handle now signs every record its writers append |
 | AUD-022 | P1 | REPRODUCED | FIXED | the separate process reported a history clean while its own readers refused acts in it |
 | AUD-023 | P2 | REPRODUCED | FIXED | the independent readers could not read a governed history; the separate process is now handed its public roots |
+| AUD-024 | P1 | REPRODUCED | FIXED | the RC network's model stated resolutions a thousand times smaller than its error, and divided by zero on 870 of 5000 networks drawn across its admitted bounds |
+| AUD-025 | P2 | REPRODUCED | OPEN | a verdict is decided with the producer's stated resolution, which the independent check bounds only to the sum of both stated errors |
 
 **How far each is established.** REPRODUCED means shown failing by a
 test or a script; CONFIRMED means established by reading, not executed.

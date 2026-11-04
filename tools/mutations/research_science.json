@@ -36,7 +36,7 @@
   {
    "name": "GF5_a_contract_names_another_check",
    "path": "agent_substrate/research_loop.py",
-   "find": "        if CHECKS.get(c.get(\"model_id\")) != check or check is None:",
+   "find": "        if checks.get(c.get(\"model_id\")) != check or check is None:",
    "replace": "        if check is None:",
    "rationale": "F: the model is told of one check while the loop asks another"
   },

@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 639,
+   "ADDED": 643,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
-   "HIGH": 60,
-   "LOW": 224,
-   "MEDIUM": 362
+   "HIGH": 61,
+   "LOW": 225,
+   "MEDIUM": 364
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 138,
+   "assurance": 139,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -29,15 +29,15 @@
    "packaging": 2,
    "scientific-authority": 2,
    "scientific-core": 33,
-   "scientific-verification": 6,
+   "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 199,
-   "tooling": 55,
+   "tests": 200,
+   "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 671
+  "files": 675
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -606,6 +606,7 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py",
      "tests/test_prov_export.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_refused_fold.py",
      "tests/test_replay_origin_view.py",
      "tests/test_repo_content_audit.py",
@@ -2095,6 +2096,7 @@
      "tools/mutations/composed_campaigns.json",
      "tools/mutations/counterfactual_eval.json",
      "tools/mutations/freshness.json",
+     "tools/mutations/rc_counterfactuals.json",
      "tools/mutations/research.json",
      "tools/mutations/research_science.json",
      "tools/mutations/simulation.json"
@@ -2111,6 +2113,7 @@
      "tests/test_integration_demo.py",
      "tests/test_noninterference.py",
      "tests/test_prov_export.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
      "tests/test_research_science.py",
@@ -2129,6 +2132,7 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/adversarial_eval.json",
+     "tools/mutations/rc_counterfactuals.json",
      "tools/mutations/research.json",
      "tools/mutations/research_science.json"
     ],
@@ -2139,6 +2143,7 @@
      "tests/test_decision_proof.py",
      "tests/test_noninterference.py",
      "tests/test_prov_export.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_research_loop.py",
      "tests/test_research_science.py"
     ]
@@ -4289,6 +4294,7 @@
      "tests/test_no_enforcing_asserts.py",
      "tests/test_proposal_ingress.py",
      "tests/test_ranking_equivalence.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_replay_origin_view.py",
      "tests/test_repo_content_audit.py",
      "tests/test_repo_inventory.py",
@@ -4410,11 +4416,13 @@
     "tests": [
      "tests/test_agent_substrate_isolation.py",
      "tests/test_backend_identity.py",
+     "tests/test_completion_matrix.py",
      "tests/test_external_models.py",
      "tests/test_generic_consistency.py",
      "tests/test_neural_features.py",
      "tests/test_neural_reidentification.py",
      "tests/test_ranking_equivalence.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_repo_inventory.py",
      "tests/test_research_science.py",
      "tests/test_surface_adsorption.py",
@@ -4437,6 +4445,7 @@
      "tests/test_assurance_package.py",
      "tests/test_external_models.py",
      "tests/test_harness_integrations.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_slab_uq.py",
      "tests/test_surface_adsorption.py"
@@ -4497,6 +4506,23 @@
   },
   {
    "change": "ADDED",
+   "path": "scientific/checks/rc2_rk4.py",
+   "risk": "HIGH",
+   "runtime_dependencies": [],
+   "subsystem": "scientific-verification",
+   "trust_boundary": "independent implementations",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [
+     "tools/mutations/rc_counterfactuals.json"
+    ],
+    "tests": [
+     "tests/test_rc_counterfactuals.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "scientific/checks/slab_mol.py",
    "risk": "HIGH",
    "runtime_dependencies": [
@@ -4549,6 +4575,7 @@
      "tools/mutations/research_science.json"
     ],
     "tests": [
+     "tests/test_rc_counterfactuals.py",
      "tests/test_research_science.py"
     ]
    }
@@ -4769,6 +4796,7 @@
      "tests/test_neural_reidentification.py",
      "tests/test_no_enforcing_asserts.py",
      "tests/test_ranking_equivalence.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_integrations.py",
      "tests/test_scientific_interfaces.py",
@@ -4797,6 +4825,7 @@
      "tests/test_hdf5_bundle.py",
      "tests/test_neural_reidentification.py",
      "tests/test_ranking_equivalence.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_integrations.py",
      "tests/test_sensitivity_cross_check.py",
@@ -4828,6 +4857,7 @@
      "tests/test_governed_model_reuse.py",
      "tests/test_harness_integrations.py",
      "tests/test_hdf5_bundle.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_integrations.py",
      "tests/test_surface_adsorption.py"
@@ -4863,12 +4893,16 @@
    "trust_boundary": "model execution, identity, results",
    "verification": {
     "findings": [],
-    "mutation_specs": [],
+    "mutation_specs": [
+     "tools/mutations/rc_counterfactuals.json"
+    ],
     "tests": [
+     "tests/test_completion_matrix.py",
      "tests/test_dimensions.py",
      "tests/test_harness_integrations.py",
      "tests/test_hdf5_bundle.py",
      "tests/test_ranking_equivalence.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_sensitivity_cross_check.py"
     ]
    }
@@ -4906,6 +4940,7 @@
      "tests/test_external_models.py",
      "tests/test_harness_integrations.py",
      "tests/test_ranking_equivalence.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_scientific_interfaces.py",
      "tests/test_sensitivity_cross_check.py"
     ]
@@ -5060,6 +5095,7 @@
     ],
     "tests": [
      "tests/test_harness_integrations.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_scientific_interfaces.py",
      "tests/test_surface_adsorption.py"
     ]
@@ -8073,6 +8109,24 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_rc_counterfactuals.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_counterfactual_eval.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_readiness_matrix.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -8909,6 +8963,7 @@
      "tools/mutations/adversarial_eval_harness.json",
      "tools/mutations/counterfactual_eval.json",
      "tools/mutations/governed_run.json",
+     "tools/mutations/rc_counterfactuals.json",
      "tools/mutations/research_horizon_resume.json"
     ],
     "tests": [
@@ -8919,6 +8974,7 @@
      "tests/test_counterfactual_eval.py",
      "tests/test_governed_research_run.py",
      "tests/test_integration_demo.py",
+     "tests/test_rc_counterfactuals.py",
      "tests/test_research_horizon_resume.py",
      "tests/test_research_science.py"
     ]
@@ -10927,6 +10983,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/rc_counterfactuals.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/readiness.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -11546,6 +11615,21 @@
     "mutation_specs": [],
     "tests": [
      "tests/test_security_findings.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/rc2_reference.py",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "tooling",
+   "trust_boundary": "repository tooling",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_rc_counterfactuals.py"
     ]
    }
   },

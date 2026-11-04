@@ -958,7 +958,13 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: .github/workflows/agent-substrate.yml was regenerated with
 #: tools/mutation_shards.py --emit, so R58, which cites that workflow,
 #: predates it until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 19
+#: 19 -> 17 in the continuation's Stage 3 commit (AUD-024): the catalog
+#: admits the RC network's RK4 check (scientific/catalog.py, cited by
+#: R61), and the network's model computes its eigen-quantities without
+#: cancellation and states the resolution it achieves
+#: (scientific/models/thermal_rc2.py, cited by R63), so both predate
+#: their implementation until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 17
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

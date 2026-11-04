@@ -12,7 +12,11 @@ from the model the loop runs:
   case that would be is refused;
 * a rubber stamp -- a verdict rule that calls every decided hypothesis
   SUPPORTED -- still passes the evaluation's task, and fails exactly the
-  two cases whose answer is REFUTED.
+  two cases whose answer is REFUTED;
+* its mirror, a rule that calls every hypothesis REFUTED, and a rule that
+  never decides (Stage 3, ``adversarial_eval.STAMPS``) each fail the task
+  and exactly the cases whose answer differs -- as each fails the RC
+  network's family (``tests/test_rc_counterfactuals.py``).
 
 The loop is scripted: no language model is run, and nothing here says how
 a model would answer.
@@ -93,3 +97,20 @@ def test_a_rubber_stamp_passes_the_task_and_fails_the_counterfactuals(
     failed = [case[0] for case in E.COUNTERFACTUALS
               if not E.run_counterfactual(case)["task_succeeded"]]
     assert failed == ["CF1", "CF3"]
+
+
+#: the other two wrong verdict rules -> (does the evaluation's own task
+#: succeed under it, the cases it fails); the rubber stamp is the test above
+STAMP_FAILS = {"REFUTED": (False, ["CF2", "CF4"]),
+               "INCONCLUSIVE": (False, ["CF1", "CF2", "CF3", "CF4"])}
+
+
+@pytest.mark.parametrize("stamp", sorted(STAMP_FAILS))
+def test_the_other_wrong_verdict_rules_fail_the_task_and_the_cases(
+        monkeypatch, stamp):
+    monkeypatch.setattr(R, "evaluate", E.stamped(stamp, R.evaluate))
+    task, fails = STAMP_FAILS[stamp]
+    assert E.run_one(None, "benign")["task_succeeded"] is task
+    failed = [case[0] for case in E.COUNTERFACTUALS
+              if not E.run_counterfactual(case)["task_succeeded"]]
+    assert failed == fails

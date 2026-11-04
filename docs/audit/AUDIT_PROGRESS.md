@@ -1958,3 +1958,140 @@ Six tests encoded format 1, and each was repaired without weakening:
 | verify_assurance, VA103 to VA122 (new) | 20 of 20 |
 
 The 102 earlier VA mutations run in CI's shards.
+
+### Stage 3: the RC network's counterfactual family, and the model it found wrong (AUD-024)
+
+**What was asked.** The slab cases (Phase D) ask one model's question and
+show one wrong verdict rule failing. Stage 3 asks the owner's question of
+the two-node RC network (`thermal.rc2_network`, the identifier checked
+against the catalog) in worlds that change:
+
+- the heat input;
+- the capacities;
+- each conductance;
+- the initial state.
+
+Thresholds sit above and below the answer. There is a case too close to
+call, and parameters that are no network. The computation is kept apart
+from the judgment. A rule that always says SUPPORTED and one that always
+says REFUTED must fail both families, and so must abstention where
+nothing justifies it.
+
+**The loop could not run the network.** The research loop asks, for each
+model, the independent check its table names. The table named none for
+the network: its one check, the FMU, needs a runtime this host lacks, and
+scenario TL1 relies on that absence.
+
+Two additions:
+
+- **An independent check.** `scientific/checks/rc2_rk4.py` integrates the
+  same two equations by classical RK4 in pure Python. Its step comes from
+  a Gershgorin bound on the matrix's rows, never its eigenvalues. It states
+  its own error as Richardson's estimate plus a bound on the rounding its
+  steps accumulate. Rounding is the larger part once the step is fine:
+  without it the stated error fell short by up to 150 times. The check is
+  admitted by the catalog and declared by the model, so a contract can
+  name it.
+- **A check table per deployment.** `ResearchController(checks=...)`
+  takes a deployment's table, defaulting to `research_loop.CHECKS`, which
+  is unchanged. Each entry is refused unless it names a model and one
+  check, and each contract is held to the table. Naming a check admits
+  nothing: a result is still admitted only as `result_rules` says.
+
+**The family.** `tools/adversarial_eval.RC_COUNTERFACTUALS` has ten cases.
+Each world changes one thing, and each change alone turns over the answer
+of the base case asking the same question. RC10 is a **tie**: the
+threshold is the network's own value, the answer is INCONCLUSIVE, and the
+loop must abstain. Every case is concluded, or abstained, exactly as its
+world answers.
+
+The computation is `tools/rc2_reference.py`, which imports nothing of the
+repository. It is another closed form: Sylvester's formula for the matrix
+exponential, integrated, applied to the initial rates. It states a bound
+on its own rounding, and a 90-digit evaluation holds it to that bound
+across the admitted bounds (worst 0.24 of the bound). The judgment is
+`rc_oracle`:
+
+- a case is clear at 1 µK beyond the reference's error;
+- a case is a tie when the threshold is within 128 eps |T| of the value,
+  error included: half the least resolution the model ever states;
+- anything between is refused, and so is anything that is no network.
+
+**AUD-024, found by the reference.** The model and the reference
+disagreed by up to 1.2e-6 K on ordinary parameters, while the model
+stated about 2e-11 K. A 90-digit evaluation settled which was wrong: the
+model.
+
+- Its slow eigenvalue was tr/2 + disc, and each eigenvector
+  (a12, lambda - a11). Both are differences of near-equals when the time
+  constants are far apart.
+- On runs whose every invariant held, outputs were 1.3e3 to 1.7e3 times
+  further from the exact value than their stated resolution.
+- 870 of 5000 networks drawn across the admitted bounds raised
+  ZeroDivisionError.
+
+The correction:
+
+- every eigen-quantity is computed without a difference of near-equals;
+- outputs are reached as increments from the initial state;
+- each resolution is stated against the scale of the terms the
+  evaluation passes through: states, modal amplitudes, how nearly
+  parallel the eigenvectors are.
+
+Over 6000 sampled networks no output misses its stated resolution. The
+worst is under 1 % of it.
+
+**The controls.** `adversarial_eval.STAMPS` names three wrong verdict
+rules: always SUPPORTED, always REFUTED, never decides. Each fails both
+families, exactly where the world's answer differs:
+
+| Verdict rule | Slab family fails | RC family fails |
+|---|---|---|
+| always SUPPORTED | CF1, CF3 (the task passes) | RC2, RC3, RC4, RC5, RC9, RC10 |
+| always REFUTED | the task, CF2, CF4 | RC1, RC6, RC7, RC8, RC10 |
+| never decides | the task, CF1 to CF4 | RC1 to RC9 |
+
+**Found and not fixed: AUD-025.** AUD-024 shows a deeper gap. The
+ledger decides with the resolution the producer states. Verification
+establishes agreement only within the sum of the producer's and the
+check's stated errors. A producer that understates its error, as the RC
+model did, passes any check whose own error is larger, and the verdict
+rests on a bound nothing verified.
+
+Reproduced at the documented point. A producer states T1 to 1e-13 K and
+is 5e-10 K off. The RK4 check passes it (ratio 0.42). The ledger then
+decides `T1 < exact + 2.5e-10 K` REFUTED, but the world's answer is
+SUPPORTED.
+
+The window is the check's own error, about 1e-10 K here. Closing it is a
+change to the verification schema, a new admission policy name, and the
+observation's resolution, with a migration for replay. It is proposed in
+the finding and left OPEN.
+
+**Tests:**
+
+- `tests/test_rc_counterfactuals.py`: 81 tests, cheapest first, so the
+  mutation harness stops early. Its AUD-024 points and sampled tests all
+  fail on the Stage 2 model.
+- `tests/test_counterfactual_eval.py`: 10, the other two stamps added.
+
+**Mutations:**
+
+| Spec | Killed |
+|---|---|
+| rc_counterfactuals (new) | 19 of 19 |
+| counterfactual_eval, CE5 and CE6 added | 6 of 6 |
+| research_science, GF5 re-anchored | 11 of 11 |
+
+The first run of rc_counterfactuals killed 18 of 20, and two survived:
+
+- **RCF15**, a check five times blunter. The check's rule puts 20 steps in
+  the fastest time constant and at least 400 in all. With 400 at the
+  least, the transient has decayed wherever the rule binds, so a blunter
+  step changes no verdict. A test of the stated rule now kills it, on a
+  run of that mutation alone.
+- **RCF18**, an eigenvector taken again as (a12, lambda - a11). It is
+  equivalent once the slow root is accurate. Across 4,500 sampled
+  networks, neither form comes within 1 % of the stated resolution, so it
+  was removed with its reason in the spec, following the repository's
+  rule for equivalent mutations.

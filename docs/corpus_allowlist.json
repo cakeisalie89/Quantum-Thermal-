@@ -2,11 +2,11 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "49c18ca24d7c744af969778eea9064c7ad8b084674d0b5a62f19d912ab28d763",
+  "entries_digest": "8b8a93ab207251c65558693ddec9a37345a883610584e098e922a976504a24e5",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "7a237f6406b6756ae70e07109579a45124a741d23b0bcf8fea34a9fc08183772"
+      "sha256": "92d788b4b97422d0fc5f14c46dfc0089eb322c2fab585966712145ebf0808496"
     },
     {
       "path": "ARCHITECTURE.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "4f3f118a8f894719ea49ff6f3571727cb31126ff38e1b1f3e015b6e483c9fd2a"
+      "sha256": "49f80d22e89583fee4f86ecd584d3ac7ceec3829e74a06a5fc73d9a483093e58"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -50,7 +50,7 @@
     },
     {
       "path": "REPRODUCE.md",
-      "sha256": "5a8371b3c4ed729892e537daa882f9f465ba7527e01efeff98a735540b13dfc6"
+      "sha256": "46f9f8d78ecf41ed7fb0f5cf711005904cded6070562d9ee89f34dd3433f9a38"
     },
     {
       "path": "RO_CRATE_PROFILE.md",
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/assurance/ADVERSARIAL_EVAL.md",
-      "sha256": "d132599b426a617530fb4d3b0720ac00a5cb5dc86a72c9bb799b8d4c0b3ce013"
+      "sha256": "60a4a79c873d9440987055d63cbc3c32c0fc27d761973e15fe3771f077c29733"
     },
     {
       "path": "docs/assurance/package/slab-mid-plane/README.md",
@@ -98,11 +98,11 @@
     },
     {
       "path": "docs/audit/AUDIT_PROGRESS.md",
-      "sha256": "d518a21cc6adac1680be1337648367569894042eaf6e060af909b994fbae8cd8"
+      "sha256": "77e83d6f9e60b6cf10e59481ee23b235de1b5c9687472005d6c493599a3bdf50"
     },
     {
       "path": "docs/audit/AUDIT_REPORT.md",
-      "sha256": "2e244ca51fc3d631081db171d2e60534d15378fea2d6c8b90004e333689c43a1"
+      "sha256": "8d9592be8fb5bf890a0ef6cefe70b0e4b3e3516b9b61ed394eeaddf03d36cd53"
     },
     {
       "path": "docs/formal/README.md",

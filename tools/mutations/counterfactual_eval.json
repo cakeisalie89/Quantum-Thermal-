@@ -1,6 +1,6 @@
 {
- "title": "The counterfactual cases tell the loop from a rubber stamp",
- "note": "Phase D. CE1 to CE3 make the counterfactual harness vacuous: an answer that is always the task's, a case run at the documented point whatever its world asks, a case too close to call judged anyway. CE4 makes the system a rubber stamp: the research ledger calls every decided hypothesis SUPPORTED. tests/test_counterfactual_eval.py holds each; the evaluation's single task, whose answer is SUPPORTED, passes under CE4.",
+ "title": "The counterfactual cases tell the loop from a rubber stamp, its mirror and a rule that never decides",
+ "note": "Phase D. CE1 to CE3 make the counterfactual harness vacuous: an answer that is always the task's, a case run at the documented point whatever its world asks, a case too close to call judged anyway. CE4 makes the system a rubber stamp: the research ledger calls every decided hypothesis SUPPORTED. tests/test_counterfactual_eval.py holds each; the evaluation's single task, whose answer is SUPPORTED, passes under CE4. Stage 3: CE5 is the stamp's mirror, every decided hypothesis REFUTED, and CE6 a ledger that never decides; the same three are held by the RC network's family in tools/mutations/rc_counterfactuals.json (RCF1 to RCF3), so each wrong verdict rule fails both families.",
  "suites": [
   "tests/test_counterfactual_eval.py"
  ],
@@ -32,6 +32,20 @@
    "find": "        verdicts.add(\"SUPPORTED\" if holds[op] else\n                     \"REFUTED\" if fails[op] else \"INCONCLUSIVE\")",
    "replace": "        verdicts.add(\"SUPPORTED\" if holds[op] or fails[op] else\n                     \"INCONCLUSIVE\")",
    "rationale": "the research ledger calls every decided hypothesis SUPPORTED: a rubber stamp the evaluation's single task cannot see"
+  },
+  {
+   "name": "CE5_every_verdict_refuted",
+   "path": "agent_substrate/research.py",
+   "find": "        verdicts.add(\"SUPPORTED\" if holds[op] else\n                     \"REFUTED\" if fails[op] else \"INCONCLUSIVE\")",
+   "replace": "        verdicts.add(\"REFUTED\" if holds[op] or fails[op] else\n                     \"INCONCLUSIVE\")",
+   "rationale": "the research ledger calls every decided hypothesis REFUTED: the rubber stamp's mirror"
+  },
+  {
+   "name": "CE6_no_verdict_ever",
+   "path": "agent_substrate/research.py",
+   "find": "        verdicts.add(\"SUPPORTED\" if holds[op] else\n                     \"REFUTED\" if fails[op] else \"INCONCLUSIVE\")",
+   "replace": "        verdicts.add(\"INCONCLUSIVE\")",
+   "rationale": "the research ledger never decides: abstention that nothing justifies"
   }
  ]
 }

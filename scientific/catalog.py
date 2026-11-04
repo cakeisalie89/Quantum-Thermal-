@@ -68,4 +68,7 @@ def check(check_id: str):
     if check_id == "thermal.rc2_fmu":
         from .checks import fmu_rc2
         return fmu_rc2.run_check, fmu_rc2.check_digest
+    if check_id == "thermal.rc2_rk4":
+        from .checks import rc2_rk4
+        return rc2_rk4.run_check, rc2_rk4.check_digest
     raise KeyError(f"no independent check {check_id!r} is admitted")

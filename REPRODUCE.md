@@ -70,7 +70,9 @@ exists here.
 model was run (OD-1 and OD-6 are undecided):
 
 - `uv run python tools/adversarial_eval.py --check` is the offline
-  adversarial evaluation of the research loop;
+  adversarial evaluation of the research loop, with the counterfactual
+  cases of the slab and of the RC network, each judged by an analytic
+  reference no agent is shown;
 - `uv run python tools/integration_demo.py --check` is the twenty-step
   lifecycle and its twelve attacks, each refused;
 - `uv run python tools/research_horizon.py --decisions 100` is the

@@ -12,8 +12,10 @@ proposal       what the controller does
 HYPOTHESIS     records it in the research ledger, as the agent's, citing
                the proposal. Nothing runs.
 MODEL_RUN      submits it to the governed model path as the agent's run;
-               asks the INDEPENDENT check registered for that model; has the
-               governed reviewer decide; and, only if the record is VERIFIED,
+               asks the INDEPENDENT check the loop's check table names for
+               that model (:data:`CHECKS`, or the table its deployment
+               states); has the governed reviewer decide; and, only if the
+               record is VERIFIED,
                reads an observation from its result bundle and lets the
                ledger evaluate every open hypothesis. The model's account of
                the result is never read.
@@ -80,7 +82,12 @@ from .research import ResearchError, ResearchLedger
 
 #: model id -> the independent check the controller asks for it. A model
 #: with no entry is not run by the loop: a result nobody can check
-#: independently cannot become an observation.
+#: independently cannot become an observation. A deployment may state its
+#: own table (``ResearchController(checks=...)``); this one is the table of
+#: a deployment that states none. Naming a check here admits nothing: the
+#: check is resolved by the scientific catalog's closed set when it runs,
+#: and the result is admitted only as ``result_rules`` says -- an
+#: independent implementation, by another executor, that PASSed.
 CHECKS = {"thermal.slab_transient": "thermal.slab_method_of_lines",
           "surface.langmuir_capture": "surface_adsorption.rk4_pressure_form"}
 INSTRUCTION = (
@@ -129,6 +136,7 @@ class ResearchController:
                  max_attempts: int = 2, context_bytes: int = 20_000,
                  sources: Callable | None = None, redactor=None,
                  contracts: list | None = None,
+                 checks: dict | None = None,
                  fault: Callable[[str], None] | None = None):
         self.log = log
         self.ledger = ledger
@@ -156,7 +164,9 @@ class ResearchController:
         self.context_bytes = context_bytes
         self.sources = sources
         self.redactor = redactor
-        self.contracts = _offered(contracts)
+        #: the check this controller asks for each model it may run
+        self.checks = _check_table(CHECKS if checks is None else checks)
+        self.contracts = _offered(contracts, self.checks)
         self.fault = fault or (lambda point: None)
 
     # ---- the loop -------------------------------------------------------
@@ -310,7 +320,7 @@ class ResearchController:
         if self.contracts is not None and model_id not in self.contracts:
             return "REFUSED", (f"no contract offers {model_id}: the loop "
                                "runs only what it showed the model")
-        check_id = CHECKS.get(model_id)
+        check_id = self.checks.get(model_id)
         if check_id is None:
             return "REFUSED", (f"{model_id} has no independent check the "
                                "loop can ask for")
@@ -374,7 +384,19 @@ class ResearchController:
                            "research loop")
 
 
-def _offered(contracts) -> dict | None:
+def _check_table(checks) -> dict:
+    """A copy of a check table, refused unless each entry names a model and
+    one check for it."""
+    if not isinstance(checks, dict):
+        raise ValueError("a check table maps model ids to check ids")
+    for m, c in checks.items():
+        if not (isinstance(m, str) and m and isinstance(c, str) and c):
+            raise ValueError(f"a check table entry is a model id and a "
+                             f"check id, not {m!r}: {c!r}")
+    return dict(checks)
+
+
+def _offered(contracts, checks: dict) -> dict | None:
     """model id -> contract, each re-digested and held to the check this
     loop will ask for it; None when the deployment offers none."""
     if contracts is None:
@@ -386,10 +408,10 @@ def _offered(contracts) -> dict | None:
             raise ValueError(f"the contract for {c.get('model_id')!r} is "
                              "not what its digest says")
         check = (c.get("independent_check") or {}).get("check_id")
-        if CHECKS.get(c.get("model_id")) != check or check is None:
+        if checks.get(c.get("model_id")) != check or check is None:
             raise ValueError(f"the contract for {c.get('model_id')!r} names "
                              f"check {check!r}; this loop asks "
-                             f"{CHECKS.get(c.get('model_id'))!r}")
+                             f"{checks.get(c.get('model_id'))!r}")
         if c["model_id"] in out:
             raise ValueError(f"two contracts for {c['model_id']!r}")
         out[c["model_id"]] = c

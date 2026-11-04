@@ -159,7 +159,13 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/separate_governed.json",
                # Stage 2: the research task on a governed history.
                "tests/test_governed_research_run.py",
-               "tools/mutations/governed_run.json")
+               "tools/mutations/governed_run.json",
+               # Stage 3: the RC network's counterfactual family, its
+               # analytic reference, the RK4 check its deployment names,
+               # and the model's stated resolution (AUD-024).
+               "tests/test_rc_counterfactuals.py", "tools/rc2_reference.py",
+               "scientific/checks/rc2_rk4.py",
+               "tools/mutations/rc_counterfactuals.json")
 
 #: (glob, kind). First match wins.
 KINDS = (
