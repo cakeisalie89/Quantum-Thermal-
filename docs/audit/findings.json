@@ -876,6 +876,186 @@
    "residual_risk": "Open. The window is the check's own error: about 1e-10 K for the RC network's RK4 check at its worlds, larger for coarser checks. No admitted model is known to understate its resolution now -- AUD-024 corrected the one found, and tests hold the RC network to a 90-digit evaluation -- but nothing in the verification path would catch the next one.",
    "verification": "REPRODUCED",
    "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-026",
+   "title": "A key of small order could be registered, and under it anyone could sign; the producer's Ed25519 also decoded an encoding RFC 8032 refuses, where the restated verifier did not",
+   "severity": "P2",
+   "subsystem": "identity (Ed25519, key registries, the restated verifier)",
+   "files": [
+    {
+     "path": "agent_substrate/ed25519.py",
+     "lines": "_recover_x tested x^2 against zero before reducing it; verify took any decodable public key"
+    },
+    {
+     "path": "agent_substrate/principals.py",
+     "lines": "KeyRegistry: a public key checked only as 32 bytes (64 lowercase hex digits in a document)"
+    },
+    {
+     "path": "tools/verify_assurance.py",
+     "lines": "read_key_registry and ed25519_verify: the same, restated"
+    }
+   ],
+   "behavior": "For each of the eight points of small order, a signature made with no secret -- R = [S]B for an S whose challenge k makes [k]A the identity (for the identity point, every S) -- verified under both the producer and the restated verifier, and both registries held such a key for a principal. And y = p - 1 with the sign bit set decoded under the producer as the order-2 point (0, -1); the restated verifier refused it, so the two verified a forged signature under that encoding differently.",
+   "invariant": "A record is attested only by a key whose secret its principal holds; the primary and the independent verifier give one verdict on the same bytes.",
+   "mechanism": "No check that a registered public key is the canonical encoding of a point outside the small-order subgroup; the RFC's reference decoder, transcribed, compares x^2 with zero unreduced, so x = 0 with the sign bit set survives step 4 of RFC 8032 5.1.3 for y = p - 1.",
+   "reproduction": "tests/test_ed25519_encodings.py on the Stage 3 tree: forged signatures under all eight small-order keys verify under both implementations, both registries hold the keys, and the producer decodes the non-canonical (0, -1); all fifteen of its tests fail there (the genuine-key control only because it asks for the new public_key_problem), the agreement test with the producer saying True and the restated verifier False on the same forged signature.",
+   "observed": "A registry holding a small-order key gives its principal no non-repudiation: anyone could have written what is attested in its name, and a principal can submit one to make its own records deniable.",
+   "expected": "Such keys refused at registration and at verification, and one decoding in both implementations.",
+   "correction": "ed25519.public_key_problem: 32 bytes, the canonical encoding of a point, not of small order ([8]A != 0); KeyRegistry refuses any key it names a problem for; verify refuses a key of small order; x^2 is reduced before it is compared with zero. tools/verify_assurance.py restates the same three refusals (_ed_small, read_key_registry, ed25519_verify).",
+   "regression_tests": [
+    "tests/test_ed25519_encodings.py::test_a_small_order_key_lets_anyone_sign_and_is_refused_everywhere",
+    "tests/test_ed25519_encodings.py::test_an_encoding_that_is_no_point_is_refused_by_both",
+    "tests/test_ed25519_encodings.py::test_the_two_verifiers_agree_on_every_crafted_input"
+   ],
+   "residual_risk": "The registry is still a root supplied from outside the log (KEY_CUSTODY): this refuses keys no secret stands behind, not keys whose secret is held by the wrong party. The verifiers keep the cofactorless equation; a small-order R under an honest key cannot satisfy it. ED1-ED8 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-027",
+   "title": "A cited document holding a number JSON does not have made the admission rule raise instead of refusing",
+   "severity": "P3",
+   "subsystem": "scientific authority (admission)",
+   "files": [
+    {
+     "path": "agent_substrate/result_rules.py",
+     "lines": "_read parsed with json.loads, which reads NaN, Infinity and -Infinity; verification_problems digested the bundle unguarded"
+    }
+   ],
+   "behavior": "A bundle holding NaN, Infinity, -Infinity, or a numeral past the float range (1e400, read as infinity) made record_problems raise CanonicalizationError. Live, the store's transition into VERIFIED raised it in place of TransitionError; on replay, the reducer refused the whole history as holding a record it cannot read, not as an inadmissible admission. The second reader refuses the same transition as having no canonical form.",
+   "invariant": "Bytes that are not JSON are a problem, not a pass and not an exception (the rule's own docstring); every reader refuses an inadmissible admission as one.",
+   "mechanism": "Python's json accepts tokens RFC 8259 does not have, and a numeral it cannot hold becomes infinity; the canonical digest refuses both by raising.",
+   "reproduction": "tests/test_agent_result_rules.py, the TOKENS cases, on the Stage 3 tree: all eight fail there.",
+   "observed": "Fail-closed on every path, with an exception the live caller does not expect and a replay refusal under the wrong reason.",
+   "expected": "A problem named for what it is: not JSON (the tokens) or no canonical form (the numeral); TransitionError live, StoreError on replay naming the admission.",
+   "correction": "_read refuses the three tokens while parsing (parse_constant), so they read as not JSON; a bundle with no canonical form is a problem, not an exception.",
+   "regression_tests": [
+    "tests/test_agent_result_rules.py::test_a_number_json_does_not_have_is_a_problem_not_an_exception",
+    "tests/test_agent_result_rules.py::test_replay_refuses_a_planted_admission_of_such_a_bundle"
+   ],
+   "residual_risk": "None known beyond the class: other readers of evidence JSON in the package parse with json.loads and are not reviewed here. RR18 and RR19 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-028",
+   "title": "A verdict on one objective's hypothesis could rest on another objective's observations, so an objective asking its question at a documented point could be concluded on a run elsewhere",
+   "severity": "P2",
+   "subsystem": "research ledger (verdicts), restated in the second reader",
+   "files": [
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "_status_problem: a verdict's basis may be any current observation, of any objective"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_sub_research_status: the same rule, restated"
+    }
+   ],
+   "behavior": "Objective oq states its question as data: T_at_half < 400 K of thermal.slab_transient at a documented point. A run at another point (q_W_m3 = 2e7) cannot be observed for oq (refused: 'documented point'), but objective o1, which asks nothing as data, observes it. A status record deciding oq's hypothesis h1 SUPPORTED on o1's observation was accepted by the writer (set_status) and on replay, and oq was then CONCLUDED on h1. The second reader noted nothing.",
+   "invariant": "An objective that states its question as data is concluded only on evidence at its documented point, from its model (D-2026-179); a verdict is computed from the observations of the hypothesis's own objective.",
+   "mechanism": "_status_problem checks that each basis id is a current observation and that evaluate() gives the status, but not whose objective the observation is; _off_question binds an observation to its objective's question only when it is recorded for that objective. The honest controller (evaluate_hypothesis, _renewal) takes only the hypothesis's own objective's observations, so the gap is open to any writer of status records: a faulty controller, or in an unauthenticated history any appender (a status record carries no actor rule, because a verdict is computed). currency(), written assuming the basis is the objective's own, reports such a verdict's evidence as None.",
+   "reproduction": "tests/test_research_ledger.py, the two AUD-028 cases, on the tree before the fix: both fail there -- the writer and the replay accept the verdict, and the second reader notes nothing.",
+   "observed": "oq CONCLUDED on ('h1',), with h1 SUPPORTED on ('obs-2',): a run at another point answered the question oq asks at its documented point.",
+   "expected": "The verdict refused, live and on replay, and noted by the second reader.",
+   "correction": "_status_problem refuses a verdict citing an observation of another objective; reconstruct._sub_research_status restates the refusal.",
+   "regression_tests": [
+    "tests/test_research_ledger.py::test_a_verdict_rests_only_on_its_own_objective_s_observations",
+    "tests/test_research_ledger.py::test_a_planted_cross_objective_verdict_is_refused_on_replay"
+   ],
+   "residual_risk": "An objective that states no question as data still takes any decided hypothesis of its own -- the stated limit of D-2026-179. RS27 and RR10 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-029",
+   "title": "The separate process's evidence reader built a path from whatever name the log carried",
+   "severity": "P3",
+   "subsystem": "independent verification (the separate process)",
+   "files": [
+    {
+     "path": "tools/independent_verify.py",
+     "lines": "_FileEvidence.get: the evidence root joined with the name's first two characters and the rest, then read whole"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_resolves: any 64-character string handed to the store"
+    }
+   ],
+   "behavior": "With --proof and --evidence, the separate process reads the bytes a decision cites through _FileEvidence. A name taken from the log, such as '..' followed by a path, read a file outside the store (shown with a regular file). _resolves, which says whether a decision's evidence is held, passed on any 64-character string, so a record citing '..' + 54 slashes + 'dev/zero' would have had the device read until memory ran out (established by reading; not executed), and a FIFO under a digest's name would have been waited on until the caller's 300-second timeout.",
+   "invariant": "A name from the history builds no path until it is a digest, and a verifier reads only regular files, bounded -- the primary store's rules (_require_digest, read_beneath, MAX_BLOB_BYTES).",
+   "mechanism": "The separate process may not import the store, and its restatement of the store's read kept only the layout. What it read was re-hashed afterwards, so nothing outside the store could pass as evidence: the defect is what is read, not what is believed.",
+   "reproduction": "tests/test_agent_separate_verify.py, the AUD-029 cases, on the tree before the fix: the name cases and the second reader's case fail there; the FIFO case blocks on the old code. No case names a device.",
+   "observed": "A file outside the evidence store read, and a name that is no digest handed to the store.",
+   "expected": "Refused before any path is built; a FIFO, a link or an unbounded file refused rather than read.",
+   "correction": "_FileEvidence.get accepts only 64 lowercase hex digits, opens with O_NOFOLLOW and O_NONBLOCK, reads only what fstat says is a regular file, and no more than MAX_BLOB_BYTES; _resolves requires _is_digest.",
+   "regression_tests": [
+    "tests/test_agent_separate_verify.py::test_the_separate_reader_builds_no_path_from_a_name_that_is_no_digest",
+    "tests/test_agent_separate_verify.py::test_the_separate_reader_reads_a_regular_file_and_nothing_else",
+    "tests/test_agent_separate_verify.py::test_the_separate_reader_reads_no_more_than_a_blob",
+    "tests/test_agent_separate_verify.py::test_the_second_reader_asks_no_store_for_a_name_that_is_no_digest"
+   ],
+   "residual_risk": "A crafted log still costs the separate process its own replay; it no longer leads it out of the store. S14-S18 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-030",
+   "title": "A lease held by a process on another machine read as held by a dead one, so recovery would reclaim a task its holder was still running",
+   "severity": "P2",
+   "subsystem": "process identity and lease recovery",
+   "files": [
+    {
+     "path": "agent_substrate/hostid.py",
+     "lines": "liveness: a boot id other than ours returned GONE, 'this also covers another host'"
+    },
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "recover: a lease whose holder liveness calls GONE is reclaimed although its sequence says it is live"
+    }
+   ],
+   "behavior": "A supervisor recorded its lease under a boot id that is not this host's -- what any process on another machine sharing the log records -- and died. On this host, recover() asked liveness, which answered GONE for any boot id other than its own, and reclaimed the task: EXECUTING to QUEUED. The module's own docstring, and the test that guards the case (test_an_unknown_holder_is_not_reclaimed, which patches liveness to UNKNOWN 'as it would be off-host'), say a record from another host is not evidence that its holder died.",
+   "invariant": "A lease is reclaimed only on evidence that its holder is gone; 'I cannot tell' is not that evidence, because two workers would then run one task (hostid's own statement of why UNKNOWN exists).",
+   "mechanism": "A boot id other than ours is either a later boot of this machine, whose earlier processes are all gone, or another machine, whose processes nothing here can see. The record carried no machine id, so the two were indistinguishable, and the code took the first for both. The guarding test replaced the function it was guarding.",
+   "reproduction": "tests/test_agent_recovery.py::test_a_lease_held_on_another_machine_is_not_reclaimed on the tree before the fix, with nothing patched: liveness answers GONE and recover() reclaims the task.",
+   "observed": "A task reclaimed while, on a second machine sharing the log, its holder may still be running it.",
+   "expected": "UNKNOWN, and the task left as it is: a stalled recovery, which an operator can resolve, rather than two workers.",
+   "correction": "A process record names its machine (/etc/machine-id); a boot id other than ours reads as GONE only when the record names this machine, and as UNKNOWN otherwise -- including every record written before, and on a host that cannot name itself.",
+   "regression_tests": [
+    "tests/test_agent_recovery.py::test_a_lease_held_on_another_machine_is_not_reclaimed",
+    "tests/test_agent_recovery.py::test_a_record_from_another_machine_is_unknown_not_gone",
+    "tests/test_agent_recovery.py::test_a_later_boot_of_this_machine_makes_every_recorded_pid_stale",
+    "tests/test_agent_execution.py::test_the_child_is_recorded_by_identity_and_not_by_pid_alone"
+   ],
+   "residual_risk": "Records written before this change name no machine, so after a reboot their leases are no longer reclaimed automatically: the fail-safe answer the module asks for, at the cost of an operator's step. Multi-host deployment is the owner's decision (OD-7); this makes the single-host assumption fail safe rather than establishing multi-host operation. V7, V8 and X63 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-031",
+   "title": "A document a caller named was indexed for retrieval although the corpus allowlist did not name it",
+   "severity": "P3",
+   "subsystem": "read-only retrieval (corpus membership)",
+   "files": [
+    {
+     "path": "agent_substrate/rag_index.py",
+     "lines": "build_index: membership checked over the walked corpus, which skips every dot-directory; a caller's paths checked by shape alone; load_index rebuilds from the paths a stored index names"
+    }
+   ],
+   "behavior": "With an allowlist naming only doc.md, build_index(paths=['doc.md', '.notes/planted.md']) indexed the planted document, and a search returned '.notes/planted.md:1-2' with full provenance. A stored index naming it would be rebuilt from it, match, and be accepted by load_index -- whose docstring says a path the corpus never contained is a mismatch.",
+   "invariant": "A document is retrievable because the allowlist names it, not because it exists or because someone named it (the allowlist's own statement).",
+   "mechanism": "The membership check compares the allowlist with corpus_files(), the walk, which skips dot-directories by rule; the shape check on named paths refuses only .git, .venv and the quarantine by name. A named document under any other dot-directory falls between the two.",
+   "reproduction": "tests/test_agent_authority_boundaries.py::test_a_named_document_the_allowlist_does_not_name_is_refused on the tree before the fix: both the named build and the forged index are accepted there.",
+   "observed": "Undeclared text indexed and quoted back as governed text, labelled RETRIEVED_TEXT_NOT_EVIDENCE but carrying the provenance of the reviewed corpus.",
+   "expected": "Refused: the named document is not in the allowlist.",
+   "correction": "build_index requires every named document to land, once its links are resolved, on one the allowlist names, after the whole-tree check; load_index inherits it. A link into reviewed text still reads that text, as the existing control requires.",
+   "regression_tests": [
+    "tests/test_agent_authority_boundaries.py::test_a_named_document_the_allowlist_does_not_name_is_refused"
+   ],
+   "residual_risk": "No production caller names paths: retrieve() and the research loop build over the walked corpus. The allowlist is content-addressed, not signed (its own stated limit). C13 is killed, and C7 and C8, whose anchor the change moved, are repaired to the same intent.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

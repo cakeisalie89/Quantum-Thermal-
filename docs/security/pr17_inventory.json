@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 643,
+   "ADDED": 645,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 225,
-   "MEDIUM": 364
+   "LOW": 226,
+   "MEDIUM": 365
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 139,
+   "assurance": 140,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 200,
+   "tests": 201,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 675
+  "files": 677
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -574,6 +574,7 @@
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
+     "tests/test_ed25519_encodings.py",
      "tests/test_evidence_terms.py",
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py",
@@ -1109,11 +1110,13 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/actor_authentication.json"
+     "tools/mutations/actor_authentication.json",
+     "tools/mutations/ed25519_encodings.json"
     ],
     "tests": [
      "tests/test_actor_authentication.py",
-     "tests/test_authenticated_history.py"
+     "tests/test_authenticated_history.py",
+     "tests/test_ed25519_encodings.py"
     ]
    }
   },
@@ -1529,12 +1532,14 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/agent_execution.json",
      "tools/mutations/agent_recovery.json"
     ],
     "tests": [
      "tests/test_agent_execution.py",
      "tests/test_agent_recovery.py",
-     "tests/test_agent_separate_verify.py"
+     "tests/test_agent_separate_verify.py",
+     "tests/test_completion_matrix.py"
     ]
    }
   },
@@ -1839,6 +1844,7 @@
     "mutation_specs": [
      "tools/mutations/actor_authentication.json",
      "tools/mutations/authenticated_history.json",
+     "tools/mutations/ed25519_encodings.json",
      "tools/mutations/governed_history.json",
      "tools/mutations/signed_append_lifecycle.json",
      "tools/mutations/signing_seam.json"
@@ -1848,6 +1854,7 @@
      "tests/test_archive.py",
      "tests/test_assurance_package.py",
      "tests/test_authenticated_history.py",
+     "tests/test_ed25519_encodings.py",
      "tests/test_governed_history.py",
      "tests/test_governed_research_run.py",
      "tests/test_grounding_bench.py",
@@ -1949,6 +1956,7 @@
      "tests/test_agent_authority_boundaries.py",
      "tests/test_agent_long_horizon.py",
      "tests/test_agent_retrieval.py",
+     "tests/test_completion_matrix.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py"
@@ -1998,6 +2006,7 @@
      "tools/mutations/agent_idempotency.json",
      "tools/mutations/agent_lease_renewal.json",
      "tools/mutations/agent_second_reader.json",
+     "tools/mutations/agent_separate_verify.json",
      "tools/mutations/agent_service_authority.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_substrate.json",
@@ -2035,6 +2044,7 @@
      "tests/test_agent_long_horizon.py",
      "tests/test_agent_performance.py",
      "tests/test_agent_second_reader.py",
+     "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
@@ -7124,6 +7134,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_ed25519_encodings.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_evidence_terms.py",
    "risk": "LOW",
    "runtime_dependencies": [],
@@ -10381,6 +10408,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/ed25519_encodings.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/enforcement_asserts.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -11895,12 +11935,14 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/ed25519_encodings.json",
      "tools/mutations/separate_governed.json",
      "tools/mutations/verify_assurance.json"
     ],
     "tests": [
      "tests/test_assurance_package.py",
      "tests/test_assurance_package_build.py",
+     "tests/test_ed25519_encodings.py",
      "tests/test_reproduce_guide.py",
      "tests/test_restated_authentication.py",
      "tests/test_separate_reads_governed.py"

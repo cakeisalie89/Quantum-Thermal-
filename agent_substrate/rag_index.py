@@ -584,7 +584,27 @@ def build_index(root: StrPath | None = None,
     # not thereby skip the question of whether the tree contains something
     # undeclared -- that would make the check optional by argument, which is
     # the opt-in weakness this repository already carries once.
-    assert_corpus_is_allowlisted(root)
+    allowed = assert_corpus_is_allowlisted(root)
+    # And every document a caller NAMES must land on one the allowlist
+    # names. The walk skips every dot-directory, so the check above never
+    # sees one there, and the shape checks refuse only the excluded names: a
+    # named document under any other dot-directory was indexed with no
+    # review at all, and a stored index naming it was rebuilt from it and
+    # accepted as a cache of the corpus (AUD-031). Judged where the name
+    # LANDS, so a link into reviewed text still reads that text; the shape
+    # checks have already held every named path inside the root.
+    if paths is not None:
+        base = root.resolve()
+        unreviewed = sorted(
+            rel for rel in rels
+            if (root / rel).resolve().relative_to(base).as_posix()
+            not in allowed)
+        if unreviewed:
+            raise CorpusMembershipError(
+                f"{len(unreviewed)} named document(s) land on none the "
+                f"allowlist names in {CORPUS_ALLOWLIST}: {unreviewed[:5]}. A "
+                "file becomes governed text by being reviewed into the "
+                "allowlist, not by being named")
     chunks: list[dict] = []
     digests: dict[str, str] = {}
     for rel in rels:

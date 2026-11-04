@@ -422,3 +422,87 @@ def test_a_crashed_verifier_does_not_produce_a_verified_run(gov, monkeypatch):
             ok=False, exit_status=139, reason="a crashed verifier is not a pass"))
     run = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov))
     assert run.state is not TaskState.VERIFIED
+
+
+# ---- AUD-029: the separate process's evidence reader ---------------------
+# Its names come from the log being verified. The primary store refuses a
+# name that is no digest before building a path, reads only a regular file
+# without following a link or waiting on a FIFO, and bounds what it reads;
+# the separate process, which may not import the store, now says the same.
+# No case below names a device: before the fix, one would have been read
+# until memory ran out.
+
+def _separate_reader():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("independent_verify_029",
+                                                  VERIFIER)
+    iv = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(iv)
+    return iv
+
+
+#: 64 characters, no digest: ``..`` and a tail that leads out of the store
+CRAFTED = ".." + "./" * 28 + "/probe"
+
+
+@pytest.mark.parametrize("name", [CRAFTED, "..probe", "AB" * 32, "g" * 64,
+                                  "ab"])
+def test_the_separate_reader_builds_no_path_from_a_name_that_is_no_digest(
+        tmp_path, name):
+    assert len(CRAFTED) == 64
+    (tmp_path / "probe").write_bytes(b"outside the store")
+    (tmp_path / "store").mkdir()
+    reader = _separate_reader()._FileEvidence(str(tmp_path / "store"))
+    with pytest.raises(ValueError, match="not a digest"):
+        reader.get(name)
+
+
+def test_the_separate_reader_reads_a_regular_file_and_nothing_else(tmp_path):
+    import hashlib
+    import os
+    store = tmp_path / "store"
+    data = b"a blob"
+    dg = hashlib.sha256(data).hexdigest()
+    (store / dg[:2]).mkdir(parents=True)
+    (store / dg[:2] / dg[2:]).write_bytes(data)
+    reader = _separate_reader()._FileEvidence(str(store))
+    assert reader.get(dg) == data
+    # a FIFO under a digest's name is refused at once, not waited on
+    fifo = "f" * 64
+    (store / "ff").mkdir()
+    os.mkfifo(store / "ff" / fifo[2:])
+    with pytest.raises(ValueError, match="not a regular file"):
+        reader.get(fifo)
+    # a link under a digest's name is not followed
+    link = "e" * 64
+    (store / "ee").mkdir()
+    (store / "ee" / link[2:]).symlink_to(store / dg[:2] / dg[2:])
+    with pytest.raises(OSError):
+        reader.get(link)
+
+
+def test_the_separate_reader_reads_no_more_than_a_blob(tmp_path, monkeypatch):
+    import hashlib
+    iv = _separate_reader()
+    store = tmp_path / "store"
+    data = b"longer than the bound"
+    dg = hashlib.sha256(data).hexdigest()
+    (store / dg[:2]).mkdir(parents=True)
+    (store / dg[:2] / dg[2:]).write_bytes(data)
+    monkeypatch.setattr(iv, "MAX_BLOB_BYTES", 4)
+    with pytest.raises(ValueError, match="larger than a blob"):
+        iv._FileEvidence(str(store)).get(dg)
+
+
+def test_the_second_reader_asks_no_store_for_a_name_that_is_no_digest():
+    from agent_substrate import reconstruct as RC
+    asked = []
+
+    class Spy:
+        def get(self, name):
+            asked.append(name)
+            return b""
+
+    assert RC._resolves(Spy(), CRAFTED) is False
+    assert RC._resolves(Spy(), "AB" * 32) is False
+    assert asked == []

@@ -31,23 +31,24 @@ Where this report and those files disagree, the files are right.
 
 ## 1. Coverage ledger
 
-The pull request changes 1055 files, counting the audit's own (`git diff
+The pull request changes 1061 files, counting the audit's own (`git diff
 --name-status` from the merge base, with rename detection, not the web
 diff). Each has one entry.
 
 | Disposition | Files | Meaning |
 |---|---|---|
-| REVIEWED_IN_FULL | 11 | every line read, bound to the blob read |
-| REVIEWED_IN_PART | 24 | the parts named in the entry read, bound to the blob |
+| REVIEWED_IN_FULL | 43 | every line read, bound to the blob read |
+| REVIEWED_IN_PART | 28 | the parts named in the entry read, bound to the blob |
 | INSPECTED_BINARY | 20 | a binary, identified and inspected |
-| AUDIT_ARTIFACT | 66 | written by this audit, not independently reviewed |
-| NOT_REVIEWED | 934 | not examined, with the reason |
+| CHECKED_DATA | 1 | data validated by the checks named in the entry, not read line by line |
+| AUDIT_ARTIFACT | 72 | written by this audit, not independently reviewed |
+| NOT_REVIEWED | 897 | not examined, with the reason |
 
-Of the 56 changed `agent_substrate` modules, 19 have been read, and three,
+Of the 56 changed `agent_substrate` modules, 47 have been read, and three,
 `roles`, `transparency` and `archive`, were written by the audit
 (AUDIT_ARTIFACT):
 
-- in full: `authority`, `canonical`, `checkpoint`, `events`, `principals`, `projection` and `store`;
+- in full: `__init__`, `_artifact_tool`, `_index_tool`, `_inference_worker`, `_ns_init`, `assurance_graph`, `authority`, `canonical`, `checkpoint`, `claim_check`, `context`, `ed25519`, `events`, `evidence`, `evidence_terms`, `execution`, `freshness`, `hostid`, `invalidation`, `learned_lifecycle`, `learned_rules`, `memory_trust`, `principals`, `projection`, `prov_export`, `rag_index`, `readpath`, `research`, `research_loop`, `result_rules`, `safeio`, `separate_verify`, `signature`, `store` and `trust_labels`;
 - in part: `agents`, `capability`, `governed_tasks`, `idempotency`, `memory`, `netauth`, `policy`, `proposals`, `reconstruct`, `scheduler`, `secrets` and `witness`.
 
 Nothing outside those files is claimed reviewed. A disposition goes STALE
@@ -56,7 +57,7 @@ git.
 
 ## 2. Findings register
 
-Twenty-five findings. Severity follows the register's scale: P0 is an
+Thirty-one findings. Severity follows the register's scale: P0 is an
 authority bypass or integrity failure, P3 is information for the owner.
 
 | ID | Sev | Established | Resolution | In brief |
@@ -86,6 +87,12 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-023 | P2 | REPRODUCED | FIXED | the independent readers could not read a governed history; the separate process is now handed its public roots |
 | AUD-024 | P1 | REPRODUCED | FIXED | the RC network's model stated resolutions a thousand times smaller than its error, and divided by zero on 870 of 5000 networks drawn across its admitted bounds |
 | AUD-025 | P2 | REPRODUCED | OPEN | a verdict is decided with the producer's stated resolution, which the independent check bounds only to the sum of both stated errors |
+| AUD-026 | P2 | REPRODUCED | FIXED | a key of small order could be registered, and under it anyone could sign; the two Ed25519 verifiers also decoded one encoding differently |
+| AUD-027 | P3 | REPRODUCED | FIXED | a cited document holding a number JSON does not have made the admission rule raise instead of refusing |
+| AUD-028 | P2 | REPRODUCED | FIXED | a verdict on one objective's hypothesis could rest on another objective's observations, so an objective asking its question at a documented point could be concluded on a run elsewhere |
+| AUD-029 | P3 | REPRODUCED | FIXED | the separate process's evidence reader built a path from whatever name the log carried |
+| AUD-030 | P2 | REPRODUCED | FIXED | a lease held by a process on another machine read as held by a dead one, so recovery would reclaim a task its holder was still running |
+| AUD-031 | P3 | REPRODUCED | FIXED | a document a caller named was indexed for retrieval although the corpus allowlist did not name it |
 
 **How far each is established.** REPRODUCED means shown failing by a
 test or a script; CONFIRMED means established by reading, not executed.
@@ -304,21 +311,26 @@ No completed hosted run of a later head is reported here: the runs of
 
 `CLAIMS_BOUNDARY.md` (EB1-EB17) and `docs/EVIDENCE_TERMS.md` hold the
 repository's own boundaries. The audit found them honest in what it read,
-and adds the five rows marked AUD below.
+and adds the rows marked AUD below.
 
 **Numerically verified.** Each admitted model's result is checked by a
 different implementation:
 
 - the slab: a method-of-lines solve and, out of process, FEniCSx (not
   installed on this host);
-- the RC network: an FMI 3.0 FMU against its closed form;
+- the RC network: an FMI 3.0 FMU against its closed form (no FMU
+  runtime on this host), and Runge-Kutta integration of its two
+  equations, which runs here where a deployment's check table names
+  it (Stage 3);
 - Langmuir capture: Runge-Kutta integration of the law in its other form.
 
 This is SCIENTIFICALLY_VERIFIED as `result_rules` defines it. It is not
 experimental validation (EB3, EB4).
 
 **Analytically compared.** The slab against its exact series, and the RC
-network against its closed form.
+network against its closed form. In the offline evaluation the RC
+network's worlds are judged by a second closed form
+(`tools/rc2_reference.py`), which states a bound on its own rounding.
 
 **Fixture-tested.**
 
@@ -369,13 +381,24 @@ The audit restored none of it.
 | AUD-014 | A refused write leaves the log as it was: a capability mint is authorized before its record exists | `CapabilityLedger.issue` |
 | AUD-015 | A policy's later versions are its owner's, and a binding judges the publisher of the version in force | `PolicyStore`; `AuthorityStore`; `reconstruct` |
 | AUD-016 | A test leaves no process behind: the grandchild the control lets escape is stopped after the reading, and ends at its own bound if the probe is stopped first | `isolation_contract.probe_process_tree`; `tests/test_isolation_contract.py` |
+| AUD-024 | The RC network's model states no resolution its evaluation does not achieve, and evaluates every network its bounds admit | `thermal_rc2.closed_form`; held to a 90-digit evaluation by `tests/test_rc_counterfactuals.py` |
+| AUD-026 | A key is held, and a signature under it verified, only if the key is the canonical encoding of a point not of small order, in the producer and the restated verifier alike | `ed25519.public_key_problem`; `principals.KeyRegistry`; `ed25519.verify`; `read_key_registry` and `ed25519_verify` in `tools/verify_assurance.py` |
+| AUD-027 | Evidence that is not JSON, or has no canonical form, is a problem the admission rule names, live and on replay | `result_rules._read`; `result_rules.verification_problems` |
+| AUD-028 | A verdict rests only on observations of its own objective, which answer that objective's question | `research._status_problem`; restated in `reconstruct._sub_research_status` |
+| AUD-029 | A name from the log builds no path until it is a digest, and the separate process reads only a regular file, bounded | `_FileEvidence` in `tools/independent_verify.py`; `reconstruct._resolves` |
+| AUD-030 | A lease is reclaimed only on evidence its holder is gone: another boot id reads as GONE only for this machine | `hostid.liveness`, `ProcessIdentity.machine_id`; `GovernedTasks.recover` |
+| AUD-031 | A document is retrievable only if the allowlist names it, however it is named | `rag_index.build_index` |
 
 ## 7. Owner decisions
 
 **Fixable here, and fixed.** AUD-002 to AUD-009, AUD-011 to
-AUD-018, and AUD-020 to AUD-023. For AUD-011 and AUD-017 the mechanism is what was
+AUD-018, AUD-020 to AUD-024, and AUD-026 to AUD-031. For AUD-011 and AUD-017 the mechanism is what was
 fixed, and it holds where a reader is given a registry. Provisioning the
 production registry is the owner action below.
+
+**Fixable here, and open.** AUD-025. Its correction changes the
+verification schema and the admission policy's name, with a migration
+for replay. It is proposed in the finding and left for its own stage.
 
 **Owner decisions the audit found:**
 
@@ -445,20 +468,20 @@ Each line names its weakest point. No aggregate is given.
 |---|---|---|
 | Event-sourcing correctness | improved, not complete | log defects fixed: AUD-002, AUD-003, AUD-005, AUD-006 (P1/P2) and AUD-008 (P3); the second reader shares the parser (common mode) |
 | Incremental-verification maturity | partial | suffix reads bound to verified anchors and to the folded hash (AUD-003, AUD-006); governed folds still re-verify from genesis by decision (AUD-010) |
-| Recovery maturity | partial | crash-window checkpoint fixed (AUD-009); per-step campaign recovery measured; whole-process campaign recovery tested at twelve kill points, a rollback refused and competing processes refused (AUD-013); recovery across the loss of the machine needs durable storage |
+| Recovery maturity | partial | crash-window checkpoint fixed (AUD-009); per-step campaign recovery measured; whole-process campaign recovery tested at twelve kill points, a rollback refused and competing processes refused (AUD-013); recovery across the loss of the machine needs durable storage; a lease held on another machine is not reclaimed, and an old record's lease after a reboot waits for an operator (AUD-030) |
 | Witness deployment maturity | not deployed | protocol implemented and tested; quorums model-checked (protocol 7); a quorum must be a majority (AUD-018); a re-provisioned witness is the owner's to count (AUD-019); no production witness or trust root |
-| Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); a GOVERNED history binds every reader to the key and role registries it declares (AUD-020), is written by the governed path, each record signed through its handle (AUD-021), and is read by the separate process under its roots (AUD-023); the research task runs governed, each of its eight grants shown necessary, and none exists outside tests; authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015) |
+| Authority security | not ready | roles and issuers bound to a registry where one is given, and none provisioned (AUD-011, AUD-017); a GOVERNED history binds every reader to the key and role registries it declares (AUD-020), is written by the governed path, each record signed through its handle (AUD-021), and is read by the separate process under its roots (AUD-023); the research task runs governed, each of its eight grants shown necessary, and none exists outside tests; authentication not provisioned; the scope bypass, the poisoning mint and the policy-version hijack fixed (AUD-012, AUD-014, AUD-015); a key no secret stands behind refused by every registry and verifier (AUD-026) |
 | Execution isolation | partial, honestly classified | kernel namespaces, filesystem, network, process tree and quotas; syscall filtering NOT_PROVIDED |
-| Scientific verification | bounded, honest | numerical cross-checks of three models; one result packaged for offline checking, rechecked by a standalone verifier against its own closed-form solution, and its authority checked from the package alone: every record signed and every governed act granted, under TEST keys; no experimental validation; FEniCSx not exercised on this host |
+| Scientific verification | bounded, honest | numerical cross-checks of three models; one result packaged for offline checking, rechecked by a standalone verifier against its own closed-form solution, and its authority checked from the package alone: every record signed and every governed act granted, under TEST keys; the RC network's model held to the resolution it states (AUD-024); a verdict decided only on its own objective's observations (AUD-028), and still with the producer's stated resolution, which its check bounds only to the sum of both errors (AUD-025, open); no experimental validation; FEniCSx not exercised on this host |
 | Long-horizon reliability | measured to 1,000 decisions | resumable across the death of its process (AUD-013); the 5,000 and 10,000 stages not run; per-decision cost rising (AUD-010) |
 | CI and supply-chain assurance | partial | branch workflows default-deny and pinned; owner settings O-1 to O-9 not done; no release trust root |
 | Readiness to connect a live model | blocked | OD-1, OD-2, OD-6 undecided; no role registry provisioned |
 | Production readiness | not met | keys, witnesses, release root, role authority and human principal are all absent |
-| Merge readiness | not assessed as ready | 934 of 1055 files not reviewed; hosted runs all green at df53837 (every run, read from the API), not yet read at the audit's later commits |
+| Merge readiness | not assessed as ready | 897 of 1061 files not reviewed; hosted runs all green at cbc9bed (all eight workflow runs, read from the API), not yet read at the audit's later commits |
 
 ## 9. What remains unknown
 
-- **The files not reviewed.** Everything in the 934 NOT_REVIEWED files.
+- **The files not reviewed.** Everything in the 897 NOT_REVIEWED files.
 - **Unmeasured costs.** Resident memory per operation, a governed task
   transition on its own, and what the campaign's reads are (section 4).
 - **Long horizons.** Whether the campaign holds past 1,000 decisions.

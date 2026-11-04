@@ -95,6 +95,41 @@
       "find": "    \"agent_substrate.reconstruct\",\n})",
       "replace": "    \"agent_substrate.reconstruct\",\n    \"agent_substrate.hostid\",\n})",
       "rationale": "D-2026-126: PERMITTED stops being a measurement; room for an import nobody reviewed"
+    },
+    {
+      "name": "S14_the_evidence_reader_builds_a_path_from_any_name",
+      "path": "tools/independent_verify.py",
+      "find": "        if not isinstance(digest, str) or len(digest) != 64 or \\\n                not set(digest) <= _HEX:\n            raise ValueError(\"the evidence named is not a digest\")",
+      "replace": "        if False:\n            raise ValueError(\"the evidence named is not a digest\")",
+      "rationale": "AUD-029: a name from the log that is no digest -- '..' and a tail -- would lead the separate process's evidence reader out of the store, to any file or to a device whose read never ends"
+    },
+    {
+      "name": "S15_the_evidence_reader_reads_a_fifo",
+      "path": "tools/independent_verify.py",
+      "find": "            if not stat.S_ISREG(st.st_mode):",
+      "replace": "            if False:",
+      "rationale": "AUD-029: a FIFO under a digest's name would be read as evidence"
+    },
+    {
+      "name": "S16_the_evidence_reader_follows_a_link",
+      "path": "tools/independent_verify.py",
+      "find": "os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK",
+      "replace": "os.O_RDONLY | os.O_NONBLOCK",
+      "rationale": "AUD-029: a link under a digest's name would be followed to whatever it names"
+    },
+    {
+      "name": "S17_the_evidence_reader_reads_without_a_bound",
+      "path": "tools/independent_verify.py",
+      "find": "                if total > MAX_BLOB_BYTES:",
+      "replace": "                if False:",
+      "rationale": "AUD-029: a file that never ends would be read until memory ran out"
+    },
+    {
+      "name": "S18_the_second_reader_asks_for_any_64_characters",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if evidence is None or not _is_digest(digest_):",
+      "replace": "    if evidence is None or not isinstance(digest_, str) or len(digest_) != 64:",
+      "rationale": "AUD-029: the second reader would hand a store any 64 characters the log carries, and a store that builds a path from them is led out of itself"
     }
   ]
 }

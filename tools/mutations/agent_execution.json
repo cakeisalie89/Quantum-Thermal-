@@ -447,6 +447,13 @@
       "find": "                and exited - started > limits.wall_seconds):\n",
       "replace": "                and False):\n",
       "rationale": "D-2026-78: a process that exited past its wall bound, inside one poll interval, reported COMPLETED"
+    },
+    {
+      "name": "X63_the_machine_id_is_not_recorded",
+      "path": "agent_substrate/hostid.py",
+      "find": "                           machine_id=machine_id())",
+      "replace": "                           machine_id=\"\")",
+      "rationale": "AUD-030: a process record that names no machine makes a later boot of this machine and another machine indistinguishable, and recovery can conclude neither"
     }
   ]
 }

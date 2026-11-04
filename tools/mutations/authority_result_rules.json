@@ -1,6 +1,6 @@
 {
   "title": "A scientific result is verified only on evidence that supports it, at the store",
-  "note": "The admission policy for kind scientific_result, in agent_substrate/result_rules.py, enforced by AuthorityStore.transition on the edges into VERIFIED and PROMOTED. RR1, RR2, RR3, RR5 and RR6 are ST11, ST10, ST17, ST13 and ST14 of scientific_thermal_1d, moved here with the rule they test. RR8-RR11 re-anchored when the content rule became policy scientific_result.admission/1; RR11 now breaks the store's refusal of an undecidable claim, since the old anchor became an equivalent mutant (an absent fetch is itself unreadable evidence). Origin, replay and the second reader are scientific_authority_replay.json.",
+  "note": "The admission policy for kind scientific_result, in agent_substrate/result_rules.py, enforced by AuthorityStore.transition on the edges into VERIFIED and PROMOTED. RR1, RR2, RR3, RR5 and RR6 are ST11, ST10, ST17, ST13 and ST14 of scientific_thermal_1d, moved here with the rule they test. RR8-RR11 re-anchored when the content rule became policy scientific_result.admission/1; RR11 now breaks the store's refusal of an undecidable claim, since the old anchor became an equivalent mutant (an absent fetch is itself unreadable evidence). Origin, replay and the second reader are scientific_authority_replay.json. Stage 5: RR18 and RR19 put back AUD-027 -- a cited document holding a number JSON does not have raised out of the rule instead of being a problem.",
   "suites": [
     "tests/test_agent_result_rules.py",
     "tests/test_governed_model.py"
@@ -124,6 +124,20 @@
       "find": "    if set(report) != REPORT_KEYS:\n",
       "replace": "    if not REPORT_KEYS <= set(report):\n",
       "rationale": "a report carrying fields no VerificationResult writes is read as one"
+    },
+    {
+      "name": "RR18_a_token_json_does_not_have_is_read",
+      "path": "agent_substrate/result_rules.py",
+      "find": "            docs[key] = json.loads(raw, parse_constant=_not_json)",
+      "replace": "            docs[key] = json.loads(raw)",
+      "rationale": "AUD-027: NaN, Infinity and -Infinity read as numbers, so a document that is not JSON is not reported as such"
+    },
+    {
+      "name": "RR19_a_bundle_with_no_canonical_form_raises",
+      "path": "agent_substrate/result_rules.py",
+      "find": "    try:\n        bundle_digest = digest(bundle)\n    except ValueError:\n        # a numeral past the float range reads as infinity, which no\n        # canonical form holds: a problem, not an exception (AUD-027)\n        bundle_digest = None\n        problems.append(\"the cited bundle has no canonical form\")",
+      "replace": "    bundle_digest = digest(bundle)",
+      "rationale": "AUD-027: a numeral past the float range makes the rule raise CanonicalizationError, which neither the live edge nor replay expects"
     }
   ]
 }

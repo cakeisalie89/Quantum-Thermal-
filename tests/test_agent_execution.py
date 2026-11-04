@@ -349,6 +349,14 @@ def test_cancellation_before_start_means_the_process_never_starts(env, tmp_path)
     r = _run(env, [PY, "-c", f"open({str(marker)!r},'w').write('x')"],
              cancel=tok)
     assert r.outcome is Outcome.CANCELLED and not r.succeeded
+    # Nothing was started, so nothing is recorded as started. The marker
+    # alone cannot tell "never started" from "started, then killed before
+    # it wrote": the executor next looks at the token one poll after the
+    # spawn, and on a loaded host the child has not yet written by then.
+    # With the check before spawning removed, the test still passed that way.
+    assert r.pid is None and r.pgid is None and r.child_process == {}, (
+        f"a process was started for a run cancelled before it began: "
+        f"{r.child_process}")
     assert not marker.exists(), "the cancelled process ran anyway"
 
 
@@ -444,7 +452,8 @@ def test_the_child_is_recorded_by_identity_and_not_by_pid_alone(env):
     assert r.outcome is Outcome.COMPLETED, r.reason
 
     rec = r.to_record()["child_process"]
-    assert set(rec) == {"pid", "pgid", "host_boot_id", "start_ticks"}, rec
+    assert set(rec) == {"pid", "pgid", "host_boot_id", "start_ticks",
+                        "machine_id"}, rec
     assert rec["pid"] == r.pid and rec["pgid"] == r.pgid
     # The two fields a bare pid does not have, and the reason the record
     # exists at all. Both are recorded from /proc on Linux; asserting they
@@ -455,12 +464,18 @@ def test_the_child_is_recorded_by_identity_and_not_by_pid_alone(env):
         "from the same pid after one")
     assert isinstance(rec["start_ticks"], int) and rec["start_ticks"] > 0, (
         f"no start time, so a reused pid reads as the original: {rec}")
+    # AUD-030: what tells a reboot of this machine from another machine,
+    # both of which report a boot id other than ours. Recorded as the host
+    # reports it: empty only where the host offers none.
+    from agent_substrate.hostid import machine_id
+    assert rec["machine_id"] == machine_id(), rec
 
     # And it round-trips through the reader that recovery actually uses.
     ident = ProcessIdentity.from_record(rec)
     assert ident is not None and ident.pid == r.pid
     assert ident.host_boot_id == rec["host_boot_id"]
     assert ident.start_ticks == rec["start_ticks"]
+    assert ident.machine_id == rec["machine_id"]
 
 
 def test_a_child_process_group_is_killed_with_its_parent(env, tmp_path):

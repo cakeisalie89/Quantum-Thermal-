@@ -125,6 +125,20 @@
       "find": "            except _Unterminated as exc:\n                raise MalformedEvent(\n                    \"the final record after the anchor has no newline; the \"\n                    \"log was truncated mid-append\") from exc",
       "replace": "            except _Unterminated:\n                break",
       "rationale": "AUD-002, from an anchor. The tail read ends at the unterminated line as if the log ended there, so a running writer's head check passes and only the write path's own guard is left between the next record and the torn line"
+    },
+    {
+      "name": "V7_a_record_from_another_machine_counts_as_gone",
+      "path": "agent_substrate/hostid.py",
+      "find": "        if mine and recorded.machine_id == mine:\n            return GONE\n        return UNKNOWN",
+      "replace": "        if mine and recorded.machine_id == mine:\n            return GONE\n        return GONE",
+      "rationale": "AUD-030: a lease held on another machine sharing the log would be reclaimed while its holder runs, and two workers would run one task"
+    },
+    {
+      "name": "V8_a_host_that_cannot_name_itself_matches_a_record_that_names_none",
+      "path": "agent_substrate/hostid.py",
+      "find": "        if mine and recorded.machine_id == mine:",
+      "replace": "        if recorded.machine_id == mine:",
+      "rationale": "AUD-030: on a host with no machine id, every record written before the machine id was -- and every record from such a host -- would read as a later boot of this machine"
     }
   ]
 }

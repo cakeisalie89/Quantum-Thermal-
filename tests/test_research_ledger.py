@@ -426,6 +426,44 @@ def test_an_observation_s_point_is_the_bundle_s(w):
         w.reload()
 
 
+def _cross_objective(w):
+    """``oq`` asks its question at POINT; ``o1`` asks nothing as data and
+    has observed a run at another point, where the prediction holds."""
+    w.asking()
+    w.hypothesis("h1", "prop-1", objective="oq")
+    w.verified("rec-2", parameters=dict(POINT, q_W_m3=2.0e7))
+    w.observe("obs-2", "rec-2")
+    refused(w, lambda: w.observe("obs-x", "rec-2", objective="oq"),
+            "documented point")
+
+
+def test_a_verdict_rests_only_on_its_own_objective_s_observations(w):
+    """AUD-028. ``oq`` may not observe the run at another point, and a
+    verdict on its hypothesis may not reach past that to the observation
+    ``o1`` holds of it: decided there, ``oq`` would be CONCLUDED on a run
+    somewhere easier to win."""
+    _cross_objective(w)
+    refused(w, lambda: w.led.set_status("h1", "SUPPORTED", reason="r",
+                                        basis=["obs-2"]),
+            "another objective")
+    # what the controller does: its own objective's observations, and
+    # here there are none, so nothing is decided
+    assert w.led.evaluate_hypothesis("h1") == "INCONCLUSIVE"
+    assert w.reload().get("h1").status == "OPEN"
+
+
+def test_a_planted_cross_objective_verdict_is_refused_on_replay(w):
+    _cross_objective(w)
+    w.log.append(actor=R.CONTROLLER_ID, action=R.ACT_STATUS, target="h1",
+                 payload={"target_id": "h1", "status": "SUPPORTED",
+                          "reason": "forged", "basis": ["obs-2"]})
+    with pytest.raises(R.ResearchError, match="another objective"):
+        w.reload()
+    found = _second(w)
+    assert any("observations of another objective" in a for a in found), \
+        found
+
+
 def test_an_objective_asking_nothing_as_data_takes_any_decided_hypothesis(w):
     """The rule binds only an objective that states its question; this is
     the stated limit, held so the docs cannot outgrow it."""

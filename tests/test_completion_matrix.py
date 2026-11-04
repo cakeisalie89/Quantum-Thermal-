@@ -964,7 +964,14 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: cancellation and states the resolution it achieves
 #: (scientific/models/thermal_rc2.py, cited by R63), so both predate
 #: their implementation until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 17
+#: 17 -> 15 in the continuation's Stage 5 commit: a process record
+#: names its machine, and a boot id other than ours reads as GONE only
+#: for this machine (AUD-030, agent_substrate/hostid.py, cited by
+#: R23); and a document a caller names is indexed only if the
+#: allowlist names it (AUD-031, agent_substrate/rag_index.py, cited by
+#: R35). Both predate their implementation until the evidence commit
+#: after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 15
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

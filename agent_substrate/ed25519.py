@@ -6,6 +6,18 @@ algorithm is the RFC's own, point for point -- extended twisted Edwards
 coordinates, SHA-512, the cofactored group of order ``Q`` -- and
 ``tests/test_actor_authentication.py`` holds it to the RFC's test vectors.
 
+Two refusals go beyond the RFC's reference code, and the restated verifier
+in ``tools/verify_assurance.py`` makes the same ones (AUD-026):
+
+* an encoding of x = 0 with the sign bit set is not a point (RFC 8032
+  5.1.3, step 4). The reference code tests x^2 against zero before reducing
+  it, and so decoded y = p - 1 with the sign bit set as the point (0, -1);
+* a public key of SMALL ORDER -- one of the eight points [8]A = 0 -- is no
+  key: no secret stands behind it, and anyone can make a signature that
+  verifies under it ([S]B = R + [k]A holds for R = [S]B whenever [k]A is the
+  identity). :func:`public_key_problem` says why a key is refused, and
+  :func:`verify` refuses every signature under one.
+
 What it is NOT: a constant-time implementation. Python integers leak timing
 through their size, so this is safe for VERIFYING (every input is public)
 and for signing with the deterministic TEST identities, and it is not the
@@ -33,7 +45,7 @@ _SQRT_M1 = pow(2, (P - 1) // 4, P)
 def _recover_x(y: int, sign: int):
     if y >= P:
         return None
-    x2 = (y * y - 1) * _inv(_D * y * y + 1)
+    x2 = (y * y - 1) * _inv(_D * y * y + 1) % P
     if x2 == 0:
         return None if sign else 0
     x = pow(x2, (P + 3) // 8, P)
@@ -102,6 +114,27 @@ def _expand(secret: bytes):
     return a, h[32:]
 
 
+def _small_order(pt) -> bool:
+    """[8]pt is the identity: ``pt`` is one of the eight points of small
+    order."""
+    return _equal(_mul(8, pt), _IDENTITY)
+
+
+def public_key_problem(public) -> str | None:
+    """Why ``public`` is no Ed25519 public key to register or verify under,
+    or None: not 32 bytes, not the canonical encoding of a curve point, or a
+    point of small order."""
+    if not isinstance(public, (bytes, bytearray)) or len(public) != 32:
+        return "an Ed25519 public key is 32 bytes"
+    pt = _decompress(bytes(public))
+    if pt is None:
+        return "not the canonical encoding of a curve point"
+    if _small_order(pt):
+        return ("a point of small order: no secret stands behind it, and "
+                "anyone can sign under it")
+    return None
+
+
 def _hq(data: bytes) -> int:
     return int.from_bytes(hashlib.sha512(data).digest(), "little") % Q
 
@@ -132,7 +165,7 @@ def verify(public: bytes, message: bytes, signature: bytes) -> bool:
         return False
     a_pt = _decompress(bytes(public))
     r_pt = _decompress(bytes(signature[:32]))
-    if a_pt is None or r_pt is None:
+    if a_pt is None or r_pt is None or _small_order(a_pt):
         return False
     s = int.from_bytes(signature[32:], "little")
     if s >= Q:

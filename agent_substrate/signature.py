@@ -13,10 +13,14 @@ by default, and the reason is not only that it is not constant time:
   no independent audit, no fuzzing history and no deployment record;
 * encoding edge cases -- point decoding, non-canonical field elements and
   scalars are handled by the RFC's rules and tested, and are exactly where
-  handwritten implementations have historically diverged from vetted ones;
+  handwritten implementations have historically diverged from vetted ones:
+  until AUD-026 this one decoded y = p - 1 with the sign bit set, which the
+  RFC refuses;
 * small-order points and the cofactor -- vetted libraries differ among
-  THEMSELVES on small-order keys, and a transcription picks one behaviour
-  without a reviewed reason;
+  THEMSELVES on small-order keys. This package does not leave the choice to
+  a provider: the key registries refuse a public key of small order, under
+  which anyone can sign, and the reference refuses to verify under one
+  (AUD-026), whichever provider verifies afterwards;
 * malleability -- ``s + Q`` is refused and tested; the class is wider;
 * review surface -- field arithmetic that nobody else maintains.
 

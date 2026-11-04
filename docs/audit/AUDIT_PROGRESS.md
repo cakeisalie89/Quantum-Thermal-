@@ -2095,3 +2095,271 @@ The first run of rc_counterfactuals killed 18 of 20, and two survived:
   networks, neither form comes within 1 % of the stated resolution, so it
   was removed with its reason in the spec, following the repository's
   rule for equivalent mutations.
+
+### Stage 5, first pass: critical and decision-path files reviewed in order of consequence (AUD-026 to AUD-031)
+
+**Order.** The security inventory rates these files CRITICAL, and the
+ledger held them NOT_REVIEWED. They were taken in order of consequence:
+
+1. the rule that admits a scientific result, which Stage 3 had just
+   exercised;
+2. the identity layer under every attestation;
+3. the refusals that keep learned output from authority;
+4. the execution boundary;
+5. the supply chain and its offline verifier;
+6. the workflows;
+7. then, of the files it rates HIGH: the decision path (the research
+   ledger that decides verdicts, the controller that drives it, the
+   separate process that checks both), the init every confined tool
+   runs under, the confined read the evidence store and the governed
+   reader are built on, the process identity recovery trusts, and
+   what a model is shown and retrieves.
+
+Each review is bound to the blob it read. Nothing is marked reviewed for
+having been written.
+
+| File | Read | Found |
+|---|---|---|
+| agent_substrate/result_rules.py | in full | AUD-027 |
+| agent_substrate/ed25519.py | in full | AUD-026 |
+| agent_substrate/signature.py | in full | a docstring claim AUD-026 contradicted, corrected |
+| agent_substrate/learned_rules.py | in full | nothing |
+| agent_substrate/learned_lifecycle.py | in full | a malformed document raises KeyError, not LedgerError (P3; nothing is written either way) |
+| agent_substrate/execution.py | in full | two P3 notes, below |
+| tools/supply_chain.py | in full | nothing |
+| tools/offline_verify.py | in full | nothing |
+| docs/supply_chain_ci_policy.json | in full | nothing |
+| integrations/supply_chain/sigstore.lock | checked as data, against PyPI | nothing; a P3 note, below |
+| the six workflows | in part: a targeted security scan | nothing |
+| agent_substrate/research.py | in full | AUD-028 |
+| agent_substrate/freshness.py | in full | nothing |
+| agent_substrate/invalidation.py | in full | a diamond reported as a cycle in a field nothing reads (P3) |
+| agent_substrate/research_loop.py | in full | a step outcome that overstates, below (P3) |
+| agent_substrate/separate_verify.py | in full | a malformed child answer raises rather than refusing (P3) |
+| tools/independent_verify.py | in full | AUD-029 |
+| agent_substrate/_ns_init.py | in full | nothing |
+| agent_substrate/safeio.py | in full | a docstring that calls a default-on refusal opt-in (left: R31's hosted evidence covers the file) |
+| agent_substrate/readpath.py | in full | nothing |
+| agent_substrate/evidence.py | in full | a P3 note, below |
+| agent_substrate/hostid.py | in full | AUD-030 |
+| agent_substrate/context.py | in full | nothing |
+| agent_substrate/rag_index.py | in full | AUD-031 |
+| agent_substrate/_inference_worker.py, _artifact_tool.py, _index_tool.py, __init__.py | in full | nothing |
+| agent_substrate/trust_labels.py | in full | nothing |
+| agent_substrate/memory_trust.py | in full | nothing |
+| agent_substrate/claim_check.py | in full | nothing |
+| agent_substrate/prov_export.py, assurance_graph.py | in full | nothing |
+| agent_substrate/evidence_terms.py | in full | nothing new; its entry for `research:evaluate` rests on the resolution AUD-025 leaves open |
+
+`agent_substrate/principals.py` was already reviewed in full. It now
+carries the AUD-026 refusal, reviewed as a diff, and its entry is
+re-recorded against the new blob.
+`agent_substrate/reconstruct.py`, reviewed in part, carries the
+restatements of AUD-028 and AUD-029, and the parts read for them are
+added to its entry.
+
+**The workflow scan, and what it was not.** It is not a line-by-line
+review. It checked:
+
+- triggers: no `pull_request_target` or `workflow_run`;
+- pinning: every `uses:` names a 40-hex commit;
+- permissions: none at the top of each workflow, granted per job;
+- secrets: `ANTHROPIC_API_KEY`, in `claude.yml` only;
+- what reaches a shell: only matrix values the workflows define, nothing
+  an event supplies.
+
+`claude.yml` on this branch gates its credentialed job on the author's
+association and checks out no fork head beside the secret. O-1 and O-2
+concern the copy on `main`, and remain the owner's.
+
+**AUD-026 (P2): a key no secret stands behind.** The key registry
+checked a public key only as 32 bytes. Neither Ed25519 verifier refused a
+key of SMALL ORDER, one of the eight points with [8]A = 0. Under such a
+key no secret is needed: [S]B = R + [k]A holds for R = [S]B whenever
+[k]A is the identity. So anyone could sign as the principal registered
+with it, and a principal could register one to make its own records
+deniable.
+
+The two implementations also disagreed on one encoding. The producer,
+transcribing the RFC's reference code, compared x^2 with zero before
+reducing it. So y = p - 1 with the sign bit set decoded as (0, -1), which
+RFC 8032 5.1.3 step 4 refuses and the restated verifier did refuse.
+
+`tests/test_ed25519_encodings.py` finds the eight points by search, not
+from memory, and checks them against libsodium's list. Without the fix
+all fifteen of its tests fail. One of them, the genuine-key control,
+fails only because it asks for the new `public_key_problem`. In the
+agreement test the producer said True, and the restated verifier False,
+on the same forged signature.
+
+Both registries now refuse a key that is not the canonical encoding of a
+point, or is of small order. Both verifiers refuse every signature under
+one, and the producer reduces before it compares.
+
+**AUD-027 (P3): numbers JSON does not have.** A bundle cited for
+admission could hold NaN, Infinity, -Infinity, or a numeral past the
+float range (read as infinity). The rule then raised CanonicalizationError
+instead of naming a problem. Live, the store's edge raised it in place of
+TransitionError. On replay, the reducer refused the history as unreadable
+rather than as an inadmissible admission. The second reader refused it as
+having no canonical form.
+
+It failed closed on every path, under the wrong name. The tokens are now
+refused while parsing, so they read as not JSON. A bundle with no
+canonical form is a problem. The eight new cases in
+`tests/test_agent_result_rules.py` all fail without the fix.
+
+**AUD-028 (P2): a verdict answered another objective's question.** An
+objective may state its question as data: a prediction and the documented
+point to ask it at. Then a run at another point cannot be observed for it
+(D-2026-179). But the verdict rule took any current observation as a
+basis, whichever objective held it, and so did the second reader.
+
+Reproduced. Objective `oq` asks its question at a point. Objective `o1`
+asks nothing as data, and observes a run at another point. A verdict on
+`oq`'s hypothesis, resting on `o1`'s observation, was accepted by the
+writer and on replay. `oq` was then CONCLUDED on it, and the second reader
+noted nothing.
+
+The honest controller never does this: it decides a hypothesis from its
+own objective's observations. So the gap was open to whoever writes status
+records: a faulty controller, or in an unauthenticated history anyone who
+can append. A verdict now rests only on its own objective's observations,
+in the ledger and in the second reader.
+
+**AUD-029 (P3): the separate process's evidence reader followed any
+name.** The separate process may not import the evidence store. Its own
+reader kept the store's layout and none of its rules. It built a path from
+whatever name the log carried, and read the file whole. A name of `..`
+and a path read a file outside the store. The second reader passed on any
+64 characters, so a record could have had a device read until memory ran
+out. That last case was established by reading, not executed.
+
+What it read was re-hashed afterwards, so nothing outside the store could
+pass as evidence. The reader now takes only a digest, opens without
+following a link or waiting on a FIFO, reads only a regular file, and
+stops at the store's bound.
+
+**AUD-030 (P2): a lease held on another machine read as held by a dead
+process.** Recovery reclaims a lease whose holder `liveness` calls GONE,
+even while the lease's sequence says it is live. `liveness` called GONE
+any boot id other than this host's, and its comment said "this also
+covers another host". But a process on another machine sharing the log
+records another boot id too, and may be running still. The module's own
+docstring says such a record is not evidence that its holder died. So did
+the test that guards the case, which patched `liveness` to UNKNOWN "as it
+would be off-host", replacing the function it was guarding.
+
+Reproduced with nothing patched: a supervisor's lease names a process
+under a boot id not this host's, and `recover()` reclaimed the task.
+
+A boot id other than ours is either a later boot of this machine or
+another machine. Only a machine id tells them apart, so the process record
+now carries one (`/etc/machine-id`). Another boot reads as GONE only when
+the record names this machine. Everything else is UNKNOWN: every record
+written before this change, and any record on a host that cannot name
+itself. The cost is stated in the finding. After a reboot, an old record's
+lease is no longer reclaimed automatically, and an operator resolves it.
+
+**AUD-031 (P3): a document named for retrieval skipped review.** The
+corpus is held to a committed allowlist: a document is retrievable
+because the allowlist names it, not because it exists. But membership was
+checked over the walked tree, which skips every dot-directory, while a
+caller's named paths were checked by shape alone, and the shape check
+refuses only three names. So a named document under any other
+dot-directory was indexed and quoted back with the reviewed corpus's
+provenance, and so was one a forged stored index named. No production
+caller names paths. Now every named document must land, once its links
+are resolved, on one the allowlist names. A link into reviewed text
+still reads that text, as an existing control requires. The change moved
+the anchor of two existing mutations, C7 and C8, and both are repaired
+to the same intent.
+
+**The new tests, on the code before the fixes.** Each was run in a
+worktree at cbc9bed holding only the new test files:
+
+| Finding | Without its fix |
+|---|---|
+| AUD-026 | all 15 of `tests/test_ed25519_encodings.py` fail; the genuine-key control only for want of the new `public_key_problem` |
+| AUD-027 | all 8 new cases in `tests/test_agent_result_rules.py` fail |
+| AUD-028 | both new cases in `tests/test_research_ledger.py` fail |
+| AUD-029 | the 7 name, bound and second-reader cases fail; the FIFO case blocks, and was stopped after 40 s |
+| AUD-030 | the 3 new recovery cases fail, the later-boot control only for want of the new field; the process record lacks a machine id |
+| AUD-031 | the new retrieval case fails |
+
+**Not findings, recorded for the owner (P3, by reading):**
+
+- `execution._collect_outputs` resolves a declared output's path, then
+  stats it, then opens it. A process outliving the tool could swap a path
+  component between the two and have another file hashed. That is
+  possible only where the host gives no PID namespace; elsewhere
+  `--kill-child` ends it. Opening with O_NOFOLLOW and comparing (dev, ino)
+  would close it.
+- `Executor.run(write_paths=...)` checks the capability against the
+  narrowed paths, while the run is confined to the spec's whole writable
+  scope. No caller passes `write_paths`, so the two agree today.
+- `research_loop._do_hypothesis` answers "RECORDED (already)" for any
+  record id that exists, even one another agent proposed for another
+  objective. Nothing is recorded, but the step says it was.
+- `separate_verify._run` raises on a child answer that is JSON but not
+  an object, and takes `ok` when truthy rather than True. The child is
+  this repository's own program, under its import guard.
+- `EvidenceStore.put_file` checks a path with `lstat`, then opens it by
+  name, twice, without `O_NOFOLLOW` or `O_NONBLOCK`. A process
+  outliving its tool could put a FIFO there and hang the capture, or
+  a link to a file the governed process can read, and have that
+  stored as the tool's artifact. Like the execution note above, that
+  needs a host with no PID namespace.
+- `integrations/supply_chain/sigstore.lock` pins 31 packages by 523
+  hashes. Each hash is the sha256 PyPI publishes for a file of that exact
+  release, and the pins are exactly the closure of sigstore 4.1.0's
+  requirements. But each release's sdist is listed beside its wheels. On
+  a platform with no matching wheel, pip would build the sdist: run its
+  build code, with build requirements the lock does not pin. Installing with
+  `--only-binary :all:` would refuse that path. Every pin has a wheel
+  for CPython 3.12 on manylinux x86_64, the hosted runner's platform,
+  and pip prefers a wheel, so the runner never takes that path.
+
+**Mutations, on the final tree:**
+
+| Spec | Killed |
+|---|---|
+| ed25519_encodings (new, ED1-ED8) | 8 of 8 |
+| authority_result_rules, RR18 and RR19 added | 19 of 19 |
+| research, RS27 and RR10 added | 45 of 45 |
+| agent_separate_verify, S14-S18 added | 18 of 18 |
+| agent_recovery, V7 and V8 added | 19 of 19 |
+| agent_execution, X63 added; the test X5 depends on strengthened, then rerun in full | 64 of 64 |
+| corpus_allowlist, C13 added, C7 and C8 re-anchored | 13 of 13 |
+
+**A mutation that survived, and the test that let it.** X5 is older than
+this stage. It removes the check that keeps a run cancelled before it
+began from starting a process. On this machine, with three mutation runs
+going at once, it survived: its one test passed with the check removed.
+
+That test looked only for a file the child writes. With the check gone,
+the child is spawned, and the executor next reads the token one poll
+(50 ms) later and kills it. A loaded host kills the child before it has
+written. A quiet one lets it finish first. That is how the hosted shard,
+which runs this spec and passed at cbc9bed, killed X5 until now.
+
+The production check was correct. The test was timing-bound. It now also
+asserts that nothing was started: no pid, no process group, no identity
+recorded. That does not depend on timing. The spec was then run again,
+in full, on the final tree.
+
+**Hosted CI at cbc9bed** (Stage 2's last commit): all eight workflow
+runs passed, read from the API.
+
+**The full suite, and what it found.** On tree 996cd2d, before the
+correction below: 7018 passed, 19 skipped, 2 failed. Both failures were
+the readiness matrix's. Row RUN-1 was HOSTED_TESTED on runs at 927b69c,
+and its evidence covers `tests/test_agent_execution.py`. This stage
+changes that file: the machine id, and X5's test. So those runs no longer
+describe it.
+
+RUN-1 returns to IMPLEMENTED, as CI-4 did in 29aedfb. Its 927b69c
+evidence is kept as `hosted_before`, and the 1586322 evidence as
+`hosted_earlier`. `tests/test_readiness_matrix.py` passes on the
+corrected tree. The full suite was not rerun on it before this commit;
+the next commit's full suite runs over it.

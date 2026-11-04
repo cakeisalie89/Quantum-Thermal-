@@ -4305,6 +4305,16 @@ def _sub_research_status(ev, p: dict, out) -> None:
     basis = p.get("basis") or []
     if rec["kind"] == "hypothesis" and status in ("SUPPORTED", "REFUTED",
                                                   "INCONCLUSIVE"):
+        # Restated: a verdict rests only on observations of its own
+        # objective, which answer that objective's question (AUD-028).
+        foreign = sorted(o for o in basis if o in out.research
+                         and out.research[o]["kind"] == "observation"
+                         and out.research[o]["body"].get("objective_id")
+                         != rec["body"].get("objective_id"))
+        if foreign:
+            _note(out, ev, f"a hypothesis verdict resting on {foreign}, "
+                           "observations of another objective")
+            return
         obs = [out.research[o]["body"] for o in basis
                if o in out.research
                and out.research[o]["kind"] == "observation"
@@ -4705,8 +4715,9 @@ def _resolves(evidence, digest_) -> bool:
     """``evidence`` holds bytes for ``digest_`` that re-hash to it. Re-hashed
     HERE: whatever ``evidence`` is, it is not trusted to say so."""
     import hashlib
-    if evidence is None or not isinstance(digest_, str) or \
-            len(digest_) != 64:
+    # a digest, not just 64 characters: the name comes from the log, and a
+    # store that builds a path from it is handed nothing else (AUD-029)
+    if evidence is None or not _is_digest(digest_):
         return False
     try:
         data = evidence.get(digest_)

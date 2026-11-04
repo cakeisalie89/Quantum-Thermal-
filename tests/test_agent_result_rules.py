@@ -262,3 +262,72 @@ def test_a_record_citing_no_bundle_is_not_verified(world):
                      actor="reviewer", role=Role.VERIFIER)
     with pytest.raises(TransitionError, match="cites no result_bundle"):
         _verify(store, "nobundle", _put(ev, report))
+
+
+# ---- AUD-027: numbers JSON does not have ------------------------------------
+
+def _with_token(bundle: dict, token: str) -> bytes:
+    """The bundle's bytes with one parameter written as ``token``: NaN,
+    Infinity and -Infinity, which Python's json reads and JSON (RFC 8259)
+    has no place for, or a numeral past the float range, which reads as
+    infinity."""
+    doc = json.loads(json.dumps(bundle))
+    name = sorted(doc["parameters"])[0]
+    doc["parameters"][name] = 123456.789
+    return json.dumps(doc, sort_keys=True).replace(
+        "123456.789", token).encode()
+
+
+TOKENS = ["NaN", "Infinity", "-Infinity", "1e400"]
+
+
+@pytest.mark.parametrize("token", TOKENS)
+def test_a_number_json_does_not_have_is_a_problem_not_an_exception(
+        world, token):
+    """Found in review (Stage 5): such a bundle made the rule raise
+    CanonicalizationError -- neither the problem its docstring promises for
+    bytes that are not JSON, nor EvidenceUnavailable -- so the store's live
+    edge and its replay both met an exception nobody catches."""
+    store, ev, bundle, report = world
+    sha = ev.put(_with_token(bundle, token))
+    problems = result_rules.record_problems(
+        {"result_bundle": sha, "verification_report": _put(ev, report)},
+        ev.get)
+    # the token is no JSON at all; the numeral is JSON with no canonical form
+    expected = ("no canonical form" if token == "1e400"
+                else "cannot be read as JSON")
+    assert any(expected in p for p in problems), problems
+    store.create(record_id="r1", kind=result_rules.KIND, proposer="proposer",
+                 evidence={"result_bundle": sha})
+    store.transition(record_id="r1", dst=State.UNDER_REVIEW,
+                     actor="reviewer", role=Role.VERIFIER)
+    with pytest.raises(TransitionError, match="does not support"):
+        _verify(store, "r1", _put(ev, report))
+    assert store.get("r1").state is State.UNDER_REVIEW
+
+
+@pytest.mark.parametrize("token", TOKENS)
+def test_replay_refuses_a_planted_admission_of_such_a_bundle(world, token):
+    """A VERIFIED transition written past the store, citing such a bundle:
+    replay refuses it as it refuses any inadmissible one -- StoreError,
+    "presence in the log is not authority" -- not with an exception of
+    another kind."""
+    from agent_substrate.store import StoreError
+    store, ev, bundle, report = world
+    good = _under_review(store, ev, bundle, rid="good")
+    _verify(store, good, _put(ev, report))
+    _, events = store.log.read_verified()
+    template = [e for e in events if e.action == "record.transition"
+                and e.payload.get("dst") == "VERIFIED"][-1]
+    store.create(record_id="bad", kind=result_rules.KIND,
+                 proposer="proposer",
+                 evidence={"result_bundle": ev.put(_with_token(bundle,
+                                                               token))})
+    store.transition(record_id="bad", dst=State.UNDER_REVIEW,
+                     actor="reviewer", role=Role.VERIFIER)
+    store.log.append(actor=template.actor, action="record.transition",
+                     target="bad",
+                     payload={**template.payload, "record_id": "bad"})
+    with pytest.raises(StoreError, match="not admissible"):
+        AuthorityStore(EventLog(store.log.path), evidence=ev,
+                       origins=_EveryArtefactGoverned()).load()

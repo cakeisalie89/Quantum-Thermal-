@@ -406,7 +406,7 @@
   {
    "id": "RUN-1",
    "capability": "tool resource bounds: wall, CPU, address space, output, tasks, descriptors, environment",
-   "status": "HOSTED_TESTED",
+   "status": "IMPLEMENTED",
    "tests": [
     "tests/test_agent_execution.py",
     "tests/test_execution_containment.py"
@@ -415,7 +415,7 @@
     "tools/mutations/execution_containment.json"
    ],
    "ledger": "D-2026-149",
-   "note": "rlimits apply on every host; hosted evidence at 40440ce predates this implementation: D-2026-157 changed the executor and its namespace init (filesystem confinement); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them.",
+   "note": "rlimits apply on every host; hosted evidence at 40440ce predates this implementation: D-2026-157 changed the executor and its namespace init (filesystem confinement); re-attached only from a hosted run of the new implementation Returned to IMPLEMENTED by the assurance programme (D-2026-162, D-2026-163): files this row's evidence covers changed, so the hosted runs at 1586322 no longer describe them. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed them. Returned to IMPLEMENTED by the continuation's Stage 5 (AUD-030): tests/test_agent_execution.py, which this row's evidence covers, now holds the process record to the machine id it names, and the test mutation X5 depends on asserts that a run cancelled before it began started no process, so the hosted runs at 927b69c no longer describe it. Re-attached by tools/readiness.py attach once hosted CI has run the commit that changed it.",
    "implementation": [
     "agent_substrate/execution.py",
     "agent_substrate/_ns_init.py"
@@ -429,7 +429,7 @@
     "implementation_sha256": "5a170fbb678c90b1a53247e0e0a338e353d406443a00782b3f802ed9747f2c2e",
     "what": "agent-substrate: full suite and mutation shards with HARNESS_ISOLATION_REQUIRED=1 on the runner"
    },
-   "hosted_before": {
+   "hosted_earlier": {
     "commit": "1586322fd8e8b175b5f3914a982b03bed8639a41",
     "runs": [
      "39354155571",
@@ -438,7 +438,7 @@
     "implementation_sha256": "0be062c5e8faa22db3d4b66d672989787934f1f2b46b9b791e15b98247a8848c",
     "what": "agent-substrate: full suite and mutation shards with HARNESS_ISOLATION_REQUIRED=1 on the runner, the confinement probe, and the agent suites on a second interpreter installed outside /usr"
    },
-   "hosted": {
+   "hosted_before": {
     "commit": "927b69c3a39feedaefd9a164612249efe8a673e3",
     "runs": [
      "40008852181",

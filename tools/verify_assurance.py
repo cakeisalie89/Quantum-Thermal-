@@ -555,6 +555,13 @@ def _ed_point(raw: bytes):
     return None if x is None else (x, y, 1, x * y % _ED_P)
 
 
+def _ed_small(pt) -> bool:
+    """[8]pt is the identity: one of the eight points of small order, which
+    no secret stands behind."""
+    x, y, z, _ = _ed_times(8, pt)
+    return x % _ED_P == 0 and (y - z) % _ED_P == 0
+
+
 def _ed_add(a, b):
     """RFC 8032 5.1.4, the unified addition in extended coordinates."""
     (x1, y1, z1, t1), (x2, y2, z2, t2) = a, b
@@ -584,15 +591,17 @@ _ED_B = (_ED_BX, _ED_BY, 1, _ED_BX * _ED_BY % _ED_P)
 def ed25519_verify(public: bytes, message: bytes, signature: bytes) -> bool:
     """RFC 8032 5.1.7, with the equation [S]B = R + [k]A that the RFC
     allows in place of the cofactored one; the producer checks the same
-    equation, so the two cannot disagree on a small-order component. Bytes
-    an adversary wrote: anything malformed is False, never an exception."""
+    equation, so the two cannot disagree on a small-order component. Both
+    refuse a public key of small order, under which anyone can sign
+    (AUD-026). Bytes an adversary wrote: anything malformed is False, never
+    an exception."""
     if not (isinstance(public, (bytes, bytearray)) and len(public) == 32
             and isinstance(signature, (bytes, bytearray))
             and len(signature) == 64):
         return False
     a, r = _ed_point(bytes(public)), _ed_point(bytes(signature[:32]))
     s = int.from_bytes(signature[32:], "little")
-    if a is None or r is None or s >= _ED_L:
+    if a is None or r is None or s >= _ED_L or _ed_small(a):
         return False
     k = int.from_bytes(hashlib.sha512(
         bytes(signature[:32]) + bytes(public) + message).digest(),
@@ -660,6 +669,13 @@ def read_key_registry(doc, *, allow_test_keys: bool) -> dict:
             raise Refused("every key is an Ed25519 public key in lowercase "
                           "hex", kid)
         public = bytes.fromhex(entry["public"])
+        point = _ed_point(public)
+        if point is None:
+            raise Refused("every key is the canonical encoding of a curve "
+                          "point", kid)
+        if _ed_small(point):
+            raise Refused("no key is a point of small order, under which "
+                          "anyone can sign (AUD-026)", kid)
         test = kid.startswith("test:")
         if kid != derived_key_id(public, test=test):
             raise Refused("every key id is derived from its key", kid)

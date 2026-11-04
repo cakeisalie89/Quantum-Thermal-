@@ -106,6 +106,12 @@ REPORT_KEYS = frozenset({
     "verifier_implementation_digest"})
 
 
+def _not_json(token: str):
+    """``json.loads`` reads NaN, Infinity and -Infinity; JSON has no such
+    values (RFC 8259) and no canonical form holds them (AUD-027)."""
+    raise ValueError(f"{token} is not a JSON value")
+
+
 class EvidenceUnavailable(Exception):
     """What the policy needs cannot be read here. Not a refusal: the answer
     is UNVERIFIABLE, and the reason is the message."""
@@ -123,7 +129,13 @@ def verification_problems(bundle: dict, report: dict) -> list:
     if set(report) != REPORT_KEYS:
         problems.append("the cited report is not a VerificationResult record "
                         f"(fields {sorted(set(report) ^ REPORT_KEYS)})")
-    bundle_digest = digest(bundle)
+    try:
+        bundle_digest = digest(bundle)
+    except ValueError:
+        # a numeral past the float range reads as infinity, which no
+        # canonical form holds: a problem, not an exception (AUD-027)
+        bundle_digest = None
+        problems.append("the cited bundle has no canonical form")
     if report.get("subject_digest") != bundle_digest:
         problems.append("the report is about a different bundle")
     if report.get("status") != "PASS":
@@ -170,7 +182,7 @@ def _read(evidence: dict, fetch) -> dict:
                 f"{key} {sha[:12]} does not resolve here "
                 f"({type(exc).__name__})") from None
         try:
-            docs[key] = json.loads(raw)
+            docs[key] = json.loads(raw, parse_constant=_not_json)
         except ValueError as exc:
             docs[key] = exc
     return docs

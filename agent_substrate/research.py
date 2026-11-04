@@ -30,9 +30,12 @@ WHAT IS RECORDED
     INCONCLUSIVE are DECIDED HERE, deterministically, by comparing the
     prediction with the observations it names, the numerical resolution
     included: a model cannot declare its own hypothesis supported, and
-    neither can the controller. RETRACTED, SUPERSEDED and STALE end a
-    record's currency. An objective is CONCLUDED only on a decided,
-    current hypothesis, and becomes STALE when that hypothesis does.
+    neither can the controller. The observations it names are its own
+    objective's, which answer that objective's question; one another
+    objective holds may be of another point (AUD-028). RETRACTED,
+    SUPERSEDED and STALE end a record's currency. An objective is
+    CONCLUDED only on a decided, current hypothesis, and becomes STALE
+    when that hypothesis does.
 ``research.freshness``
     How long observations of one source stay current, for one objective:
     a typed policy (:mod:`agent_substrate.freshness`) recorded by the
@@ -625,6 +628,19 @@ class ResearchLedger(DecidedWriter):
         if status not in moves.get(rec.status, set()):
             return f"{rec.kind} {rec.status} -> {status} is not a move"
         if rec.kind == "hypothesis" and status in EVALUATED:
+            # An objective's observations answer its own question. One
+            # recorded for another objective may be of another point or
+            # another model, and would let a run somewhere easier to win
+            # decide this one's question (AUD-028).
+            foreign = sorted(o for o in basis if o in self._recs
+                             and self._recs[o].kind == "observation"
+                             and self._recs[o].body["objective_id"]
+                             != rec.body["objective_id"])
+            if foreign:
+                return (f"a verdict on a hypothesis of "
+                        f"{rec.body['objective_id']!r} cites {foreign}, "
+                        "observations of another objective; an objective's "
+                        "observations answer its own question")
             obs = [self._recs[o].body for o in basis
                    if o in self._recs and self._recs[o].kind == "observation"
                    and self.current(o)]

@@ -62,7 +62,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import signature
+from . import ed25519, signature
 from .canonical import canonical_bytes
 from .events import (
     ACT_SECURITY_PROFILE, GOVERNED_REQUIREMENT, PROFILE_AUTHENTICATED_REQUIRED,
@@ -193,6 +193,11 @@ class KeyRegistry:
         for k in keys:
             if not isinstance(k.principal, str) or not k.principal:
                 raise AuthenticationError("a key must name its principal")
+            # a key no secret stands behind is no key: under a point of
+            # small order anyone can sign as its principal (AUD-026)
+            why = ed25519.public_key_problem(k.public)
+            if why is not None:
+                raise AuthenticationError(f"{k.key_id!r}: {why}")
             if k.key_id != key_id(k.public, test=k.is_test):
                 raise AuthenticationError(
                     f"{k.key_id!r} is not the id of the key it names; ids "

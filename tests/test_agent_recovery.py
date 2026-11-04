@@ -77,12 +77,39 @@ def test_a_live_process_is_alive_and_a_killed_one_is_gone():
     assert liveness(child) is GONE
 
 
-def test_a_different_boot_makes_every_recorded_pid_stale():
-    """One comparison invalidates every pid at once, with no per-pid lookup."""
+#: a machine id, fixed so the tests below say the same on every host --
+#: one with no /etc/machine-id included
+MACHINE = "a1" * 16
+
+
+def test_a_later_boot_of_this_machine_makes_every_recorded_pid_stale(
+        monkeypatch):
+    """One comparison invalidates every pid at once, with no per-pid lookup
+    -- once the record names this machine."""
+    monkeypatch.setattr("agent_substrate.hostid.machine_id", lambda: MACHINE)
     me = identify()
     other_boot = ProcessIdentity(pid=me.pid, host_boot_id="0" * 36,
-                                 start_ticks=me.start_ticks)
+                                 start_ticks=me.start_ticks,
+                                 machine_id=MACHINE)
     assert liveness(other_boot) is GONE
+
+
+def test_a_record_from_another_machine_is_unknown_not_gone(monkeypatch):
+    """AUD-030. Another machine's boot id differs from ours too, and its
+    processes are not visible from here. So is a record that names no
+    machine: every record written before the machine id was."""
+    monkeypatch.setattr("agent_substrate.hostid.machine_id", lambda: MACHINE)
+    me = identify()
+    for machine in ("f" * 32, ""):
+        elsewhere = ProcessIdentity(pid=me.pid, host_boot_id="0" * 36,
+                                    start_ticks=me.start_ticks,
+                                    machine_id=machine)
+        assert liveness(elsewhere) is UNKNOWN, machine
+    # and a host that cannot name itself concludes nothing either
+    monkeypatch.setattr("agent_substrate.hostid.machine_id", lambda: "")
+    assert liveness(ProcessIdentity(pid=me.pid, host_boot_id="0" * 36,
+                                    start_ticks=me.start_ticks,
+                                    machine_id="")) is UNKNOWN
 
 
 def test_a_record_that_cannot_prove_identity_is_unknown_not_gone():
@@ -165,7 +192,21 @@ def test_boot_id_is_empty_rather_than_invented_when_unavailable(monkeypatch):
 
 # --- recovery: what a dead supervisor leaves --------------------------------
 
-def _crash_child(base, at_state="COMPLETED"):
+#: what the crashing supervisor runs first when its lease is to name a
+#: process on another machine: a boot id that is not this one, and no
+#: machine this host can name (AUD-030)
+_ELSEWHERE = '''
+_real_identify = g10.identify
+def _elsewhere(pid=None):
+    me = _real_identify(pid)
+    return g10.ProcessIdentity(pid=me.pid, pgid=me.pgid,
+                               host_boot_id="0" * 36,
+                               start_ticks=me.start_ticks)
+g10.identify = _elsewhere
+'''
+
+
+def _crash_child(base, at_state="COMPLETED", elsewhere=False):
     """Run a REAL governed supervisor that dies mid-run via os._exit."""
     src = f'''
 import sys
@@ -174,6 +215,7 @@ from agent_substrate.events import EventLog
 from agent_substrate.evidence import EvidenceStore
 import agent_substrate.governed_tasks as g10
 from agent_substrate.tasks import TaskState
+{_ELSEWHERE if elsewhere else ""}
 g = g10.GovernedTasks(root={str(ROOT)!r},
     log=EventLog({str(base / "log.jsonl")!r}),
     evidence=EvidenceStore({str(base / "evidence")!r}))
@@ -299,6 +341,23 @@ def test_an_unknown_holder_is_not_reclaimed(base, monkeypatch):
         "workers end up running one task")
     assert g.projection().get(
         list(g.projection().tasks)[0]).state is TaskState.EXECUTING
+
+
+def test_a_lease_held_on_another_machine_is_not_reclaimed(base):
+    """AUD-030. Nothing is patched here: the lease names a process under a
+    boot id that is not ours, on no machine this host can name, and the
+    real liveness says that is not evidence it died -- on another machine
+    sharing the log it may be running still. Reclaimed, two workers would
+    run one task."""
+    _crash_child(base, "COMPLETED", elsewhere=True)
+    g = _gov(base)
+    (task,) = list(g.projection().tasks.values())
+    assert task.state is TaskState.EXECUTING
+    holder = ProcessIdentity.from_record(task.lease.holder_process)
+    assert holder.host_boot_id != boot_id()
+    assert liveness(holder) is UNKNOWN
+    assert g.recover() == ()
+    assert g.projection().get(task.task_id).state is TaskState.EXECUTING
 
 
 def test_a_completed_task_is_reported_not_resolved(base):

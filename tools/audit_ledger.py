@@ -165,7 +165,11 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                # and the model's stated resolution (AUD-024).
                "tests/test_rc_counterfactuals.py", "tools/rc2_reference.py",
                "scientific/checks/rc2_rk4.py",
-               "tools/mutations/rc_counterfactuals.json")
+               "tools/mutations/rc_counterfactuals.json",
+               # Stage 5: keys no secret stands behind, and encodings
+               # that are no point (AUD-026).
+               "tests/test_ed25519_encodings.py",
+               "tools/mutations/ed25519_encodings.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

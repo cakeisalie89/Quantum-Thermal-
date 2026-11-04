@@ -160,6 +160,10 @@ ALLOWED_IMPORTERS = {
     "tests/test_actor_authentication.py",
     "tests/test_authenticated_history.py",
     "tests/test_signed_append_lifecycle.py",
+    # Stage 5 (AUD-026): keys no secret stands behind, and encodings
+    # that are no point, refused by both Ed25519 verifiers and both
+    # registries.
+    "tests/test_ed25519_encodings.py",
     # Tranche F. Writers deciding under the lock (D-2026-147) and promotions
     # bound to a policy in force (D-2026-148): they drive the stores.
     "tests/test_agent_toctou.py",

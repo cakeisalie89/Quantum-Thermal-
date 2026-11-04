@@ -41,6 +41,8 @@ from __future__ import annotations
 import argparse
 import importlib.abc
 import json
+import os
+import stat
 import sys
 from pathlib import Path
 
@@ -107,15 +109,45 @@ class _Refuse(importlib.abc.MetaPathFinder):
         return None
 
 
+#: The store's own bound on one blob (agent_substrate.evidence), restated.
+MAX_BLOB_BYTES = 256 * 1024 * 1024
+_HEX = frozenset("0123456789abcdef")
+
+
 class _FileEvidence:
     """``get(digest)`` over the evidence store's layout, read from disk
-    without the store's code; the reader re-hashes whatever it returns."""
+    without the store's code; the reader re-hashes whatever it returns.
+
+    The store's three read rules are restated here, because the names come
+    from the log being verified (AUD-029): a name that is not 64 lowercase
+    hex digits builds no path -- ``..`` and an absolute tail would lead
+    anywhere; what it names must be a regular file, opened without
+    following a link or waiting on a FIFO; and no more than the store's
+    bound is read, so a device that never ends cannot exhaust memory."""
 
     def __init__(self, root: str):
         self.root = Path(root)
 
     def get(self, digest: str) -> bytes:
-        return (self.root / digest[:2] / digest[2:]).read_bytes()
+        if not isinstance(digest, str) or len(digest) != 64 or \
+                not set(digest) <= _HEX:
+            raise ValueError("the evidence named is not a digest")
+        fd = os.open(self.root / digest[:2] / digest[2:],
+                     os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            st = os.fstat(fd)
+            if not stat.S_ISREG(st.st_mode):
+                raise ValueError(f"{digest[:12]} is not a regular file")
+            chunks: list[bytes] = []
+            total = 0
+            while chunk := os.read(fd, 1 << 20):
+                total += len(chunk)
+                if total > MAX_BLOB_BYTES:
+                    raise ValueError(f"{digest[:12]} is larger than a blob")
+                chunks.append(chunk)
+            return b"".join(chunks)
+        finally:
+            os.close(fd)
 
 
 def _roots(args):

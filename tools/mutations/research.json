@@ -1,6 +1,6 @@
 {
  "title": "Gate C: research records decided from verified results, and a bounded, resumable controller",
- "note": "Every mutation here would let a research record say more than its evidence: a verdict asserted rather than computed, an observation of an unadmitted result, a conclusion on an undecided hypothesis, a quantity read at the wrong place or in the wrong unit, a resumed controller asking its question again, or a kind with no tool contract executed; or (D-2026-178, D-2026-179) an answer that is no proposal raised, the agent's words recorded as the ledger's reason, or an objective's question answered at another point, by another model or by another prediction; or (Gate E) an unassigned agent heard.",
+ "note": "Every mutation here would let a research record say more than its evidence: a verdict asserted rather than computed, an observation of an unadmitted result, a conclusion on an undecided hypothesis, a quantity read at the wrong place or in the wrong unit, a resumed controller asking its question again, or a kind with no tool contract executed; or (D-2026-178, D-2026-179) an answer that is no proposal raised, the agent's words recorded as the ledger's reason, or an objective's question answered at another point, by another model or by another prediction; or (Gate E) an unassigned agent heard; or (AUD-028) a verdict resting on another objective's observations, a run its own question would refuse.",
  "suites": [
   "tests/test_research_ledger.py",
   "tests/test_research_loop.py"
@@ -306,6 +306,20 @@
    "find": "            gov.supervisor_stores.append(gateway.transcripts.root)",
    "replace": "            pass",
    "rationale": "D-2026-185: a concurrent controller's transcripts, written while a tool runs, refuse that tool's run"
+  },
+  {
+   "name": "RS27_a_verdict_cites_another_objective_s_observation",
+   "path": "agent_substrate/research.py",
+   "find": "            if foreign:\n                return (f\"a verdict on a hypothesis of \"",
+   "replace": "            if False:\n                return (f\"a verdict on a hypothesis of \"",
+   "rationale": "AUD-028: a verdict on a hypothesis of an objective that asks its question at a documented point could rest on an observation another objective holds of a run elsewhere, and the objective then be CONCLUDED on it"
+  },
+  {
+   "name": "RR10_second_reader_takes_another_objective_s_observation",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if foreign:\n            _note(out, ev, f\"a hypothesis verdict resting on {foreign}, \"",
+   "replace": "        if False:\n            _note(out, ev, f\"a hypothesis verdict resting on {foreign}, \"",
+   "rationale": "AUD-028, restated: the second reader would take a verdict resting on another objective's observations as the primary once did"
   }
  ]
 }

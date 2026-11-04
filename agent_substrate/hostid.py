@@ -18,7 +18,7 @@ else, it may not.
 A PID IS NOT AN IDENTITY
 
 Pids are reused, and a reused pid is a different program wearing a dead
-one's name. Three facts together are an identity strong enough to act on,
+one's name. Four facts together are an identity strong enough to act on,
 and each is cheap:
 
   boot id       from /proc/sys/kernel/random/boot_id. A machine that
@@ -30,6 +30,10 @@ and each is cheap:
                 "somebody else is now that number".
   pid           the number itself, which is only meaningful with the two
                 above.
+  machine id    from /etc/machine-id. A boot id other than ours is either a
+                later boot of THIS machine -- its earlier processes are all
+                gone -- or another machine, whose processes nothing here
+                can see. Only the machine id tells the two apart (AUD-030).
 
 THREE ANSWERS, NOT TWO
 
@@ -52,6 +56,7 @@ GONE = "GONE"
 UNKNOWN = "UNKNOWN"
 
 _BOOT_ID_PATH = "/proc/sys/kernel/random/boot_id"
+_MACHINE_ID_PATHS = ("/etc/machine-id", "/var/lib/dbus/machine-id")
 
 
 def boot_id() -> str:
@@ -66,6 +71,24 @@ def boot_id() -> str:
             return fh.read().strip()
     except OSError:                                  # pragma: no cover
         return ""
+
+
+def machine_id() -> str:
+    """This machine's identifier, or '' when the platform offers none.
+
+    What tells a reboot of THIS machine from another machine: both report a
+    boot id other than ours, and only the first proves a process gone. Empty
+    rather than invented, as :func:`boot_id` is.
+    """
+    for path in _MACHINE_ID_PATHS:
+        try:
+            with open(path, encoding="ascii") as fh:
+                found = fh.read().strip()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if found:
+            return found
+    return ""
 
 
 def parse_stat_start_ticks(raw: str) -> int | None:
@@ -120,11 +143,15 @@ class ProcessIdentity:
     host_boot_id: str = ""
     #: Start time in clock ticks. None when unavailable.
     start_ticks: int | None = None
+    #: The machine the boot belongs to. Empty when unavailable, and in every
+    #: record written before AUD-030.
+    machine_id: str = ""
 
     def to_record(self) -> dict:
         return {"pid": self.pid, "pgid": self.pgid,
                 "host_boot_id": self.host_boot_id,
-                "start_ticks": self.start_ticks}
+                "start_ticks": self.start_ticks,
+                "machine_id": self.machine_id}
 
     @classmethod
     def from_record(cls, raw: object) -> "ProcessIdentity | None":
@@ -138,7 +165,8 @@ class ProcessIdentity:
         return cls(pid=pid,
                    pgid=pgid if isinstance(pgid, int) else None,
                    host_boot_id=str(raw.get("host_boot_id") or ""),
-                   start_ticks=ticks if isinstance(ticks, int) else None)
+                   start_ticks=ticks if isinstance(ticks, int) else None,
+                   machine_id=str(raw.get("machine_id") or ""))
 
 
 def identify(pid: int | None = None) -> ProcessIdentity:
@@ -149,7 +177,8 @@ def identify(pid: int | None = None) -> ProcessIdentity:
     except OSError:                                  # pragma: no cover
         pgid = None
     return ProcessIdentity(pid=real, pgid=pgid, host_boot_id=boot_id(),
-                           start_ticks=start_ticks(real))
+                           start_ticks=start_ticks(real),
+                           machine_id=machine_id())
 
 
 def liveness(recorded: ProcessIdentity | None) -> str:
@@ -168,10 +197,15 @@ def liveness(recorded: ProcessIdentity | None) -> str:
         # pid is safe to conclude.
         return UNKNOWN
     if here != recorded.host_boot_id:
-        # A different boot of a machine cannot still be running a process
-        # from the previous one. This also covers "another host", because
-        # a boot id is per-machine-per-boot.
-        return GONE
+        # A later boot of THIS machine cannot still be running a process
+        # from an earlier one. But another machine's boot id differs from
+        # ours too, and its processes are not visible from here: GONE only
+        # when the record names this machine (AUD-030). A record that names
+        # none -- every one written before -- concludes nothing.
+        mine = machine_id()
+        if mine and recorded.machine_id == mine:
+            return GONE
+        return UNKNOWN
     now = start_ticks(recorded.pid)
     if now is None:
         # No such pid on a boot we KNOW is the same one: the process ended.
