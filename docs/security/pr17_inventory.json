@@ -831,6 +831,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
+     "tests/test_completion_matrix.py",
      "tests/test_policy_binding.py",
      "tests/test_task_execution_phase.py"
     ]
@@ -4475,6 +4476,7 @@
      "tools/mutations/harness_integrations.json"
     ],
     "tests": [
+     "tests/test_completion_matrix.py",
      "tests/test_harness_integrations.py"
     ]
    }

@@ -283,6 +283,105 @@ def test_fenicsx_reduces_to_the_one_dimensional_slab():
     assert abs(fem["fine"]["energy"]["residual_rel"]) <= 1e-9
 
 
+# ---- the runner's answer, checked before it is compared (AUD-032) ---------
+
+def _answering(monkeypatch, answer):
+    """The runner replaced by a stand-in that writes ``answer(request)`` as
+    its result, in the place and with the request digest the real one
+    would: the check meets an answer of any shape without dolfinx. Written
+    as the runner writes, so a NaN arrives as the token ``NaN``."""
+    import hashlib
+    import subprocess
+
+    def run(argv, **kw):
+        raw = Path(argv[-2]).read_bytes()
+        request = json.loads(raw)
+        body = answer(request)
+        if isinstance(body, dict):
+            body = {"kind": request["kind"],
+                    "request_sha256": hashlib.sha256(raw).hexdigest(),
+                    "provenance": {"dolfinx": "stand-in", "petsc": "-",
+                                   "mpi": "-"}, **body}
+        Path(argv[-1]).write_text(json.dumps(body), encoding="utf-8")
+        return subprocess.CompletedProcess(argv, 0, "", "")
+    monkeypatch.setattr(FX.subprocess, "run", run)
+
+
+def _producer_values(bundle) -> list:
+    return [bundle.output(n).quantity.value for n in FX.SAMPLE_NAMES]
+
+
+def test_an_answer_that_agrees_reaches_a_verdict(slab_bundle, monkeypatch):
+    """Control: through the stand-in, an answer holding the producer's own
+    values at every point PASSES, and one 50 K off FAILS. The refusals
+    below are refusals of a shape, not of the stand-in."""
+    vals = _producer_values(slab_bundle)
+    _answering(monkeypatch, lambda r: {"T": vals, "lateral_max_abs_K": 0.0})
+    ok = FX.run_check(slab_bundle, verifier_id="test", exe=sys.executable)
+    assert ok.status is Status.PASS, ok.to_record()
+    _answering(monkeypatch, lambda r: {"T": [v + 50.0 for v in vals],
+                                       "lateral_max_abs_K": 0.0})
+    bad = FX.run_check(slab_bundle, verifier_id="test", exe=sys.executable)
+    assert bad.status is Status.FAIL
+
+
+def test_an_answer_with_no_samples_is_refused_not_passed(slab_bundle,
+                                                         monkeypatch):
+    """AUD-032. The comparison paired outputs with answers and stopped at
+    the shorter side, so an answer holding no temperatures compared nothing
+    and PASSED with measured 0.0."""
+    _answering(monkeypatch, lambda r: {"T": [], "lateral_max_abs_K": 0.0})
+    with pytest.raises(RuntimeError, match="holds 0 temperature"):
+        FX.run_check(slab_bundle, verifier_id="test", exe=sys.executable)
+
+
+@pytest.mark.parametrize("answer,why", [
+    (lambda r: {"T": [300.0] * (len(r["x_samples"]) - 1),
+                "lateral_max_abs_K": 0.0}, "temperature.s. for 5 sample"),
+    (lambda r: {"T": {"0.0": 300.0}, "lateral_max_abs_K": 0.0},
+     "no list of"),
+    (lambda r: {"T": [300.0, math.nan, 300.0, 300.0, 300.0],
+                "lateral_max_abs_K": 0.0}, "no finite number"),
+    (lambda r: {"T": [300.0, 300.0, True, 300.0, 300.0],
+                "lateral_max_abs_K": 0.0}, "no finite number"),
+    (lambda r: {"T": [300.0] * 5, "lateral_max_abs_K": math.nan},
+     "lateral spread"),
+    (lambda r: {"T": [300.0] * 5, "lateral_max_abs_K": -1.0},
+     "lateral spread"),
+    (lambda r: {"T": [300.0] * 5}, "lateral spread"),
+    (lambda r: ["not", "an", "object"], "not an object"),
+], ids=["one-point-short", "not-a-list", "nan", "bool", "lateral-nan",
+        "lateral-negative", "lateral-missing", "not-an-object"])
+def test_a_slab_answer_unfit_to_compare_is_refused(monkeypatch, answer, why):
+    _answering(monkeypatch, answer)
+    request = FX.slab_request(SLAB, 8, 2, 4)
+    with pytest.raises(RuntimeError, match=why):
+        FX.run_runner(request, exe=sys.executable)
+
+
+def test_a_well_formed_slab_answer_is_returned(monkeypatch):
+    """Control for the refusals above: the same stand-in, well formed."""
+    _answering(monkeypatch, lambda r: {"T": [300.0] * len(r["x_samples"]),
+                                       "lateral_max_abs_K": 0.0})
+    res = FX.run_runner(FX.slab_request(SLAB, 8, 2, 4), exe=sys.executable)
+    assert res["T"] == [300.0] * 5
+
+
+def test_the_comparison_refuses_rather_than_shortens(slab_bundle,
+                                                     monkeypatch):
+    """Behind the runner's refusal, the pairing itself: a FEM solution
+    shorter than the outputs, however it arrived, is not compared on fewer
+    points."""
+    vals = _producer_values(slab_bundle)[:2]
+    prov = {"dolfinx": "stand-in", "petsc": "-", "mpi": "-"}
+    run = {"T": vals, "lateral_max_abs_K": 0.0, "provenance": prov}
+    monkeypatch.setattr(FX, "fem_solution", lambda params, exe=None: {
+        "T": vals, "estimate": [0.0] * len(vals), "lateral_max_abs_K": 0.0,
+        "fine": run, "coarse": run})
+    with pytest.raises(ValueError):
+        FX.run_check(slab_bundle, verifier_id="test", exe=sys.executable)
+
+
 # ---- the FEniCSx environment lock ----------------------------------------
 
 def test_the_committed_lock_and_its_sha256_record_agree():

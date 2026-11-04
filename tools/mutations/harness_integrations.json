@@ -125,6 +125,48 @@
    "rationale": "the environment builder's import probe lets MPI probe the host's network devices (D-2026-124)"
   },
   {
+   "name": "FE5_an_unanswered_point_is_not_refused",
+   "path": "scientific/checks/fenicsx_slab.py",
+   "find": "    if not isinstance(temps, list) or len(temps) != want:\n",
+   "replace": "    if not isinstance(temps, list):\n",
+   "rationale": "a FEniCSx answer holding fewer temperatures than the points asked for is compared on fewer points, and one holding none PASSES (AUD-032)"
+  },
+  {
+   "name": "FE6_the_pairing_stops_at_the_shorter_side",
+   "path": "scientific/checks/fenicsx_slab.py",
+   "find": "                               strict=True):\n",
+   "replace": "                               strict=False):\n",
+   "rationale": "a FEM solution shorter than the outputs, however it arrived, is compared on fewer points instead of refused (AUD-032)"
+  },
+  {
+   "name": "FE7_a_temperature_need_not_be_a_number",
+   "path": "scientific/checks/fenicsx_slab.py",
+   "find": "    if not all(_finite(v) for v in temps):\n",
+   "replace": "    if False:\n",
+   "rationale": "a NaN in the runner's answer reaches the comparison, where max() drops it, and is refused only as a digest that cannot be taken (AUD-032)"
+  },
+  {
+   "name": "FE8_the_lateral_spread_is_taken_on_trust",
+   "path": "scientific/checks/fenicsx_slab.py",
+   "find": "    if not _finite(lateral) or lateral < 0:\n",
+   "replace": "    if False:\n",
+   "rationale": "a NaN lateral spread compares false against the bound, so a 2D solve not shown to reduce to the slab passes the uniformity test (AUD-032)"
+  },
+  {
+   "name": "FE9_a_result_that_is_no_object_is_read",
+   "path": "scientific/checks/fenicsx_slab.py",
+   "find": "    if not isinstance(res, dict):\n",
+   "replace": "    if False:\n",
+   "rationale": "a runner result that is not a JSON object fails as an AttributeError three frames down instead of as a refusal of the answer (AUD-032)"
+  },
+  {
+   "name": "FE10_a_bool_passes_as_a_temperature",
+   "path": "scientific/checks/fenicsx_slab.py",
+   "find": "    return (isinstance(v, (int, float)) and not isinstance(v, bool)\n",
+   "replace": "    return (isinstance(v, (int, float))\n",
+   "rationale": "true and false are numbers to Python and temperatures to the comparison (AUD-032)"
+  },
+  {
    "name": "FB9_a_unit_is_admitted_by_its_name",
    "path": "scientific/fmi_boundary.py",
    "find": "            _admit_unit(v.name, v.unit, definitions[v.unit])",

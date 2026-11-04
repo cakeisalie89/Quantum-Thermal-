@@ -170,6 +170,34 @@
       "rationale": "a completion attributing the work to someone who did not do it passes without comment"
     },
     {
+      "name": "A24_the_proposer_is_read_from_the_payload",
+      "path": "agent_substrate/audit.py",
+      "find": "                proposer = ev.actor\n",
+      "replace": "                proposer = p.get(\"proposer\")\n",
+      "rationale": "a create naming someone else as proposer chooses whom separation of duties is judged against, and its writer's self-verification explains as complete (AUD-033)"
+    },
+    {
+      "name": "A25_a_create_naming_another_proposer_passes",
+      "path": "agent_substrate/audit.py",
+      "find": "                if claimed != ev.actor:\n",
+      "replace": "                if False:\n",
+      "rationale": "a create the store refuses for naming a proposer other than its writer is explained without a gap (AUD-033)"
+    },
+    {
+      "name": "A26_a_create_past_proposed_passes",
+      "path": "agent_substrate/audit.py",
+      "find": "                if outcome != INITIAL.value:\n",
+      "replace": "                if False:\n",
+      "rationale": "a record created straight into VERIFIED is explained as VERIFIED and complete, though the store refuses it (AUD-033)"
+    },
+    {
+      "name": "A27_a_second_create_passes",
+      "path": "agent_substrate/audit.py",
+      "find": "                if created:\n                    forged.append(\n",
+      "replace": "                if False:\n                    forged.append(\n",
+      "rationale": "a second create, which would replace the first's proposer, state and evidence, is explained without a gap (AUD-033)"
+    },
+    {
       "name": "Q1_a_window_skips_verification",
       "path": "agent_substrate/audit.py",
       "find": "        report.raise_if_bad()\n        if since_seq is None and until_seq is None:\n            return cls(events)",

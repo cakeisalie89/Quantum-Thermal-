@@ -971,7 +971,13 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: allowlist names it (AUD-031, agent_substrate/rag_index.py, cited by
 #: R35). Both predate their implementation until the evidence commit
 #: after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 15
+#: 15 -> 12 in the Stage 5 second pass: the audit reads a create record
+#: as the store does (AUD-033, agent_substrate/audit.py, cited by R44
+#: and R45), and the FEniCSx check refuses an answer it cannot compare
+#: (AUD-032, scientific/checks/fenicsx_slab.py, cited by R62). All three
+#: predate their implementation until the evidence commit after hosted
+#: CI.
+EXPECTED_EVIDENCE_COVERS = 12
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

@@ -616,12 +616,41 @@ class AuditIndex:
         proposer = None
         created = False
         depends_on: list = []
+        # THE CREATE IS READ AS THE STORE READS IT (AUD-033). The store
+        # refuses a second create, a create in any state but PROPOSED, and
+        # one whose payload names a proposer other than the actor that
+        # appended it. Reading those fields as claimed let a forged history
+        # be explained as complete: a record created straight into VERIFIED
+        # read as VERIFIED, and a create naming someone else as proposer
+        # chose whom separation of duties is judged against -- the field a
+        # forger writes, the shape _gaps already refuses for tasks.
+        forged: list = []
         for ev in events:
             p = ev.payload
             if ev.action == ACT_RECORD_CREATE:
+                if created:
+                    forged.append(
+                        f"seq {ev.seq}: {record_id} is created a second time; "
+                        "the store refuses a create of a record that exists, "
+                        "so this history was not written through it")
                 created = True
-                proposer = p.get("proposer")
+                proposer = ev.actor
+                claimed = p.get("proposer")
+                if claimed != ev.actor:
+                    forged.append(
+                        f"seq {ev.seq}: the create names {claimed!r} as the "
+                        f"proposer but was appended by {ev.actor!r}; "
+                        "separation of duties is judged against the "
+                        "proposer, and the store refuses a create that "
+                        "names anyone but its writer")
                 outcome = p.get("state", INITIAL.value)
+                if outcome != INITIAL.value:
+                    forged.append(
+                        f"seq {ev.seq}: {record_id} is created directly in "
+                        f"{outcome}; every state after {INITIAL.value} is "
+                        "reached by a transition the store authorizes, so "
+                        "this history was not written through it, and the "
+                        "outcome reported above is the forged one")
                 depends_on += list(p.get("depends_on") or ())
                 summary = (f"proposed as kind {p.get('kind')!r} in state "
                            f"{outcome}, citing "
@@ -646,9 +675,9 @@ class AuditIndex:
             steps.append(Step(ev.seq, ev.wall_time, ev.actor, ev.action,
                               summary, detail))
 
-        gaps = self._record_gaps(record_id, outcome, steps,
-                                 created=created, proposer=proposer,
-                                 depends_on=depends_on)
+        gaps = tuple(forged) + self._record_gaps(
+            record_id, outcome, steps, created=created, proposer=proposer,
+            depends_on=depends_on)
         actors = tuple(sorted({s.actor for s in steps}))
         return Explanation(record_id, outcome, tuple(steps), gaps, actors)
 

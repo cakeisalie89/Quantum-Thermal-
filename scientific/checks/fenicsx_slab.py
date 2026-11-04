@@ -33,7 +33,7 @@ invisible to it.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeGuard
 
 import hashlib
 import json
@@ -129,6 +129,8 @@ def run_runner(request: dict, *, exe: str | None = None) -> dict:
             raise RuntimeError(f"the FEniCSx runner failed (exit "
                                f"{proc.returncode}): {proc.stderr[-800:]}")
         res = json.loads(out.read_text(encoding="utf-8"))
+    if not isinstance(res, dict):
+        raise RuntimeError("the runner's result is not an object")
     if res.get("kind") != request["kind"] or \
             res.get("request_sha256") != hashlib.sha256(json.dumps(
                 request, sort_keys=True).encode()).hexdigest():
@@ -136,7 +138,41 @@ def run_runner(request: dict, *, exe: str | None = None) -> dict:
     if not isinstance(res.get("provenance"), dict) or \
             "dolfinx" not in res["provenance"]:
         raise RuntimeError("the runner's result carries no provenance")
+    if request["kind"] == "slab":
+        problem = _slab_answer_problem(res, request)
+        if problem:
+            raise RuntimeError(f"the runner's slab answer {problem}")
     return res
+
+
+def _finite(v: object) -> TypeGuard[float]:
+    return (isinstance(v, (int, float)) and not isinstance(v, bool)
+            and math.isfinite(v))
+
+
+def _slab_answer_problem(res: dict, request: dict) -> str:
+    """What makes a slab answer unfit to compare, or "".
+
+    The check pairs each answer with an output, so it relies on one finite
+    temperature for every sample point asked for, and on a finite lateral
+    spread. Neither was checked, and the pairing stopped at the shorter
+    side: an answer holding no temperatures compared nothing and PASSED
+    (AUD-032). A NaN was refused only later, as a digest that could not be
+    taken.
+    """
+    want = len(request["x_samples"])
+    temps = res.get("T")
+    if not isinstance(temps, list) or len(temps) != want:
+        got = len(temps) if isinstance(temps, list) else "no list of"
+        return (f"holds {got} temperature(s) for {want} sample point(s); "
+                "a point not answered is a point not compared")
+    if not all(_finite(v) for v in temps):
+        return "holds a temperature that is no finite number"
+    lateral = res.get("lateral_max_abs_K")
+    if not _finite(lateral) or lateral < 0:
+        return ("states no finite lateral spread, so whether the 2D solve "
+                "reduces to the slab is unknown")
+    return ""
 
 
 def slab_request(params: dict, nx: int, ny: int, steps: int) -> dict:
@@ -200,7 +236,10 @@ def run_check(bundle: ResultBundle, *, verifier_id: str,
                 f"FEniCSx unavailable: {exc}",)},
             status=Status.NOT_RUN, measured=None, threshold=None)
     ratio = 0.0
-    for o, t_fem, e_fem in zip(outs, fem["T"], fem["estimate"]):
+    # strict: an answer for fewer points than there are outputs is refused
+    # rather than compared on fewer (AUD-032)
+    for o, t_fem, e_fem in zip(outs, fem["T"], fem["estimate"],
+                               strict=True):
         q = quantity(o)
         tol = GCI_SAFETY * (resolution(q) + e_fem) + 64 * _EPS * abs(t_fem)
         ratio = max(ratio, abs(q.value - t_fem) / tol)

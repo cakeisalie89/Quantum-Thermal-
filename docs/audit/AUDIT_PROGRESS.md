@@ -2363,3 +2363,150 @@ evidence is kept as `hosted_before`, and the 1586322 evidence as
 `hosted_earlier`. `tests/test_readiness_matrix.py` passes on the
 corrected tree. The full suite was not rerun on it before this commit;
 the next commit's full suite runs over it.
+
+### Stage 5, second pass: what decides a result, what explains it, and what says how it was built (AUD-032, AUD-033)
+
+**Order.** These are the HIGH files the first pass left, taken in three
+groups:
+
+1. what turns a run into a decided result: the governed model path, the
+   task machine and the tool contracts;
+2. the independent checks that a result's admission rests on;
+3. what explains a history afterwards, and what a model is asked and
+   charged: the audit queries and the inference gateway;
+4. what says what was built, and how: the manifest, the evidence tools,
+   the container and the dependencies.
+
+Each review is bound to the blob it read, at 7a18167.
+
+| File | Read | Found |
+|---|---|---|
+| agent_substrate/governed_model.py | in full | nothing |
+| agent_substrate/tasks.py | in full | a P3 note, below |
+| agent_substrate/tools.py | in full | a P3 note, below |
+| agent_substrate/actions.py | in full | nothing |
+| scientific/workspace.py | in full | nothing it does not say of itself |
+| scientific/checks/__init__.py, slab_series.py, slab_mol.py, langmuir_rk4.py, fmu_rc2.py | in full | nothing; one latent pattern, below |
+| scientific/checks/fenicsx_slab.py | in full | AUD-032 |
+| agent_substrate/audit.py | in full | AUD-033 |
+| agent_substrate/inference.py | in part | two P3 notes, below |
+| tools/isolated_runtime.py | in full | the sigstore lock's sdist note applies here too |
+| tools/attach_hosted_evidence.py | in full | a P3 note, below |
+| tools/harness_status.py | in full | nothing of consequence |
+| generate_manifest.py | in full | a P3 note, below |
+| Dockerfile, container_verify.sh | in full | a P3 note, below |
+| pyproject.toml | in full | nothing |
+| uv.lock | checked as data | a P3 note, below |
+| final_manifest.json, manifest_hash.txt, docs/harness_status.json, HARNESS_STATUS.md | checked as generated | each reproduced by its generator's check, the generator reviewed above |
+
+**AUD-032 (P3): the FEniCSx check passed on an answer that held
+nothing.** The FEniCSx slab check runs its solver out of process and
+reads the answer back as JSON. `run_runner` says the answer is "checked
+for the fields every caller relies on". It checked the answer's kind,
+its request digest and its provenance, but not the temperatures. The
+comparison then paired outputs with answers through `zip()`, which stops
+at the shorter side.
+
+Reproduced through the runner's own path, with a stand-in writing the
+answer:
+
+- an answer holding no temperatures: PASS, measured 0.0;
+- one point short: compared on four points;
+- a NaN temperature or lateral spread: it reached the comparison, where
+  `max()` drops a NaN term, and was refused only later, as an
+  `IdentityError` when the evidence digest could not be taken.
+
+The control, an answer 50 K off, FAILS.
+
+The runner in this repository answers one value per point or fails, so
+the case needs a runner that answers short: a defect in it, or a changed
+one. The answer is now refused unless it is a JSON object holding one
+finite temperature for every point asked for and a finite, non-negative
+lateral spread. The comparison pairs strictly.
+
+**AUD-033 (P3): the audit explained a record from its create's own
+claims.** The audit's `explain_record` tells a reader why an authority
+record is in its state, and what in its history is missing. It read the
+create record's proposer and state as the record claimed them. The
+store's replay refuses three kinds of create:
+
+- one in any state but PROPOSED;
+- one whose payload names a proposer other than the actor that appended
+  it;
+- a second create of one record.
+
+Reproduced with chain-valid histories, each of which the store refuses
+on load:
+
+- a record created straight into VERIFIED explained as VERIFIED, with no
+  gap;
+- a create naming `alice`, appended by `mallory`, who then moved the
+  record to VERIFIED, explained with no gap, because separation of
+  duties was judged against `alice`;
+- a record created twice explained with no gap.
+
+The control is the same self-verification written with an honest
+create. The audit reported it.
+
+The module refuses the same shape for tasks, and says why: an auditor
+that reports a state the enforcement path rejected is telling a reader
+the attack worked. The proposer is now who appended the create, and each
+of the three is a gap.
+
+**The new tests, on the code before the fixes.** Run in worktrees at
+7a18167 with each fix removed:
+
+- AUD-032: the ten refusal cases fail; both controls pass (an answer
+  that agrees reaches PASS, and a well-formed one is returned);
+- AUD-033: the three forged-history cases fail; the honest control
+  passes.
+
+**Not findings, recorded for the owner (P3, by reading):**
+
+- `tasks`: EXECUTING -> TIMED_OUT admits the WORKER role without the
+  lease. So an executor registered for a tool can time out another
+  executor's running task. Its completion is then refused, and nothing
+  becomes VERIFIED by it: a liveness cost, not an integrity one.
+- `tools`: the registry refuses a timeout of zero or less, but not
+  infinity or NaN. Such a spec fails only when its contract is digested,
+  which happens before anything spawns. It fails closed, under another
+  error.
+- `attach_hosted_evidence`: a run is accepted when it succeeded on the
+  exact commit with every job green. Nothing checks that it belongs to a
+  workflow that exercises the row: `hosted_ci` is prose.
+- `generate_manifest`: a tracked symlink would be hashed through to its
+  target, recording bytes the repository does not hold. None is tracked,
+  and nothing refuses one.
+- `Dockerfile`: the base image is pinned by digest, and the environment
+  by the lock's hashes. uv itself is installed by version alone, and git
+  from apt unpinned.
+- `uv.lock`: it holds 92 packages and 446 files, every one sha256-pinned
+  and on PyPI. But `connection-pool` 0.0.3, which snakemake requires, has
+  no wheel. Every `uv sync --all-groups`, in every workflow, builds it
+  from its pinned sdist, running a build backend the lock does not pin.
+- `inference`: `prompt_problems` reads a prompt with `json.loads`, which
+  takes NaN, then canonicalizes it, which raises on NaN. So such a prompt
+  raises instead of being reported: closed, under another error. The
+  provider's reply check (`isinstance(rep, dict)`) runs after `rep.get`
+  has already been called; the gateway turns the resulting exception into
+  an ERROR reply, so the outcome is right and the check is dead.
+- Every check folds its ratio with `max()`, which drops a NaN term.
+  Outside AUD-032 both sides of every comparison are Quantities, finite
+  by construction, so this is latent.
+
+**Mutations, on the final tree:**
+
+| Spec | Killed |
+|---|---|
+| harness_integrations, FE5 to FE10 added | 32 of 32 |
+| agent_audit, A24 to A27 added | 37 of 37 |
+
+**Hosted evidence.** R44 and R45 cite `audit.py`, and R62 the FEniCSx
+check. All three now predate their implementation, so the pinned count of
+rows whose evidence covers them goes from 15 to 12 until the evidence
+commit after hosted CI.
+
+**The full suite.** On tree a5ce7b7, which is this commit but for this
+paragraph and the files derived from it: 7036 passed, 19 skipped, none
+failed. That is 18 more than Stage 5's 7018: the two readiness tests RUN-1
+broke, and the sixteen new cases.

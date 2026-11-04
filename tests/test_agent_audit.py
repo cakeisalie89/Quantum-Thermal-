@@ -521,6 +521,81 @@ def test_transitions_without_a_creation_record_are_a_gap(tmp_path):
     assert any("no record.create record" in g for g in exp.gaps), exp.gaps
 
 
+def _create(log, actor, proposer, state, rid="r1"):
+    log.append(actor=actor, action="record.create", target=rid,
+               payload={"record_id": rid, "kind": "claim",
+                        "proposer": proposer, "state": state,
+                        "evidence": {}, "depends_on": [], "policy_id": None})
+
+
+def _move(log, actor, src, dst, evidence, rid="r1"):
+    log.append(actor=actor, action="record.transition", target=rid,
+               payload={"record_id": rid, "src": src, "dst": dst,
+                        "role": "VERIFIER", "evidence": evidence,
+                        "policy_id": None})
+
+
+def _store_refuses(log) -> str:
+    from agent_substrate.store import AuthorityStore, StoreError
+    with pytest.raises(StoreError) as info:
+        AuthorityStore(log).load()
+    return str(info.value)
+
+
+def test_a_record_created_past_proposed_is_a_gap(tmp_path):
+    """AUD-033. The store refuses a create in any state but PROPOSED. The
+    audit took the state as claimed and explained a record created straight
+    into VERIFIED as VERIFIED, complete."""
+    log = EventLog(tmp_path / "forged.jsonl")
+    _create(log, "mallory", "mallory", "VERIFIED")
+    assert "created directly in VERIFIED" in _store_refuses(log)
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert not exp.complete
+    assert any("created directly in VERIFIED" in g for g in exp.gaps), \
+        exp.gaps
+
+
+def test_the_proposer_is_who_appended_the_create(tmp_path):
+    """AUD-033. Separation of duties is judged against the proposer. A
+    create naming someone else let its writer verify its own record, and
+    the audit, judging against the named proposer, found nothing."""
+    log = EventLog(tmp_path / "forged.jsonl")
+    _create(log, "mallory", "alice", "PROPOSED")
+    _move(log, "mallory", "PROPOSED", "UNDER_REVIEW", {})
+    _move(log, "mallory", "UNDER_REVIEW", "VERIFIED",
+          {"verification_report": "0" * 64})
+    assert "names 'alice' as its proposer" in _store_refuses(log)
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert not exp.complete
+    assert any("appended by 'mallory'" in g for g in exp.gaps), exp.gaps
+    # and the self-verification is then seen for what it is
+    assert any("requires a distinct actor" in g for g in exp.gaps), exp.gaps
+
+
+def test_an_honest_create_is_no_gap(tmp_path):
+    """Control for the two above: the same history written honestly by
+    two actors explains as complete."""
+    log = EventLog(tmp_path / "honest.jsonl")
+    _create(log, "alice", "alice", "PROPOSED")
+    _move(log, "bob", "PROPOSED", "UNDER_REVIEW", {})
+    _move(log, "bob", "UNDER_REVIEW", "VERIFIED",
+          {"verification_report": "0" * 64})
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert exp.outcome == "VERIFIED"
+    assert exp.complete, exp.gaps
+
+
+def test_a_record_created_twice_is_a_gap(tmp_path):
+    """AUD-033. A second create would replace the first's proposer, state
+    and evidence; the store refuses it, and the audit says so."""
+    log = EventLog(tmp_path / "forged.jsonl")
+    _create(log, "alice", "alice", "PROPOSED")
+    _create(log, "alice", "alice", "PROPOSED")
+    assert "creates it again" in _store_refuses(log)
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert any("created a second time" in g for g in exp.gaps), exp.gaps
+
+
 def test_audit_records_puts_the_holes_first(tmp_path):
     log, ev, store, Role, State = _authority_world(tmp_path)
     _promote(store, ev, Role, State, "a-clean")

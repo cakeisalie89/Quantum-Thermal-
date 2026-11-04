@@ -1056,6 +1056,63 @@
    "residual_risk": "No production caller names paths: retrieve() and the research loop build over the walked corpus. The allowlist is content-addressed, not signed (its own stated limit). C13 is killed, and C7 and C8, whose anchor the change moved, are repaired to the same intent.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-032",
+   "title": "The FEniCSx check compared the runner's answer without checking its shape, so an answer holding no temperatures compared nothing and PASSED",
+   "severity": "P3",
+   "subsystem": "independent checks (the FEniCSx slab check)",
+   "files": [
+    {
+     "path": "scientific/checks/fenicsx_slab.py",
+     "lines": "run_runner: the answer checked for its kind, request digest and provenance only; run_check: zip(outs, fem['T'], fem['estimate'])"
+    }
+   ],
+   "behavior": "Through the runner's own path, with a stand-in writing the answer, a slab answer holding no temperatures made run_check return PASS with measured 0.0 (control: an answer 50 K off FAILS). An answer one point short was compared on four points. A NaN temperature or lateral spread reached the comparison, where max() drops a NaN term, and was refused only later, as an IdentityError when the evidence digest could not be taken.",
+   "invariant": "A check PASSES only on a comparison it made: every sample point it asks about is answered by a finite value, or the check does not decide. run_runner's own docstring: 'the result checked for the fields every caller relies on before it is returned'.",
+   "mechanism": "The answer crosses a process boundary as JSON, which Python reads with NaN and Infinity, and the comparison paired outputs with answers through zip(), which stops at the shorter side. The other checks compare Quantities, finite by construction, computed in-process, so the pairing cannot come up short there.",
+   "reproduction": "tests/test_harness_integrations.py, the AUD-032 cases, on the tree before the fix: the ten refusal cases fail there and both controls pass.",
+   "observed": "PASS, measured 0.0, on a runner answer with no samples.",
+   "expected": "The answer refused before anything is compared.",
+   "correction": "run_runner refuses a result that is not a JSON object, and a slab answer that does not hold one finite temperature per sample point asked for and a finite, non-negative lateral spread; run_check pairs with zip(strict=True).",
+   "regression_tests": [
+    "tests/test_harness_integrations.py::test_an_answer_with_no_samples_is_refused_not_passed",
+    "tests/test_harness_integrations.py::test_a_slab_answer_unfit_to_compare_is_refused",
+    "tests/test_harness_integrations.py::test_the_comparison_refuses_rather_than_shortens",
+    "tests/test_harness_integrations.py::test_an_answer_that_agrees_reaches_a_verdict",
+    "tests/test_harness_integrations.py::test_a_well_formed_slab_answer_is_returned"
+   ],
+   "residual_risk": "The runner in this repository answers one value per point or fails (a point no cell holds raises IndexError), so the case needs a runner that answers short: a defect in it, or a changed one. A runner that answers wrongly in full shape is outside this rule; the check's identity records the runner's bytes. Every check's ratio fold is max(), which drops a NaN; elsewhere both sides are Quantities. FE5 to FE10 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-033",
+   "title": "The audit explained an authority record from its create record's own claims, so a history the store refuses read as complete",
+   "severity": "P3",
+   "subsystem": "audit queries (authority records)",
+   "files": [
+    {
+     "path": "agent_substrate/audit.py",
+     "lines": "AuditIndex.explain_record: proposer and state taken from the create payload; a second create accepted"
+    }
+   ],
+   "behavior": "Three chain-valid histories the store refuses on load were explained by AuditIndex.explain_record as complete: a record created directly in VERIFIED (outcome VERIFIED, no gap); a record whose create names 'alice' as proposer, appended by 'mallory', who then moved it PROPOSED -> UNDER_REVIEW -> VERIFIED (no gap: separation of duties was judged against 'alice'); and a record created twice. The control, the same self-verification written with an honest create, is reported (requires a distinct actor).",
+   "invariant": "An auditor never reports a state the enforcement path rejects; who proposed a record is who the log says appended its create (the store's rule since the proposer is what separation of duties is judged against).",
+   "mechanism": "explain_record read the create's proposer and state as claimed. The store refuses a create in any state but PROPOSED, one naming a proposer other than its writer, and a second create of one record; the audit's walk began at PROPOSED and judged I4 against the claimed proposer, so none of the three left a hole. _gaps already refuses the same shape for tasks (a forged src and an executor read from the payload).",
+   "reproduction": "tests/test_agent_audit.py, the AUD-033 cases, on the tree before the fix: the three forged histories explain with no gap there; the honest control is complete on both trees.",
+   "observed": "explain_record('r1').complete is True for each forged history, while AuthorityStore(log).load() refuses each.",
+   "expected": "Each history reported with a gap naming what the store refuses.",
+   "correction": "explain_record takes the proposer from the create's actor, and reports a create naming another proposer, a create in a state other than PROPOSED, and a second create.",
+   "regression_tests": [
+    "tests/test_agent_audit.py::test_a_record_created_past_proposed_is_a_gap",
+    "tests/test_agent_audit.py::test_the_proposer_is_who_appended_the_create",
+    "tests/test_agent_audit.py::test_a_record_created_twice_is_a_gap",
+    "tests/test_agent_audit.py::test_an_honest_create_is_no_gap"
+   ],
+   "residual_risk": "The cross-record dependency walk (_record_walks) still reads a dependency's state as its records claim; a forged dependency is reported on its own explanation. A24 to A27 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }
