@@ -986,7 +986,11 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: verified (AUD-025): reuse re-derives a decision under the policy that
 #: admitted it (agent_substrate/governed_model.py, cited by R43), which
 #: predates it until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 10
+#: 10 -> 9 in the Stage 5 third pass: an evidence sidecar's first-seen
+#: time that no float holds is ignored, as a malformed field is, instead
+#: of raising OverflowError (AUD-039, agent_substrate/evidence.py, cited by
+#: R31), which predates it until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 9
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

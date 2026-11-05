@@ -152,6 +152,25 @@ def test_a_credential_is_refused_and_never_stored(secret, tmp_path):
         if (tmp_path / "log.jsonl").exists() else True
 
 
+@pytest.mark.parametrize("secret", [
+    "sk-ant-api03-" + "a" * 40, "AKIA" + "C" * 16, "ghp_" + "d" * 36])
+def test_a_credential_as_a_key_is_refused_and_never_stored(secret, tmp_path):
+    """AUD-041. The credential test read every string a proposal holds but
+    its keys, and a free-form map -- a model run's parameters -- takes any
+    key: a credential written as one was sealed, received and appended to
+    the log. The refusal does not repeat it."""
+    rec = _record()
+    rec["request"]["parameters"][secret] = 1.0
+    with pytest.raises(PR.ProposalRefused, match="credential") as refused:
+        PR.ProposalEnvelope.parse(PR.seal(rec))
+    assert secret not in str(refused.value)
+    log = EventLog(tmp_path / "log.jsonl")
+    with pytest.raises(PR.ProposalRefused):
+        PR.ProposalIngress(log).receive(PR.seal(rec))
+    path = tmp_path / "log.jsonl"
+    assert not path.exists() or secret not in path.read_text()
+
+
 def test_non_json_oversized_and_deep_records_are_refused():
     rec = _record()
     rec["request"]["parameters"]["L_m"] = float("nan")

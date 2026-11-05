@@ -283,6 +283,18 @@ def test_any_purpose_must_be_written_out():
     assert _resolve(s, purpose="anything-at-all").reveal() == VALUE
 
 
+@pytest.mark.parametrize("purposes", [["call-schema-api", ["nested"]],
+                                      ["call-schema-api", 7]])
+def test_a_grant_record_with_purposes_it_cannot_read_is_refused(purposes):
+    """AUD-042. The purposes were put in a set and sorted before each was
+    checked, so a list among them raised TypeError (unhashable), and a
+    number among strings TypeError (no order), where every other malformed
+    grant record is refused with SecretError."""
+    from agent_substrate.secrets import grant_from_record
+    with pytest.raises(SecretError, match="must be a non-empty str"):
+        grant_from_record(dict(_grant().body(), purposes=purposes))
+
+
 def test_a_grant_over_an_unregistered_secret_is_refused():
     s = SecretStore()
     with pytest.raises(UnknownSecret, match="would look like authority"):

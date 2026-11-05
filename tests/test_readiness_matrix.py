@@ -77,23 +77,53 @@ def test_each_rule_refuses_its_violation(edit, why):
     assert any(why in p for p in RD.problems(doc)), RD.problems(doc)
 
 
-def test_a_matrix_of_hosted_rows_alone_would_meet_the_contract():
-    """CONTROL: the verdict can be met, so NOT_MET is a finding and not a
-    constant."""
+def _met() -> dict:
+    """A matrix that meets the contract: every row naming an implementation
+    and a test, made HOSTED_TESTED and bound as a run at a commit binds it
+    (the digest of what is on disk). Rows no run could bind are left out."""
     doc = copy.deepcopy(RD.load())
+    doc["rows"] = [r for r in doc["rows"]
+                   if r.get("implementation") and r.get("tests")]
     for r in doc["rows"]:
         r["status"] = "HOSTED_TESTED"
+        r["hosted"] = {"commit": "a" * 40, "runs": ["1"],
+                       "implementation_sha256": RD.tree_digest(r)}
+    assert len(doc["rows"]) >= 4, "the control would be vacuous"
+    return doc
+
+
+def test_a_matrix_of_hosted_rows_alone_would_meet_the_contract():
+    """CONTROL: the verdict can be met, so NOT_MET is a finding and not a
+    constant. The matrix holds, too: a met verdict needs both."""
+    doc = _met()
+    assert RD.problems(doc) == []
     assert RD.summary(doc)["contract_met"] is True
 
 
 @pytest.mark.parametrize("status", ["IMPLEMENTED", "EXTERNALLY_BLOCKED",
                                     "UNVERIFIED"])
 def test_one_open_row_keeps_the_contract_unmet(status):
-    doc = copy.deepcopy(RD.load())
-    for r in doc["rows"]:
-        r["status"] = "HOSTED_TESTED"
-    doc["rows"][0]["status"] = status
+    doc = _met()
+    doc["rows"][0].update(status=status, note="owner action O-9")
+    assert RD.problems(doc) == [], "the open row is the only reason"
     assert RD.summary(doc)["contract_met"] is False
+
+
+def test_a_matrix_its_own_check_refuses_is_not_reported_met():
+    """AUD-038. The verdict counted statuses and never asked whether the
+    matrix held: every row made HOSTED_TESTED with no run behind it read as
+    PRODUCTION_READINESS_CONTRACT_MET while check refused each one. Neither
+    that nor one row whose evidence predates its code meets anything."""
+    doc = _met()
+    doc["rows"][0]["hosted"]["implementation_sha256"] = "0" * 64
+    s = RD.summary(doc)
+    assert s["contract_met"] is False, s
+    assert s["verdict"] == "PRODUCTION_READINESS_CONTRACT_NOT_MET"
+    assert s["problems"] == 1
+    unbound = copy.deepcopy(RD.load())
+    for r in unbound["rows"]:
+        r["status"] = "HOSTED_TESTED"
+    assert RD.summary(unbound)["contract_met"] is False
 
 
 # ---- D-2026-154: a hosted row is bound to the code the run tested -------------

@@ -341,6 +341,21 @@ def test_an_unreadable_sidecar_does_not_prevent_resolving_the_evidence(store):
     assert store.info(dg).media_type == "application/octet-stream"
 
 
+@pytest.mark.parametrize("first_seen", [10 ** 400, float("nan"),
+                                        float("inf")])
+def test_a_sidecar_time_no_float_holds_is_ignored(store, first_seen):
+    """AUD-039. The sidecar is as trustworthy as its directory, and a field
+    in it that cannot be used is ignored rather than believed. A first_seen
+    no float holds raised OverflowError out of info() instead."""
+    dg = store.put(REPORT, media_type="application/json")
+    store._meta_path(dg).write_text(json.dumps(
+        {"digest": dg, "media_type": "text/plain",
+         "first_seen": first_seen}), encoding="utf-8")
+    info = store.info(dg)
+    assert info.first_seen == 0.0
+    assert info.media_type == "text/plain"
+
+
 def test_a_missing_sidecar_does_not_prevent_resolving_the_evidence(store):
     dg = store.put(REPORT)
     store._meta_path(dg).unlink()

@@ -12,11 +12,13 @@
 # and resolve the new SHA from the upstream ref, peeling annotated tags.
 #
 # TRIGGER AUTHORISATION. This repository is public, so anyone can open an
-# issue or comment. The gate is in the action, not in this file: it refuses to
-# run for users without write access, and refuses bots entirely, unless
-# `allowed_non_write_users` / `allowed_bots` are set. Neither is set here, and
-# neither should be set without deciding, deliberately, that untrusted input
-# may reach a job that holds ANTHROPIC_API_KEY.
+# issue or comment. The gate is in this file: the job's `if:` below starts
+# it only for an author association of OWNER, MEMBER or COLLABORATOR
+# (D-2026-146, AUD-037). The action also refuses users without write access,
+# and bots entirely, unless `allowed_non_write_users` / `allowed_bots` are
+# set; that is a second check, not the one this file rests on. Neither is
+# set here, and neither should be set without deciding, deliberately, that
+# untrusted input may reach a job that holds ANTHROPIC_API_KEY.
 #
 # GOVERNANCE NOTE. This job holds `contents: write`, so Claude can push
 # commits and open PRs here. That is the action's normal mode and is what

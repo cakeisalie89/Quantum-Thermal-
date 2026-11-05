@@ -294,6 +294,17 @@ def test_malformed_records_fail_closed(bad):
         document_from_record(bad)
 
 
+@pytest.mark.parametrize("not_after", [10 ** 400, float("nan"),
+                                       float("inf")])
+def test_an_expiry_no_float_holds_is_refused(not_after):
+    """AUD-039. not_after is read back from the policy's record: an integer
+    no float holds raised OverflowError there, where every other malformed
+    record is refused with PolicyError, and NaN was taken as an expiry that
+    never comes."""
+    with pytest.raises(PolicyError, match="not_after"):
+        document_from_record({**_doc().body(), "not_after": not_after})
+
+
 def test_apply_ignores_foreign_actions(store):
     """One reducer among several over a shared log."""
     ev = store.log.append(actor="x", action="task.create", target="t",

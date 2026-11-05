@@ -226,6 +226,19 @@ def test_a_malformed_capability_record_is_refused(env, drop):
         capability_from_record(rec)
 
 
+@pytest.mark.parametrize("wall", [10 ** 400, "noon", [1.0], True,
+                                  float("nan"), float("inf")])
+def test_a_capability_record_whose_wall_time_is_no_number_is_refused(
+        env, wall):
+    """AUD-039. The wall time is recorded for humans and decides nothing,
+    but the record carrying it is read back from the log: an integer no
+    float holds raised OverflowError, and a string ValueError, where every
+    other malformed record is refused."""
+    rec = {**env["cap"].body(), "issued_wall_time": wall}
+    with pytest.raises(CapabilityError, match="issued_wall_time"):
+        capability_from_record(rec)
+
+
 # --- tools: default deny ----------------------------------------------------
 
 def test_an_unregistered_tool_does_not_run(env):

@@ -1296,6 +1296,7 @@
      "tests/test_assurance_graph.py",
      "tests/test_checkpoint_recovery.py",
      "tests/test_claim_check.py",
+     "tests/test_completion_matrix.py",
      "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
@@ -12001,7 +12002,8 @@
      "tests/test_mutation_shards.py",
      "tests/test_repo_contract.py",
      "tests/test_reproduce_guide.py",
-     "tests/test_workflow_exit_checks.py"
+     "tests/test_workflow_exit_checks.py",
+     "tests/test_workflow_generic.py"
     ]
    }
   },

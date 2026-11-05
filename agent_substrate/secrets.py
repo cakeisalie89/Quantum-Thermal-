@@ -231,14 +231,21 @@ def grant(*, grant_id: str, subject: str, task_id: str, tool_id: str,
         raise SecretError(
             f"purposes must be a sequence of strings, not the bare string "
             f"{purposes!r}")
-    ps = tuple(sorted({p for p in purposes}))
+    # Each purpose checked BEFORE the set and the sort: a list among them is
+    # unhashable and a number among strings has no order, and either raised
+    # TypeError where every other malformed grant is refused (AUD-042).
+    try:
+        items = list(purposes)
+    except TypeError as exc:
+        raise SecretError(f"purposes are not a sequence: {exc}") from None
+    for p in items:
+        if not isinstance(p, str) or not p:
+            raise SecretError(f"purpose {p!r} must be a non-empty str")
+    ps = tuple(sorted(set(items)))
     if not ps:
         raise SecretError(
             f"a grant with no purposes authorizes nothing and is refused; "
             f"write {ANY_PURPOSE!r} if any purpose is genuinely intended")
-    for p in ps:
-        if not isinstance(p, str) or not p:
-            raise SecretError(f"purpose {p!r} must be a non-empty str")
     if not isinstance(issued_seq, int) or isinstance(issued_seq, bool) \
             or issued_seq < 0:
         raise SecretError("issued_seq must be a non-negative int")

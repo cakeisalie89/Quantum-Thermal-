@@ -72,6 +72,7 @@ same log. Wall time is recorded for humans and never used for a decision.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import PurePosixPath
@@ -156,6 +157,16 @@ ACT_ROOT = "capability.root"
 #: linear in depth on every check, and an unbounded chain is a denial of
 #: service that a delegate can create for everyone else.
 MAX_DELEGATION_DEPTH = 8
+
+
+def _finite(v) -> bool:
+    """A real number a float holds. ``math.isfinite`` raises OverflowError
+    on an int too large for a float, which a JSON record can carry
+    (AUD-039)."""
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
 
 
 def _normalise_scope(paths) -> tuple:
@@ -496,6 +507,13 @@ def issue(*, capability_id: str, subject: str, action: Action, task_id: str,
         raise CapabilityError(
             f"capability {capability_id!r} names itself as its parent; "
             "authority that derives from itself derives from nothing")
+    if isinstance(issued_wall_time, bool) \
+            or not isinstance(issued_wall_time, (int, float)) \
+            or not _finite(issued_wall_time):
+        raise CapabilityError(
+            "issued_wall_time must be a finite number of seconds; it is "
+            "recorded for humans, and a record this reader cannot read is "
+            "refused rather than raised on (AUD-039)")
     return Capability(
         capability_id=capability_id, subject=subject, action=action,
         task_id=task_id, tool_id=tool_id, scope=_normalise_scope(scope),

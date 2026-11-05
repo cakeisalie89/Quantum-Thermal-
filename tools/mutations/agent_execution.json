@@ -454,6 +454,20 @@
       "find": "                           machine_id=machine_id())",
       "replace": "                           machine_id=\"\")",
       "rationale": "AUD-030: a process record that names no machine makes a later boot of this machine and another machine indistinguishable, and recovery can conclude neither"
+    },
+    {
+      "name": "X64_a_wall_time_no_float_holds_raises",
+      "path": "agent_substrate/capability.py",
+      "find": "            or not _finite(issued_wall_time):\n",
+      "replace": "            or False:\n",
+      "rationale": "AUD-039: a capability record whose issued_wall_time is an integer no float holds, or NaN or infinity, is not refused, and float() raises OverflowError where the record should be refused with CapabilityError"
+    },
+    {
+      "name": "X65_a_wall_time_may_be_any_type",
+      "path": "agent_substrate/capability.py",
+      "find": "    if isinstance(issued_wall_time, bool) \\\n            or not isinstance(issued_wall_time, (int, float)) \\\n",
+      "replace": "    if False \\\n",
+      "rationale": "AUD-039: a capability record whose issued_wall_time is a string, a list or a boolean is not refused as malformed, and raises or is taken as a number"
     }
   ]
 }

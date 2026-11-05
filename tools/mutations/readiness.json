@@ -82,6 +82,13 @@
    "find": "                and r.get(\"deployment_check\") not in DE.CHECKS:\n",
    "replace": "                and False:\n",
    "rationale": "D-2026-155: a deployment row need not name the check that satisfies it, so no attestation could be held to one"
+  },
+  {
+   "name": "RM12_a_matrix_check_refuses_meets_the_contract",
+   "path": "tools/readiness.py",
+   "find": "    met = met and not broken\n",
+   "replace": "    met = met\n",
+   "rationale": "AUD-038: the verdict counts statuses without asking whether the matrix holds, so rows made HOSTED_TESTED with no run behind them, or with evidence older than their code, read as PRODUCTION_READINESS_CONTRACT_MET"
   }
  ]
 }

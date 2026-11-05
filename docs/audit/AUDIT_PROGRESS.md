@@ -2971,3 +2971,296 @@ restart stands. Forty-seven verdicts are taken from the three runs the
 second restart stopped, each of which had a green baseline and null
 control, and the twenty-four those runs never reached ran in four more
 parts.
+
+### Stage 5, third pass: the workflows, idempotency and readiness
+
+The ledger held eleven CRITICAL and nine HIGH files read only in part. This
+pass took the smallest first, in risk order. Each was read line by line, and
+each record names its blob and what was read:
+
+- the six workflows, five in full; `agent-substrate.yml` in full but for
+  the generated spec lists, which `tools/mutation_shards.py --check` holds
+  to `--emit`;
+- `agent_substrate/idempotency.py`, now with its reducer's rules;
+- `tools/readiness.py`;
+- `agent_substrate/capability.py`, now with `Capability`, the check and
+  the scope rules;
+- `agent_substrate/policy.py`, now with the rule language, the documents
+  and decisions, and the rest of the decision recheck;
+- `agent_substrate/proposals.py`, now with the envelope's own rules and
+  the ingress;
+- `agent_substrate/secrets.py`, now with the grants, the handle, the
+  redactor, the providers and the resolution path;
+- `agent_substrate/memory.py`, now with its reducer's rules.
+
+Five findings, each reproduced at 0afa231 and fixed here. AUD-039,
+registered open by the commit before, is fixed here too. Four more are
+reproduced and registered open: AUD-040, found while closing AUD-039,
+and three in the memory store (AUD-043 to AUD-045). And one defect in
+the audit's own report.
+
+**AUD-036: stack-verify checked the tree before the steps it reported on.**
+The full leg ran the default target, whose last rule writes the tree
+check's report. Then it ran the opt-in explorations, `uq_sobol` and
+`mdao_doe`. Then came a step that only reads the report. So what OpenMDAO
+and SALib did to the tracked tree was never checked, and the step still
+printed that the tree was untouched. The workflow's header says those
+integrations leave it untouched.
+
+Reproduced with the workflow's own last step, its script taken from the
+file: the report written as the rule writes it on the clean tree, a
+tracked file changed afterwards, and the step printed `tracked tree
+untouched (675 entries)` and exited 0. The rule's check, run again, found
+the file. No tracked file is known to have been changed: the explorations
+write through the workspace guard. The check did not see them.
+
+The explorations now run before the default target, so its last rule
+checks the tree after every other step. A test in
+`tests/test_workflow_generic.py` holds the order: nothing runs between the
+tree check and the reading of its report. Its control puts the
+explorations back where they were and requires them reported.
+
+**AUD-037: the agent workflow's header said where its gate was, wrongly.**
+It said "The gate is in the action, not in this file". Since D-2026-146
+the job's `if:` admits only OWNER, MEMBER or COLLABORATOR, and the job's
+own comment says the authorization should not rest on the action's check.
+The header is where a maintainer reads what setting
+`allowed_non_write_users` would open. It now names the job's condition as
+the gate, with its three associations, and the action's check as a
+second one. A test in `tests/test_ci_authority.py` holds the header to the
+associations the job admits. The gate itself held throughout. The default
+branch's copy of this workflow is still ungated (O-1), and nothing here
+changes it.
+
+**AUD-038: the readiness verdict could read MET over a matrix its check
+refuses.** `summary()` counted statuses and never asked `problems()`. So
+a HOSTED_TESTED row with no run behind it, or with evidence older than its
+code, counted as hosted-tested. With every row of the shipped matrix made
+HOSTED_TESTED, `problems()` found 49 problems, `summary()` said MET, and
+`readiness.py summary` printed `PRODUCTION_READINESS_CONTRACT_MET` while
+it exited 1.
+
+The two tests that showed the verdict can be met built exactly that
+matrix. CI was not affected, since its step runs `check` first, and the
+shipped matrix is NOT_MET for its open rows.
+
+The verdict is now met only when `problems()` finds nothing, and the
+summary counts the problems. The controls now build matrices that hold,
+every row bound to hosted evidence as a run binds it:
+
+- the test that the verdict can be met;
+- the test that one open row keeps it unmet;
+- the deployment tests' regression and control.
+
+So each open condition is the only reason for its verdict. Were the
+controls left as they were, a mutation dropping the deployment condition
+(RM9) would survive them. The new condition is a line of its own, so RM4,
+RM5 and RM9 keep their anchors. RM12 deletes it.
+
+**AUD-039: three more `float()` conversions of a record's number.**
+Reading `capability.issue` found `float(issued_wall_time)` reached from a
+log record, with nothing before it to refuse a number no float holds.
+The same reading then took every `float()` in the production code, not
+only those beside a `math.isfinite`. Three raise on a record's number
+and are fixed here:
+
+- `capability_from_record` raised OverflowError on an integer no float
+  holds, and ValueError on a string, where it refuses every other
+  malformed record with CapabilityError;
+- `EvidenceStore.info` raised OverflowError out of a sidecar's
+  `first_seen`, where it ignores a sidecar it cannot use;
+- `document_from_record` raised OverflowError on a `not_after`, where it
+  refuses with PolicyError.
+
+A fourth, in the FEniCSx check, is reached through a bundle read back
+from its record, and is AUD-040's. The rest take values computed in
+code, convert a string, which gives infinity rather than an exception,
+or meet a record's number only after something else has handled it. A
+bundle's quantities pass through `Quantity` first, which raises on such
+a number itself (AUD-035). The package verifier reaches one through
+RECHECK's arithmetic on a consistent forgery of a parameter, and its
+level refuses it as "the level ran to its end".
+
+Each now refuses, or for the sidecar ignores, a value that is not a
+finite number, through a number test of its own. A caller's NaN and
+infinity go the same way. A canonical record cannot carry them, but a
+policy given NaN as its expiry would never have expired.
+
+The tests extend the tables that already hold each site's malformed
+inputs. On the code before the fix every case fails. The sidecar fix
+changes `agent_substrate/evidence.py`, which R31 cites, so R31's hosted
+evidence predates it: the matrix's covering count goes from 10 to 9
+until a later commit cites runs at this one.
+
+**AUD-040: the independent checks raise on a bundle parameter no float
+holds (open).** Following the FEniCSx check's `float()` to its source: a
+bundle read back from its record takes its parameters without a number
+test. With one set to `10 ** 400` and the parameter digest rewritten to
+match, `ResultBundle.from_record` accepts the bundle. Four checks then
+raise OverflowError:
+
+- the FEniCSx check, from `float()`;
+- the series, method-of-lines and RC RK4 checks, from arithmetic on the
+  parameter.
+
+In the governed path the check runs in a process of its own, which ends
+on the exception, so no verification result is written and nothing is
+admitted. A producer's model raises on such a parameter before it could
+write one (AUD-035), so the bundle has to come from a producer that
+wrote it some other way. The bundle's own boundary, `scientific/result.py`,
+is in the NF-1T closure, as AUD-035's sites are. The checks are outside
+it, and each could return NOT_RUN for a bundle it cannot compute from.
+That is not done here: it moves four checks, each with its own
+mutation specification. The Langmuir check, and any other reader of a
+bundle's parameters, was not probed.
+
+**AUD-041 (P2): a credential written as a key was stored.** The
+proposal parser refuses a proposal any of whose strings looks like a
+credential, and says it is not stored. It checked keys against the
+forbidden words only. A free-form map, such as a model run's parameters,
+takes any key.
+
+Reproduced at 0afa231: a MODEL_RUN whose parameters map has the key
+`sk-` followed by 24 letters was sealed, received, and appended to the
+log, while the same text as a value was refused. The authority log is
+hash-chained, so a record that reached it cannot be edited out.
+
+`_walk` now searches each key for the credential pattern before
+anything else is done with it, and refuses without naming the key. A
+history whose receipts hold such a key is refused when read, since each
+receipt's envelope is parsed again. The new test fails on the code
+before the fix. PI19 deletes the check, and PI2 and PI3 keep their
+anchors. The pattern is a list of known credential shapes: one of
+another shape passes as a key and as a value alike.
+
+**AUD-042: a grant record's purposes, sorted before they were checked.**
+`grant()` put the purposes in a set and sorted them, and only then
+checked that each was a non-empty string. A list among them is
+unhashable, and a number among strings has no order. So
+`grant_from_record` raised TypeError on either, where it refuses every
+other malformed grant with SecretError. The policy module checks before
+it sorts, and says why. Each purpose is now checked first. The new test
+fails on the code before the fix, S36 deletes the check, and S22 keeps
+its anchor.
+
+**AUD-043 to AUD-045: the memory store's reducer (open).** Reading
+`memory.py`'s reducer, which no earlier pass had, found three gaps, each
+reproduced at 0afa231:
+
+- AUD-043 (P2). A STALE move is open to every actor, so that
+  invalidating a source can cascade over entries with many authors.
+  Replay never checked that the entry rests on an invalidated source,
+  and it took `superseded_by` from any status record. A record from
+  mallory moving alice's note to STALE, with `superseded_by` naming
+  mallory's own, was projected. Alice's note left `current()`, and
+  readers were pointed at mallory's. That is the substitution the
+  SUPERSEDED authorship rule exists to stop. The public write path
+  cannot produce such a record, but the internal `_set_status`, which
+  decides by replay's rules, accepts it.
+- AUD-044 (P3). An invalidation of a source that nothing yet derives from
+  is kept in the process's own set and never logged. After a reload, a
+  new entry citing that source is born ACTIVE.
+- AUD-045 (P3). The reducer checks a record's keys, not the types of
+  its text, author or confidence. A write whose text is a number loads,
+  and then `live_bytes()`, and every later `remember()` by anyone, raises
+  AttributeError.
+
+None is fixed here. The independent reader restates the memory rules,
+and each fix belongs to both readers together.
+
+**D-2026-193: the report's coverage section had drifted.** It said 60
+files read in full, 29 in part and 874 not reviewed, and the ledger held
+65, 31 and 867. It said 52 of the 56 changed modules had been read, and
+the ledger held 53. Its list of modules read in full left out `audit`.
+
+Every difference understated the coverage, but nothing held the section
+to the ledger. It is restated from the ledger after this pass's records,
+and `tests/test_audit_ledger.py` now holds it count by count and module by
+module. On the report as it was, the test fails.
+
+**Read, and no finding:**
+
+- `container-verify.yml`. The base digest is read from the Dockerfile,
+  and an unpinned FROM fails closed. The native comparison exits non-zero
+  unless the results are equivalent, the outcomes agree and the scopes
+  match.
+- `harness-integrations.yml`. Each job holds `contents: read` and a
+  timeout. The demonstration rule is forced to run fresh.
+- `supply-chain.yml`. Only the signing job holds `id-token: write`, and it
+  runs only on a push to this branch. The release gate's refusal must be
+  exit 3. The offline job shows its workspace empty and its network gone
+  before it verifies.
+- `agent-substrate.yml`. Its tree checks follow every step that runs code.
+  Five of its seven jobs set no `timeout-minutes`, so a hang holds its
+  runner to GitHub's six-hour default. That is recorded, not changed.
+- `idempotency.py`. The owner comes from the event's actor. A rebinding is
+  refused on replay and in `bind`, which decides under the writer lock. A
+  new binding's position is its own.
+- `policy.py`'s rule language and decisions. Evaluation is
+  deny-overrides, with obligations gathered from every matching ALLOW, and
+  replay re-derives a recorded decision's verdict, rule, obligations and
+  policy digest. Its `version`, `reason` and `at_seq` are not re-derived.
+  The readers found take the verdict, the policy and the request, and the
+  audit derives the version from the published digest, so none of them is
+  misled. That is recorded, not changed.
+- `secrets.py`'s resolution path. The decision to reveal is made under
+  the writer lock, against the log as it is, and is recorded before the
+  value leaves the store. Two things are recorded, not changed.
+  `provision` logs the value's byte length beside its id and provider,
+  which its docstring does not list. A grant whose purposes are `*`
+  covers egress to every host, so the composition check holds only for
+  grants that name their purposes.
+- `readiness.py`'s other rules. A deployment row passes the contract-note
+  rule by naming DEPLOYMENT.md or cgroups. RUN-4 relies on the second, and
+  its deployment check must still be a real one.
+
+Whether each pinned action SHA is the commit its tag comment names is not
+established: the upstream repositories are outside this session's scope.
+
+**Mutations.** Seven new: RM12, X64 and X65 (the wall time's number test
+and its type test), E24, P31, PI19 and S36. Every spec whose mutations or
+tests the change touches ran on this tree:
+
+| Spec | Killed | New |
+|---|---|---|
+| agent_execution | 66 of 66 | X64, X65 |
+| agent_readpath | 21 of 21 |  |
+| decided_appends | 14 of 14 |  |
+| policy_binding | 29 of 29 |  |
+| history_time | 21 of 21 |  |
+| agent_policy | 30 of 30 | P31 |
+| agent_delegation | 28 of 28 |  |
+| ci_authority | 18 of 18 |  |
+| completion_matrix | 22 of 22 |  |
+| t2_closure | 41 of 41 |  |
+| agent_evidence | 24 of 24 | E24 |
+| performance_counters | 5 of 5 |  |
+| role_authority | 44 of 44 |  |
+| policy_semantics | 13 of 13 |  |
+| agent_incremental | 27 of 27 |  |
+| workflow_generic | 4 of 4 |  |
+| agent_snapshot_coherence | 20 of 20 |  |
+| agent_fault_injection | 11 of 11 |  |
+| deployment_evidence | 22 of 22 |  |
+| readiness | 12 of 12 | RM12 |
+| composed_campaigns | 7 of 7 |  |
+| harness_status | 21 of 21 |  |
+| proposal_ingress | 29 of 29 | PI19 |
+| agent_secrets | 36 of 36 | S36 |
+| agent_secret_provider | 18 of 18 |  |
+| inference_gateway | 45 of 45 |  |
+
+Twenty-two of these ran on this change before AUD-041 and AUD-042 were
+added to it. The nine that mutate or test `proposals.py` or `secrets.py`,
+five of them among the twenty-two, ran again on the final tree, and those
+runs are the ones counted. The other seventeen mutate and test nothing
+that AUD-041 or AUD-042 changed. A run of the AUD-041 specs begun before
+AUD-042 was written was stopped, and is not counted. A restart of the
+container stopped the nine's first run, and the harness's `--recover`
+restored the one file it had left mutated, from a snapshot that was the
+file byte for byte. A second restart stopped the rerun after six of the
+nine had finished, with `role_authority` part way. The same recovery
+again found its snapshots to be the files they were taken from.
+`role_authority` and `inference_gateway` then ran whole in that
+worktree, and `t2_closure` in a second one whose diff equals this
+change's. The stopped run's verdicts are not counted.

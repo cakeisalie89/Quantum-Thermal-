@@ -170,6 +170,13 @@
    "find": "        if len(again) > self.max_blob_bytes:\n",
    "replace": "        if False:\n",
    "rationale": "D-2026-142: the bound is read past and the refusal is left to the digest"
+  },
+  {
+   "name": "E24_a_sidecar_time_no_float_holds_raises",
+   "path": "agent_substrate/evidence.py",
+   "find": "                        and _finite(fs):\n",
+   "replace": "                        and True:\n",
+   "rationale": "AUD-039: a sidecar first_seen no float holds raises OverflowError out of info(), and NaN or infinity is reported as a time, where a field that cannot be used is ignored"
   }
  ]
 }

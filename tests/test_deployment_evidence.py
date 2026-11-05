@@ -39,6 +39,25 @@ def _matrix() -> dict:
     return copy.deepcopy(RD.load())
 
 
+def _hosted_but_deployment() -> dict:
+    """Every row hosted and bound as a run at a commit binds it, except the
+    deployment rows, which keep their status: the matrix holds, so its
+    deployment rows are all that stands between it and the contract
+    (AUD-038). Rows no run could bind, naming no implementation or test,
+    are left out."""
+    doc = _matrix()
+    doc["rows"] = [r for r in doc["rows"]
+                   if r["status"] == "DEPLOYMENT_REQUIRED"
+                   or (r.get("implementation") and r.get("tests"))]
+    for r in doc["rows"]:
+        if r["status"] != "DEPLOYMENT_REQUIRED":
+            r["status"] = "HOSTED_TESTED"
+            r["hosted"] = {"commit": COMMIT, "runs": ["1"],
+                           "implementation_sha256": RD.tree_digest(r)}
+    assert RD.problems(doc) == []
+    return doc
+
+
 def _attestation(**over) -> dict:
     doc = {"schema": DE.ATTESTATION_SCHEMA, "deployment_id": "prod-1",
            "environment": "production", "source_commit": COMMIT,
@@ -97,10 +116,7 @@ def _validate(dep, owner, *, verify=_signed, commit=COMMIT, matrix=None,
 def test_unattested_deployment_rows_do_not_meet_the_contract():
     """The defect as measured: every other row hosted, three deployment rows
     with no evidence, and the summary said MET."""
-    doc = _matrix()
-    for r in doc["rows"]:
-        if r["status"] != "DEPLOYMENT_REQUIRED":
-            r["status"] = "HOSTED_TESTED"
+    doc = _hosted_but_deployment()
     s = RD.summary(doc)
     assert s["contract_met"] is False
     assert s["deployment_unattested"] == ["RUN-2", "RUN-3", "RUN-4"]
@@ -110,10 +126,7 @@ def test_control_deployment_rows_attested_with_sigstore_meet_the_contract():
     """The verdict can be met, so NOT_MET above is a finding about evidence
     and not a constant. Built directly: no production attestation exists,
     and this test does not pretend one does."""
-    doc = _matrix()
-    for r in doc["rows"]:
-        if r["status"] != "DEPLOYMENT_REQUIRED":
-            r["status"] = "HOSTED_TESTED"
+    doc = _hosted_but_deployment()
     ev = DE.DeploymentEvidence(
         deployment_id="prod-1", source_commit=COMMIT,
         rows=frozenset({"RUN-2", "RUN-3", "RUN-4"}), not_after="x",

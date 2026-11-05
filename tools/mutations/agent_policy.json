@@ -208,6 +208,13 @@
       "find": "                \"reason\": self.reason, \"obligations\": list(self.obligations)}",
       "replace": "                \"reason\": self.reason}",
       "rationale": "two documents differing only in what they require hash identically, so a condition can be edited out without changing the digest anything cites"
+    },
+    {
+      "name": "P31_an_expiry_no_float_holds_raises",
+      "path": "agent_substrate/policy.py",
+      "find": "            or not _finite(not_after)):\n",
+      "replace": "            or False):\n",
+      "rationale": "AUD-039: a policy record whose not_after is an integer no float holds raises OverflowError where it should be refused with PolicyError, and NaN or infinity is taken as an expiry that never comes"
     }
   ]
 }

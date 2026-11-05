@@ -1239,6 +1239,82 @@
    "resolution": "OWNER"
   },
   {
+   "id": "AUD-036",
+   "title": "stack-verify read its tree check's report after steps the check had not seen",
+   "severity": "P3",
+   "subsystem": "CI: the stack-verify workflow's tree check",
+   "files": [
+    {
+     "path": ".github/workflows/stack-verify.yml",
+     "lines": "the step order: the opt-in explorations after the default target, the tracked-tree step last"
+    }
+   ],
+   "behavior": "The full leg ran the default target, whose last rule writes verification/stage10/tree_untouched.json, then the opt-in explorations (uq_sobol and mdao_doe), then a step that only reads that report. What the explorations did to the tracked tree was never checked, and the last step still printed that the tree was untouched. The workflow's header says the OpenMDAO and SALib integrations leave the tracked tree untouched.",
+   "invariant": "A step that reports the tracked tree untouched reports on every step before it.",
+   "mechanism": "The report is computed once, by the tree_untouched rule at the end of the default target, and read by the last step. A step placed between the two acts after the check and before the reading.",
+   "reproduction": "At 0afa231: the report written as the rule writes it, on the clean tree; a tracked file then changed; the workflow's own last step, its script taken from the file, printed 'tracked tree untouched (675 entries)' and exited 0, while the rule's check found the changed file. The new test fails on the workflow as committed.",
+   "observed": "No tracked file is known to have been changed. The explorations write through the workspace guard, which refuses a path outside verification/, but the check did not observe them.",
+   "expected": "The tree check runs after every other step, and its report is read last.",
+   "correction": "The opt-in explorations run before the default target, so its last rule checks the tree after every other step. The header says so.",
+   "regression_tests": [
+    "tests/test_workflow_generic.py::test_ci_checks_the_tree_after_every_step_it_runs"
+   ],
+   "residual_risk": "The reordered workflow's first hosted run was not yet observed when this was recorded.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-037",
+   "title": "The agent workflow's header said its gate was in the action and not in the file, after the file gained one",
+   "severity": "P3",
+   "subsystem": "CI: the Claude Code workflow's statement of its trigger gate",
+   "files": [
+    {
+     "path": ".github/workflows/claude.yml",
+     "lines": "the TRIGGER AUTHORISATION header"
+    }
+   ],
+   "behavior": "The header said 'The gate is in the action, not in this file'. Since D-2026-146 the job's if: admits only an author association of OWNER, MEMBER or COLLABORATOR, and the job's own comment says the authorization should not rest on the action's check. The header is where a maintainer reads what setting allowed_non_write_users would open.",
+   "invariant": "A security control's documentation says where the control is.",
+   "mechanism": "D-2026-146 added the gate and its comment to the job, and left the header as it was written for the ungated workflow. That workflow is still the default branch's (O-1).",
+   "reproduction": "Read at 0afa231. The new test fails on the header as committed.",
+   "observed": "The gate itself holds: tests/test_ci_authority.py breaks each of its rules in a copy and requires it reported. Only the statement of where the gate is was wrong.",
+   "expected": "The header names the job's condition as the gate, and the action's own check as a second one.",
+   "correction": "The header says the gate is the job's if:, names the three associations it admits, and calls the action's check a second check the file does not rest on.",
+   "regression_tests": [
+    "tests/test_ci_authority.py::test_the_header_says_where_the_gate_is"
+   ],
+   "residual_risk": "The default branch's copy of the workflow is ungated (O-1). Nothing here changes it.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-038",
+   "title": "The readiness verdict could read MET over a matrix its own check refuses",
+   "severity": "P3",
+   "subsystem": "the production-readiness matrix's verdict",
+   "files": [
+    {
+     "path": "tools/readiness.py",
+     "lines": "summary: the verdict counted statuses and never asked problems()"
+    }
+   ],
+   "behavior": "summary() decided the verdict from the rows' statuses alone, so a HOSTED_TESTED row with no hosted run, or with evidence older than its implementation, counted as hosted-tested. The shipped matrix with every row made HOSTED_TESTED read PRODUCTION_READINESS_CONTRACT_MET while check found 49 problems, and `readiness.py summary` printed MET and exited 1. The two tests that showed the verdict can be met built exactly such a matrix.",
+   "invariant": "A readiness verdict is met only over a matrix its check accepts.",
+   "mechanism": "problems() and summary() were separate, and main() printed the second's verdict whatever the first found. The CI step runs check before summary, so CI failed first; a reader of the verdict alone was not told.",
+   "reproduction": "At 0afa231, every row of the shipped matrix made HOSTED_TESTED: problems() found 49, summary() said MET, and the command printed PRODUCTION_READINESS_CONTRACT_MET with exit 1. The new test fails on the code as committed.",
+   "observed": "Not reachable from the shipped matrix, whose verdict is NOT_MET for its open rows. Reachable by any matrix whose rows claim HOSTED_TESTED without the evidence check requires.",
+   "expected": "NOT_MET, with the problems counted.",
+   "correction": "summary() is met only when problems() finds nothing, and reports how many it found. The tests that show the verdict can be met, and that one open row keeps it unmet, now build matrices that hold, each row bound to hosted evidence as a run binds it, so the open row is the only reason.",
+   "regression_tests": [
+    "tests/test_readiness_matrix.py::test_a_matrix_its_own_check_refuses_is_not_reported_met",
+    "tests/test_deployment_evidence.py::test_unattested_deployment_rows_do_not_meet_the_contract"
+   ],
+   "residual_risk": "The verdict reads what the matrix states. Whether its rows state the truth is for check and the hosted evidence to decide.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
    "id": "AUD-039",
    "title": "Three more float() conversions of a record's number raise OverflowError on an integer no float holds",
    "severity": "P3",
@@ -1263,9 +1339,171 @@
    "reproduction": "At 0afa231: capability_from_record with issued_wall_time 10 ** 400, EvidenceStore.info over a sidecar whose first_seen is 10 ** 400, and document_from_record with not_after 10 ** 400 each raise OverflowError.",
    "observed": "Fail-closed: nothing is accepted. A history holding such a capability or policy record fails to load with an exception its reader does not name, and a blob with such a sidecar cannot be described.",
    "expected": "CapabilityError and PolicyError; for the sidecar, the field ignored as a malformed one is.",
-   "correction": "Not applied yet.",
+   "correction": "capability.issue refuses an issued_wall_time that is not a finite number with CapabilityError, so capability_from_record refuses the record. EvidenceStore.info ignores a first_seen that is not a finite number, as it ignores a malformed sidecar. policy.document refuses a not_after that is not a finite number with PolicyError, so document_from_record refuses the record. Each module has a number test of its own. NaN and infinity, which a canonical record cannot carry but a caller can pass, are refused or ignored the same way.",
+   "regression_tests": [
+    "tests/test_agent_execution.py::test_a_capability_record_whose_wall_time_is_no_number_is_refused",
+    "tests/test_agent_evidence.py::test_a_sidecar_time_no_float_holds_is_ignored",
+    "tests/test_agent_policy.py::test_an_expiry_no_float_holds_is_refused"
+   ],
+   "residual_risk": "Found by reading the float() conversions in the production code after AUD-034. An implicit conversion, in arithmetic on a record's number, was not looked for. The sidecar fix changes agent_substrate/evidence.py, which R31 cites, so R31's hosted evidence predates it until a later commit cites runs at this one.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-040",
+   "title": "A bundle read back from its record may carry a parameter no float holds, and the independent checks raise on it",
+   "severity": "P3",
+   "subsystem": "result bundles and the independent checks that read them",
+   "files": [
+    {
+     "path": "scientific/result.py",
+     "lines": "ResultBundle.from_record: the parameters taken without a number test"
+    },
+    {
+     "path": "scientific/checks/fenicsx_slab.py",
+     "lines": "slab_request: float() on each parameter"
+    },
+    {
+     "path": "scientific/checks/slab_series.py",
+     "lines": "the series: arithmetic on the parameters"
+    },
+    {
+     "path": "scientific/checks/slab_mol.py",
+     "lines": "the method of lines: arithmetic on the parameters"
+    },
+    {
+     "path": "scientific/checks/rc2_rk4.py",
+     "lines": "steps_for: arithmetic on the parameters"
+    }
+   ],
+   "behavior": "ResultBundle.from_record accepts a numeric parameter of 10 ** 400 when the parameter digest is rewritten to match. Given such a bundle, the FEniCSx check raises OverflowError from float() on the parameter, and the series, method-of-lines and RC RK4 checks raise it from arithmetic on it. In the governed path the check runs in its own process, which ends on the exception, so no verification result is written.",
+   "invariant": "A check given a bundle it cannot compute from returns a result that says so (NOT_RUN), as it does for outputs it cannot compare.",
+   "mechanism": "A bundle's parameters are checked against their digest and for being JSON, not for being numbers a float holds, and each check converts them, explicitly or in arithmetic.",
+   "reproduction": "At 0afa231, the slab model's bundle and the RC network's, each record with one parameter set to 10 ** 400 and its digest rewritten: from_record accepts it, and run_check of slab_series, slab_mol, fenicsx_slab and rc2_rk4 raises OverflowError.",
+   "observed": "Fail-closed: no result, so nothing is admitted. A producer's own model raises on such a parameter before it could write one (Parameter.coerce, AUD-035), so the bundle has to come from a producer that wrote it some other way.",
+   "expected": "NOT_RUN, naming the parameter as no finite number.",
+   "correction": "Not applied. The bundle's own boundary, scientific/result.py, is in the development dataset's generator closure, which the NF-1T record freezes, as AUD-035's sites are. The checks are outside it, and each could refuse such a bundle with NOT_RUN itself.",
    "regression_tests": [],
-   "residual_risk": "Found by reading the float() conversions in the production code after AUD-034. An implicit conversion, in arithmetic on a record's number, was not looked for.",
+   "residual_risk": "The Langmuir check was not probed, nor any other reader of a bundle's parameters. A check's arithmetic on a parameter no float holds was found by probing, not by reading each check's use of its parameters.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-041",
+   "title": "A credential written as a key in a proposal was sealed, received and logged",
+   "severity": "P2",
+   "subsystem": "the proposal ingress's credential test",
+   "files": [
+    {
+     "path": "agent_substrate/proposals.py",
+     "lines": "_walk: the credential pattern applied to strings, not to keys"
+    }
+   ],
+   "behavior": "_walk refuses a proposal any of whose strings looks like a credential, and the refusal says the proposal is not stored. It checked keys against the forbidden words only. A free-form map, such as a model run's parameters or a hypothesis's prediction, takes any key, so a credential written as a key passed the parse, was sealed, and was appended to the log by receive().",
+   "invariant": "A proposal carrying what looks like a credential, as a key or as a value, is refused and never stored.",
+   "mechanism": "The credential pattern was searched in string values only; a dict key is a string, and was checked only against FORBIDDEN_KEYS.",
+   "reproduction": "At 0afa231: a MODEL_RUN proposal whose parameters map has the key 'sk-' followed by 24 letters is sealed by envelope() and received by ProposalIngress.receive(), and the text is then in the log; the same text as a parameter's value is refused. The new test fails on the code as committed.",
+   "observed": "A credential an AI proposer emitted as a key would be persisted in the authority log, which is hash-chained and cannot be edited out. No such record is known.",
+   "expected": "Refused, like a credential in a value, and the refusal not repeating it.",
+   "correction": "_walk searches each key for the credential pattern before anything else is done with it, and refuses without naming the key. A history whose receipts hold such a key is now refused when read, since each receipt's envelope is parsed again.",
+   "regression_tests": [
+    "tests/test_proposal_ingress.py::test_a_credential_as_a_key_is_refused_and_never_stored"
+   ],
+   "residual_risk": "The pattern is a list of known credential shapes: a credential of another shape passes as a key and as a value alike. The inference gateway's own check reads a whole serialized body, keys included.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-042",
+   "title": "A secret grant record whose purposes hold a list, or mix a number with strings, raised TypeError instead of being refused",
+   "severity": "P3",
+   "subsystem": "the secret store's grant records",
+   "files": [
+    {
+     "path": "agent_substrate/secrets.py",
+     "lines": "grant(), reached from grant_from_record: the purposes put in a set and sorted before each was checked"
+    }
+   ],
+   "behavior": "grant() built a set of the purposes and sorted it, and only then checked that each was a non-empty string. A list among the purposes is unhashable and a number among strings has no order, so grant_from_record raised TypeError on either, where it refuses every other malformed grant with SecretError. The policy module checks before it sorts, and says why.",
+   "invariant": "A grant record the store cannot read is refused with SecretError.",
+   "mechanism": "The per-purpose check ran after the set and the sort, and both raise TypeError on such values first.",
+   "reproduction": "At 0afa231: grant_from_record with purposes ['send', ['a']] raises TypeError (unhashable type: 'list'), and with ['send', 1] TypeError ('<' not supported). The new test fails on the code as committed.",
+   "observed": "Fail-closed: a history holding such a grant does not load, with an exception the store's callers do not name.",
+   "expected": "SecretError, naming the purpose that is not a non-empty string.",
+   "correction": "Each purpose is checked before the set and the sort, and a value that is not a sequence is refused with SecretError. The refusal of an empty purpose set is unchanged.",
+   "regression_tests": [
+    "tests/test_agent_secrets.py::test_a_grant_record_with_purposes_it_cannot_read_is_refused"
+   ],
+   "residual_risk": "Found by reading secrets.py. The other readers of a record's list fields were not all read for the same order.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-043",
+   "title": "Memory replay lets anyone mark another's note STALE and point readers at a note of their own",
+   "severity": "P2",
+   "subsystem": "the agent memory store's status rules",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "apply, memory.status: a STALE move needs no invalidated source behind it, and any move may set superseded_by; _set_status decides by the same rules"
+    }
+   ],
+   "behavior": "A STALE move is open to every actor, so that invalidating a source can cascade over entries with many authors. Replay never checked that the entry derives from an invalidated source, and took superseded_by from any status record. So a record from someone other than the author, moving the author's note to STALE with superseded_by naming their own note, was projected: the note left current() and readers were pointed at the other actor's entry. That is the substitution the SUPERSEDED authorship rule exists to stop. The public write path cannot produce such a record: the cascade marks only derived entries and sets no superseded_by, and supersede() is the author's alone. The internal _set_status, which decides by replay's rules, accepts it.",
+   "invariant": "Only an entry's author withdraws or replaces it, and an entry goes STALE only because a source it rests on was invalidated.",
+   "mechanism": "Replay checks the edge and, for RETRACTED and SUPERSEDED, the author; for STALE it checks neither the premise nor the superseded_by it carries.",
+   "reproduction": "At 0afa231: alice writes a note and mallory one of her own; mallory appends a memory.status record moving alice's note to STALE with superseded_by naming mallory's. A fresh load projects alice's note as STALE, superseded by mallory's, and drops it from current().",
+   "observed": "Memory is not authority, and no authority decision reads it, but recall feeds the agent's context.",
+   "expected": "Refused on replay: a STALE move whose entry rests on no invalidated source, and a superseded_by on anything but the author's SUPERSEDED move.",
+   "correction": "Not applied. The independent reader restates the memory rules and has to learn the same ones, so the change is both readers' together.",
+   "regression_tests": [],
+   "residual_risk": "Until it is fixed, a history may hold such a record, and every reader accepts it.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-044",
+   "title": "An invalidated source nothing yet derives from is remembered only by the process that invalidated it",
+   "severity": "P3",
+   "subsystem": "the agent memory store's invalidation",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "invalidate_source: with nothing moved, the source is added to the in-process set and nothing is logged"
+    }
+   ],
+   "behavior": "invalidate_source records the invalidation on the first STALE record of its cascade. When no entry derives from the source there is no such record, and the source is added to the process's own set, so that an entry written later citing it is born STALE. Nothing reaches the log, so after a reload, or in another process, a new entry citing the source is born ACTIVE.",
+   "invariant": "Whether a source has been invalidated is a fact of the log, and holds for every reader.",
+   "mechanism": "The only durable carrier of an invalidation is a status record's invalidated_source, and a cascade over nothing writes none.",
+   "reproduction": "At 0afa231: invalidate_source on a source nothing derives from moves nothing and leaves the log empty. In that process a new entry citing the source is born STALE; after a reload one is born ACTIVE.",
+   "observed": "A note resting on a withdrawn source can be current, until something invalidates the source again.",
+   "expected": "The invalidation recorded whether or not anything rested on the source yet.",
+   "correction": "Not applied. It needs a record of an invalidation alone, which both readers have to learn.",
+   "regression_tests": [],
+   "residual_risk": "As stated.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-045",
+   "title": "A memory write whose text is not a string is projected, and then every write to the store raises",
+   "severity": "P3",
+   "subsystem": "the agent memory store's records",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "entry_from_record: the text, author and confidence taken without a type check"
+    }
+   ],
+   "behavior": "entry_from_record checks the record's keys and builds the entry, but not the types of its text, author or confidence. A memory.write whose text is a number, appended under its author's own name, loads. live_bytes() then raises AttributeError on it, and so does every later remember(), by any author, since each checks the store's total first.",
+   "invariant": "A record the store cannot use is refused when it is read, not when something later trips over it.",
+   "mechanism": "The write path checks the text; the reducer trusts the record's shape beyond its keys.",
+   "reproduction": "At 0afa231: a memory.write by mallory with text 123 loads; live_bytes() and alice's remember() then raise AttributeError.",
+   "observed": "Fail-closed, but one record makes the store unwritable for every author.",
+   "expected": "MemoryError_ at load, naming the field.",
+   "correction": "Not applied; with AUD-043, a change to both readers.",
+   "regression_tests": [],
+   "residual_risk": "As stated.",
    "verification": "REPRODUCED",
    "resolution": "OPEN"
   }

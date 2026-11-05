@@ -12101,3 +12101,34 @@ more.
 to run, so each run explores differently. A floor that a larger campaign
 clears is not a promise that every seed clears it. The hosted run that
 reached 47 is still unexplained, and is recorded here as such.
+
+## D-2026-193 — The audit report's coverage section had drifted from the ledger
+
+**FOUND BY READING**, in the third pass of the risk-ordered audit. Section 1
+of docs/audit/AUDIT_REPORT.md is where a reader learns how far the audit
+reached: how many files each disposition holds, and which changed
+`agent_substrate` modules were read. Nothing held it to the ledger, and
+three later passes had moved the ledger without it:
+
+- the report said 60 files reviewed in full, 29 in part and 874 not
+  reviewed, and the ledger held 65, 31 and 867;
+- it said 52 of the 56 changed modules had been read, and the ledger
+  held 53;
+- its list of modules read in full left out `audit`, read in full in the
+  second pass.
+
+Every difference understated the coverage, so nothing was claimed that
+had not been done. But a reader could not tell from the report what the
+ledger held.
+
+**THE REPAIR.** The section states what the ledger holds after this
+pass. tests/test_audit_ledger.py now holds it count by count and module
+by module: the file total, every disposition's count, the module totals,
+and both lists of modules. Its control moves one count and drops one
+module, and requires each to be a difference. On the report as it was,
+the test fails on the table, the totals and the list.
+
+**WHAT THIS IS NOT.** The test holds the report to the ledger, not the
+ledger to the files. That is `tools/audit_ledger.py check`, which binds
+each disposition to the blob it describes.
+

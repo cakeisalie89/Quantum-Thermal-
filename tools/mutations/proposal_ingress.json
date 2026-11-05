@@ -200,6 +200,13 @@
    "find": "    report, events = log.read_verified()\n    report.raise_if_bad()\n",
    "replace": "    report, events = log.read_verified()\n",
    "rationale": "a broken or unauthenticated history yields an empty receipt projection instead of a refusal"
+  },
+  {
+   "name": "PI19_a_key_may_carry_a_credential",
+   "path": "agent_substrate/proposals.py",
+   "find": "            if _CREDENTIAL.search(k):\n",
+   "replace": "            if False:\n",
+   "rationale": "AUD-041: a credential written as a key of a free-form map in a proposal is sealed, received and appended to the log, where the same text as a value is refused and never stored"
   }
  ]
 }

@@ -10,7 +10,9 @@
 # installs usd-core, SALib and OpenMDAO and REQUIRES them: there a skipped
 # path is a failure, so a disagreement cannot be passed by not computing it.
 # Both legs run the generic scientific workflow -- the Snakefile's default
-# target -- and assert the tracked tree is untouched.
+# target -- and assert the tracked tree is untouched. The target runs after
+# every other step, the opt-in explorations included, and its last rule is
+# the tree check, so the check sees what each of them did (AUD-036).
 #
 # What this proves: the VTK, OpenUSD, OpenMDAO and SALib integrations are
 # deterministic, fail closed without their packages, and leave the tracked
@@ -53,13 +55,16 @@ jobs:
           uv run python -m pytest tests/test_scientific_integrations.py \
             tests/test_sensitivity_cross_check.py \
             tests/test_harness_integrations.py -q
-      - name: the generic scientific workflow (the default target)
-        run: uv run snakemake --cores 1
       - name: the opt-in explorations, where their packages are installed
         if: matrix.extras == 'full'
         run: |
           uv run snakemake --cores 1 uq_sobol
           uv run snakemake --cores 1 mdao_doe
+      - name: the generic scientific workflow (the default target)
+        # The last step that runs anything: the target's last rule checks
+        # the tracked tree, and the step below reads that check's report, so
+        # what a step after this one did to the tree would go unseen.
+        run: uv run snakemake --cores 1
       - name: tracked tree untouched
         run: |
           uv run python - <<'PY'

@@ -19,6 +19,7 @@ rather than claiming the controls deployed.
 from __future__ import annotations
 
 import copy
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -126,6 +127,22 @@ def test_each_rule_reports_its_own_violation(tree, edit, why):
     found = _broken(tree, edit)
     assert any(why in f for f in found), found
 
+
+
+def test_the_header_says_where_the_gate_is(tree):
+    """AUD-037. The header told a reader that the gate was in the action and
+    not in this file, after D-2026-146 had put it in the job's condition.
+    The header is where a maintainer reads what allowed_non_write_users
+    would open, so it names the gate the job applies, association by
+    association."""
+    text = (ROOT / ".github" / "workflows" / "claude.yml").read_text(
+        encoding="utf-8")
+    header = text.split("\nname:", 1)[0]
+    assert "not in this file" not in header
+    admitted = set(re.findall(r'"([A-Z_]+)"',
+                              _agent_job(tree)["if"].split("fromJSON", 1)[1]))
+    assert admitted == {"OWNER", "MEMBER", "COLLABORATOR"}
+    assert {a for a in admitted if a in header} == admitted, header
 
 def test_the_agent_and_the_ci_signer_can_never_be_release_identities():
     for wf in (".github/workflows/claude.yml",

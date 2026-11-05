@@ -141,11 +141,14 @@ def attested(doc: dict, deployment=None) -> frozenset:
                      and r["id"] in deployment.rows)
 
 
-def summary(doc: dict, deployment=None) -> dict:
+def summary(doc: dict, deployment=None, root: Path = ROOT) -> dict:
     """The verdict. Met only when no row is blocked, unverified or only
     locally tested, AND every DEPLOYMENT_REQUIRED row is attested by the
     deployment itself (``deployment``, a validated
-    :class:`deployment_evidence.DeploymentEvidence`)."""
+    :class:`deployment_evidence.DeploymentEvidence`), AND the matrix holds:
+    a matrix ``check`` refuses meets nothing, since a HOSTED_TESTED row
+    whose evidence predates its code, or names no run, is not hosted-tested
+    (AUD-038)."""
     counts = {s: 0 for s in STATUSES}
     for r in doc["rows"]:
         counts[r["status"]] += 1
@@ -155,7 +158,10 @@ def summary(doc: dict, deployment=None) -> dict:
                         and r["id"] not in shown)
     met = counts["EXTERNALLY_BLOCKED"] == 0 and counts["UNVERIFIED"] == 0 \
         and counts["IMPLEMENTED"] == 0 and not unattested
+    broken = problems(doc, root)
+    met = met and not broken
     return {"rows": len(doc["rows"]), "by_status": counts,
+            "problems": len(broken),
             "deployment_unattested": unattested,
             "contract_met": met,
             "verdict": ("PRODUCTION_READINESS_CONTRACT_MET" if met else

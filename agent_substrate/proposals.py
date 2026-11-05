@@ -130,6 +130,14 @@ def _walk(obj, where: str, depth: int = 0) -> None:
         for k, v in obj.items():
             if not isinstance(k, str):
                 raise ProposalRefused(f"{where}: a non-string key")
+            # A key is a string a proposal carries, as a value is: a free-
+            # form map takes any key, so a credential written as one was
+            # sealed, received and logged (AUD-041). Checked before the key
+            # reaches any message, since the key is the credential.
+            if _CREDENTIAL.search(k):
+                raise ProposalRefused(f"{where}: a key carries what looks "
+                                      "like a credential; refused, and not "
+                                      "stored")
             if k.lower() in FORBIDDEN_KEYS:
                 raise ProposalRefused(
                     f"{where}.{k}: a proposal cannot carry {k!r} -- it is "

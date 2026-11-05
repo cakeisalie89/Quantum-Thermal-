@@ -17,8 +17,10 @@ base fetched, and it skips without it, unless ``HARNESS_HISTORY_REQUIRED=1``
 """
 from __future__ import annotations
 
+import collections
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -153,3 +155,67 @@ def test_the_committed_ledger_agrees_with_git():
                         "checkout, and HARNESS_HISTORY_REQUIRED=1")
         pytest.skip(f"merge base {doc['base']} not fetched (shallow)")
     assert A.problems(doc) == []
+
+
+REPORT = ROOT / "docs" / "audit" / "AUDIT_REPORT.md"
+_MODULE = re.compile(r"agent_substrate/[^/]+\.py")
+
+
+def _report_coverage(text: str) -> dict:
+    """What the report's coverage ledger says: the files and dispositions,
+    and the changed agent_substrate modules read in full and in part."""
+    sec = text.split("## 1. Coverage ledger", 1)[1].split("\n## ", 1)[0]
+    files = re.search(r"The pull request changes (\d+) files", sec)
+    mods = re.search(r"Of the (\d+) changed `agent_substrate` modules, "
+                     r"(\d+) have been read", sec)
+
+    def listed(kind):
+        m = re.search(rf"^- {kind}: (.*)$", sec, re.M)
+        return set(re.findall(r"`([^`]+)`", m.group(1))) if m else None
+
+    return {"files": int(files.group(1)) if files else None,
+            "table": {m.group(1): int(m.group(2)) for m in re.finditer(
+                r"^\| ([A-Z_]+) \| (\d+) \|", sec, re.M)},
+            "modules": (int(mods.group(1)), int(mods.group(2)))
+            if mods else None,
+            "in full": listed("in full"), "in part": listed("in part")}
+
+
+def _ledger_coverage(doc: dict) -> dict:
+    mods = [e for e in doc["entries"]
+            if _MODULE.fullmatch(e["path"]) and e["change"] != "DELETED"]
+
+    def read(status):
+        return {Path(e["path"]).stem for e in mods if e["status"] == status}
+
+    return {"files": len(doc["entries"]),
+            "table": dict(collections.Counter(
+                e["status"] for e in doc["entries"])),
+            "modules": (len(mods), len(read("REVIEWED_IN_FULL"))
+                        + len(read("REVIEWED_IN_PART"))),
+            "in full": read("REVIEWED_IN_FULL"),
+            "in part": read("REVIEWED_IN_PART")}
+
+
+def test_the_report_states_the_coverage_the_ledger_holds():
+    """D-2026-193. The report's coverage ledger is where a reader learns
+    the audit's reach, and nothing held it to the ledger: it said 60 files
+    read in full and 874 not reviewed while the ledger held 65 and 867, and
+    left a module read in full off its list. It is held count by count and
+    module by module."""
+    assert _report_coverage(REPORT.read_text(encoding="utf-8")) == \
+        _ledger_coverage(A.load())
+
+
+def test_a_report_count_the_ledger_does_not_hold_is_found():
+    """CONTROL for the test above: the comparison reads every part it
+    holds, so one count or one module moved is a difference."""
+    text = REPORT.read_text(encoding="utf-8")
+    now = _report_coverage(text)
+    n = now["table"]["NOT_REVIEWED"]
+    moved = text.replace(f"| NOT_REVIEWED | {n} |",
+                         f"| NOT_REVIEWED | {n + 1} |", 1)
+    assert _report_coverage(moved)["table"] != now["table"]
+    dropped = text.replace("`research`, ", "", 1)
+    assert _report_coverage(dropped)["in full"] == now["in full"] - {
+        "research"}

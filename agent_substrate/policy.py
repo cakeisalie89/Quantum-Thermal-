@@ -94,6 +94,7 @@ for the version that is missing.
 """
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -384,13 +385,24 @@ class PolicyDocument:
             reason="no rule matched; the default is deny")
 
 
+def _finite(v) -> bool:
+    """A real number a float holds. ``math.isfinite`` raises OverflowError
+    on an int too large for a float, which a JSON record can carry
+    (AUD-039)."""
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
+
+
 def document(*, policy_id: str, version: int, rules,
              description: str = "",
              not_after: float | None = None) -> PolicyDocument:
     """Construct a document, validating shape and rule-id uniqueness."""
     if not_after is not None and (
             isinstance(not_after, bool)
-            or not isinstance(not_after, (int, float)) or not_after <= 0):
+            or not isinstance(not_after, (int, float)) or not_after <= 0
+            or not _finite(not_after)):
         raise PolicyError(f"not_after must be seconds since the epoch, got "
                           f"{not_after!r}")
     if not isinstance(policy_id, str) or not policy_id:

@@ -46,6 +46,7 @@ from __future__ import annotations
 import hashlib
 import errno
 import json
+import math
 import os
 import stat
 import tempfile
@@ -75,6 +76,16 @@ CHUNK_BYTES = 1024 * 1024
 #: Fan-out width. 256 top-level directories keeps any one directory small
 #: enough that listing it stays cheap on ordinary filesystems.
 _FANOUT = 2
+
+
+def _finite(v) -> bool:
+    """A real number a float holds. ``math.isfinite`` raises OverflowError
+    on an int too large for a float, which a JSON sidecar can carry
+    (AUD-039)."""
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
 
 
 class EvidenceError(Exception):
@@ -444,7 +455,8 @@ class EvidenceStore:
                 fs = rec.get("first_seen")
                 if isinstance(mt, str) and mt:
                     media_type = mt
-                if isinstance(fs, (int, float)) and not isinstance(fs, bool):
+                if isinstance(fs, (int, float)) and not isinstance(fs, bool) \
+                        and _finite(fs):
                     first_seen = float(fs)
         return BlobInfo(dgs, len(content), media_type, first_seen)
 

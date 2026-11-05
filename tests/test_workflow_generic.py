@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 import repo_content_audit as RCA  # noqa: E402
+import workflow_contract as WC  # noqa: E402
 
 SNAKEFILE = ROOT / "Snakefile"
 _RULE = re.compile(r"^rule (\w+):", re.M)
@@ -158,3 +159,35 @@ def test_the_generic_default_target_runs_the_end_to_end_demonstration():
     src = (ROOT / "tools" / "harness_demo.py").read_text(encoding="utf-8")
     assert "THE NEGATIVE TWIN WAS NOT REJECTED" in src
     assert "return 0 if rep[\"accepted\"] else 1" in src
+
+
+#: The default target's step in stack-verify: the target named by no target.
+_DEFAULT_RUN = re.compile(r"^\s*uv run snakemake --cores 1\s*$", re.M)
+
+
+def _after_the_tree_check(steps: list) -> list:
+    """The steps stack-verify runs between its tree check, the default
+    target's last rule, and its last step, which reads that check's report.
+    What they do to the tracked tree, the report cannot have seen."""
+    runs = [str(s.get("run", "")) for s in steps]
+    default = [i for i, r in enumerate(runs) if _DEFAULT_RUN.search(r)]
+    readers = [i for i, r in enumerate(runs) if "tree_untouched.json" in r]
+    assert len(default) == 1, f"the default target runs at steps {default}"
+    assert readers == [len(steps) - 1], (
+        f"the report is read at steps {readers} of {len(steps)}")
+    return [s.get("name") or s.get("uses") for s in steps[default[0] + 1:-1]]
+
+
+def test_ci_checks_the_tree_after_every_step_it_runs():
+    """AUD-036. stack-verify's last step reads the report of the default
+    target's tree check, so the target runs after every other step: the
+    opt-in explorations ran after it, and what OpenMDAO and SALib did to the
+    tracked tree was not checked, while the report still said untouched."""
+    steps = WC._load_workflows()["stack-verify.yml"]["jobs"]["stack-verify"][
+        "steps"]
+    assert _after_the_tree_check(steps) == []
+    # CONTROL: the order the audit found is reported.
+    i = next(k for k, s in enumerate(steps)
+             if "uq_sobol" in str(s.get("run", "")))
+    found = steps[:i] + steps[i + 1:-1] + [steps[i], steps[-1]]
+    assert _after_the_tree_check(found) == [steps[i]["name"]]
