@@ -1,0 +1,128 @@
+{
+  "title": "Memory trust: six properties, each answered for its own reason",
+  "note": "D-2026-158 (findings M-1, M-2). Each mutation collapses one property into another, reopens M-1 in the primary memory store, or reopens M-2 in the independent reader. The suite breaks one property at a time and checks the assessment names that property, and only that one.",
+  "suites": [
+    "tests/test_memory_trust.py"
+  ],
+  "mutations": [
+    {
+      "name": "MT1_any_author_may_be_named",
+      "path": "agent_substrate/memory.py",
+      "find": "            if entry.author != ev.actor:\n                # M-1",
+      "replace": "            if False:\n                # M-1",
+      "rationale": "M-1 reopened: an entry appended by one actor in another's name is projected, and recall hands it back as the named author's"
+    },
+    {
+      "name": "MT2_a_name_is_taken_as_authentication",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "        answers[\"authenticated_actor\"] = Answer(\n            NOT_ESTABLISHED,",
+      "replace": "        answers[\"authenticated_actor\"] = Answer(\n            YES,",
+      "rationale": "an actor named by an unsigned record reads as authenticated"
+    },
+    {
+      "name": "MT3_the_appender_is_not_compared",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "    if entry.get(\"author\") != ev.actor:\n        answers[\"authenticated_actor\"]",
+      "replace": "    if False:\n        answers[\"authenticated_actor\"]",
+      "rationale": "an entry naming somebody other than its appender is not reported as such"
+    },
+    {
+      "name": "MT4_a_missing_citation_supports",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "        missing = [d for d in digests if not evidence.contains(d)]",
+      "replace": "        missing = []",
+      "rationale": "a digest the evidence store does not hold, or that no longer verifies, counts as support"
+    },
+    {
+      "name": "MT5_no_citation_is_support",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "        answers[\"evidence_supported\"] = Answer(\n            NOT_ESTABLISHED, \"the entry cites no evidence\")",
+      "replace": "        answers[\"evidence_supported\"] = Answer(\n            YES, \"the entry cites no evidence\")",
+      "rationale": "an entry that cites nothing is called evidence-supported"
+    },
+    {
+      "name": "MT6_the_view_is_not_compared",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "        elif view is not None and _view_status(view, memory_id) != status:",
+      "replace": "        elif False:",
+      "rationale": "a projection loaded before a retraction is taken to agree with the log"
+    },
+    {
+      "name": "MT7_the_second_reader_is_not_asked",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "        if second is None or flagged:",
+      "replace": "        if False:",
+      "rationale": "an entry the independent reader refuses or does not hold reads as consistently reconstructed"
+    },
+    {
+      "name": "MT8_a_broken_chain_is_consistent",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "    if not report.ok:\n        return Answer(NO,",
+      "replace": "    if False:\n        return Answer(NO,",
+      "rationale": "an omitted event or truncated tail reads as hash-consistent"
+    },
+    {
+      "name": "MT9_a_memory_is_a_fact",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "    answers[\"factually_established\"] = Answer(\n        NOT_ESTABLISHED,\n        \"a memory is never evidence;",
+      "replace": "    answers[\"factually_established\"] = Answer(\n        answers[\"evidence_supported\"].value,\n        \"a memory is never evidence;",
+      "rationale": "a memory that cites resolving evidence is reported as an established fact"
+    },
+    {
+      "name": "MT10_a_broken_chain_still_answers",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "        for prop in PROPERTIES[1:]:\n            answers[prop] = Answer(NO if prop",
+      "replace": "        for prop in ():\n            answers[prop] = Answer(NO if prop",
+      "rationale": "a history that does not verify is still read, and its entries answered for"
+    },
+    {
+      "name": "MT11_the_authenticator_is_not_consulted",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "            if ev.seq in report.refused else",
+      "replace": "            if False else",
+      "rationale": "a write the authenticator refuses is reported as authenticated"
+    },
+    {
+      "name": "MT12_the_chain_is_read_through_the_profile_gate",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "    def _security_gate(self, events, problems, *, whole):\n        return events\n",
+      "replace": "    pass\n",
+      "rationale": "an authentication failure is reported as a broken chain, and the two properties collapse into one"
+    },
+    {
+      "name": "MT13_a_non_author_may_withdraw_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if new in _MEMORY_AUTHORS_OWN and ev.actor != cur[\"author\"]:",
+      "replace": "    if False:",
+      "rationale": "M-2 reopened: the independent reader takes a retraction or supersession by somebody other than the author"
+    },
+    {
+      "name": "MT14_any_move_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if new != cur[\"status\"] and new not in _MEMORY_EDGES[cur[\"status\"]]:",
+      "replace": "    if False:",
+      "rationale": "M-2 reopened: the independent reader takes a STALE note made ACTIVE again"
+    },
+    {
+      "name": "MT15_any_status_at_birth_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if status not in _MEMORY_EDGES:\n        _note(out, ev, f\"memory {mid!r} is written with unknown status \"",
+      "replace": "    if False:\n        _note(out, ev, f\"memory {mid!r} is written with unknown status \"",
+      "rationale": "the independent reader projects an entry born with a status no store has"
+    },
+    {
+      "name": "MT16_an_unknown_status_escapes_as_a_raw_error",
+      "path": "agent_substrate/memory.py",
+      "find": "            except ValueError:\n                raise MemoryError_(\n                    f\"seq {ev.seq}: {mid!r} is moved to unknown status \"",
+      "replace": "            except KeyError:\n                raise MemoryError_(\n                    f\"seq {ev.seq}: {mid!r} is moved to unknown status \"",
+      "rationale": "an unknown status escapes load() as a raw ValueError, past every caller that handles a refusal"
+    },
+    {
+      "name": "MT17_an_unknown_memory_escapes_as_a_raw_error",
+      "path": "agent_substrate/memory.py",
+      "find": "            cur = self._entries.get(mid)\n            if cur is None:",
+      "replace": "            cur = self._entries[mid]\n            if cur is None:",
+      "rationale": "a status change for an unknown memory escapes load() as a raw KeyError"
+    }
+  ]
+}

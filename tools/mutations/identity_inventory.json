@@ -1,0 +1,100 @@
+{
+  "title": "The identity inventory: the measurement, and the checker's refusals",
+  "note": "P0-R13 (D-2026-28). The independent-reader coverage number was measured by asking whether an action's name appeared anywhere in reconstruct.py's TEXT. A name in the module docstring that lists what the reader does NOT cover, in an anomaly message, or in a comment saying something is deliberately unhandled all counted as coverage; a handler written with single quotes counted as nothing. The answer it gave happened to be right, which is the state this repository treats as a defect: nothing would have said so when it stopped being. It is read from the parse tree now, and only from positions that decide which branch runs. I1-I6 attack that measurement. I7-I13 attack the checker's own refusals, which were almost entirely unexercised -- for a file whose whole job is to refuse, a branch nobody has seen fire is a branch nobody knows fires.",
+  "suites": [
+    "tests/test_identity_inventory.py"
+  ],
+  "mutations": [
+    {
+      "name": "I1_coverage_is_measured_by_string_presence_again",
+      "path": "tools/identity_inventory.py",
+      "find": "        if action in dispatched:",
+      "replace": "        if action in src:",
+      "rationale": "the exact defect P0-R13 is about, restored: an action named in a comment or a docstring counts as independently reconstructed"
+    },
+    {
+      "name": "I2_a_comparison_is_not_a_dispatch_position",
+      "path": "tools/identity_inventory.py",
+      "find": "        if isinstance(node, ast.Compare):",
+      "replace": "        if False:",
+      "rationale": "an ``action == \"x\"`` handler stops counting, so coverage is understated and the number stops meaning what the inventory says it means"
+    },
+    {
+      "name": "I3_a_membership_vocabulary_is_not_a_dispatch_position",
+      "path": "tools/identity_inventory.py",
+      "find": "        elif isinstance(node, (ast.Set, ast.List, ast.Tuple)):",
+      "replace": "        elif False:",
+      "rationale": "the sets the second reader's ``in`` tests are written against stop counting, which is how almost all of its dispatch is spelled"
+    },
+    {
+      "name": "I4_a_dispatch_table_key_is_not_a_dispatch_position",
+      "path": "tools/identity_inventory.py",
+      "find": "        elif isinstance(node, ast.Dict):",
+      "replace": "        elif False:",
+      "rationale": "a table-driven handler becomes invisible to the measurement"
+    },
+    {
+      "name": "I5_a_name_present_but_unhandled_is_reported_as_absent",
+      "path": "tools/identity_inventory.py",
+      "find": "        elif action in src:",
+      "replace": "        elif False:",
+      "rationale": "the category that exists to make 'somebody might believe this is covered' visible collapses into 'not there at all'"
+    },
+    {
+      "name": "I6_the_mentioned_but_unhandled_report_is_always_empty",
+      "path": "tools/identity_inventory.py",
+      "find": "            if kind == MENTIONED}",
+      "replace": "            if False}",
+      "rationale": "the report is silent about exactly the case it was added for"
+    },
+    {
+      "name": "I7_overstated_reader_coverage_is_not_refused",
+      "path": "tools/identity_inventory.py",
+      "find": "    if recorded != actual:",
+      "replace": "    if False:",
+      "rationale": "the inventory may claim an action is independently reconstructed when nothing reconstructs it, which is the claim this whole file exists to measure"
+    },
+    {
+      "name": "I8_an_ACTOR_field_may_name_a_test_that_does_not_exist",
+      "path": "tools/identity_inventory.py",
+      "find": "        if f\"def {name}(\" in f.read_text(encoding=\"utf-8\"):",
+      "replace": "        if True:",
+      "rationale": "a plausible-sounding test name is accepted as a binding, which is the defect that produced five of them in the first draft"
+    },
+    {
+      "name": "I9_an_ACTOR_field_need_not_record_a_write_path_or_a_replay",
+      "path": "tools/identity_inventory.py",
+      "find": "                    if not fld.get(key):",
+      "replace": "                    if False:",
+      "rationale": "an actor-bearing field is classified without saying where it is written or how it is replayed, so the classification stops being checkable"
+    },
+    {
+      "name": "I10_a_role_the_schema_does_not_define_is_accepted",
+      "path": "tools/identity_inventory.py",
+      "find": "            if role not in ROLES:",
+      "replace": "            if False:",
+      "rationale": "a field may be classified with an invented role, and the four categories stop partitioning anything"
+    },
+    {
+      "name": "I11_an_action_recorded_in_the_wrong_module_is_accepted",
+      "path": "tools/identity_inventory.py",
+      "find": "        if e.get(\"module\") != actions[act]:",
+      "replace": "        if False:",
+      "rationale": "the table may describe a past layout of the package, which is how a review reads the wrong file"
+    },
+    {
+      "name": "I12_no_durable_action_is_discovered_at_all",
+      "path": "tools/identity_inventory.py",
+      "find": "            if not (isinstance(node, ast.Assign) and len(node.targets) == 1):",
+      "replace": "            if True:",
+      "rationale": "the universe being classified is empty, and a checker asked to classify nothing agrees with everything"
+    },
+    {
+      "name": "I13_every_module_level_string_constant_is_a_durable_action",
+      "path": "tools/identity_inventory.py",
+      "find": "                    and target.id.startswith(\"ACT_\")",
+      "replace": "                    and target.id.startswith(\"\")",
+      "rationale": "the action list fills with constants that are not actions, so 'every durable action is classified' becomes a statement about something else"
+    }
+  ]
+}

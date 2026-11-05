@@ -1,0 +1,65 @@
+{
+ "title": "No key without a secret, no encoding that is no point (AUD-026)",
+ "note": "Stage 5. ED1 puts back the reference code's unreduced x^2, so y = p - 1 with the sign bit decodes; ED2 and ED5 let either verifier take a key of small order; ED3, ED6 and ED7 let either registry hold one, or a non-point; ED4 tests order four, so the four points of order eight pass; ED8 skips decoding. tests/test_ed25519_encodings.py holds each against both implementations.",
+ "suites": [
+  "tests/test_ed25519_encodings.py"
+ ],
+ "mutations": [
+  {
+   "name": "ED1_x2_unreduced",
+   "path": "agent_substrate/ed25519.py",
+   "find": "    x2 = (y * y - 1) * _inv(_D * y * y + 1) % P",
+   "replace": "    x2 = (y * y - 1) * _inv(_D * y * y + 1)",
+   "rationale": "the RFC reference code's quirk: x = 0 with the sign bit set decodes as (0, -1)"
+  },
+  {
+   "name": "ED2_verify_takes_small_order_keys",
+   "path": "agent_substrate/ed25519.py",
+   "find": "    if a_pt is None or r_pt is None or _small_order(a_pt):",
+   "replace": "    if a_pt is None or r_pt is None:",
+   "rationale": "a signature nobody made verifies under a key of small order"
+  },
+  {
+   "name": "ED3_the_registry_holds_any_key",
+   "path": "agent_substrate/principals.py",
+   "find": "            why = ed25519.public_key_problem(k.public)",
+   "replace": "            why = None",
+   "rationale": "a principal is registered under a key anyone can sign with"
+  },
+  {
+   "name": "ED4_small_order_by_four",
+   "path": "agent_substrate/ed25519.py",
+   "find": "    return _equal(_mul(8, pt), _IDENTITY)",
+   "replace": "    return _equal(_mul(4, pt), _IDENTITY)",
+   "rationale": "the four points of order eight are taken for keys"
+  },
+  {
+   "name": "ED5_restated_verify_takes_small_order_keys",
+   "path": "tools/verify_assurance.py",
+   "find": "    if a is None or r is None or s >= _ED_L or _ed_small(a):",
+   "replace": "    if a is None or r is None or s >= _ED_L:",
+   "rationale": "the restated verifier accepts a signature nobody made"
+  },
+  {
+   "name": "ED6_restated_registry_takes_small_order",
+   "path": "tools/verify_assurance.py",
+   "find": "        if _ed_small(point):",
+   "replace": "        if False:",
+   "rationale": "the portable verifier reads a registry holding a key anyone can sign with"
+  },
+  {
+   "name": "ED7_restated_registry_takes_non_points",
+   "path": "tools/verify_assurance.py",
+   "find": "        point = _ed_point(public)\n",
+   "replace": "        point = _ed_point(public) or _ED_B\n",
+   "rationale": "an encoding that is no point is read as the base point, and held"
+  },
+  {
+   "name": "ED8_public_key_problem_skips_decoding",
+   "path": "agent_substrate/ed25519.py",
+   "find": "    if pt is None:\n        return \"not the canonical encoding of a curve point\"",
+   "replace": "    if pt is None:\n        return None",
+   "rationale": "a non-point is reported as no problem"
+  }
+ ]
+}

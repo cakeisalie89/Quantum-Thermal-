@@ -1,0 +1,170 @@
+{
+ "title": "Independent witnesses to the log's head: monotonic, linked, verified against a trust root",
+ "note": "Assurance E (D-2026-170). Each mutation deletes one rule of the witness (rollback, fork, the proof's hashing, numbering, length, linking and end, persist-before-answer, no trust on first use, provisioning) or of the verifier (signatures, origin, truncation, fork, quorum, distinct witnesses, staleness, the trust root's log, the signed time). tests/test_witness.py holds each with a control.",
+ "suites": [
+  "tests/test_witness.py"
+ ],
+ "mutations": [
+  {
+   "name": "WT1_a_witness_rolls_back",
+   "path": "agent_substrate/witness.py",
+   "find": "        if new.seq < last.seq:\n            raise Rollback(",
+   "replace": "        if False:\n            raise Rollback(",
+   "rationale": "Assurance E (D-2026-170): a witness cosigns a head below one it cosigned"
+  },
+  {
+   "name": "WT2_a_witness_cosigns_two_heads_at_one_position",
+   "path": "agent_substrate/witness.py",
+   "find": "            if new.head != last.head:\n                raise Fork(",
+   "replace": "            if False:\n                raise Fork(",
+   "rationale": "Assurance E (D-2026-170): a witness cosigns a fork at a position it already cosigned"
+  },
+  {
+   "name": "WT3_records_need_not_link",
+   "path": "agent_substrate/witness.py",
+   "find": "            if ev.prev_hash != prev:\n                raise Fork(",
+   "replace": "            if False:\n                raise Fork(",
+   "rationale": "Assurance E (D-2026-170): a rewritten history is cosigned as an extension"
+  },
+  {
+   "name": "WT4_records_need_not_hash",
+   "path": "agent_substrate/witness.py",
+   "find": "            if ev.recompute_hash() != ev.hash:",
+   "replace": "            if False:",
+   "rationale": "Assurance E (D-2026-170): an altered record is accepted in a proof"
+  },
+  {
+   "name": "WT5_records_need_not_be_numbered",
+   "path": "agent_substrate/witness.py",
+   "find": "            if ev.seq != want:",
+   "replace": "            if False:",
+   "rationale": "Assurance E (D-2026-170): a misnumbered or reordered proof is accepted"
+  },
+  {
+   "name": "WT6_any_number_of_records",
+   "path": "agent_substrate/witness.py",
+   "find": "        if not isinstance(proof, list) or len(proof) != new.seq - last.seq:",
+   "replace": "        if not isinstance(proof, list):",
+   "rationale": "Assurance E (D-2026-170): a short or padded proof is accepted"
+  },
+  {
+   "name": "WT7_the_records_need_not_reach_the_head",
+   "path": "agent_substrate/witness.py",
+   "find": "        if prev != new.head:\n            raise WitnessError(",
+   "replace": "        if False:\n            raise WitnessError(",
+   "rationale": "Assurance E (D-2026-170): a witness cosigns a head the records do not reach"
+  },
+  {
+   "name": "WT8_a_witness_forgets_what_it_cosigned",
+   "path": "agent_substrate/witness.py",
+   "find": "        self._extends(last, new, proof)\n        self._store(new)\n        return self._cosign(new)",
+   "replace": "        self._extends(last, new, proof)\n        return self._cosign(new)",
+   "rationale": "Assurance E (D-2026-170): a witness cosigns and keeps no record of it"
+  },
+  {
+   "name": "WT9_a_witness_answers_before_it_remembers",
+   "path": "agent_substrate/witness.py",
+   "find": "        self._extends(last, new, proof)\n        self._store(new)\n        return self._cosign(new)",
+   "replace": "        self._extends(last, new, proof)\n        c = self._cosign(new)\n        self._store(new)\n        return c",
+   "rationale": "Assurance E (D-2026-170): a crash after answering leaves a cosignature the witness forgot"
+  },
+  {
+   "name": "WT10_a_witness_trusts_on_first_use",
+   "path": "agent_substrate/witness.py",
+   "find": "        except FileNotFoundError:\n            raise WitnessError(",
+   "replace": "        except FileNotFoundError:\n            return Checkpoint(origin, 0, origin.rsplit(\"/\", 1)[1])\n            raise WitnessError(",
+   "rationale": "Assurance E (D-2026-170): a witness that lost its state accepts whatever it is shown next"
+  },
+  {
+   "name": "WT11_a_witness_is_provisioned_twice",
+   "path": "agent_substrate/witness.py",
+   "find": "        if self._path(genesis.origin).exists():\n            raise WitnessError(",
+   "replace": "        if False:\n            raise WitnessError(",
+   "rationale": "Assurance E (D-2026-170): re-provisioning silently resets what a witness cosigned"
+  },
+  {
+   "name": "WT12_a_witness_is_provisioned_mid_log",
+   "path": "agent_substrate/witness.py",
+   "find": "        if genesis.seq != 0 or not genesis.origin.endswith(\"/\" + genesis.head):",
+   "replace": "        if False:",
+   "rationale": "Assurance E (D-2026-170): a witness is started from a head it never saw extended"
+  },
+  {
+   "name": "WT13_signatures_are_not_checked",
+   "path": "agent_substrate/witness.py",
+   "find": "        if not provider.verify(root.witnesses[c.witness_id], c.message(),\n                               sig):",
+   "replace": "        if False:",
+   "rationale": "Assurance E (D-2026-170): a forged, moved or retimed cosignature counts"
+  },
+  {
+   "name": "WT14_another_log_s_cosignature_counts",
+   "path": "agent_substrate/witness.py",
+   "find": "        if cp.origin != root.origin:\n            out.notes.append(",
+   "replace": "        if False:\n            out.notes.append(",
+   "rationale": "Assurance E (D-2026-170): a cosignature of another log vouches for this one"
+  },
+  {
+   "name": "WT15_truncation_is_a_note",
+   "path": "agent_substrate/witness.py",
+   "find": "            out.problems.append(\n                f\"TRUNCATED:",
+   "replace": "            out.notes.append(\n                f\"TRUNCATED:",
+   "rationale": "Assurance E (D-2026-170): a log cut below a cosigned position passes"
+  },
+  {
+   "name": "WT16_a_fork_is_a_note",
+   "path": "agent_substrate/witness.py",
+   "find": "            out.problems.append(\n                f\"FORKED:",
+   "replace": "            out.notes.append(\n                f\"FORKED:",
+   "rationale": "Assurance E (D-2026-170): a log rewritten below a cosigned position passes"
+  },
+  {
+   "name": "WT17_one_witness_is_a_quorum",
+   "path": "agent_substrate/witness.py",
+   "find": "        out.witnessed_through = reach[root.quorum - 1]",
+   "replace": "        out.witnessed_through = reach[0]",
+   "rationale": "Assurance E (D-2026-170): the most generous witness speaks for the quorum"
+  },
+  {
+   "name": "WT18_one_witness_counts_twice",
+   "path": "agent_substrate/witness.py",
+   "find": "            best[c.witness_id] = (cp.seq, c.time)",
+   "replace": "            best[c.signature] = (cp.seq, c.time)",
+   "rationale": "Assurance E (D-2026-170): one witness's two cosignatures make a quorum of two"
+  },
+  {
+   "name": "WT19_no_lag_is_too_long",
+   "path": "agent_substrate/witness.py",
+   "find": "    if max_lag is not None and out.unwitnessed > max_lag:",
+   "replace": "    if False:",
+   "rationale": "Assurance E (D-2026-170): an unwitnessed suffix of any length passes"
+  },
+  {
+   "name": "WT20_no_cosignature_is_too_old",
+   "path": "agent_substrate/witness.py",
+   "find": "        if newest is None or at - newest > max_age_s:",
+   "replace": "        if newest is None:",
+   "rationale": "Assurance E (D-2026-170): a witness silent for any time passes"
+  },
+  {
+   "name": "WT21_the_trust_root_s_log_is_not_checked",
+   "path": "agent_substrate/witness.py",
+   "find": "    if events and origin_of(root.origin.rsplit(\"/\", 1)[0], events) != \\\n            root.origin:",
+   "replace": "    if False:",
+   "rationale": "Assurance E (D-2026-170): a trust root for another log is applied to this one"
+  },
+  {
+   "name": "WT22_the_origin_is_a_name_alone",
+   "path": "agent_substrate/witness.py",
+   "find": "    return f\"{name}/{events[0].hash}\"",
+   "replace": "    return f\"{name}/\" + \"0\" * 64",
+   "rationale": "Assurance E (D-2026-170): two logs of one name share every checkpoint"
+  },
+  {
+   "name": "WT23_the_time_is_not_signed",
+   "path": "agent_substrate/witness.py",
+   "find": "    return f\"{SCHEME}\\ntime {t}\\n\".encode() + cp.text()",
+   "replace": "    return f\"{SCHEME}\\n\".encode() + cp.text()",
+   "rationale": "Assurance E (D-2026-170): a cosignature's time can be changed without its key"
+  }
+ ]
+}

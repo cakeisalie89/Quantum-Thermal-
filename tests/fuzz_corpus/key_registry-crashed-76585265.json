@@ -1,0 +1,8 @@
+{
+  "detail": "TypeError: 'int' object is not iterable",
+  "input_b64": "eyJrZXlzIjogLTEsICJzY2hlbWEiOiAicXRhLWFnZW50L2tleS1yZWdpc3RyeS92MSJ9",
+  "kind": "CRASHED",
+  "seed": 20260927,
+  "target": "key_registry",
+  "traceback": "Traceback (most recent call last):\n  File \"<export of the CB tree>/tools/fuzz_substrate.py\", line 834, in run_case\n    fn(data)\n  File \"<export of the CB tree>/tools/fuzz_substrate.py\", line 502, in _key_registry\n    reg = pr.KeyRegistry.from_document(doc, allow_test_keys=True)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<export of the CB tree>/qta_agent/principals.py\", line 162, in from_document\n    for entry in doc.get(\"keys\") or ():\nTypeError: 'int' object is not iterable\n"
+}

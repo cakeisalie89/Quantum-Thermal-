@@ -1,0 +1,51 @@
+{
+ "title": "The counterfactual cases tell the loop from a rubber stamp, its mirror and a rule that never decides",
+ "note": "Phase D. CE1 to CE3 make the counterfactual harness vacuous: an answer that is always the task's, a case run at the documented point whatever its world asks, a case too close to call judged anyway. CE4 makes the system a rubber stamp: the research ledger calls every decided hypothesis SUPPORTED. tests/test_counterfactual_eval.py holds each; the evaluation's single task, whose answer is SUPPORTED, passes under CE4. Stage 3: CE5 is the stamp's mirror, every decided hypothesis REFUTED, and CE6 a ledger that never decides; the same three are held by the RC network's family in tools/mutations/rc_counterfactuals.json (RCF1 to RCF3), so each wrong verdict rule fails both families.",
+ "suites": [
+  "tests/test_counterfactual_eval.py"
+ ],
+ "mutations": [
+  {
+   "name": "CE1_the_answer_is_always_supported",
+   "path": "tools/adversarial_eval.py",
+   "find": "    return exact, \"SUPPORTED\" if exact < threshold else \"REFUTED\"",
+   "replace": "    return exact, \"SUPPORTED\"",
+   "rationale": "every case's answer is the task's, so the cases can no longer tell a rubber stamp from the loop"
+  },
+  {
+   "name": "CE2_the_case_runs_at_the_documented_point",
+   "path": "tools/adversarial_eval.py",
+   "find": "        hypothesis=hyp, run={**SLAB_RUN, \"parameters\": params}),",
+   "replace": "        hypothesis=hyp, run=SLAB_RUN),",
+   "rationale": "the agent runs the slab at the documented point whatever the case's world asks"
+  },
+  {
+   "name": "CE3_no_margin",
+   "path": "tools/adversarial_eval.py",
+   "find": "    if abs(exact - threshold) < MARGIN_K:",
+   "replace": "    if False:",
+   "rationale": "a case nearer its threshold than the model's error is judged as if it were clear"
+  },
+  {
+   "name": "CE4_every_verdict_supported",
+   "path": "agent_substrate/research.py",
+   "find": "        verdicts.add(\"SUPPORTED\" if holds[op] else\n                     \"REFUTED\" if fails[op] else \"INCONCLUSIVE\")",
+   "replace": "        verdicts.add(\"SUPPORTED\" if holds[op] or fails[op] else\n                     \"INCONCLUSIVE\")",
+   "rationale": "the research ledger calls every decided hypothesis SUPPORTED: a rubber stamp the evaluation's single task cannot see"
+  },
+  {
+   "name": "CE5_every_verdict_refuted",
+   "path": "agent_substrate/research.py",
+   "find": "        verdicts.add(\"SUPPORTED\" if holds[op] else\n                     \"REFUTED\" if fails[op] else \"INCONCLUSIVE\")",
+   "replace": "        verdicts.add(\"REFUTED\" if holds[op] or fails[op] else\n                     \"INCONCLUSIVE\")",
+   "rationale": "the research ledger calls every decided hypothesis REFUTED: the rubber stamp's mirror"
+  },
+  {
+   "name": "CE6_no_verdict_ever",
+   "path": "agent_substrate/research.py",
+   "find": "        verdicts.add(\"SUPPORTED\" if holds[op] else\n                     \"REFUTED\" if fails[op] else \"INCONCLUSIVE\")",
+   "replace": "        verdicts.add(\"INCONCLUSIVE\")",
+   "rationale": "the research ledger never decides: abstention that nothing justifies"
+  }
+ ]
+}

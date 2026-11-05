@@ -1,0 +1,58 @@
+{
+ "title": "Composed campaigns: each control on a composed path is load-bearing",
+ "note": "Section 7. Each mutation disables one control a K-campaign crosses, in a module other than the one the campaign is about, and the campaign must notice. tests/test_composed_campaigns.py holds each.",
+ "suites": [
+  "tests/test_composed_campaigns.py"
+ ],
+ "mutations": [
+  {
+   "name": "KC1_an_interval_never_lapses",
+   "path": "agent_substrate/freshness.py",
+   "find": "    if at > until:\n        return Standing.UNKNOWN,",
+   "replace": "    if False:\n        return Standing.UNKNOWN,",
+   "rationale": "K1: an outdated reading stays FRESH, and a current-world claim rests on it"
+  },
+  {
+   "name": "KC2_a_conclusion_ignores_lapsed_evidence",
+   "path": "agent_substrate/research.py",
+   "find": "            lapsed = [o for o in self._recs[basis[0]].basis\n                      if not self._usable(o, at)]",
+   "replace": "            lapsed = []",
+   "rationale": "K1: a conclusion is recorded on a verdict whose evidence ran out"
+  },
+  {
+   "name": "KC3_an_observation_from_no_standing_record",
+   "path": "agent_substrate/research.py",
+   "find": "        if sci is None or sci[\"state\"] not in STANDING:\n            raise ResearchError(\n                f\"seq {ev.seq}: {oid!r} is read from",
+   "replace": "        if False:\n            raise ResearchError(\n                f\"seq {ev.seq}: {oid!r} is read from",
+   "rationale": "K2: a remembered note is offered as an observation; without this gate nothing refuses it as research evidence (the test then fails on the missing record rather than a refusal)"
+  },
+  {
+   "name": "KC4_the_gateway_ignores_a_policy_change",
+   "path": "agent_substrate/inference.py",
+   "find": "        if doc.identity != identity:",
+   "replace": "        if False:",
+   "rationale": "K3: a model is called with a context built under a superseded policy"
+  },
+  {
+   "name": "KC5_the_store_accepts_a_superseded_digest",
+   "path": "agent_substrate/policy.py",
+   "find": "        if doc.digest() != rec.get(\"policy_digest\"):\n            raise PolicyError(\n                f\"seq {ev.seq}: decision cites policy digest \"",
+   "replace": "        if False:\n            raise PolicyError(\n                f\"seq {ev.seq}: decision cites policy digest \"",
+   "rationale": "K3: a decision taken under the superseded version replays as if taken under the one in force"
+  },
+  {
+   "name": "KC6_the_second_reader_accepts_a_superseded_digest",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    elif d.get(\"policy_digest\") != versions[-1].get(\"digest\"):",
+   "replace": "    elif False:",
+   "rationale": "K3: the independent reader no longer notices which version a decision cites"
+  },
+  {
+   "name": "KC7_the_witness_comparison_misses_a_fork",
+   "path": "agent_substrate/witness.py",
+   "find": "        if events[cp.seq].hash != cp.head:",
+   "replace": "        if False:",
+   "rationale": "K4: a rewritten history verifies against a cosignature of the original head"
+  }
+ ]
+}

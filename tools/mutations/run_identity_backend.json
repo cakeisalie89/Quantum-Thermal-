@@ -1,0 +1,72 @@
+{
+  "title": "A run on a different numeric backend is a different run",
+  "note": "scientific.run_identity's environment record: the CPU's SIMD set and core, the thread and dispatch variables, and the native build read from each wheel's RECORD -- each shown to change the RunIdentity and make may_reuse refuse, while mitigation flags and unrelated variables do not; read without importing numpy.",
+  "suites": [
+    "tests/test_run_identity_backend.py"
+  ],
+  "mutations": [
+    {
+      "name": "RB1_simd_features_unrecorded",
+      "path": "scientific/run_identity.py",
+      "find": "    return {\"source\": \"cpuinfo\", \"simd\": sorted(flags), \"core\": core}\n",
+      "replace": "    return {\"source\": \"cpuinfo\", \"simd\": [], \"core\": core}\n",
+      "rationale": "a CPU with another SIMD set dispatches another kernel and looks the same"
+    },
+    {
+      "name": "RB2_the_core_unrecorded",
+      "path": "scientific/run_identity.py",
+      "find": "    return {\"source\": \"cpuinfo\", \"simd\": sorted(flags), \"core\": core}\n",
+      "replace": "    return {\"source\": \"cpuinfo\", \"simd\": sorted(flags), \"core\": {}}\n",
+      "rationale": "a BLAS picking kernels for another core looks the same"
+    },
+    {
+      "name": "RB3_every_flag_counts",
+      "path": "scientific/run_identity.py",
+      "find": "            flags |= {f for f in value.split() if _SIMD_FLAG.match(f)}\n",
+      "replace": "            flags |= set(value.split())\n",
+      "rationale": "a microcode mitigation makes every patched host a different machine"
+    },
+    {
+      "name": "RB4_thread_and_dispatch_variables_unrecorded",
+      "path": "scientific/run_identity.py",
+      "find": "            \"backend\": {\"cpu_count\": os.cpu_count(),\n                        \"variables\": {v: environ.get(v)\n                                      for v in BACKEND_VARIABLES}},\n",
+      "replace": "            \"backend\": {\"cpu_count\": os.cpu_count(),\n                        \"variables\": {}},\n",
+      "rationale": "a thread count or a dispatch override changes the digits and not the identity"
+    },
+    {
+      "name": "RB5_the_native_build_unrecorded",
+      "path": "scientific/run_identity.py",
+      "find": "            \"native\": natives,\n",
+      "replace": "            \"native\": {},\n",
+      "rationale": "another native build of the same version is the same run"
+    },
+    {
+      "name": "RB6_native_hashes_ignored",
+      "path": "scientific/run_identity.py",
+      "find": "        declared.update(f\"{f}\\0{f.hash.mode}:{f.hash.value}\\n\".encode())\n",
+      "replace": "        declared.update(f\"{f}\\n\".encode())\n",
+      "rationale": "the native digest names the files and not what they contain"
+    },
+    {
+      "name": "RB7_an_unreadable_cpu_is_any_cpu",
+      "path": "scientific/run_identity.py",
+      "find": "        return {\"source\": \"UNAVAILABLE\", \"host\": platform.node()}\n",
+      "replace": "        return {\"source\": \"UNAVAILABLE\"}\n",
+      "rationale": "two machines whose CPUs cannot be read reuse each other's runs"
+    },
+    {
+      "name": "RB8_only_this_process_environment",
+      "path": "scientific/run_identity.py",
+      "find": "    environ = os.environ if environ is None else environ\n",
+      "replace": "    environ = os.environ\n",
+      "rationale": "the record describes the caller, not the tool that ran"
+    },
+    {
+      "name": "RB9_the_cpu_is_always_this_one",
+      "path": "scientific/run_identity.py",
+      "find": "            \"cpu\": cpu_record(_read_cpuinfo() if cpuinfo is _READ\n                              else cpuinfo),\n",
+      "replace": "            \"cpu\": cpu_record(_read_cpuinfo()),\n",
+      "rationale": "the record cannot describe any CPU but the one it runs on"
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "title": "A governed history is read only with the registries it declares, by every reader",
+  "note": "Stage 1, AUD-020. GH1 to GH6 remove a rule of the log's gate and its declaration: the GOVERNED refusal, either registry's comparison, the strength of a pinned profile, the declaration's shape, and the signed declaration. GH7 and GH8 remove the binding of every role-enforcing reader to its log's registry. GH9 makes the declaration name the wrong registry. GH10 to GH13 remove the independent reader's restatement. tests/test_governed_history.py holds each with a real authenticated history and a principal who is authenticated and not authorized.",
+  "suites": [
+    "tests/test_governed_history.py"
+  ],
+  "mutations": [
+    {
+      "name": "GH1_the_gate_reads_a_governed_history_for_anyone",
+      "path": "agent_substrate/events.py",
+      "find": "        if profile == PROFILE_GOVERNED and nonempty:\n            why = self._governed_refusal(self._declaration)",
+      "replace": "        if False:\n            why = self._governed_refusal(self._declaration)",
+      "rationale": "a GOVERNED history is read by a log holding neither of the registries it declares"
+    },
+    {
+      "name": "GH2_the_key_registry_is_not_compared",
+      "path": "agent_substrate/events.py",
+      "find": "                (\"key\", getattr(self.authenticator, \"registry\", None)),\n",
+      "replace": "                (\"role\", self.roles),\n",
+      "rationale": "a GOVERNED history is read by a log authenticating with another key registry than the one it declares"
+    },
+    {
+      "name": "GH3_the_role_registry_is_not_compared",
+      "path": "agent_substrate/events.py",
+      "find": "                (\"role\", self.roles)):",
+      "replace": "                ):",
+      "rationale": "a GOVERNED history is read by a log holding no role registry, or another"
+    },
+    {
+      "name": "GH4_a_governed_pin_accepts_less",
+      "path": "agent_substrate/events.py",
+      "find": "                and _STRENGTH[profile] < _STRENGTH[self.required_profile]):\n",
+      "replace": "                and profile == PROFILE_UNAUTHENTICATED_LEGACY\n                and self.required_profile == PROFILE_AUTHENTICATED_REQUIRED):\n",
+      "rationale": "a deployment pinning GOVERNED reads a history that declares only AUTHENTICATED_REQUIRED"
+    },
+    {
+      "name": "GH5_a_malformed_governed_declaration_is_accepted",
+      "path": "agent_substrate/events.py",
+      "find": "    if profile == PROFILE_GOVERNED and (\n            set(payload) != _GOVERNED_FIELDS",
+      "replace": "    if False and (\n            set(payload) != _GOVERNED_FIELDS",
+      "rationale": "a GOVERNED declaration missing a field, stating another requirement or a digest that is not one, or carrying a field more, is written and read"
+    },
+    {
+      "name": "GH6_an_unsigned_governed_declaration_is_written",
+      "path": "agent_substrate/events.py",
+      "find": "                    and payload.get(\"profile\") in AUTHENTICATED_PROFILES)",
+      "replace": "                    and payload.get(\"profile\")\n                    == PROFILE_AUTHENTICATED_REQUIRED)",
+      "rationale": "a GOVERNED declaration is written by an unsigned append"
+    },
+    {
+      "name": "GH7_a_reader_without_a_registry_enforces_none",
+      "path": "agent_substrate/roles.py",
+      "find": "    if roles is None:\n        return held\n",
+      "replace": "    if roles is None:\n        return None\n",
+      "rationale": "a reader built without a registry enforces none, though its log holds the history's"
+    },
+    {
+      "name": "GH8_a_reader_may_enforce_another_registry",
+      "path": "agent_substrate/roles.py",
+      "find": "    if held is not None and declared_digest(roles) != declared_digest(held):",
+      "replace": "    if False:",
+      "rationale": "a reader enforces a registry other than the one its log was opened with"
+    },
+    {
+      "name": "GH9_the_declaration_names_the_key_registry_twice",
+      "path": "agent_substrate/principals.py",
+      "find": "                   \"role_registry\": registry_digest(roles.to_document())}",
+      "replace": "                   \"role_registry\": registry_digest(registry.to_document())}",
+      "rationale": "a GOVERNED history declares something other than its role registry"
+    },
+    {
+      "name": "GH10_the_second_reader_does_not_restate_governed",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    why = _governed_problem(events, getattr(authenticator, \"registry\", None),\n                            roles)\n",
+      "replace": "    why = None\n",
+      "rationale": "the independent reader folds a GOVERNED history read without its role registry, if the primitive lets it"
+    },
+    {
+      "name": "GH11_the_second_task_reader_does_not_restate_governed",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if why is not None:\n        out.unauthorized.append(why)\n        events = []\n    role_grants: dict = {}",
+      "replace": "    if False:\n        out.unauthorized.append(why)\n        events = []\n    role_grants: dict = {}",
+      "rationale": "the independent task reader folds a GOVERNED history without its role registry"
+    },
+    {
+      "name": "GH12_the_second_subsystem_reader_does_not_restate_governed",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if why is not None:\n        out.anomalies.append(why)\n        events = []",
+      "replace": "    if False:\n        out.anomalies.append(why)\n        events = []",
+      "rationale": "the independent subsystem reader folds a GOVERNED history without its role registry"
+    },
+    {
+      "name": "GH13_the_second_reader_compares_no_registry",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if got is None or got != want:\n            return (f\"the history is {_PROFILE_GOVERNED} and declares its \"",
+      "replace": "        if got is None:\n            return (f\"the history is {_PROFILE_GOVERNED} and declares its \"",
+      "rationale": "the independent reader accepts any registry for a GOVERNED history, so long as it is given one"
+    }
+  ]
+}

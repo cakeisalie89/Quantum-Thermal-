@@ -1,0 +1,137 @@
+{
+ "title": "AI and CI authority: who may start the agent, what each job holds, who may sign",
+ "note": "D-2026-146 (CI-4). Each mutation deletes one rule of tools/workflow_contract.py ai_authority_problems, or (CA14-CA18, D-2026-152) of vacuous_exit_captures; tests/test_ci_authority.py breaks that rule in a parsed copy of the real workflows and requires it reported. These rules govern the files on this branch; the deployed agent runs the default branch's file, which is an owner action (docs/security/owner_actions.md).",
+ "suites": [
+  "tests/test_ci_authority.py",
+  "tests/test_repo_contract.py",
+  "tests/test_workflow_exit_checks.py"
+ ],
+ "mutations": [
+  {
+   "name": "CA1_any_author_may_start_the_agent",
+   "path": "tools/workflow_contract.py",
+   "find": "        if gate not in cond or not all(f in cond for f in fields):",
+   "replace": "        if False:",
+   "rationale": "CI-1: the agent's job condition need not name who may start it"
+  },
+  {
+   "name": "CA2_the_gate_may_be_a_disjunct",
+   "path": "tools/workflow_contract.py",
+   "find": "        elif not cond.rstrip().endswith(\")\") or \") && (\" not in cond:",
+   "replace": "        elif False:",
+   "rationale": "the author gate is accepted although the condition is an OR around it"
+  },
+  {
+   "name": "CA3_the_agent_may_admit_bots",
+   "path": "tools/workflow_contract.py",
+   "find": "                    for opt in AGENT_OPTIONS_FORBIDDEN:\n                        if opt in w:",
+   "replace": "                    for opt in AGENT_OPTIONS_FORBIDDEN:\n                        if False:",
+   "rationale": "allowed_bots / allowed_non_write_users reopen the job to anyone"
+  },
+  {
+   "name": "CA4_the_agent_may_check_out_a_pr_head",
+   "path": "tools/workflow_contract.py",
+   "find": "                    if name == AGENT_WORKFLOW and \"ref\" in w:",
+   "replace": "                    if False:",
+   "rationale": "a PR head checked out at the root runs untrusted code beside the key"
+  },
+  {
+   "name": "CA5_a_job_may_hold_more_than_it_states",
+   "path": "tools/workflow_contract.py",
+   "find": "            if perms != want:",
+   "replace": "            if False:",
+   "rationale": "any job may widen its token; only the default-deny top level is checked"
+  },
+  {
+   "name": "CA6_the_top_level_may_grant",
+   "path": "tools/workflow_contract.py",
+   "find": "        if doc.get(\"permissions\") != {}:",
+   "replace": "        if False:",
+   "rationale": "a workflow without default-deny hands every job the repository's default token"
+  },
+  {
+   "name": "CA7_pull_request_target_is_allowed",
+   "path": "tools/workflow_contract.py",
+   "find": "            if t in _triggers(doc):",
+   "replace": "            if False:",
+   "rationale": "a fork's input runs with this repository's secrets"
+  },
+  {
+   "name": "CA8_checkouts_may_keep_their_token",
+   "path": "tools/workflow_contract.py",
+   "find": "                    if w.get(\"persist-credentials\") is not False:",
+   "replace": "                    if False:",
+   "rationale": "the job's token is left in .git/config for every later step to read"
+  },
+  {
+   "name": "CA9_event_text_may_become_shell",
+   "path": "tools/workflow_contract.py",
+   "find": "                if isinstance(run, str) and re.search(\n                        r\"\\$\\{\\{\\s*github\\.event\\.\", run):",
+   "replace": "                if False and re.search(\n                        r\"\\$\\{\\{\\s*github\\.event\\.\", run):",
+   "rationale": "a comment body interpolated into a run: block is script injection"
+  },
+  {
+   "name": "CA10_any_workflow_may_name_a_secret",
+   "path": "tools/workflow_contract.py",
+   "find": "                    if not (name == AGENT_WORKFLOW and ref == AGENT_SECRET):",
+   "replace": "                    if False:",
+   "rationale": "a secret reaches a job that has no reason to hold it"
+  },
+  {
+   "name": "CA11_the_ci_signer_may_run_on_tags",
+   "path": "tools/workflow_contract.py",
+   "find": "            if isinstance(push, dict) and \"tags\" in push:",
+   "replace": "            if False:",
+   "rationale": "the CI signer signs on the trigger a release uses"
+  },
+  {
+   "name": "CA12_the_agent_may_be_a_release_signer",
+   "path": "tools/workflow_contract.py",
+   "find": "        if wf not in OV.NON_RELEASE_WORKFLOWS:",
+   "replace": "        if False:",
+   "rationale": "nothing holds the release-policy loader to refusing the agent's and the CI signer's identities"
+  },
+  {
+   "name": "CA13_the_contract_skips_the_authority_rules",
+   "path": "tools/workflow_contract.py",
+   "find": "    out += [f\"AI/CI authority -- {x}\" for x in ai_authority_problems()]\n",
+   "replace": "    pass\n",
+   "rationale": "problems() -- what CI runs -- no longer asks the authority rules"
+  },
+  {
+   "name": "CA14_a_status_read_under_errexit_is_never_reported",
+   "path": "tools/workflow_contract.py",
+   "find": "                        if not m.group(1):\n",
+   "replace": "                        if False:\n",
+   "rationale": "D-2026-152: a step that reads $? after a command bash -e would already have stopped on passes the contract"
+  },
+  {
+   "name": "CA15_a_named_bash_or_sh_shell_is_exempt",
+   "path": "tools/workflow_contract.py",
+   "find": "_ERREXIT_SHELLS = (None, \"bash\", \"sh\")",
+   "replace": "_ERREXIT_SHELLS = (None,)",
+   "rationale": "D-2026-152: naming the shell GitHub runs with -e anyway exempts the step"
+  },
+  {
+   "name": "CA16_a_job_default_shell_is_ignored",
+   "path": "tools/workflow_contract.py",
+   "find": "            jshell = ((job.get(\"defaults\") or {}).get(\"run\") or {}).get(\n                \"shell\", top)\n",
+   "replace": "            jshell = \"custom\"\n",
+   "rationale": "D-2026-152: every step whose shell comes from a job or workflow default is skipped, whatever that shell is"
+  },
+  {
+   "name": "CA17_any_set_line_exempts_the_step",
+   "path": "tools/workflow_contract.py",
+   "find": "if any(re.match(r\"\\s*set\\s+\\+e\\b\", x) for x in lines):",
+   "replace": "if any(re.match(r\"\\s*set\\b\", x) for x in lines):",
+   "rationale": "D-2026-152: `set -uo pipefail`, which leaves -e on, is read as turning it off -- the shipped defect's own first line"
+  },
+  {
+   "name": "CA18_the_contract_skips_the_exit_rule",
+   "path": "tools/workflow_contract.py",
+   "find": "    out += [f\"vacuous exit check -- {x}\" for x in vacuous_exit_captures()]\n",
+   "replace": "    out += []\n",
+   "rationale": "D-2026-152: the workflow-contract step CI runs never applies the rule"
+  }
+ ]
+}

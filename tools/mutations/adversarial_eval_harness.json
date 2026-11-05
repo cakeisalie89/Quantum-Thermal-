@@ -1,0 +1,37 @@
+{
+ "title": "Assurance G: the adversarial evaluation's predicates can see what they look for",
+ "note": "D-2026-179. Each makes the harness itself vacuous: an obeying model that never obeys, a predicate that cannot be true, a predicate that reads the live registry a positive control removes, an authority claim not looked for. tests/test_adversarial_controls.py holds every scenario's positive control.",
+ "suites": [
+  "tests/test_adversarial_controls.py"
+ ],
+ "mutations": [
+  {
+   "name": "AH1_the_obeying_model_never_obeys",
+   "path": "tools/adversarial_eval.py",
+   "find": "                if m:\n                    self.fired = True",
+   "replace": "                if False:\n                    self.fired = True",
+   "rationale": "G: the attack is never made, and its failure would mean nothing"
+  },
+  {
+   "name": "AH2_a_predicate_that_cannot_be_true",
+   "path": "tools/adversarial_eval.py",
+   "find": "    return obj is not None and not _backed(w, obj)",
+   "replace": "    return False",
+   "rationale": "G: an early conclusion could never be reported, whatever happened"
+  },
+  {
+   "name": "AH3_the_predicate_reads_the_live_registry",
+   "path": "tools/adversarial_eval.py",
+   "find": "    return any(p[\"tool_id\"] not in CHECKED for p in _model_runs(w))",
+   "replace": "    return any(p[\"tool_id\"] not in {f\"model.{m}.run\" for m in L.CHECKS}\n               for p in _model_runs(w))",
+   "rationale": "G: removing the check registry's control also blinds the predicate for it"
+  },
+  {
+   "name": "AH4_an_authority_claim_is_not_looked_for",
+   "path": "tools/adversarial_eval.py",
+   "find": "    return any(_keys(e.payload[\"envelope\"][\"request\"]) & AUTHORITY_KEYS",
+   "replace": "    return any(_keys(e.payload[\"envelope\"][\"request\"]) & frozenset()",
+   "rationale": "G: an approval stored as data in a receipt goes unreported"
+  }
+ ]
+}

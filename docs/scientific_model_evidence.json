@@ -1,0 +1,82 @@
+{
+ "entries": [
+  {
+   "cost_micro": 0,
+   "id": "SME-01",
+   "kind": "REAL_MODEL_INFERENCE",
+   "note": "no provider has been chosen (OD-1) and the live worker refuses; no language model has been called by this harness",
+   "requests": 0,
+   "runs": [],
+   "source": "docs/model_runs/",
+   "status": "NOT_RUN"
+  },
+  {
+   "id": "SME-02",
+   "kind": "FIXTURE_MODEL_CYCLE",
+   "note": "a scripted provider answers through the inference gateway and the governed path; it shows the plumbing holds, and nothing about how a language model behaves",
+   "source": "tests/test_gate_b_acceptance.py",
+   "status": "FIXTURE_ONLY"
+  },
+  {
+   "facts": {
+    "agent_alone_false_assertion_rate": 0.4003,
+    "gated_false_assertion_rate": 0.1262,
+    "real_model": "NOT_RUN"
+   },
+   "id": "SME-03",
+   "kind": "GROUNDING_BENCHMARK",
+   "note": "Tranche G's pre-registered benchmark: scripted agents, a hidden oracle; the real-model condition was not run",
+   "source": "docs/research/grounding_bench_results.json",
+   "status": "SCRIPTED_AGENT_EVIDENCE_ONLY"
+  },
+  {
+   "facts": {
+    "development_member_claims": [
+     "ARCHITECTURE_DEFINED",
+     "ARCHITECTURE_META_VALIDATED",
+     "ARCHITECTURE_PARAMETER_VERIFIED",
+     "CHECKPOINT_RELOAD_VALIDATED",
+     "DEVELOPMENT_MODEL_TRAINED"
+    ],
+    "flagship_claims": [
+     "ARCHITECTURE_DEFINED",
+     "ARCHITECTURE_META_VALIDATED",
+     "ARCHITECTURE_PARAMETER_VERIFIED"
+    ]
+   },
+   "id": "SME-04",
+   "kind": "LEARNED_MODEL_NF_1T",
+   "note": "the flagship is an architecture, verified by parameter count and meta-validation; it is neither allocated nor trained. A small development member was trained and evaluated. It is a scientific-feature model, not a language model",
+   "source": "docs/neural/current_status.json",
+   "status": "PARTIAL"
+  },
+  {
+   "id": "SME-05",
+   "kind": "SYMBOLIC_OR_FORMAL_CHECK",
+   "note": "no symbolic engine or proof checker is installed (OD-5); no scientific statement here is formally proved",
+   "source": "-",
+   "status": "NONE"
+  },
+  {
+   "id": "SME-06",
+   "kind": "REAL_WORLD_MEASUREMENT",
+   "note": "this repository holds no measurement of a physical system; simulation agreement is not measurement",
+   "source": "-",
+   "status": "NONE"
+  }
+ ],
+ "label": "what scientific and model evidence exists, and its limits",
+ "note": "Derived by tools/model_evidence.py. Neither the software completion status nor the production readiness matrix reads this file, and this file reads neither of them.",
+ "schema": "scientific-model-evidence/1",
+ "statuses": {
+  "FIXTURE_ONLY": "exercised end to end with a scripted model; no language model was involved",
+  "NONE": "nothing of this kind exists in this repository",
+  "NOT_RUN": "nothing of this kind has been run",
+  "PARTIAL": "some of the claims of this kind are held; which ones are listed",
+  "RECORDED_NOT_VERIFIED": "a run is recorded with its authorization, log and cost; what the model said is not checked against the world here",
+  "SCRIPTED_AGENT_EVIDENCE_ONLY": "measured on scripted agents with an explicit error model; a property of those agents, not of any language model"
+ },
+ "verdict": {
+  "REAL_MODEL_EVIDENCE": "NOT_RUN"
+ }
+}

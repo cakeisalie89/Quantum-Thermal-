@@ -1,0 +1,154 @@
+{
+ "generated_by": "tools/dependency_declarations.py --write",
+ "sources": {
+  "pyproject.toml": "89c8e11a51a6fe257da8e4739c29c4335d776f5631d7d0252a8fa36efabd4378",
+  "uv.lock": "64ce13c43a2d3882b54d8e440e7ff7cd3d5bd22a24d5a069f2424bb19ee08bb3"
+ },
+ "direct_dependencies": [
+  {
+   "package": "numpy",
+   "version": "2.4.4",
+   "dependency_class": "runtime",
+   "reason": "the scientific models' array arithmetic",
+   "use": "integrations/fenicsx/runner.py, scientific/backend_probe.py, scientific/checks/slab_mol.py (+24 more)",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "scipy",
+   "version": "1.17.1",
+   "dependency_class": "runtime",
+   "reason": "stiff integration and sparse solves (slab method-of-lines check)",
+   "use": "scientific/checks/slab_mol.py, tests/test_backend_identity.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "h5py",
+   "version": "3.16.0",
+   "dependency_class": "runtime",
+   "reason": "HDF5 representation of result bundles (no physics)",
+   "use": "scientific/hdf5_bundle.py, tests/test_hdf5_bundle.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "pytest",
+   "version": "9.1.1",
+   "dependency_class": "dev",
+   "reason": "unified test execution",
+   "use": "tests/neural_support.py, tests/test_actor_authentication.py, tests/test_agent_agents.py (+104 more)",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "hypothesis",
+   "version": "6.158.1",
+   "dependency_class": "dev",
+   "reason": "bounded property tests (deterministic profile)",
+   "use": "tests/test_agent_idempotency.py, tests/test_agent_machine_properties.py, tests/test_agent_retrieval.py (+6 more)",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "ruff",
+   "version": "0.15.22",
+   "dependency_class": "dev",
+   "reason": "lint enforcement",
+   "use": "not imported by Python (a tool or CLI)",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "mypy",
+   "version": "2.3.0",
+   "dependency_class": "dev",
+   "reason": "type enforcement (typecheck_active.ini)",
+   "use": "not imported by Python (a tool or CLI)",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "pydantic",
+   "version": "2.13.4",
+   "dependency_class": "dev",
+   "reason": "trusted-boundary validation models",
+   "use": "tests/test_stack_registry.py, tools/stack_registry.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "pyyaml",
+   "version": "6.0.3",
+   "dependency_class": "dev",
+   "reason": "imported directly by the workflow-contract tests (D-2026-74)",
+   "use": "tests/test_container_workflow_contract.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "snakemake",
+   "version": "9.23.1",
+   "dependency_class": "workflow",
+   "reason": "dependency-aware orchestration of the governed workflow",
+   "use": "not imported by Python (a tool or CLI)",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "usd-core",
+   "version": "26.8",
+   "dependency_class": "extra:viz",
+   "reason": "OpenUSD stage validation (.usda is written directly)",
+   "use": "scientific/integrations/usd_export.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "salib",
+   "version": "1.5.2",
+   "dependency_class": "extra:uq",
+   "reason": "global (Sobol) sensitivity cross-check",
+   "use": "scientific/sensitivity.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "openmdao",
+   "version": "3.45.0",
+   "dependency_class": "extra:uq",
+   "reason": "design-space exploration over a scientific model",
+   "use": "scientific/integrations/openmdao_doe.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "jax",
+   "version": "0.11.2",
+   "dependency_class": "extra:neural",
+   "reason": "",
+   "use": "scientific_ai/neural/model/_jax.py, tests/neural_support.py, tools/neural.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "jaxlib",
+   "version": "0.11.2",
+   "dependency_class": "extra:neural",
+   "reason": "",
+   "use": "not imported by Python (a tool or CLI)",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "ml-dtypes",
+   "version": "0.6.0",
+   "dependency_class": "extra:neural",
+   "reason": "",
+   "use": "scientific_ai/neural/model/checkpoint.py, tests/test_neural_provenance.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  }
+ ],
+ "transitive": "see uv.lock (92 packages; lockfile is the resolution authority)"
+}

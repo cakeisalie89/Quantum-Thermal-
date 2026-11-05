@@ -1,0 +1,108 @@
+{
+ "title": "The router and the mixture-of-experts layer (NF-1T)",
+ "note": "NR1-NR14: too many or no experts selected, an index out of range, unnormalised gates, a non-finite score hidden, a capacity overflow kept, padding routed, the load-balancing loss misweighted, a feature's identity, dimension or missingness lost in the embedding, a bounded head unbounded, the attention mask ignored, tensors initialised alike.",
+ "suites": [
+  "tests/test_neural_moe.py",
+  "tests/test_neural_model.py"
+ ],
+ "mutations": [
+  {
+   "name": "NR1_router_selects_too_many",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    top_p, top_i = jax.lax.top_k(probs, k)\n",
+   "replace": "    top_p, top_i = jax.lax.top_k(probs, min(k + 1, probs.shape[-1]))\n",
+   "rationale": "each token routed to one expert more than top_k"
+  },
+  {
+   "name": "NR2_router_selects_none",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    top_p, top_i = jax.lax.top_k(probs, k)\n",
+   "replace": "    top_p, top_i = jax.lax.top_k(probs, 0)\n",
+   "rationale": "the router selects no expert, so every token skips the routed experts and each MoE layer silently becomes the identity"
+  },
+  {
+   "name": "NR3_invalid_expert_index",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    return {\"logits\": logits, \"probs\": probs, \"selected\": top_i,\n",
+   "replace": "    return {\"logits\": logits, \"probs\": probs, \"selected\": top_i + 1,\n",
+   "rationale": "indices shifted past the last expert"
+  },
+  {
+   "name": "NR4_gates_not_normalised",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    gates = top_p / jnp.sum(top_p, axis=-1, keepdims=True) \\\n",
+   "replace": "    gates = top_p / 1.0 \\\n",
+   "rationale": "selected weights no longer sum to one"
+  },
+  {
+   "name": "NR5_non_finite_scores_hidden",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    finite = jnp.all(jnp.isfinite(logits))\n",
+   "replace": "    finite = jnp.asarray(True)\n",
+   "rationale": "a NaN router reported finite"
+  },
+  {
+   "name": "NR6_capacity_overflow_kept",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    kept = assigned & (slot < cap)\n",
+   "replace": "    kept = assigned & (slot <= cap)\n",
+   "rationale": "one choice past capacity kept"
+  },
+  {
+   "name": "NR7_padding_routed",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    onehot = onehot * live.astype(jnp.int32)[:, None, None]\n",
+   "replace": "    onehot = onehot * 1\n",
+   "rationale": "padding tokens take expert slots"
+  },
+  {
+   "name": "NR8_aux_loss_unscaled",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "        \"aux_loss\": e * jnp.sum(frac * mean_p),\n",
+   "replace": "        \"aux_loss\": jnp.sum(frac * mean_p),\n",
+   "rationale": "the load-balancing term without its expert-count scale"
+  },
+  {
+   "name": "NR9_feature_identity_dropped_in_embedding",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    x = (e[\"feature\"][batch[\"feature_ids\"]]\n",
+   "replace": "    x = (0 * e[\"feature\"][batch[\"feature_ids\"]]\n",
+   "rationale": "the network no longer sees which feature a token is"
+  },
+  {
+   "name": "NR10_dimension_dropped_in_embedding",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "         + batch[\"dim_exponents\"].astype(ct) @ e[\"dim_proj\"]\n",
+   "replace": "         + 0 * batch[\"dim_exponents\"].astype(ct) @ e[\"dim_proj\"]\n",
+   "rationale": "the network no longer sees a token's dimension"
+  },
+  {
+   "name": "NR11_missing_value_leaks",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    venc = venc * valid[..., None].astype(ct)\n",
+   "replace": "    venc = venc\n",
+   "rationale": "a MISSING token's channels reach the network"
+  },
+  {
+   "name": "NR12_bounded_head_unbounded",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "            cols.append(lo + (hi - lo) * jax.nn.sigmoid(raw[:, j]))\n",
+   "replace": "            cols.append(raw[:, j])\n",
+   "rationale": "a coverage prediction outside [0, 1]"
+  },
+  {
+   "name": "NR13_attention_mask_ignored",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    scores = jnp.where(mask[:, None, None, :], scores, NEG_INF)\n",
+   "replace": "    scores = scores\n",
+   "rationale": "padding tokens attended to"
+  },
+  {
+   "name": "NR14_tensors_initialised_alike",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "    h = int.from_bytes(hashlib.sha256(path.encode()).digest()[:4], \"big\")\n",
+   "replace": "    h = 0\n",
+   "rationale": "every tensor of a shape drawn identically"
+  }
+ ]
+}

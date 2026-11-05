@@ -1,0 +1,247 @@
+{
+ "title": "The RC network's counterfactual family tells the loop from wrong verdict rules, and what it rests on is held",
+ "note": "Stage 3. RCF1 to RCF3 are the three wrong verdict rules -- every decided hypothesis SUPPORTED, every one REFUTED, none ever decided -- which the slab family holds as CE4 to CE6: each fails both families. RCF4 to RCF7 make the judgment vacuous: an answer that is always SUPPORTED, no margin, no tie, the reference's own error ignored. RCF8 to RCF11 break the family's deployment: a case run at the documented point whatever its world asks, the family without its check table, a controller that ignores a deployment's table, a table entry nobody checks. RCF12 to RCF16 weaken the independent RK4 check: its rounding bound dropped, its Richardson estimate dropped, the coarse march answering, a step five times blunter, the producer's stated error left out of the criterion. RCF17, RCF19 and RCF20 put back AUD-024: the slow eigenvalue as a difference of near-equals, a resolution relative to the output alone, an energy balance relative to the energies alone. RCF18 was REMOVED as equivalent, not because it survived: once the slow root comes from the product of the roots, an eigenvector taken as (a12, lambda - a11) is as accurate as the product form the model uses -- across 4,500 sampled networks (ordinary, anywhere in the bounds, node 1 weakly coupled) neither comes within 1 % of the stated resolution -- so no test of the stated contract can tell them apart; the product form stays, at no cost. RCF15 survived the first run, which held no test of the check's stated step rule; test_the_check_takes_the_steps_it_states holds it now. tests/test_rc_counterfactuals.py holds each, cheapest test first.",
+ "suites": [
+  "tests/test_rc_counterfactuals.py"
+ ],
+ "mutations": [
+  {
+   "name": "RCF1_every_verdict_supported",
+   "path": "agent_substrate/research.py",
+   "find": "        verdicts.add(\"SUPPORTED\" if holds[op] else\n                     \"REFUTED\" if fails[op] else \"INCONCLUSIVE\")",
+   "replace": "        verdicts.add(\"SUPPORTED\" if holds[op] or fails[op] else\n                     \"INCONCLUSIVE\")",
+   "rationale": "the rubber stamp: every decided hypothesis SUPPORTED"
+  },
+  {
+   "name": "RCF2_every_verdict_refuted",
+   "path": "agent_substrate/research.py",
+   "find": "        verdicts.add(\"SUPPORTED\" if holds[op] else\n                     \"REFUTED\" if fails[op] else \"INCONCLUSIVE\")",
+   "replace": "        verdicts.add(\"REFUTED\" if holds[op] or fails[op] else\n                     \"INCONCLUSIVE\")",
+   "rationale": "its mirror: every decided hypothesis REFUTED"
+  },
+  {
+   "name": "RCF3_no_verdict_ever",
+   "path": "agent_substrate/research.py",
+   "find": "        verdicts.add(\"SUPPORTED\" if holds[op] else\n                     \"REFUTED\" if fails[op] else \"INCONCLUSIVE\")",
+   "replace": "        verdicts.add(\"INCONCLUSIVE\")",
+   "rationale": "a ledger that never decides: abstention nothing justifies"
+  },
+  {
+   "name": "RCF4_the_answer_is_always_supported",
+   "path": "tools/adversarial_eval.py",
+   "find": "    return exact, \"SUPPORTED\" if holds else \"REFUTED\"",
+   "replace": "    return exact, \"SUPPORTED\"",
+   "rationale": "every world answers SUPPORTED, so the family cannot tell the rubber stamp from the loop"
+  },
+  {
+   "name": "RCF5_no_margin",
+   "path": "tools/adversarial_eval.py",
+   "find": "    if abs(exact - threshold) - err < RC_MARGIN_K:",
+   "replace": "    if False:",
+   "rationale": "a case nearer its threshold than the model's error is judged as if it were clear"
+  },
+  {
+   "name": "RCF6_no_tie",
+   "path": "tools/adversarial_eval.py",
+   "find": "    if abs(exact - threshold) + err <= RC_TIE_REL * abs(threshold):",
+   "replace": "    if False:",
+   "rationale": "the threshold that IS the value is never recognized: the one case where abstaining is right disappears"
+  },
+  {
+   "name": "RCF7_the_reference_s_error_ignored",
+   "path": "tools/adversarial_eval.py",
+   "find": "    exact, err = ref[quantity], ref[\"error_K\"]",
+   "replace": "    exact, err = ref[quantity], 0.0",
+   "rationale": "a world the reference cannot resolve is judged anyway"
+  },
+  {
+   "name": "RCF8_the_case_runs_at_the_documented_point",
+   "path": "tools/adversarial_eval.py",
+   "find": "        hypothesis=hyp, run={**RC2_RUN, \"parameters\": params}),",
+   "replace": "        hypothesis=hyp, run=RC2_RUN),",
+   "rationale": "the agent runs the network at the documented point whatever the case's world asks"
+  },
+  {
+   "name": "RCF9_the_family_without_its_table",
+   "path": "tools/adversarial_eval.py",
+   "find": "        checks=RC_CHECKS)",
+   "replace": "        checks=None)",
+   "rationale": "the family's deployment names no check for the network, so nothing is run"
+  },
+  {
+   "name": "RCF10_the_controller_ignores_its_table",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        self.checks = _check_table(CHECKS if checks is None else checks)",
+   "replace": "        self.checks = _check_table(CHECKS)",
+   "rationale": "a deployment's check table is accepted and not used"
+  },
+  {
+   "name": "RCF11_a_table_entry_nobody_checks",
+   "path": "agent_substrate/research_loop.py",
+   "find": "        if not (isinstance(m, str) and m and isinstance(c, str) and c):",
+   "replace": "        if False:",
+   "rationale": "a check table naming no check, or a model with none, is taken as it is"
+  },
+  {
+   "name": "RCF12_the_check_ignores_its_rounding",
+   "path": "scientific/checks/rc2_rk4.py",
+   "find": "    rounding = 2.0 * (2 * n) * _EPS * fine[2]",
+   "replace": "    rounding = 0.0",
+   "rationale": "the check states only Richardson's estimate, which understates its error once rounding dominates"
+  },
+  {
+   "name": "RCF13_the_check_without_richardson",
+   "path": "scientific/checks/rc2_rk4.py",
+   "find": "    return tuple((tf, abs(tc - tf) / 15.0 + rounding)",
+   "replace": "    return tuple((tf, rounding)",
+   "rationale": "the check states no estimate of its truncation"
+  },
+  {
+   "name": "RCF14_the_coarse_march_answers",
+   "path": "scientific/checks/rc2_rk4.py",
+   "find": "    return tuple((tf, abs(tc - tf) / 15.0 + rounding)",
+   "replace": "    return tuple((tc, abs(tc - tf) / 15.0 + rounding)",
+   "rationale": "the check answers with the march whose error its estimate does not describe"
+  },
+  {
+   "name": "RCF15_a_blunt_check",
+   "path": "scientific/checks/rc2_rk4.py",
+   "find": "STEPS_PER_TAU = 20",
+   "replace": "STEPS_PER_TAU = 4",
+   "rationale": "five times fewer steps: a check too blunt to see a miss the producer's resolution forbids"
+  },
+  {
+   "name": "RCF16_the_producer_s_error_left_out",
+   "path": "scientific/checks/rc2_rk4.py",
+   "find": "        tol = GCI_SAFETY * (resolution(q) + r_check) + 64 * _EPS * abs(tf)",
+   "replace": "        tol = GCI_SAFETY * r_check + 64 * _EPS * abs(tf)",
+   "rationale": "a producer within its own stated resolution fails"
+  },
+  {
+   "name": "RCF17_slow_root_by_difference",
+   "path": "scientific/models/thermal_rc2.py",
+   "find": "    lam = ((G12 / C1) * (G2a / C2) / fast, fast)",
+   "replace": "    lam = (0.5 * (a11 + a22) + disc, fast)",
+   "rationale": "AUD-024: the slow eigenvalue as tr/2 + disc, which cancels when the time constants are far apart"
+  },
+  {
+   "name": "RCF19_resolution_of_the_output_alone",
+   "path": "scientific/models/thermal_rc2.py",
+   "find": "            sc = r[\"scale_K\"] if UNITS[name] == \"K\" else scale",
+   "replace": "            sc = max(abs(v), abs(p[\"T1_0_K\"])) if UNITS[name] == \"K\" \\\n                else max(abs(r[\"E_in\"]), abs(r[\"E_out\"]), abs(r[\"E_stored\"]), 1e-300)",
+   "rationale": "AUD-024: a resolution relative to the output's size, not to the terms it was computed from"
+  },
+  {
+   "name": "RCF20_balance_against_the_energies_alone",
+   "path": "scientific/models/thermal_rc2.py",
+   "find": "        scale = r[\"scale_J\"] if finite and math.isfinite(r[\"scale_J\"]) \\\n            else 1.0",
+   "replace": "        scale = max(abs(r[\"E_in\"]), abs(r[\"E_out\"]), abs(r[\"E_stored\"]),\n                    1e-300) if finite else 1.0",
+   "rationale": "AUD-024: the energy balance held to the energies' size, which a correct short window cannot meet"
+  },
+  {
+   "name": "OV1_the_observation_keeps_the_producer_s_resolution",
+   "path": "agent_substrate/research.py",
+   "find": "            out[name] = {**v, \"resolution\": max(\n                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n",
+   "replace": "            out[name] = v\n",
+   "rationale": "AUD-025 itself: the observation claims the producer's precision, which the check bounds only to the sum of both errors"
+  },
+  {
+   "name": "OV2_the_agreement_may_narrow_the_producer",
+   "path": "agent_substrate/research.py",
+   "find": "            out[name] = {**v, \"resolution\": max(\n                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n",
+   "replace": "            out[name] = {**v, \"resolution\": abs(v[\"value\"] - vc) + rc}\n",
+   "rationale": "AUD-025: where the producer states the wider error, the observation claims more than the producer did"
+  },
+  {
+   "name": "OV3_the_distance_to_the_check_is_dropped",
+   "path": "agent_substrate/research.py",
+   "find": "                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n",
+   "replace": "                v[\"resolution\"], rc)}\n",
+   "rationale": "AUD-025: a producer off the check's value by more than either error is observed as if it agreed exactly"
+  },
+  {
+   "name": "OV4_the_check_s_own_error_is_dropped",
+   "path": "agent_substrate/research.py",
+   "find": "                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n",
+   "replace": "                v[\"resolution\"], abs(v[\"value\"] - vc))}\n",
+   "rationale": "AUD-025: the check's value is taken as exact, which no check states"
+  },
+  {
+   "name": "OV5_outputs_nobody_compared_are_observed",
+   "path": "agent_substrate/research.py",
+   "find": "                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n    return out\n",
+   "replace": "                v[\"resolution\"], abs(v[\"value\"] - vc) + rc)}\n    return {**vals, **out}\n",
+   "rationale": "AUD-025: an output the check did not compare is observed at the producer's word"
+  },
+  {
+   "name": "OV6_a_report_before_the_agreement_observes_nothing",
+   "path": "agent_substrate/research.py",
+   "find": "    if not isinstance(agree, list):\n        return vals\n",
+   "replace": "    if not isinstance(agree, list):\n        return {}\n",
+   "rationale": "AUD-025 migration: a history decided under admission/1 replays with no observations, every old verdict lost"
+  },
+  {
+   "name": "OV7_an_unreadable_check_value_is_read",
+   "path": "agent_substrate/research.py",
+   "find": "            if _finite(vc) and _finite(rc) and rc >= 0:\n",
+   "replace": "            if True:\n",
+   "rationale": "AUD-025: a NaN or infinite check value or error widens by NaN -- an interval every comparison reads as holding nothing"
+  },
+  {
+   "name": "OV8_a_negative_check_error_is_read",
+   "path": "agent_substrate/research.py",
+   "find": "            if _finite(vc) and _finite(rc) and rc >= 0:\n",
+   "replace": "            if _finite(vc) and _finite(rc):\n",
+   "rationale": "AUD-025: a negative check error narrows the bound"
+  },
+  {
+   "name": "OV9_a_boolean_is_a_check_value",
+   "path": "agent_substrate/research.py",
+   "find": "def _finite(v: object) -> TypeGuard[float]:\n",
+   "replace": "def _finite(v: object) -> TypeGuard[float]:\n    return isinstance(v, (int, float)) and math.isfinite(v)\n",
+   "rationale": "AUD-025: True read as a check value of 1.0"
+  },
+  {
+   "name": "OV10_an_entry_of_any_shape_is_read",
+   "path": "agent_substrate/research.py",
+   "find": "        if (isinstance(entry, list) and len(entry) == 2\n                and isinstance(entry[0], str)\n                and isinstance(entry[1], dict)):\n",
+   "replace": "        if isinstance(entry, list) and len(entry) == 2:\n",
+   "rationale": "AUD-025: an entry whose quantity is no object is read, and the ledger fails on it"
+  },
+  {
+   "name": "RK10_the_agreement_drops_the_factor_of_safety",
+   "path": "scientific/checks/rc2_rk4.py",
+   "find": "            o, tf, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),\n",
+   "replace": "            o, tf, r_check + 64 * _EPS * abs(tf),\n",
+   "rationale": "AUD-025: the check credits itself less error in its agreement than its criterion does"
+  },
+  {
+   "name": "RK11_the_agreement_states_the_producer_s_value",
+   "path": "scientific/checks/rc2_rk4.py",
+   "find": "            o, tf, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),\n",
+   "replace": "            o, q.value, GCI_SAFETY * r_check + 64 * _EPS * abs(tf),\n",
+   "rationale": "AUD-025: the check states the producer's value as its own, so every observation keeps the producer's resolution"
+  },
+  {
+   "name": "OV11_an_integer_no_float_holds_raises",
+   "path": "agent_substrate/research.py",
+   "find": "        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
+   "replace": "        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
+   "rationale": "AUD-025: a 400-digit integer in a report's agreement raises OverflowError out of the ledger's observation instead of observing nothing for that output"
+  },
+  {
+   "name": "RF1_a_parameter_no_float_holds_raises",
+   "path": "tools/rc2_reference.py",
+   "find": "        if not _finite(v):\n            raise ValueError(f\"no such network: {k} = {v!r} is not a \"\n",
+   "replace": "        if isinstance(v, bool) or not isinstance(v, (int, float)) or \\\n                not math.isfinite(v):\n            raise ValueError(f\"no such network: {k} = {v!r} is not a \"\n",
+   "rationale": "AUD-034: a 400-digit integer, valid JSON, raises OverflowError out of the RC reference instead of naming no such network"
+  },
+  {
+   "name": "RF2_the_reference_test_raises",
+   "path": "tools/rc2_reference.py",
+   "find": "    try:\n        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
+   "replace": "    try:\n        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
+   "rationale": "AUD-034: a 400-digit integer, valid JSON, raises OverflowError out of the RC reference's number test instead of naming no such network"
+  }
+ ]
+}

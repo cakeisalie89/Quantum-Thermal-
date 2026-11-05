@@ -1,0 +1,51 @@
+{
+  "title": "The governed model path: who may run, check and decide, and under which tool",
+  "note": "Separation of duties and routing on the governed model path, carried from the retired thermal specifications when their models left: GM1-GM4 were ST9, ST12, ST15 and ST16 of scientific_thermal_1d, GM5-GM6 were T2_13 and T2_14 of scientific_thermal_2d, each retargeted to the models that remain.",
+  "suites": [
+    "tests/test_governed_model.py"
+  ],
+  "mutations": [
+    {
+      "name": "GM1_the_check_verifies_whatever_is_on_disk",
+      "path": "scientific/_governed_check.py",
+      "find": "    if hashlib.sha256(raw).hexdigest() != inputs[\"bundle_sha256\"]:\n",
+      "replace": "    if False:\n",
+      "rationale": "a check about bytes nobody cited"
+    },
+    {
+      "name": "GM2_an_executor_may_decide",
+      "path": "agent_substrate/governed_model.py",
+      "find": "        if reviewer in (run.worker, check.worker, run.submitter):\n",
+      "replace": "        if False:\n",
+      "rationale": "the executor certifies its own work"
+    },
+    {
+      "name": "GM3_the_producer_may_run_its_own_check",
+      "path": "agent_substrate/governed_model.py",
+      "find": "        if worker in (run.worker, run.submitter):\n",
+      "replace": "        if False:\n",
+      "rationale": "the model's executor runs the check on its own output"
+    },
+    {
+      "name": "GM4_a_failed_run_is_proposed",
+      "path": "agent_substrate/governed_model.py",
+      "find": "        if run.state is not TaskState.VERIFIED:\n            raise ModelRunRefused(f\"the governed run was",
+      "replace": "        if False:\n            raise ModelRunRefused(f\"the governed run was",
+      "rationale": "an unverified governed run becomes an authority record"
+    },
+    {
+      "name": "GM5_every_model_runs_under_the_slab_tool",
+      "path": "agent_substrate/governed_model.py",
+      "find": "        run = self.gov.run(tool_id=MODEL_TOOLS[model_id], inputs=inputs,",
+      "replace": "        run = self.gov.run(tool_id=TOOL_RUN_SLAB, inputs=inputs,",
+      "rationale": "the history says the slab ran when another model did"
+    },
+    {
+      "name": "GM6_an_unknown_model_is_submitted",
+      "path": "agent_substrate/governed_model.py",
+      "find": "        if model_id not in MODEL_TOOLS:\n",
+      "replace": "        if False:\n",
+      "rationale": "a model with no governed tool reaches the executor and leaves history"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+ "title": "Claim hygiene: the learned-model status and its distributed and reproduction wording (NF-1T)",
+ "note": "CH1-CH2: the status naming a source outside the learned-model evidence, or claiming a stored witness; CH11-CH16: the status builder reporting simulated execution as hardware, asserting plan-only axes, equivalence or unallocated weights without evidence, or assuming the device kind; CH18-CH20: the claims' distributed reason losing its software-path-only and plan-only qualifiers or its hardware_executed condition.",
+ "suites": [
+  "tests/test_claim_hygiene.py"
+ ],
+ "mutations": [
+  {
+   "name": "CH1_a_foreign_source_in_the_status",
+   "path": "tools/neural.py",
+   "find": "        \"neural_evidence\": {str(F[k]): sha(F[k]) for k in sorted(keys)}}\n",
+   "replace": "        \"neural_evidence\": {str(F[k]): sha(F[k]) for k in sorted(keys)},\n        \"other\": {\"README.md\": sha(Path(\"README.md\"))}}\n",
+   "rationale": "the status is derived from a document that is not learned-model evidence"
+  },
+  {
+   "name": "CH2_a_stored_witness_is_claimed",
+   "path": "scientific_ai/neural/status.py",
+   "find": "        \"scientific_equivalence\": equivalence,\n    }\n",
+   "replace": "        \"scientific_equivalence\": equivalence,\n        \"stored_witness\": [{\"byte_identical\": True}],\n    }\n",
+   "rationale": "the status claims a stored witness's byte identity no run of this commit produced"
+  },
+  {
+   "name": "CH11_hardware_from_result_alone",
+   "path": "scientific_ai/neural/status.py",
+   "find": "        \"hardware\": \"VALIDATED\" if hardware and report[\"result\"] == \"PASS\"\n",
+   "replace": "        \"hardware\": \"VALIDATED\" if report[\"result\"] == \"PASS\"\n",
+   "rationale": "a simulated multi-device run is reported as distributed hardware validation"
+  },
+  {
+   "name": "CH12_plan_only_not_derived",
+   "path": "scientific_ai/neural/status.py",
+   "find": "            if not any(str(c.get(\"check\", \"\")).startswith(ax)\n",
+   "replace": "            if True or not any(str(c.get(\"check\", \"\")).startswith(ax)\n",
+   "rationale": "the plan-only axes are asserted, not derived from which checks executed"
+  },
+  {
+   "name": "CH13_equivalence_asserted",
+   "path": "scientific_ai/neural/status.py",
+   "find": "        \"scientific_equivalence\": equivalence,\n",
+   "replace": "        \"scientific_equivalence\": \"ESTABLISHED\",\n",
+   "rationale": "scientific equivalence across backends is declared instead of reported as given"
+  },
+  {
+   "name": "CH15_unallocated_without_evidence",
+   "path": "scientific_ai/neural/status.py",
+   "find": "            not trained and meta_report[\"real_allocation_refused\"] is True\n",
+   "replace": "            True or not trained and meta_report[\"real_allocation_refused\"] is True\n",
+   "rationale": "real weights are said to be unallocated whether or not the evidence shows a refused allocation"
+  },
+  {
+   "name": "CH16_device_kind_assumed",
+   "path": "scientific_ai/neural/status.py",
+   "find": "            if di[\"execution_profile\"] in C.SIMULATED_PROFILES\n",
+   "replace": "            if True\n",
+   "rationale": "every distributed report is described as simulated devices, whatever its profile says"
+  },
+  {
+   "name": "CH18_simulated_reason_unqualified",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "            reason = (f\"{prof.get('kind')} SOFTWARE-PATH VALIDATION ONLY: \"\n",
+   "replace": "            reason = (f\"{prof.get('kind')} distributed validation: \"\n",
+   "rationale": "a simulated run's reason no longer says it is software-path validation only"
+  },
+  {
+   "name": "CH19_plan_only_axes_unstated",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "            if plan_only:\n                reason += (",
+   "replace": "            if False:\n                reason += (",
+   "rationale": "the reason stops saying tensor and pipeline parallelism were never executed"
+  },
+  {
+   "name": "CH20_hardware_executed_not_required",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "        hardware = prof.get(\"kind\") not in SIMULATED_PROFILES \\\n            and prof.get(\"hardware_executed\") is True\n",
+   "replace": "        hardware = prof.get(\"kind\") not in SIMULATED_PROFILES\n",
+   "rationale": "a hardware-named profile that did not execute on hardware validates distributed hardware"
+  }
+ ]
+}

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fmiModelDescription
+  fmiVersion="3.0"
+  modelName="thermal_rc2"
+  description="Generic two-node thermal RC network (Scientific-AI harness). SIMULATION_RESULT, NON_AUTHORITATIVE."
+  instantiationToken="{6f7a1b52-2c1e-4d5e-9a0b-5c3e7b1d2f40}"
+  generationTool="Scientific-AI harness fmi/thermal_rc2 (hand-written C, RK4)"
+  variableNamingConvention="flat"
+  version="1.0.0">
+
+  <CoSimulation
+    modelIdentifier="thermal_rc2"
+    canHandleVariableCommunicationStepSize="true"
+    canGetAndSetFMUState="true"
+    canSerializeFMUState="true"
+    hasEventMode="false"
+    providesIntermediateUpdate="false"
+    canReturnEarlyAfterIntermediateUpdate="false"
+    fixedInternalStepSize="0"/>
+
+  <UnitDefinitions>
+    <Unit name="K"><BaseUnit K="1"/></Unit>
+    <Unit name="W"><BaseUnit kg="1" m="2" s="-3"/></Unit>
+    <Unit name="J"><BaseUnit kg="1" m="2" s="-2"/></Unit>
+    <Unit name="J/K"><BaseUnit kg="1" m="2" s="-2" K="-1"/></Unit>
+    <Unit name="W/K"><BaseUnit kg="1" m="2" s="-3" K="-1"/></Unit>
+    <Unit name="s"><BaseUnit s="1"/></Unit>
+  </UnitDefinitions>
+
+  <TypeDefinitions>
+    <Float64Type name="Temperature" quantity="ThermodynamicTemperature" unit="K" min="0"/>
+    <Float64Type name="Power" quantity="Power" unit="W"/>
+    <Float64Type name="Energy" quantity="Energy" unit="J"/>
+    <Float64Type name="HeatCapacity" quantity="HeatCapacity" unit="J/K" min="0"/>
+    <Float64Type name="ThermalConductance" quantity="ThermalConductance" unit="W/K" min="0"/>
+  </TypeDefinitions>
+
+  <LogCategories>
+    <Category name="logStatusError" description="refused calls and invalid values"/>
+  </LogCategories>
+
+  <DefaultExperiment startTime="0" stopTime="3600" stepSize="60"/>
+
+  <ModelVariables>
+    <Float64 name="time" valueReference="0" causality="independent" variability="continuous" description="simulation time" unit="s"/>
+    <Float64 name="C1" valueReference="1" causality="parameter" variability="fixed" declaredType="HeatCapacity" start="500" description="heat capacity of node 1"/>
+    <Float64 name="C2" valueReference="2" causality="parameter" variability="fixed" declaredType="HeatCapacity" start="2000" description="heat capacity of node 2"/>
+    <Float64 name="G12" valueReference="3" causality="parameter" variability="fixed" declaredType="ThermalConductance" start="5" description="conductance between node 1 and node 2"/>
+    <Float64 name="G2a" valueReference="4" causality="parameter" variability="fixed" declaredType="ThermalConductance" start="2" description="conductance from node 2 to ambient"/>
+    <Float64 name="T1_0" valueReference="5" causality="parameter" variability="fixed" declaredType="Temperature" start="300" description="initial temperature of node 1"/>
+    <Float64 name="T2_0" valueReference="6" causality="parameter" variability="fixed" declaredType="Temperature" start="300" description="initial temperature of node 2"/>
+    <Float64 name="Q" valueReference="7" causality="input" variability="continuous" declaredType="Power" start="10" description="heat input to node 1, held over each communication step"/>
+    <Float64 name="Tamb" valueReference="8" causality="input" variability="continuous" declaredType="Temperature" start="300" description="ambient temperature, held over each communication step"/>
+    <Float64 name="T1" valueReference="9" causality="output" variability="continuous" declaredType="Temperature" description="temperature of node 1"/>
+    <Float64 name="T2" valueReference="10" causality="output" variability="continuous" declaredType="Temperature" description="temperature of node 2"/>
+    <Float64 name="E_in" valueReference="11" causality="output" variability="continuous" declaredType="Energy" description="heat that entered through Q since initialization"/>
+    <Float64 name="E_out" valueReference="12" causality="output" variability="continuous" declaredType="Energy" description="heat that left through G2a since initialization"/>
+    <Float64 name="E_stored" valueReference="13" causality="output" variability="continuous" declaredType="Energy" description="C1 (T1 - T1_0) + C2 (T2 - T2_0)"/>
+    <Int32 name="n_sub" valueReference="14" causality="parameter" variability="fixed" start="4" min="1" max="100000" description="RK4 substeps per communication step"/>
+  </ModelVariables>
+
+  <ModelStructure>
+    <Output valueReference="9"/>
+    <Output valueReference="10"/>
+    <Output valueReference="11"/>
+    <Output valueReference="12"/>
+    <Output valueReference="13"/>
+    <InitialUnknown valueReference="9"/>
+    <InitialUnknown valueReference="10"/>
+    <InitialUnknown valueReference="11"/>
+    <InitialUnknown valueReference="12"/>
+    <InitialUnknown valueReference="13"/>
+  </ModelStructure>
+
+  <Annotations>
+    <Annotation type="org.scientific-ai-harness.claim-boundary">
+      <ClaimBoundary observationKind="SIMULATION_RESULT" authority="NON_AUTHORITATIVE" scientificModel="thermal.rc2_network" scientificModelVersion="1.0.0" integrator="RK4, n_sub fixed substeps per communication step"/>
+    </Annotation>
+  </Annotations>
+</fmiModelDescription>

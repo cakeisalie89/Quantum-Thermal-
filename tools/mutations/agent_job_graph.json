@@ -1,0 +1,51 @@
+{
+  "title": "A production caller that enqueues a graph, and a comparison that must actually compare",
+  "note": "Two rows, one shape: a mechanism that existed and whose real question nothing asked. The scheduler could always express dependencies and the production path enqueued one job, so 'dependency graphs are exercised only in tests'. And the cross-environment comparison could always report IDENTICAL without comparing anything, because the verdict read one field instead of closing the arithmetic.",
+  "suites": [
+    "tests/test_agent_governed_tasks.py"
+  ],
+  "mutations": [
+    {
+      "name": "G1_dependencies_never_reach_the_scheduler",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                               depends_on=tuple(depends_on),",
+      "replace": "                               depends_on=(),",
+      "rationale": "the ordering becomes the caller's loop again and the queue never sees a graph, which is the original defect"
+    },
+    {
+      "name": "G2_a_dependent_step_requires_no_evidence",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                               requires_evidence=tuple(requires_evidence),",
+      "replace": "                               requires_evidence=(),",
+      "rationale": "readiness becomes 'the parent job says SUCCEEDED' rather than 'the bytes it should have left behind resolve'"
+    },
+    {
+      "name": "G3_a_step_runs_though_its_dependency_failed",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "            runnable = [sid for sid, (_t, _i, deps) in remaining.items()\n                        if all(d in done for d in deps)]",
+      "replace": "            runnable = list(remaining)",
+      "rationale": "work executes against a parent that produced nothing, and its BLOCKED outcome is reported as a run"
+    },
+    {
+      "name": "G4_an_empty_graph_reports_success",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "        if not steps:\n            raise ValueError(",
+      "replace": "        if False:\n            raise ValueError(",
+      "rationale": "a graph that ran nothing returns an empty result set, which every caller reads as 'no failures'"
+    },
+    {
+      "name": "G5_a_dependency_on_a_missing_step_is_accepted",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "            unknown = [d for d in deps if d not in ids]\n            if unknown:",
+      "replace": "            unknown = [d for d in deps if d not in ids]\n            if False:",
+      "rationale": "a step that can never become ready is enqueued and silently dropped from the results"
+    },
+    {
+      "name": "G6_duplicate_step_ids_are_accepted",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "        if len(set(ids)) != len(ids):",
+      "replace": "        if False:",
+      "rationale": "two steps share a name and only one appears in the results, so a caller sees fewer runs than it asked for"
+    }
+  ]
+}

@@ -1,0 +1,996 @@
+{
+ "title": "The assurance package's standalone verifier refuses what it says it refuses, at the level it says",
+ "note": "The directive's Part X, item 34, and Part XI, items 35 and 36. Each mutation removes one rule of tools/verify_assurance.py: a file check, a consistency check between the record and its evidence, a rule of the event chain, a check of a decision against the history, a step of the verifier's own closed-form recheck, or a rule of how a run ends. tests/test_assurance_package.py holds each with a copy of the committed package that has exactly one thing wrong, refused at the level and the check that should catch it and at no earlier one.",
+ "suites": [
+  "tests/test_assurance_package.py"
+ ],
+ "mutations": [
+  {
+   "name": "VA1_a_listed_file_may_be_missing",
+   "path": "tools/verify_assurance.py",
+   "find": "    check(\"every listed file is present\", not missing, f\"missing {missing}\")",
+   "replace": "    check(\"every listed file is present\", True, f\"missing {missing}\")",
+   "rationale": "a file the manifest lists may be absent, and what it held is simply not read"
+  },
+  {
+   "name": "VA2_an_unlisted_file_is_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "    check(\"every file present is listed\", not extra, f\"unlisted {extra}\")",
+   "replace": "    check(\"every file present is listed\", True, f\"unlisted {extra}\")",
+   "rationale": "a file no manifest line covers rides along unverified"
+  },
+  {
+   "name": "VA3_the_record_log_or_guide_may_be_absent",
+   "path": "tools/verify_assurance.py",
+   "find": "        check(f\"{rel} is in the package\", rel in listed and rel in present,",
+   "replace": "        check(f\"{rel} is in the package\", True,",
+   "rationale": "a package without its record, history or guide is read as one"
+  },
+  {
+   "name": "VA4_any_path_fits_the_layout",
+   "path": "tools/verify_assurance.py",
+   "find": "              rel in (RECORD, README, LOG) or (",
+   "replace": "              True or (",
+   "rationale": "files outside the layout, which no level reads, pass as part of the package"
+  },
+  {
+   "name": "VA5_bytes_need_not_be_the_listed_digest",
+   "path": "tools/verify_assurance.py",
+   "find": "        check(f\"{rel} is the bytes SHA256SUMS lists\", d == listed[rel],",
+   "replace": "        check(f\"{rel} is the bytes SHA256SUMS lists\", True,",
+   "rationale": "a changed byte is accepted: integrity is the manifest's word only"
+  },
+  {
+   "name": "VA6_evidence_need_not_be_named_by_its_digest",
+   "path": "tools/verify_assurance.py",
+   "find": "                  rel == EVIDENCE + d, f\"its sha256 is {d}\")",
+   "replace": "                  True, f\"its sha256 is {d}\")",
+   "rationale": "evidence named by one digest may hold another's bytes"
+  },
+  {
+   "name": "VA7_a_link_is_followed_past",
+   "path": "tools/verify_assurance.py",
+   "find": "            else:\n                raise Refused(\"every entry is a file or a directory\",",
+   "replace": "            elif False:\n                raise Refused(\"every entry is a file or a directory\",",
+   "rationale": "a symbolic link or special file is skipped instead of refused"
+  },
+  {
+   "name": "VA8_no_depth_bound",
+   "path": "tools/verify_assurance.py",
+   "find": "        if depth > MAX_DEPTH:",
+   "replace": "        if False:",
+   "rationale": "a tree of any depth is walked"
+  },
+  {
+   "name": "VA9_a_manifest_line_of_any_shape",
+   "path": "tools/verify_assurance.py",
+   "find": "        if m is None:",
+   "replace": "        if False:",
+   "rationale": "a malformed manifest line is not refused as such"
+  },
+  {
+   "name": "VA10_a_listed_path_may_leave_the_package",
+   "path": "tools/verify_assurance.py",
+   "find": "        if not _PATH.fullmatch(path) or any(s in (\".\", \"..\") for s in segs):",
+   "replace": "        if False:",
+   "rationale": "a manifest may name ../ paths outside the package"
+  },
+  {
+   "name": "VA11_the_manifest_may_repeat_or_reorder",
+   "path": "tools/verify_assurance.py",
+   "find": "        if last is not None and path <= last:",
+   "replace": "        if False:",
+   "rationale": "a path listed twice keeps whichever digest came last"
+  },
+  {
+   "name": "VA12_a_torn_manifest_is_read",
+   "path": "tools/verify_assurance.py",
+   "find": "    if not text.endswith(\"\\n\"):\n        raise Refused(\"SHA256SUMS ends with a newline\", \"it does not\")",
+   "replace": "    if False:\n        raise Refused(\"SHA256SUMS ends with a newline\", \"it does not\")",
+   "rationale": "a manifest cut short is read as whole"
+  },
+  {
+   "name": "VA13_the_manifest_may_list_itself",
+   "path": "tools/verify_assurance.py",
+   "find": "        if path == SUMS:",
+   "replace": "        if False:",
+   "rationale": "the manifest vouches for its own digest"
+  },
+  {
+   "name": "VA14_any_record_fields",
+   "path": "tools/verify_assurance.py",
+   "find": "          set(rec) == RECORD_KEYS,",
+   "replace": "          True,",
+   "rationale": "a record with fields no check reads, or without ones they do, is accepted"
+  },
+  {
+   "name": "VA15_any_schema",
+   "path": "tools/verify_assurance.py",
+   "find": "          rec.get(\"schema\") == RECORD_SCHEMA, f\"schema {rec.get('schema')!r}\")",
+   "replace": "          True, f\"schema {rec.get('schema')!r}\")",
+   "rationale": "a record of another schema is read under this one's rules"
+  },
+  {
+   "name": "VA16_any_verifier_version",
+   "path": "tools/verify_assurance.py",
+   "find": "          (rec.get(\"verifier\") or {}).get(\"version\") == VERSION,",
+   "replace": "          True,",
+   "rationale": "a record made for another verifier's rules is held to these"
+  },
+  {
+   "name": "VA17_any_problem",
+   "path": "tools/verify_assurance.py",
+   "find": "          stmt.get(\"problem\") == PROBLEM, f\"problem {stmt.get('problem')!r}\")",
+   "replace": "          True, f\"problem {stmt.get('problem')!r}\")",
+   "rationale": "a record about other equations is rechecked against these"
+  },
+  {
+   "name": "VA18_any_evidence_roles",
+   "path": "tools/verify_assurance.py",
+   "find": "          set(ev) == EVIDENCE_ROLES,",
+   "replace": "          True,",
+   "rationale": "the record may name kinds of evidence no check reads"
+  },
+  {
+   "name": "VA19_unnamed_evidence",
+   "path": "tools/verify_assurance.py",
+   "find": "          \"is here\", held == named,",
+   "replace": "          \"is here\", True,",
+   "rationale": "evidence the record does not name, or names but lacks, passes"
+  },
+  {
+   "name": "VA20_one_file_two_roles",
+   "path": "tools/verify_assurance.py",
+   "find": "    check(\"each kind of evidence is its own file\", len(named) == len(ev),",
+   "replace": "    check(\"each kind of evidence is its own file\", True,",
+   "rationale": "one file may stand for two kinds of evidence"
+  },
+  {
+   "name": "VA21_bundle_model_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "              bundle.get(k) == model.get(k),",
+   "replace": "              True,",
+   "rationale": "the record may name a model the bundle does not"
+  },
+  {
+   "name": "VA22_inputs_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          {k: (v or {}).get(\"value\") for k, v in inputs.items()} == params,",
+   "replace": "          True,",
+   "rationale": "the record's inputs may differ from what the model was run at"
+  },
+  {
+   "name": "VA23_units_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          units == UNITS, f\"record units {units}\")",
+   "replace": "          True, f\"record units {units}\")",
+   "rationale": "an input in another unit is computed as if in SI"
+  },
+  {
+   "name": "VA24_parameter_digest_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          bundle.get(\"parameter_digest\") == sha(canonical(params)),",
+   "replace": "          True,",
+   "rationale": "the bundle's parameter digest may name other parameters"
+  },
+  {
+   "name": "VA25_a_measurement_passes_as_simulation",
+   "path": "tools/verify_assurance.py",
+   "find": "          bundle.get(\"observation_kind\") == \"SIMULATION_RESULT\",",
+   "replace": "          True,",
+   "rationale": "a bundle claiming to be a measurement is rechecked as a model run"
+  },
+  {
+   "name": "VA26_record_result_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          th.get(\"status\") == \"OK\" and all(",
+   "replace": "          True or all(",
+   "rationale": "the record may report a temperature the bundle does not"
+  },
+  {
+   "name": "VA27_artifact_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          len(arts) == 1 and arts[0].get(\"digest\") == ev[\"temperature_field\"]",
+   "replace": "          True or arts[0].get(\"digest\") == ev[\"temperature_field\"]",
+   "rationale": "the field rechecked may not be the bundle's"
+  },
+  {
+   "name": "VA28_run_identity_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "              ident.get(k) == bundle.get(k), f\"{ident.get(k)!r}\")",
+   "replace": "              True, f\"{ident.get(k)!r}\")",
+   "rationale": "the run identity may describe another run"
+  },
+  {
+   "name": "VA29_toolchain_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          tool.get(\"environment_digest\") == bundle.get(\"environment_digest\")",
+   "replace": "          True or tool.get(\"environment_digest\") == bundle.get(\"environment_digest\")",
+   "rationale": "the record may state a toolchain the bundle does not, or call it verified"
+  },
+  {
+   "name": "VA30_check_subject_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          ver.get(\"subject_digest\") == sha(canonical(bundle)),",
+   "replace": "          True,",
+   "rationale": "the check may be of another bundle"
+  },
+  {
+   "name": "VA31_check_may_be_the_producer",
+   "path": "tools/verify_assurance.py",
+   "find": "          ver.get(\"verifier_implementation_digest\") not in",
+   "replace": "          True or ver.get(\"verifier_implementation_digest\") not in",
+   "rationale": "the producer's own code may check itself, as an independent check"
+  },
+  {
+   "name": "VA32_a_failed_check_passes",
+   "path": "tools/verify_assurance.py",
+   "find": "          ver.get(\"status\") == \"PASS\" and isinstance(mv, (int, float))",
+   "replace": "          True or isinstance(mv, (int, float))",
+   "rationale": "a check that failed, or measured past its threshold, is accepted"
+  },
+  {
+   "name": "VA33_check_may_claim_validation",
+   "path": "tools/verify_assurance.py",
+   "find": "          ver.get(\"establishes\") == \"INDEPENDENT_NUMERICAL_AGREEMENT\",",
+   "replace": "          True,",
+   "rationale": "a numerical check may claim to establish experimental validation"
+  },
+  {
+   "name": "VA34_record_check_unmatched",
+   "path": "tools/verify_assurance.py",
+   "find": "          first.get(\"evidence\") == \"verification_report\"",
+   "replace": "          True or first.get(\"evidence\") == \"verification_report\"",
+   "rationale": "the record may name a check the evidence does not hold"
+  },
+  {
+   "name": "VA35_budget_point_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          and budget.get(\"point\") == params, f\"point {budget.get('point')}\")",
+   "replace": "          or budget.get(\"point\") == params, f\"point {budget.get('point')}\")",
+   "rationale": "the budget may be of another point"
+  },
+  {
+   "name": "VA36_budget_model_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          (budget.get(\"model\") or {}).get(\"implementation_digest\") ==\n          bundle.get(\"implementation_digest\"),",
+   "replace": "          True,",
+   "rationale": "the budget may be of another implementation"
+  },
+  {
+   "name": "VA37_budget_value_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          and b.get(\"value\") == _q(th).get(\"value\"),",
+   "replace": "          or b.get(\"value\") == _q(th).get(\"value\"),",
+   "rationale": "the budget may be of another value than the bundle's"
+  },
+  {
+   "name": "VA38_record_budget_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          and eb.get(\"total_half_width\") == (b.get(\"total\") or {}).get(",
+   "replace": "          or eb.get(\"total_half_width\") == (b.get(\"total\") or {}).get(",
+   "rationale": "the record may state a narrower interval than the budget's"
+  },
+  {
+   "name": "VA39_authority_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          budget.get(\"authority\") == b.get(\"authority\") ==\n          rec.get(\"authority\") == \"NON_AUTHORITATIVE\",",
+   "replace": "          True,",
+   "rationale": "the package may present itself as authority"
+  },
+  {
+   "name": "VA40_kinds_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          set(est) == set(CARRIED + NOT_CARRIED), f\"kinds {sorted(est)}\")",
+   "replace": "          True, f\"kinds {sorted(est)}\")",
+   "rationale": "a record may stay silent on a kind of establishment"
+  },
+  {
+   "name": "VA41_overclaim_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "          not over, f\"claimed {over}: nothing here could check them\")",
+   "replace": "          True, f\"claimed {over}: nothing here could check them\")",
+   "rationale": "a record may claim a proof, a validation or a reproduction nothing here checks"
+  },
+  {
+   "name": "VA42_formal_claim_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "          (rec.get(\"formal\") or {}).get(\"status\") in UNCLAIMED,",
+   "replace": "          True,",
+   "rationale": "a record may claim a formal proof it does not carry"
+  },
+  {
+   "name": "VA43_a_gap_may_be_hidden",
+   "path": "tools/verify_assurance.py",
+   "find": "    check(\"the record names every gap this verifier knows of\", not hidden,",
+   "replace": "    check(\"the record names every gap this verifier knows of\", True,",
+   "rationale": "a record may leave out what no offline check establishes"
+  },
+  {
+   "name": "VA44_a_key_twice",
+   "path": "tools/verify_assurance.py",
+   "find": "        if k in out:",
+   "replace": "        if False:",
+   "rationale": "a key given twice is read as its last value, which another reader may not"
+  },
+  {
+   "name": "VA45_an_infinite_number",
+   "path": "tools/verify_assurance.py",
+   "find": "    if not math.isfinite(value):",
+   "replace": "    if False:",
+   "rationale": "1e400 is read as infinity"
+  },
+  {
+   "name": "VA46_nan_is_read",
+   "path": "tools/verify_assurance.py",
+   "find": "def _no_constant(name):\n    raise ValueError(f\"{name} is not JSON\")",
+   "replace": "def _no_constant(name):\n    return 0.0",
+   "rationale": "NaN and Infinity are read as numbers"
+  },
+  {
+   "name": "VA47_any_field_header",
+   "path": "tools/verify_assurance.py",
+   "find": "    if head.get(\"dtype\") != \"<f8\" or head.get(\"columns\") != [\"x\", \"T\"] or \\",
+   "replace": "    if False and head.get(\"dtype\") != \"<f8\" or head.get(\"columns\") != [\"x\", \"T\"] or \\",
+   "rationale": "a field in another byte order or with missing data is read"
+  },
+  {
+   "name": "VA48_any_field_magic",
+   "path": "tools/verify_assurance.py",
+   "find": "    if not raw.startswith(b\"QTSL1\\n\"):",
+   "replace": "    if False:",
+   "rationale": "a file in another format is read as the field"
+  },
+  {
+   "name": "VA49_non_canonical_lines",
+   "path": "tools/verify_assurance.py",
+   "find": "        if canonical(rec) != line:",
+   "replace": "        if False:",
+   "rationale": "a line in another encoding than the one its hash covers is accepted"
+  },
+  {
+   "name": "VA50_positions_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "        if rec[\"seq\"] != n:",
+   "replace": "        if False:",
+   "rationale": "records out of order or with gaps are accepted by position"
+  },
+  {
+   "name": "VA51_links_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "        if rec[\"prev_hash\"] != prev:",
+   "replace": "        if False:",
+   "rationale": "a record need not follow the one before it"
+  },
+  {
+   "name": "VA52_hashes_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "        if sha(canonical(body)) != rec[\"hash\"] or not _HEX.fullmatch(",
+   "replace": "        if False and _HEX.fullmatch(",
+   "rationale": "a record edited after it was hashed is accepted"
+  },
+  {
+   "name": "VA53_fields_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "        if not isinstance(rec, dict) or set(rec) != set(_EVENT_FIELDS) | {",
+   "replace": "        if not isinstance(rec, dict) or False and set(rec) != set(_EVENT_FIELDS) | {",
+   "rationale": "a record may carry fields its hash does not cover"
+  },
+  {
+   "name": "VA54_types_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "        if not typed:",
+   "replace": "        if False:",
+   "rationale": "a record's fields may be of any type, and of another canonical form"
+  },
+  {
+   "name": "VA55_a_torn_log",
+   "path": "tools/verify_assurance.py",
+   "find": "    if not raw.endswith(b\"\\n\"):\n        raise Refused(\"the log ends with a newline\", \"its last line is torn\")",
+   "replace": "    if False:\n        raise Refused(\"the log ends with a newline\", \"its last line is torn\")",
+   "rationale": "a log whose last line is torn is read"
+  },
+  {
+   "name": "VA56_head_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          head == {\"seq\": events[-1][\"seq\"], \"hash\": events[-1][\"hash\"]},",
+   "replace": "          True,",
+   "rationale": "a history truncated, or extended, from the stated head is accepted"
+  },
+  {
+   "name": "VA57_count_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          hist.get(\"events\") == len(events) and hist.get(\"log\") == LOG,",
+   "replace": "          True,",
+   "rationale": "the record may miscount the history"
+  },
+  {
+   "name": "VA58_question_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          obj[\"action\"] == \"research.objective\"",
+   "replace": "          True or obj[\"action\"] == \"research.objective\"",
+   "rationale": "the question may not be the one the owner registered"
+  },
+  {
+   "name": "VA59_point_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          (o.get(\"question\") or {}).get(\"parameters\") ==\n          bundle.get(\"parameters\"),",
+   "replace": "          True,",
+   "rationale": "the run may answer another point than the one asked about"
+  },
+  {
+   "name": "VA60_prediction_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          (o.get(\"question\") or {}).get(\"prediction\") ==\n          hyp.get(\"prediction\"), f\"{hyp.get('prediction')}\")",
+   "replace": "          True, f\"{hyp.get('prediction')}\")",
+   "rationale": "the hypothesis may predict something the question did not ask"
+  },
+  {
+   "name": "VA61_hypothesis_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          len(hev) == 1 and h.get(\"prediction\") == hyp.get(\"prediction\")",
+   "replace": "          True or h.get(\"prediction\") == hyp.get(\"prediction\")",
+   "rationale": "the hypothesis in the history may differ from the record's"
+  },
+  {
+   "name": "VA62_creation_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          create[\"action\"] == \"record.create\"",
+   "replace": "          True or create[\"action\"] == \"record.create\"",
+   "rationale": "the result may have been proposed citing other evidence"
+  },
+  {
+   "name": "VA63_capture_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "                     ev[\"verification_report\"]} <= captured,",
+   "replace": "                     ev[\"verification_report\"]} <= captured or True,",
+   "rationale": "evidence no governed task captured is accepted"
+  },
+  {
+   "name": "VA64_verification_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          d[\"hash\"] == dv.get(\"hash\") and d[\"action\"] == dv.get(\"action\")",
+   "replace": "          True or d[\"hash\"] == dv.get(\"hash\") and d[\"action\"] == dv.get(\"action\")",
+   "rationale": "the verification may not be in the history as reported"
+  },
+  {
+   "name": "VA65_self_verification",
+   "path": "tools/verify_assurance.py",
+   "find": "          \"it\", d[\"actor\"] != cp.get(\"proposer\"),",
+   "replace": "          \"it\", True,",
+   "rationale": "the proposer may verify its own result"
+  },
+  {
+   "name": "VA66_undone_result",
+   "path": "tools/verify_assurance.py",
+   "find": "          final == auth.get(\"final_state\") and final in STANDING,",
+   "replace": "          True,",
+   "rationale": "a result withdrawn since is reported as standing"
+  },
+  {
+   "name": "VA67_verdict_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          s[\"hash\"] == ds.get(\"hash\") and s[\"action\"] == ds.get(\"action\")",
+   "replace": "          True or s[\"hash\"] == ds.get(\"hash\") and s[\"action\"] == ds.get(\"action\")",
+   "rationale": "the verdict may not be in the history as reported"
+  },
+  {
+   "name": "VA68_basis_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          bool(good) and len(good) == len(seen) == len(basis),",
+   "replace": "          True,",
+   "rationale": "the verdict may rest on an observation of something else"
+  },
+  {
+   "name": "VA69_retracted_verdict",
+   "path": "tools/verify_assurance.py",
+   "find": "          bool(latest) and latest[-1][\"seq\"] == s[\"seq\"],",
+   "replace": "          True,",
+   "rationale": "a verdict retracted since is reported as standing"
+  },
+  {
+   "name": "VA70_proofs_of_other_records",
+   "path": "tools/verify_assurance.py",
+   "find": "              and pd.get(\"seq\") == at[\"seq\"] and pd.get(\"hash\") == at[\"hash\"]",
+   "replace": "              or pd.get(\"seq\") == at[\"seq\"] and pd.get(\"hash\") == at[\"hash\"]",
+   "rationale": "a decision proof may be about another record"
+  },
+  {
+   "name": "VA71_proof_evidence_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          pr.get(\"record_id\") == rr.get(\"record_id\")",
+   "replace": "          True or pr.get(\"record_id\") == rr.get(\"record_id\")",
+   "rationale": "the proof may cite other evidence, or one party"
+  },
+  {
+   "name": "VA72_proof_basis_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          bool(pb) and all(x.get(\"result_bundle\") == ev[\"result_bundle\"]",
+   "replace": "          True or all(x.get(\"result_bundle\") == ev[\"result_bundle\"]",
+   "rationale": "the verdict's proof may rest on an unverified result"
+  },
+  {
+   "name": "VA73_decisions_unreported",
+   "path": "tools/verify_assurance.py",
+   "find": "    if set(decisions) != {\"verified\", \"supported\"}:",
+   "replace": "    if False:",
+   "rationale": "a record may leave a decision unreported"
+  },
+  {
+   "name": "VA74_any_position",
+   "path": "tools/verify_assurance.py",
+   "find": "            not 0 <= seq < len(events):",
+   "replace": "            False:",
+   "rationale": "a position past the history is read"
+  },
+  {
+   "name": "VA75_samples_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "              ok and abs(v - e) <= tol,",
+   "replace": "              True,",
+   "rationale": "the model's temperatures are not held to the exact solution"
+  },
+  {
+   "name": "VA76_profile_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          len(xs) == p.get(\"n_cells\") and worst <= tol,",
+   "replace": "          True,",
+   "rationale": "the model's final profile is not held to the exact solution"
+  },
+  {
+   "name": "VA77_reference_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          isinstance(ref, float) and abs(ref - e) <= 1e-9 * abs(e),",
+   "replace": "          True,",
+   "rationale": "the producer's reference is taken on its word"
+  },
+  {
+   "name": "VA78_measured_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          and math.isclose(meas[\"half_width\"], measured, rel_tol=1e-9,",
+   "replace": "          or math.isclose(meas[\"half_width\"], measured, rel_tol=1e-9,",
+   "rationale": "the measured discretization is taken on its word"
+  },
+  {
+   "name": "VA79_propagation_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "              isinstance(v, float) and abs(v - mine[k_mine]) <= tol,",
+   "replace": "              True,",
+   "rationale": "the parametric spread is taken on its word"
+  },
+  {
+   "name": "VA80_redraws_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          mc.get(\"redrawn\") == mine[\"redrawn\"],",
+   "replace": "          True,",
+   "rationale": "the draws may have been redrawn otherwise"
+  },
+  {
+   "name": "VA81_parametric_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          and par[\"half_width\"] == 0.5 * (mc[\"p97_5\"] - mc[\"p2_5\"]),",
+   "replace": "          or par[\"half_width\"] == 0.5 * (mc[\"p97_5\"] - mc[\"p2_5\"]),",
+   "rationale": "the parametric contribution need not be its interval"
+  },
+  {
+   "name": "VA82_rounding_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          rnd.get(\"half_width\") == 64 * _EPS * abs(model_t),",
+   "replace": "          True,",
+   "rationale": "the rounding contribution may be any number"
+  },
+  {
+   "name": "VA83_supersession_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "                  \"measurement\", c.get(\"basis\") == \"MEASURED\"",
+   "replace": "                  \"measurement\", True or c.get(\"basis\") == \"MEASURED\"",
+   "rationale": "anything may replace anything in the total"
+  },
+  {
+   "name": "VA84_numbered_gap",
+   "path": "tools/verify_assurance.py",
+   "find": "              (c.get(\"basis\") == \"NOT_ESTABLISHED\") ==\n              (c.get(\"half_width\") is None)",
+   "replace": "              True",
+   "rationale": "a contribution nothing establishes may carry a number"
+  },
+  {
+   "name": "VA85_total_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          total.get(\"includes\") == [c[\"name\"] for c in used]",
+   "replace": "          True or total.get(\"includes\") == [c[\"name\"] for c in used]",
+   "rationale": "the total need not be the sum of what it includes"
+  },
+  {
+   "name": "VA86_statement_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          str(b.get(\"statement\", \"\")).startswith(",
+   "replace": "          True or str(b.get(\"statement\", \"\")).startswith(",
+   "rationale": "the statement may quote other numbers than the budget's"
+  },
+  {
+   "name": "VA87_coverage_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          ratio.get(\"verdict\") == (\"ESTIMATE_COVERS_MEASURED\"",
+   "replace": "          True or ratio.get(\"verdict\") == (\"ESTIMATE_COVERS_MEASURED\"",
+   "rationale": "the estimate's verdict may be the hoped-for one"
+  },
+  {
+   "name": "VA88_quantity_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          pred.get(\"quantity\") == \"T_at_half\" and pred.get(\"unit\") == \"K\"",
+   "replace": "          True or pred.get(\"quantity\") == \"T_at_half\" and pred.get(\"unit\") == \"K\"",
+   "rationale": "a prediction of another quantity is evaluated as T_at_half"
+  },
+  {
+   "name": "VA89_verdict_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          verdict == decided, f\"recorded {decided!r}, exact gives \"",
+   "replace": "          True, f\"recorded {decided!r}, exact gives \"",
+   "rationale": "the recorded verdict is not held to the one the exact solution gives"
+  },
+  {
+   "name": "VA90_unbounded_propagation",
+   "path": "tools/verify_assurance.py",
+   "find": "            and 30 <= samples <= 20000 and isinstance(seed, int)",
+   "replace": "            and 30 <= samples and isinstance(seed, int)",
+   "rationale": "a package may ask the verifier for a million samples"
+  },
+  {
+   "name": "VA91_outside_the_domain",
+   "path": "tools/verify_assurance.py",
+   "find": "    if not (L > 0 and k > 0 and rc > 0 and h > 0 and t > 0 and q >= 0):",
+   "replace": "    if False:",
+   "rationale": "inputs outside the equations' domain are computed with"
+  },
+  {
+   "name": "VA92_inconclusive_read_as_supported",
+   "path": "tools/verify_assurance.py",
+   "find": "        holds, fails = (hi < value, lo >= value) if op == \"<\" else \\",
+   "replace": "        holds, fails = (lo < value, lo >= value) if op == \"<\" else \\",
+   "rationale": "an interval that straddles the threshold supports the prediction"
+  },
+  {
+   "name": "VA93_a_verifier_inside_the_package_runs",
+   "path": "tools/verify_assurance.py",
+   "find": "    if root.resolve() in here.parents:",
+   "replace": "    if False:",
+   "rationale": "a package may bring its own verifier"
+  },
+  {
+   "name": "VA94_a_file_is_a_package",
+   "path": "tools/verify_assurance.py",
+   "find": "    if not stat.S_ISDIR(st.st_mode):\n        raise Unreadable(f\"{root} is not a directory\")",
+   "replace": "    if False:\n        raise Unreadable(f\"{root} is not a directory\")",
+   "rationale": "a path that is not a directory is read as a package"
+  },
+  {
+   "name": "VA95_any_digest_matches",
+   "path": "tools/verify_assurance.py",
+   "find": "            \"MATCH\" if digest_ == expect_digest else",
+   "replace": "            \"MATCH\" if True else",
+   "rationale": "the package digest obtained independently is not compared"
+  },
+  {
+   "name": "VA96_any_head_matches",
+   "path": "tools/verify_assurance.py",
+   "find": "            \"MATCH\" if found == h else",
+   "replace": "            \"MATCH\" if True else",
+   "rationale": "the head obtained independently is not compared"
+  },
+  {
+   "name": "VA97_a_failed_level_passes",
+   "path": "tools/verify_assurance.py",
+   "find": "    passed = all(lv[\"status\"] == \"PASS\" for lv in report[\"levels\"]) and all(",
+   "replace": "    passed = all(lv[\"status\"] == \"PASS\" for lv in report[\"levels\"]) or all(",
+   "rationale": "a failed level does not stop the verdict"
+  },
+  {
+   "name": "VA98_later_levels_run_after_a_failure",
+   "path": "tools/verify_assurance.py",
+   "find": "        reached = ok",
+   "replace": "        reached = True",
+   "rationale": "a level runs on a package an earlier level refused"
+  },
+  {
+   "name": "VA99_a_refusal_is_a_pass",
+   "path": "tools/verify_assurance.py",
+   "find": "        except Refused as exc:\n            check(exc.args[0], False, exc.args[1])",
+   "replace": "        except Refused as exc:\n            check(exc.args[0], True, exc.args[1])",
+   "rationale": "a check that could not be evaluated passes"
+  },
+  {
+   "name": "VA100_an_error_is_a_pass",
+   "path": "tools/verify_assurance.py",
+   "find": "            check(\"the level ran to its end\", False,",
+   "replace": "            check(\"the level ran to its end\", True,",
+   "rationale": "an error inside a level passes it"
+  },
+  {
+   "name": "VA101_a_verifier_error_exits_zero",
+   "path": "tools/verify_assurance.py",
+   "find": "              f\"{type(exc).__name__}: {exc}\", file=sys.stderr)\n        return 4",
+   "replace": "              f\"{type(exc).__name__}: {exc}\", file=sys.stderr)\n        return 0",
+   "rationale": "a crashed verifier reports success"
+  },
+  {
+   "name": "VA102_a_bad_expectation_is_ignored",
+   "path": "tools/verify_assurance.py",
+   "find": "    if expect_digest is not None and not _HEX.fullmatch(expect_digest):",
+   "replace": "    if False:",
+   "rationale": "a malformed expected digest is ignored rather than refused"
+  },
+  {
+   "name": "VA103_the_declaration_is_not_compared",
+   "path": "tools/verify_assurance.py",
+   "find": "          first.get(\"action\") == \"history.security_profile\"\n          and first.get(\"payload\") == {",
+   "replace": "          True or first.get(\"payload\") == {",
+   "rationale": "a history that does not declare GOVERNED, or declares other registries than the package carries, is read as governed by them"
+  },
+  {
+   "name": "VA104_a_second_declaration_is_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "    check(\"the history declares its profile once\", not again,",
+   "replace": "    check(\"the history declares its profile once\", True,",
+   "rationale": "a history that declares its profile again, after its first record, passes"
+  },
+  {
+   "name": "VA105_a_torn_attestation_file_is_read",
+   "path": "tools/verify_assurance.py",
+   "find": "          not attested[\"torn_tail\"], \"its last line is torn\")",
+   "replace": "          True, \"its last line is torn\")",
+   "rationale": "an attestation file whose last line is torn passes as a finished package's"
+  },
+  {
+   "name": "VA106_a_stray_attestation_is_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "    check(\"every attestation names a record of the history\", not stray,",
+   "replace": "    check(\"every attestation names a record of the history\", True,",
+   "rationale": "an attestation of no record of the history passes"
+  },
+  {
+   "name": "VA107_signatures_unchecked",
+   "path": "tools/verify_assurance.py",
+   "find": "          not result[\"findings\"] and result[\"authenticated\"] == len(events),",
+   "replace": "          True,",
+   "rationale": "a record no key vouches for, or one signed with another principal's key, passes"
+  },
+  {
+   "name": "VA108_unrestated_acts_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "          \"does not restate\", not unread, f\"it holds {unread}\")",
+   "replace": "          \"does not restate\", True, f\"it holds {unread}\")",
+   "rationale": "a history holding a delegation, a secret or egress grant, or a policy withdrawal is read as authorized without its rules"
+  },
+  {
+   "name": "VA109_ungranted_acts_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "          \"granted, over that scope, at that position\", not refused,",
+   "replace": "          \"granted, over that scope, at that position\", True,",
+   "rationale": "an act by a party no grant names, or out of scope, or at a position its grant does not hold, passes"
+  },
+  {
+   "name": "VA110_any_proposer_accepted",
+   "path": "tools/verify_assurance.py",
+   "find": "          not named, f\"at {named}\")",
+   "replace": "          True, f\"at {named}\")",
+   "rationale": "a record that names another proposer than the party that appended it passes"
+  },
+  {
+   "name": "VA111_decisions_unjudged",
+   "path": "tools/verify_assurance.py",
+   "find": "          \"judged\", not behind, f\"not judged: {behind}\")",
+   "replace": "          \"judged\", True, f\"not judged: {behind}\")",
+   "rationale": "a record naming a verification position where no governed act was judged passes AUTHORIZATION"
+  },
+  {
+   "name": "VA112_revocation_ignored",
+   "path": "tools/verify_assurance.py",
+   "find": "        if g[\"revoked_at_seq\"] is not None and seq >= g[\"revoked_at_seq\"]:",
+   "replace": "        if False:",
+   "rationale": "a grant revoked before an act still authorizes it"
+  },
+  {
+   "name": "VA113_expiry_ignored",
+   "path": "tools/verify_assurance.py",
+   "find": "        elif g[\"valid_until_seq\"] is not None and seq > g[\"valid_until_seq\"]:",
+   "replace": "        elif False:",
+   "rationale": "a grant that expired before an act still authorizes it"
+  },
+  {
+   "name": "VA114_validity_start_ignored",
+   "path": "tools/verify_assurance.py",
+   "find": "        elif seq < g[\"valid_from_seq\"]:",
+   "replace": "        elif False:",
+   "rationale": "a grant authorizes an act made before the grant holds"
+  },
+  {
+   "name": "VA115_scope_ignored",
+   "path": "tools/verify_assurance.py",
+   "find": "            if any(x == \"*\" or x == value or x == f\"{ns}:*\"\n                   for x in g[\"scope\"]):",
+   "replace": "            if True:",
+   "rationale": "a grant authorizes acts outside its scope"
+  },
+  {
+   "name": "VA116_a_grant_to_no_key",
+   "path": "tools/verify_assurance.py",
+   "find": "              and e[\"principal\"] in principals\n",
+   "replace": "              and True\n",
+   "rationale": "a grant naming a principal the key registry does not hold is read"
+  },
+  {
+   "name": "VA117_root_roles_delegable",
+   "path": "tools/verify_assurance.py",
+   "find": "              and (not e[\"may_delegate\"] or e[\"role\"] in _DELEGABLE))",
+   "replace": "              and True)",
+   "rationale": "a grant lets its holder delegate a role only the root may give"
+  },
+  {
+   "name": "VA118_another_key_registry_bound",
+   "path": "tools/verify_assurance.py",
+   "find": "    if bound is not None and bound != key_digest:",
+   "replace": "    if False:",
+   "rationale": "a role registry written against another key registry is read"
+  },
+  {
+   "name": "VA119_roots_unstated",
+   "path": "tools/verify_assurance.py",
+   "find": "          roots == {\"profile\": GOVERNED,",
+   "replace": "          True or roots == {\"profile\": GOVERNED,",
+   "rationale": "a record that states other roots than the registries the package carries passes"
+  },
+  {
+   "name": "VA120_the_roots_origin_is_never_established",
+   "path": "tools/verify_assurance.py",
+   "find": "            gaps.pop(\"PACKAGE_ORIGIN\")\n            gaps.pop(\"ROOT_ORIGIN\", None)",
+   "replace": "            gaps.pop(\"PACKAGE_ORIGIN\")\n            pass",
+   "rationale": "a package whose digest matches the published one still reports its registries' origin as not established"
+  },
+  {
+   "name": "VA121_a_root_file_may_be_absent",
+   "path": "tools/verify_assurance.py",
+   "find": "    for rel in (RECORD, LOG, README, *ROOT_FILES):",
+   "replace": "    for rel in (RECORD, LOG, README):",
+   "rationale": "a package without its attestations or a registry passes INTEGRITY and fails later, at a level that does not name the missing file"
+  },
+  {
+   "name": "VA122_test_keys_are_not_counted",
+   "path": "tools/verify_assurance.py",
+   "find": "        \"test_identities\": sum(1 for k in keys if k.startswith(\"test:\"))}",
+   "replace": "        \"test_identities\": 0}",
+   "rationale": "the report does not say that the package's keys are TEST identities"
+  },
+  {
+   "name": "VA_AG1_the_agreement_is_not_read",
+   "path": "tools/verify_assurance.py",
+   "find": "          not unread, \"; \".join(unread))\n",
+   "replace": "          True, \"; \".join(unread))\n",
+   "rationale": "AUD-025: an agreement the verifier cannot read passes CONSISTENCY"
+  },
+  {
+   "name": "VA_AG2_a_package_before_the_agreement_is_refused",
+   "path": "tools/verify_assurance.py",
+   "find": "    if \"agreement\" not in ver:\n        return {}, []\n",
+   "replace": "    if \"agreement\" not in ver:\n        return {}, [\"no agreement\"]\n",
+   "rationale": "AUD-025 migration: every package decided under admission/1 stops verifying"
+  },
+  {
+   "name": "VA_AG3_an_agreement_of_any_type_is_none",
+   "path": "tools/verify_assurance.py",
+   "find": "    if not isinstance(agree, list):\n        return {}, [f\"the agreement is {agree!r}\"]\n",
+   "replace": "    if not isinstance(agree, list):\n        return {}, []\n",
+   "rationale": "AUD-025: an agreement that is no list reads as no agreement stated"
+  },
+  {
+   "name": "VA_AG4_an_entry_of_any_shape_is_read",
+   "path": "tools/verify_assurance.py",
+   "find": "        if not (isinstance(entry, list) and len(entry) == 2\n                and isinstance(entry[0], str)\n                and isinstance(entry[1], dict)):\n",
+   "replace": "        if False:\n",
+   "rationale": "AUD-025: an entry that is not [name, quantity] reaches the reading of its fields"
+  },
+  {
+   "name": "VA_AG5_an_output_may_be_stated_twice",
+   "path": "tools/verify_assurance.py",
+   "find": "        if name in found:\n",
+   "replace": "        if False:\n",
+   "rationale": "AUD-025: two agreements on one output; the verifier keeps the last"
+  },
+  {
+   "name": "VA_AG6_an_agreement_on_no_output",
+   "path": "tools/verify_assurance.py",
+   "find": "        elif name not in outs:\n",
+   "replace": "        elif False:\n",
+   "rationale": "AUD-025: an agreement naming no OK output of the bundle is read"
+  },
+  {
+   "name": "VA_AG7_a_negative_error_is_read",
+   "path": "tools/verify_assurance.py",
+   "find": "        elif not (_number(v) and _number(r) and r >= 0):\n",
+   "replace": "        elif not (_number(v) and _number(r)):\n",
+   "rationale": "AUD-025: a negative check error narrows the observation the verifier expects"
+  },
+  {
+   "name": "VA_AG8_the_unit_is_not_held",
+   "path": "tools/verify_assurance.py",
+   "find": "        elif q.get(\"unit\") != outs[name].get(\"unit\"):\n",
+   "replace": "        elif False:\n",
+   "rationale": "AUD-025: a check value in another unit is subtracted as if in kelvin"
+  },
+  {
+   "name": "VA_AG9_t_at_half_need_not_be_agreed",
+   "path": "tools/verify_assurance.py",
+   "find": "    if \"T_at_half\" not in found and not problems:\n",
+   "replace": "    if False:\n",
+   "rationale": "AUD-025: an agreement silent on the verdict's quantity passes, and the verdict is read at the producer's word"
+  },
+  {
+   "name": "VA_AG10_a_boolean_is_a_number",
+   "path": "tools/verify_assurance.py",
+   "find": "    if isinstance(v, bool) or not isinstance(v, (int, float)):\n        return False\n    try:\n        return math.isfinite(v)\n",
+   "replace": "    if not isinstance(v, (int, float)):\n        return False\n    try:\n        return math.isfinite(v)\n",
+   "rationale": "AUD-025: True read as a check value"
+  },
+  {
+   "name": "VA_AG11_the_observation_is_expected_at_the_producer_s_word",
+   "path": "tools/verify_assurance.py",
+   "find": "    if agreed is not None and _number(v) and _number(r):\n",
+   "replace": "    if False:\n",
+   "rationale": "AUD-025 itself, in the verifier: the observation it accepts is the producer's resolution"
+  },
+  {
+   "name": "VA_AG12_the_agreement_may_narrow_the_producer",
+   "path": "tools/verify_assurance.py",
+   "find": "        r = max(r, abs(v - agreed[0]) + agreed[1])\n",
+   "replace": "        r = abs(v - agreed[0]) + agreed[1]\n",
+   "rationale": "AUD-025: the verifier expects an observation more precise than the producer stated"
+  },
+  {
+   "name": "VA_AG13_the_policy_need_not_match_the_report",
+   "path": "tools/verify_assurance.py",
+   "find": "          policy in (ADMISSION_V1, ADMISSION_V2)\n          and stated == (policy == ADMISSION_V2),\n",
+   "replace": "          policy in (ADMISSION_V1, ADMISSION_V2),\n",
+   "rationale": "AUD-025: an admission/2 decision whose report states no agreement (or the converse) passes"
+  },
+  {
+   "name": "VA_AG14_any_policy_is_read",
+   "path": "tools/verify_assurance.py",
+   "find": "          policy in (ADMISSION_V1, ADMISSION_V2)\n          and stated == (policy == ADMISSION_V2),\n",
+   "replace": "          stated == (policy == ADMISSION_V2),\n",
+   "rationale": "AUD-025: a decision under a policy nobody defined passes when its report states no agreement"
+  },
+  {
+   "name": "VA_AG15_the_check_s_values_are_not_rechecked",
+   "path": "tools/verify_assurance.py",
+   "find": "                  abs(vc - ex) <= crit,\n",
+   "replace": "                  True,\n",
+   "rationale": "AUD-025: the check's own value is taken on its word, so a check wrong by more than it states widens nothing it should"
+  },
+  {
+   "name": "VA_AG16_the_check_s_criterion_is_loosened",
+   "path": "tools/verify_assurance.py",
+   "find": "            crit = rc + 64 * _EPS * abs(ex)\n",
+   "replace": "            crit = 2 * rc + 64 * _EPS * abs(ex)\n",
+   "rationale": "AUD-025: the check is held to twice the error it states"
+  },
+  {
+   "name": "VA_AG17_only_t_at_half_is_rechecked",
+   "path": "tools/verify_assurance.py",
+   "find": "        if name in exact:\n",
+   "replace": "        if name == \"T_at_half\":\n",
+   "rationale": "AUD-025: a check value at another sample, wrong by more than its error, passes"
+  },
+  {
+   "name": "VA_AG18_an_integer_no_float_holds_raises",
+   "path": "tools/verify_assurance.py",
+   "find": "        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
+   "replace": "        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
+   "rationale": "AUD-025: a 400-digit integer in the report's agreement crashes the verifier instead of refusing the package at CONSISTENCY"
+  },
+  {
+   "name": "VA123_a_spread_no_float_holds_raises",
+   "path": "tools/verify_assurance.py",
+   "find": "            and all(_number(s) and s > 0 for s in spreads.values())):\n",
+   "replace": "            and all(isinstance(s, (int, float)) and math.isfinite(s)\n                    and s > 0 for s in spreads.values())):\n",
+   "rationale": "AUD-034: a 400-digit integer as a declared spread raises OverflowError out of the verifier, and a boolean spread is read as 1, instead of the package being refused at RECHECK"
+  }
+ ]
+}

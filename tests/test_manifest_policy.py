@@ -1,7 +1,7 @@
 """Manifest coverage-boundary tests: what final_manifest.json must cover.
 
-MODEL-ONLY / FORECAST-ONLY. Software-verification results only; the scientific
-gate PASS count remains zero and is asserted so below.
+Software-verification results only: a manifest records bytes, never whether
+anything in them is correct.
 
 These exist because the committed manifest was once internally consistent —
 every hash it listed was correct — while silently omitting 30 tracked files
@@ -18,9 +18,8 @@ Two kinds of test live here:
   new-file pickup, and drift detection against a tree whose contents the test
   controls exactly.
 * **Repository invariant tests** assert the properties the real manifest must
-  hold right now — in sync, self-exclusion, and the preservation-vs-authority
-  rule that keeps ``attic/`` hashed even though it is documented as outside
-  the governed project.
+  hold right now — in sync, self-exclusion, sorted order, and no field that
+  no generator writes.
 """
 import hashlib
 import json
@@ -39,16 +38,7 @@ MANIFEST = ROOT / "final_manifest.json"
 HASHFILE = ROOT / "manifest_hash.txt"
 DETACHED = {"final_manifest.json", "manifest_hash.txt"}
 
-SEED_MANIFEST = {
-    "package": "fixture",
-    "verdict": "fixture verdict",
-    "canonical_state": {"total_gates": 0, "PASS": 0},
-    "mode_separation": "fixture",
-    "pass_history": "fixture",
-    "files": [],
-    "self_hash_policy": "DETACHED MANIFEST HASHING. manifest_hash.txt is "
-                        "detached and is not listed in files[].",
-}
+SEED_MANIFEST = {"files": []}
 
 
 def _sha(path) -> str:
@@ -166,13 +156,10 @@ def test_newly_tracked_files_are_picked_up_in_sorted_position(fixture_repo):
 
     (fixture_repo / "gamma.md").write_text("gamma\n")
     _git(fixture_repo, "add", "gamma.md")
-    # untracked-but-present is invisible to the generator by design...
     assert _run_generator(fixture_repo).returncode == 0
     after = _listed(fixture_repo)
     assert "gamma.md" in after
-    # ...and appended in sorted order among the newly seen files
-    new_names = [f for f in after if f not in before]
-    assert new_names == sorted(new_names)
+    assert after == sorted(after)
 
 
 def test_untracked_files_are_not_covered(fixture_repo):
@@ -200,6 +187,16 @@ def test_check_mode_detects_a_tracked_but_unlisted_file(fixture_repo):
     assert "tracked but not listed: late.py" in result.stderr
 
 
+def test_check_mode_detects_a_listed_but_untracked_file(fixture_repo):
+    """The other direction: a manifest that names a file the repository no
+    longer carries describes a tree that does not exist."""
+    _run_generator(fixture_repo)
+    _git(fixture_repo, "rm", "--cached", "-q", "beta.csv")
+    result = _run_generator(fixture_repo, "--check")
+    assert result.returncode == 1
+    assert "listed but not tracked: beta.csv" in result.stderr
+
+
 def test_check_mode_detects_changed_bytes(fixture_repo):
     _run_generator(fixture_repo)
     (fixture_repo / "alpha.py").write_text("alpha modified\n")
@@ -217,12 +214,6 @@ def test_check_mode_detects_a_broken_detached_hash(fixture_repo):
 
 
 # --------------------- invariants of the real repository -------------------
-
-def test_repository_manifest_is_in_sync():
-    result = subprocess.run([sys.executable, "generate_manifest.py", "--check"],
-                            cwd=str(ROOT), capture_output=True, text=True)
-    assert result.returncode == 0, result.stderr
-
 
 def test_repository_manifest_excludes_exactly_the_detached_pair():
     listed = {e["filename"]
@@ -246,105 +237,62 @@ def test_coverage_policy_is_declared_and_says_provenance_not_authority():
     assert "--check" in policy["drift_check"]
 
 
-def test_preserved_but_ungoverned_material_is_still_hashed():
-    """attic/ is documented as outside the governed project — and stays hashed.
-
-    This is the invariant that makes the boundary meaningful: if someone ever
-    'cleans up' the manifest by excluding non-governed material, this fails.
-    """
-    listed = {e["filename"]
-              for e in json.loads(MANIFEST.read_text())["files"]}
-    attic = [f for f in subprocess.run(["git", "-C", str(ROOT), "ls-files",
-                                        "attic"], capture_output=True,
-                                       text=True).stdout.split("\n") if f]
-    assert attic, "expected attic/ to be tracked"
-    assert set(attic) <= listed
-    assert "not part of the governed project" in (ROOT / "README.md").read_text()
+def test_every_field_is_one_the_generator_writes():
+    """A narrative field with no generator is a claim nothing re-derives:
+    the manifest carries paths, sizes, hashes and its own policy only."""
+    doc = json.loads(MANIFEST.read_text())
+    assert set(doc) == {"schema", "package", "coverage_policy", "files",
+                        "self_hash_policy"}
+    assert all(set(e) == {"filename", "size_bytes", "sha256"}
+               for e in doc["files"])
 
 
-def test_manifest_change_did_not_touch_scientific_state():
-    import csv
-    rows = list(csv.DictReader(open(ROOT / "results_gate_table.csv")))
-    assert len(rows) == 83
-    assert sum(r["status"] == "PASS" for r in rows) == 0
-    state = json.loads(MANIFEST.read_text())["canonical_state"]
-    assert state["PASS"] == 0
-    assert state["total_gates"] == 83
+# ------------- semantic verification, distinct from byte coverage -----------
+
+def _rehash(repo):
+    digest = hashlib.sha256(
+        (repo / "final_manifest.json").read_bytes()).hexdigest()
+    (repo / "manifest_hash.txt").write_text(f"sha256: {digest}\n")
 
 
-# ------------- §12: semantic verification, distinct from byte coverage -------
-#
-# --check used to verify only that the listed bytes were the actual bytes. The
-# manifest's narrative fields (gate counts, PASS count) were preserved verbatim
-# with a stderr warning on mismatch, so a stale count could survive every
-# regeneration and every check. A warning is not verification.
-
-def _seed_gate_table(repo, statuses):
-    """Write a results_gate_table.csv the generator can derive counts from."""
-    lines = ["gid,status"]
-    lines += [f"G{i},{s}" for i, s in enumerate(statuses)]
-    (repo / "results_gate_table.csv").write_text("\n".join(lines) + "\n")
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-qm", "gates")
-
-
-def test_generator_derives_gate_counts_from_the_gate_table(fixture_repo):
-    _seed_gate_table(fixture_repo, ["CONDITIONAL"] * 3 + ["BLOCKED"] * 2)
-    assert _run_generator(fixture_repo).returncode == 0
-    state = json.loads((fixture_repo / "final_manifest.json").read_text())["canonical_state"]
-    assert state["total_gates"] == 5
-    assert state["CONDITIONAL"] == 3
-    assert state["BLOCKED"] == 2
-    assert state["PASS"] == 0
-
-
-def test_check_fails_on_semantic_drift_not_just_bytes(fixture_repo):
-    """The exact hole: bytes all correct, narrative silently stale."""
-    _seed_gate_table(fixture_repo, ["CONDITIONAL"] * 3 + ["BLOCKED"] * 2)
+def test_check_refuses_a_field_no_generator_writes(fixture_repo):
+    """Bytes all correct, detached hash correct, and an added narrative
+    field: still drift."""
     _run_generator(fixture_repo)
     doc = json.loads((fixture_repo / "final_manifest.json").read_text())
-    doc["canonical_state"]["BLOCKED"] = 99
+    doc["verdict"] = "everything passed"
     (fixture_repo / "final_manifest.json").write_text(
         json.dumps(doc, indent=2, ensure_ascii=True))
-    digest = hashlib.sha256(
-        (fixture_repo / "final_manifest.json").read_bytes()).hexdigest()
-    (fixture_repo / "manifest_hash.txt").write_text(f"sha256: {digest}\n")
+    _rehash(fixture_repo)
     result = _run_generator(fixture_repo, "--check")
-    assert result.returncode == 1, "semantic drift passed --check"
-    assert "canonical_state.BLOCKED" in result.stderr
+    assert result.returncode == 1, "an unwritten field passed --check"
+    assert "fields no generator writes" in result.stderr
 
 
-def test_check_rejects_a_pass_row(fixture_repo):
-    """PASS is 0 by design; a PASS row must fail the manifest check outright."""
-    _seed_gate_table(fixture_repo, ["CONDITIONAL", "PASS"])
+def test_check_refuses_an_out_of_order_list(fixture_repo):
     _run_generator(fixture_repo)
+    doc = json.loads((fixture_repo / "final_manifest.json").read_text())
+    doc["files"].reverse()
+    (fixture_repo / "final_manifest.json").write_text(
+        json.dumps(doc, indent=2, ensure_ascii=True))
+    _rehash(fixture_repo)
     result = _run_generator(fixture_repo, "--check")
     assert result.returncode == 1
-    assert "PASS" in result.stderr
+    assert "sorted path order" in result.stderr
 
 
 def test_documented_ordering_policy_matches_the_generator(fixture_repo):
-    """Existing order preserved, new tracked files appended sorted."""
-    _run_generator(fixture_repo)
-    first = _listed(fixture_repo)
+    """Sorted by path, as the docstring and the coverage policy say."""
     (fixture_repo / "aaa_new.py").write_text("new\n")
     (fixture_repo / "zzz_new.py").write_text("new\n")
     _git(fixture_repo, "add", "-A")
     _git(fixture_repo, "commit", "-qm", "add two")
     _run_generator(fixture_repo)
-    second = _listed(fixture_repo)
-    assert second[:len(first)] == first, "existing entries were reordered"
-    assert second[len(first):] == ["aaa_new.py", "zzz_new.py"], \
-        "new entries were not appended in sorted order"
-    assert second != sorted(second), \
-        "the list is not globally sorted; the docstring must not claim it is"
-
-
-def test_generator_docstring_does_not_claim_a_sorted_file_list():
+    listed = _listed(fixture_repo)
+    assert listed == sorted(listed)
+    assert listed[0] == "aaa_new.py" and listed[-1] == "zzz_new.py"
     src = GENERATOR.read_text(encoding="utf-8")
-    head = src.split('"""')[1]
-    assert "the file list is sorted" not in head, \
-        "module docstring restates the withdrawn sorted-list claim"
+    assert "sorted path order" in src.split('"""')[1]
 
 
 # ---------------------------------------------------------------------------

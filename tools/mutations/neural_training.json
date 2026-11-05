@@ -1,0 +1,58 @@
+{
+ "title": "Training, resume and the development pipeline (NF-1T)",
+ "note": "NX1-NX7: a non-finite step that does not stop the run, a resume from the wrong step, a data order not tied to its epoch, Adam without bias correction, accumulated gradients not averaged, an exact resume with no parent, statistics never put in the checkpoint.",
+ "suites": [
+  "tests/test_neural_training.py"
+ ],
+ "mutations": [
+  {
+   "name": "NX1_non_finite_step_continues",
+   "path": "scientific_ai/neural/model/train.py",
+   "find": "        if not math.isfinite(loss) or not rf:\n",
+   "replace": "        if False:\n",
+   "rationale": "a NaN loss trained through"
+  },
+  {
+   "name": "NX2_resume_from_any_step",
+   "path": "scientific_ai/neural/model/train.py",
+   "find": "    if int(opt[\"step\"]) != start_step:\n",
+   "replace": "    if False:\n",
+   "rationale": "a resume that skips or repeats steps"
+  },
+  {
+   "name": "NX3_order_ignores_epoch",
+   "path": "scientific_ai/neural/model/train.py",
+   "find": "        tc.data_order_seed + epoch)).permutation(n_train)\n",
+   "replace": "        tc.data_order_seed)).permutation(n_train)\n",
+   "rationale": "every epoch sees one order"
+  },
+  {
+   "name": "NX4_adam_without_bias_correction",
+   "path": "scientific_ai/neural/model/train.py",
+   "find": "        bc1 = 1 - tc.beta1 ** t\n",
+   "replace": "        bc1 = 1.0\n",
+   "rationale": "the first step ten times too small"
+  },
+  {
+   "name": "NX5_accumulation_not_averaged",
+   "path": "scientific_ai/neural/model/train.py",
+   "find": "            lambda acc, x: acc + x.astype(jnp.float32) / n_micro, g, gi)\n",
+   "replace": "            lambda acc, x: acc + x.astype(jnp.float32), g, gi)\n",
+   "rationale": "accumulated gradients summed, not averaged"
+  },
+  {
+   "name": "NX6_exact_resume_without_parent",
+   "path": "scientific_ai/neural/model/pipeline.py",
+   "find": "            start=mid, stop=tc.steps, resume=\"EXACT_RESUME\", parent_run=a_id,\n",
+   "replace": "            start=mid, stop=tc.steps, resume=\"EXACT_RESUME\", parent_run=None,\n",
+   "rationale": "an exact resume that names no run it continues"
+  },
+  {
+   "name": "NX7_resume_parent_checkpoint_dropped",
+   "path": "scientific_ai/neural/model/pipeline.py",
+   "find": "            parent_ckpt=a_digest, completion=\"COMPLETED\", history=rb_hist,\n",
+   "replace": "            parent_ckpt=None, completion=\"COMPLETED\", history=rb_hist,\n",
+   "rationale": "a resumed run that names no checkpoint"
+  }
+ ]
+}

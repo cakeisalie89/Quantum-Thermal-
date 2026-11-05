@@ -1,0 +1,1539 @@
+{
+ "schema": "tranche-h-capability-matrix/1",
+ "starting_commit": "9e5ac06",
+ "states": [
+  "IMPLEMENTED",
+  "PARTIAL",
+  "ABSENT",
+  "EXTERNALLY_BLOCKED",
+  "DEPLOYMENT_REQUIRED",
+  "DOCUMENTED_ONLY"
+ ],
+ "owner_decisions": {
+  "OD-1": "live model inference: provider, model, credential provisioning outside the repository, per-gate spending cap and rate limits",
+  "OD-2": "whether live-model runs may ever execute in hosted CI (recommended: never; CI stays offline)",
+  "OD-3": "external research retrieval: source allowlist, licence and usage-rights policy, bandwidth limits",
+  "OD-4": "a human principal for escalations and reviews, registered by the owner out of band",
+  "OD-5": "symbolic-mathematics dependency and a formal proof checker (or the decision to have none)",
+  "OD-6": "inference budgets for the real-model grounding experiment and the long-horizon stages",
+  "OD-7": "whether a multi-host deployment is intended (changes the coordination design)"
+ },
+ "rows": [
+  {
+   "id": "CAP-01",
+   "section": "H2",
+   "component": "Proposal envelope and ingress",
+   "modules": [
+    "agent_substrate/proposals.py"
+   ],
+   "responsibility": "closed, content-addressed, NON_AUTHORITATIVE proposal records; receipt under the ingress's own identity; MODEL_RUN submitted to the governed model path",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_proposal_ingress.py",
+     "tests/test_proposal_concurrency.py",
+     "tests/test_proposal_crash_recovery.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/proposal_ingress.json",
+     "tools/mutations/proposal_crash_recovery.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "records a receipt; submits MODEL_RUN only; no authority transition",
+   "threats": [
+    "forbidden authority keys",
+    "embedded credentials",
+    "oversize or deep records",
+    "stale citations"
+   ],
+   "missing_integration": [
+    "kinds for the next decision of an autonomous loop",
+    "rationale text is kept by digest only",
+    "the context binds retrieval only, not authority state"
+   ],
+   "acceptance": [
+    "a model's proposal enters as NON_AUTHORITATIVE",
+    "malformed or unauthorized proposals refused before execution"
+   ],
+   "owner_decision": null,
+   "gate": "B",
+   "reproduced_gap": "R2, R3, R5"
+  },
+  {
+   "id": "CAP-02",
+   "section": "H2",
+   "component": "Model adapters",
+   "modules": [
+    "agent_substrate/proposals.py"
+   ],
+   "responsibility": "RecordedFixtureAdapter (offline) and ExternalClientAdapter (any callable)",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [
+     "tests/test_proposal_ingress.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/proposal_ingress.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none: responses are untrusted input",
+   "threats": [
+    "a hanging or slow provider",
+    "unbounded output",
+    "claimed identity spoofing"
+   ],
+   "missing_integration": [
+    "timeouts, retries, output bounds",
+    "token, cost and latency accounting",
+    "explicit provider-failure records"
+   ],
+   "acceptance": [
+    "every model call bounded in time, tokens and money, and recorded whether it succeeds or fails"
+   ],
+   "owner_decision": null,
+   "gate": "B",
+   "reproduced_gap": "R1, R8",
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "B",
+    "modules": [
+     "agent_substrate/inference.py",
+     "agent_substrate/_inference_worker.py"
+    ],
+    "tests": [
+     "tests/test_inference_gateway.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "every model call now goes through the gateway: a wall clock, an output bound, bounded attempts and a process boundary for live providers. The live adapter itself is EXTERNALLY_BLOCKED on OD-1."
+   }
+  },
+  {
+   "id": "CAP-03",
+   "section": "H2",
+   "component": "Provider-neutral inference gateway",
+   "modules": [],
+   "responsibility": "one interface for any provider: structured-output schemas, budgets, rate limits, failure taxonomy, inference records",
+   "state": "ABSENT",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "(to be designed) none over the log; network egress to one provider host",
+   "threats": [
+    "budget exhaustion",
+    "credential exfiltration",
+    "prompt injection reaching the provider",
+    "nondeterministic output"
+   ],
+   "missing_integration": [
+    "the gateway itself",
+    "inference.* event actions with reducer and second reader",
+    "classification in the authority inventory"
+   ],
+   "acceptance": [
+    "offline fixture provider through the gateway end to end",
+    "CI requires no key and no network"
+   ],
+   "owner_decision": null,
+   "gate": "B",
+   "reproduced_gap": "R1, R4",
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "B",
+    "modules": [
+     "agent_substrate/inference.py",
+     "agent_substrate/reconstruct.py"
+    ],
+    "tests": [
+     "tests/test_inference_gateway.py",
+     "tests/test_inference_second_reader.py",
+     "tests/test_inference_concurrency.py",
+     "tests/test_gate_b_acceptance.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "typed requests and results, a failure taxonomy, reservation, dispatch and settlement under the writer lock, recovery by lease, and an independent second reading. Offline only: the provider is a fixture."
+   }
+  },
+  {
+   "id": "CAP-04",
+   "section": "H2",
+   "component": "Live real-model inference",
+   "modules": [],
+   "responsibility": "a genuine model producing proposals",
+   "state": "EXTERNALLY_BLOCKED",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "none",
+   "threats": [
+    "unauthorized spend",
+    "use of a credential not provisioned for the harness"
+   ],
+   "missing_integration": [
+    "a provisioned provider credential",
+    "an agreed spending cap"
+   ],
+   "acceptance": [
+    "a real model's valid proposal enters the log as NON_AUTHORITATIVE"
+   ],
+   "owner_decision": "OD-1",
+   "gate": "B",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-05",
+   "section": "H2",
+   "component": "Credential handling",
+   "modules": [
+    "agent_substrate/secrets.py"
+   ],
+   "responsibility": "secret references travel and values do not; file provider; grants by actor, task, tool and purpose; egress-bound secrets; redaction at the surface",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_secrets.py",
+     "tests/test_agent_secret_provider.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_secrets.json",
+     "tools/mutations/agent_secret_provider.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "reveal only under a grant naming the purpose and egress host",
+   "threats": [
+    "key in a prompt, a log line or a tool environment"
+   ],
+   "missing_integration": [
+    "never applied to a model provider's key"
+   ],
+   "acceptance": [
+    "the provider key is revealed only inside the gateway, only for its host, and appears in no context, log or tool environment"
+   ],
+   "owner_decision": "OD-1",
+   "gate": "B",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-06",
+   "section": "H2/H11",
+   "component": "Network egress authority",
+   "modules": [
+    "agent_substrate/netauth.py",
+    "agent_substrate/execution.py"
+   ],
+   "responsibility": "egress as a bounded grant (policy layer), an in-process socket guard, and kernel network namespaces for tools",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_netauth.py",
+     "tests/test_execution_containment.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_netauth.json",
+     "tools/mutations/execution_containment.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "a grant per destination; tools get no network at all",
+   "threats": [
+    "a dependency phoning home",
+    "a determined in-process attacker restoring the socket method"
+   ],
+   "missing_integration": [
+    "kernel-level restriction of a network-enabled gateway process to one host (netauth's kernel layer is not provided for the parent)"
+   ],
+   "acceptance": [
+    "the gateway process can reach the approved provider and nothing else, measured, not asserted"
+   ],
+   "owner_decision": null,
+   "gate": "B",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-07",
+   "section": "H2/H4",
+   "component": "Decision context",
+   "modules": [
+    "agent_substrate/context.py",
+    "agent_substrate/governed_tasks.py"
+   ],
+   "responsibility": "tiered context with mandatory tiers that fail the build, recorded omissions and a recorded manifest",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_context.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_memory_context.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none: a view, never state",
+   "threats": [
+    "summaries treated as the thing summarized",
+    "silent truncation"
+   ],
+   "missing_integration": [
+    "used for governed tool runs only, never to build a model's context",
+    "proposals do not cite a context manifest"
+   ],
+   "acceptance": [
+    "every model call names the context manifest it was given, and the manifest is recorded before the call"
+   ],
+   "owner_decision": null,
+   "gate": "B",
+   "reproduced_gap": "R5",
+   "progress": {
+    "state": "PARTIAL",
+    "gate": "B",
+    "modules": [
+     "agent_substrate/inference.py",
+     "agent_substrate/proposals.py"
+    ],
+    "tests": [
+     "tests/test_inference_gateway.py",
+     "tests/test_gate_b_acceptance.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "a model call binds the recorded context manifest, the prompt is checked against it, and a context under a superseded or withdrawn policy is refused (CONTEXT_STALE). An authority DECISION does not yet carry a justification record; that is Assurance D."
+   }
+  },
+  {
+   "id": "CAP-08",
+   "section": "H3/H4",
+   "component": "Objectives, subgoals and hypotheses",
+   "modules": [],
+   "responsibility": "durable research objectives, decomposition, hypotheses with dependencies, retraction and supersession",
+   "state": "ABSENT",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "",
+   "threats": [
+    "a hypothesis promoted by repetition",
+    "a retracted conclusion still cited"
+   ],
+   "missing_integration": [
+    "records, reducer and second-reader restatement",
+    "invalidation propagation to dependent hypotheses"
+   ],
+   "acceptance": [
+    "objectives and hypotheses survive restart and are reconstructed identically by both readers"
+   ],
+   "owner_decision": null,
+   "gate": "C",
+   "reproduced_gap": "R6",
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "C",
+    "modules": [
+     "agent_substrate/research.py",
+     "agent_substrate/reconstruct.py"
+    ],
+    "tests": [
+     "tests/test_research_ledger.py",
+     "tests/test_research_loop.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "note": "objectives (with subgoals) registered by their owners, hypotheses with structured predictions, observations read only from VERIFIED or PROMOTED bundles, verdicts COMPUTED with resolution and unit and quantity identity, retraction, supersession and propagated staleness, read again by the second reader."
+   }
+  },
+  {
+   "id": "CAP-09",
+   "section": "H3",
+   "component": "Autonomous decision controller",
+   "modules": [],
+   "responsibility": "bounded loop: reconstruct, assemble context, propose, validate, authorize, schedule, execute, verify, update, decide to continue, stop, abstain or escalate",
+   "state": "ABSENT",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "",
+   "threats": [
+    "runaway loops",
+    "acting on invented prior work",
+    "retry storms"
+   ],
+   "missing_integration": [
+    "the loop",
+    "stopping criteria",
+    "step and budget caps"
+   ],
+   "acceptance": [
+    "a model completes a small bounded objective through several genuine decisions, each traceable to a proposal, a policy decision and an execution record"
+   ],
+   "owner_decision": null,
+   "gate": "C",
+   "reproduced_gap": null,
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "C",
+    "modules": [
+     "agent_substrate/research_loop.py"
+    ],
+    "tests": [
+     "tests/test_research_loop.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "note": "a bounded controller: one model call per step, the objective's step and call ceilings, resumption from the log after a crash at any of seven points with nothing done twice. A scripted agent only; no language model has driven it."
+   }
+  },
+  {
+   "id": "CAP-10",
+   "section": "H3",
+   "component": "Executable action set",
+   "modules": [
+    "agent_substrate/proposals.py",
+    "agent_substrate/tools.py"
+   ],
+   "responsibility": "what a proposal may cause to run",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [
+     "tests/test_proposal_ingress.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/proposal_ingress.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "MODEL_RUN through the governed model path only; other kinds are recorded for a person",
+   "threats": [
+    "arbitrary shell",
+    "repository writes",
+    "unregistered tools"
+   ],
+   "missing_integration": [
+    "check requests, retrieval, hypothesis records, review requests, abstain and stop as validated kinds mapped to registered tools or to non-authoritative records"
+   ],
+   "acceptance": [
+    "every executable kind maps to a registered tool contract; no kind maps to a shell or a repository write"
+   ],
+   "owner_decision": null,
+   "gate": "C",
+   "reproduced_gap": "R2",
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "C",
+    "modules": [
+     "agent_substrate/research_loop.py",
+     "agent_substrate/proposals.py"
+    ],
+    "tests": [
+     "tests/test_research_loop.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "note": "each proposal kind has one route: MODEL_RUN through the governed path with an independent check; HYPOTHESIS, CONCLUDE and ABSTAIN as research records; DIAGNOSTIC blocks the objective; SIMULATION_PLAN, RETRY and CODE_PATCH are refused. Nothing reaches a shell, the repository or a grant."
+   }
+  },
+  {
+   "id": "CAP-11",
+   "section": "H3",
+   "component": "Durable scheduler",
+   "modules": [
+    "agent_substrate/scheduler.py",
+    "agent_substrate/tasks.py"
+   ],
+   "responsibility": "jobs with dependencies, priorities, leases, readiness, cancellation and reconciliation",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_scheduler.py",
+     "tests/test_agent_cross_process.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_scheduler.json",
+     "tools/mutations/agent_job_graph.json",
+     "tools/mutations/agent_lease_renewal.json",
+     "tools/mutations/agent_tasks.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "dispatch under a lease",
+   "threats": [
+    "stale leases",
+    "duplicate dispatch"
+   ],
+   "missing_integration": [
+    "no model-driven enqueuing yet"
+   ],
+   "acceptance": [
+    "the controller schedules only through it"
+   ],
+   "owner_decision": null,
+   "gate": "C",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-12",
+   "section": "H3/H6",
+   "component": "Governed model path",
+   "modules": [
+    "agent_substrate/governed_model.py",
+    "agent_substrate/governed_tasks.py",
+    "agent_substrate/execution.py"
+   ],
+   "responsibility": "policy, capability, bounded subprocess, re-execution by a separate verifier, independent check, decision by a reviewer who is none of them",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_harness_demo.py",
+     "tests/test_agent_governed_tasks.py",
+     "tests/test_scientific_integrations.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/governed_model.json",
+     "tools/mutations/governed_tasks_authority.json",
+     "tools/mutations/harness_demo.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "an authority decision only by a reviewer separate from proposer, producer and checker",
+   "threats": [
+    "self-verification",
+    "a decision under a withdrawn policy"
+   ],
+   "missing_integration": [
+    "the reviewer in every run here is a scripted identity, never a human"
+   ],
+   "acceptance": [
+    "a model-proposed computation is authorized, executed, independently checked and decided"
+   ],
+   "owner_decision": "OD-4",
+   "gate": "F",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-13",
+   "section": "H3/H11",
+   "component": "Versioned policy",
+   "modules": [
+    "agent_substrate/policy.py"
+   ],
+   "responsibility": "deny-overrides rules, publication, withdrawal, expiry",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_policy.py",
+     "tests/test_policy_binding.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_policy.json",
+     "tools/mutations/policy_binding.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "decides every governed request",
+   "threats": [
+    "broad grants defeating carve-outs"
+   ],
+   "missing_integration": [
+    "no policy yet for model-originated actions"
+   ],
+   "acceptance": [
+    "every model-originated action decided by a published policy naming the rule"
+   ],
+   "owner_decision": null,
+   "gate": "C",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-14",
+   "section": "H3/H5",
+   "component": "Capabilities and delegation",
+   "modules": [
+    "agent_substrate/capability.py"
+   ],
+   "responsibility": "bounded, attributable grants; delegation depth and attenuation",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_delegation.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_delegation.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "a grant per subject, task, tool and scope",
+   "threats": [
+    "confused deputy"
+   ],
+   "missing_integration": [
+    "per-agent, per-task grants for model agents"
+   ],
+   "acceptance": [
+    "each model agent holds only the capabilities of its task"
+   ],
+   "owner_decision": null,
+   "gate": "E",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-15",
+   "section": "H3/H5",
+   "component": "Human escalation",
+   "modules": [
+    "agent_substrate/agents.py"
+   ],
+   "responsibility": "escalations answerable only by a registered HUMAN principal",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_agents.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_agents.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "a human answer unblocks; no agent can answer",
+   "threats": [
+    "an agent performing the human bootstrap"
+   ],
+   "missing_integration": [
+    "no human principal is registered in this repository: every escalation stays OPEN"
+   ],
+   "acceptance": [
+    "an escalation raised by a model agent is answered only by the owner's registered human principal"
+   ],
+   "owner_decision": "OD-4",
+   "gate": "C",
+   "reproduced_gap": null,
+   "progress": {
+    "state": "PARTIAL",
+    "gate": "C",
+    "modules": [
+     "agent_substrate/research_loop.py"
+    ],
+    "tests": [
+     "tests/test_research_loop.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/research.json"
+    ],
+    "note": "a question for a person BLOCKS the objective with the question recorded. Who answers it is OD-4: no human principal is registered, so a blocked objective stays blocked."
+   }
+  },
+  {
+   "id": "CAP-16",
+   "section": "H4",
+   "component": "Event log",
+   "modules": [
+    "agent_substrate/events.py"
+   ],
+   "responsibility": "hash-chained, append-only history; head witness; verified and anchored incremental reads; decided appends under the writer lock",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_t2_closure.py",
+     "tests/test_refused_fold.py",
+     "tests/test_decided_under_lock.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/t2_closure.json",
+     "tools/mutations/decided_appends.json",
+     "tools/mutations/agent_incremental.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "the history of record",
+   "threats": [
+    "truncation with head rewrite (M-3, accepted limitation)",
+    "distributed writers"
+   ],
+   "missing_integration": [],
+   "acceptance": [
+    "full-chain and incremental verification both retained under every new subsystem"
+   ],
+   "owner_decision": null,
+   "gate": null,
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-17",
+   "section": "H4",
+   "component": "Memory and memory trust",
+   "modules": [
+    "agent_substrate/memory.py",
+    "agent_substrate/memory_trust.py"
+   ],
+   "responsibility": "non-authoritative memory; six trust properties answered separately",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_memory.py",
+     "tests/test_memory_trust.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_memory_context.json",
+     "tools/mutations/memory_trust.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none",
+   "threats": [
+    "poisoned or stale notes",
+    "forged attribution (M-1, fixed)"
+   ],
+   "missing_integration": [
+    "memory views per agent",
+    "source-linked research summaries"
+   ],
+   "acceptance": [
+    "a poisoned summary does not steer an authorized action"
+   ],
+   "owner_decision": null,
+   "gate": "C",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-18",
+   "section": "H4",
+   "component": "Checkpoints",
+   "modules": [
+    "agent_substrate/checkpoint.py"
+   ],
+   "responsibility": "a cache of a verification, never trust",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_checkpoint.py",
+     "tests/test_checkpoint_recovery.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_checkpoint.json",
+     "tools/mutations/checkpoint_recovery.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none",
+   "threats": [
+    "corrupt or stale checkpoints"
+   ],
+   "missing_integration": [],
+   "acceptance": [
+    "a corrupt checkpoint is refused and full replay still agrees"
+   ],
+   "owner_decision": null,
+   "gate": "G",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-19",
+   "section": "H4",
+   "component": "Independent reconstruction",
+   "modules": [
+    "agent_substrate/reconstruct.py",
+    "agent_substrate/separate_verify.py",
+    "tools/independent_verify.py"
+   ],
+   "responsibility": "a second reader that restates the rules, run in another process",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_second_reader.py",
+     "tests/test_agent_separate_verify.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_second_reader.json",
+     "tools/mutations/agent_separate_verify.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "a verdict on the history",
+   "threats": [
+    "a second reader that is the first one twice"
+   ],
+   "missing_integration": [
+    "restatement for every new research and inference record"
+   ],
+   "acceptance": [
+    "both readers agree on every new subsystem, including after resets"
+   ],
+   "owner_decision": null,
+   "gate": "B",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-20",
+   "section": "H4",
+   "component": "Actor authentication",
+   "modules": [
+    "agent_substrate/principals.py",
+    "agent_substrate/signature.py",
+    "agent_substrate/ed25519.py"
+   ],
+   "responsibility": "attestations, key registry, AUTHENTICATED_REQUIRED histories",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [
+     "tests/test_actor_authentication.py",
+     "tests/test_authenticated_history.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/actor_authentication.json",
+     "tools/mutations/authenticated_history.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "an event's actor bound to a key",
+   "threats": [
+    "stolen keys",
+    "test keys used as production keys"
+   ],
+   "missing_integration": [
+    "production keys and a VETTED provider (readiness SUB-5)"
+   ],
+   "acceptance": [
+    "no production claim from test identities"
+   ],
+   "owner_decision": null,
+   "gate": "H",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-21",
+   "section": "H5",
+   "component": "Agent directory and messages",
+   "modules": [
+    "agent_substrate/agents.py"
+   ],
+   "responsibility": "registrations, roles, ordered attributed messages, claims, resolutions, separation of duties",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_agents.py",
+     "tests/test_agent_collusion.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_agents.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "an action names the instance that took it",
+   "threats": [
+    "impersonation",
+    "collusion across identities"
+   ],
+   "missing_integration": [
+    "no model drives any registered agent",
+    "identities sharing one underlying model are not independent"
+   ],
+   "acceptance": [
+    "distinct model-driven roles cannot act as one another, and none verifies its own work"
+   ],
+   "owner_decision": null,
+   "gate": "E",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-22",
+   "section": "H5/H13",
+   "component": "Cross-process coordination",
+   "modules": [
+    "agent_substrate/events.py",
+    "agent_substrate/scheduler.py"
+   ],
+   "responsibility": "writer lock (flock) and leases on one host",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_cross_process.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_cross_process.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "one writer at a time per log",
+   "threats": [
+    "multi-host writers"
+   ],
+   "missing_integration": [
+    "a coordination design for more than one host"
+   ],
+   "acceptance": [
+    "no distributed deployment until its writer model is designed and tested"
+   ],
+   "owner_decision": "OD-7",
+   "gate": "H",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-23",
+   "section": "H5",
+   "component": "Swarm roles and coordinator",
+   "modules": [],
+   "responsibility": "coordinator, two researchers, an adversary; budgets, leases, conflict rules",
+   "state": "ABSENT",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "",
+   "threats": [
+    "majority agreement mistaken for verification",
+    "duplicate work",
+    "budget starvation"
+   ],
+   "missing_integration": [
+    "the roles",
+    "matched-budget comparison against one agent"
+   ],
+   "acceptance": [
+    "agents complete a dependency-based task, disagree at least once, resolve it with no unauthorized promotion"
+   ],
+   "owner_decision": null,
+   "gate": "E",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-24",
+   "section": "H6",
+   "component": "Scientific models, registry and checks",
+   "modules": [
+    "scientific/model.py",
+    "scientific/registry.py",
+    "scientific/catalog.py",
+    "scientific/verification.py",
+    "scientific/checks/slab_series.py",
+    "scientific/checks/fenicsx_slab.py",
+    "scientific/checks/fmu_rc2.py"
+   ],
+   "responsibility": "default-deny catalogue of models and independent checks (closed form, FEniCSx, FMI)",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_scientific_interfaces.py",
+     "tests/test_scientific_integrations.py",
+     "tests/test_harness_integrations.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/scientific_interfaces.json",
+     "tools/mutations/scientific_integrations.json",
+     "tools/mutations/harness_integrations.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "a check's verdict on a run",
+   "threats": [
+    "two solvers agreeing taken as validation"
+   ],
+   "missing_integration": [
+    "no model-facing tool contracts for them yet"
+   ],
+   "acceptance": [
+    "each check reachable by a model only through a registered tool contract"
+   ],
+   "owner_decision": null,
+   "gate": "F",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-25",
+   "section": "H6",
+   "component": "Uncertainty, design of experiments, outputs",
+   "modules": [
+    "scientific/sensitivity.py",
+    "scientific/integrations/openmdao_doe.py",
+    "scientific/hdf5_bundle.py",
+    "scientific/integrations/vtk_export.py",
+    "scientific/integrations/usd_export.py"
+   ],
+   "responsibility": "SALib and OpenMDAO (optional extra), HDF5 bundles, VTK and OpenUSD export",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_sensitivity_cross_check.py",
+     "tests/test_hdf5_bundle.py",
+     "tests/test_scientific_integrations.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/hdf5_bundle.json",
+     "tools/mutations/scientific_integrations.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none",
+   "threats": [],
+   "missing_integration": [
+    "ParaView is not integrated"
+   ],
+   "acceptance": [],
+   "owner_decision": null,
+   "gate": "F",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-26",
+   "section": "H6",
+   "component": "Symbolic mathematics and unit consistency",
+   "modules": [
+    "scientific/quantity.py"
+   ],
+   "responsibility": "units on published numbers",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "none",
+   "threats": [
+    "an LLM's algebra presented as a calculation"
+   ],
+   "missing_integration": [
+    "no symbolic engine is installed",
+    "no general dimensional-analysis checker"
+   ],
+   "acceptance": [
+    "an algebraic or calculus result is checked by a computation, or reported as unchecked"
+   ],
+   "owner_decision": "OD-5",
+   "gate": "F",
+   "reproduced_gap": "R7"
+  },
+  {
+   "id": "CAP-27",
+   "section": "H6",
+   "component": "Formal proof checking",
+   "modules": [],
+   "responsibility": "machine-checked proofs",
+   "state": "ABSENT",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "",
+   "threats": [
+    "a plausible proof sketch reported as a proof"
+   ],
+   "missing_integration": [
+    "a proof checker"
+   ],
+   "acceptance": [
+    "a candidate proof is machine-checked, or the absence of machine verification is reported"
+   ],
+   "owner_decision": "OD-5",
+   "gate": "F",
+   "reproduced_gap": "R7"
+  },
+  {
+   "id": "CAP-28",
+   "section": "H7",
+   "component": "Local governed retrieval",
+   "modules": [
+    "agent_substrate/rag_index.py",
+    "tools/corpus_allowlist.py"
+   ],
+   "responsibility": "BM25 over an allowlisted corpus; spans stamped NOT_EVIDENCE; stale citations refused",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_retrieval.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/corpus_allowlist.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none: retrieved text informs, never decides",
+   "threats": [
+    "instructions inside retrieved text"
+   ],
+   "missing_integration": [
+    "no licence or retraction metadata (not needed for the reviewed local corpus)"
+   ],
+   "acceptance": [
+    "a cited source's change is detected"
+   ],
+   "owner_decision": null,
+   "gate": "F",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-29",
+   "section": "H7",
+   "component": "External research retrieval",
+   "modules": [],
+   "responsibility": "allowlisted external sources with licence, version, retraction and hash tracking",
+   "state": "ABSENT",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "",
+   "threats": [
+    "SSRF and redirects",
+    "copyright",
+    "untrusted instructions",
+    "unbounded downloads"
+   ],
+   "missing_integration": [
+    "the service",
+    "its allowlist and policy"
+   ],
+   "acceptance": [
+    "an approved source cited, distinguished from evidence, and its change detected"
+   ],
+   "owner_decision": "OD-3",
+   "gate": "F",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-30",
+   "section": "H8",
+   "component": "Scripted grounding benchmark",
+   "modules": [
+    "tools/grounding_bench/run.py",
+    "tools/grounding_bench/claims.py",
+    "tools/grounding_bench/world.py",
+    "tools/grounding_bench/agents.py"
+   ],
+   "responsibility": "Tranche G's pre-registered scripted-agent experiment",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_grounding_bench.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/grounding_bench.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none",
+   "threats": [
+    "its 10.2% and 7.8% quoted as model results"
+   ],
+   "missing_integration": [
+    "claim extraction from free text is not measured"
+   ],
+   "acceptance": [
+    "kept as historical, scripted-only evidence"
+   ],
+   "owner_decision": null,
+   "gate": "D",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-31",
+   "section": "H8",
+   "component": "Real-model grounding experiment",
+   "modules": [],
+   "responsibility": "a separately pre-registered experiment on a real model",
+   "state": "EXTERNALLY_BLOCKED",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "",
+   "threats": [
+    "evaluation leakage",
+    "combined interventions attributed to one"
+   ],
+   "missing_integration": [
+    "protocol",
+    "harness",
+    "budget"
+   ],
+   "acceptance": [
+    "reproducible results with baselines, ablations, failures, intervals and limits; NOT_RUN until run"
+   ],
+   "owner_decision": "OD-6",
+   "gate": "D",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-32",
+   "section": "H9",
+   "component": "Long-horizon campaign",
+   "modules": [
+    "tests/test_agent_long_horizon.py"
+   ],
+   "responsibility": "scripted cycles with crashes, races and recovery",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_long_horizon.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/stress_campaign_coverage.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none",
+   "threats": [
+    "bookkeeping events counted as reasoning"
+   ],
+   "missing_integration": [
+    "no counters separating events, operations, inference calls and genuine decisions"
+   ],
+   "acceptance": [
+    "every horizon reports each counter separately"
+   ],
+   "owner_decision": null,
+   "gate": "G",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-33",
+   "section": "H10",
+   "component": "NF-1T learned-model substrate",
+   "modules": [
+    "scientific_ai/neural/config.py",
+    "scientific_ai/neural/claims.py",
+    "scientific_ai/neural/model/network.py",
+    "scientific_ai/neural/model/parallel.py",
+    "agent_substrate/learned_rules.py"
+   ],
+   "responsibility": "architecture parameterised (996,509,217,800 trainable); a 431,784-parameter member trained; eight simulated CPU devices; the flagship neither allocated nor trained",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_neural_model.py",
+     "tests/test_neural_distributed.py",
+     "tests/test_neural_provenance.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/neural_training.json",
+     "tools/mutations/neural_parallel.json",
+     "tools/mutations/neural_authority.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none: no learned record becomes VERIFIED or PROMOTED",
+   "threats": [
+    "a simulated mesh described as a cluster",
+    "a learned prediction admitted as a result"
+   ],
+   "missing_integration": [
+    "no role in any agent loop"
+   ],
+   "acceptance": [
+    "a scaling and integration roadmap that changes no current claim"
+   ],
+   "owner_decision": null,
+   "gate": "F",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-34",
+   "section": "H11",
+   "component": "Bounded and confined execution",
+   "modules": [
+    "agent_substrate/execution.py",
+    "agent_substrate/_ns_init.py",
+    "tools/confinement_probe.py"
+   ],
+   "responsibility": "rlimits, user/pid/net namespaces, Landlock confinement with a proving probe, high_assurance refusal",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_execution.py",
+     "tests/test_filesystem_confinement.py",
+     "tests/test_execution_containment.py",
+     "tests/test_confinement_probe.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_execution.json",
+     "tools/mutations/filesystem_confinement.json",
+     "tools/mutations/execution_containment.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "a tool reaches only its grants",
+   "threats": [
+    "a provider or tool demanding that high_assurance be weakened"
+   ],
+   "missing_integration": [
+    "deployment attestation (readiness RUN-2, RUN-3, RUN-4)"
+   ],
+   "acceptance": [
+    "the model gateway never runs inside a worker, and workers never gain network"
+   ],
+   "owner_decision": null,
+   "gate": "H",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-35",
+   "section": "H11",
+   "component": "Prompt-injection and hostile-input campaign",
+   "modules": [
+    "agent_substrate/proposals.py",
+    "tests/test_hostile_composition.py"
+   ],
+   "responsibility": "hostile Cases A-H end to end; envelope refusal",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [
+     "tests/test_hostile_composition.py",
+     "tests/test_agent_hostile_campaign.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_substrate.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none",
+   "threats": [
+    "injected instructions in retrieved text, tool output or another agent's message",
+    "forged tool responses",
+    "malicious model output"
+   ],
+   "missing_integration": [
+    "no campaign against a model in the loop"
+   ],
+   "acceptance": [
+    "an injected instruction never yields an unauthorized action, with a control"
+   ],
+   "owner_decision": null,
+   "gate": "C",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-36",
+   "section": "H12",
+   "component": "Release engine and supply chain",
+   "modules": [
+    "tools/supply_chain.py",
+    "tools/offline_verify.py"
+   ],
+   "responsibility": "five non-interchangeable levels, offline verifier, reproducibility contract, SBOM, Sigstore in CI",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_supply_chain.py",
+     "tests/test_offline_verify.py",
+     "tests/test_release_admission.py",
+     "tests/test_release_reproducibility.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/supply_chain.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "admit is the only gate; CI cannot authorize a release",
+   "threats": [
+    "a CI identity used as a release signer"
+   ],
+   "missing_integration": [
+    "a release trust root (readiness REL-4) and revocation (REL-5)"
+   ],
+   "acceptance": [
+    "no release"
+   ],
+   "owner_decision": null,
+   "gate": "H",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-37",
+   "section": "H12",
+   "component": "CI authority on the default branch",
+   "modules": [
+    ".github/workflows/agent-substrate.yml",
+    "tools/workflow_contract.py"
+   ],
+   "responsibility": "workflow permissions and triggers held by a contract",
+   "state": "EXTERNALLY_BLOCKED",
+   "evidence": {
+    "tests": [
+     "tests/test_repo_contract.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/repo_contract.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "",
+   "threats": [
+    "the default branch's ungated agent and its OIDC-minting workflows"
+   ],
+   "missing_integration": [
+    "owner actions O-1 to O-9"
+   ],
+   "acceptance": [
+    "workflow_contract --ref origin/main reports no problem"
+   ],
+   "owner_decision": null,
+   "gate": "H",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-38",
+   "section": "H13",
+   "component": "Audit queries",
+   "modules": [
+    "agent_substrate/audit.py",
+    "tools/audit_log.py"
+   ],
+   "responsibility": "explain, gaps, replay, decisions",
+   "state": "IMPLEMENTED",
+   "evidence": {
+    "tests": [
+     "tests/test_agent_audit.py",
+     "tests/test_agent_audit_cli.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/agent_audit.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none: a derived view",
+   "threats": [],
+   "missing_integration": [
+    "no view of agents, objectives, budgets or unverified results"
+   ],
+   "acceptance": [
+    "an operator status view derived from the log, never a source of authority"
+   ],
+   "owner_decision": null,
+   "gate": "E",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-39",
+   "section": "H13",
+   "component": "Token, cost and rate accounting",
+   "modules": [],
+   "responsibility": "per-call, per-agent and per-objective spend",
+   "state": "ABSENT",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "",
+   "threats": [
+    "runaway spend"
+   ],
+   "missing_integration": [
+    "the ledger and its caps"
+   ],
+   "acceptance": [
+    "a call over budget is refused before it is sent"
+   ],
+   "owner_decision": "OD-1",
+   "gate": "B",
+   "reproduced_gap": null,
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "B",
+    "modules": [
+     "agent_substrate/inference.py"
+    ],
+    "tests": [
+     "tests/test_inference_gateway.py",
+     "tests/test_inference_concurrency.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "worst-case token and cost reservation, conservative settlement, per-window rate limits, all decided under the writer lock and re-checked on replay. Prices are the budget's; real prices need OD-1."
+   }
+  },
+  {
+   "id": "CAP-40",
+   "section": "H13",
+   "component": "Tool quotas",
+   "modules": [],
+   "responsibility": "GPU, disk and bandwidth quotas",
+   "state": "DEPLOYMENT_REQUIRED",
+   "evidence": {
+    "tests": [],
+    "mutation_specs": [],
+    "hosted": null
+   },
+   "authority_granted": "",
+   "threats": [],
+   "missing_integration": [
+    "readiness RUN-4"
+   ],
+   "acceptance": [
+    "attested by a deployment"
+   ],
+   "owner_decision": null,
+   "gate": "H",
+   "reproduced_gap": null
+  },
+  {
+   "id": "CAP-41",
+   "section": "H16",
+   "component": "Three status systems",
+   "modules": [
+    "tools/harness_status.py",
+    "tools/readiness.py",
+    "tools/neural.py"
+   ],
+   "responsibility": "SOFTWARE_COMPLETION and PRODUCTION_READINESS derived and held; model evidence spread across NF-1T claims and the scripted benchmark",
+   "state": "PARTIAL",
+   "evidence": {
+    "tests": [
+     "tests/test_harness_status.py",
+     "tests/test_readiness_matrix.py",
+     "tests/test_neural_evidence.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/harness_status.json",
+     "tools/mutations/readiness.json"
+    ],
+    "hosted": "green at 1586322 (44/44 check runs); evidence attached in 9e5ac06"
+   },
+   "authority_granted": "none",
+   "threats": [
+    "one status promoting another"
+   ],
+   "missing_integration": [
+    "a derived SCIENTIFIC_AND_MODEL_EVIDENCE registry"
+   ],
+   "acceptance": [
+    "three registries, none able to change another's verdict"
+   ],
+   "owner_decision": null,
+   "gate": "B",
+   "reproduced_gap": null,
+   "progress": {
+    "state": "IMPLEMENTED",
+    "gate": "B",
+    "modules": [
+     "tools/model_evidence.py"
+    ],
+    "tests": [
+     "tests/test_model_evidence.py"
+    ],
+    "mutation_specs": [
+     "tools/mutations/inference_gateway.json"
+    ],
+    "note": "docs/scientific_model_evidence.json: real-model evidence NOT_RUN. No registry reads another."
+   }
+  }
+ ]
+}

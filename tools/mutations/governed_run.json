@@ -1,0 +1,44 @@
+{
+  "title": "The research task runs on a governed history, each party held to its grants",
+  "note": "Stage 2, S2-3. GR1 removes the roots the decision proof's prefix hands the task reader, which decides a scientific result's admission. GR2 to GR5 remove what makes the world governed: the mode, the grants it is given, the genesis declaration, and the signing. tests/test_governed_research_run.py runs the adversarial evaluation's legitimate task on the governed history and removes each grant in turn.",
+  "suites": [
+    "tests/test_governed_research_run.py"
+  ],
+  "mutations": [
+    {
+      "name": "GR1_the_prefix_hands_no_roots_to_the_task_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        self.authenticator = authenticator\n        self.roles = roles\n        self._events = [e for e in events if e.seq <= upto]",
+      "replace": "        self.authenticator = None\n        self.roles = roles\n        self._events = [e for e in events if e.seq <= upto]",
+      "rationale": "a governed scientific result's decision proof is not accepted: the task reader on the prefix folds nothing, so no verification task stands behind the admission"
+    },
+    {
+      "name": "GR2_the_world_is_never_governed",
+      "path": "tools/adversarial_eval.py",
+      "find": "        self.governed = governed\n        self.attestations = None\n        if governed:\n",
+      "replace": "        self.governed = governed\n        self.attestations = None\n        if False:\n",
+      "rationale": "a world asked to be governed runs on an unauthenticated history that declares nothing"
+    },
+    {
+      "name": "GR3_the_world_ignores_the_grants_it_is_given",
+      "path": "tools/adversarial_eval.py",
+      "find": "    roles = RR.RoleRegistry([RR.RoleGrant(*g) for g in grants])\n",
+      "replace": "    roles = RR.RoleRegistry([RR.RoleGrant(*g) for g in GOVERNED_GRANTS])\n",
+      "rationale": "a world given fewer grants runs with all of them, so no grant is shown to be needed"
+    },
+    {
+      "name": "GR4_the_history_declares_nothing",
+      "path": "tools/adversarial_eval.py",
+      "find": "                P.begin_history(log, self.attestations, signers[0],\n                                profile=\"GOVERNED\", roles=roles)\n",
+      "replace": "                pass\n",
+      "rationale": "a governed world's history declares no registries at genesis, so a reader without them reads it"
+    },
+    {
+      "name": "GR5_the_world_writes_unsigned",
+      "path": "tools/adversarial_eval.py",
+      "find": "                roles=roles, signing=P.Signing(self.attestations, signers))\n",
+      "replace": "                roles=roles, signing=None)\n",
+      "rationale": "a governed world's writers hold no keys, and its first unsigned record is refused"
+    }
+  ]
+}

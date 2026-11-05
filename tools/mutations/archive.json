@@ -1,0 +1,191 @@
+{
+ "title": "An archived segment is the log's records at its positions, or it is refused",
+ "note": "Phase C. Each mutation removes one rule of agent_substrate/archive.py: the digest a segment was sealed under, the newline every record ends in, the count of its records, a blank line, the chain from its first link, its last hash, the root its records give, the checkpoint's tree and its reach, the continuity of an archive's segments (positions, frontiers, links, genesis), the profile a history declares, a restore that never overwrites, a seal of what verified, and the shapes of what a keeper hands over. tests/test_archive.py holds each with a forgery a keeper of the archive could make. AR23 to AR26 hold the archive to the log's authentication rule: no record of a history that requires authentication is handed back by either check, a first segment's pin is held to its first record, and a profile must be one a history declares.",
+ "suites": [
+  "tests/test_archive.py"
+ ],
+ "mutations": [
+  {
+   "name": "AR1_bytes_not_checked",
+   "path": "agent_substrate/archive.py",
+   "find": "            hashlib.sha256(data).hexdigest() != seg.digest:",
+   "replace": "            False:",
+   "rationale": "a segment's bytes are not compared with the digest it was sealed under"
+  },
+  {
+   "name": "AR2_torn_tail_read",
+   "path": "agent_substrate/archive.py",
+   "find": "    if not data.endswith(b\"\\n\"):\n        raise ArchiveError(f\"{seg.name}: its last line has no newline\")",
+   "replace": "    if not data.endswith(b\"\\n\"):\n        data = data + b\"\\n\"",
+   "rationale": "a last line torn off its newline is completed rather than refused"
+  },
+  {
+   "name": "AR3_count_not_checked",
+   "path": "agent_substrate/archive.py",
+   "find": "    if len(lines) != seg.end - seg.start:",
+   "replace": "    if False:",
+   "rationale": "a segment may hold fewer lines than the records it was sealed as"
+  },
+  {
+   "name": "AR4_blank_line_read",
+   "path": "agent_substrate/archive.py",
+   "find": "                raise MalformedEvent(f\"{where}: a blank line\")",
+   "replace": "                continue",
+   "rationale": "a blank line where a record was is skipped"
+  },
+  {
+   "name": "AR5_links_not_checked",
+   "path": "agent_substrate/archive.py",
+   "find": "            raise ArchiveError(f\"{where}: \" + \"; \".join(problems))",
+   "replace": "            problems.clear()",
+   "rationale": "a record out of sequence, unlinked or altered is read on"
+  },
+  {
+   "name": "AR6_last_hash_not_checked",
+   "path": "agent_substrate/archive.py",
+   "find": "    if prev != seg.last_hash:",
+   "replace": "    if False:",
+   "rationale": "the last hash a segment was sealed with is never compared"
+  },
+  {
+   "name": "AR7_root_not_checked",
+   "path": "agent_substrate/archive.py",
+   "find": "    if end_root.hex() != seg.root:",
+   "replace": "    if False:",
+   "rationale": "the root a segment states is never compared with the one its records give"
+  },
+  {
+   "name": "AR8_checkpoint_not_checked",
+   "path": "agent_substrate/archive.py",
+   "find": "    if not T.verify_consistency(end, size, end_root, bytes.fromhex(root),",
+   "replace": "    if False and not T.verify_consistency(end, size, end_root, bytes.fromhex(root),",
+   "rationale": "a segment is accepted whatever tree the checkpoint commits to"
+  },
+  {
+   "name": "AR9_coverage_not_stated",
+   "path": "agent_substrate/archive.py",
+   "find": "    if end > size:\n",
+   "replace": "    if False:\n",
+   "rationale": "a checkpoint too old to cover the segment is reported as another tree, not as too old"
+  },
+  {
+   "name": "AR10_gaps_not_checked",
+   "path": "agent_substrate/archive.py",
+   "find": "        if seg.start != len(events):",
+   "replace": "        if False:",
+   "rationale": "segments with a gap, an overlap or out of order are read as one archive"
+  },
+  {
+   "name": "AR11_frontier_continuity",
+   "path": "agent_substrate/archive.py",
+   "find": "        if list(seg.frontier) != [h.hex() for h in front]:",
+   "replace": "        if False:",
+   "rationale": "a segment's frontier is not held to the records before it"
+  },
+  {
+   "name": "AR12_link_continuity",
+   "path": "agent_substrate/archive.py",
+   "find": "        if seg.prev_hash != prev:",
+   "replace": "        if False:",
+   "rationale": "a segment's first link is not held to the record before it"
+  },
+  {
+   "name": "AR13_genesis_unlinked",
+   "path": "agent_substrate/archive.py",
+   "find": "        if start == 0 and rec[\"prev_hash\"] != ZERO_DIGEST:",
+   "replace": "        if False:",
+   "rationale": "the first segment may link to a record before the first"
+  },
+  {
+   "name": "AR14_profile_assumed",
+   "path": "agent_substrate/archive.py",
+   "find": "    profile = rule(None, events, problems)  # type: ignore[arg-type]",
+   "replace": "    profile = \"UNAUTHENTICATED_LEGACY\"",
+   "rationale": "the archive reports every history as one that requires no authentication"
+  },
+  {
+   "name": "AR15_restore_overwrites",
+   "path": "agent_substrate/archive.py",
+   "find": "    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,",
+   "replace": "    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,",
+   "rationale": "a restore writes over a log that already exists"
+  },
+  {
+   "name": "AR16_seal_unverified",
+   "path": "agent_substrate/archive.py",
+   "find": "    if not report.ok:\n        raise ArchiveError(\"the log does not verify: \"",
+   "replace": "    if False:\n        raise ArchiveError(\"the log does not verify: \"",
+   "rationale": "a log that does not verify is sealed as far as it reads"
+  },
+  {
+   "name": "AR17_frontier_length",
+   "path": "agent_substrate/archive.py",
+   "find": "        if len(front) != bin(start).count(\"1\"):",
+   "replace": "        if False:",
+   "rationale": "a frontier of the wrong length reaches the tree code"
+  },
+  {
+   "name": "AR18_schema_not_checked",
+   "path": "agent_substrate/archive.py",
+   "find": "    if manifest[\"schema\"] != SCHEMA:",
+   "replace": "    if False:",
+   "rationale": "a manifest of another schema is read as this one"
+  },
+  {
+   "name": "AR19_truth_value_count",
+   "path": "agent_substrate/archive.py",
+   "find": "    if isinstance(value, bool) or not isinstance(value, int) or value < 0:",
+   "replace": "    if not isinstance(value, int) or value < 0:",
+   "rationale": "true and false are read as 1 and 0"
+  },
+  {
+   "name": "AR20_missing_bytes_raise",
+   "path": "agent_substrate/archive.py",
+   "find": "        except (KeyError, OSError) as exc:",
+   "replace": "        except OSError as exc:",
+   "rationale": "a segment whose bytes are missing escapes as a lookup error"
+  },
+  {
+   "name": "AR21_bytes_type",
+   "path": "agent_substrate/archive.py",
+   "find": "    if not isinstance(data, bytes) or \\\n            hashlib.sha256(data)",
+   "replace": "    if \\\n            hashlib.sha256(data)",
+   "rationale": "a segment's bytes may be text"
+  },
+  {
+   "name": "AR22_proof_shape",
+   "path": "agent_substrate/archive.py",
+   "find": "    if not isinstance(proof, list) or not all(is_digest(h) for h in proof):",
+   "replace": "    if False:",
+   "rationale": "a proof that is not a list of digests escapes as a parse error"
+  },
+  {
+   "name": "AR23_archive_hands_back_required",
+   "path": "agent_substrate/archive.py",
+   "find": "        events if profile == PROFILE_UNAUTHENTICATED_LEGACY else ()))",
+   "replace": "        events))",
+   "rationale": "an archive of a history that requires authentication hands its records back unauthenticated"
+  },
+  {
+   "name": "AR24_segment_hands_back_required",
+   "path": "agent_substrate/archive.py",
+   "find": "    return events if profile == PROFILE_UNAUTHENTICATED_LEGACY else []",
+   "replace": "    return events",
+   "rationale": "a segment of a history that requires authentication hands its records back unauthenticated"
+  },
+  {
+   "name": "AR25_genesis_pin_unchecked",
+   "path": "agent_substrate/archive.py",
+   "find": "    if seg.start == 0 and _declared(events) != profile:",
+   "replace": "    if False:",
+   "rationale": "a first segment pinned as needing no authentication is believed against its own first record"
+  },
+  {
+   "name": "AR26_any_profile",
+   "path": "agent_substrate/archive.py",
+   "find": "    if profile not in PROFILES:",
+   "replace": "    if False:",
+   "rationale": "a profile no history declares is accepted, and read as one that requires authentication"
+  }
+ ]
+}

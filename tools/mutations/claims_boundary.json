@@ -1,0 +1,121 @@
+{
+  "title": "The framework claims boundary: the checker's own rules",
+  "note": "tools/claims_enforcement.py holds each boundary of CLAIMS_BOUNDARY.md to code that defines it and tests that exist (directive 14); each rule it applies is removed here and tests/test_claims_boundary.py must notice.",
+  "suites": [
+    "tests/test_claims_boundary.py"
+  ],
+  "mutations": [
+    {
+      "name": "CB1_nothing_is_required",
+      "path": "tools/claims_enforcement.py",
+      "find": "    for is_, is_not in REQUIRED:\n        if not any(",
+      "replace": "    for is_, is_not in ():\n        if not any(",
+      "rationale": "a required boundary can be dropped and the registry still passes"
+    },
+    {
+      "name": "CB2_a_required_boundary_forgotten",
+      "path": "tools/claims_enforcement.py",
+      "find": "    (\"model calibration\", \"model validation\"),\n",
+      "replace": "    (\"simulation result\", \"measurement\"),\n",
+      "rationale": "the checker's own list loses a boundary behind a repeat of another, the count unchanged; the registry may then lose it too"
+    },
+    {
+      "name": "CB3_naming_both_terms_is_enough",
+      "path": "tools/claims_enforcement.py",
+      "find": "    return bool(sep) and is_ in head and is_not in tail\n",
+      "replace": "    s = statement.lower()\n    return is_ in s and is_not in s\n",
+      "rationale": "an inverted or reversed statement registers the boundary it denies"
+    },
+    {
+      "name": "CB4_the_negated_term_is_not_read",
+      "path": "tools/claims_enforcement.py",
+      "find": "    return bool(sep) and is_ in head and is_not in tail\n",
+      "replace": "    return bool(sep) and is_ in head\n",
+      "rationale": "a simulation result is not a surrogate registers 'not a measurement'"
+    },
+    {
+      "name": "CB5_every_symbol_is_defined",
+      "path": "tools/claims_enforcement.py",
+      "find": "def _defined(module: Path, symbol: str) -> bool:\n",
+      "replace": "def _defined(module: Path, symbol: str) -> bool:\n    return True\n",
+      "rationale": "a registry naming code that does not exist passes"
+    },
+    {
+      "name": "CB6_a_local_name_is_a_definition",
+      "path": "tools/claims_enforcement.py",
+      "find": "    for node in tree.body:\n        if isinstance(node, (ast.FunctionDef",
+      "replace": "    for node in ast.walk(tree):\n        if isinstance(node, (ast.FunctionDef",
+      "rationale": "a name bound inside a function or a method counts as enforcing code"
+    },
+    {
+      "name": "CB7_assignments_define_nothing",
+      "path": "tools/claims_enforcement.py",
+      "find": "        if isinstance(node, ast.Assign) and any(",
+      "replace": "        if False and isinstance(node, ast.Assign) and any(",
+      "rationale": "a constant (MEASURED, SIMULATED) cannot be enforcing code"
+    },
+    {
+      "name": "CB8_annotated_assignments_define_nothing",
+      "path": "tools/claims_enforcement.py",
+      "find": "        if isinstance(node, ast.AnnAssign) and isinstance(",
+      "replace": "        if False and isinstance(node, ast.AnnAssign) and isinstance(",
+      "rationale": "an annotated constant cannot be enforcing code"
+    },
+    {
+      "name": "CB9_a_missing_module_is_silent",
+      "path": "tools/claims_enforcement.py",
+      "find": "                out.append(f\"{bid}: {c.get('module')} does not exist\")\n",
+      "replace": "                pass\n",
+      "rationale": "a registry naming a module that does not exist passes"
+    },
+    {
+      "name": "CB10_any_test_in_the_file_will_do",
+      "path": "tools/claims_enforcement.py",
+      "find": "    return any(isinstance(n, ast.FunctionDef) and n.name == name\n               for n in tree.body)\n",
+      "replace": "    return True\n",
+      "rationale": "a registry naming a test that does not exist passes"
+    },
+    {
+      "name": "CB11_no_test_is_fine",
+      "path": "tools/claims_enforcement.py",
+      "find": "        if not tests:\n            out.append(",
+      "replace": "        if False:\n            out.append(",
+      "rationale": "a boundary no test holds passes"
+    },
+    {
+      "name": "CB12_no_code_is_fine",
+      "path": "tools/claims_enforcement.py",
+      "find": "        if not code:\n            out.append(",
+      "replace": "        if False:\n            out.append(",
+      "rationale": "a boundary no code enforces passes"
+    },
+    {
+      "name": "CB13_the_page_need_not_state_it",
+      "path": "tools/claims_enforcement.py",
+      "find": "        if not statement or \" \".join(statement.split()) not in flat_doc:\n",
+      "replace": "        if not statement:\n",
+      "rationale": "CLAIMS_BOUNDARY.md can drop a boundary the registry still holds"
+    },
+    {
+      "name": "CB14_an_empty_registry_is_quiet",
+      "path": "tools/claims_enforcement.py",
+      "find": "        return [\"the registry holds no boundaries; nothing is enforced\"]\n",
+      "replace": "        return []\n",
+      "rationale": "an emptied registry is reported as holding"
+    },
+    {
+      "name": "CB15_a_duplicate_is_not_noticed",
+      "path": "tools/claims_enforcement.py",
+      "find": "        if bid in seen:\n",
+      "replace": "        if False:\n",
+      "rationale": "one boundary registered twice passes as two"
+    },
+    {
+      "name": "CB16_the_cli_never_fails",
+      "path": "tools/claims_enforcement.py",
+      "find": "        print(f\"claims boundary NOT held: {len(found)} problem(s)\")\n        return 1\n",
+      "replace": "        print(f\"claims boundary NOT held: {len(found)} problem(s)\")\n        return 0\n",
+      "rationale": "the CI step exits 0 with problems printed"
+    }
+  ]
+}

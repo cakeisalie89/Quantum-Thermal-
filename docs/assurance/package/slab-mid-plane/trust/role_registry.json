@@ -1,0 +1,113 @@
+{
+ "grants": [
+  {
+   "grant_id": "g-check-submitter",
+   "may_delegate": false,
+   "principal": "stage10-submitter",
+   "revocation_reason": null,
+   "revoked_at_seq": null,
+   "role": "PROPOSER",
+   "scope": [
+    "tool:model.independent_check"
+   ],
+   "valid_from_seq": 0,
+   "valid_until_seq": null
+  },
+  {
+   "grant_id": "g-check-worker",
+   "may_delegate": false,
+   "principal": "model-check-worker",
+   "revocation_reason": null,
+   "revoked_at_seq": null,
+   "role": "EXECUTOR",
+   "scope": [
+    "tool:model.independent_check"
+   ],
+   "valid_from_seq": 0,
+   "valid_until_seq": null
+  },
+  {
+   "grant_id": "g-owner-policies",
+   "may_delegate": false,
+   "principal": "owner",
+   "revocation_reason": null,
+   "revoked_at_seq": null,
+   "role": "POLICY_OWNER",
+   "scope": [
+    "policy:research.default",
+    "policy:stage10.governed"
+   ],
+   "valid_from_seq": 0,
+   "valid_until_seq": null
+  },
+  {
+   "grant_id": "g-researcher-results",
+   "may_delegate": false,
+   "principal": "ai-researcher",
+   "revocation_reason": null,
+   "revoked_at_seq": null,
+   "role": "PROPOSER",
+   "scope": [
+    "kind:scientific_result"
+   ],
+   "valid_from_seq": 0,
+   "valid_until_seq": null
+  },
+  {
+   "grant_id": "g-researcher-runs",
+   "may_delegate": false,
+   "principal": "ai-researcher",
+   "revocation_reason": null,
+   "revoked_at_seq": null,
+   "role": "PROPOSER",
+   "scope": [
+    "tool:model.thermal.slab_transient.run"
+   ],
+   "valid_from_seq": 0,
+   "valid_until_seq": null
+  },
+  {
+   "grant_id": "g-result-reviewer",
+   "may_delegate": false,
+   "principal": "model-result-reviewer",
+   "revocation_reason": null,
+   "revoked_at_seq": null,
+   "role": "VERIFIER",
+   "scope": [
+    "kind:scientific_result"
+   ],
+   "valid_from_seq": 0,
+   "valid_until_seq": null
+  },
+  {
+   "grant_id": "g-run-worker",
+   "may_delegate": false,
+   "principal": "stage10-worker",
+   "revocation_reason": null,
+   "revoked_at_seq": null,
+   "role": "EXECUTOR",
+   "scope": [
+    "tool:model.thermal.slab_transient.run"
+   ],
+   "valid_from_seq": 0,
+   "valid_until_seq": null
+  },
+  {
+   "grant_id": "g-task-verifier",
+   "may_delegate": false,
+   "principal": "stage10-verifier",
+   "revocation_reason": null,
+   "revoked_at_seq": null,
+   "role": "VERIFIER",
+   "scope": [
+    "tool:model.independent_check",
+    "tool:model.thermal.slab_transient.run"
+   ],
+   "valid_from_seq": 0,
+   "valid_until_seq": null
+  }
+ ],
+ "key_registry": null,
+ "registry_version": 1,
+ "schema": "harness/role-registry/v1"
+}

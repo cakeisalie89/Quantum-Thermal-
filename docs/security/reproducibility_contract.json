@@ -1,0 +1,36 @@
+{
+ "schema": "harness-release-reproducibility/1",
+ "label": "Which bytes of a release candidate must be identical when the same commit is built again, which are identical except for named run-specific fields, and which belong to one run. Held by tests/test_release_reproducibility.py (two builds in separate fresh clones with different paths, time zones, locales and umasks) and by the supply-chain workflow's rebuild job (a second build on a different runner image, compared with the signed candidate). A comparison here is BYTE IDENTITY of files, never numerical equivalence.",
+ "byte_identical": {
+  "source.zip": "every tracked file of the commit, read from the object store, members in sorted order with a fixed timestamp and mode, STORED uncompressed. Nothing in it depends on a deflate implementation, so its bytes are a function of the commit and of the zip container format alone.",
+  "sbom.cdx.json": "derived from the commit's dependency declarations alone, serialized with sorted keys"
+ },
+ "identical_except": {
+  "provenance.intoto.json": {
+   "fields": ["predicate.runDetails.metadata.invocationId"],
+   "why": "the hosted run id and attempt, by design: the provenance says which run built it"
+  },
+  "index.json": {
+   "fields": ["artifacts.provenance.intoto.json"],
+   "why": "the provenance's digest, which carries the invocation id"
+  }
+ },
+ "run_specific": {
+  "SHA256SUMS": "lists the provenance and index digests, so it is run-specific; it is what is signed",
+  "SHA256SUMS.sigstore.json": "a short-lived certificate for one workflow run, its signature and a transparency-log entry with an integration time",
+  "rekor_entry.json": "the transparency-log index and time of one signature"
+ },
+ "not_claimed": [
+  "byte identity of any file built from a dirty working tree (refused by build without --allow-dirty)",
+  "reproducibility of the environments the SBOM describes; only their declarations are bound",
+  "numerical equivalence of anything"
+ ],
+ "verifier_requirements": {
+  "python": ">=3.11 (tomllib); the verifier imports only the standard library",
+  "sigstore_runtime": "integrations/supply_chain/sigstore.lock, installed with every wheel by hash"
+ },
+ "evidence": {
+  "local": "tests/test_release_reproducibility.py, two fresh clones; tools/offline_verify.py run from a directory holding nothing but itself, inside a network namespace with no interfaces",
+  "hosted": "supply-chain.yml jobs rebuild-elsewhere (ubuntu-22.04) and offline-verify (no repository checkout beyond the verifier, network removed)"
+ }
+}

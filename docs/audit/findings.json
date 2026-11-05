@@ -1,0 +1,1511 @@
+{
+ "schema": "pr17-audit-findings/1",
+ "note": "The adversarial findings register of the PR #17 audit. verification says how far a finding is established: REPRODUCED (shown failing by a test or a script), CONFIRMED (established by reading the code, not executed), POTENTIAL (suspected, not established), BLOCKED (cannot be established here, and why), NOT_REPRODUCED (looked for and not found). resolution says what became of it: OPEN, FIXED (with the commit and regression test), DOCUMENTED (a limit stated, not a defect to fix here), OWNER (needs an owner decision or action), NOT_A_DEFECT.",
+ "severity_scale": {
+  "P0": "authority bypass, integrity failure, credential exposure, security-boundary violation, silent data corruption or unauthorized external effect",
+  "P1": "incorrect recovery, replay disagreement, unsafe concurrency, false verification claim, scientific correctness defect, or unbounded scaling on a required operation",
+  "P2": "test gap, performance, maintainability, or a documentary inconsistency with practical consequences",
+  "P3": "optional future enhancement, or information an owner should have"
+ },
+ "findings": [
+  {
+   "id": "AUD-001",
+   "title": "Six commit histories exist only inside deleted bundle files",
+   "severity": "P3",
+   "subsystem": "retired programme / repository history",
+   "files": [
+    {
+     "path": "attic/delivery_artifacts/QTA_3d_layer.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_coupled_3d.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_deep_complete.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_github_sync.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_hardened.bundle"
+    },
+    {
+     "path": "attic/delivery_artifacts/QTA_machine_fsm.bundle"
+    }
+   ],
+   "behavior": "The PR deletes twelve git bundle files from the tree. The heads e0e71ce, c3b59bb, cf813b0, 7d85223, d2a71b0 and a0566d7 are not commits of this repository on any of its 13 remote branches; they exist only inside those bundle blobs.",
+   "invariant": "Removing a retired artefact from the active tree must not destroy the only copy of history the owner may need.",
+   "mechanism": "Deleting the files from the PR head destroys nothing: main's tree and history still hold the blobs. The PR description lists purging the retired programme from history as an owner choice. A purge that removed these blobs would remove the only copies of those six histories.",
+   "reproduction": "git bundle list-heads on each blob; git cat-file -e <head>^{commit} in a full clone with every remote branch fetched.",
+   "observed": "6 bundle heads absent from the repository's own history.",
+   "expected": "Either the histories are archived outside the repository before any purge, or they are declared expendable.",
+   "correction": "None in this PR. An owner who purges history should first archive the bundles, or the six histories, elsewhere.",
+   "regression_tests": [],
+   "residual_risk": "Loss of retired-programme history on an owner-run purge.",
+   "verification": "REPRODUCED",
+   "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-002",
+   "title": "A final record that lost only its trailing newline verifies, and the next append fuses two records into one unparseable line",
+   "severity": "P1",
+   "subsystem": "event log (crash safety)",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "551-611 (read), 1358-1449 (_write_event)"
+    }
+   ],
+   "behavior": "read() splits the file into lines and accepts a final line that parses even when it has no trailing newline. _write_event opens the log in append mode and writes the next record without checking that the file ends with a newline. Its own short-write branch raises and leaves the written bytes on disk, which can be every byte but the newline.",
+   "invariant": "A record is durable on return and stays readable; a crash or short write leaves at most a torn tail that refuses appends until repaired (D-2026-50).",
+   "mechanism": "The state 'complete record, newline missing' reads as a clean log (ok=True, every record counted). The next append returns normally and its bytes are glued to the unterminated line, so the last two records become one unparseable final line.",
+   "reproduction": "An EventLog with three appends; truncate the file's final byte; verify(); append once more; verify() again. Script recorded in the audit's session notes (scratchpad repro/torn_newline.py); regression test added with the fix.",
+   "observed": "After the lost newline: ok=True, count=3. After the next append (which returned): ok=False, count=2, a 'partial final record' and 'TRUNCATED: witness records seq 3 but the log ends at 1'. Seq 2 and the acknowledged seq 3 are unreadable, and the log refuses every later append.",
+   "expected": "An unterminated final line is a torn tail: the read refuses it as such (the records before it intact), appends refuse until the tail is repaired, and no append ever lands after unterminated bytes.",
+   "correction": "One line rule for every reader (_parse_line in agent_substrate/events.py): a record ends in its newline, so an unterminated final line is a torn tail in the whole-chain read (TruncatedTail, the records before it intact) and refused by the anchored tail read; and the write path refuses to write when the byte before end-of-file is not a newline, under the writer lock, after the head check.",
+   "regression_tests": [
+    "tests/test_agent_crash_recovery.py::test_a_final_record_without_its_newline_is_a_torn_tail",
+    "tests/test_agent_crash_recovery.py::test_no_append_lands_on_a_final_record_without_its_newline",
+    "tests/test_agent_crash_recovery.py::test_the_anchored_read_refuses_a_tail_without_its_newline",
+    "tests/test_agent_fault_injection.py::test_an_append_never_lands_after_unterminated_bytes"
+   ],
+   "residual_risk": "The write-side guard closes the window between the head check and the write for writers of this class; flock stays advisory, so a process that writes the file without the lock can still interleave bytes mid-write, as the module docstring states.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_recovery.json: R60, R61",
+    "tools/mutations/agent_fault_injection.json: F10"
+   ]
+  },
+  {
+   "id": "AUD-003",
+   "title": "anchor_at() builds an anchor from a second, unverified read, and nothing binds it to the read that was verified",
+   "severity": "P2",
+   "subsystem": "event log (incremental verification)",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "931-956 (anchor_at), 1568-1570"
+    },
+    {
+     "path": "agent_substrate/checkpoint.py",
+     "lines": "199-250 (create)"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "309-312"
+    }
+   ],
+   "behavior": "anchor_at(seq) re-reads the log, finds the record at seq and checks only that it hashes to its own stored hash: no link before it, no witness. Its docstring says an anchor is worth trusting 'because something verified the log to produce it'. Twelve call sites take a verified read, fold it, and then call anchor_at for the position they reached, and checkpoint.create() verifies the log and then anchors from a separate read; none compares the anchor's hash with the hash of the event it folded or verified.",
+   "invariant": "An anchor (and a checkpoint marked full_verification) describes bytes a verification actually covered.",
+   "mechanism": "A rewrite of the file between the verified read and anchor_at produces an anchor at a record the verification never saw; every later advance() and verify_from() trusts the prefix before it. Honest concurrent writers only append, so this needs a writer that rewrites the file during the window. Anchored reads already trust the prefix, so this widens a trust the design states rather than creating a new one.",
+   "reproduction": "By reading: no comparison of anchor.head_hash with the verified event's hash at any of the 12 call sites or in checkpoint.create().",
+   "observed": "Anchors and checkpoints carry the hash of a record re-read after verification.",
+   "expected": "The anchor is taken from the verified read itself, or anchor_at is told the hash it must find.",
+   "correction": "VerifyReport.verified_anchor: the verified read returns an anchor at the last record it verified, from the bytes it parsed. The 13 projection sites and checkpoint.create() take it instead of a second read; anchor_at(seq, head_hash=...) refuses a record other than the one named, and checkpoint.create(require_full_verification=False) binds its anchor to the witness's hash.",
+   "regression_tests": [
+    "tests/test_agent_incremental.py::test_a_projection_resumes_from_the_bytes_it_verified",
+    "tests/test_agent_incremental.py::test_a_checkpoint_names_the_record_its_verification_read",
+    "tests/test_agent_incremental.py::test_an_unverified_checkpoint_is_refused_where_log_and_witness_differ",
+    "tests/test_agent_incremental.py::test_no_production_module_anchors_on_an_unbound_second_read (with its control)"
+   ],
+   "residual_risk": "anchor_at() without head_hash is still the unbound slow path, used by tests; no production module calls it without head_hash.",
+   "verification": "CONFIRMED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_incremental.json: N10, N11"
+   ]
+  },
+  {
+   "id": "AUD-004",
+   "title": "Invariant I3 says re-verification after STALE needs fresh evidence; the evidence merge lets the pre-staleness report satisfy it",
+   "severity": "P1",
+   "subsystem": "authority state machine",
+   "files": [
+    {
+     "path": "agent_substrate/authority.py",
+     "lines": "I3 docstring, Edge.requires_fresh, TransitionRequest.prior_evidence, check()"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "transition() (live) and _fold_one (replay): TransitionRequest(prior_evidence=cur.evidence)"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_Rule.fresh, _auth_refusal(prior=...), the record.transition replay"
+    }
+   ],
+   "behavior": "Both the live transition and the replay evaluate an edge against {**record.evidence, **transition.evidence}. After STALE, UNDER_REVIEW -> VERIFIED requires 'verification_report', which the record already carries from before it went stale.",
+   "invariant": "I3: STALE returns to PROMOTED only through VERIFIED, 'which requires fresh evidence' -- the prior verification no longer describes the current inputs.",
+   "mechanism": "A record verified with report R, promoted, made STALE by a dependency change, re-reviewed, and re-verified with an empty evidence mapping is VERIFIED again on R, and can be promoted again on R. The second reader restates the same rule and agrees, so nothing flags it.",
+   "reproduction": "scratchpad repro/fresh_evidence.py against f142a7e and the fix; repro/stale_reverify.py.",
+   "observed": "Before (f142a7e): re-verification after STALE with evidence={} -> VERIFIED; citing the same report again -> VERIFIED; a history with that transition appended past the gate loads in the store, and the second reader holds the record VERIFIED with nothing unauthorized. A first verification resting on a report the proposer attached at creation was likewise accepted.",
+   "expected": "UNDER_REVIEW -> VERIFIED cites a verification_report the transition itself supplies and the record did not already carry; refused live and on replay, by both readers.",
+   "correction": "Edge.requires_fresh on UNDER_REVIEW -> VERIFIED ({'verification_report'}), judged by check() against TransitionRequest.prior_evidence -- the record's evidence before the transition -- which both store call sites pass. The second reader restates it (_Rule.fresh, _auth_refusal(prior=...)). For scientific results the admission rule already refused re-admission when the result's own governed run had been invalidated; a result made STALE by a dependency had no such cover, and the edge rule covers every kind. Fresh means other bytes. An independent check is deterministic: run again on the same bundle by the same checker it produced a byte-identical report under a new governed task (tests/test_scientific_invalidation.py), and the report names the verifier's implementation, the subject and the result. Identical bytes are the same verification, which cannot describe what made the record stale, so it is refused; a changed checker or changed inputs produce other bytes and are fresh.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_I3_the_gate_refuses_a_report_the_record_already_carried (with control)",
+    "tests/test_agent_substrate.py::test_I3_back_from_stale_needs_a_report_it_did_not_carry (inherited, cited-again)",
+    "tests/test_agent_substrate.py::test_I3_back_from_stale_on_a_new_report_is_verified (control)",
+    "tests/test_agent_substrate.py::test_I3_a_first_verification_does_not_rest_on_the_proposer_s_report",
+    "tests/test_agent_substrate.py::test_I3_a_stale_report_written_past_the_gate_is_refused_on_replay (both readers)",
+    "tests/test_agent_substrate.py::test_every_production_transition_request_says_what_was_there_before (with control)",
+    "tests/test_agent_differential.py::test_the_restated_authority_rules_decide_each_case[re-verified-on-the-report-it-went-stale-with, re-verified-citing-that-report-again, verified-on-the-report-its-proposer-attached, re-verified-on-a-new-report]",
+    "tests/test_scientific_invalidation.py::test_a_stale_result_is_not_reused_and_not_readmitted (the stale report and a byte-identical re-check refused by I3; the origin rule shown on a record citing the withdrawn run)"
+   ],
+   "residual_risk": "Freshness is judged against the report the record carries now, so a report used for an earlier verification and later replaced could be cited again after a second staleness. TransitionRequest.prior_evidence defaults to empty for direct callers (tests, tools/model_check.py), the first verification's case; every production construction passes it, held by a structural test. No committed history exists to migrate; a history written before this rule that re-verified on an inherited report no longer replays. Three fixtures verified a record on a report it was created with, or re-cited the stale one; they now follow the honest workflow: tests/test_agent_crash_recovery.py, tests/test_governed_model_reuse.py, tests/test_scientific_invalidation.py.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_substrate.json: M64-M70"
+   ]
+  },
+  {
+   "id": "AUD-005",
+   "title": "The log accepted any encoding of a record, and its readers did not agree where records begin",
+   "severity": "P2",
+   "subsystem": "event log (integrity of the bytes)",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "read (splitlines), anchor_at, _read_anchored, _read_tail, _genesis_profile"
+    }
+   ],
+   "behavior": "Every reader recomputes the hash over the PARSED record, so any byte string that parses to it verified: other whitespace, key order or escapes, and a key given twice (json keeps the last value, which the hash covers; a first-wins parser shows the first). read() split lines with bytes.splitlines(), which also breaks at a CR; anchor_at, _read_anchored and _read_tail iterate the file, which breaks only at a newline.",
+   "invariant": "canonical.py: every integrity claim reduces to 'are these the same bytes'. _validate_field_types already refuses an unhashed extra field because it 'could carry unverified content beside a valid digest'; a duplicated key is the same thing.",
+   "mechanism": "The hash binds the parse, not the line; and the two framings disagree on bytes containing a CR.",
+   "reproduction": "scratchpad repro/event_log_framing.py, run against c11c628 and against the fix (before/after table in docs/audit/AUDIT_PROGRESS.md).",
+   "observed": "Before: a CR in place of a newline verified in full (count 3) while anchor_at(1) raised a bare JSONDecodeError; a CR in a record's whitespace verified from an anchor and failed in full; a duplicated actor key verified, the fold saw 'a' and a first-wins parser 'mallory'; a record re-encoded with spaces and reversed keys verified.",
+   "expected": "A record is its canonical bytes and one newline, framed at the newline only, the same in every reader.",
+   "correction": "_parse_line: the one statement of what a line is, used by all five readers; it refuses a line that is not exactly canonical_bytes(record) + b'\\n'. The whole-chain reader frames at b'\\n' only.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_a_record_is_its_canonical_bytes_and_no_other (5 encodings)",
+    "tests/test_agent_substrate.py::test_the_canonical_bytes_of_the_same_record_still_verify (control)",
+    "tests/test_agent_substrate.py::test_every_reader_frames_records_at_a_newline_and_nowhere_else"
+   ],
+   "mutations": [
+    "tools/mutations/agent_substrate.json: M60"
+   ],
+   "residual_risk": "Blank lines between records are still skipped, as before; they carry no content. No committed event log exists in the repository to migrate (checked: 0 files with event records).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-006",
+   "title": "A live projection folds a rewritten history onto the state it built from the old one, and can then write a record that makes the log unreplayable",
+   "severity": "P1",
+   "subsystem": "projections (incremental catch-up)",
+   "files": [
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "_fold_new"
+    },
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "_fold_new"
+    },
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "DecidedWriter._fold_new"
+    },
+    {
+     "path": "agent_substrate/agents.py, policy.py, memory.py, idempotency.py, proposals.py",
+     "lines": "_fold_new / catch_up"
+    }
+   ],
+   "behavior": "Catching up, a projection folds only records whose seq is above its position and assumes every record at or below it is one it already folded. On an anchor mismatch it falls back to a full verified read and keeps that assumption. When its anchor lags its position -- the records it appended itself -- advance() succeeds without any mismatch at all.",
+   "invariant": "A projection is disposable: what a live projection holds, and decides against, is what a fresh replay of the same log yields.",
+   "mechanism": "Nothing compares the history being caught up from with the history already folded. A restore of the log and its witness from a backup -- an operational act, not an attack -- replaces the records below the position with others.",
+   "reproduction": "scratchpad repro/rewritten_prefix.py: create r0; back up log and witness; create r1; a second process loads; restore the backup; an honest writer creates r2 and r3; the second process catches up and transitions r1.",
+   "observed": "Live projection after catching up: r0, r1, r3; a fresh replay of the same log: r0, r2, r3. The live projection then appended a transition on r1, which the log never created, and every fresh load of that log fails with KeyError 'r1'.",
+   "expected": "Catching up refuses -- the projection stays refused until load() -- when the log no longer extends the history the projection folded.",
+   "correction": "events.require_extends(): before a catch-up folds anything, the log must still hold the record at the projection's position with the hash the projection folded there -- equivalently, since the chain is verified, everything below it. Each projection keeps that hash beside its position (AuthorityStore._loaded_hash, Scheduler._seen_hash, _folded_hash in the agent directory, policy store, memory store, proposal ingress, idempotency ledger and every DecidedWriter), set wherever the position moves, including a projection's own appends. Both catch-up routes call it. The refusal is remembered by projection_fold until load().",
+   "regression_tests": [
+    "tests/test_agent_incremental.py::test_catching_up_onto_a_restored_history_does_not_fold_onto_it (8 projections)",
+    "tests/test_agent_incremental.py::test_an_anchor_behind_its_own_appends_does_not_hide_a_restored_history (8 projections)",
+    "tests/test_agent_incremental.py::test_a_log_restored_to_before_what_was_folded_is_refused (8 projections)",
+    "tests/test_agent_incremental.py::test_a_log_that_only_grew_is_caught_up_on_both_routes (control, 8 projections)",
+    "tests/test_agent_incremental.py::test_the_restore_this_suite_models_really_diverges (control)"
+   ],
+   "residual_risk": "The proposal ingress and the idempotency ledger rebuild from scratch on the full-read route, as they did before; they now refuse on the anchored route. A restore is refused by a live process, not reported anywhere else: a process started after the restore reads the restored history as the history, which is the no-external-trust-root limit the witness work (Phase 3) addresses. GovernedTasks keeps its own catch-up (_after_move), whose anchor is the record it folded last and whose fallback is a full replay; it was not changed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_incremental.json: N12-N27 (the check's two refusals and each of the 14 call sites)",
+    "tools/mutations/agent_snapshot_coherence.json: V_store_fallback, V_scheduler_fallback (anchors moved past the new check)"
+   ]
+  },
+  {
+   "id": "AUD-007",
+   "title": "Replaying a record the reducer cannot read raises a bare KeyError or ValueError in the primary store, and the second reader applies one of them",
+   "severity": "P2",
+   "subsystem": "authority store (replay)",
+   "files": [
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "_apply, ACT_TRANSITION branch"
+    }
+   ],
+   "behavior": "Seven malformed authority records -- a transition of a record never created; a create or transition without record_id; a transition without dst, with a dst that is no state, or without role; a dependency without depends_on -- each made AuthorityStore.load() raise a bare KeyError or ValueError. The second reader reported six as anomalies and applied the seventh, a dependency naming no dependency, as an empty one.",
+   "invariant": "Every refusal of a history by the store is a StoreError, so a caller that catches StoreError catches every refusal.",
+   "mechanism": "A missing membership check in one of two parallel branches.",
+   "reproduction": "scratchpad repro/malformed_payloads.py",
+   "observed": "Primary: KeyError('ghost'), KeyError('record_id') twice, KeyError('dst'), ValueError('NOT_A_STATE' is not a valid State), KeyError('role'), KeyError('depends_on'). Second reader: anomalies for six, none for the dependency without depends_on.",
+   "expected": "Both readers refuse each: the store with a StoreError naming the seq, the second reader with an anomaly.",
+   "correction": "AuthorityStore._apply turns a KeyError, TypeError or ValueError raised while folding into a StoreError naming the seq and action, and the transition branch refuses a record never created by name, as the dependency branch did. reconstruct.py reports a dependency record without depends_on as an anomaly and does not apply it.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_a_record_replay_cannot_read_is_refused_by_both_readers (7 records)"
+   ],
+   "residual_risk": "The wrapper converts the error's type, not its cause: a KeyError from a defect in the reducer itself is now reported as an unreadable record, with the original chained.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_substrate.json: M61, M62, M63"
+   ]
+  },
+  {
+   "id": "AUD-008",
+   "title": "The event append() returns is not the event a replay reads: the caller's tuples and int keys come back from the log as lists and strings, under the same hash",
+   "severity": "P3",
+   "subsystem": "event log / canonical form",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "_write_event"
+    },
+    {
+     "path": "agent_substrate/canonical.py",
+     "lines": "module docstring"
+    }
+   ],
+   "behavior": "_write_event hashed the caller's body and returned an Event holding the caller's Python values. canonical_bytes serializes an int, float, bool or None dict key as a string and a tuple as a list, so the record a replay parses is a different Python value with the same hash. Every projection folds its own append from the returned Event.",
+   "invariant": "canonical.py: two records that differ must not hash equally; and a live projection holds what a replay of the log holds.",
+   "mechanism": "JSON cannot tell those values apart, and the in-memory record never made the round trip the log's readers make.",
+   "reproduction": "scratchpad repro/round_trip.py: append payload {'deps': ('x', 'y'), 'm': {1: 'one'}}; compare with the replayed event.",
+   "observed": "hash equal: True; payload equal: False; written {'deps': ('x', 'y'), 'm': {1: 'one'}}, replayed {'deps': ['x', 'y'], 'm': {'1': 'one'}}.",
+   "expected": "The writer is handed the record as its canonical bytes parse back.",
+   "correction": "_write_event normalizes the body through json.loads(canonical_bytes(body)) before building the Event; the bytes written are unchanged. canonical.py's docstring states which Python values serialize alike.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_the_event_append_returns_is_the_event_a_replay_reads"
+   ],
+   "mutations": [
+    "tools/mutations/agent_substrate.json: M71"
+   ],
+   "residual_risk": "No production writer was found relying on a tuple or non-string key surviving its own append; the class is closed at the write rather than audited caller by caller.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-009",
+   "title": "check_against calls an intact log truncated when a checkpoint is taken in the crash window that leaves the witness one record behind",
+   "severity": "P2",
+   "subsystem": "checkpoints",
+   "files": [
+    {
+     "path": "agent_substrate/checkpoint.py",
+     "lines": "check_against, the head-witness comparison"
+    }
+   ],
+   "behavior": "The witness is written after the append it describes, so a crash between the two leaves it one record behind the log; verify() reports that as a note and the log as ok. checkpoint.create() then checkpoints the log's head, one past the witness. check_against refused every checkpoint ahead of the witness as 'the log was truncated after the checkpoint'. verify_with, read_verified_with (AuthorityStore.load_from) and describes (prune and restore decisions) all call it.",
+   "invariant": "A checkpoint is refused for what is wrong with it; the module's two readers of the witness (verify and check_against) say the same thing about the same log.",
+   "mechanism": "The witness comparison could not tell the crash signature from a rolled-back witness, and named both truncation.",
+   "reproduction": "scratchpad repro/lagging_witness_checkpoint.py",
+   "observed": "verify: ok=True with the note 'witness is behind the log (2 < 3)'; checkpoint created at seq 3; check_against: CheckpointAheadOfLog 'checkpoint names seq 3 but the head witness records 2; the log was truncated after the checkpoint'. The log was intact.",
+   "expected": "A witness one behind the checkpoint, with the checkpoint's record still at its offset, is the crash signature and stands; further behind is a rolled-back witness and is refused, as test C5 (test_a_rolled_back_head_witness_invalidates_a_checkpoint) already requires.",
+   "correction": "check_against accepts exactly the crash signature -- witness.seq == cp.seq - 1 and EventLog.check_anchor finds the checkpoint's record -- and refuses everything else as before, with a message that names a rolled-back witness as well as truncation.",
+   "regression_tests": [
+    "tests/test_agent_checkpoint.py::test_a_witness_one_behind_after_a_crash_does_not_void_a_checkpoint",
+    "tests/test_agent_checkpoint.py::test_a_witness_one_behind_does_not_vouch_for_a_record_that_is_gone (control)",
+    "tests/test_agent_checkpoint.py::test_a_rolled_back_head_witness_invalidates_a_checkpoint (C5, unchanged)"
+   ],
+   "mutations": [
+    "tools/mutations/agent_checkpoint.json: E40, E41, E42"
+   ],
+   "residual_risk": "A witness rolled back by exactly one record is indistinguishable from the crash signature, here as in verify(). The cost of the defect was recovery time and a false diagnosis, not authority: load_from fell back to an older checkpoint or a full replay.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-010",
+   "title": "Governed operations re-read the whole history: the records parsed by full verified reads grow quadratically with the campaign",
+   "severity": "P2",
+   "subsystem": "projections / performance (Phase 2C)",
+   "files": [
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "projection() via _verified_events; __init__ loading seven stores"
+    },
+    {
+     "path": "agent_substrate/governed_model.py",
+     "lines": "_view"
+    },
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "load"
+    }
+   ],
+   "behavior": "Counted by tools/work_counts.py under the scripted research-horizon campaign (SCRIPTED DECISIONS, no model): at 15, 30 and 60 decisions the full verified reads number 78, 114 and 198 and parse 11,195, 23,720 and 67,591 records. Doubling the campaign multiplied the records by 2.12 and then 2.85, approaching the x4 of quadratic work. At 60 decisions GovernedTasks.projection() (_verified_events) made 80 of the 198 full reads and parsed 28,337 records, 42% of the total; governed_model._view 20 reads; research.load 17; policy.load 12; and each GovernedTasks construction loads seven stores, each with its own full read.",
+   "invariant": "Directive Phase 2C: distinguish O(history) initialization, O(new) incremental operations and O(history^2) cumulative workloads caused by repeated full replay; count work, not wall time.",
+   "mechanism": "Each governed run rebuilds the task projection from genesis several times, and each new runner re-loads every store from genesis; the anchored O(new) paths exist but these callers do not use them.",
+   "reproduction": "python tools/work_counts.py --sizes 15,30,60 (docs/audit/work_counts.json); the same instrument at b0058f6 for the baseline.",
+   "observed": "At the baseline b0058f6 the same campaign also made 33, 48 and 89 anchor_at calls, each a second read of the log, parsing 3,552, 8,211 and 27,777 lines (x2.31, then x3.38: quadratic as well). The AUD-003 repair removed every one: at 60 decisions the lines parsed fell from 95,368 to 67,591 (-29%). Wall time is subprocess-dominated and did not move outside noise (20.5 s and 21.6 s at 60 decisions, measured back to back), which is the trap the directive names: the time hides the work.",
+   "expected": "Per governed operation, O(new) verification work after one O(history) load, with an explicit full-genesis path kept for readers that must start from nothing.",
+   "correction": "Partly made: AUD-003 (anchors from the verified read) removed the anchor_at re-reads. Not made, by an earlier decision: the governed projection re-verifies the whole chain on every fold, which docs/tranche_h/FINAL_REPORT.md ('Why the cost grows') states as deliberate -- an anchored read 're-reads no prefix and trusts the anchor', and moving the governed projection onto it 'would weaken a control to buy throughput'. The audit's reading of that trade: advance() is a verified read of the suffix, and require_extends (AUD-006) refuses a re-chained prefix in O(1), because the record at the projection's position must still carry the hash folded there. What an anchored fold gives up is in-process detection of later, unchained damage to the prefix already verified, which the next full read still finds: detection latency, not the correctness of decisions made against the verified state. The options are the owner's: keep the full re-verification and accept the measured growth; fold anchored with require_extends and re-verify from genesis every K folds or T seconds, which bounds the latency; or memoize the verified prefix by a digest of its bytes (the report's own proposal), which still reads and hashes the prefix on every fold but no longer parses it.",
+   "regression_tests": [
+    "tests/test_work_counts.py (the instrument)"
+   ],
+   "residual_risk": "Measured: at 60 scripted decisions, 198 full reads parse 67,591 records (docs/audit/work_counts.json). In the recorded Gate G campaign (docs/assurance/research_horizon_results.json, 8f53500) a decision took 0.56 s at the 50 stage and 2.33 s at the 1,000 stage, and the 5,000 and 10,000 stages were not reached (FINAL_REPORT.md projects about 10 and 31 more hours).",
+   "verification": "REPRODUCED",
+   "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-011",
+   "title": "Authority-record roles are self-asserted: nothing binds the actor of a VERIFIED or PROMOTED transition to the role it claims",
+   "severity": "P2",
+   "subsystem": "authority state machine / identity",
+   "files": [
+    {
+     "path": "agent_substrate/authority.py",
+     "lines": "check(): the role must be one the edge permits"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "transition(), _policy_refusal()"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_auth_refusal"
+    },
+    {
+     "path": "agent_substrate/principals.py",
+     "lines": "RegisteredKey: a key binds a principal, not a role"
+    },
+    {
+     "path": "agent_substrate/agents.py",
+     "lines": "_check_may_register(): only a HUMAN principal's registrar is checked"
+    },
+    {
+     "path": "agent_substrate/roles.py",
+     "lines": "RoleRegistry, RoleView, RoleDelegations: the root, the question and the delegations"
+    }
+   ],
+   "behavior": "check() requires the role a transition claims to be one its edge permits, and requires the actor to differ from the proposer where the edge says so (I4). The role itself is taken from the request (live) or the record's payload (replay). Neither reader consults the agent directory, the key registry (whose entries bind a key to a principal and carry no role) or the policy the promotion cites (_policy_refusal checks its publisher, withdrawal and expiry, not who may promote under it). So one identity may verify and promote, and an identity registered nowhere may take every role but the proposer's.",
+   "invariant": "AGENT_SUBSTRATE.md: a PROMOTED record 'means a claim was proposed, independently verified, and promoted under a recorded policy'; authority.py: Role is 'who may act'.",
+   "mechanism": "Roles are compared with the edge, never with an authority that grants them. The governed task layer checks the agent directory (GovernedTasks requires the verifier to hold AgentRole.VERIFIER there), and the directory admits an AGENT with any roles from any registrar, registered or not: _check_may_register guards HUMAN principals only. So the governed layer's role is a registration anyone can make, and the authority store beneath it asks for none.",
+   "reproduction": "scratchpad repro/self_asserted_roles.py; repro/open_agent_registration.py",
+   "observed": "'mallory', registered nowhere, moved alice's claim UNDER_REVIEW (VERIFIER), VERIFIED (VERIFIER) and PROMOTED (PROMOTER, policy p1): the store holds it PROMOTED and canonical, and the second reader agrees with nothing unauthorized. And 'mallory', registered nowhere, registered an AGENT v-evil holding VERIFIER (and 'nobody-at-all' one holding EXECUTOR): require() passes for both and a replay keeps them; a HUMAN registered by mallory is refused.",
+   "expected": "Before any production path reaches PROMOTED: an authority outside the log -- as the key registry is -- or the cited promotion policy names who may verify and who may promote, and both readers refuse anyone else.",
+   "correction": "agent_substrate/roles.py: a role registry supplied from outside the log and pinned by its digest, as the key registry is. Each grant names a principal, a role, a scope and the positions it holds for. Delegation happens once, in the log, from grants marked may_delegate (PROPOSER, EXECUTOR, VERIFIER, PROMOTER only); it is never made to the delegator, never wider or longer than its parent, and revoked by its delegator. A reader given a registry holds each act to it before the record is written and again on every replay. AuthorityStore: create needs PROPOSER over kind:<kind>; a transition needs the role it claims, and SYSTEM needs VERIFIER or PROMOTER. PolicyStore and the AuthorityStore's own policy fold: POLICY_OWNER. GovernedTasks: PROPOSER, EXECUTOR and VERIFIER over tool:<tool id>, each where its record is written. The rules are restated in reconstruct, reconstruct_tasks and reconstruct_subsystems. Under a registry, agent registration confers nothing, and a checkpoint folded under other grants is not restored. Which principals hold which roles in production, and provisioning the registry, remain the owner's: production_role_registry refuses until then.",
+   "regression_tests": [
+    "tests/test_role_authority.py::test_a_forged_walk_to_promoted_is_refused_by_both_readers",
+    "tests/test_role_authority.py::test_a_forged_create_is_refused_by_both_readers",
+    "tests/test_role_authority.py::test_an_actor_without_a_grant_cannot_verify_or_promote",
+    "tests/test_role_authority.py::test_both_readers_refuse_with_the_same_kind",
+    "tests/test_role_authority.py::test_an_agent_anyone_registers_as_verifier_holds_no_role",
+    "tests/test_role_authority.py::test_an_authenticated_principal_without_a_grant_cannot_promote",
+    "tests/test_role_authority.py::test_a_checkpoint_folded_under_another_registry_is_not_restored",
+    "tests/test_role_authority.py::test_task_replay_refuses_the_first_record_past_a_grant",
+    "tests/test_role_authority.py::test_a_grant_ending_mid_run_refuses_the_act_before_it_is_written",
+    "tests/test_role_authority.py::test_a_forged_delegation_is_refused_on_replay_by_both_readers"
+   ],
+   "residual_risk": "Enforced only by a reader given a registry, as authentication is only by a reader given an authenticator. No history declaration yet obliges a reader to hold a registry; a genesis declaration like AUTHENTICATED_REQUIRED would. No production registry is provisioned, which is an owner action. HUMAN_APPROVER and RELEASE_AUTHORITY can be granted and are consumed by nothing yet: an escalation's answer still rests on the directory's HUMAN principal. SCHEDULER and SYSTEM task moves are held to the edge alone. Without AUTHENTICATED_REQUIRED a name is unauthenticated, and a writer able to append can write under a holder's name. Collusion among grantees remains the documented separation-of-duties limit. Mutations RA1-RA36 and RR1-RR8 (tools/mutations/role_authority.json) are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-012",
+   "title": "An AUTHENTICATED_REQUIRED history reads as authenticated to an authenticator that asks only some actors",
+   "severity": "P1",
+   "subsystem": "actor authentication / security profile",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "_security_gate(): the authenticator's report is taken as the verdict"
+    },
+    {
+     "path": "agent_substrate/principals.py",
+     "lines": "authenticate(): an actor outside require is not asked; Authenticator.require; production_authenticator(require=)"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct(): the second reader's own authentication verdict"
+    }
+   ],
+   "behavior": "Under AUTHENTICATED_REQUIRED the read primitives refused a reader given no authenticator and otherwise took the authenticator's report. principals.authenticate(require=...) checks only the actors it names and passes every other event without asking, and both Authenticator and production_authenticator accept require. So a REQUIRED history read through an authenticator scoped to some actors -- or to none, require=frozenset() -- read a correctly chained, unsigned record by any other name as authenticated, whether or not the deployment pinned the profile. A writer holding that authenticator appended after the record, and the second reader, whose own verdict is the same authenticator's, folded it.",
+   "invariant": "events.py, the security profile: 'AUTHENTICATED_REQUIRED means every event must be authenticated, and it is enforced HERE, in the verified-read primitives every reader in this package reads through, so a reader cannot skip authentication by leaving out one optional argument'.",
+   "mechanism": "The gate checked that an authenticator was present, not that it asked every actor. The scope that makes require useful on a legacy history was honoured on a REQUIRED one.",
+   "reproduction": "scratchpad repro/scoped_authenticator.py",
+   "observed": "A REQUIRED history (the declaration by owner, one record by alice) and a correctly chained, unsigned record by mallory, an actor with no key, written into the file. require=None: ok=False, NO_KEY for mallory, and the read stops before the record. require={'alice'}: ok=True and the record read, with required_profile pinned to AUTHENTICATED_REQUIRED or not. A signed append by alice through the scoped log wrote seq 3 after it, and reconstruct() with the scoped authenticator folded r1, r2 (mallory's) and r3 with nothing unauthorized. The same at the audit baseline b0058f6.",
+   "expected": "A REQUIRED history is read only through an authenticator that asks every actor; one that names a scope reads nothing of it, and the second reader refuses it in its own code as it refuses a missing authenticator.",
+   "correction": "_security_gate refuses a REQUIRED, non-empty history to an authenticator whose require is not None, with a problem naming the scope, before asking it anything; the anchored read and the writer's head check go through the same gate. reconstruct() restates the rule: given a scoped authenticator for a history whose genesis declares REQUIRED, it folds nothing and says why. On a legacy history require keeps its meaning.",
+   "regression_tests": [
+    "tests/test_authenticated_history.py::test_a_required_history_is_not_read_by_an_authenticator_asking_some (6 cases: three scopes, the profile pinned and not)",
+    "tests/test_authenticated_history.py::test_the_anchored_read_and_the_writer_refuse_a_scoped_authenticator",
+    "tests/test_authenticated_history.py::test_the_independent_reader_refuses_a_scoped_authenticator_itself",
+    "tests/test_authenticated_history.py::test_a_scope_still_narrows_a_history_that_is_not_required (control)"
+   ],
+   "mutations": [
+    "tools/mutations/authenticated_history.json: EP10, EP11, RC3"
+   ],
+   "residual_risk": "The gate trusts the authenticator object it is handed: it reads the scope an Authenticator declares, and a callable that skips actors without declaring a scope is not detected. No reader in the repository was configured with a scope, and production authentication is not provisioned (no registry, no vetted provider), so nothing deployed was exposed. Roles remain self-asserted under authentication (AUD-011).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-013",
+   "title": "The long-horizon campaign cannot resume after its process dies: a stopped campaign starts again from nothing",
+   "severity": "P2",
+   "subsystem": "long-horizon campaign (Gate G)",
+   "files": [
+    {
+     "path": "tools/research_horizon.py",
+     "lines": "Campaign.__init__, _save, _resume, run(), invalidate_one(), measure(), main(): the state beside the world, the lock, the resume"
+    },
+    {
+     "path": "tools/adversarial_eval.py",
+     "lines": "World.__init__: resume=True opens an existing workspace and writes no bootstrap"
+    }
+   ],
+   "behavior": "World(name) deletes any workspace of that name before it builds a fresh one, and main() deletes the workspace when the run ends, normally or not. The campaign's own counters (resets, restarts, recovery failures, objectives, the stage clock) live in its process. Inside it, the governed loop does recover a crash mid-step from the log, in a freshly built controller, but only within the same process. Nothing resumes the campaign itself.",
+   "invariant": "The audit directive, phase 9: a long-horizon campaign that resumes across the death of its process. FINAL_REPORT.md names the same change: 'A resumable campaign that persists its counters beside the world and finishes the objective in flight. That is also a whole-process recovery test.'",
+   "mechanism": "State the campaign keeps outside the log lives only in its process, and its workspace is deleted on construction and on exit.",
+   "reproduction": "Read: tools/adversarial_eval.py World.__init__ (shutil.rmtree of an existing base) and clean(); tools/research_horizon.py main(). Recorded: docs/assurance/research_horizon_results.json at 8f53500.",
+   "observed": "The recorded run asked for 10,000 decisions and holds the 50, 100 and 1,000 stages with complete=false. FINAL_REPORT.md says the process went with a reclaimed container after 1,547 decisions in 76 minutes, and the 5,000 and 10,000 stages are not claimed.",
+   "expected": "Counters and stage bookkeeping that persist beside the world, and a campaign resumed from the log in a new process that reaches the counters an uninterrupted run reaches.",
+   "correction": "tools/research_horizon.py keeps the campaign's own state in campaign_state.json beside the world. The file is written atomically (a temporary file, fsync, os.replace and a directory fsync) before each objective, after each stage and after each withdrawal, and it is bound to the log position (seq, hash) it describes. --resume opens the same world without rebuilding it (World(resume=True)). The log is the authority over what happened. A log that no longer holds the recorded position, because it was rolled back or rewritten, is refused. The log may register one objective more than the state records. If that objective is still OPEN, a new controller finishes it. If it was finished before the process died, it is counted once. A stage measured and not saved is measured again, and a withdrawal the dead process made and did not record is settled (GovernedModelRuns.settle) and not repeated. One process holds a campaign at a time, through an flock the kernel releases when the process dies. The workspace is kept when a run stops. Counters derived from the log cannot be counted twice. process_restarts counts the campaign's own resumptions, and restarts still counts scripted crashes in a process that lived to record them.",
+   "regression_tests": [
+    "tests/test_research_horizon_resume.py::test_a_campaign_killed_at_a_point_resumes_to_the_uninterrupted_result",
+    "tests/test_research_horizon_resume.py::test_a_crash_deep_in_a_stage_resumes_from_the_objective_last_saved",
+    "tests/test_research_horizon_resume.py::test_a_second_process_is_refused_while_one_holds_the_campaign",
+    "tests/test_research_horizon_resume.py::test_a_history_rolled_back_behind_the_state_is_refused",
+    "tests/test_research_horizon_resume.py::test_a_lagging_head_witness_does_not_stop_a_resume",
+    "tests/test_research_horizon_resume.py::test_a_torn_state_write_leaves_the_last_whole_state",
+    "tests/test_research_horizon_resume.py::test_a_campaign_with_no_state_is_not_resumed"
+   ],
+   "residual_risk": "The state survives only where the workspace survives. A machine reclaimed with its disk takes both, as the recorded 10,000-decision run's container did, and resuming that needs durable storage a deployment provides. A process killed between the two halves of a stage boundary's withdrawal (the task, then its bytes) is settled, but the second half is not made again; no test reaches that point. The scripted fault of the objective in flight is lost with the process, so restarts can read one lower than in an uninterrupted run, while every counter taken from the log agrees. The 5,000 and 10,000 stages have still not been run. Twelve kill points are tested, each in a separate process killed with os._exit, with every action-level difference from an uninterrupted run named: a stage's checkpoint measured again, and one context assembled for a model call that was never made. Mutations RHR1-RHR11 (tools/mutations/research_horizon_resume.json).",
+   "verification": "CONFIRMED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-014",
+   "title": "A refused mint is written before it is refused: one call leaves a capability log that no reader will load again",
+   "severity": "P1",
+   "subsystem": "capability ledger",
+   "files": [
+    {
+     "path": "agent_substrate/capability.py",
+     "lines": "CapabilityLedger.issue(): decide() appended the grant without asking who may mint; _authorize_mint() ran only in apply()"
+    },
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "DecidedWriter._append_decided(): the record is written, then folded"
+    }
+   ],
+   "behavior": "issue() decided the record under the writer lock and checked its id, its start and its terms, but not who may mint it. The rule -- the root mints, a holder delegates an attenuation -- lived in _authorize_mint(), which apply() runs on the record after DecidedWriter._append_decided() has written it. So a mint by any actor other than the root was durable before it was refused: the caller got NotTheIssuer, the log kept the record, and every later CapabilityLedger.load() of that log refused the whole history at its seq. The same for a delegation by an actor that does not hold the parent, written through issue() rather than delegate().",
+   "invariant": "events.py, DecidedWriter: a decision is taken under the writer lock so that a refused write is 'refused before anything is written instead of leaving a history every later load refuses'; capability.py, issue(), of its other checks: 'Refused here, under the lock, nothing is written.' The live path and every replay apply one rule to one record.",
+   "mechanism": "The live path and the fold asked different questions, and the fold's answer arrived after the append.",
+   "reproduction": "scratchpad repro/unauthorized_mint.py",
+   "observed": "A ledger whose root is 'scheduler' with one grant: issue(..., actor='mallory') raised NotTheIssuer, the log went from 2 records to 3 (the last by mallory), and a fresh load raised NotTheIssuer at seq 2 -- while the live ledger kept answering as if nothing had happened. The same at the baseline b0058f6.",
+   "expected": "The mint refused before anything is written: the log unchanged, and a fresh load as before.",
+   "correction": "issue()'s decide() runs _authorize_mint() on the record it is about to write (its seq and actor), under the writer lock and after the fold of what other writers appended, so the live path and replay apply one rule and a refusal writes nothing. delegate() and revoke() already decided their rules before writing.",
+   "regression_tests": [
+    "tests/test_agent_delegation.py::test_a_refused_mint_never_reaches_the_log (with the root's mint and a holder's delegation as the control)"
+   ],
+   "mutations": [
+    "tools/mutations/agent_delegation.json: G28"
+   ],
+   "residual_risk": "The same shape -- a fold that refuses a record its own writer wrote -- was looked for here, in the capability ledger. It was not looked for systematically in every DecidedWriter; a property that every refused write leaves the log unchanged, across writers, does not exist yet. Under AUTHENTICATED_REQUIRED an unsigned write is refused before it is written, so the exposure is to legacy histories, which is every history in this repository.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-015",
+   "title": "Anyone may publish the next version of an owner's policy, and a policy-bound promotion then stands on it",
+   "severity": "P1",
+   "subsystem": "policy store / promotion policy binding (D-2026-148)",
+   "files": [
+    {
+     "path": "agent_substrate/policy.py",
+     "lines": "PolicyStore.publish() and apply(): a later version was checked for order and withdrawal, not for who published it"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "_fold_policy_record(): the binding's view kept the first version's publisher, and took expiry from the latest version"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "the binding fold (entry['by']) and _sub_policy_publish()"
+    }
+   ],
+   "behavior": "A policy's owner is whoever published version 1, and only the owner may withdraw it. Publishing the next version was anyone's: publish() and its replay checked that the version followed the last and that the policy was not withdrawn. The new version then governed every PolicyStore decision after it. Where a history binds its promotions to named policy authorities, the store and the second reader both judged a promotion by the publisher of the policy's FIRST version, while its expiry came from the latest. So an outsider's version 2 replaced the owner's rules and lifted the owner's expiry, and promotions under the policy were admitted on it.",
+   "invariant": "tests/test_policy_binding.py (D-2026-148): 'a policy's owner (whoever published version 1) may WITHDRAW it'; 'a promotion's policy must be published on that history by one of them [the named principals], not withdrawn, and not expired at the promotion'.",
+   "mechanism": "Ownership governed withdrawal only, and the binding asked who published the policy's first version rather than the version in force.",
+   "reproduction": "scratchpad repro/policy_version_hijack.py",
+   "observed": "On a history bound to 'policy-authority': 'mallory' published version 2 of the authority's policy p1 without its expiry, and it was accepted live and on replay. After version 1 expired, a promotion under p1 was PROMOTED, standing on mallory's version. The same at the baseline b0058f6.",
+   "expected": "A later version by anyone but the owner refused, live before it is written and on replay. A binding judges the publisher of the version in force, so a promotion standing on an outsider's version is refused by both readers.",
+   "correction": "PolicyStore.publish() refuses a later version by anyone but the owner, under the writer lock after the version checks, so nothing is written; apply() refuses the same record on replay. The store's binding view and the second reader's take the publisher of the latest version, so a promotion under a policy whose version in force an outsider wrote is refused, live and on replay. The second reader's subsystem replay notes the version and does not fold it.",
+   "regression_tests": [
+    "tests/test_policy_binding.py::test_only_the_owner_publishes_a_later_version (with the owner's version 2 as the control)",
+    "tests/test_policy_binding.py::test_a_forged_later_version_does_not_load",
+    "tests/test_policy_binding.py::test_a_promotion_under_a_version_an_outsider_published_is_refused",
+    "tests/test_policy_binding.py::test_control_a_promotion_under_the_owners_later_version (control)",
+    "tests/test_policy_binding.py::test_the_subsystem_reader_flags_an_outsiders_later_version"
+   ],
+   "mutations": [
+    "tools/mutations/policy_binding.json: PB25-PB29"
+   ],
+   "residual_risk": "Ownership is still first-come: whoever publishes version 1 of an id owns it, and nothing names who may create a policy. That is the open publishing the binding was built around. Owners and policy authorities are names: authenticated under AUTHENTICATED_REQUIRED, self-asserted otherwise (AUD-011).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-016",
+   "title": "The process-tree negative control leaves the grandchild it shows escaping running after the test",
+   "severity": "P3",
+   "subsystem": "isolation contract probes / test hygiene",
+   "files": [
+    {
+     "path": "tools/isolation_contract.py",
+     "lines": "_TREE, ESCAPEE_SECONDS and probe_process_tree(): the grandchild looped forever and nothing stopped it"
+    },
+    {
+     "path": "tests/test_isolation_contract.py",
+     "lines": "test_each_probe_sees_the_boundary_gone[process_tree]; test_the_grandchild_the_control_lets_escape_is_stopped_once_read; test_a_grandchild_nothing_tells_to_stop_ends_on_its_own"
+    }
+   ],
+   "behavior": "With isolation switched off on purpose, the probe's grandchild -- in a session of its own -- outlives the tool killed on timeout, which is what the negative control asserts. Nothing then stops it: it is reparented to the host's init and writes out/beat every 100 ms until its directory is deleted (pytest prunes a run's temporary directory after three newer runs; a CI runner is discarded).",
+   "invariant": "A test leaves no process behind it.",
+   "mechanism": "The probe measures the escape and returns; the escaped process has no stop condition.",
+   "reproduction": "During the full suite at d3cddc3: a python process running the _TREE loop, parent PID 1, cwd /tmp/pytest-of-root/pytest-179/test_each_probe_sees_the_bound3, still writing after the test had passed.",
+   "observed": "One orphan per run of the suite, alive until its temporary directory is pruned.",
+   "expected": "The grandchild stops once the probe has measured it.",
+   "correction": "The grandchild beats while out/stop does not exist and until its own bound (ESCAPEE_SECONDS, 30 s) passes. The probe takes both readings, then writes out/stop in a finally, so a probe that raises still writes it. The bound ends the grandchild of a probe stopped before the finally runs, such as by a kill or a test timeout. Neither runs before the reading, and the verdict is unchanged. No PID is used: under a PID namespace the recorded PID is the namespace's and names an unrelated process on the host.",
+   "regression_tests": [
+    "tests/test_isolation_contract.py::test_the_grandchild_the_control_lets_escape_is_stopped_once_read",
+    "tests/test_isolation_contract.py::test_a_grandchild_nothing_tells_to_stop_ends_on_its_own",
+    "tests/test_isolation_contract.py::test_each_probe_sees_the_boundary_gone[process_tree]"
+   ],
+   "residual_risk": "A probe killed before its finally leaves the grandchild running for at most ESCAPEE_SECONDS. The tests find a leftover by its working directory, through /proc. That needs Linux and permission to read another process's cwd. Each test also kills what it finds, so a mutant that leaves the grandchild running does not outlive its test. Both tests failed before the fix, each leaving one process, which the test killed. Mutations IS11 (no stop file), IS12 (no bound) and IS13 (a bound shorter than the reading) are each killed, and IS7 still is.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-017",
+   "title": "Nothing says who may issue a secret grant or an egress grant",
+   "severity": "P3",
+   "subsystem": "secret store / network authority",
+   "files": [
+    {
+     "path": "agent_substrate/secrets.py",
+     "lines": "SecretStore.issue() and apply(): a grant's id, digest and stamp are checked on both paths, and its issuer on neither"
+    },
+    {
+     "path": "agent_substrate/netauth.py",
+     "lines": "NetworkAuthority.issue(): an egress grant's id and stamp are checked, and its issuer is not"
+    },
+    {
+     "path": "agent_substrate/roles.py",
+     "lines": "SECRET_ISSUER and EGRESS_ISSUER, granted by the registry"
+    }
+   ],
+   "behavior": "SecretStore.issue() and its replay check that a grant's id is new, that its digest matches and that its start is the log's stamp; revocation is the granter's alone, on both paths. Who may ISSUE a grant is checked on neither, so any actor that can append may grant itself access to any registered secret. The capability ledger closed the same gap with a root issuer (tests/test_agent_delegation.py states it as found: 'no ISSUER authority: any actor that can write the log can mint a grant'); the secret store has none. NetworkAuthority.issue() is the same: an egress grant's id and stamp are checked, its issuer is not. Egress grants ARE decided on the governed path: socket_guard(self.network, actor=..., task_id=...) wraps a task's execution and verification in GovernedTasks, mediating the runner process's own sockets (a tool's child has no network either way, by its namespace).",
+   "invariant": "secrets.py: a value is 'reachable only through SecretStore.resolve, only under a grant that names the actor, task, tool and purpose' -- which binds the grant's use, not its making.",
+   "mechanism": "Issuance authority was given to capability grants and not to secret grants.",
+   "reproduction": "Read: SecretStore.issue() and apply() (agent_substrate/secrets.py); NetworkAuthority.issue() (agent_substrate/netauth.py). Reachability: no module in agent_substrate/ or tools/ calls SecretStore.resolve(); GovernedTasks calls socket_guard over the network authority at three sites.",
+   "observed": "By reading, not executed. Secret grants: no governed path resolves one in this build. Egress grants: an actor that can append can grant the runner's mediated egress for a task, which the socket guard then permits; mediation of the runner's own sockets, not of the tool's child.",
+   "expected": "An issuer authority for secret and egress grants, as the capability ledger has, held on both paths -- for egress before any deployment relies on the mediation, for secrets before a governed path first resolves one.",
+   "correction": "Under a role registry (agent_substrate/roles.py), a secret grant is issued only by a principal the registry grants SECRET_ISSUER over secret:<secret id>. An egress grant is issued only by one granted EGRESS_ISSUER over egress:<host>, for every host the grant names. Both are decided under the writer lock before the record exists, refused again on replay by SecretStore and NetworkAuthority, and restated by reconstruct_subsystems. Neither issuing role may be delegated. Revocation stays the granter's. Who issues in production is the owner's to provision.",
+   "regression_tests": [
+    "tests/test_role_authority.py::test_only_a_secret_issuer_grants_a_secret",
+    "tests/test_role_authority.py::test_only_an_egress_issuer_grants_egress_and_only_to_its_hosts"
+   ],
+   "residual_risk": "Enforced only where the store is given a registry. No production registry is provisioned. Egress mediation remains an application control over the runner's own sockets, and the kernel network namespace still contains a tool. Mutations RA25-RA29 and RR6 are each killed.",
+   "verification": "CONFIRMED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-018",
+   "title": "A trust root accepted a quorum that is not a majority, under which honest witnesses can witness two forks",
+   "severity": "P2",
+   "subsystem": "witnesses / trust root",
+   "files": [
+    {
+     "path": "agent_substrate/witness.py",
+     "lines": "TrustRoot.__post_init__: a quorum was checked to be between 1 and the number of witnesses, and nothing more"
+    }
+   ],
+   "behavior": "TrustRoot accepted any quorum from one to the number of witnesses. A log operator shows each witness whatever history it likes. With four witnesses and a quorum of two, it showed w1 and w2 one fork and w3 and w4 the other: every witness was honest and cosigned only what extended what it held, and verify_tree_witnessed reported each reader's own fork witnessed through record 1, with no problem.",
+   "invariant": "Witnessing exists so that two readers who accept witnessed histories accept consistent ones: every two trees a quorum witnessed are one a prefix of the other (docs/formal/WitnessQuorum.tla, NoSplitView).",
+   "mechanism": "Two quorums of q among n witnesses share at least 2q - n of them. When 2q <= n they can share none, so no honest witness stands in both, and nothing stops each from cosigning one side of a fork.",
+   "reproduction": "tests/test_witness_quorum.py::test_a_minority_quorum_let_honest_witnesses_witness_two_forks, with the trust root restored to quorum two as it was accepted before; TLC refutes the small_quorum variant of protocol 7 (docs/formal/results.json).",
+   "observed": "Two readers holding different forks of one log each verified their own as witnessed by a quorum of two of four honest witnesses.",
+   "expected": "A trust root whose quorum two disjoint groups of witnesses can each reach is refused.",
+   "correction": "TrustRoot refuses a quorum that is not a majority of its witnesses. TrustRoot.tolerates states how many faulty witnesses the quorum survives, 2q - n - 1, which is the condition TLC checks protocol 7 under.",
+   "regression_tests": [
+    "tests/test_witness_quorum.py::test_a_minority_quorum_let_honest_witnesses_witness_two_forks",
+    "tests/test_witness_quorum.py::test_every_quorum_of_half_or_fewer_is_refused",
+    "tests/test_witness_quorum.py::test_how_many_faulty_witnesses_a_quorum_tolerates"
+   ],
+   "residual_risk": "No trust root in this repository used a minority quorum, and no production trust root exists. A bare majority, 2q = n + 1, tolerates no faulty witness; how many to tolerate is the owner's choice when witnesses are deployed. Mutations WQ1 to WQ3 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-019",
+   "title": "A witness provisioned again after losing its state cosigns a fork of what it forgot",
+   "severity": "P3",
+   "subsystem": "witnesses / recovery",
+   "files": [
+    {
+     "path": "agent_substrate/witness.py",
+     "lines": "TreeWitness.provision_tree and Witness.provision: provisioning is at the first record, once per state"
+    }
+   ],
+   "behavior": "A witness that lost its state refuses everything until the owner provisions it again, at the first record's tree. It then holds that tree and nothing of what it cosigned before, so the operator can show it a fork of a tree it had cosigned, and it cosigns that too. With four witnesses, a quorum of three and one witness that cosigns anything, w1 cosigned one fork, lost its state, was provisioned again and cosigned the other: each fork then had a quorum of three.",
+   "invariant": "NoSplitView holds when no more witnesses are faulty than the quorum tolerates (docs/formal/WitnessQuorum.tla).",
+   "mechanism": "A witness's state is what makes it refuse a fork. A witness without its state is, for the trees it cosigned before, as faulty as one that cosigns anything, and nothing in the code can see that it forgot.",
+   "reproduction": "tests/test_witness_quorum.py::test_a_reprovisioned_witness_cosigns_a_fork_of_what_it_forgot replays TLC's counterexample to the loss_uncounted variant of protocol 7 with real witnesses.",
+   "observed": "The split view needed two faulty witnesses, the forgetful one and the one that cosigns anything; a quorum of three of four tolerates one.",
+   "expected": "A witness that lost its state counts against the faults the trust root tolerates.",
+   "correction": "None in code: the code cannot see a lost state. witness.py states the rule, and TrustRoot.tolerates gives the budget it is counted against. The owner who deploys witnesses counts a re-provisioned witness as faulty, or sizes the quorum to tolerate it.",
+   "regression_tests": [
+    "tests/test_witness_quorum.py::test_a_reprovisioned_witness_cosigns_a_fork_of_what_it_forgot"
+   ],
+   "residual_risk": "A deployment that re-provisions witnesses without counting them can be shown a split view. Durable witness state makes the loss rare, and does not make it impossible.",
+   "verification": "REPRODUCED",
+   "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-020",
+   "title": "No history could require its role registry: every role-enforcing reader enforced roles only when its caller supplied one",
+   "severity": "P1",
+   "subsystem": "authorization / role registry / verified-read primitives",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "the security-profile gate: a history declared its authentication profile, never its authorization roots"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "AuthorityStore(roles=None): no registry meant roles were what the request said; likewise PolicyStore, SecretStore, NetworkAuthority and GovernedTasks"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct, reconstruct_tasks, reconstruct_subsystems: roles=None folded every act"
+    }
+   ],
+   "behavior": "AUD-011 rooted roles in a registry supplied from outside the log, and every reader given one enforced it. Nothing in a history named the registry, so a reader built without one, which is every reader by default, folded acts no grant authorized. In an AUTHENTICATED_REQUIRED history, mallory, a principal the key registry holds and the role registry grants nothing, promoted r1 by a signed record. The AuthorityStore given the role registry refused the history; the one built without it read r1 PROMOTED; the independent reader read VERIFIED with the registry and PROMOTED, with no complaint, without it.",
+   "invariant": "Whether an act was authorized has one answer for every reader of a governed history: the one the history's declared roots give.",
+   "mechanism": "The registry was a reader parameter defaulting to None, and None meant that a role was what the request said. A history declared how it was authenticated, never under which roles it was authorized.",
+   "reproduction": "tests/test_governed_history.py::test_the_gap_in_a_history_that_declares_no_registry shows the behaviour, which remains, explicitly, for the legacy profiles; at df53837 the same history read by the four readers gave refused, PROMOTED, VERIFIED and PROMOTED.",
+   "observed": "Two readers of one history, one given the registry and one not, disagreed about whether r1 was promoted.",
+   "expected": "A history can declare the registries it is read under, and every reader of it, the independent one included, enforces them or reads nothing.",
+   "correction": "The GOVERNED profile. Its first event declares harness/history-security/v1 and the digests of the key registry and the role registry. The verified-read primitives refuse a GOVERNED history to a log that does not hold both, or holds others. roles.enforced makes AuthorityStore, PolicyStore, SecretStore, NetworkAuthority and GovernedTasks enforce their log's registry when none is passed, and refuses a reader whose registry is not its log's. reconstruct, reconstruct_tasks and reconstruct_subsystems restate the requirement from the declaration and their own inputs. A deployment that pins GOVERNED refuses a history declaring less. UNAUTHENTICATED_LEGACY and AUTHENTICATED_REQUIRED keep their behaviour, as explicitly legacy profiles.",
+   "regression_tests": [
+    "tests/test_governed_history.py::test_a_governed_history_reads_nothing_without_its_own_roots",
+    "tests/test_governed_history.py::test_mallory_s_promotion_is_refused_by_both_readers",
+    "tests/test_governed_history.py::test_a_reader_cannot_enforce_another_registry_than_its_log_s",
+    "tests/test_governed_history.py::test_the_independent_reader_restates_the_requirement",
+    "tests/test_governed_history.py::test_a_governed_history_cannot_be_downgraded",
+    "tests/test_governed_history.py::test_the_independent_reader_compares_the_registry_it_is_given",
+    "tests/test_governed_history.py::test_a_malformed_governed_declaration_is_refused_on_read"
+   ],
+   "residual_risk": "Only a history that declares GOVERNED is bound; a deployment must pin GOVERNED to refuse the legacy profiles. No production key or role registry is provisioned (AUD-011, AUD-017). A store checkpoint is an unsigned record and cannot be written into an authenticated history: a signing checkpoint writer is not built. No authority-layer writer held a signer, so a REQUIRED or GOVERNED history could be written only by principals.signed_append, record by record: AUD-021, closed in Stage 2, where a log handle opened with signing= signs every record its writers append, a store checkpoint included. Agent registration, capability issuance and research conclusions are not acts the role registry governs. P1 rather than P0: no registry is provisioned, so no deployment relied on one; provisioning one would not have bound the readers. GH1-GH13 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-021",
+   "title": "An authenticated history could not be written by any governed writer: no store, ledger or runner held a signer",
+   "severity": "P2",
+   "subsystem": "authentication / event log write path",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "_write_event: an unsigned record in a REQUIRED or GOVERNED history is refused, and nothing gave a writer a way to sign; the refusal named AUTHENTICATED_REQUIRED for every authenticated profile"
+    },
+    {
+     "path": "agent_substrate/principals.py",
+     "lines": "signed_append: the one signing path, a function of its own beside every writer"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "AuthorityStore, and likewise PolicyStore, the research ledger, the task runner: each appends through the plain append"
+    }
+   ],
+   "behavior": "In a GOVERNED history whose role registry grants alice PROPOSER and owner POLICY_OWNER, AuthorityStore.create by alice and PolicyStore.publish by owner were each refused: 'an AUTHENTICATED_REQUIRED history is written only with the record's attestation prepared before it'. An authenticated history could be written only by principals.signed_append, record by record, by code that bypassed every store's live checks; no governed run of the harness was possible, and no store checkpoint of an authenticated history. D-2026-92 recorded 'the governed writers do not sign' as the next commit's work; D-2026-93 closed the crash window it named beside it and left this.",
+   "invariant": "Every writer of an authenticated history writes through its live checks, and every record it writes is signed with its actor's key before the record exists.",
+   "mechanism": "Signing was a property of one function, not of the log handle every writer appends through.",
+   "reproduction": "tests/test_signing_seam.py. On the Stage 1 tree (aa699b9), the same history: AuthorityStore.create by alice and PolicyStore.publish by owner, both granted, REFUSED as unsigned; EventLog took no signing argument.",
+   "observed": "Two granted principals could not write a governed history through the stores that govern it.",
+   "expected": "A handle holding a principal's key writes that principal's records, through every store, signed by the signed-append protocol.",
+   "correction": "EventLog(..., signing=principals.Signing(attestations, signers)): when an append brings no pre-write hook of its own, the record is attested by its actor's key under the writer lock before it is written, by the signed-append protocol. Refused before a byte is written: an actor the handle holds no key for, a key the registry does not let sign that seq, an attestation file the log's reader does not read, and a handle built with no key, two keys for one principal, or something that is not a signer. A signature is not an authorization: the role registry still decides, live and on replay. The unsigned refusal names the history's own profile.",
+   "regression_tests": [
+    "tests/test_signing_seam.py::test_the_store_writes_a_governed_history_through_a_signing_handle",
+    "tests/test_signing_seam.py::test_a_handle_writes_only_as_the_principals_it_holds_keys_for",
+    "tests/test_signing_seam.py::test_signing_is_not_authorization",
+    "tests/test_signing_seam.py::test_an_authenticated_history_is_checkpointed_and_restored"
+   ],
+   "residual_risk": "A handle holding several principals' keys can write as any of them: separation between parties is as strong as the custody of their keys, and every key here is a TEST identity. No production key exists (AUD-011, AUD-017). SS1-SS8 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-022",
+   "title": "The separate-process verifier reported a history clean while its own readers refused acts in it",
+   "severity": "P1",
+   "subsystem": "independent verification / separate process",
+   "files": [
+    {
+     "path": "tools/independent_verify.py",
+     "lines": "main: findings were the anomalies of the three readers; what reconstruct and reconstruct_tasks refused (unauthorized) was dropped"
+    }
+   ],
+   "behavior": "A history in which r1 is created and then taken PROPOSED -> PROMOTED by mallory, an edge the machine does not have: the second reader, in-process, refused the transition ('would be refused today: no edge PROPOSED -> PROMOTED'), and verify_in_separate_process reported ok=True, exit 0, 'reconstruction found no anomalies'. Likewise an execution record appended after a task's verdict by a party holding no lease, renaming who executed work already judged: the task reader refused it, and the separate process reported the log clean. A governed task run records this verdict, and is accepted on it.",
+   "invariant": "The separate process says a history is clean only when none of its readers refuses anything in it.",
+   "mechanism": "The child counted the readers' structural findings (anomalies) and not the acts they refused (unauthorized), which they keep out of the state they rebuild.",
+   "reproduction": "tests/test_agent_separate_verify.py::test_a_transition_the_second_reader_refuses_is_a_finding and ::test_a_task_record_the_second_reader_refuses_is_a_finding; on the Stage 1 tree both histories read ok=True, exit 0, from the separate process.",
+   "observed": "ok=True and exit 0 for a history the same reader refuses in-process.",
+   "expected": "Findings, exit 1, naming the refused act.",
+   "correction": "The child counts what reconstruct and reconstruct_tasks refuse as findings. unverifiable is not counted: it says the child was given no evidence to decide a scientific admission with, which is not a fault of the history.",
+   "regression_tests": [
+    "tests/test_agent_separate_verify.py::test_a_transition_the_second_reader_refuses_is_a_finding",
+    "tests/test_agent_separate_verify.py::test_a_task_record_the_second_reader_refuses_is_a_finding"
+   ],
+   "residual_risk": "P1 because the verdict was a false verification claim. The primary readers refused both histories, so no state was built on them; the separate process is a second line. SG1 and SG2 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-023",
+   "title": "The independent readers could not read a governed history: the separate process was handed no roots, and the decision proof and memory trust dropped them",
+   "severity": "P2",
+   "subsystem": "independent verification / decision proofs / memory trust",
+   "files": [
+    {
+     "path": "tools/independent_verify.py",
+     "lines": "EventLog(path) with no authenticator and no role registry; its import guard forbids the key layer"
+    },
+    {
+     "path": "agent_substrate/separate_verify.py",
+     "lines": "verify_in_separate_process handed the child the log's path alone"
+    },
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "the run's independent check called it with the path alone"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "derive_decision_proof re-read each prefix with no roots"
+    },
+    {
+     "path": "agent_substrate/memory_trust.py",
+     "lines": "assess rebuilt the primary projection on a fresh handle without the role registry or the pinned profile, and the second reader without roles"
+    }
+   ],
+   "behavior": "With every writer able to sign (AUD-021), a governed task run on a GOVERNED history was REJECTED by its own independent check: 'the independent process could not read the log: reconstruction raised: ChainBroken: this history is GOVERNED and the reader was given no authenticator'. derive_decision_proof of a VERIFIED decision returned accepted=False, and memory_trust.assess answered NO to consistently_reconstructed for a memory the primary store holds.",
+   "invariant": "Every independent reading of a governed history reads it under the roots the history declares, handed over as public documents, and is refused when it is not handed them.",
+   "mechanism": "The roots were attributes of the caller's log handle. The separate process was given a path, and two readers built fresh handles from the path.",
+   "reproduction": "tests/test_separate_reads_governed.py; with the signing seam and without this correction, the same governed run REJECTED, the decision not accepted, the memory NO.",
+   "observed": "A governed history the harness itself wrote was unreadable to its own independent readers.",
+   "expected": "The run confirmed by the other process, the decision accepted, the memory consistently reconstructed; and each refused when the roots are withheld or others are given.",
+   "correction": "verify_in_separate_process takes authenticator and roles and hands the child their public part: the attestation file's path and the key-registry and role-registry documents. An authenticator that cannot be handed over is refused, not dropped. The child, which may not import the key layer, authenticates with the authentication restated in tools/verify_assurance.py (RFC 8032 verification, the key registry and its lifecycle, the attestation file), which tests/test_restated_authentication.py holds to the producer's verdict on every finding kind. GovernedTasks hands over its log's roots. derive_decision_proof and verify_decision_proof take roots and read each prefix as a catch-up. memory_trust reads both of its readers under its log's roots. The first correction left the decision proof's prefix without the roots the task reader asks its log for, so a governed scientific result's admission found no verification task behind it and its proof was not accepted; found when the research task ran governed, and corrected: the prefix carries the history's roots.",
+   "regression_tests": [
+    "tests/test_separate_reads_governed.py::test_the_other_process_reads_a_governed_history_under_its_roots",
+    "tests/test_separate_reads_governed.py::test_without_its_own_roots_the_other_process_reads_nothing",
+    "tests/test_separate_reads_governed.py::test_a_governed_task_run_is_confirmed_by_the_other_process",
+    "tests/test_separate_reads_governed.py::test_a_decision_of_a_governed_history_is_proved_under_its_roots",
+    "tests/test_separate_reads_governed.py::test_memory_trust_reconstructs_a_governed_history_under_its_roots",
+    "tests/test_restated_authentication.py::test_it_gives_the_producer_s_verdict_on_every_finding_kind",
+    "tests/test_governed_research_run.py::test_every_reader_agrees_under_the_roots"
+   ],
+   "residual_risk": "The restated authentication and the producer's follow one RFC and one verification equation: two implementations, not two specifications. The child admits TEST keys when the document it is handed holds them; a production registry is handed without that admission. derive_decision_proof does not take roots from the log it is given: a caller of a governed history passes them. SG3-SG18 and GR1 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-024",
+   "title": "The RC network's model stated a resolution its closed form did not achieve, and raised ZeroDivisionError on part of its admitted domain",
+   "severity": "P1",
+   "subsystem": "scientific models (thermal.rc2_network)",
+   "files": [
+    {
+     "path": "scientific/models/thermal_rc2.py",
+     "lines": "closed_form: the slow eigenvalue as tr/2 + disc, each eigenvector as (a12, lambda - a11), det A as a difference of products, T as the steady state plus the modes, E_stored as C (T - T0); evaluate_outputs: each resolution 256 eps times the output's own size, the energy balance held to the energies' size"
+    }
+   ],
+   "behavior": "Against a 90-digit evaluation of the model's own formula, runs whose every invariant held -- runs the governed path would admit -- stated T1 and T2 1.3e3 times closer to the exact value than they were, E_out 1.4e3 times and E_stored 1.7e3 times. Over 1500 ordinary networks (capacities 1 to 1e5 J/K, conductances 0.01 to 100 W/K), 7 % of T1 and 14 % of T2 outputs were outside their stated resolution, and 10 % of runs failed their own energy balance. On 870 of 5000 networks drawn across the admitted bounds the slow eigenvalue cancelled to exactly zero and the model raised ZeroDivisionError.",
+   "invariant": "A quantity's stated resolution bounds its distance from the exact value of the model it reports: the research ledger decides a hypothesis from the value and that resolution, and calls it INCONCLUSIVE only when the interval straddles the threshold.",
+   "mechanism": "Cancellation. When the two time constants are far apart, tr/2 + disc is a difference of nearly equal numbers, and so is lambda - a11 for the slow root; the eigenvector, the modal amplitudes and every output inherit the lost digits. The stated resolution was relative to the output alone, not to the terms the evaluation passes through, so it understated even what a stable evaluation can achieve when the steady state is far away or the eigenvectors nearly parallel. Over a short window C (T - T0) is the difference of two temperatures a stored energy cannot be resolved from.",
+   "reproduction": "tests/test_rc_counterfactuals.py, AUD024_POINTS and the sampled tests, run against the Stage 2 model: nine tests fail there (the three points, three samples, the floor and two agreement tests); found by tools/rc2_reference.py, the analytic reference Stage 3 wrote to judge the RC counterfactual family.",
+   "observed": "A VERIFIED result of thermal.rc2_network could carry a resolution a thousand times smaller than its error, and a ledger verdict decided within that error; a sixth of the admitted parameter space could not be run at all.",
+   "expected": "Every output within its stated resolution of the exact value, across the admitted bounds; no admitted network refused by arithmetic.",
+   "correction": "The discriminant is a sum of non-negative terms, the fast root a sum of negative ones, the slow root the product of the roots, det A = (G12 / C1)(G2a / C2), divided by the fast one. For each root, whichever of lambda - a11 and lambda - a22 is a sum of like-signed terms is computed, and the other follows from their product, a12 a21. The temperatures and the stored energy are reached as increments from the initial state through expm1, and E_out as Q t plus the modes' integral. Each output's resolution is 256 eps times the scale of the terms the evaluation passes through: the initial and steady states and the modal amplitudes magnified by how nearly parallel the eigenvectors are and, for the energies, the capacities times the temperature change those amplitudes carry. The energy balance is held to the same scale.",
+   "regression_tests": [
+    "tests/test_rc_counterfactuals.py::test_where_the_stated_resolution_was_missed_it_is_kept",
+    "tests/test_rc_counterfactuals.py::test_every_output_is_within_its_stated_resolution",
+    "tests/test_rc_counterfactuals.py::test_the_resolution_is_never_below_its_floor",
+    "tests/test_rc_counterfactuals.py::test_the_reference_and_the_model_agree_inside_both_errors"
+   ],
+   "residual_risk": "The stated resolution is held to a 90-digit evaluation of the same formula over sampled networks, not proved: 750 networks a run, ordinary, anywhere in the admitted bounds and nearly defective, the worst at under 1 % of the stated resolution. Formula correctness rests on two other computations, the analytic reference (another closed form) and the RK4 check (a numerical integration), not on this test. Where the steady state is far away or the eigenvectors nearly parallel the stated resolution is honest and large, and a threshold within it is INCONCLUSIVE. RCF17, RCF19 and RCF20 are each killed. The decisive corrections are the slow root and the stated scale: RCF18, the eigenvector taken again as (a12, lambda - a11), was found equivalent once the slow root is accurate (no sampled network within 1 % of the stated resolution either way) and removed, with its reason, from tools/mutations/rc_counterfactuals.json.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-025",
+   "title": "A verdict was decided with the producer's stated resolution, which the independent check bounds only to the sum of both stated errors",
+   "severity": "P2",
+   "subsystem": "research ledger / scientific verification",
+   "files": [
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "values_of: each observed value keeps the resolution its producer states (or 0.0 when none is stated); evaluate decides from that interval"
+    },
+    {
+     "path": "scientific/checks/rc2_rk4.py",
+     "lines": "the criterion |T_producer - T_check| <= 3 (r_producer + r_check), as in every check here: agreement within the sum of both stated errors"
+    },
+    {
+     "path": "scientific/verification.py",
+     "lines": "VerificationResult.agreement and _agreement: for each output compared, the check's own value as a Quantity with a stated resolution, each output once, none on NOT_RUN or INCONCLUSIVE; to_record / from_record (a record without it reads as stating none)"
+    },
+    {
+     "path": "scientific/checks/__init__.py, slab_series.py, slab_mol.py, rc2_rk4.py, langmuir_rk4.py, fmu_rc2.py, fenicsx_slab.py",
+     "lines": "agreement(): each check states its own value and the error its criterion credits it with (three times its Richardson estimate plus rounding; the series and the flux to rounding; the closed form's own resolution; RK4_REL_ERROR = 1e-10 relative in the Langmuir capture)"
+    },
+    {
+     "path": "agent_substrate/result_rules.py",
+     "lines": "POLICY_V2 = scientific_result.admission/2, CURRENT_POLICY, POLICIES, REPORT_KEYS_V2, report_keys, agreement_problems; verification_problems, record_problems and admission_problems decide under the policy the transition names"
+    },
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "observed_values: max(r_producer, |v_producer - v_check| + r_check), only the outputs the check compared; _report_of; observe and _apply_observation"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_SCI_POLICIES, _SCI_REPORT_FIELDS_V2, _sci_agreement_ok, _sci_content(policy): the second reader's statement of the same rule"
+    },
+    {
+     "path": "agent_substrate/governed_model.py",
+     "lines": "_reusable: the decision re-derived under the policy that admitted it"
+    },
+    {
+     "path": "tools/verify_assurance.py",
+     "lines": "_agreement, _observed: the package's agreement read strictly, the decision's policy matched to the report's shape, the observation held to the widened resolution, the check's own values rechecked against the exact solution"
+    },
+    {
+     "path": "agent_substrate/claim_check.py",
+     "lines": "bytes_say: a citation holds each observed output to its bundle's value and unit and to a resolution no smaller than the bundle's; the exact comparison it replaces read every citation of a result admitted under admission/2 as BROKEN"
+    },
+    {
+     "path": "tools/assurance_package.py",
+     "lines": "the controls' temperature forgery recomputes the observation's resolution by the rule, so it is refused at the RECHECK it is meant for"
+    }
+   ],
+   "behavior": "At the RC network's documented point, a producer stating T1 to 1e-13 K and 5e-10 K off the exact value PASSes the independent RK4 check (ratio 0.42: the check's own stated error is about 4e-10 K). Read as an observation, the value keeps the producer's 1e-13 K, and the ledger decides 'T1 < exact + 2.5e-10 K' REFUTED. The exact value is below the threshold: the world's answer is SUPPORTED.",
+   "invariant": "A verdict claims no more precision than the evidence that admitted it verified.",
+   "mechanism": "Verification establishes agreement within the sum of the producer's and the check's stated errors; the observation the ledger reads carries the producer's error alone. A producer that understates its error -- as the RC network's model did until AUD-024 -- passes any check whose own error is larger than the understatement, and every verdict inside the gap rests on a claim nothing verified.",
+   "reproduction": "With the Stage 3 tree: run ThermalRC2Model at RC2_RUN's point, replace T1's quantity by the reference value + 5e-10 K stated to 1e-13 K, run scientific.checks.rc2_rk4.run_check (PASS), then agent_substrate.research.evaluate the prediction T1 < reference + 2.5e-10 K against research.values_of of that bundle (REFUTED).",
+   "observed": "A REFUTED verdict, from a result its independent check PASSed, on a question whose answer is SUPPORTED.",
+   "expected": "The observation's interval at least as wide as what the verification supports, so the verdict is INCONCLUSIVE there, or the producer's understatement refused.",
+   "correction": "Each independent check states its agreement: for each output it compared, its own value and the error its criterion credits it with (VerificationResult.agreement). The admission policy scientific_result.admission/2 asks everything /1 does and that agreement -- each output named once, an OK output of the bundle, a finite value and a finite, non-negative error, in the output's unit. The store stamps /2 on every new admission and decides each recorded one under the policy it names, so a history admitted under /1 is decided under /1, never reread. The research ledger observes, for each output the check compared, the producer's value with resolution max(r_producer, |v_producer - v_check| + r_check), and no output the check did not compare -- at observation and again on replay. The second reader and the standalone package verifier restate the rule in their own code; the verifier also rechecks the check's own values against its exact solution. Reuse re-derives a decision under the policy that admitted it. Two consumers of an observation's values follow it: the claim checker's citation check, which compared them with the bundle's exactly, now holds each observed output to the bundle's value and unit and to a resolution no smaller than the bundle's; and the package's temperature control recomputes the resolution it moves. Every reader of an agreement refuses a number no float holds: a 400-digit integer is valid JSON, and math.isfinite raised OverflowError on it in all five. The second reader states finiteness without the math module, which its import allow-list does not hold.",
+   "regression_tests": [
+    "tests/test_rc_counterfactuals.py::test_a_verdict_claims_no_more_than_the_check_verified",
+    "tests/test_rc_counterfactuals.py::test_only_what_the_check_compared_is_observed",
+    "tests/test_rc_counterfactuals.py::test_the_observation_is_never_more_precise_than_its_producer_says",
+    "tests/test_rc_counterfactuals.py::test_a_report_written_before_the_agreement_is_read_as_it_was",
+    "tests/test_research_science.py::test_the_observation_claims_no_more_than_its_check_verified",
+    "tests/test_research_science.py::test_an_observation_more_precise_than_its_check_is_refused_on_replay",
+    "tests/test_agent_result_rules.py::test_a_pass_under_admission_2_must_state_its_agreement",
+    "tests/test_agent_result_rules.py::test_an_agreement_the_rule_cannot_use_is_refused",
+    "tests/test_agent_result_rules.py::test_a_history_admitted_under_admission_1_replays_admitted",
+    "tests/test_scientific_authority_replay.py::test_both_readers_refuse_the_same_agreement",
+    "tests/test_scientific_authority_replay.py::test_both_readers_decide_an_older_admission_under_its_own_policy",
+    "tests/test_scientific_authority_replay.py::test_neither_reader_decides_under_a_policy_it_does_not_know",
+    "tests/test_governed_model_reuse.py::test_a_result_admitted_under_admission_1_is_reused_under_it",
+    "tests/test_assurance_package.py::test_a_package_decided_under_admission_1_still_verifies",
+    "tests/test_surface_adsorption.py::test_the_check_keeps_the_error_its_agreement_states",
+    "tests/test_claim_check.py::test_the_bytes_say_an_observation_their_check_widened",
+    "tests/test_claim_check.py::test_a_planted_observation_is_not_what_its_bytes_say",
+    "tests/test_rc_counterfactuals.py::test_an_agreement_entry_it_cannot_read_widens_nothing_and_observes_nothing",
+    "tests/test_assurance_package.py::test_evidence_that_disagrees_is_refused",
+    "tests/test_agent_second_reader.py::test_the_second_reader_imports_only_the_log_and_the_action_names"
+   ],
+   "residual_risk": "A verdict is now as good as the check's stated error. The method-of-lines, RC-network RK4 and Langmuir checks are held to theirs against the exact series, a 90-digit evaluation and a 50-digit closed form (the Langmuir capture's worst measured error is a quarter of the 1e-10 relative it states); the FMU and FEniCSx checks do not run on this host and their stated errors are not held here. The ledger widens from the cited report's content: where no evidence store is attached, or the report is no JSON object (the benches' placeholders), it observes the producer's values as before -- a store that cannot read the report cannot admit the record either (UNVERIFIABLE). A history admitted under admission/1 keeps the producer's resolution: nothing in it states the check's side, and it is not reinterpreted.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-026",
+   "title": "A key of small order could be registered, and under it anyone could sign; the producer's Ed25519 also decoded an encoding RFC 8032 refuses, where the restated verifier did not",
+   "severity": "P2",
+   "subsystem": "identity (Ed25519, key registries, the restated verifier)",
+   "files": [
+    {
+     "path": "agent_substrate/ed25519.py",
+     "lines": "_recover_x tested x^2 against zero before reducing it; verify took any decodable public key"
+    },
+    {
+     "path": "agent_substrate/principals.py",
+     "lines": "KeyRegistry: a public key checked only as 32 bytes (64 lowercase hex digits in a document)"
+    },
+    {
+     "path": "tools/verify_assurance.py",
+     "lines": "read_key_registry and ed25519_verify: the same, restated"
+    }
+   ],
+   "behavior": "For each of the eight points of small order, a signature made with no secret -- R = [S]B for an S whose challenge k makes [k]A the identity (for the identity point, every S) -- verified under both the producer and the restated verifier, and both registries held such a key for a principal. And y = p - 1 with the sign bit set decoded under the producer as the order-2 point (0, -1); the restated verifier refused it, so the two verified a forged signature under that encoding differently.",
+   "invariant": "A record is attested only by a key whose secret its principal holds; the primary and the independent verifier give one verdict on the same bytes.",
+   "mechanism": "No check that a registered public key is the canonical encoding of a point outside the small-order subgroup; the RFC's reference decoder, transcribed, compares x^2 with zero unreduced, so x = 0 with the sign bit set survives step 4 of RFC 8032 5.1.3 for y = p - 1.",
+   "reproduction": "tests/test_ed25519_encodings.py on the Stage 3 tree: forged signatures under all eight small-order keys verify under both implementations, both registries hold the keys, and the producer decodes the non-canonical (0, -1); all fifteen of its tests fail there (the genuine-key control only because it asks for the new public_key_problem), the agreement test with the producer saying True and the restated verifier False on the same forged signature.",
+   "observed": "A registry holding a small-order key gives its principal no non-repudiation: anyone could have written what is attested in its name, and a principal can submit one to make its own records deniable.",
+   "expected": "Such keys refused at registration and at verification, and one decoding in both implementations.",
+   "correction": "ed25519.public_key_problem: 32 bytes, the canonical encoding of a point, not of small order ([8]A != 0); KeyRegistry refuses any key it names a problem for; verify refuses a key of small order; x^2 is reduced before it is compared with zero. tools/verify_assurance.py restates the same three refusals (_ed_small, read_key_registry, ed25519_verify).",
+   "regression_tests": [
+    "tests/test_ed25519_encodings.py::test_a_small_order_key_lets_anyone_sign_and_is_refused_everywhere",
+    "tests/test_ed25519_encodings.py::test_an_encoding_that_is_no_point_is_refused_by_both",
+    "tests/test_ed25519_encodings.py::test_the_two_verifiers_agree_on_every_crafted_input"
+   ],
+   "residual_risk": "The registry is still a root supplied from outside the log (KEY_CUSTODY): this refuses keys no secret stands behind, not keys whose secret is held by the wrong party. The verifiers keep the cofactorless equation; a small-order R under an honest key cannot satisfy it. ED1-ED8 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-027",
+   "title": "A cited document holding a number JSON does not have made the admission rule raise instead of refusing",
+   "severity": "P3",
+   "subsystem": "scientific authority (admission)",
+   "files": [
+    {
+     "path": "agent_substrate/result_rules.py",
+     "lines": "_read parsed with json.loads, which reads NaN, Infinity and -Infinity; verification_problems digested the bundle unguarded"
+    }
+   ],
+   "behavior": "A bundle holding NaN, Infinity, -Infinity, or a numeral past the float range (1e400, read as infinity) made record_problems raise CanonicalizationError. Live, the store's transition into VERIFIED raised it in place of TransitionError; on replay, the reducer refused the whole history as holding a record it cannot read, not as an inadmissible admission. The second reader refuses the same transition as having no canonical form.",
+   "invariant": "Bytes that are not JSON are a problem, not a pass and not an exception (the rule's own docstring); every reader refuses an inadmissible admission as one.",
+   "mechanism": "Python's json accepts tokens RFC 8259 does not have, and a numeral it cannot hold becomes infinity; the canonical digest refuses both by raising.",
+   "reproduction": "tests/test_agent_result_rules.py, the TOKENS cases, on the Stage 3 tree: all eight fail there.",
+   "observed": "Fail-closed on every path, with an exception the live caller does not expect and a replay refusal under the wrong reason.",
+   "expected": "A problem named for what it is: not JSON (the tokens) or no canonical form (the numeral); TransitionError live, StoreError on replay naming the admission.",
+   "correction": "_read refuses the three tokens while parsing (parse_constant), so they read as not JSON; a bundle with no canonical form is a problem, not an exception.",
+   "regression_tests": [
+    "tests/test_agent_result_rules.py::test_a_number_json_does_not_have_is_a_problem_not_an_exception",
+    "tests/test_agent_result_rules.py::test_replay_refuses_a_planted_admission_of_such_a_bundle"
+   ],
+   "residual_risk": "None known beyond the class: other readers of evidence JSON in the package parse with json.loads and are not reviewed here. RR18 and RR19 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-028",
+   "title": "A verdict on one objective's hypothesis could rest on another objective's observations, so an objective asking its question at a documented point could be concluded on a run elsewhere",
+   "severity": "P2",
+   "subsystem": "research ledger (verdicts), restated in the second reader",
+   "files": [
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "_status_problem: a verdict's basis may be any current observation, of any objective"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_sub_research_status: the same rule, restated"
+    }
+   ],
+   "behavior": "Objective oq states its question as data: T_at_half < 400 K of thermal.slab_transient at a documented point. A run at another point (q_W_m3 = 2e7) cannot be observed for oq (refused: 'documented point'), but objective o1, which asks nothing as data, observes it. A status record deciding oq's hypothesis h1 SUPPORTED on o1's observation was accepted by the writer (set_status) and on replay, and oq was then CONCLUDED on h1. The second reader noted nothing.",
+   "invariant": "An objective that states its question as data is concluded only on evidence at its documented point, from its model (D-2026-179); a verdict is computed from the observations of the hypothesis's own objective.",
+   "mechanism": "_status_problem checks that each basis id is a current observation and that evaluate() gives the status, but not whose objective the observation is; _off_question binds an observation to its objective's question only when it is recorded for that objective. The honest controller (evaluate_hypothesis, _renewal) takes only the hypothesis's own objective's observations, so the gap is open to any writer of status records: a faulty controller, or in an unauthenticated history any appender (a status record carries no actor rule, because a verdict is computed). currency(), written assuming the basis is the objective's own, reports such a verdict's evidence as None.",
+   "reproduction": "tests/test_research_ledger.py, the two AUD-028 cases, on the tree before the fix: both fail there -- the writer and the replay accept the verdict, and the second reader notes nothing.",
+   "observed": "oq CONCLUDED on ('h1',), with h1 SUPPORTED on ('obs-2',): a run at another point answered the question oq asks at its documented point.",
+   "expected": "The verdict refused, live and on replay, and noted by the second reader.",
+   "correction": "_status_problem refuses a verdict citing an observation of another objective; reconstruct._sub_research_status restates the refusal.",
+   "regression_tests": [
+    "tests/test_research_ledger.py::test_a_verdict_rests_only_on_its_own_objective_s_observations",
+    "tests/test_research_ledger.py::test_a_planted_cross_objective_verdict_is_refused_on_replay"
+   ],
+   "residual_risk": "An objective that states no question as data still takes any decided hypothesis of its own -- the stated limit of D-2026-179. RS27 and RR10 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-029",
+   "title": "The separate process's evidence reader built a path from whatever name the log carried",
+   "severity": "P3",
+   "subsystem": "independent verification (the separate process)",
+   "files": [
+    {
+     "path": "tools/independent_verify.py",
+     "lines": "_FileEvidence.get: the evidence root joined with the name's first two characters and the rest, then read whole"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_resolves: any 64-character string handed to the store"
+    }
+   ],
+   "behavior": "With --proof and --evidence, the separate process reads the bytes a decision cites through _FileEvidence. A name taken from the log, such as '..' followed by a path, read a file outside the store (shown with a regular file). _resolves, which says whether a decision's evidence is held, passed on any 64-character string, so a record citing '..' + 54 slashes + 'dev/zero' would have had the device read until memory ran out (established by reading; not executed), and a FIFO under a digest's name would have been waited on until the caller's 300-second timeout.",
+   "invariant": "A name from the history builds no path until it is a digest, and a verifier reads only regular files, bounded -- the primary store's rules (_require_digest, read_beneath, MAX_BLOB_BYTES).",
+   "mechanism": "The separate process may not import the store, and its restatement of the store's read kept only the layout. What it read was re-hashed afterwards, so nothing outside the store could pass as evidence: the defect is what is read, not what is believed.",
+   "reproduction": "tests/test_agent_separate_verify.py, the AUD-029 cases, on the tree before the fix: the name cases and the second reader's case fail there; the FIFO case blocks on the old code. No case names a device.",
+   "observed": "A file outside the evidence store read, and a name that is no digest handed to the store.",
+   "expected": "Refused before any path is built; a FIFO, a link or an unbounded file refused rather than read.",
+   "correction": "_FileEvidence.get accepts only 64 lowercase hex digits, opens with O_NOFOLLOW and O_NONBLOCK, reads only what fstat says is a regular file, and no more than MAX_BLOB_BYTES; _resolves requires _is_digest.",
+   "regression_tests": [
+    "tests/test_agent_separate_verify.py::test_the_separate_reader_builds_no_path_from_a_name_that_is_no_digest",
+    "tests/test_agent_separate_verify.py::test_the_separate_reader_reads_a_regular_file_and_nothing_else",
+    "tests/test_agent_separate_verify.py::test_the_separate_reader_reads_no_more_than_a_blob",
+    "tests/test_agent_separate_verify.py::test_the_second_reader_asks_no_store_for_a_name_that_is_no_digest"
+   ],
+   "residual_risk": "A crafted log still costs the separate process its own replay; it no longer leads it out of the store. S14-S18 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-030",
+   "title": "A lease held by a process on another machine read as held by a dead one, so recovery would reclaim a task its holder was still running",
+   "severity": "P2",
+   "subsystem": "process identity and lease recovery",
+   "files": [
+    {
+     "path": "agent_substrate/hostid.py",
+     "lines": "liveness: a boot id other than ours returned GONE, 'this also covers another host'"
+    },
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "recover: a lease whose holder liveness calls GONE is reclaimed although its sequence says it is live"
+    }
+   ],
+   "behavior": "A supervisor recorded its lease under a boot id that is not this host's -- what any process on another machine sharing the log records -- and died. On this host, recover() asked liveness, which answered GONE for any boot id other than its own, and reclaimed the task: EXECUTING to QUEUED. The module's own docstring, and the test that guards the case (test_an_unknown_holder_is_not_reclaimed, which patches liveness to UNKNOWN 'as it would be off-host'), say a record from another host is not evidence that its holder died.",
+   "invariant": "A lease is reclaimed only on evidence that its holder is gone; 'I cannot tell' is not that evidence, because two workers would then run one task (hostid's own statement of why UNKNOWN exists).",
+   "mechanism": "A boot id other than ours is either a later boot of this machine, whose earlier processes are all gone, or another machine, whose processes nothing here can see. The record carried no machine id, so the two were indistinguishable, and the code took the first for both. The guarding test replaced the function it was guarding.",
+   "reproduction": "tests/test_agent_recovery.py::test_a_lease_held_on_another_machine_is_not_reclaimed on the tree before the fix, with nothing patched: liveness answers GONE and recover() reclaims the task.",
+   "observed": "A task reclaimed while, on a second machine sharing the log, its holder may still be running it.",
+   "expected": "UNKNOWN, and the task left as it is: a stalled recovery, which an operator can resolve, rather than two workers.",
+   "correction": "A process record names its machine (/etc/machine-id); a boot id other than ours reads as GONE only when the record names this machine, and as UNKNOWN otherwise -- including every record written before, and on a host that cannot name itself.",
+   "regression_tests": [
+    "tests/test_agent_recovery.py::test_a_lease_held_on_another_machine_is_not_reclaimed",
+    "tests/test_agent_recovery.py::test_a_record_from_another_machine_is_unknown_not_gone",
+    "tests/test_agent_recovery.py::test_a_later_boot_of_this_machine_makes_every_recorded_pid_stale",
+    "tests/test_agent_execution.py::test_the_child_is_recorded_by_identity_and_not_by_pid_alone"
+   ],
+   "residual_risk": "Records written before this change name no machine, so after a reboot their leases are no longer reclaimed automatically: the fail-safe answer the module asks for, at the cost of an operator's step. Multi-host deployment is the owner's decision (OD-7); this makes the single-host assumption fail safe rather than establishing multi-host operation. V7, V8 and X63 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-031",
+   "title": "A document a caller named was indexed for retrieval although the corpus allowlist did not name it",
+   "severity": "P3",
+   "subsystem": "read-only retrieval (corpus membership)",
+   "files": [
+    {
+     "path": "agent_substrate/rag_index.py",
+     "lines": "build_index: membership checked over the walked corpus, which skips every dot-directory; a caller's paths checked by shape alone; load_index rebuilds from the paths a stored index names"
+    }
+   ],
+   "behavior": "With an allowlist naming only doc.md, build_index(paths=['doc.md', '.notes/planted.md']) indexed the planted document, and a search returned '.notes/planted.md:1-2' with full provenance. A stored index naming it would be rebuilt from it, match, and be accepted by load_index -- whose docstring says a path the corpus never contained is a mismatch.",
+   "invariant": "A document is retrievable because the allowlist names it, not because it exists or because someone named it (the allowlist's own statement).",
+   "mechanism": "The membership check compares the allowlist with corpus_files(), the walk, which skips dot-directories by rule; the shape check on named paths refuses only .git, .venv and the quarantine by name. A named document under any other dot-directory falls between the two.",
+   "reproduction": "tests/test_agent_authority_boundaries.py::test_a_named_document_the_allowlist_does_not_name_is_refused on the tree before the fix: both the named build and the forged index are accepted there.",
+   "observed": "Undeclared text indexed and quoted back as governed text, labelled RETRIEVED_TEXT_NOT_EVIDENCE but carrying the provenance of the reviewed corpus.",
+   "expected": "Refused: the named document is not in the allowlist.",
+   "correction": "build_index requires every named document to land, once its links are resolved, on one the allowlist names, after the whole-tree check; load_index inherits it. A link into reviewed text still reads that text, as the existing control requires.",
+   "regression_tests": [
+    "tests/test_agent_authority_boundaries.py::test_a_named_document_the_allowlist_does_not_name_is_refused"
+   ],
+   "residual_risk": "No production caller names paths: retrieve() and the research loop build over the walked corpus. The allowlist is content-addressed, not signed (its own stated limit). C13 is killed, and C7 and C8, whose anchor the change moved, are repaired to the same intent.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-032",
+   "title": "The FEniCSx check compared the runner's answer without checking its shape, so an answer holding no temperatures compared nothing and PASSED",
+   "severity": "P3",
+   "subsystem": "independent checks (the FEniCSx slab check)",
+   "files": [
+    {
+     "path": "scientific/checks/fenicsx_slab.py",
+     "lines": "run_runner: the answer checked for its kind, request digest and provenance only; run_check: zip(outs, fem['T'], fem['estimate'])"
+    }
+   ],
+   "behavior": "Through the runner's own path, with a stand-in writing the answer, a slab answer holding no temperatures made run_check return PASS with measured 0.0 (control: an answer 50 K off FAILS). An answer one point short was compared on four points. A NaN temperature or lateral spread reached the comparison, where max() drops a NaN term, and was refused only later, as an IdentityError when the evidence digest could not be taken.",
+   "invariant": "A check PASSES only on a comparison it made: every sample point it asks about is answered by a finite value, or the check does not decide. run_runner's own docstring: 'the result checked for the fields every caller relies on before it is returned'.",
+   "mechanism": "The answer crosses a process boundary as JSON, which Python reads with NaN and Infinity, and the comparison paired outputs with answers through zip(), which stops at the shorter side. The other checks compare Quantities, finite by construction, computed in-process, so the pairing cannot come up short there.",
+   "reproduction": "tests/test_harness_integrations.py, the AUD-032 cases, on the tree before the fix: the ten refusal cases fail there and both controls pass.",
+   "observed": "PASS, measured 0.0, on a runner answer with no samples.",
+   "expected": "The answer refused before anything is compared.",
+   "correction": "run_runner refuses a result that is not a JSON object, and a slab answer that does not hold one finite temperature per sample point asked for and a finite, non-negative lateral spread; run_check pairs with zip(strict=True).",
+   "regression_tests": [
+    "tests/test_harness_integrations.py::test_an_answer_with_no_samples_is_refused_not_passed",
+    "tests/test_harness_integrations.py::test_a_slab_answer_unfit_to_compare_is_refused",
+    "tests/test_harness_integrations.py::test_the_comparison_refuses_rather_than_shortens",
+    "tests/test_harness_integrations.py::test_an_answer_that_agrees_reaches_a_verdict",
+    "tests/test_harness_integrations.py::test_a_well_formed_slab_answer_is_returned"
+   ],
+   "residual_risk": "The runner in this repository answers one value per point or fails (a point no cell holds raises IndexError), so the case needs a runner that answers short: a defect in it, or a changed one. A runner that answers wrongly in full shape is outside this rule; the check's identity records the runner's bytes. Every check's ratio fold is max(), which drops a NaN; elsewhere both sides are Quantities. FE5 to FE10 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-033",
+   "title": "The audit explained an authority record from its create record's own claims, so a history the store refuses read as complete",
+   "severity": "P3",
+   "subsystem": "audit queries (authority records)",
+   "files": [
+    {
+     "path": "agent_substrate/audit.py",
+     "lines": "AuditIndex.explain_record: proposer and state taken from the create payload; a second create accepted"
+    }
+   ],
+   "behavior": "Three chain-valid histories the store refuses on load were explained by AuditIndex.explain_record as complete: a record created directly in VERIFIED (outcome VERIFIED, no gap); a record whose create names 'alice' as proposer, appended by 'mallory', who then moved it PROPOSED -> UNDER_REVIEW -> VERIFIED (no gap: separation of duties was judged against 'alice'); and a record created twice. The control, the same self-verification written with an honest create, is reported (requires a distinct actor).",
+   "invariant": "An auditor never reports a state the enforcement path rejects; who proposed a record is who the log says appended its create (the store's rule since the proposer is what separation of duties is judged against).",
+   "mechanism": "explain_record read the create's proposer and state as claimed. The store refuses a create in any state but PROPOSED, one naming a proposer other than its writer, and a second create of one record; the audit's walk began at PROPOSED and judged I4 against the claimed proposer, so none of the three left a hole. _gaps already refuses the same shape for tasks (a forged src and an executor read from the payload).",
+   "reproduction": "tests/test_agent_audit.py, the AUD-033 cases, on the tree before the fix: the three forged histories explain with no gap there; the honest control is complete on both trees.",
+   "observed": "explain_record('r1').complete is True for each forged history, while AuthorityStore(log).load() refuses each.",
+   "expected": "Each history reported with a gap naming what the store refuses.",
+   "correction": "explain_record takes the proposer from the create's actor, and reports a create naming another proposer, a create in a state other than PROPOSED, and a second create.",
+   "regression_tests": [
+    "tests/test_agent_audit.py::test_a_record_created_past_proposed_is_a_gap",
+    "tests/test_agent_audit.py::test_the_proposer_is_who_appended_the_create",
+    "tests/test_agent_audit.py::test_a_record_created_twice_is_a_gap",
+    "tests/test_agent_audit.py::test_an_honest_create_is_no_gap"
+   ],
+   "residual_risk": "The cross-record dependency walk (_record_walks) still reads a dependency's state as its records claim; a forged dependency is reported on its own explanation. A24 to A27 are each killed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-034",
+   "title": "A JSON integer too large for a float made four older number tests raise instead of refusing",
+   "severity": "P3",
+   "subsystem": "number tests on JSON input (research, freshness, the RC reference, the package verifier)",
+   "files": [
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "check_prediction: math.isfinite on the prediction's value"
+    },
+    {
+     "path": "agent_substrate/freshness.py",
+     "lines": "check_policy: math.isfinite on params.seconds"
+    },
+    {
+     "path": "tools/rc2_reference.py",
+     "lines": "checked: math.isfinite on each network parameter"
+    },
+    {
+     "path": "tools/verify_assurance.py",
+     "lines": "_propagate: math.isfinite on each declared spread, which also took a boolean as 1"
+    }
+   ],
+   "behavior": "A 400-digit integer is valid JSON and parses to a Python int. math.isfinite and float() cannot convert it, and raise OverflowError. Four tests raised it where they refuse every other number they cannot use with their own error: ResearchError, FreshnessError, ValueError, and the verifier's refusal at RECHECK, whose spread test also took true as a spread of 1. Three more sites, Quantity's value and resolution and Parameter.coerce, are AUD-035. Called through verify(), the verifier's site did not reach its caller: the level's catch-all refused RECHECK as 'the level ran to its end: OverflowError', not the spread check.",
+   "invariant": "A number test that reads JSON refuses a number no float holds with its own error, as it refuses NaN and infinity.",
+   "mechanism": "Python's int has no bound, json reads an integer literal as one, and the float conversion inside math.isfinite and float() raises OverflowError past about 1.8e308. Found while fixing the same fault in AUD-025's new readers of an agreement.",
+   "reproduction": "Each site called on 10 ** 400 at the AUD-025 tree raises OverflowError; the new test cases fail there.",
+   "observed": "Fail-closed on every path, since nothing was accepted, but with an exception the caller does not expect: a proposal or a policy refused by crashing the path that should have named it.",
+   "expected": "The module's own refusal, naming the value as no finite number.",
+   "correction": "Each of the four refuses such an integer with its own error: research and the package verifier through their number tests, made overflow-safe in AUD-025; freshness and the RC reference through a test of their own. The verifier's spread test now also refuses a boolean. The same fix for Quantity and Parameter.coerce was written, tested and withdrawn: both are in the development dataset's generator closure (AUD-035).",
+   "regression_tests": [
+    "tests/test_research_ledger.py::test_a_prediction_is_structured_or_refused",
+    "tests/test_freshness.py::test_a_malformed_policy_is_refused",
+    "tests/test_rc_counterfactuals.py::test_a_parameter_no_float_holds_is_no_network_to_the_reference",
+    "tests/test_assurance_package.py::test_a_consistent_forgery_of_the_science_is_refused"
+   ],
+   "residual_risk": "AUD-035: Quantity and Parameter.coerce still raise. The sites were found by reading every math.isfinite in the production code that can meet a JSON number, with the float() conversions beside it. Not every float() was read then: three more raise the same way (AUD-039), and an implicit conversion, in arithmetic on a record's number, was not looked for.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-035",
+   "title": "Quantity and a model parameter raise OverflowError on a JSON integer no float holds, inside the NF-1T generator closure",
+   "severity": "P3",
+   "subsystem": "scientific quantities and model parameters (the development dataset's generator closure)",
+   "files": [
+    {
+     "path": "scientific/quantity.py",
+     "lines": "Quantity.__post_init__: math.isfinite on the value and on the resolution"
+    },
+    {
+     "path": "scientific/model.py",
+     "lines": "Parameter.coerce: float() on a numeric parameter"
+    }
+   ],
+   "behavior": "Quantity(10 ** 400, ...), a resolution of 10 ** 400 and a numeric parameter of 10 ** 400 raise OverflowError, where every other number either cannot use is refused with QuantityError or ModelError.",
+   "invariant": "A number test that reads JSON refuses a number no float holds with its own error, as it refuses NaN and infinity.",
+   "mechanism": "As AUD-034: an int with no float, which math.isfinite and float() cannot convert.",
+   "reproduction": "Each called on 10 ** 400 at 0afa231 raises OverflowError. The AUD-034 fix for both was written, and its tests and mutations (SI27 to SI30) passed and were killed. It was then withdrawn: both files are in the surface adsorption model's source closure, so the fix moved the generator digest the NF-1T re-identification record holds, and tests/test_neural_reidentification.py failed.",
+   "observed": "Fail-closed, since nothing is accepted, but the caller gets OverflowError instead of the refusal it handles.",
+   "expected": "QuantityError and ModelError, as for NaN and infinity.",
+   "correction": "Not applied here. Applying it re-identifies the development dataset's generator: regenerate the dataset from the new closure, show its digest unmoved, retrain and reproduce the checkpoint, and write a new NF-1T record. That is the owner's decision.",
+   "regression_tests": [],
+   "residual_risk": "A bundle, verification record or run proposal holding such an integer is refused by an exception its reader does not expect. Each such path fails closed.",
+   "verification": "REPRODUCED",
+   "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-036",
+   "title": "stack-verify read its tree check's report after steps the check had not seen",
+   "severity": "P3",
+   "subsystem": "CI: the stack-verify workflow's tree check",
+   "files": [
+    {
+     "path": ".github/workflows/stack-verify.yml",
+     "lines": "the step order: the opt-in explorations after the default target, the tracked-tree step last"
+    }
+   ],
+   "behavior": "The full leg ran the default target, whose last rule writes verification/stage10/tree_untouched.json, then the opt-in explorations (uq_sobol and mdao_doe), then a step that only reads that report. What the explorations did to the tracked tree was never checked, and the last step still printed that the tree was untouched. The workflow's header says the OpenMDAO and SALib integrations leave the tracked tree untouched.",
+   "invariant": "A step that reports the tracked tree untouched reports on every step before it.",
+   "mechanism": "The report is computed once, by the tree_untouched rule at the end of the default target, and read by the last step. A step placed between the two acts after the check and before the reading.",
+   "reproduction": "At 0afa231: the report written as the rule writes it, on the clean tree; a tracked file then changed; the workflow's own last step, its script taken from the file, printed 'tracked tree untouched (675 entries)' and exited 0, while the rule's check found the changed file. The new test fails on the workflow as committed.",
+   "observed": "No tracked file is known to have been changed. The explorations write through the workspace guard, which refuses a path outside verification/, but the check did not observe them.",
+   "expected": "The tree check runs after every other step, and its report is read last.",
+   "correction": "The opt-in explorations run before the default target, so its last rule checks the tree after every other step. The header says so.",
+   "regression_tests": [
+    "tests/test_workflow_generic.py::test_ci_checks_the_tree_after_every_step_it_runs"
+   ],
+   "residual_risk": "The reordered workflow's first hosted run was not yet observed when this was recorded.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-037",
+   "title": "The agent workflow's header said its gate was in the action and not in the file, after the file gained one",
+   "severity": "P3",
+   "subsystem": "CI: the Claude Code workflow's statement of its trigger gate",
+   "files": [
+    {
+     "path": ".github/workflows/claude.yml",
+     "lines": "the TRIGGER AUTHORISATION header"
+    }
+   ],
+   "behavior": "The header said 'The gate is in the action, not in this file'. Since D-2026-146 the job's if: admits only an author association of OWNER, MEMBER or COLLABORATOR, and the job's own comment says the authorization should not rest on the action's check. The header is where a maintainer reads what setting allowed_non_write_users would open.",
+   "invariant": "A security control's documentation says where the control is.",
+   "mechanism": "D-2026-146 added the gate and its comment to the job, and left the header as it was written for the ungated workflow. That workflow is still the default branch's (O-1).",
+   "reproduction": "Read at 0afa231. The new test fails on the header as committed.",
+   "observed": "The gate itself holds: tests/test_ci_authority.py breaks each of its rules in a copy and requires it reported. Only the statement of where the gate is was wrong.",
+   "expected": "The header names the job's condition as the gate, and the action's own check as a second one.",
+   "correction": "The header says the gate is the job's if:, names the three associations it admits, and calls the action's check a second check the file does not rest on.",
+   "regression_tests": [
+    "tests/test_ci_authority.py::test_the_header_says_where_the_gate_is"
+   ],
+   "residual_risk": "The default branch's copy of the workflow is ungated (O-1). Nothing here changes it.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-038",
+   "title": "The readiness verdict could read MET over a matrix its own check refuses",
+   "severity": "P3",
+   "subsystem": "the production-readiness matrix's verdict",
+   "files": [
+    {
+     "path": "tools/readiness.py",
+     "lines": "summary: the verdict counted statuses and never asked problems()"
+    }
+   ],
+   "behavior": "summary() decided the verdict from the rows' statuses alone, so a HOSTED_TESTED row with no hosted run, or with evidence older than its implementation, counted as hosted-tested. The shipped matrix with every row made HOSTED_TESTED read PRODUCTION_READINESS_CONTRACT_MET while check found 49 problems, and `readiness.py summary` printed MET and exited 1. The two tests that showed the verdict can be met built exactly such a matrix.",
+   "invariant": "A readiness verdict is met only over a matrix its check accepts.",
+   "mechanism": "problems() and summary() were separate, and main() printed the second's verdict whatever the first found. The CI step runs check before summary, so CI failed first; a reader of the verdict alone was not told.",
+   "reproduction": "At 0afa231, every row of the shipped matrix made HOSTED_TESTED: problems() found 49, summary() said MET, and the command printed PRODUCTION_READINESS_CONTRACT_MET with exit 1. The new test fails on the code as committed.",
+   "observed": "Not reachable from the shipped matrix, whose verdict is NOT_MET for its open rows. Reachable by any matrix whose rows claim HOSTED_TESTED without the evidence check requires.",
+   "expected": "NOT_MET, with the problems counted.",
+   "correction": "summary() is met only when problems() finds nothing, and reports how many it found. The tests that show the verdict can be met, and that one open row keeps it unmet, now build matrices that hold, each row bound to hosted evidence as a run binds it, so the open row is the only reason.",
+   "regression_tests": [
+    "tests/test_readiness_matrix.py::test_a_matrix_its_own_check_refuses_is_not_reported_met",
+    "tests/test_deployment_evidence.py::test_unattested_deployment_rows_do_not_meet_the_contract"
+   ],
+   "residual_risk": "The verdict reads what the matrix states. Whether its rows state the truth is for check and the hosted evidence to decide.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-039",
+   "title": "Three more float() conversions of a record's number raise OverflowError on an integer no float holds",
+   "severity": "P3",
+   "subsystem": "records read back from the log or the evidence store (capabilities, evidence sidecars, policies)",
+   "files": [
+    {
+     "path": "agent_substrate/capability.py",
+     "lines": "issue(), reached from capability_from_record: float() on issued_wall_time"
+    },
+    {
+     "path": "agent_substrate/evidence.py",
+     "lines": "EvidenceStore.info: float() on the sidecar's first_seen"
+    },
+    {
+     "path": "agent_substrate/policy.py",
+     "lines": "document(), reached from document_from_record: float() on not_after"
+    }
+   ],
+   "behavior": "Each raises OverflowError on 10 ** 400 where it handles every other value it cannot use. capability_from_record refuses a malformed record with CapabilityError, and raised instead; a non-number issued_wall_time raised ValueError or TypeError. EvidenceStore.info ignores a malformed sidecar, and raised instead. document_from_record refuses with PolicyError, and raised instead.",
+   "invariant": "A number read from a record is refused with the reader's own error, or ignored where the reader tolerates a malformed field, as NaN and infinity are.",
+   "mechanism": "As AUD-034: Python's int has no bound, and float() raises past about 1.8e308. AUD-034's reading took the float() conversions beside each math.isfinite, and none of these three has one.",
+   "reproduction": "At 0afa231: capability_from_record with issued_wall_time 10 ** 400, EvidenceStore.info over a sidecar whose first_seen is 10 ** 400, and document_from_record with not_after 10 ** 400 each raise OverflowError.",
+   "observed": "Fail-closed: nothing is accepted. A history holding such a capability or policy record fails to load with an exception its reader does not name, and a blob with such a sidecar cannot be described.",
+   "expected": "CapabilityError and PolicyError; for the sidecar, the field ignored as a malformed one is.",
+   "correction": "capability.issue refuses an issued_wall_time that is not a finite number with CapabilityError, so capability_from_record refuses the record. EvidenceStore.info ignores a first_seen that is not a finite number, as it ignores a malformed sidecar. policy.document refuses a not_after that is not a finite number with PolicyError, so document_from_record refuses the record. Each module has a number test of its own. NaN and infinity, which a canonical record cannot carry but a caller can pass, are refused or ignored the same way.",
+   "regression_tests": [
+    "tests/test_agent_execution.py::test_a_capability_record_whose_wall_time_is_no_number_is_refused",
+    "tests/test_agent_evidence.py::test_a_sidecar_time_no_float_holds_is_ignored",
+    "tests/test_agent_policy.py::test_an_expiry_no_float_holds_is_refused"
+   ],
+   "residual_risk": "Found by reading the float() conversions in the production code after AUD-034. An implicit conversion, in arithmetic on a record's number, was not looked for. The sidecar fix changes agent_substrate/evidence.py, which R31 cites, so R31's hosted evidence predates it until a later commit cites runs at this one.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-040",
+   "title": "A bundle read back from its record may carry a parameter no float holds, and the independent checks raise on it",
+   "severity": "P3",
+   "subsystem": "result bundles and the independent checks that read them",
+   "files": [
+    {
+     "path": "scientific/result.py",
+     "lines": "ResultBundle.from_record: the parameters taken without a number test"
+    },
+    {
+     "path": "scientific/checks/fenicsx_slab.py",
+     "lines": "slab_request: float() on each parameter"
+    },
+    {
+     "path": "scientific/checks/slab_series.py",
+     "lines": "the series: arithmetic on the parameters"
+    },
+    {
+     "path": "scientific/checks/slab_mol.py",
+     "lines": "the method of lines: arithmetic on the parameters"
+    },
+    {
+     "path": "scientific/checks/rc2_rk4.py",
+     "lines": "steps_for: arithmetic on the parameters"
+    }
+   ],
+   "behavior": "ResultBundle.from_record accepts a numeric parameter of 10 ** 400 when the parameter digest is rewritten to match. Given such a bundle, the FEniCSx check raises OverflowError from float() on the parameter, and the series, method-of-lines and RC RK4 checks raise it from arithmetic on it. In the governed path the check runs in its own process, which ends on the exception, so no verification result is written.",
+   "invariant": "A check given a bundle it cannot compute from returns a result that says so (NOT_RUN), as it does for outputs it cannot compare.",
+   "mechanism": "A bundle's parameters are checked against their digest and for being JSON, not for being numbers a float holds, and each check converts them, explicitly or in arithmetic.",
+   "reproduction": "At 0afa231, the slab model's bundle and the RC network's, each record with one parameter set to 10 ** 400 and its digest rewritten: from_record accepts it, and run_check of slab_series, slab_mol, fenicsx_slab and rc2_rk4 raises OverflowError.",
+   "observed": "Fail-closed: no result, so nothing is admitted. A producer's own model raises on such a parameter before it could write one (Parameter.coerce, AUD-035), so the bundle has to come from a producer that wrote it some other way.",
+   "expected": "NOT_RUN, naming the parameter as no finite number.",
+   "correction": "Not applied. The bundle's own boundary, scientific/result.py, is in the development dataset's generator closure, which the NF-1T record freezes, as AUD-035's sites are. The checks are outside it, and each could refuse such a bundle with NOT_RUN itself.",
+   "regression_tests": [],
+   "residual_risk": "The Langmuir check was not probed, nor any other reader of a bundle's parameters. A check's arithmetic on a parameter no float holds was found by probing, not by reading each check's use of its parameters.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-041",
+   "title": "A credential written as a key in a proposal was sealed, received and logged",
+   "severity": "P2",
+   "subsystem": "the proposal ingress's credential test",
+   "files": [
+    {
+     "path": "agent_substrate/proposals.py",
+     "lines": "_walk: the credential pattern applied to strings, not to keys"
+    }
+   ],
+   "behavior": "_walk refuses a proposal any of whose strings looks like a credential, and the refusal says the proposal is not stored. It checked keys against the forbidden words only. A free-form map, such as a model run's parameters or a hypothesis's prediction, takes any key, so a credential written as a key passed the parse, was sealed, and was appended to the log by receive().",
+   "invariant": "A proposal carrying what looks like a credential, as a key or as a value, is refused and never stored.",
+   "mechanism": "The credential pattern was searched in string values only; a dict key is a string, and was checked only against FORBIDDEN_KEYS.",
+   "reproduction": "At 0afa231: a MODEL_RUN proposal whose parameters map has the key 'sk-' followed by 24 letters is sealed by envelope() and received by ProposalIngress.receive(), and the text is then in the log; the same text as a parameter's value is refused. The new test fails on the code as committed.",
+   "observed": "A credential an AI proposer emitted as a key would be persisted in the authority log, which is hash-chained and cannot be edited out. No such record is known.",
+   "expected": "Refused, like a credential in a value, and the refusal not repeating it.",
+   "correction": "_walk searches each key for the credential pattern before anything else is done with it, and refuses without naming the key. A history whose receipts hold such a key is now refused when read, since each receipt's envelope is parsed again.",
+   "regression_tests": [
+    "tests/test_proposal_ingress.py::test_a_credential_as_a_key_is_refused_and_never_stored"
+   ],
+   "residual_risk": "The pattern is a list of known credential shapes: a credential of another shape passes as a key and as a value alike. The inference gateway's own check reads a whole serialized body, keys included.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-042",
+   "title": "A secret grant record whose purposes hold a list, or mix a number with strings, raised TypeError instead of being refused",
+   "severity": "P3",
+   "subsystem": "the secret store's grant records",
+   "files": [
+    {
+     "path": "agent_substrate/secrets.py",
+     "lines": "grant(), reached from grant_from_record: the purposes put in a set and sorted before each was checked"
+    }
+   ],
+   "behavior": "grant() built a set of the purposes and sorted it, and only then checked that each was a non-empty string. A list among the purposes is unhashable and a number among strings has no order, so grant_from_record raised TypeError on either, where it refuses every other malformed grant with SecretError. The policy module checks before it sorts, and says why.",
+   "invariant": "A grant record the store cannot read is refused with SecretError.",
+   "mechanism": "The per-purpose check ran after the set and the sort, and both raise TypeError on such values first.",
+   "reproduction": "At 0afa231: grant_from_record with purposes ['send', ['a']] raises TypeError (unhashable type: 'list'), and with ['send', 1] TypeError ('<' not supported). The new test fails on the code as committed.",
+   "observed": "Fail-closed: a history holding such a grant does not load, with an exception the store's callers do not name.",
+   "expected": "SecretError, naming the purpose that is not a non-empty string.",
+   "correction": "Each purpose is checked before the set and the sort, and a value that is not a sequence is refused with SecretError. The refusal of an empty purpose set is unchanged.",
+   "regression_tests": [
+    "tests/test_agent_secrets.py::test_a_grant_record_with_purposes_it_cannot_read_is_refused"
+   ],
+   "residual_risk": "Found by reading secrets.py. The other readers of a record's list fields were not all read for the same order.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-043",
+   "title": "Memory replay lets anyone mark another's note STALE and point readers at a note of their own",
+   "severity": "P2",
+   "subsystem": "the agent memory store's status rules",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "apply, memory.status: a STALE move needs no invalidated source behind it, and any move may set superseded_by; _set_status decides by the same rules"
+    }
+   ],
+   "behavior": "A STALE move is open to every actor, so that invalidating a source can cascade over entries with many authors. Replay never checked that the entry derives from an invalidated source, and took superseded_by from any status record. So a record from someone other than the author, moving the author's note to STALE with superseded_by naming their own note, was projected: the note left current() and readers were pointed at the other actor's entry. That is the substitution the SUPERSEDED authorship rule exists to stop. The public write path cannot produce such a record: the cascade marks only derived entries and sets no superseded_by, and supersede() is the author's alone. The internal _set_status, which decides by replay's rules, accepts it.",
+   "invariant": "Only an entry's author withdraws or replaces it, and an entry goes STALE only because a source it rests on was invalidated.",
+   "mechanism": "Replay checks the edge and, for RETRACTED and SUPERSEDED, the author; for STALE it checks neither the premise nor the superseded_by it carries.",
+   "reproduction": "At 0afa231: alice writes a note and mallory one of her own; mallory appends a memory.status record moving alice's note to STALE with superseded_by naming mallory's. A fresh load projects alice's note as STALE, superseded by mallory's, and drops it from current().",
+   "observed": "Memory is not authority, and no authority decision reads it, but recall feeds the agent's context.",
+   "expected": "Refused on replay: a STALE move whose entry rests on no invalidated source, and a superseded_by on anything but the author's SUPERSEDED move.",
+   "correction": "Not applied. The independent reader restates the memory rules and has to learn the same ones, so the change is both readers' together.",
+   "regression_tests": [],
+   "residual_risk": "Until it is fixed, a history may hold such a record, and every reader accepts it.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-044",
+   "title": "An invalidated source nothing yet derives from is remembered only by the process that invalidated it",
+   "severity": "P3",
+   "subsystem": "the agent memory store's invalidation",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "invalidate_source: with nothing moved, the source is added to the in-process set and nothing is logged"
+    }
+   ],
+   "behavior": "invalidate_source records the invalidation on the first STALE record of its cascade. When no entry derives from the source there is no such record, and the source is added to the process's own set, so that an entry written later citing it is born STALE. Nothing reaches the log, so after a reload, or in another process, a new entry citing the source is born ACTIVE.",
+   "invariant": "Whether a source has been invalidated is a fact of the log, and holds for every reader.",
+   "mechanism": "The only durable carrier of an invalidation is a status record's invalidated_source, and a cascade over nothing writes none.",
+   "reproduction": "At 0afa231: invalidate_source on a source nothing derives from moves nothing and leaves the log empty. In that process a new entry citing the source is born STALE; after a reload one is born ACTIVE.",
+   "observed": "A note resting on a withdrawn source can be current, until something invalidates the source again.",
+   "expected": "The invalidation recorded whether or not anything rested on the source yet.",
+   "correction": "Not applied. It needs a record of an invalidation alone, which both readers have to learn.",
+   "regression_tests": [],
+   "residual_risk": "As stated.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-045",
+   "title": "A memory write whose text is not a string is projected, and then every write to the store raises",
+   "severity": "P3",
+   "subsystem": "the agent memory store's records",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "entry_from_record: the text, author and confidence taken without a type check"
+    }
+   ],
+   "behavior": "entry_from_record checks the record's keys and builds the entry, but not the types of its text, author or confidence. A memory.write whose text is a number, appended under its author's own name, loads. live_bytes() then raises AttributeError on it, and so does every later remember(), by any author, since each checks the store's total first.",
+   "invariant": "A record the store cannot use is refused when it is read, not when something later trips over it.",
+   "mechanism": "The write path checks the text; the reducer trusts the record's shape beyond its keys.",
+   "reproduction": "At 0afa231: a memory.write by mallory with text 123 loads; live_bytes() and alice's remember() then raise AttributeError.",
+   "observed": "Fail-closed, but one record makes the store unwritable for every author.",
+   "expected": "MemoryError_ at load, naming the field.",
+   "correction": "Not applied; with AUD-043, a change to both readers.",
+   "regression_tests": [],
+   "residual_risk": "As stated.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  }
+ ]
+}

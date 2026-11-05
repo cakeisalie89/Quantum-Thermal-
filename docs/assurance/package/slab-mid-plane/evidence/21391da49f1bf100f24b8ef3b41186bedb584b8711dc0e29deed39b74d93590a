@@ -1,0 +1,87 @@
+{
+ "accepted": true,
+ "basis": [
+  {
+   "bundle_held": true,
+   "freshness": "HISTORICAL",
+   "observation_id": "obs-slab-q-2",
+   "record_id": "result-task-1ce0d774b700",
+   "record_state": "VERIFIED",
+   "result_bundle": "1478106d59e554c53c967b64aeb7a5ebc83b5b8a0012ab6ca70881123281513f",
+   "values": {
+    "T_at_0": {
+     "resolution": 0.00011546868443510641,
+     "unit": "K",
+     "value": 331.5453069983014
+    },
+    "T_at_L": {
+     "resolution": 0.00014791820406819472,
+     "unit": "K",
+     "value": 329.29416109740384
+    },
+    "T_at_half": {
+     "resolution": 0.00012375327291662207,
+     "unit": "K",
+     "value": 331.01829807256496
+    },
+    "T_at_quarter": {
+     "resolution": 0.00011755035813246071,
+     "unit": "K",
+     "value": 331.41580187355214
+    },
+    "T_at_three_quarter": {
+     "resolution": 0.0001339490075100406,
+     "unit": "K",
+     "value": 330.3259184704682
+    }
+   }
+  }
+ ],
+ "decision": {
+  "action": "research.status",
+  "actor": "research-controller",
+  "hash": "00319861364aa12cbbb665c7c2e858466d6117e0827da253a874a367cd684114",
+  "kind": "research",
+  "outcome": "SUPPORTED",
+  "seq": 77,
+  "subject": "h1"
+ },
+ "head": {
+  "hash": "718429c0bcf5097722a1a78ef0d22d8e7bcea102de75c9ab6b92b073becdb447",
+  "seq": 76
+ },
+ "hypothesis": {
+  "hypothesis_id": "h1",
+  "prediction": {
+   "model_id": "thermal.slab_transient",
+   "op": "<",
+   "quantity": "T_at_half",
+   "unit": "K",
+   "value": 1000.0
+  },
+  "proposal_id": "prop-80ef9d0034182a639c541caca3115e900e2390c598bdd182b8a7cde1379ca6e6",
+  "proposed_by": "ai-researcher"
+ },
+ "proposal": {
+  "agent_id": "ai-researcher",
+  "context": {
+   "manifest_digest": "eef1e07f9fdb35892d8b5549a708a7db18aa085ed40326a08e57697dacfe7f46",
+   "policy_identity": "research.default@1",
+   "policy_in_force": true,
+   "recorded_seq": 14
+  },
+  "envelope_digest": "58dbd36181316ec511be9b144b4f5aaf03117e2bf8b1bb6649d308c1ceb7b93c",
+  "inference": {
+   "attempt": 1,
+   "budget_id": "research",
+   "granted": true,
+   "outcome": "OK",
+   "request_id": "infer-7da28c878eb071c542696fd885757e257a7ff5df13e75c99f9a25c232870e27d",
+   "reserve_seq": 15
+  },
+  "kind": "HYPOTHESIS",
+  "proposal_id": "prop-80ef9d0034182a639c541caca3115e900e2390c598bdd182b8a7cde1379ca6e6",
+  "received_seq": 18
+ },
+ "schema": "decision-proof/1"
+}

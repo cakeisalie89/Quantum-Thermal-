@@ -1,0 +1,103 @@
+{
+ "agents": "SCRIPTED; every agent shares one fixture model, so none is independent of another",
+ "coordinated": {
+  "adversary": {
+   "claims as a reviewer": "IdentityError: instance 'adversary' holds ['PROPOSER'] and may not act as REVIEWER",
+   "records a hypothesis on another's objective": "ResearchError: seq 458: 'adv.on-a' is proposed by 'adversary', who is not assigned to 'a-open'",
+   "spends another agent's budget": "CALLER_NOT_ALLOWED: 'adversary' may not spend budget 'budget-researcher-a'",
+   "steps an objective it is not assigned": "ResearchError: 'adversary' is not assigned to 'a-open'"
+  },
+  "cancellation": {
+   "dispatched_after": 0,
+   "executed_after": 0,
+   "later": "EXHAUSTED"
+  },
+  "claims": {
+   "a_quorum_of_two_would_be_independent": false,
+   "independent_lineages": 1,
+   "lineages": {
+    "challenger": [
+     "fixture-model"
+    ],
+    "researcher-a": [
+     "fixture-model"
+    ],
+    "researcher-b": [
+     "fixture-model"
+    ]
+   },
+   "records_changed_by_resolution": 0,
+   "resolved": false,
+   "why": "no value reached quorum 2"
+  },
+  "cross_agent_invalidation": {
+   "bytes_withdrawn": {
+    "agents_whose_conclusions_went_stale": [
+     "researcher-a",
+     "researcher-b"
+    ],
+    "objectives_stale": [
+     "own-0",
+     "own-1",
+     "own-2",
+     "own-3",
+     "shared"
+    ],
+    "records": 5,
+    "tasks": 4
+   },
+   "task_withdrawn": {
+    "affected": [],
+    "moved": [],
+    "shared": "stands"
+   }
+  },
+  "disagreement": {
+   "a": "SUPPORTED",
+   "b": "REFUTED",
+   "concluded_on": [
+    "shared.a"
+   ],
+   "objective": "CONCLUDED"
+  },
+  "duplicate_suppression": {
+   "messages_recorded": 10,
+   "resent_is_the_same_message": true
+  },
+  "second_reader_anomalies": 0,
+  "seconds": 30.8
+ },
+ "matched_budget": {
+  "one_agent": {
+   "agents": [
+    "researcher-a"
+   ],
+   "budget_calls": {
+    "researcher-a": 18
+   },
+   "concluded": 6,
+   "events": 459,
+   "governed_operations": 12,
+   "inference_calls": 18,
+   "messages": 6,
+   "seconds": 33.4
+  },
+  "two_agents": {
+   "agents": [
+    "researcher-a",
+    "researcher-b"
+   ],
+   "budget_calls": {
+    "researcher-a": 9,
+    "researcher-b": 9
+   },
+   "concluded": 6,
+   "events": 460,
+   "governed_operations": 12,
+   "inference_calls": 18,
+   "messages": 6,
+   "seconds": 32.9
+  }
+ },
+ "schema": "multi-agent-research/1"
+}
