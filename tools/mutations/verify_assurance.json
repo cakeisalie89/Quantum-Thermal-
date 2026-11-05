@@ -984,6 +984,13 @@
    "find": "        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
    "replace": "        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
    "rationale": "AUD-025: a 400-digit integer in the report's agreement crashes the verifier instead of refusing the package at CONSISTENCY"
+  },
+  {
+   "name": "VA123_a_spread_no_float_holds_raises",
+   "path": "tools/verify_assurance.py",
+   "find": "            and all(_number(s) and s > 0 for s in spreads.values())):\n",
+   "replace": "            and all(isinstance(s, (int, float)) and math.isfinite(s)\n                    and s > 0 for s in spreads.values())):\n",
+   "rationale": "AUD-034: a 400-digit integer as a declared spread raises OverflowError out of the verifier, and a boolean spread is read as 1, instead of the package being refused at RECHECK"
   }
  ]
 }

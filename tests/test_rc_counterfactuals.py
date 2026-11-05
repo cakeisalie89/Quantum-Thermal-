@@ -318,6 +318,13 @@ def test_a_missing_parameter_is_no_network_to_the_reference():
         REF.temperatures(params)
 
 
+def test_a_parameter_no_float_holds_is_no_network_to_the_reference():
+    """A 400-digit integer is valid JSON. The reference refuses it as no
+    finite real number, as it refuses infinity, rather than raising."""
+    with pytest.raises(ValueError, match="not a finite real number"):
+        REF.temperatures({**POINT, "Q_W": 10 ** 400})
+
+
 # ---- the reference ---------------------------------------------------------
 
 def test_the_reference_imports_nothing_of_the_repository():

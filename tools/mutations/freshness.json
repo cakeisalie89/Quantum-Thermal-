@@ -59,8 +59,8 @@
   {
    "name": "FR8_a_duration_may_be_anything",
    "path": "agent_substrate/freshness.py",
-   "find": "                not math.isfinite(s) or s <= 0:",
-   "replace": "                False:",
+   "find": "        if not _finite(s) or s <= 0:\n",
+   "replace": "        if False:\n",
    "rationale": "Assurance F: a zero, negative or infinite duration is recorded"
   },
   {
@@ -286,6 +286,13 @@
    "find": "                      \"freshness\": _rs_standing(before, oid, at)\n                      if known else None})",
    "replace": "                      \"freshness\": \"FRESH\"})",
    "rationale": "Assurance F: a verdict's proof says every basis was fresh"
+  },
+  {
+   "name": "FR41_a_duration_no_float_holds_raises",
+   "path": "agent_substrate/freshness.py",
+   "find": "    try:\n        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
+   "replace": "    try:\n        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
+   "rationale": "AUD-034: a 400-digit integer, valid JSON, raises OverflowError out of the policy check instead of refusing the duration"
   }
  ]
 }

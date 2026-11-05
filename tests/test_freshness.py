@@ -259,6 +259,7 @@ def test_freshness_is_the_owner_s_determination(w):
     ("INTERVAL", {"seconds": 0}, "positive"),
     ("PERIODIC", {"seconds": float("inf")}, "positive"),
     ("PERIODIC", {"seconds": True}, "positive"),
+    ("PERIODIC", {"seconds": 10 ** 400}, "positive"),
     ("UNTIL_EVENT", {"action": "record.create", "target": " "},
      "must name one"),
     ("HISTORICAL", {"seconds": 60}, "takes exactly"),

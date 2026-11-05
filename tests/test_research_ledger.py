@@ -72,6 +72,7 @@ def test_disagreeing_observations_decide_nothing():
 @pytest.mark.parametrize("bad", [
     dict(PRED, op="approximately"), dict(PRED, value=float("nan")),
     dict(PRED, value=True), {k: v for k, v in PRED.items() if k != "unit"},
+    dict(PRED, value=10 ** 400),
 ])
 def test_a_prediction_is_structured_or_refused(bad):
     with pytest.raises(R.ResearchError):

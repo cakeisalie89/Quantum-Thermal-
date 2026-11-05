@@ -1496,17 +1496,19 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-034"
+   ],
    "kind": "source:agent_substrate",
-   "method": "every line read at cbc9bed: the five kinds and five standings, USABLE and LAPSED, check_policy's exact keys and parameters, instant's one accepted form with its offset required, and standing's answer for each kind, withdrawal first",
+   "method": "every line read at cbc9bed: the five kinds and five standings, USABLE and LAPSED, check_policy's exact keys and parameters, instant's one accepted form with its offset required, and standing's answer for each kind, withdrawal first; AUD-034's duration check, through a number test of its own that refuses an integer no float holds, written and reviewed as a diff, with FR41 killed and FR8 repaired to the same intent",
    "mode": "100644",
-   "new_blob": "e06acf96dc98f20593254bc78ab37668dd2c010f",
+   "new_blob": "0c9020f1543841bbb329dc612cfb8ccd2e0e79dc",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/freshness.py",
-   "reviewed_blob": "e06acf96dc98f20593254bc78ab37668dd2c010f",
-   "sha256": "42c22eca53bbab2f3f0ee5fc8a24539d4b26a155b58a3d0047cdb4758c804084",
-   "size": 10176,
+   "reviewed_blob": "0c9020f1543841bbb329dc612cfb8ccd2e0e79dc",
+   "sha256": "63364214453242a226cf531ca4bb90ddf017cbc9640d4aa1352f11de96c3791d",
+   "size": 10436,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1864,18 +1866,19 @@
    "change": "ADDED",
    "findings": [
     "AUD-025",
-    "AUD-028"
+    "AUD-028",
+    "AUD-034"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at cbc9bed: the record kinds and their exact keys, evaluate() and its resolution intervals, values_of, the fold and its record.create, record.transition and proposal.receive reads, each _apply_ rule shared by writer and replay, freshness standing, _status_problem, propagate, currency, scientific_context and the writers; probed with a verdict citing another objective's observation (AUD-028); the audit's refusal written and reviewed as a diff, with RS27 killed; AUD-025's observed_values (max(r_producer, |v_producer - v_check| + r_check), only the outputs the check compared) and _report_of, and their use in observe and in _apply_observation, written and reviewed as a diff, its finiteness test typed as a TypeGuard for the type check, with OV1 to OV10 and OB1 to OB4 killed; the number test made to refuse an integer no float holds, which raised OverflowError out of the observation, written and reviewed as a diff, with OV11 killed and OV9 repaired to the same intent",
+   "method": "every line read at cbc9bed: the record kinds and their exact keys, evaluate() and its resolution intervals, values_of, the fold and its record.create, record.transition and proposal.receive reads, each _apply_ rule shared by writer and replay, freshness standing, _status_problem, propagate, currency, scientific_context and the writers; probed with a verdict citing another objective's observation (AUD-028); the audit's refusal written and reviewed as a diff, with RS27 killed; AUD-025's observed_values (max(r_producer, |v_producer - v_check| + r_check), only the outputs the check compared) and _report_of, and their use in observe and in _apply_observation, written and reviewed as a diff, its finiteness test typed as a TypeGuard for the type check, with OV1 to OV10 and OB1 to OB4 killed; the number test made to refuse an integer no float holds, which raised OverflowError out of the observation, written and reviewed as a diff, with OV11 killed and OV9 repaired to the same intent; AUD-034's prediction check, through the number test that refuses an integer no float holds, written and reviewed as a diff, with RS28 killed",
    "mode": "100644",
-   "new_blob": "f97a8fda82ed5a9a456b8c3150b519281a9570c3",
+   "new_blob": "568e3df2181d1d766d8878617ff2ffe21cc170f2",
    "note": "evaluate() takes a bundle's resolution as the finite number >= 0 scientific.Quantity enforces where the bundle is made; record.transition is read, not judged (the store judges it); a missing bundle raises the store's error, not ResearchError; the fold is incremental, so replay re-derives an observation from the report its record cited at that position; a report the ledger cannot read as a JSON object widens nothing and observes the producer's values (the benches' placeholders, under a store that cannot admit them)",
    "old_blob": null,
    "path": "agent_substrate/research.py",
-   "reviewed_blob": "f97a8fda82ed5a9a456b8c3150b519281a9570c3",
-   "sha256": "4e4fa8e3b007b1fabcda02d0d7e1e98245fb9f4b5ca4402211e369b66c660a29",
-   "size": 57364,
+   "reviewed_blob": "568e3df2181d1d766d8878617ff2ffe21cc170f2",
+   "sha256": "7393958ad71c3e6d8b836a6123513f4de85a00fc473b03d5f97ea61cd8a3d2d6",
+   "size": 57286,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -11489,13 +11492,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "ceb48b0e82eb222144313bf3304f7a3e04615b6e",
+   "new_blob": "c69bcaa8c4fd04d0a6e718a99d978ea3b7cd5201",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_freshness.py",
    "reviewed_blob": null,
-   "sha256": "45cdd2dbc3204659f18a72fcff6535ba84fbb318f90cba4e356d3d0b68426b6a",
-   "size": 27932,
+   "sha256": "bdc2a4b4923ae11e2ddb42b7333546ac0d0b73b245edbea910bcc85beaef7ea0",
+   "size": 27986,
    "status": "NOT_REVIEWED"
   },
   {
@@ -12885,13 +12888,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "ade10c74dae95d4d2fb4d430db7e2ef5092227ec",
+   "new_blob": "26e15179e63e5b0a739d2c0dd85306547c3d1ef3",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_research_ledger.py",
    "reviewed_blob": null,
-   "sha256": "e499c3016fe96dba495cd9a677ec9b2fc6388ee7e385797faf5e7636fd5cd22f",
-   "size": 26883,
+   "sha256": "b73e3d6f45fa3af05e6b995f7635939cf15345e74a593fc67f01d7536e907dbb",
+   "size": 26916,
    "status": "NOT_REVIEWED"
   },
   {
@@ -15395,13 +15398,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "4327f68962def4a9c41d1f921cb04e03828a9c60",
+   "new_blob": "8cc7d4536e9d797281d9ab5e95dad2b24cadac6d",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/freshness.json",
    "reviewed_blob": null,
-   "sha256": "fe18a11c7876a32c51796e2c4915eef3145a01e3024cb5b40239ac5c74e9634d",
-   "size": 16150,
+   "sha256": "aca30eabfb49d57e0c5ba791434dd9dd635ac9d048c6565feb38775abd8fbd20",
+   "size": 16601,
    "status": "NOT_REVIEWED"
   },
   {
@@ -16135,13 +16138,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "a5831f1feb8636e43f57443b0982eb036df07cb4",
+   "new_blob": "1bf925c4e4998689cf4d7f6ddb7bf267134e8e34",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/research.json",
    "reviewed_blob": null,
-   "sha256": "3e22d7d483e665da65d9b1b10c0b8d5a8137cce9efcaedcdf31ef22fe972ad0f",
-   "size": 17022,
+   "sha256": "7ea4435fabf01331dea07740dea85eba76fab9007ea6eb939b9511e2f64a1eea",
+   "size": 17642,
    "status": "NOT_REVIEWED"
   },
   {
@@ -17034,13 +17037,13 @@
    "kind": "tool",
    "method": "",
    "mode": "100644",
-   "new_blob": "2c814911cb3afb8292316cf5ae99af465ae11082",
+   "new_blob": "e5d1d034ae8b04e5c90eb602688b330d4d5d7ebe",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/workflow_contract.py",
    "reviewed_blob": null,
-   "sha256": "576645c1cba1eefef544b0fc7d326bd3098d0e4bba37c45210b1731fe346bb95",
-   "size": 31092,
+   "sha256": "d8c9b0ddea164bb54e2a63887ad1f76a56c14b30fce5dd81426ba2bb62050ffc",
+   "size": 31573,
    "status": "NOT_REVIEWED"
   },
   {

@@ -1170,6 +1170,104 @@
    "residual_risk": "The cross-record dependency walk (_record_walks) still reads a dependency's state as its records claim; a forged dependency is reported on its own explanation. A24 to A27 are each killed.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-034",
+   "title": "A JSON integer too large for a float made four older number tests raise instead of refusing",
+   "severity": "P3",
+   "subsystem": "number tests on JSON input (research, freshness, the RC reference, the package verifier)",
+   "files": [
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "check_prediction: math.isfinite on the prediction's value"
+    },
+    {
+     "path": "agent_substrate/freshness.py",
+     "lines": "check_policy: math.isfinite on params.seconds"
+    },
+    {
+     "path": "tools/rc2_reference.py",
+     "lines": "checked: math.isfinite on each network parameter"
+    },
+    {
+     "path": "tools/verify_assurance.py",
+     "lines": "_propagate: math.isfinite on each declared spread, which also took a boolean as 1"
+    }
+   ],
+   "behavior": "A 400-digit integer is valid JSON and parses to a Python int. math.isfinite and float() cannot convert it, and raise OverflowError. Four tests raised it where they refuse every other number they cannot use with their own error: ResearchError, FreshnessError, ValueError, and the verifier's refusal at RECHECK, whose spread test also took true as a spread of 1. Three more sites, Quantity's value and resolution and Parameter.coerce, are AUD-035. Called through verify(), the verifier's site did not reach its caller: the level's catch-all refused RECHECK as 'the level ran to its end: OverflowError', not the spread check.",
+   "invariant": "A number test that reads JSON refuses a number no float holds with its own error, as it refuses NaN and infinity.",
+   "mechanism": "Python's int has no bound, json reads an integer literal as one, and the float conversion inside math.isfinite and float() raises OverflowError past about 1.8e308. Found while fixing the same fault in AUD-025's new readers of an agreement.",
+   "reproduction": "Each site called on 10 ** 400 at the AUD-025 tree raises OverflowError; the new test cases fail there.",
+   "observed": "Fail-closed on every path, since nothing was accepted, but with an exception the caller does not expect: a proposal or a policy refused by crashing the path that should have named it.",
+   "expected": "The module's own refusal, naming the value as no finite number.",
+   "correction": "Each of the four refuses such an integer with its own error: research and the package verifier through their number tests, made overflow-safe in AUD-025; freshness and the RC reference through a test of their own. The verifier's spread test now also refuses a boolean. The same fix for Quantity and Parameter.coerce was written, tested and withdrawn: both are in the development dataset's generator closure (AUD-035).",
+   "regression_tests": [
+    "tests/test_research_ledger.py::test_a_prediction_is_structured_or_refused",
+    "tests/test_freshness.py::test_a_malformed_policy_is_refused",
+    "tests/test_rc_counterfactuals.py::test_a_parameter_no_float_holds_is_no_network_to_the_reference",
+    "tests/test_assurance_package.py::test_a_consistent_forgery_of_the_science_is_refused"
+   ],
+   "residual_risk": "AUD-035: Quantity and Parameter.coerce still raise. The sites were found by reading every math.isfinite in the production code that can meet a JSON number, with the float() conversions beside it. Not every float() was read then: three more raise the same way (AUD-039), and an implicit conversion, in arithmetic on a record's number, was not looked for.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-035",
+   "title": "Quantity and a model parameter raise OverflowError on a JSON integer no float holds, inside the NF-1T generator closure",
+   "severity": "P3",
+   "subsystem": "scientific quantities and model parameters (the development dataset's generator closure)",
+   "files": [
+    {
+     "path": "scientific/quantity.py",
+     "lines": "Quantity.__post_init__: math.isfinite on the value and on the resolution"
+    },
+    {
+     "path": "scientific/model.py",
+     "lines": "Parameter.coerce: float() on a numeric parameter"
+    }
+   ],
+   "behavior": "Quantity(10 ** 400, ...), a resolution of 10 ** 400 and a numeric parameter of 10 ** 400 raise OverflowError, where every other number either cannot use is refused with QuantityError or ModelError.",
+   "invariant": "A number test that reads JSON refuses a number no float holds with its own error, as it refuses NaN and infinity.",
+   "mechanism": "As AUD-034: an int with no float, which math.isfinite and float() cannot convert.",
+   "reproduction": "Each called on 10 ** 400 at 0afa231 raises OverflowError. The AUD-034 fix for both was written, and its tests and mutations (SI27 to SI30) passed and were killed. It was then withdrawn: both files are in the surface adsorption model's source closure, so the fix moved the generator digest the NF-1T re-identification record holds, and tests/test_neural_reidentification.py failed.",
+   "observed": "Fail-closed, since nothing is accepted, but the caller gets OverflowError instead of the refusal it handles.",
+   "expected": "QuantityError and ModelError, as for NaN and infinity.",
+   "correction": "Not applied here. Applying it re-identifies the development dataset's generator: regenerate the dataset from the new closure, show its digest unmoved, retrain and reproduce the checkpoint, and write a new NF-1T record. That is the owner's decision.",
+   "regression_tests": [],
+   "residual_risk": "A bundle, verification record or run proposal holding such an integer is refused by an exception its reader does not expect. Each such path fails closed.",
+   "verification": "REPRODUCED",
+   "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-039",
+   "title": "Three more float() conversions of a record's number raise OverflowError on an integer no float holds",
+   "severity": "P3",
+   "subsystem": "records read back from the log or the evidence store (capabilities, evidence sidecars, policies)",
+   "files": [
+    {
+     "path": "agent_substrate/capability.py",
+     "lines": "issue(), reached from capability_from_record: float() on issued_wall_time"
+    },
+    {
+     "path": "agent_substrate/evidence.py",
+     "lines": "EvidenceStore.info: float() on the sidecar's first_seen"
+    },
+    {
+     "path": "agent_substrate/policy.py",
+     "lines": "document(), reached from document_from_record: float() on not_after"
+    }
+   ],
+   "behavior": "Each raises OverflowError on 10 ** 400 where it handles every other value it cannot use. capability_from_record refuses a malformed record with CapabilityError, and raised instead; a non-number issued_wall_time raised ValueError or TypeError. EvidenceStore.info ignores a malformed sidecar, and raised instead. document_from_record refuses with PolicyError, and raised instead.",
+   "invariant": "A number read from a record is refused with the reader's own error, or ignored where the reader tolerates a malformed field, as NaN and infinity are.",
+   "mechanism": "As AUD-034: Python's int has no bound, and float() raises past about 1.8e308. AUD-034's reading took the float() conversions beside each math.isfinite, and none of these three has one.",
+   "reproduction": "At 0afa231: capability_from_record with issued_wall_time 10 ** 400, EvidenceStore.info over a sidecar whose first_seen is 10 ** 400, and document_from_record with not_after 10 ** 400 each raise OverflowError.",
+   "observed": "Fail-closed: nothing is accepted. A history holding such a capability or policy record fails to load with an exception its reader does not name, and a blob with such a sidecar cannot be described.",
+   "expected": "CapabilityError and PolicyError; for the sidecar, the field ignored as a malformed one is.",
+   "correction": "Not applied yet.",
+   "regression_tests": [],
+   "residual_risk": "Found by reading the float() conversions in the production code after AUD-034. An implicit conversion, in arithmetic on a record's number, was not looked for.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
   }
  ]
 }

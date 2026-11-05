@@ -228,6 +228,20 @@
    "find": "        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
    "replace": "        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
    "rationale": "AUD-025: a 400-digit integer in a report's agreement raises OverflowError out of the ledger's observation instead of observing nothing for that output"
+  },
+  {
+   "name": "RF1_a_parameter_no_float_holds_raises",
+   "path": "tools/rc2_reference.py",
+   "find": "        if not _finite(v):\n            raise ValueError(f\"no such network: {k} = {v!r} is not a \"\n",
+   "replace": "        if isinstance(v, bool) or not isinstance(v, (int, float)) or \\\n                not math.isfinite(v):\n            raise ValueError(f\"no such network: {k} = {v!r} is not a \"\n",
+   "rationale": "AUD-034: a 400-digit integer, valid JSON, raises OverflowError out of the RC reference instead of naming no such network"
+  },
+  {
+   "name": "RF2_the_reference_test_raises",
+   "path": "tools/rc2_reference.py",
+   "find": "    try:\n        return math.isfinite(v)\n    except OverflowError:\n        return False\n",
+   "replace": "    try:\n        return math.isfinite(v)\n    except ZeroDivisionError:\n        return False\n",
+   "rationale": "AUD-034: a 400-digit integer, valid JSON, raises OverflowError out of the RC reference's number test instead of naming no such network"
   }
  ]
 }

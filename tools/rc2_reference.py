@@ -58,6 +58,17 @@ POSITIVE = ("C1_J_K", "C2_J_K", "G12_W_K", "G2a_W_K", "T1_0_K", "T2_0_K",
             "Tamb_K")
 
 
+def _finite(v) -> bool:
+    """A number a float holds, and holds finitely: a JSON integer too
+    large for a float is refused, where ``math.isfinite`` would raise."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
+
+
 def checked(p: dict) -> dict:
     """``p``, refused unless it is a network: exactly :data:`PARAMETERS`,
     each a finite real number, positive where :data:`POSITIVE` says, and a
@@ -71,8 +82,7 @@ def checked(p: dict) -> dict:
                          f"unknown {extra}")
     for k in PARAMETERS:
         v = p[k]
-        if isinstance(v, bool) or not isinstance(v, (int, float)) or \
-                not math.isfinite(v):
+        if not _finite(v):
             raise ValueError(f"no such network: {k} = {v!r} is not a "
                              "finite real number")
     for k in POSITIVE:

@@ -206,8 +206,7 @@ def check_prediction(pred) -> dict:
     if pred["op"] not in COMPARATORS:
         raise ResearchError(f"prediction.op must be one of {COMPARATORS}")
     v = pred["value"]
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or \
-            not math.isfinite(v):
+    if not _finite(v):
         raise ResearchError("prediction.value must be a finite number")
     _text(pred["unit"], "prediction.unit", 64)
     return pred

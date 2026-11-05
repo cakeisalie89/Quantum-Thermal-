@@ -2832,3 +2832,142 @@ on the same tree, is not reproduced, and its cause is not established.
 This change is the workflow alone. No test reads the step's arguments.
 Its checks are the workflow contract, the shard check, the tests that
 read the workflow file, and the fuzz step run as CI runs it.
+
+### AUD-034: a number no float holds is refused, not raised
+
+**The defect.** A 400-digit integer is valid JSON, and it parses to a
+Python int. `math.isfinite` and `float()` cannot convert one, and raise
+`OverflowError`. AUD-025 found this in its own new readers of an
+agreement. The older number tests that read a JSON number had it too.
+Each refuses every other number it cannot use with an error of its own,
+and raised `OverflowError` on this one. That is fail-closed, since
+nothing was accepted, but the path that should have named the refusal
+crashed instead.
+
+**Found by reading.** Every `math.isfinite` in the production code that
+can meet a JSON number was read, with the `float()` conversions beside
+it. Seven sites raise, each reproduced at the AUD-025 tree by calling it
+on `10 ** 400`:
+
+| Site | Refuses with | Here |
+|---|---|---|
+| `research.check_prediction`, the prediction's value | ResearchError | fixed |
+| `freshness.check_policy`, `params.seconds` | FreshnessError | fixed |
+| `rc2_reference.checked`, a network parameter | ValueError | fixed |
+| `verify_assurance._propagate`, a declared spread | RECHECK refusal | fixed |
+| `Quantity`, its value | QuantityError | AUD-035 |
+| `Quantity`, its resolution | QuantityError | AUD-035 |
+| `Parameter.coerce`, a numeric parameter | ModelError | AUD-035 |
+
+The spread test also took `true` as a spread of 1. Two other sites take
+floats only (`proposals._walk`, `result._check_inline`). The ranking and
+budget checks take values computed in code.
+
+Called through `verify()`, the package verifier's site did not reach its
+caller. The level's catch-all refused RECHECK as "the level ran to its
+end: OverflowError". What was missing there was the spread check's own
+refusal, and a refusal of the boolean, which was refused only because
+its recomputed spread differed from the recorded one.
+
+**Not every `float()` was read.** The reading took the conversions
+beside each `math.isfinite`, not all of them. The next pass found three
+more that raise `OverflowError` on such an integer read from a record,
+each reproduced at 0afa231 (AUD-039, open):
+
+- a capability record's `issued_wall_time`, in `capability_from_record`;
+- an evidence sidecar's `first_seen`, in `EvidenceStore.info`;
+- a policy document's `not_after`, in `document_from_record`.
+
+An implicit conversion, in arithmetic on a record's number, was not
+looked for.
+
+**The correction, at four sites.** Research and the package verifier
+use their number tests, which AUD-025 made overflow-safe. Freshness and
+the RC reference each have a test of their own, so no layer borrows
+another's code. The spread test now also refuses a boolean.
+
+**Three sites withdrawn (AUD-035).** The same fix was written for
+`Quantity`, at its value and its resolution, and for
+`Parameter.coerce`. Its tests passed and its four
+mutations (SI27 to SI30) were killed. The full suite then failed two
+tests:
+
+- `test_the_after_side_is_the_committed_evidence_and_the_code`;
+- `test_the_frozen_modules_are_the_closure_the_dataset_pins`.
+
+Both files are in the surface adsorption model's source closure, with
+six other modules. The development dataset's NF-1T re-identification
+record holds that closure's digest. A change there is a new generator
+identity, which only a re-identification may record: regenerate,
+show the dataset digest unmoved, retrain, and reproduce the checkpoint.
+That is the owner's decision, so the fix is withdrawn and both files are
+as committed. The record holds again.
+
+**The tests.** Each fixed site gains one case, in the table that already
+holds its other refusals:
+
+- the prediction table in `test_research_ledger.py`;
+- the malformed policies in `test_freshness.py`;
+- a new test of the RC reference in `test_rc_counterfactuals.py`;
+- the package's RECHECK forgeries in `test_assurance_package.py`, for
+  the integer and the boolean spread.
+
+On the code before the fix, in a worktree holding only the new tests,
+each of these fails.
+
+**Recorded artifacts.** The withdrawn fix had moved the model's
+implementation digest, which the slab's error budget records, so the
+budget and the assurance package had been re-derived by their tools.
+With it withdrawn, both are as committed, and their checks hold them
+against this code. The recorded-result checks CI runs all reproduce
+their records here.
+
+**The workflow contract.** Mutating `tools/rc2_reference.py` made the
+workflow contract count it as a verifier, since it has a `main`, and so
+require the workflow to run it. It is a reference computation, not a
+verifier: it has no verdict on the tree to take, like the grounding
+benchmark. It is now in the contract's exemption list with that reason.
+
+**Mutations.** Five new: RS28, FR41, RF1 and RF2 (the RC reference's
+site and its number test), and VA123. FR8, whose line the fix moved,
+was repaired to the same intent. Every spec whose mutations or tests
+the change touches ran on this tree:
+
+| Spec | Killed |
+|---|---|
+| verify_assurance | 141 of 141, in nine runs |
+| simulation | 15 of 15 |
+| rc_counterfactuals | 34 of 34 |
+| research | 46 of 46 |
+| adversarial_eval | 10 of 10 |
+| counterfactual_eval | 6 of 6 |
+| freshness | 41 of 41 |
+| separate_governed | 18 of 18 |
+| ed25519_encodings | 8 of 8 |
+| composed_campaigns | 7 of 7 |
+| research_science | 15 of 15 |
+| ci_authority | 18 of 18 |
+| repo_contract | 18 of 18 |
+| mutation_shards | 12 of 12 |
+
+Every source was restored byte-identical. Earlier runs, before the two
+sites were withdrawn, are not counted here. Two of their lanes, stopped
+by a restart of this session's worker, had left the harness's recovery
+file behind. Each snapshot in them was compared with the worktree's
+file, and all were the same. The harness's own `--recover` cleared them.
+
+A second restart of the worker stopped the verify_assurance run at 122
+of its 141 mutations, with one mutation still applied in its worktree.
+The harness's own `--recover` restored the file from its snapshot, which
+was the committed file byte for byte. The specification then ran again
+in parts, consecutive runs of its mutations, each with its own baseline,
+null control and anchor check, and the 122 verdicts are not counted. Its
+first two quarters finished. Restarts of the container stopped the rest
+twice. After each, the same recovery found every snapshot to be the file
+it was taken from, and every worktree's diff equal to this change's. The
+harness writes each mutation from the source as it read it at the start
+and restores it before the next, so a verdict it printed before a
+restart stands. Forty-seven verdicts are taken from the three runs the
+second restart stopped, each of which had a green baseline and null
+control, and the twenty-four those runs never reached ran in four more
+parts.

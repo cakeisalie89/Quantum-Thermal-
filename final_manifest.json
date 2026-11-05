@@ -264,8 +264,8 @@
     },
     {
       "filename": "agent_substrate/freshness.py",
-      "size_bytes": 10176,
-      "sha256": "42c22eca53bbab2f3f0ee5fc8a24539d4b26a155b58a3d0047cdb4758c804084"
+      "size_bytes": 10436,
+      "sha256": "63364214453242a226cf531ca4bb90ddf017cbc9640d4aa1352f11de96c3791d"
     },
     {
       "filename": "agent_substrate/governed_model.py",
@@ -364,8 +364,8 @@
     },
     {
       "filename": "agent_substrate/research.py",
-      "size_bytes": 57364,
-      "sha256": "4e4fa8e3b007b1fabcda02d0d7e1e98245fb9f4b5ca4402211e369b66c660a29"
+      "size_bytes": 57286,
+      "sha256": "7393958ad71c3e6d8b836a6123513f4de85a00fc473b03d5f97ea61cd8a3d2d6"
     },
     {
       "filename": "agent_substrate/research_loop.py",
@@ -574,18 +574,18 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 138313,
-      "sha256": "b5c2b6b91247fd82e5d9c9ab7fdeb2227038b90f4995f4dbb462260f139fc182"
+      "size_bytes": 145055,
+      "sha256": "06c5dbed26a045a9d5aec3f18c6b17a17a6e5f27ac4bdbbd70f57dfd2b3069f6"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
-      "size_bytes": 33633,
-      "sha256": "533f82ae376fd442e0c76af66452c6a135d21dc37134142ed23781bcbaebccc1"
+      "size_bytes": 35261,
+      "sha256": "5fda8a38f3c5da85f501e947c83d8f269a3f457ad05a6c927187cea645cbabdf"
     },
     {
       "filename": "docs/audit/findings.json",
-      "size_bytes": 121525,
-      "sha256": "6980841a9588504eba54adcfecc77a0a507d8e108dc0cbbfeb96209004c56079"
+      "size_bytes": 129515,
+      "sha256": "9f43c3fa4692644aef46928c2de9c2870b6b70d62d399cb91e16c11800b08ae1"
     },
     {
       "filename": "docs/audit/op_costs.json",
@@ -594,8 +594,8 @@
     },
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
-      "size_bytes": 530519,
-      "sha256": "8a05bf69dd0235aa706f35ded1a456c5e17fe435e94fafbee710bd0a82bccd81"
+      "size_bytes": 530879,
+      "sha256": "1dc149c1351a150f9cc7da0092539cccf7919d94767d0dc51261686583114a9e"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -615,7 +615,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5788,
-      "sha256": "756b529d8ed3fe9eab1bf79c69cfb2eef9418b4b6fff781c780cf9d0aa3d0737"
+      "sha256": "893e639724436ebc9b99d326293d6a4af19afa852ed1d1c0ae7639228b479916"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -874,8 +874,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 297880,
-      "sha256": "6160ebc4c160ab4f698795594b6fde760abb6fd8fa1123a575f9f3180dee7261"
+      "size_bytes": 297932,
+      "sha256": "18c8d3b30502b68e55b494c76958ddd5350cda9c7093adcdddf6c390e8342c20"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -1679,8 +1679,8 @@
     },
     {
       "filename": "tests/test_assurance_package.py",
-      "size_bytes": 53831,
-      "sha256": "c76328c51304c034666e72bc1ec85f9e63e57fa29ef4d8c43a652a513254f88a"
+      "size_bytes": 54150,
+      "sha256": "8ab83b1145a1dbbbf05e321cbbaf739eb5d94594322d0c1a68e568807970b339"
     },
     {
       "filename": "tests/test_assurance_package_build.py",
@@ -1834,8 +1834,8 @@
     },
     {
       "filename": "tests/test_freshness.py",
-      "size_bytes": 27932,
-      "sha256": "45cdd2dbc3204659f18a72fcff6535ba84fbb318f90cba4e356d3d0b68426b6a"
+      "size_bytes": 27986,
+      "sha256": "bdc2a4b4923ae11e2ddb42b7333546ac0d0b73b245edbea910bcc85beaef7ea0"
     },
     {
       "filename": "tests/test_gate_b_acceptance.py",
@@ -2109,8 +2109,8 @@
     },
     {
       "filename": "tests/test_rc_counterfactuals.py",
-      "size_bytes": 31737,
-      "sha256": "f620c3b08d70ed3a802e9b0db0d6903ee669bacea847e18369a39198bef20c90"
+      "size_bytes": 32078,
+      "sha256": "7d886e66e1b5718feb699445e792fd7d14502a80f4008840c3c0bb1cd27fccd4"
     },
     {
       "filename": "tests/test_readiness_matrix.py",
@@ -2174,8 +2174,8 @@
     },
     {
       "filename": "tests/test_research_ledger.py",
-      "size_bytes": 26883,
-      "sha256": "e499c3016fe96dba495cd9a677ec9b2fc6388ee7e385797faf5e7636fd5cd22f"
+      "size_bytes": 26916,
+      "sha256": "b73e3d6f45fa3af05e6b995f7635939cf15345e74a593fc67f01d7536e907dbb"
     },
     {
       "filename": "tests/test_research_loop.py",
@@ -2869,8 +2869,8 @@
     },
     {
       "filename": "tools/mutations/freshness.json",
-      "size_bytes": 16150,
-      "sha256": "fe18a11c7876a32c51796e2c4915eef3145a01e3024cb5b40239ac5c74e9634d"
+      "size_bytes": 16601,
+      "sha256": "aca30eabfb49d57e0c5ba791434dd9dd635ac9d048c6565feb38775abd8fbd20"
     },
     {
       "filename": "tools/mutations/fuzz_harness.json",
@@ -3069,8 +3069,8 @@
     },
     {
       "filename": "tools/mutations/rc_counterfactuals.json",
-      "size_bytes": 13366,
-      "sha256": "7948f73fc64682394cea46d3de9ddec4cfa1e08a0634d1525be669b211ea31a5"
+      "size_bytes": 14388,
+      "sha256": "4784673b3604baccbf42318d7a98d6e4f1a44558de40c35e317d52f199690840"
     },
     {
       "filename": "tools/mutations/readiness.json",
@@ -3099,8 +3099,8 @@
     },
     {
       "filename": "tools/mutations/research.json",
-      "size_bytes": 17022,
-      "sha256": "3e22d7d483e665da65d9b1b10c0b8d5a8137cce9efcaedcdf31ef22fe972ad0f"
+      "size_bytes": 17642,
+      "sha256": "7ea4435fabf01331dea07740dea85eba76fab9007ea6eb939b9511e2f64a1eea"
     },
     {
       "filename": "tools/mutations/research_horizon.json",
@@ -3244,8 +3244,8 @@
     },
     {
       "filename": "tools/mutations/verify_assurance.json",
-      "size_bytes": 44217,
-      "sha256": "7d1850f06e4eb0928374678b49222e568d37ffa65f64320ace8d26a627897f51"
+      "size_bytes": 44744,
+      "sha256": "ff1c3e5e46d510abef3c643674db796720b737c3f018244d22d013886ac2ab20"
     },
     {
       "filename": "tools/mutations/witness.json",
@@ -3299,8 +3299,8 @@
     },
     {
       "filename": "tools/rc2_reference.py",
-      "size_bytes": 7037,
-      "sha256": "4233048ab6f9e0a489fa013f1d8876b24105beae88a22982ed10300b984db3ed"
+      "size_bytes": 7297,
+      "sha256": "3e0bf9e623e596e190b111e7061a73c293e87b6f922676c1d3ecef8ef8d52c05"
     },
     {
       "filename": "tools/readiness.py",
@@ -3369,8 +3369,8 @@
     },
     {
       "filename": "tools/verify_assurance.py",
-      "size_bytes": 94583,
-      "sha256": "6ff01e9f0e122c71fbd9640c6b2790224d8cda4dd1e14a51ecf208f23d08f5a1"
+      "size_bytes": 94525,
+      "sha256": "3c1261af3f36a25584642d845448d639c2e872185aaa914776b957c18e919f97"
     },
     {
       "filename": "tools/work_counts.py",
@@ -3379,8 +3379,8 @@
     },
     {
       "filename": "tools/workflow_contract.py",
-      "size_bytes": 31092,
-      "sha256": "576645c1cba1eefef544b0fc7d326bd3098d0e4bba37c45210b1731fe346bb95"
+      "size_bytes": 31573,
+      "sha256": "d8c9b0ddea164bb54e2a63887ad1f76a56c14b30fce5dd81426ba2bb62050ffc"
     },
     {
       "filename": "typecheck_active.ini",

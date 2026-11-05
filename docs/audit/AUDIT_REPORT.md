@@ -58,7 +58,7 @@ git.
 
 ## 2. Findings register
 
-Thirty-three findings. Severity follows the register's scale: P0 is an
+Thirty-six findings. Severity follows the register's scale: P0 is an
 authority bypass or integrity failure, P3 is information for the owner.
 
 | ID | Sev | Established | Resolution | In brief |
@@ -96,6 +96,9 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-031 | P3 | REPRODUCED | FIXED | a document a caller named was indexed for retrieval although the corpus allowlist did not name it |
 | AUD-032 | P3 | REPRODUCED | FIXED | the FEniCSx check compared the runner's answer without checking its shape, so an answer holding no temperatures compared nothing and passed |
 | AUD-033 | P3 | REPRODUCED | FIXED | the audit explained an authority record from its create record's own claims, so a history the store refuses read as complete |
+| AUD-034 | P3 | REPRODUCED | FIXED | a JSON integer too large for a float made four older number tests raise OverflowError instead of refusing it with their own error |
+| AUD-035 | P3 | REPRODUCED | OWNER | Quantity and a model parameter raise the same OverflowError, inside the development dataset's generator closure, which only a re-identification may change |
+| AUD-039 | P3 | REPRODUCED | OPEN | three more `float()` conversions of a record's number raise the same OverflowError: a capability's wall time, an evidence sidecar's first-seen time, a policy's expiry |
 
 **How far each is established.** REPRODUCED means shown failing by a
 test or a script; CONFIRMED means established by reading, not executed.
@@ -393,23 +396,28 @@ The audit restored none of it.
 | AUD-031 | A document is retrievable only if the allowlist names it, however it is named | `rag_index.build_index` |
 | AUD-032 | A check passes only on a comparison it made: the FEniCSx runner's answer holds one finite temperature for every point asked for, or the check does not decide | `fenicsx_slab.run_runner`; `fenicsx_slab.run_check` |
 | AUD-033 | The audit reports no authority record as complete that the store refuses: the proposer is who appended the create, and a create past PROPOSED or a second create is a gap | `AuditIndex.explain_record` |
+| AUD-034 | A number test that reads JSON refuses a number no float holds with its own error, as it refuses NaN and infinity | `research.check_prediction`; `freshness.check_policy`; `rc2_reference.checked`; `verify_assurance._propagate` |
+| AUD-035 | Not yet held: `Quantity` and `Parameter.coerce` raise on a number no float holds, in the generator closure the NF-1T record freezes | — (the owner's re-identification) |
+| AUD-039 | Not yet held: `capability_from_record`, `EvidenceStore.info` and `document_from_record` raise on a number no float holds | — (open) |
 
 ## 7. Owner decisions
 
 **Fixable here, and fixed.** AUD-002 to AUD-009, AUD-011 to
-AUD-018, and AUD-020 to AUD-033. For AUD-011 and AUD-017 the mechanism is what was
+AUD-018, and AUD-020 to AUD-034. For AUD-011 and AUD-017 the mechanism is what was
 fixed, and it holds where a reader is given a registry. Provisioning the
 production registry is the owner action below.
 
-**Fixable here, and open.** One, found while fixing AUD-025 and taken
-next: the older number tests that read a JSON number raise
-`OverflowError` on an integer too large for a float, where each should
-refuse it with its own error (`research.check_prediction` reproduced).
-AUD-025 is fixed: the verification schema states each check's agreement,
-the admission policy is `scientific_result.admission/2`, and replay
-decides each admission under the policy it names, so the change is a
-migration, not a reinterpretation. Its own readers of an agreement
-refuse such an integer.
+**Fixable here, and open.** AUD-039, found in the pass after AUD-034:
+three more `float()` conversions of a record's number raise instead of
+refusing. AUD-035 is the owner's: fixing it moves the development dataset's generator
+identity, which the NF-1T re-identification record holds. AUD-034,
+found while fixing AUD-025, is fixed at its four other sites: the older
+number tests that read a JSON number refuse an integer too large for a
+float with their own error. AUD-025 is fixed:
+the verification schema states each check's agreement, the admission
+policy is `scientific_result.admission/2`, and replay decides each
+admission under the policy it names, so the change is a migration, not
+a reinterpretation.
 
 **Owner decisions the audit found:**
 
@@ -430,6 +438,12 @@ refuse such an integer.
   memoized prefix digest.
 - **AUD-001.** Archive the six bundled histories before any purge of
   history.
+- **AUD-035.** Whether to re-identify the development dataset's
+  generator, so that `Quantity` and `Parameter.coerce` refuse an integer
+  too large for a float with their own error. That means regenerating
+  the dataset from the new closure, showing its digest unmoved,
+  retraining and reproducing the checkpoint, and writing a new NF-1T
+  record.
 - **Independent witnesses and a vetted signature provider.** Every witness
   and every key here is a TEST fixture, signed by the REFERENCE_ONLY
   provider. A log, or an archived segment of one, is independently

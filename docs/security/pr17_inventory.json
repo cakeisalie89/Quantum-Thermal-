@@ -11677,7 +11677,9 @@
    "trust_boundary": "repository tooling",
    "verification": {
     "findings": [],
-    "mutation_specs": [],
+    "mutation_specs": [
+     "tools/mutations/rc_counterfactuals.json"
+    ],
     "tests": [
      "tests/test_rc_counterfactuals.py"
     ]

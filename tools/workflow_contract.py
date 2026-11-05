@@ -305,6 +305,13 @@ VERIFIER_EXEMPT = {
         "to take. Its suite runs the real code -- run(), main() and the "
         "protocol -- and re-derives a committed seed of its results "
         "(D-2026-159)",
+    "tools/rc2_reference.py":
+        "a reference computation, not a verifier: given a network's "
+        "parameters it prints the closed form's temperatures and the rounding "
+        "bound it states, and has no verdict on the tree to take. The RC "
+        "family's judge loads it by path (tools/adversarial_eval.py), and "
+        "tests/test_rc_counterfactuals.py holds temperatures() to the bound "
+        "it states and checked() to the networks it refuses (AUD-034)",
 }
 
 

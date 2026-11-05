@@ -972,6 +972,12 @@ def _spread(s):
     _budget(s)["spreads"]["q_W_m3"] *= 2
 
 
+def _spread_set(value):
+    def edit(s):
+        _budget(s)["spreads"]["q_W_m3"] = value
+    return edit
+
+
 def _parametric(s):
     _contribution(s, "parameters")["half_width"] *= 1.5
 
@@ -1069,6 +1075,10 @@ RECHECK_CASES = [
      "the recorded verdict is the one the exact solution gives"),
     ("quantity", _quantity, "a temperature this verifier computes"),
     ("samples", _samples, "the propagation is one this verifier can repeat"),
+    ("spread no float holds", _spread_set(10 ** 400),
+     "the propagation is one this verifier can repeat"),
+    ("spread a boolean", _spread_set(True),
+     "the propagation is one this verifier can repeat"),
 ]
 
 

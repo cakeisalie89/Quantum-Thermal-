@@ -320,6 +320,13 @@
    "find": "        if foreign:\n            _note(out, ev, f\"a hypothesis verdict resting on {foreign}, \"",
    "replace": "        if False:\n            _note(out, ev, f\"a hypothesis verdict resting on {foreign}, \"",
    "rationale": "AUD-028, restated: the second reader would take a verdict resting on another objective's observations as the primary once did"
+  },
+  {
+   "name": "RS28_a_prediction_no_float_holds_raises",
+   "path": "agent_substrate/research.py",
+   "find": "    v = pred[\"value\"]\n    if not _finite(v):\n        raise ResearchError(\"prediction.value must be a finite number\")\n",
+   "replace": "    v = pred[\"value\"]\n    if isinstance(v, bool) or not isinstance(v, (int, float)) or \\\n            not math.isfinite(v):\n        raise ResearchError(\"prediction.value must be a finite number\")\n",
+   "rationale": "AUD-034: a 400-digit integer, valid JSON, raises OverflowError out of the prediction check instead of being refused as no finite number"
   }
  ]
 }

@@ -445,8 +445,7 @@ def _propagate(base: dict, spreads: dict, *, rel_step: Any, samples: Any,
             and 30 <= samples <= 20000 and isinstance(seed, int)
             and isinstance(rel_step, float) and 0.0 < rel_step <= 0.1
             and set(spreads) <= set(UNITS) - {"n_cells", "n_steps"}
-            and all(isinstance(s, (int, float)) and math.isfinite(s)
-                    and s > 0 for s in spreads.values())):
+            and all(_number(s) and s > 0 for s in spreads.values())):
         raise Refused("the propagation is one this verifier can repeat",
                       f"{samples!r} samples, seed {seed!r}, step "
                       f"{rel_step!r}, spreads {spreads}")

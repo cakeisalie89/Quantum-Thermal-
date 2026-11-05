@@ -114,6 +114,17 @@ class FreshnessError(ValueError):
     """A freshness policy or an observation time refused. Fail closed."""
 
 
+def _finite(v) -> bool:
+    """A number a float holds, and holds finitely: a JSON integer too
+    large for a float is refused, where ``math.isfinite`` would raise."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:
+        return False
+
+
 def check_policy(body) -> dict:
     """``body`` if it is a well-formed policy, else :class:`FreshnessError`.
 
@@ -140,8 +151,7 @@ def check_policy(body) -> dict:
                              f"{sorted(PARAMS[kind])} as params")
     if "seconds" in params:
         s = params["seconds"]
-        if isinstance(s, bool) or not isinstance(s, (int, float)) or \
-                not math.isfinite(s) or s <= 0:
+        if not _finite(s) or s <= 0:
             raise FreshnessError("freshness.params.seconds must be a "
                                  "positive, finite number")
     for key in ("action", "target"):
