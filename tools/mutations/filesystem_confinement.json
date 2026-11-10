@@ -79,8 +79,8 @@
     {
       "name": "FC11_the_tools_own_packages_are_not_granted",
       "path": "agent_substrate/execution.py",
-      "find": "    return {\"read\": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,\n                     *packages, *granted],\n",
-      "replace": "    return {\"read\": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,\n                     *granted],\n",
+      "find": "                     *_LOADER_QUERY, *packages, *granted],\n",
+      "replace": "                     *_LOADER_QUERY, *granted],\n",
       "rationale": "a governed tool cannot import its own module"
     },
     {
@@ -103,6 +103,13 @@
       "find": "    return {\"read\": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,\n",
       "replace": "    return {\"read\": [*interp, *_RUNTIME_FILES, _PROC_SELF,\n",
       "rationale": "an interpreter installed outside /usr cannot start: the kernel opens its loader for execution, and nothing grants it (found by hosted CI at 5e31ae0)"
+    },
+    {
+      "name": "FC15_the_loader_query_is_not_granted",
+      "path": "agent_substrate/execution.py",
+      "find": "    return {\"read\": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,\n                     *_LOADER_QUERY, *packages, *granted],\n",
+      "replace": "    return {\"read\": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,\n                     *packages, *granted],\n",
+      "rationale": "under an interpreter outside /usr a confined run cannot run /sbin/ldconfig, find_library answers nothing, and the run fingerprints libc and libm UNRESOLVED where the same code unconfined resolves them (found by hosted CI at 3edf855, when the runner image moved the interpreter out of /usr)"
     }
   ]
 }

@@ -201,6 +201,20 @@ _DISCARD = "/dev/null"
 #: other: a run fingerprints its runtime from its own mappings and reads
 #: nothing of any other process the host's /proc shows.
 _PROC_SELF = "/proc/self"
+#: What ``ctypes.util.find_library`` runs to ask the dynamic loader where a
+#: library is: ``/sbin/ldconfig -p``, by that fixed path. A run fingerprints
+#: its C and math runtimes through that question, so a confined run that
+#: cannot ask it carries libc and libm UNRESOLVED, and an environment digest
+#: no unconfined run of the same code shares. On Ubuntu the file is a shell
+#: wrapper that execs ``ldconfig.real``, so the shell and that binary run
+#: too. Files, read and execute, never write: the query prints the cache
+#: ``_RUNTIME_FILES`` already grants, and a shell started inside the
+#: confinement opens only what the confinement grants. On a host whose
+#: interpreter lives under /usr all three were granted by accident, through
+#: ``sys.base_prefix``, as the library directories were. Hosted CI's
+#: interpreter moved outside /usr with its runner image, and every confined
+#: run there fingerprinted a runtime no unconfined run had (D-2026-194).
+_LOADER_QUERY = ("/sbin/ldconfig", "/sbin/ldconfig.real", "/bin/sh")
 
 
 def confinement_policy(*, cwd: Path, writable_scope: tuple,
@@ -211,10 +225,12 @@ def confinement_policy(*, cwd: Path, writable_scope: tuple,
 
     READ: the interpreter's trees, the system's shared-library directories
     and the runtime files every dynamically linked program needs (the loader
-    and its cache), the Python packages directly under ``cwd`` (the tool's
-    own code and what it imports), and whatever the caller grants in
-    ``read_paths``. LIST: ``cwd`` itself, which the import system lists to
-    find those packages -- names beneath it are visible, contents are not.
+    and its cache), the loader's query tool, through which a run finds the
+    C runtime it fingerprints, the Python packages directly under ``cwd``
+    (the tool's own code and what it imports), and whatever the caller
+    grants in ``read_paths``. LIST: ``cwd`` itself, which the import system
+    lists to find those packages -- names beneath it are visible, contents
+    are not.
     WRITE: the tool's declared writable scope, the directory of each output
     its contract names (``outputs``, already resolved and refused by the
     contract if it would leave ``cwd``), and ``scratch``, a temporary
@@ -238,7 +254,7 @@ def confinement_policy(*, cwd: Path, writable_scope: tuple,
     granted = [str(p if Path(p).is_absolute() else cwd / p)
                for p in read_paths]
     return {"read": [*interp, *_LIBRARY_DIRS, *_RUNTIME_FILES, _PROC_SELF,
-                     *packages, *granted],
+                     *_LOADER_QUERY, *packages, *granted],
             "list": [str(cwd)],
             "write": [str(cwd / s) for s in writable_scope]
             + sorted({str((cwd / rel).parent) for rel in outputs})

@@ -50,8 +50,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 9,
-   "PREDATES_CURRENT_IMPLEMENTATION": 40
+   "COVERS_CURRENT_IMPLEMENTATION": 8,
+   "PREDATES_CURRENT_IMPLEMENTATION": 41
   },
   "rows": 49
  },
@@ -488,6 +488,12 @@
    "id": "snakemake",
    "kind": "stack",
    "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "R21",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },
   {
    "external": false,

@@ -12132,3 +12132,101 @@ the test fails on the table, the totals and the list.
 ledger to the files. That is `tools/audit_ledger.py check`, which binds
 each disposition to the blob it describes.
 
+
+## D-2026-194 — A confined run could ask the loader only where the interpreter lived in /usr
+
+**FOUND BY HOSTED CI.** At 3edf855 and at 0432885 both agent-substrate
+runs failed the same six checks: the full suite, the dispatch-sensitivity
+job, mutation shards 2, 3 and 7, and the job that requires every shard.
+Two tests failed, and nothing else:
+
+- `test_a_confined_run_fingerprints_the_same_runtime_as_an_unconfined_one`
+  (tests/test_filesystem_confinement.py);
+- `test_the_identity_is_this_model_these_parameters_this_environment`
+  (tests/test_governed_model_reuse.py).
+
+In each, the confined run's fingerprint had libc and libm UNRESOLVED,
+where the same code unconfined resolved both. The three shards each hold
+one spec whose suite runs one of the two tests, and the harness refuses
+a red baseline: `filesystem_confinement` in shard 2 and
+`scientific_authority_replay` in shard 3 exited 2. Shard 7's log was not
+read past its last lines; `governed_model_reuse` is the third such spec.
+Every other check of both commits passed, the other four workflows
+among them. Neither commit touches the confinement or the fingerprint.
+
+**THE CAUSE.** The run at 0432885 says what it ran on: Ubuntu 26.04.1,
+runner image `ubuntu-26.04` version 20261101.64.1, and uv 0.13.7, which
+downloaded CPython 3.12.16 into the runner's home directory and built
+the environment on it. The workflows name `ubuntu-latest`, and the
+project requires Python 3.12. The runs at 0afa231, the day before, were
+green; their image was not read.
+
+The fingerprint finds libc and libm through `ctypes.util.find_library`,
+which runs `/sbin/ldconfig -p` by that fixed path. The confinement
+grants the interpreter's trees, the system's library directories and a
+few runtime files. Under /usr/bin/python3.12 the interpreter's tree is
+/usr, so the whole of /usr was granted, and with it ldconfig, the shell
+Ubuntu's wrapper script runs under, and the `ldconfig.real` it execs.
+Outside /usr none of the three was granted. This is the second accident
+of this kind: D-2026-160 was the loader itself.
+
+**REPRODUCED HERE** with a uv-managed CPython 3.12.13 installed outside
+/usr and the locked environment built on it. Both tests fail as hosted,
+and pass under /usr/bin/python3.12. Inside the confinement, under that
+interpreter:
+
+- executing `/sbin/ldconfig`, `/sbin/ldconfig.real` or `/bin/sh` raises
+  PermissionError;
+- `find_library("c")` and `find_library("m")` return None;
+- libc.so.6 and libm.so.6 are mapped, and `CDLL("libc.so.6")` loads.
+
+**WHAT IT COST.** Nothing was accepted that should not have been: an
+unresolved backend is never reused. But on such a host every governed
+run carried an UNRESOLVED backend and a digest no unconfined run shares,
+so no governed model run could ever be reused there.
+
+**THE REPAIR.** The policy grants the loader's query deliberately:
+`_LOADER_QUERY`, the three files, read and execute, never write. They
+are files and not directories. The query prints the cache the policy
+already grants, and a shell started inside the confinement inherits it
+and opens only what it grants. With the grant, both tests pass under the
+interpreter outside /usr, and `find_library` answers there as it does
+unconfined.
+
+**TESTS.**
+
+- `test_the_loader_query_is_granted_for_an_interpreter_outside_usr`
+  holds on any host. The path granted is the one the standard library
+  runs, read from `ctypes.util`. Where that file is a script, the
+  interpreter its first line names and the binary beside it must be
+  granted too. None of them is writable.
+- `test_a_standalone_interpreter_asks_the_loader_confined_as_unconfined`
+  runs where the host has an interpreter outside /usr, as hosted CI now
+  does: inside the confinement the loader answers what it answers
+  outside.
+- The two tests hosted CI failed are the regression there.
+
+On the code as committed both new tests fail, the second with
+`HARNESS_STANDALONE_PYTHON` naming the interpreter outside /usr.
+
+**MUTATION.** FC15 removes the grant. FC11's anchor is repaired to the
+same intent, since its line gained the grant. `filesystem_confinement` kills
+**15 of 15**, under an interpreter in /usr and again under the one outside
+it.
+
+**WHAT THIS IS NOT.**
+
+- Not a change to the fingerprint. `scientific/backend_probe.py` is as
+  committed. A probe that read its own mappings would need no grant at
+  all, but that file is in the surface adsorption model's source
+  closure, and moving it is the owner's decision (see AUD-035).
+- Not a wider reach into the host's files. A confined tool may now
+  execute three more files where the interpreter lives outside /usr.
+  What it may write, and which data files it may read, are unchanged.
+- Not a pin. Naming `ubuntu-24.04` in the workflows would have turned
+  the checks green and left the defect for the next image to find.
+- Not a claim that hosted CI is green. That is for this commit's own
+  runs to show, and what else the new image changes is not known until
+  they have run.
+- Where the interpreter lives in /usr, the whole of /usr is still
+  granted, as before. That is not changed here.

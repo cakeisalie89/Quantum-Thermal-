@@ -3264,3 +3264,69 @@ again found its snapshots to be the files they were taken from.
 `role_authority` and `inference_gateway` then ran whole in that
 worktree, and `t2_closure` in a second one whose diff equals this
 change's. The stopped run's verdicts are not counted.
+
+### Hosted CI at 3edf855 and 0432885: the runner image moved the interpreter (D-2026-194)
+
+**What failed.** Read from the API: at both commits, in the push run and
+in the pull-request run, the same six agent-substrate checks. They are
+the full suite, dispatch sensitivity, mutation shards 2, 3 and 7, and
+the job that requires every shard. Two tests failed and nothing else:
+the confined run's fingerprint against the unconfined one's, and the
+governed model run's environment digest against a process like its
+worker. Each of the three shards holds one spec whose suite runs one of
+them, and the harness refused its red baseline.
+
+**What passed.** At 0432885, every other check: the agent-substrate job
+itself, the second interpreter, mutation shards 1, 4, 5, 6 and 8, and
+the four other workflows.
+
+**The cause.** The hosted runner's image is now Ubuntu 26.04, which has
+no Python 3.12 of its own, so uv downloads one into the runner's home
+directory. The confinement had granted `/sbin/ldconfig`, through which a
+run finds the C runtime it fingerprints, only as part of /usr, and only
+because the interpreter lived there. Neither commit touched the
+confinement or the fingerprint.
+
+**Reproduced here** with a uv-managed CPython 3.12.13 outside /usr and
+the locked environment built on it: both tests fail as hosted.
+
+**The repair.** `execution._LOADER_QUERY` grants the query's three files
+deliberately: read and execute, never write. Two new tests hold it, one
+on any host and one under an interpreter outside /usr where the host has
+one. On the code as committed both fail.
+
+**What was run.** The specs that mutate `agent_substrate/execution.py`
+or run the confinement tests, on a worktree holding this change's code,
+tests and specs:
+
+| Spec | Interpreter | Killed |
+|---|---|---|
+| filesystem_confinement | in /usr | 15 of 15 |
+| filesystem_confinement | outside /usr | 15 of 15 |
+| agent_execution | in /usr | 66 of 66 |
+| execution_containment | in /usr | 10 of 10 |
+| isolation_contract | in /usr | 13 of 13 |
+| agent_compensation | in /usr | 15 of 15 |
+| decided_appends | in /usr | 14 of 14 |
+
+Six specs and 133 mutations under the interpreter in /usr, all killed and
+every source restored. Under the interpreter outside /usr,
+`filesystem_confinement` ran again whole, and the baselines of
+`governed_model_reuse` and `scientific_authority_replay`, the other two
+specs hosted CI refused, are green. A restart of the container stopped
+four of these runs. The harness's `--recover` restored the one file each
+of three worktrees had left mutated, from snapshots that were the files
+byte for byte, and the four ran again from their start. The stopped
+runs' verdicts are not counted. `filesystem_confinement` ran once more
+under both interpreters after the any-host test lost a skip it did not
+need, and those runs are the ones counted.
+
+**What it moves.** `agent_substrate/execution.py` is one of the two
+files R21 cites, so R21's hosted evidence now predates its
+implementation. The matrix's covering count goes from 9 to 8 and the
+harness status from 51 unsatisfied to 52, until a later commit cites
+runs at this one.
+
+**What is not established.** That hosted CI is green on the new image:
+this commit's own runs are what show it. The image of the last green
+runs, at 0afa231, was not read.

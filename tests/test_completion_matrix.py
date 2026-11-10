@@ -990,7 +990,10 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: time that no float holds is ignored, as a malformed field is, instead
 #: of raising OverflowError (AUD-039, agent_substrate/evidence.py, cited by
 #: R31), which predates it until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 9
+#: 9 -> 8 when the confinement came to grant the loader's query wherever
+#: the interpreter lives (D-2026-194, agent_substrate/execution.py, cited
+#: by R21), which predates it until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 8
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

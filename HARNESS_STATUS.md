@@ -30,7 +30,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 ## Completion matrix
 
-49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 9, PREDATES_CURRENT_IMPLEMENTATION 40.
+49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 8, PREDATES_CURRENT_IMPLEMENTATION 41.
 
 ## Audits
 
@@ -45,7 +45,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * flagship_not_allocated_or_trained: holds
 * flagship_architecture_as_declared: holds
 
-## Unsatisfied (51)
+## Unsatisfied (52)
 
 * stack authority-substrate: ADOPTED
 * stack containers: ADOPTED
@@ -58,6 +58,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * stack rag-read-only: ADOPTED
 * stack ruff-mypy-pydantic: ADOPTED
 * stack snakemake: ADOPTED
+* row R21: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R22: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R23: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R24: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps

@@ -354,6 +354,50 @@ def test_the_loader_is_granted_for_an_interpreter_outside_usr(
     assert not _granted(loader, pol["write"])
 
 
+def _shebang(path: str) -> str | None:
+    """The interpreter a script's first line names, or None for anything
+    that is not a script."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(256)
+    except OSError:
+        return None
+    if not head.startswith(b"#!"):
+        return None
+    words = head[2:].split(b"\n", 1)[0].split()
+    return words[0].decode() if words else None
+
+
+def test_the_loader_query_is_granted_for_an_interpreter_outside_usr(
+        tmp_path, monkeypatch):
+    """ctypes.util.find_library asks the loader where a library is by
+    running /sbin/ldconfig, and a run fingerprints its C runtime through
+    that. Under an interpreter in /usr the whole of /usr is granted, the
+    query with it, and the grant must not rest on that. Found by hosted CI
+    when its runner image moved the interpreter out of /usr: every confined
+    run there fingerprinted libc and libm UNRESOLVED (D-2026-194)."""
+    import ctypes.util
+    import inspect
+    query = X._LOADER_QUERY[0]
+    # The path granted is the path the standard library runs.
+    assert query in inspect.getsource(ctypes.util)
+    for name in ("base_prefix", "prefix", "exec_prefix", "base_exec_prefix"):
+        monkeypatch.setattr(sys, name, "/opt/elsewhere/python")
+    pol = X.confinement_policy(cwd=tmp_path, writable_scope=(),
+                               read_paths=(), probe=tmp_path / "p")
+    # Where the query is a script, as Ubuntu's is, what it runs is part of
+    # the question: its interpreter, and the binary beside it that it execs.
+    # On a host without the file only the path itself is held.
+    runs = [query]
+    shell = _shebang(query)
+    if shell is not None:
+        runs += [shell, query + ".real"]
+    for path in runs:
+        assert _granted(path, pol["read"]), (path, pol["read"])
+        # Read and execute, never write.
+        assert not _granted(path, pol["write"])
+
+
 def _standalone() -> str | None:
     """An interpreter whose real path is outside /usr, if this host has one:
     the CI second interpreter's shape."""
@@ -382,6 +426,54 @@ def test_a_standalone_interpreter_runs_confined_and_stays_confined():
                          capture_output=True, text=True, timeout=120)
     doc = json.loads(out.stdout)
     assert doc["result"] == "PASS", (interp, doc["failures"], out.stderr)
+
+
+#: Run BY the interpreter under test, which is then the supervisor whose
+#: trees the policy grants: what the loader answers a confined tool, and
+#: what it answers this process.
+_ASKS_THE_LOADER = """\
+import ctypes.util, json, sys, tempfile
+from pathlib import Path
+from agent_substrate.execution import Limits, run_bounded
+from agent_substrate.tools import Determinism, Field_, ToolSpec
+ask = ("import ctypes.util, json\\n"
+       "print(json.dumps([ctypes.util.find_library(n) for n in 'cm']))\\n")
+spec = ToolSpec(tool_id="asks", version="1.0", summary="asks the loader",
+                inputs=(Field_("n", "int"),),
+                determinism=Determinism.BYTE_IDENTICAL,
+                writable_scope=("out",), timeout_s=30.0)
+with tempfile.TemporaryDirectory() as d:
+    (Path(d) / "out").mkdir()
+    r = run_bounded([sys.executable, "-c", ask], spec=spec, cwd=Path(d),
+                    limits=Limits(wall_seconds=30.0),
+                    env={"PATH": "/usr/bin:/bin"})
+print(json.dumps({"outcome": r.outcome.value,
+                  "applied": r.isolation["filesystem"]["applied"],
+                  "confined": r.stdout_excerpt.strip(),
+                  "stderr": r.stderr_excerpt,
+                  "plain": [ctypes.util.find_library(n) for n in "cm"]}))
+"""
+
+
+@needs_confinement
+def test_a_standalone_interpreter_asks_the_loader_confined_as_unconfined():
+    """Where the interpreter is outside /usr nothing grants /usr by
+    accident, and a confined tool must still get from the loader what an
+    unconfined one gets: on a glibc host, the sonames of libc and libm."""
+    import subprocess
+    interp = _standalone()
+    if interp is None:
+        pytest.skip("no interpreter outside /usr on this host; hosted CI "
+                    "runs on one")
+    out = subprocess.run([interp, "-c", _ASKS_THE_LOADER], cwd=ROOT,
+                         capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr
+    doc = json.loads(out.stdout)
+    assert doc["outcome"] == "COMPLETED", doc
+    assert doc["applied"].startswith("landlock"), doc
+    assert json.loads(doc["confined"]) == doc["plain"], doc
+    if os.path.exists(X._LOADER_QUERY[0]):
+        assert all(doc["plain"]), doc
 
 
 @needs_confinement
