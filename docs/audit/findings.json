@@ -1555,6 +1555,62 @@
    "residual_risk": "The other subsystem reducers were not changed here. By reading, none of agents, capability, inference, netauth, policy, research, roles, scheduler and secrets consults the registry in its apply(); that is for a later pass to reproduce and decide.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-047",
+   "title": "The independent readers raise on a record whose field holds a value of the wrong type",
+   "severity": "P2",
+   "subsystem": "the independent readers: reconstruct, reconstruct_tasks and reconstruct_subsystems",
+   "files": [
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "the three readers' dispatches and the reducers they call: 57 places"
+    }
+   ],
+   "behavior": "Each reader says it never raises on content: a hostile history produces findings, not an exception that hides the rest of the log. A value of a type a branch did not expect raised at 57 places: 7 in reconstruct, 9 in reconstruct_tasks and 41 in reconstruct_subsystems. An id that is a list cannot be a key or be tested for membership, a number cannot be iterated, a list has no get. One such record anywhere in a history and every consumer of the reader gets an exception where it wanted findings: the audit tool, the separate verifier, memory_trust.assess. Any actor that can append can write one.",
+   "invariant": "A record's content never raises out of an independent reader. The record is noted, and the rest of the history is folded.",
+   "mechanism": "The readers are long dispatches over payloads nobody typed. Each branch tests what it expects to be wrong and not what type it was given. The one test of the claim tried eight payloads against six actions.",
+   "reproduction": "At ba02ed0: one payload value of one record replaced by a value of another kind, on three governed histories and on every registered action alone, about 60,000 histories for each reader. reconstruct_subsystems on a scheduler.priority record whose job_id is a list raises TypeError (unhashable type); so does reconstruct on a record.transition whose record_id is a list, and reconstruct_tasks on a task.transition whose task_id is a list.",
+   "observed": "Found while fixing AUD-045, whose second-reader part was one instance: a status of the wrong type raised TypeError.",
+   "expected": "Noted, with the record's position and action, and the rest folded.",
+   "correction": "The claim is made structural. reconstruct._never_raising folds a history so that a record whose reading raises is set aside, with a note naming it and the error's type, and folds the history again from its start without it: what a reader reports is the fold of the records it could read, and never a half-applied one. Past 64 such records a reader folds up to the first one over the limit and says where it stopped. Verification is not content: a chain that does not verify raises before any record is folded, as it did. The declared security profile, read before the first record, is a string or nothing.",
+   "regression_tests": [
+    "tests/test_agent_readers_never_raise.py::test_no_reader_raises_on_a_genuine_history_with_one_value_replaced",
+    "tests/test_agent_readers_never_raise.py::test_no_reader_raises_on_any_registered_action",
+    "tests/test_agent_readers_never_raise.py::test_without_the_guard_the_sweeps_find_every_reader_raising",
+    "tests/test_agent_second_reader.py::test_a_reader_sets_an_unreadable_record_aside_and_folds_the_rest",
+    "tests/test_agent_second_reader.py::test_past_the_limit_a_reader_stops_and_says_where",
+    "tests/test_agent_second_reader.py::test_within_the_limit_every_unreadable_record_is_noted",
+    "tests/test_agent_second_reader.py::test_a_checkpoint_naming_an_unreadable_record_is_still_hash_checked",
+    "tests/test_agent_second_reader.py::test_a_failure_that_is_not_a_records_still_raises",
+    "tests/test_agent_second_reader.py::test_a_declared_profile_that_is_not_a_string_declares_nothing"
+   ],
+   "residual_risk": "The guard catches whatever a record's fold raises, so a fault in a reader's own code on a well-formed record would read as a note against that record. It would still be a finding and never a silent pass, and the suites that hold honest histories to no anomalies would show it. The primaries are not changed: a store that meets such a record refuses the log or raises, which is fail-closed, and whether each refuses with its own error is not established. derive_decision_proof and verify_decision_proof were not swept.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-048",
+   "title": "The log's own verification raises on a genesis declaration whose profile is a list",
+   "severity": "P3",
+   "subsystem": "the event log's read primitive",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "_declaration_problem: profile not in PROFILES"
+    }
+   ],
+   "behavior": "A history's first record may declare its security profile. verify() and read_verified() report an unknown profile as a problem, and the history does not verify. Where the profile is a list or a dictionary, the membership test raises TypeError instead, and the caller gets no report at all.",
+   "invariant": "Verification answers with a report, never with an exception raised by the content it was verifying.",
+   "mechanism": "The profile is tested for membership in a frozenset before its type is asked, and a list cannot be hashed.",
+   "reproduction": "At ba02ed0: a one-record log whose record is a history.security_profile declaration, canonically encoded with its hash recomputed, with profile set to ['GOVERNED']. EventLog.verify() and read_verified() raise TypeError (unhashable type: 'list') at events.py line 193. With profile 7, None or 'BOGUS' both return a report whose problem is 'unknown security profile'.",
+   "observed": "Found by the sweep written for AUD-047, which reached the same test in the reader's restatement.",
+   "expected": "A report that is not ok, naming the unknown profile.",
+   "correction": "",
+   "regression_tests": [],
+   "residual_risk": "Fail-closed: nothing is read from such a history. But a verifier that expects a report gets an exception, and one malformed first record is enough.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
   }
  ]
 }

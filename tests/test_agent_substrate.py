@@ -753,8 +753,13 @@ def test_a_record_replay_cannot_read_is_refused_by_both_readers(tmp_path,
     log.append(actor="rev", action=action, target=target, payload=payload)
     with pytest.raises(StoreError, match=said):
         AuthorityStore(EventLog(log.path)).load()
-    assert reconstruct(EventLog(log.path)).anomalies, (
+    anomalies = reconstruct(EventLog(log.path)).anomalies
+    assert anomalies, (
         "the second reader passed in silence a record the store refuses")
+    # In the reader's own words. Since AUD-047 a branch that raises on a
+    # record is set aside with a note of its own, so a refusal somebody
+    # removed would still leave a note here: that one.
+    assert not any("could not be read" in a for a in anomalies), anomalies
 
 
 def test_reconstruction_uses_a_separate_implementation():

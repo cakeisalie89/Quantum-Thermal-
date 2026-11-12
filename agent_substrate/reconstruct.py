@@ -1072,10 +1072,15 @@ _AUTHENTICATED = frozenset({_PROFILE_REQUIRED, _PROFILE_GOVERNED})
 
 
 def _profile_declared(events) -> str | None:
-    """The profile genesis declares, as this reader reads it."""
+    """The profile genesis declares, as this reader reads it: a string, or
+    nothing. It is read before any record is folded, where nothing sets a
+    record aside, and it is tested for membership: a profile that was a
+    list raised there (AUD-047)."""
     if (events and events[0].action == _PROFILE_ACTION
             and isinstance(events[0].payload, dict)):
-        return events[0].payload.get("profile")
+        profile = events[0].payload.get("profile")
+        if isinstance(profile, str):
+            return profile
     return None
 
 
@@ -1136,9 +1141,55 @@ def _bound_promotion_refusal(binding: dict, policies: dict, policy_ids,
     return None
 
 
+#: How many records of one history a reader sets aside as unreadable before
+#: it stops folding. Each one costs a fold of the whole history, so without
+#: a bound a history made of nothing else would cost its length squared.
+_UNREADABLE_LIMIT = 64
+
+
+def _never_raising(fold, log, **kw):
+    """Fold ``log`` with ``fold`` so that a record's CONTENT cannot raise
+    out of it (AUD-047).
+
+    Each reader here says it never raises on content: a hostile history
+    produces findings, not an exception that hides the rest of the log. The
+    readers are long dispatches over payloads nobody typed, and a value of a
+    type a branch did not expect raised at dozens of places: an id that is
+    a list cannot be a key, a number cannot be iterated. So the claim is
+    made structural. A record whose reading raises is set aside, with a
+    note naming it and the error, and the history is folded again from its
+    start without it. What the reader then reports is the fold of the
+    records it could read, and never a half-applied one.
+
+    A history holding more than ``_UNREADABLE_LIMIT`` such records is
+    folded up to the first one past the limit, and says so.
+
+    Verification is not content. ``report.raise_if_bad()`` raises before
+    any record is folded, and what a reader does before its first record,
+    or after its last, raises as it did.
+    """
+    unreadable: dict = {}
+    while True:
+        at: list = [None]
+        try:
+            return fold(log, _unreadable=unreadable, _at=at, **kw)
+        except Exception as exc:                         # noqa: BLE001
+            ev = at[0]
+            if ev is None or ev.seq in unreadable:
+                raise
+            last = len(unreadable) >= _UNREADABLE_LIMIT
+            unreadable[ev.seq] = (
+                f"seq {ev.seq}: {ev.action!r} could not be read "
+                f"({type(exc).__name__}); not applied"
+                + (f". More than {_UNREADABLE_LIMIT} records of this "
+                   "history could not be read, and nothing after this one "
+                   "is folded" if last else ""), last)
+
+
 def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 evidence=None, authenticator=None,
-                roles=None) -> Reconstruction:
+                roles=None, _unreadable: dict | None = None,
+                _at: list | None = None) -> Reconstruction:
     """Rebuild authority state from a verified log.
 
     Verification comes first and is fatal: reconstructing from a chain that
@@ -1148,7 +1199,13 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
     scientific result's admission cannot be decided and reads UNVERIFIABLE;
     with it, the admission is decided here -- see SCIENTIFIC ADMISSION,
     RESTATED, above.
+
+    Never raises on content: see ``_never_raising``.
     """
+    if _unreadable is None or _at is None:
+        return _never_raising(reconstruct, log, reauthorize=reauthorize,
+                              evidence=evidence, authenticator=authenticator,
+                              roles=roles)
     report, events = log.read_verified()
     report.raise_if_bad()
 
@@ -1218,7 +1275,14 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
     latest_wall: float | None = None
 
     for ev in events:
+        _at[0] = ev
         out.events_replayed += 1
+        if ev.seq in _unreadable:
+            why, last = _unreadable[ev.seq]
+            out.anomalies.append(why)
+            if last:
+                break
+            continue
         if ev.seq in unattested:
             continue
         latest_wall = judged_at(latest_wall, ev.wall_time)
@@ -1525,7 +1589,8 @@ class TaskReconstruction:
 
 
 def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
-                      roles=None) -> TaskReconstruction:
+                      roles=None, _unreadable: dict | None = None,
+                      _at: list | None = None) -> TaskReconstruction:
     """Replay the task lifecycle from the log alone. Never raises on content.
 
     A SECOND implementation, in plain dictionaries, sharing no reducer with
@@ -1536,6 +1601,9 @@ def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
     submitter, executor and verifier each hold their role over
     ``tool:<tool id>`` where their record stands (AUD-011), restated here.
     """
+    if _unreadable is None or _at is None:
+        return _never_raising(reconstruct_tasks, log,
+                              reauthorize=reauthorize, roles=roles)
     report, events = log.read_verified()
     report.raise_if_bad()
     out = TaskReconstruction(head_seq=report.head_seq,
@@ -1567,7 +1635,14 @@ def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
              "task.separate_verification"}
 
     for ev in events:
+        _at[0] = ev
         out.events_replayed += 1
+        if ev.seq in _unreadable:
+            why, last = _unreadable[ev.seq]
+            out.anomalies.append(why)
+            if last:
+                break
+            continue
         action = ev.action
         if roles is not None and action in ("role.delegate", "role.revoke"):
             why = _role_fold(role_grants, delegations, ev, ev.payload)
@@ -1989,8 +2064,10 @@ _AGENT_ROLES = {"PROPOSER", "EXECUTOR", "VERIFIER", "AUDITOR", "REVIEWER",
 _ESC_MIN_OPTIONS = 2
 
 
-def reconstruct_subsystems(log: EventLog, *,
-                           roles=None) -> SubsystemReconstruction:
+def reconstruct_subsystems(log: EventLog, *, roles=None,
+                           _unreadable: dict | None = None,
+                           _at: list | None = None
+                           ) -> SubsystemReconstruction:
     """Replay every remaining authority subsystem, independently.
 
     Never raises on content: a hostile history produces findings, not an
@@ -2000,6 +2077,8 @@ def reconstruct_subsystems(log: EventLog, *,
     version, a secret grant and an egress grant are each held to the role
     that issues them (AUD-011, AUD-017), restated here.
     """
+    if _unreadable is None or _at is None:
+        return _never_raising(reconstruct_subsystems, log, roles=roles)
     report, events = log.read_verified()
     report.raise_if_bad()
     out = SubsystemReconstruction(head_seq=report.head_seq)
@@ -2039,8 +2118,18 @@ def reconstruct_subsystems(log: EventLog, *,
     # knows its limits and one that implies it verified more than it did.
     prev = (-1, "")
     for ev in events:
+        _at[0] = ev
         out.events_replayed += 1
         out.latest_wall = judged_at(out.latest_wall, ev.wall_time)
+        if ev.seq in _unreadable:
+            why, last = _unreadable[ev.seq]
+            out.anomalies.append(why)
+            if last:
+                break
+            # The record is in the chain whether or not it could be read:
+            # the next one's claim about its predecessor is about this one.
+            prev = (ev.seq, ev.hash)
+            continue
         p = ev.payload if isinstance(ev.payload, dict) else {}
         a = ev.action
         if roles is not None and a in ("role.delegate", "role.revoke"):

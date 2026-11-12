@@ -1683,3 +1683,152 @@ def test_an_honest_dependency_is_folded_by_both_readers(tmp_path):
     recon = reconstruct(EventLog(tmp_path / "ev.jsonl"))
     assert recon.anomalies == [], recon.anomalies
     assert recon.records["r"]["depends_on"] == ["base"]
+
+
+# ---------------------------------------------------------------------------
+# AUD-047: a record a reader cannot read is set aside, and it says so.
+#
+# No reader here raises on a record's content. The sweeps that hold that are
+# in tests/test_agent_readers_never_raise.py; these hold what the guard does
+# with such a record, one thing at a time and for each reader. Each forged
+# record carries an id that is a list, which cannot be looked up: the lookup
+# raised TypeError. After it comes one honest record of the reader's own.
+# ---------------------------------------------------------------------------
+
+_SET_ASIDE = {
+    "reconstruct": {
+        "bad": ("record.transition",
+                lambda i: {"record_id": [i], "dst": "PROPOSED"}),
+        "after": ("mallory", "record.create", "r",
+                  {**_HONEST_CREATE, "record_id": "r"}),
+        "held": lambda recon: "r" in recon.records},
+    "reconstruct_tasks": {
+        "bad": ("task.transition",
+                lambda i: {"task_id": [i], "dst": "VALIDATED"}),
+        "after": ("alice", "task.create", "t",
+                  {"task_id": "t", "tool_id": "tool", "submitter": "alice"}),
+        "held": lambda recon: "t" in recon.tasks},
+    "reconstruct_subsystems": {
+        "bad": ("scheduler.priority",
+                lambda i: {"job_id": [i], "priority": 0}),
+        "after": ("filler", "memory.write", "m",
+                  {"entry": {"memory_id": "m", "text": "a note",
+                             "author": "filler"}}),
+        "held": lambda recon: "m" in recon.memory},
+}
+
+
+def _unreadable(seq, action):
+    return f"seq {seq}: {action!r} could not be read (TypeError); not applied"
+
+
+def _set_aside(tmp_path, name, forged: int):
+    """``forged`` unreadable records and then the honest one, read by the
+    reader named: (its reconstruction, the forged action, whether the honest
+    record was folded)."""
+    import agent_substrate.reconstruct as RC
+    case = _SET_ASIDE[name]
+    action, payload = case["bad"]
+    log = EventLog(tmp_path / "ev.jsonl")
+    for i in range(forged):
+        log.append(actor="mallory", action=action, target="x",
+                   payload=payload(i))
+    actor, act, target, body = case["after"]
+    log.append(actor=actor, action=act, target=target, payload=body)
+    recon = getattr(RC, name)(log)
+    return recon, action, case["held"](recon)
+
+
+@pytest.mark.parametrize("name", sorted(_SET_ASIDE))
+def test_a_reader_sets_an_unreadable_record_aside_and_folds_the_rest(
+        tmp_path, name):
+    recon, action, held = _set_aside(tmp_path, name, 1)
+    assert recon.anomalies == [_unreadable(0, action)]
+    assert held, "the honest record after it was not folded"
+    assert recon.events_replayed == 2
+
+
+@pytest.mark.parametrize("name", sorted(_SET_ASIDE))
+def test_past_the_limit_a_reader_stops_and_says_where(
+        tmp_path, monkeypatch, name):
+    """Each unreadable record costs a fold of the whole history, so the
+    number set aside is bounded. Past the bound the reader folds no further,
+    and its last note says so: what it reports is a prefix, and named one."""
+    import agent_substrate.reconstruct as RC
+    monkeypatch.setattr(RC, "_UNREADABLE_LIMIT", 2)
+    recon, action, held = _set_aside(tmp_path, name, 4)
+    assert recon.anomalies == [
+        _unreadable(0, action), _unreadable(1, action),
+        _unreadable(2, action)
+        + ". More than 2 records of this history could not be read, and "
+          "nothing after this one is folded"]
+    assert not held, "a record after the stop was folded"
+    assert recon.events_replayed == 3
+
+
+@pytest.mark.parametrize("name", sorted(_SET_ASIDE))
+def test_within_the_limit_every_unreadable_record_is_noted(
+        tmp_path, monkeypatch, name):
+    """CONTROL for the limit: the same history under a limit it only just
+    reaches is folded to its end."""
+    import agent_substrate.reconstruct as RC
+    monkeypatch.setattr(RC, "_UNREADABLE_LIMIT", 4)
+    recon, action, held = _set_aside(tmp_path, name, 4)
+    assert recon.anomalies == [_unreadable(i, action) for i in range(4)]
+    assert held
+    assert recon.events_replayed == 5
+
+
+def test_a_checkpoint_naming_an_unreadable_record_is_still_hash_checked(gov):
+    """The record is in the chain whether or not it could be read, so the
+    anchor after it names its position and its hash, and both are held."""
+    _run(gov)
+    gov.log.append(actor="mallory", action="scheduler.priority", target="x",
+                   payload={"job_id": ["j"], "priority": 0})
+    bad = gov.log.verify().head_seq
+    recon = _anchor(gov)
+    assert recon.anomalies == [_unreadable(bad, "scheduler.priority")]
+    (rec,) = list(recon.checkpoints.values())
+    assert rec["through_seq"] == bad
+    assert rec["head_hash_checked"] is True
+
+
+def test_a_failure_that_is_not_a_records_still_raises(tmp_path):
+    """The guard sets RECORDS aside. A log whose chain does not verify is
+    refused before any record is folded, and that is not made a note."""
+    import json
+    from agent_substrate.events import ChainBroken
+    from agent_substrate.reconstruct import reconstruct, reconstruct_tasks
+    log = EventLog(tmp_path / "ev.jsonl")
+    log.append(actor="mallory", action="record.create", target="r",
+               payload={**_HONEST_CREATE, "record_id": "r"})
+    path = tmp_path / "ev.jsonl"
+    rec = json.loads(path.read_text())
+    rec["actor"] = "b"                # the record's hash is of another one
+    path.write_text(json.dumps(rec) + "\n")
+    for reader in (reconstruct, reconstruct_tasks, reconstruct_subsystems):
+        with pytest.raises(ChainBroken):
+            reader(EventLog(path))
+
+
+def test_a_declared_profile_that_is_not_a_string_declares_nothing(tmp_path):
+    """The profile is read before any record is folded, where nothing sets a
+    record aside, and it is tested for membership: a list raised there. The
+    log's own read refuses such a declaration, so the history is handed to
+    the reader directly, as a read that stopped refusing would hand it."""
+    from agent_substrate.reconstruct import reconstruct
+    log = EventLog(tmp_path / "ev.jsonl")
+    log.append(actor="mallory", action="record.create", target="r",
+               payload={**_HONEST_CREATE, "record_id": "r"})
+    report, (ev,) = log.read_verified()
+
+    class Handed:
+        def read_verified(self, **kw):
+            import dataclasses
+            return report, [dataclasses.replace(
+                ev, action="history.security_profile",
+                payload={"profile": ["GOVERNED"]})]
+
+    recon = reconstruct(Handed())
+    assert recon.events_replayed == 1
+    assert recon.records == {}

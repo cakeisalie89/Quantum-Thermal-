@@ -3460,3 +3460,123 @@ the container stopped four runs. The harness's `--recover` restored
 the one file each of four worktrees had left mutated, from snapshots
 that were the files byte for byte, and each stopped spec ran again
 from its start. The stopped runs' verdicts are not counted.
+
+### Stage 5, fourth pass: no independent reader raises on content (AUD-047, AUD-048)
+
+**What was claimed.** `reconstruct`, `reconstruct_tasks` and
+`reconstruct_subsystems` are the second implementation, read from the
+log alone. Each says a hostile history produces findings, not an
+exception that hides the rest of the log. One test held that, with eight
+payloads against six actions.
+
+**What was found (AUD-047, P2).** A sweep: one payload value of one
+record replaced by a value of another kind, on three governed histories
+and on every registered action alone, about 60,000 histories for each
+reader. It found 57 places that raise: 7 in `reconstruct`, 9 in
+`reconstruct_tasks` and 41 in `reconstruct_subsystems`. An id that is a
+list cannot be a key, a number cannot be iterated, a list has no `get`.
+One such record anywhere in a history and every consumer of the reader
+gets an exception where it wanted findings. AUD-045's second-reader part
+was one instance of it.
+
+**The repair.** The claim is structural now, and not kept site by site.
+`reconstruct._never_raising` folds a history so that a record whose
+reading raises is set aside, with a note naming it and the error's type.
+The history is then folded again from its start without it, so a reader
+reports the fold of the records it could read and never a half-applied
+one. Each record set aside costs a fold, so the number is bounded at 64:
+past it a reader folds up to the first record over the limit and says
+where it stopped. A chain that does not verify still raises before any
+record is folded. The 310 existing mutation anchors in `reconstruct.py`
+were checked to match once after the change, and none moved.
+
+**Tests.** `tests/test_agent_readers_never_raise.py` holds the two
+sweeps, and a control that takes the guard away and requires the sweeps
+to find all three readers raising. `tests/test_agent_second_reader.py`
+holds what the guard does, for each reader:
+
+- the record is noted and the honest record after it is folded;
+- past the limit the reader stops and says where;
+- within the limit every record is noted;
+- a checkpoint anchor naming an unreadable record is still held to its
+  hash;
+- a chain that does not verify still raises.
+
+**Found by the sweep (AUD-048, P3, open).** The declared security
+profile is read before any record is folded, and tested for membership.
+In the reader's restatement that test raised on a list, and the profile
+is now a string or nothing. The log's own verification has the same
+test: `EventLog.verify()` and `read_verified()` raise TypeError on a
+canonically encoded genesis declaration whose profile is a list or a
+dictionary, where they report any other unknown profile. That is
+fail-closed, but the caller gets no report. It is in `events.py`, and is
+not changed here.
+
+**Mutations.** Seventeen new, R113 to R129, in `agent_second_reader`.
+
+Every mutation anchored in `reconstruct.py` ran on this change, 327 in
+31 specs, since the guard changes what an error inside a reader becomes
+and a mutation killed by an exception could have turned into a note
+nothing looked at. Each spec ran as a part holding exactly its mutations
+in that file, with the spec's own suites. All were killed and every
+source restored. The other mutations of those specs, and the specs with
+none in that file, were not run here; hosted CI runs every spec whole.
+
+| Spec | Killed, of its mutations in `reconstruct.py` | Its mutations in all |
+|---|---|---|
+| actor_authentication | 1 of 1 | 19 |
+| agent_actions | 1 of 1 | 6 |
+| agent_delegation | 3 of 3 | 28 |
+| agent_idempotency | 2 of 2 | 20 |
+| agent_lease_renewal | 4 of 4 | 11 |
+| agent_second_reader | 129 of 129 | 129 |
+| agent_separate_verify | 1 of 1 | 18 |
+| agent_service_authority | 2 of 2 | 14 |
+| agent_snapshot_coherence | 3 of 3 | 20 |
+| agent_substrate | 14 of 14 | 64 |
+| authenticated_history | 3 of 3 | 26 |
+| composed_campaigns | 1 of 1 | 7 |
+| decision_proof | 14 of 14 | 14 |
+| freshness | 11 of 11 | 41 |
+| governed_history | 4 of 4 | 13 |
+| governed_run | 1 of 1 | 5 |
+| history_time | 9 of 9 | 21 |
+| inference_gateway | 7 of 7 | 45 |
+| memory_trust | 14 of 14 | 28 |
+| neural_authority | 1 of 1 | 23 |
+| policy_binding | 6 of 6 | 29 |
+| policy_semantics | 8 of 8 | 13 |
+| proposal_ingress | 8 of 8 | 29 |
+| replay_origin_view | 1 of 1 | 11 |
+| research | 10 of 10 | 46 |
+| role_authority | 8 of 8 | 44 |
+| scientific_authority_replay | 25 of 25 | 40 |
+| second_reader_audit_actions | 26 of 26 | 27 |
+| separate_governed | 2 of 2 | 18 |
+| t2_closure | 5 of 5 | 41 |
+| task_execution_phase | 3 of 3 | 10 |
+
+**What the guard did to older kills.** Five mutations that remove a
+shape check from a reader had been killed because the reader then
+raised. With the guard the reader notes the record instead, and two
+tests asked only that some anomaly be there. On the first run M63 in
+`agent_substrate`, and MT23, MT24, MT27 and MT28 in `memory_trust`,
+survived. Both tests now ask also that no note be the guard's, so a
+refusal has to be the reader's own, and all five are killed again.
+`agent_substrate` and `agent_service_authority` had first refused a
+red baseline: the isolation test lists every file allowed to import
+the package, and the new test file was not on it. Those three parts
+ran again after both repairs, and their later runs are the ones
+counted. The other twenty-eight ran before them, on this change
+without those three test files' repairs, which their suites do not
+run.
+
+**What is not established.** That each primary store refuses such a
+record with its own error: a store that meets one refuses the log or
+raises, and which of the two was not swept. `derive_decision_proof` and
+`verify_decision_proof` were not swept. The sweeps replace one value at
+a time, so a fault that needs two wrong values together is not covered.
+
+**Also corrected.** The report's readiness table and its list of
+unknowns said 874 files were not reviewed, the count D-2026-193 had
+already corrected in the coverage table. Both now say 867.

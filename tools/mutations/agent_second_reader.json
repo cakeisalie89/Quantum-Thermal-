@@ -790,6 +790,125 @@
       "find": "            if unrecorded:\n",
       "replace": "            if False:\n",
       "rationale": "D-2026-140: a record.depend on a record nobody created is folded by the second reader while the store refuses it"
+    },
+    {
+      "name": "R113_the_guard_lets_every_error_out",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            if ev is None or ev.seq in unreadable:\n",
+      "replace": "            if True or ev is None or ev.seq in unreadable:\n",
+      "rationale": "a record whose reading raises takes the reader down with it: one list where an id belongs and every consumer of the reader gets an exception where it wanted findings (AUD-047)"
+    },
+    {
+      "name": "R114_the_guard_never_reaches_its_limit",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            last = len(unreadable) >= _UNREADABLE_LIMIT\n",
+      "replace": "            last = False\n",
+      "rationale": "a history made of unreadable records is folded once for each of them: its length squared"
+    },
+    {
+      "name": "R115_the_limit_admits_one_record_more",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            last = len(unreadable) >= _UNREADABLE_LIMIT\n",
+      "replace": "            last = len(unreadable) > _UNREADABLE_LIMIT\n",
+      "rationale": "the reader stops one record later than it says"
+    },
+    {
+      "name": "R116_a_profile_of_any_type_is_declared",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if isinstance(profile, str):\n            return profile\n",
+      "replace": "        if True:\n            return profile\n",
+      "rationale": "the declared profile is tested for membership before any record is folded, where nothing sets a record aside: a list raises there"
+    },
+    {
+      "name": "R117_a_skipped_record_is_not_the_next_ones_predecessor",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            prev = (ev.seq, ev.hash)\n            continue\n",
+      "replace": "            continue\n",
+      "rationale": "a checkpoint anchor naming the unreadable record just before it is held against the record before that one, and its head hash goes unchecked"
+    },
+    {
+      "name": "R118_reconstruct_does_not_say_which_record_it_is_folding",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        if ev.seq in unattested:\n",
+      "replace": "        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        if ev.seq in unattested:\n",
+      "rationale": "reconstruct raises on the record instead of setting it aside: the guard cannot name what it was not told"
+    },
+    {
+      "name": "R119_reconstruct_folds_a_record_it_set_aside",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        if ev.seq in unattested:\n",
+      "replace": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in unattested:\n",
+      "rationale": "reconstruct reads the unreadable record again on the second fold, and raises again"
+    },
+    {
+      "name": "R120_reconstruct_sets_a_record_aside_without_a_note",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        if ev.seq in unattested:\n",
+      "replace": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            if last:\n                break\n            continue\n        if ev.seq in unattested:\n",
+      "rationale": "reconstruct drops a record it could not read and reports a history with nothing wrong in it"
+    },
+    {
+      "name": "R121_reconstruct_folds_on_past_the_limit",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        if ev.seq in unattested:\n",
+      "replace": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            continue\n        if ev.seq in unattested:\n",
+      "rationale": "reconstruct folds what comes after the record it said it stopped at"
+    },
+    {
+      "name": "R122_reconstruct_tasks_does_not_say_which_record_it_is_folding",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        action = ev.action\n",
+      "replace": "        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        action = ev.action\n",
+      "rationale": "reconstruct_tasks raises on the record instead of setting it aside: the guard cannot name what it was not told"
+    },
+    {
+      "name": "R123_reconstruct_tasks_folds_a_record_it_set_aside",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        action = ev.action\n",
+      "replace": "        _at[0] = ev\n        out.events_replayed += 1\n        action = ev.action\n",
+      "rationale": "reconstruct_tasks reads the unreadable record again on the second fold, and raises again"
+    },
+    {
+      "name": "R124_reconstruct_tasks_sets_a_record_aside_without_a_note",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        action = ev.action\n",
+      "replace": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            if last:\n                break\n            continue\n        action = ev.action\n",
+      "rationale": "reconstruct_tasks drops a record it could not read and reports a history with nothing wrong in it"
+    },
+    {
+      "name": "R125_reconstruct_tasks_folds_on_past_the_limit",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            continue\n        action = ev.action\n",
+      "replace": "        _at[0] = ev\n        out.events_replayed += 1\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            continue\n        action = ev.action\n",
+      "rationale": "reconstruct_tasks folds what comes after the record it said it stopped at"
+    },
+    {
+      "name": "R126_the_second_reader_does_not_say_which_record_it_is_folding",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            # The record is in the chain whether or not it could be read:\n",
+      "replace": "        out.events_replayed += 1\n        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            # The record is in the chain whether or not it could be read:\n",
+      "rationale": "reconstruct_subsystems raises on the record instead of setting it aside: the guard cannot name what it was not told"
+    },
+    {
+      "name": "R127_the_second_reader_folds_a_record_it_set_aside",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            # The record is in the chain whether or not it could be read:\n            # the next one's claim about its predecessor is about this one.\n            prev = (ev.seq, ev.hash)\n            continue\n",
+      "replace": "        _at[0] = ev\n        out.events_replayed += 1\n        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)\n",
+      "rationale": "reconstruct_subsystems reads the unreadable record again on the second fold, and raises again"
+    },
+    {
+      "name": "R128_the_second_reader_sets_a_record_aside_without_a_note",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            # The record is in the chain whether or not it could be read:\n",
+      "replace": "        _at[0] = ev\n        out.events_replayed += 1\n        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            if last:\n                break\n            # The record is in the chain whether or not it could be read:\n",
+      "rationale": "reconstruct_subsystems drops a record it could not read and reports a history with nothing wrong in it"
+    },
+    {
+      "name": "R129_the_second_reader_folds_on_past_the_limit",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        _at[0] = ev\n        out.events_replayed += 1\n        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            if last:\n                break\n            # The record is in the chain whether or not it could be read:\n",
+      "replace": "        _at[0] = ev\n        out.events_replayed += 1\n        out.latest_wall = judged_at(out.latest_wall, ev.wall_time)\n        if ev.seq in _unreadable:\n            why, last = _unreadable[ev.seq]\n            out.anomalies.append(why)\n            # The record is in the chain whether or not it could be read:\n",
+      "rationale": "reconstruct_subsystems folds what comes after the record it said it stopped at"
     }
   ]
 }

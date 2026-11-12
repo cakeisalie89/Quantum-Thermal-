@@ -1,13 +1,13 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 645,
+   "ADDED": 646,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 226,
+   "LOW": 227,
    "MEDIUM": 365
   },
   "by_subsystem": {
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 201,
+   "tests": 202,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 677
+  "files": 678
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -546,6 +546,7 @@
      "tests/test_agent_netauth.py",
      "tests/test_agent_performance.py",
      "tests/test_agent_policy.py",
+     "tests/test_agent_readers_never_raise.py",
      "tests/test_agent_readpath.py",
      "tests/test_agent_recovery.py",
      "tests/test_agent_result_rules.py",
@@ -719,6 +720,7 @@
      "tools/mutations/second_reader_audit_actions.json"
     ],
     "tests": [
+     "tests/test_agent_readers_never_raise.py",
      "tests/test_agent_readpath.py",
      "tests/test_agent_second_reader.py",
      "tests/test_second_reader_audit_actions.py"
@@ -1182,6 +1184,7 @@
      "tests/test_agent_netauth.py",
      "tests/test_agent_performance.py",
      "tests/test_agent_policy.py",
+     "tests/test_agent_readers_never_raise.py",
      "tests/test_agent_readpath.py",
      "tests/test_agent_recovery.py",
      "tests/test_agent_result_rules.py",
@@ -1287,6 +1290,7 @@
      "tests/test_agent_long_horizon.py",
      "tests/test_agent_memory.py",
      "tests/test_agent_performance.py",
+     "tests/test_agent_readers_never_raise.py",
      "tests/test_agent_recovery.py",
      "tests/test_agent_result_rules.py",
      "tests/test_agent_second_reader.py",
@@ -1505,6 +1509,7 @@
      "tests/test_agent_idempotency.py",
      "tests/test_agent_long_horizon.py",
      "tests/test_agent_performance.py",
+     "tests/test_agent_readers_never_raise.py",
      "tests/test_agent_recovery.py",
      "tests/test_agent_second_reader.py",
      "tests/test_agent_secret_provider.py",
@@ -2049,6 +2054,7 @@
      "tests/test_agent_idempotency.py",
      "tests/test_agent_long_horizon.py",
      "tests/test_agent_performance.py",
+     "tests/test_agent_readers_never_raise.py",
      "tests/test_agent_second_reader.py",
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
@@ -2464,6 +2470,7 @@
      "tests/test_agent_hostile_campaign.py",
      "tests/test_agent_idempotency.py",
      "tests/test_agent_machine_properties.py",
+     "tests/test_agent_readers_never_raise.py",
      "tests/test_agent_recovery.py",
      "tests/test_agent_scheduler.py",
      "tests/test_agent_second_reader.py",
@@ -6461,6 +6468,24 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_agent_readers_never_raise.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_second_reader.py",
      "tests/test_agent_substrate_isolation.py"
     ]
    }

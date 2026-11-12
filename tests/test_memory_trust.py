@@ -322,6 +322,11 @@ def test_both_readers_refuse_the_same_status_moves(tmp_path, before, move,
     second = rc.reconstruct_subsystems(log)
     assert primary_refused is refused
     assert bool(second.anomalies) is refused, second.anomalies
+    # In the reader's own words. Since AUD-047 a branch that raises on a
+    # record is set aside with a note of its own, so a refusal somebody
+    # removed would still leave a note here: that one.
+    assert not any("could not be read" in a for a in second.anomalies), \
+        second.anomalies
     t = assess(log, "m1", evidence=ev)
     assert (t.answers["consistently_reconstructed"].value == NO) is refused
 
@@ -383,6 +388,11 @@ def test_both_readers_refuse_the_same_records(tmp_path, actor, action,
     second = rc.reconstruct_subsystems(log)
     assert primary_refused is refused
     assert bool(second.anomalies) is refused, second.anomalies
+    # In the reader's own words. Since AUD-047 a branch that raises on a
+    # record is set aside with a note of its own, so a refusal somebody
+    # removed would still leave a note here: that one.
+    assert not any("could not be read" in a for a in second.anomalies), \
+        second.anomalies
 
 
 def test_both_readers_hold_an_entry_written_after_its_source_went_stale(
