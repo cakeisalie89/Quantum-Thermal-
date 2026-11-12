@@ -177,6 +177,14 @@
     },
     {
       "module": "memory.py",
+      "function": "MemoryStore.invalidate_source",
+      "action": "ACT_MEMORY_INVALIDATE",
+      "mode": "DECIDED",
+      "class": "DECISION",
+      "why": "records a withdrawn source, after which an entry citing it is born STALE and a STALE move resting on it has its premise (AUD-044)"
+    },
+    {
+      "module": "memory.py",
       "function": "MemoryStore._set_status",
       "action": "ACT_MEMORY_STATUS",
       "mode": "DECIDED",

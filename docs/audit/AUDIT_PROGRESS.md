@@ -3330,3 +3330,133 @@ runs at this one.
 **What is not established.** That hosted CI is green on the new image:
 this commit's own runs are what show it. The image of the last green
 runs, at 0afa231, was not read.
+
+### Stage 5, the memory findings: AUD-043 to AUD-046
+
+The third pass registered three findings in the agent memory store,
+each a change to both of its readers: `agent_substrate/memory.py` and
+the independent reader's restatement in `agent_substrate/reconstruct.py`.
+They are fixed here, with a fourth found while fixing them.
+
+**AUD-043 (P2).** A STALE move is open to every actor, so that
+invalidating a source can cascade over entries with many authors. Replay
+checked the move's edge, and the author only for RETRACTED and
+SUPERSEDED. It never asked whether the entry rests on an invalidated
+source, and it took `superseded_by` from any status record. Replay and
+the write path now ask one more question of every move,
+`MemoryStore._move_refusal`:
+
+- only the author's SUPERSEDED move names a replacement, and one the
+  store holds;
+- only a STALE move carries an invalidated source;
+- a STALE move needs its entry to rest on a source the log has
+  invalidated, directly or through the entries it summarizes or derives
+  from, which is as far as the cascade reaches;
+- a write is ACTIVE when written and names no replacement, since a
+  status is derived from events and never asserted.
+
+The independent reader restates each rule, and now holds what each entry
+rests on. The both-readers table in `tests/test_memory_trust.py` had
+rows asserting the old rule, a STALE move with no premise accepted.
+Those rows now have a premise column. Each row whose setup moves the
+entry to STALE gives the entry a real invalidation, so a refusal is the
+move's and not the setup's, and the rows without one are refused.
+
+**AUD-044.** An invalidation travelled only on its cascade's first STALE
+record, so one that nothing rested on yet wrote nothing. The source went
+into the invalidating process's set and no other reader's, and after a
+reload an entry citing it was born ACTIVE. An invalidation is now a
+record of its own, `memory.invalidate`. It is written under the writer
+lock before its cascade, once per source, whether or not anything rests
+on it. Once, because `settle()` invalidates its sources again, and
+settling again must change nothing: the first draft wrote a record each
+time, and `test_an_interrupted_invalidation_is_settled` failed on it.
+The action registry, both readers and both inventories learn it. The
+second reader's coverage label, held by a test, reads 56 of 56. A
+history written before this change still replays: its cascade's first
+STALE record carries the invalidation and supplies its own premise.
+
+**AUD-045.** `entry_from_record` checked a record's keys and not what
+they held. A write whose text was a number loaded, and then every later
+write by any author raised AttributeError. Every field of an entry
+record is now held to its type when it is read. A status record's memory
+id and a moved source are checked before either is used as a key, since
+a list there raised a raw TypeError. The independent reader restates the
+checks, and notes a status of the wrong type, where it raised TypeError
+although it is to note what it cannot read and never raise.
+
+**AUD-046, found while fixing AUD-044.** On the code as committed, the
+second reader read past the new `memory.invalidate` record without a
+note. The action registry separates another subsystem's action, which a
+reducer skips, from one no module writes, which it refuses. The
+authority store refuses such an action and `reconstruct()` notes it.
+The memory store returned False for any action not its own, known or
+not, and `reconstruct_subsystems` had no branch for one. Reproduced at
+0afa231 with a `memory.rewrite` record: the memory store loads it and the
+subsystem reader notes nothing. `memory_trust.assess`, which asks those
+two, would call that memory consistently reconstructed. Now the store
+refuses it and the reader notes it. The other subsystem reducers were
+not probed in this pass.
+
+**Two tests that moved with the rules.** `tests/test_agent_second_reader.py`
+advanced its logs with `filler.tick`, an action no module writes, chosen
+so that no `_sub_*` reducer would handle it. Since AUD-046 the second
+reader notes such an action, so two anti-vacuity tests found an anomaly.
+The filler is now a note in its own author's name, a record every reader
+holds valid and that touches no job. And mutation T9, the cascade's
+check under the writer lock for an entry withdrawn meanwhile, survived
+its spec: `test_a_cascade_skips_an_entry_withdrawn_meanwhile` retracts
+the entry before the invalidation, which the invalidation record's own
+append now folds, so the cascade's first check skips it and the lock's
+is never reached. The check still matters for a retraction that lands
+after the invalidation record. A new test,
+`test_a_cascade_skips_an_entry_withdrawn_during_it`, puts it there, and
+the old one stays.
+
+**Tests.** Each new test, and each new row of the both-readers tables,
+fails on the code as committed. The two premise rows and the compatibility
+test pass there too, as controls.
+
+**Mutations.** Sixteen new in `agent_memory_context` (Y23 to Y38) and
+eleven in `memory_trust` (MT18 to MT28), each meant for a named test.
+Every existing anchor in the changed files still matches once.
+
+Every spec with a mutation in a function the change touches, or a
+suite holding a test or reading a file it changes, ran on this tree.
+The other specs that mutate `reconstruct.py` do so elsewhere in it,
+and their anchors were checked to match once:
+
+| Spec | Killed |
+|---|---|
+| agent_incremental | 27 of 27 |
+| agent_memory_context | 78 of 78 |
+| agent_second_reader | 112 of 112 |
+| agent_snapshot_coherence | 20 of 20 |
+| agent_toctou | 9 of 9 |
+| authority_inventory | 14 of 14 |
+| ci_authority | 18 of 18 |
+| governed_history | 13 of 13 |
+| history_time | 21 of 21 |
+| identity_inventory | 13 of 13 |
+| memory_trust | 28 of 28 |
+| mutation_shards | 12 of 12 |
+| repo_contract | 18 of 18 |
+| role_authority | 44 of 44 |
+| second_reader_audit_actions | 27 of 27 |
+| t2_closure | 41 of 41 |
+| workflow_generic | 4 of 4 |
+
+17 specs and 499 mutations, all killed and every source restored.
+Each spec ran first on this change applied to the tree before
+D-2026-194. Those runs found two faults in the change's own tests and
+specs: T9's survivor, described above, and Y31, whose replacement was
+empty, which the harness refuses; it now assigns None. All seventeen
+then ran again whole on this change applied to the commit that holds
+D-2026-194, and those runs are the ones counted. Ten ran before that
+tree's derived files were regenerated and seven after:
+`workflow_generic` refused its baseline on the first, whose corpus
+allowlist did not yet describe the changed documents. A restart of
+the container stopped four runs. The harness's `--recover` restored
+the one file each of four worktrees had left mutated, from snapshots
+that were the files byte for byte, and each stopped spec ran again
+from its start. The stopped runs' verdicts are not counted.

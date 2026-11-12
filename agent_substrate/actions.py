@@ -71,6 +71,8 @@ OWNERS: dict = {
     # agent_substrate.memory
     "memory.write": "memory",
     "memory.status": "memory",
+    # AUD-044: a source invalidated, whether or not anything rests on it yet
+    "memory.invalidate": "memory",
     # agent_substrate.agents
     "agent.register": "agents",
     "agent.retire": "agents",

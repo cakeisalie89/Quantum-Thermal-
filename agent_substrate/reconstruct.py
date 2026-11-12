@@ -1816,6 +1816,10 @@ class SubsystemReconstruction:
     capabilities: dict = field(default_factory=dict)
     agents: dict = field(default_factory=dict)
     memory: dict = field(default_factory=dict)
+    #: Sources the log has invalidated (AUD-043, AUD-044): what makes a
+    #: STALE move by anybody other than the author a premise rather than
+    #: a withdrawal.
+    memory_invalidated: set = field(default_factory=set)
     net_grants: dict = field(default_factory=dict)
     secret_grants: dict = field(default_factory=dict)
     contexts: dict = field(default_factory=dict)
@@ -2086,6 +2090,8 @@ def reconstruct_subsystems(log: EventLog, *,
             _sub_memory_write(ev, p, out)
         elif a == "memory.status":
             _sub_memory_status(ev, p, out)
+        elif a == "memory.invalidate":
+            _sub_memory_invalidate(ev, p, out)
         elif a == "network.service":
             _sub_service(ev, p, out)
         elif a == "network.request":
@@ -2140,6 +2146,11 @@ def reconstruct_subsystems(log: EventLog, *,
                     "result_bundle", cur["result_bundle"])
         elif a.startswith("research."):
             _sub_research(ev, p, out)
+        elif actions.owner(a) is None:
+            # AUD-046: noted, as reconstruct() notes it, not skipped.
+            _note(out, ev, f"unknown action {a!r}; not applied. Nothing in "
+                           "this package writes it, so this reconstruction "
+                           "is missing whatever it recorded")
         out.last_seen[(a, ev.target)] = ev.seq
         prev = (ev.seq, ev.hash)
     return out
@@ -3421,13 +3432,84 @@ def _sub_memory_write(ev, p: dict, out) -> None:
         _note(out, ev, f"memory {mid!r} names author {entry.get('author')!r} "
                        f"but was appended by {ev.actor!r}")
         return
-    status = entry.get("status") or "ACTIVE"
+    status = entry.get("status", "ACTIVE")
+    if not isinstance(status, (str, type(None))):
+        # AUD-045: a list here raised a raw TypeError, unhashable, from a
+        # reader that notes what it cannot read and never raises.
+        _note(out, ev, f"memory {mid!r} is written with a status that is "
+                       f"{type(status).__name__}, not a status")
+        return
     if status not in _MEMORY_EDGES:
         _note(out, ev, f"memory {mid!r} is written with unknown status "
                        f"{status!r}")
         return
+    # AUD-043. A status is derived from events, never asserted: an entry is
+    # written ACTIVE and names no replacement of itself.
+    if status != "ACTIVE" or entry.get("superseded_by") is not None:
+        _note(out, ev, f"memory {mid!r} is written as {status}, superseded "
+                       f"by {entry.get('superseded_by')!r}; an entry is "
+                       "written ACTIVE")
+        return
+    # AUD-045. A record the store cannot use is refused when it is read:
+    # each field holds what an entry holds.
+    why = _memory_field_types(entry)
+    if why:
+        _note(out, ev, f"memory {mid!r}: {why}")
+        return
+    rests_on = list(entry.get("derived_from") or ()) + list(
+        entry.get("summarizes") or ())
+    status = "STALE" if any(
+        s in out.memory_invalidated for s in entry.get("derived_from") or ()
+    ) else status
     out.memory[mid] = {"memory_id": mid, "author": ev.actor,
-                       "status": status, "written_seq": ev.seq}
+                       "status": status, "written_seq": ev.seq,
+                       "rests_on": rests_on}
+
+
+def _memory_field_types(entry: dict) -> str:
+    """Why an entry record's fields do not hold what an entry holds, or ''.
+    Restated from the memory store's own check, not imported (AUD-045)."""
+    for name in ("text", "author", "confidence", "status_reason"):
+        if name in entry and not isinstance(entry[name], str):
+            return f"its {name} is {type(entry[name]).__name__}, not str"
+    for name in ("derived_from", "summarizes"):
+        v = entry.get(name, [])
+        if not isinstance(v, (list, tuple)) or not all(
+                isinstance(x, str) for x in v):
+            return f"its {name} is not a list of str"
+    for name in ("created_seq", "updated_seq"):
+        if name in entry and (isinstance(entry[name], bool)
+                              or not isinstance(entry[name], int)):
+            return f"its {name} is {type(entry[name]).__name__}, not int"
+    return ""
+
+
+def _memory_rests_on_invalidated(out, cur: dict, also=None) -> bool:
+    """Whether a memory derives from an invalidated source, directly or
+    through the entries it summarizes or derives from (AUD-043)."""
+    seen: set = set()
+    frontier = [cur]
+    while frontier:
+        e = frontier.pop()
+        if e["memory_id"] in seen:
+            continue
+        seen.add(e["memory_id"])
+        for ref in e.get("rests_on", ()):
+            if ref in out.memory_invalidated or ref == also:
+                return True
+            if ref in out.memory:
+                frontier.append(out.memory[ref])
+    return False
+
+
+def _sub_memory_invalidate(ev, p: dict, out) -> None:
+    """AUD-044: a source invalidated, whether or not anything rests on it."""
+    src, reason = p.get("source"), p.get("reason", "")
+    if not isinstance(src, str) or not src or not isinstance(reason, str):
+        _note(out, ev, f"memory.invalidate names source {src!r} with reason "
+                       f"{reason!r}; not applied")
+        return
+    out.memory_invalidated.add(src)
 
 
 #: Where a memory's status may move, and which moves are its author's alone.
@@ -3445,11 +3527,20 @@ _MEMORY_AUTHORS_OWN = frozenset({"RETRACTED", "SUPERSEDED"})
 
 def _sub_memory_status(ev, p: dict, out) -> None:
     mid = p.get("memory_id")
+    if not isinstance(mid, str):
+        # AUD-045: a list here raised a raw TypeError, unhashable.
+        _note(out, ev, f"status change for unknown memory {mid!r}")
+        return
     cur = out.memory.get(mid)
     if cur is None:
         _note(out, ev, f"status change for unknown memory {mid!r}")
         return
     new = p.get("status")
+    if not isinstance(new, (str, type(None))):
+        # AUD-045, as in the write above.
+        _note(out, ev, f"memory {mid!r} is moved to a status that is "
+                       f"{type(new).__name__}, not a status")
+        return
     if cur["status"] == "RETRACTED" and new != "RETRACTED":
         # A withdrawn note that can be un-withdrawn is a note whose author
         # never really withdrew it.
@@ -3472,6 +3563,32 @@ def _sub_memory_status(ev, p: dict, out) -> None:
                        f"written by {cur['author']!r}, and withdrawing or "
                        "replacing a statement is its author's alone")
         return
+    if not isinstance(p.get("reason", ""), str):
+        _note(out, ev, f"the move of memory {mid!r} gives a reason that is "
+                       "not a str")
+        return
+    # AUD-043. Only its author's SUPERSEDED move names what replaces an
+    # entry, and an entry goes STALE only on a source it rests on having
+    # been invalidated. Restated from the memory store's rules.
+    sup = p.get("superseded_by")
+    if sup is not None and (new != "SUPERSEDED" or not isinstance(sup, str)
+                            or sup not in out.memory):
+        _note(out, ev, f"the move of memory {mid!r} to {new} names {sup!r} "
+                       "as its replacement; only its author's SUPERSEDED "
+                       "move names one, and one this log holds")
+        return
+    src = p.get("invalidated_source")
+    if src and (new != "STALE" or not isinstance(src, str)):
+        _note(out, ev, f"the move of memory {mid!r} to {new} carries "
+                       f"invalidated source {src!r}; only a STALE move does")
+        return
+    if new == "STALE" and not _memory_rests_on_invalidated(
+            out, cur, also=src or None):
+        _note(out, ev, f"memory {mid!r} is moved to STALE by {ev.actor!r}, "
+                       "and nothing it rests on has been invalidated")
+        return
+    if src:
+        out.memory_invalidated.add(src)
     cur["status"] = new
 
 

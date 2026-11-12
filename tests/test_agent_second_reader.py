@@ -544,16 +544,24 @@ def test_a_refused_call_does_not_count_against_the_budget(gov):
 # and it accepted all of them until these tests were written.
 # --------------------------------------------------------------------------
 
-def _lapse(gov, n=6):
-    """Push the log past any live lease without touching the job.
+def _pad(gov, tag: str) -> None:
+    """One record that every reader holds valid and that touches no job: a
+    note in its own author's name.
 
-    The filler action is deliberately one no ``_sub_*`` reducer handles.
-    Advancing the log with a real subsystem record would manufacture
-    findings of its own and make the anti-vacuity checks below unreadable.
-    """
+    The filler used to be an action no module writes, chosen so that no
+    ``_sub_*`` reducer would handle it. Since AUD-046 the second reader
+    notes such an action as a finding, as reconstruct() always did, so the
+    filler is now a real record that manufactures no findings of its own,
+    which is what keeps the anti-vacuity checks below readable."""
+    gov.log.append(actor="filler", action="memory.write", target=tag,
+                   payload={"entry": {"memory_id": tag, "text": "filler",
+                                      "author": "filler"}})
+
+
+def _lapse(gov, n=6):
+    """Push the log past any live lease without touching the job."""
     for i in range(n):
-        gov.log.append(actor="filler", action="filler.tick",
-                       target=f"filler-{i}", payload={})
+        _pad(gov, f"filler-{i}")
 
 
 def _job(recon, jid="j-lease"):
@@ -765,8 +773,7 @@ def test_a_report_at_the_LAST_legal_position_is_not_flagged(gov):
     # Advance to exactly the last position a report may be DECIDED from, so
     # the record itself lands at end + 1.
     while s.at_seq() < end:
-        gov.log.append(actor="filler", action="filler.tick",
-                       target="pad", payload={})
+        _pad(gov, f"pad-{s.at_seq()}")
         s.catch_up()
     s.report(job_id="j-lease", worker="w1")
 

@@ -763,3 +763,226 @@ def test_a_refused_supersession_LEAVES_THE_LOG_LOADABLE(mem):
         "carries an event its own reducer will refuse on every future load")
     reloaded = MemoryStore(mem.log, evidence=mem.evidence).load()
     assert reloaded.get("m1").status is MemoryStatus.ACTIVE
+
+
+# ==========================================================================
+# THE STATUS RULES ON REPLAY, AND THE RECORDS THEY READ (AUD-043 to AUD-045)
+#
+# Replay checked a move's edge and, for the two withdrawals, its author. A
+# STALE move is open to everybody, so that invalidating a source cascades
+# over entries with many authors, and replay never asked for its premise or
+# kept it from naming a replacement (AUD-043). An invalidation nothing rested
+# on yet reached no record at all (AUD-044). And a record's keys were
+# checked, not what they held (AUD-045).
+# ==========================================================================
+def _stale_by_mallory(mem, **extra):
+    _two(mem)
+    payload = {"memory_id": "m1", "status": "STALE", "reason": "outdated"}
+    payload.update(extra)
+    mem.log.append(actor="mallory", action=ACT_MEMORY_STATUS, target="m1",
+                   payload=payload)
+
+
+def test_replay_refuses_a_stale_move_that_points_readers_elsewhere(mem):
+    """AUD-043, as reproduced: mallory moves alice's note to STALE and names
+    her own as its replacement. It was projected, and readers of alice's
+    note were pointed at mallory's."""
+    _stale_by_mallory(mem, superseded_by="m2")
+    with pytest.raises(MemoryError_, match="only its author's SUPERSEDED"):
+        MemoryStore(mem.log, evidence=mem.evidence).load()
+
+
+def test_replay_refuses_a_stale_move_with_no_invalidated_source(mem):
+    """AUD-043: STALE says a premise stopped holding, so it needs one."""
+    _stale_by_mallory(mem)
+    with pytest.raises(MemoryError_, match="nothing it rests on"):
+        MemoryStore(mem.log, evidence=mem.evidence).load()
+
+
+def test_a_stale_move_on_an_invalidated_premise_still_replays(mem):
+    """Anti-vacuity: the cascade's own move, by somebody other than the
+    author, still stands when its premise does."""
+    dg = mem.evidence.put(b"a measurement later withdrawn")
+    _remember(mem, "m1", author="alice", derived_from=(dg,))
+    mem.log.append(actor="system", action="memory.invalidate", target=dg,
+                   payload={"source": dg, "reason": "rerun differed"})
+    mem.log.append(actor="bob", action=ACT_MEMORY_STATUS, target="m1",
+                   payload={"memory_id": "m1", "status": "STALE",
+                            "reason": "its source was withdrawn"})
+    reloaded = MemoryStore(mem.log, evidence=mem.evidence).load()
+    assert reloaded.get("m1").status is MemoryStatus.STALE
+
+
+def test_a_summary_of_an_entry_on_an_invalidated_source_rests_on_it(mem):
+    """The premise reaches as far as the cascade does: a summary of an entry
+    derived from the source rests on the source."""
+    dg = mem.evidence.put(b"a measurement later withdrawn")
+    _remember(mem, "m1", author="alice", derived_from=(dg,))
+    mem.summarize(memory_id="s1", text="summary of the coupling note",
+                  author="carol", summarizes=("m1",))
+    mem.log.append(actor="system", action="memory.invalidate", target=dg,
+                   payload={"source": dg, "reason": "rerun differed"})
+    mem.log.append(actor="bob", action=ACT_MEMORY_STATUS, target="s1",
+                   payload={"memory_id": "s1", "status": "STALE",
+                            "reason": "it summarizes a withdrawn note"})
+    reloaded = MemoryStore(mem.log, evidence=mem.evidence).load()
+    assert reloaded.get("s1").status is MemoryStatus.STALE
+
+
+@pytest.mark.parametrize("payload,why", [
+    ({"status": "RETRACTED", "superseded_by": "m2"}, "only its author's"),
+    ({"status": "SUPERSEDED", "superseded_by": "ghost"}, "does not hold"),
+    ({"status": "RETRACTED", "invalidated_source": "x" * 64},
+     "only a STALE move"),
+    ({"status": "RETRACTED", "reason": 5}, "not str"),
+])
+def test_a_move_carrying_what_another_move_carries_is_refused(mem, payload,
+                                                              why):
+    """AUD-043: each field belongs to one kind of move, the author's own
+    here, so that no record can carry it past the rule that move answers
+    to."""
+    _remember(mem, "m1", author="alice")
+    _remember(mem, "m2", author="alice", text="a later coupling note")
+    rec = {"memory_id": "m1", "reason": "r"}
+    rec.update(payload)
+    mem.log.append(actor="alice", action=ACT_MEMORY_STATUS, target="m1",
+                   payload=rec)
+    with pytest.raises(MemoryError_, match=why):
+        MemoryStore(mem.log, evidence=mem.evidence).load()
+
+
+@pytest.mark.parametrize("over", [{"status": "RETRACTED"},
+                                  {"status": "STALE"},
+                                  {"superseded_by": "m1"}])
+def test_a_write_that_asserts_a_status_is_refused(mem, over):
+    """AUD-043: a status is derived from events, never asserted. An entry
+    written as anything but ACTIVE, or naming its own replacement, is a
+    status move that no rule was asked about."""
+    _remember(mem, "m1", author="alice")
+    rec = MemoryEntry(memory_id="m9", text="t", author="mallory").to_record()
+    rec.update(over)
+    mem.log.append(actor="mallory", action=ACT_MEMORY_WRITE, target="m9",
+                   payload={"entry": rec})
+    with pytest.raises(MemoryError_, match="written ACTIVE"):
+        MemoryStore(mem.log, evidence=mem.evidence).load()
+
+
+def test_the_write_path_refuses_the_move_replay_refuses(mem):
+    """AUD-043: _set_status decides by replay's rules, so it may not write a
+    record its own replay refuses -- and the refusal costs the log
+    nothing."""
+    _two(mem)
+    with pytest.raises(MemoryError_, match="only its author's SUPERSEDED"):
+        mem._set_status("m1", MemoryStatus.STALE, actor="mallory",
+                        reason="outdated", superseded_by="m2")
+    with pytest.raises(MemoryError_, match="nothing it rests on"):
+        mem._set_status("m1", MemoryStatus.STALE, actor="mallory",
+                        reason="outdated")
+    assert [ev.action for ev in mem.log.read()] == [ACT_MEMORY_WRITE] * 2
+    assert mem.get("m1").status is MemoryStatus.ACTIVE
+
+
+def test_an_invalidation_nothing_rests_on_yet_is_a_fact_of_the_log(mem):
+    """AUD-044, as reproduced: an invalidation over nothing wrote no record,
+    so after a reload an entry citing the source was born ACTIVE."""
+    dg = mem.evidence.put(b"a source withdrawn before anything cited it")
+    assert mem.invalidate_source(dg, actor="system", reason="withdrawn") == ()
+    assert [ev.action for ev in mem.log.read()] == ["memory.invalidate"]
+
+    reloaded = MemoryStore(mem.log, evidence=mem.evidence).load()
+    late = _remember(reloaded, "late", derived_from=(dg,))
+    assert late.status is MemoryStatus.STALE
+
+
+def test_another_process_learns_of_the_invalidation(tmp_path):
+    """AUD-044: a store loaded before the invalidation folds it before it
+    decides a write, and so the write is born STALE there too."""
+    ev = EvidenceStore(tmp_path / "evidence")
+    log_path = tmp_path / "log.jsonl"
+    a = MemoryStore(EventLog(log_path), evidence=ev).load()
+    b = MemoryStore(EventLog(log_path), evidence=ev).load()
+    dg = ev.put(b"a source withdrawn before anything cited it")
+    a.invalidate_source(dg, actor="system", reason="withdrawn")
+    late = b.remember(memory_id="late", text="a note on the withdrawn source",
+                      author="agent-2", derived_from=(dg,))
+    assert late.status is MemoryStatus.STALE
+
+
+@pytest.mark.parametrize("payload", [{"source": ["x"], "reason": "r"},
+                                     {"source": "", "reason": "r"},
+                                     {"source": "x" * 64, "reason": 5}])
+def test_a_malformed_invalidation_is_refused_not_raised(mem, payload):
+    mem.log.append(actor="system", action="memory.invalidate", target="t",
+                   payload=payload)
+    with pytest.raises(MemoryError_, match="cannot read"):
+        MemoryStore(mem.log, evidence=mem.evidence).load()
+
+
+@pytest.mark.parametrize("field,value", [
+    ("text", 123), ("confidence", 0.9), ("status_reason", 7),
+    ("derived_from", "abc"), ("derived_from", [["nested"]]),
+    ("summarizes", "m1"), ("created_seq", "early"), ("updated_seq", True),
+    ("memory_id", ""),
+])
+def test_a_memory_record_is_refused_when_a_field_holds_the_wrong_type(
+        mem, field, value):
+    """AUD-045, as reproduced for text: a write whose text was a number
+    loaded, and then live_bytes() and every later remember(), by any author,
+    raised AttributeError. Each field is held to its type when read, so the
+    refusal names the field instead."""
+    rec = MemoryEntry(memory_id="m9", text="t", author="mallory").to_record()
+    rec[field] = value
+    with pytest.raises(MemoryError_):
+        entry_from_record(rec)
+    mem.log.append(actor="mallory", action=ACT_MEMORY_WRITE, target="m9",
+                   payload={"entry": rec})
+    with pytest.raises(MemoryError_):
+        MemoryStore(mem.log, evidence=mem.evidence).load()
+
+
+def test_a_status_record_naming_no_memory_id_is_refused_not_raised(mem):
+    """AUD-045: a list as the memory id raised a raw TypeError."""
+    _remember(mem, "m1")
+    mem.log.append(actor="agent-1", action=ACT_MEMORY_STATUS, target="m1",
+                   payload={"memory_id": ["m1"], "status": "RETRACTED"})
+    with pytest.raises(MemoryError_, match="unknown memory"):
+        MemoryStore(mem.log, evidence=mem.evidence).load()
+
+
+def test_a_history_written_before_the_invalidation_record_still_replays(mem):
+    """Compatibility: before AUD-044 an invalidation travelled on its
+    cascade's first STALE record as invalidated_source, with no record of
+    its own. That record supplies its own premise, and the source it
+    carries is invalidated for what follows."""
+    dg = mem.evidence.put(b"a measurement later withdrawn")
+    _remember(mem, "m1", author="alice", derived_from=(dg,))
+    mem.log.append(actor="system", action=ACT_MEMORY_STATUS, target="m1",
+                   payload={"memory_id": "m1", "status": "STALE",
+                            "reason": "derived from a withdrawn source",
+                            "invalidated_source": dg})
+    reloaded = MemoryStore(mem.log, evidence=mem.evidence).load()
+    assert reloaded.get("m1").status is MemoryStatus.STALE
+    assert _remember(reloaded, "late", derived_from=(dg,)).status \
+        is MemoryStatus.STALE
+
+
+def test_an_invalidation_is_recorded_once(mem):
+    """AUD-044: invalidating a source the log already holds invalidated
+    adds no record, so that settling an invalidation twice changes
+    nothing; the second call's cascade still moves what is current."""
+    dg = mem.evidence.put(b"a source withdrawn twice")
+    mem.invalidate_source(dg, actor="system", reason="withdrawn")
+    head = mem.log.path.read_bytes()
+    assert mem.invalidate_source(dg, actor="system", reason="again") == ()
+    assert mem.log.path.read_bytes() == head
+    assert [ev.action for ev in mem.log.read()] == ["memory.invalidate"]
+
+
+def test_an_action_no_module_writes_is_refused(mem):
+    """AUD-046: another subsystem's action is skipped, and one nothing in
+    the package writes is refused, as the authority store refuses it."""
+    _remember(mem, "m1")
+    mem.log.append(actor="mallory", action="memory.rewrite", target="m1",
+                   payload={"memory_id": "m1", "text": "changed"})
+    with pytest.raises(MemoryError_, match="unknown action 'memory.rewrite'"):
+        MemoryStore(mem.log, evidence=mem.evidence).load()

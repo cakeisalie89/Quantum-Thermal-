@@ -123,6 +123,83 @@
       "find": "            cur = self._entries.get(mid)\n            if cur is None:",
       "replace": "            cur = self._entries[mid]\n            if cur is None:",
       "rationale": "a status change for an unknown memory escapes load() as a raw KeyError"
+    },
+    {
+      "name": "MT18_any_status_is_written_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if status != \"ACTIVE\" or entry.get(\"superseded_by\") is not None:\n",
+      "replace": "    if False:\n",
+      "rationale": "AUD-043: the second reader projects a write born RETRACTED that the store refuses"
+    },
+    {
+      "name": "MT19_any_field_type_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    why = _memory_field_types(entry)\n    if why:\n",
+      "replace": "    why = _memory_field_types(entry)\n    if False:\n",
+      "rationale": "AUD-045: the second reader projects a write whose text is a number"
+    },
+    {
+      "name": "MT20_any_move_names_a_replacement_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if sup is not None and (new != \"SUPERSEDED\" or not isinstance(sup, str)\n                            or sup not in out.memory):\n",
+      "replace": "    if False:\n",
+      "rationale": "AUD-043: the second reader takes a STALE move from anybody that names a replacement"
+    },
+    {
+      "name": "MT21_a_stale_move_needs_no_premise_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if new == \"STALE\" and not _memory_rests_on_invalidated(\n",
+      "replace": "    if False and not _memory_rests_on_invalidated(\n",
+      "rationale": "AUD-043: the second reader takes a STALE move with nothing invalidated behind it"
+    },
+    {
+      "name": "MT22_the_second_reader_ignores_an_invalidation",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    out.memory_invalidated.add(src)\n\n\n#: Where a memory's status may move",
+      "replace": "    pass\n\n\n#: Where a memory's status may move",
+      "rationale": "AUD-044: the second reader holds an entry ACTIVE that the store holds STALE"
+    },
+    {
+      "name": "MT23_a_malformed_invalidation_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not isinstance(src, str) or not src or not isinstance(reason, str):\n        _note(out, ev, f\"memory.invalidate names",
+      "replace": "    if False:\n        _note(out, ev, f\"memory.invalidate names",
+      "rationale": "AUD-044: the second reader takes an invalidation naming a list"
+    },
+    {
+      "name": "MT24_any_memory_id_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not isinstance(mid, str):\n        # AUD-045: a list here raised a raw TypeError, unhashable.\n        _note(out, ev, f\"status change for unknown memory {mid!r}\")\n",
+      "replace": "    if False:\n        # AUD-045: a list here raised a raw TypeError, unhashable.\n        _note(out, ev, f\"status change for unknown memory {mid!r}\")\n",
+      "rationale": "AUD-045: a list as the memory id escapes the second reader as a raw TypeError"
+    },
+    {
+      "name": "MT25_born_stale_is_not_restated_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    status = \"STALE\" if any(\n",
+      "replace": "    status = status if any(\n",
+      "rationale": "AUD-044: an entry written after its source was invalidated is ACTIVE for the second reader, STALE for the store"
+    },
+    {
+      "name": "MT26_the_second_reader_skips_an_unknown_action",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        elif actions.owner(a) is None:\n            # AUD-046: noted",
+      "replace": "        elif False:\n            # AUD-046: noted",
+      "rationale": "AUD-046: the subsystems' second reader skips an action no module writes, without a note"
+    },
+    {
+      "name": "MT27_a_write_s_status_of_any_type_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not isinstance(status, (str, type(None))):\n        # AUD-045: a list here",
+      "replace": "    if False:\n        # AUD-045: a list here",
+      "rationale": "AUD-045: a write whose status is a list raises TypeError in the second reader"
+    },
+    {
+      "name": "MT28_a_move_s_status_of_any_type_for_the_second_reader",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not isinstance(new, (str, type(None))):\n        # AUD-045, as in the write above.",
+      "replace": "    if False:\n        # AUD-045, as in the write above.",
+      "rationale": "AUD-045: a move whose status is a list raises TypeError in the second reader"
     }
   ]
 }

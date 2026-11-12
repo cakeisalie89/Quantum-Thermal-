@@ -201,6 +201,36 @@ def test_a_cascade_skips_an_entry_withdrawn_meanwhile(tmp_path):
         "n").status is MemoryStatus.RETRACTED
 
 
+def test_a_cascade_skips_an_entry_withdrawn_during_it(tmp_path, monkeypatch):
+    """D-2026-147, after AUD-044. The invalidation is now recorded before its
+    cascade, and that append folds whatever was written before it, so a
+    retraction made beforehand (the test above) is seen by the cascade's own
+    currency check. One that lands after the invalidation record, and before
+    the cascade reaches its entry, is what the check under the writer lock
+    is for: the entry is skipped, not moved RETRACTED -> STALE."""
+    p = tmp_path / "log.jsonl"
+    MemoryStore(EventLog(p)).load().remember(
+        memory_id="n", text="from a source", author="w1",
+        derived_from=("src",))
+    a = MemoryStore(EventLog(p)).load()
+    b = MemoryStore(EventLog(p)).load()
+    real = b._append_decided
+    landed: list = []
+
+    def interleaved(decide):
+        ev = real(decide)
+        if not landed:                    # just after the invalidation record
+            landed.append(ev.action)
+            a.retract("n", actor="w1", reason="withdrawn meanwhile")
+        return ev
+
+    monkeypatch.setattr(b, "_append_decided", interleaved)
+    assert b.invalidate_source("src", actor="auditor", reason="changed") == ()
+    assert landed == ["memory.invalidate"]
+    assert MemoryStore(EventLog(p)).load().get(
+        "n").status is MemoryStatus.RETRACTED
+
+
 # ---- a real race, across processes -------------------------------------------
 
 def _answer_after_barrier(path: str, who: str, barrier, out) -> None:

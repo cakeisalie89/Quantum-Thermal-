@@ -439,6 +439,118 @@
       "find": "            if entry is None or entry.status in NOT_CURRENT:",
       "replace": "            if entry is None or entry.status in NOT_CURRENT or \"certain\" in entry.confidence:",
       "rationale": "a memory its author was sure of stays current after its source is withdrawn, so confidence overrides the system's own invalidation"
+    },
+    {
+      "name": "Y23_a_record_s_fields_are_not_type_checked",
+      "path": "agent_substrate/memory.py",
+      "find": "    _check_record_types(rec)\n    try:\n",
+      "replace": "    try:\n",
+      "rationale": "AUD-045: a write whose text is a number loads, and every later write raises AttributeError"
+    },
+    {
+      "name": "Y24_a_write_may_assert_its_own_status",
+      "path": "agent_substrate/memory.py",
+      "find": "            if (entry.status is not MemoryStatus.ACTIVE\n                    or entry.superseded_by is not None):\n",
+      "replace": "            if False:\n",
+      "rationale": "AUD-043: a write born RETRACTED, STALE or superseded is a status move no rule was asked about"
+    },
+    {
+      "name": "Y25_any_move_may_name_a_replacement",
+      "path": "agent_substrate/memory.py",
+      "find": "            if dst is not MemoryStatus.SUPERSEDED:\n                return (f\"a move of",
+      "replace": "            if False:\n                return (f\"a move of",
+      "rationale": "AUD-043: a STALE move from anybody points readers of the author's note at a note of the mover's"
+    },
+    {
+      "name": "Y26_a_replacement_need_not_exist",
+      "path": "agent_substrate/memory.py",
+      "find": "            if not isinstance(sup, str) or sup not in self._entries:\n",
+      "replace": "            if not isinstance(sup, str):\n",
+      "rationale": "AUD-043: a supersession names an entry the store does not hold"
+    },
+    {
+      "name": "Y27_any_move_may_carry_an_invalidated_source",
+      "path": "agent_substrate/memory.py",
+      "find": "            if dst is not MemoryStatus.STALE:\n                return (f\"a move of {cur.memory_id!r} to {dst.value} carries \"",
+      "replace": "            if False:\n                return (f\"a move of {cur.memory_id!r} to {dst.value} carries \"",
+      "rationale": "AUD-043: a withdrawal carries an invalidation past the rule only a STALE move answers to"
+    },
+    {
+      "name": "Y28_a_stale_move_needs_no_premise",
+      "path": "agent_substrate/memory.py",
+      "find": "        if dst is MemoryStatus.STALE and not self._rests_on_invalidated(\n",
+      "replace": "        if False and not self._rests_on_invalidated(\n",
+      "rationale": "AUD-043: anybody moves anybody's note to STALE with nothing invalidated behind it"
+    },
+    {
+      "name": "Y29_the_premise_stops_at_the_first_entry",
+      "path": "agent_substrate/memory.py",
+      "find": "                if up is not None:\n                    frontier.append(up)\n",
+      "replace": "                if False:\n                    frontier.append(up)\n",
+      "rationale": "AUD-043: a summary of an entry on an invalidated source is refused the cascade's own STALE move"
+    },
+    {
+      "name": "Y30_a_cascade_record_is_not_its_own_premise",
+      "path": "agent_substrate/memory.py",
+      "find": "                if ref in self._invalidated or ref == also:\n",
+      "replace": "                if ref in self._invalidated:\n",
+      "rationale": "compatibility: a history written before AUD-044, whose first STALE record carries the invalidation, no longer loads"
+    },
+    {
+      "name": "Y31_the_write_path_writes_what_replay_refuses",
+      "path": "agent_substrate/memory.py",
+      "find": "            why = self._move_refusal(cur, status, payload)\n            if why is not None:\n                raise MemoryError_(why)\n",
+      "replace": "            why = None\n",
+      "rationale": "AUD-043: _set_status appends a record its own replay refuses, and the log is unloadable after"
+    },
+    {
+      "name": "Y32_replay_takes_any_move_the_edge_allows",
+      "path": "agent_substrate/memory.py",
+      "find": "            why = self._move_refusal(cur, dst, p)\n",
+      "replace": "            why = None\n",
+      "rationale": "AUD-043: replay checks the edge and the author and nothing else"
+    },
+    {
+      "name": "Y33_an_invalidation_is_not_recorded",
+      "path": "agent_substrate/memory.py",
+      "find": "        try:\n            self._append_decided(decide)\n        except _AlreadyInvalidated:\n            pass\n        moved: list = []\n",
+      "replace": "        self._invalidated.add(source)\n        moved: list = []\n",
+      "rationale": "AUD-044: an invalidation reaches this process's set and no other reader's"
+    },
+    {
+      "name": "Y34_replay_forgets_a_recorded_invalidation",
+      "path": "agent_substrate/memory.py",
+      "find": "            self._invalidated.add(src)\n        else:\n            if actions.owner(ev.action) is None:\n",
+      "replace": "            pass\n        else:\n            if actions.owner(ev.action) is None:\n",
+      "rationale": "AUD-044: after a reload an entry citing an invalidated source is born ACTIVE"
+    },
+    {
+      "name": "Y35_a_malformed_invalidation_is_projected",
+      "path": "agent_substrate/memory.py",
+      "find": "            if not isinstance(src, str) or not src \\\n                    or not isinstance(reason, str):\n                raise MemoryError_(\n                    f\"seq {ev.seq}: an invalidation",
+      "replace": "            if False:\n                raise MemoryError_(\n                    f\"seq {ev.seq}: an invalidation",
+      "rationale": "AUD-044: an invalidation naming a list raises TypeError, unhashable, or invalidates the empty string"
+    },
+    {
+      "name": "Y36_a_status_record_may_name_any_memory_id",
+      "path": "agent_substrate/memory.py",
+      "find": "            if not isinstance(mid, str):\n                # AUD-045: a list here raised a raw TypeError, unhashable.\n                raise MemoryError_(\n                    f\"seq {ev.seq}",
+      "replace": "            if False:\n                # AUD-045: a list here raised a raw TypeError, unhashable.\n                raise MemoryError_(\n                    f\"seq {ev.seq}",
+      "rationale": "AUD-045: a list as the memory id escapes load() as a raw TypeError"
+    },
+    {
+      "name": "Y37_an_invalidation_is_recorded_again",
+      "path": "agent_substrate/memory.py",
+      "find": "            if source in self._invalidated:\n                raise _AlreadyInvalidated()\n",
+      "replace": "            if False:\n                raise _AlreadyInvalidated()\n",
+      "rationale": "AUD-044: every invalidation of a source already invalidated appends a record, and settling twice changes the log"
+    },
+    {
+      "name": "Y38_an_unknown_action_is_skipped",
+      "path": "agent_substrate/memory.py",
+      "find": "            if actions.owner(ev.action) is None:\n                # AUD-046.",
+      "replace": "            if False:\n                # AUD-046.",
+      "rationale": "AUD-046: an action no module writes is skipped by the memory store, where the authority store refuses it"
     }
   ]
 }

@@ -58,7 +58,7 @@ git.
 
 ## 2. Findings register
 
-Forty-five findings. Severity follows the register's scale: P0 is an
+Forty-six findings. Severity follows the register's scale: P0 is an
 authority bypass or integrity failure, P3 is information for the owner.
 
 | ID | Sev | Established | Resolution | In brief |
@@ -105,9 +105,10 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-040 | P3 | REPRODUCED | OPEN | a bundle read back from its record may carry a parameter no float holds, and four independent checks raise on it instead of returning NOT_RUN |
 | AUD-041 | P2 | REPRODUCED | FIXED | a credential written as a key in a proposal's free-form map was sealed, received and logged, where the same text as a value is refused |
 | AUD-042 | P3 | REPRODUCED | FIXED | a secret grant record whose purposes held a list or mixed a number with strings raised TypeError instead of being refused |
-| AUD-043 | P2 | REPRODUCED | OPEN | memory replay lets anyone mark another's note STALE and point readers at a note of their own |
-| AUD-044 | P3 | REPRODUCED | OPEN | an invalidated source nothing yet derives from is remembered only by the process that invalidated it |
-| AUD-045 | P3 | REPRODUCED | OPEN | a memory write whose text is not a string is projected, and then every write to the store raises |
+| AUD-043 | P2 | REPRODUCED | FIXED | memory replay let anyone mark another's note STALE and point readers at a note of their own |
+| AUD-044 | P3 | REPRODUCED | FIXED | an invalidated source nothing yet derived from was remembered only by the process that invalidated it |
+| AUD-045 | P3 | REPRODUCED | FIXED | a memory write whose text was not a string was projected, and then every write to the store raised |
+| AUD-046 | P3 | REPRODUCED | FIXED | the memory store and the subsystems' second reader read past an action no module writes |
 
 **How far each is established.** REPRODUCED means shown failing by a
 test or a script; CONFIRMED means established by reading, not executed.
@@ -414,27 +415,23 @@ The audit restored none of it.
 | AUD-040 | Not yet held: the slab and RC checks raise on a bundle parameter no float holds | — (open; the bundle's boundary is in the NF-1T closure) |
 | AUD-041 | A proposal carrying what looks like a credential, as a key or as a value, is refused and never stored | `proposals._walk` |
 | AUD-042 | A grant record a reader cannot read is refused with SecretError, whatever its purposes hold | `secrets.grant` |
-| AUD-043 | Not yet held: only an entry's author withdraws or replaces it, and an entry goes STALE only on an invalidated source | — (open; both readers) |
-| AUD-044 | Not yet held: an invalidation is a fact of the log for every reader | — (open) |
-| AUD-045 | Not yet held: a memory record the store cannot use is refused when read | — (open; both readers) |
+| AUD-043 | Only an entry's author withdraws or replaces it, and an entry goes STALE only on an invalidated source | `MemoryStore._move_refusal`, on replay and on the write path; the second reader's `_sub_memory_status` |
+| AUD-044 | An invalidation is a fact of the log for every reader | `memory.invalidate`, written by `invalidate_source`; both readers fold it |
+| AUD-045 | A memory record the store cannot use is refused when read | `memory._check_record_types`; the second reader's `_memory_field_types` |
+| AUD-046 | An action no module writes is refused by the memory store and noted by the second reader | `MemoryStore.apply`; `reconstruct_subsystems` |
 
 ## 7. Owner decisions
 
 **Fixable here, and fixed.** AUD-002 to AUD-009, AUD-011 to
-AUD-018, AUD-020 to AUD-034, AUD-036 to AUD-039, AUD-041 and
-AUD-042. For AUD-011 and AUD-017 the mechanism is what was
+AUD-018, AUD-020 to AUD-034, AUD-036 to AUD-039, and AUD-041 to
+AUD-046. For AUD-011 and AUD-017 the mechanism is what was
 fixed, and it holds where a reader is given a registry. Provisioning the
 production registry is the owner action below.
 
-**Fixable here, and open.** Four. AUD-040: the independent checks
+**Fixable here, and open.** One. AUD-040: the independent checks
 raise on a bundle parameter no float holds, where each could return
 NOT_RUN; the bundle's own boundary, `scientific/result.py`, is in the
-NF-1T closure, as AUD-035's sites are. AUD-043 (P2), AUD-044 and
-AUD-045: memory replay takes a STALE move with no invalidated source
-behind it and a `superseded_by` from anyone, an invalidation nothing yet
-rests on is not logged, and a write whose text is not a string makes
-every later write raise. Each memory fix is both readers' together.
-AUD-035 is the owner's: fixing it moves the development dataset's generator
+NF-1T closure, as AUD-035's sites are. AUD-035 is the owner's: fixing it moves the development dataset's generator
 identity, which the NF-1T re-identification record holds. AUD-034,
 found while fixing AUD-025, is fixed at its four other sites: the older
 number tests that read a JSON number refuse an integer too large for a

@@ -276,26 +276,38 @@ def test_an_unknown_memory_holds_nothing(tmp_path):
 
 # ---- the two readers, held together -------------------------------------------
 
-#: (status before, move, by whom, refused?). Refused or not is the PRIMARY's
-#: rule; the second reader must say the same.
+#: (status before, move, by whom, premise?, refused?). Refused or not is
+#: the PRIMARY's rule; the second reader must say the same. With a premise,
+#: the entry derives from a source the log has invalidated: what a STALE
+#: move needs (AUD-043). Every row whose setup moves the entry to STALE has
+#: one, so that a refusal is the move's and not the setup's.
 MOVES = [
-    (None, "RETRACTED", "alice", False),
-    (None, "STALE", "bob", False),           # a premise gone: anybody's
-    ("STALE", "STALE", "alice", False),
-    (None, "RETRACTED", "bob", True),        # M-2
-    (None, "SUPERSEDED", "bob", True),       # M-2
-    ("STALE", "ACTIVE", "alice", True),      # M-2
-    (None, "BOGUS", "alice", True),          # M-2
-    ("RETRACTED", "ACTIVE", "alice", True),
-    ("RETRACTED", "STALE", "alice", True),
+    (None, "RETRACTED", "alice", False, False),
+    (None, "STALE", "bob", True, False),     # a premise gone: anybody's
+    (None, "STALE", "bob", False, True),     # AUD-043: no premise
+    (None, "STALE", "alice", False, True),   # AUD-043: nor for the author
+    ("STALE", "STALE", "alice", True, False),
+    (None, "RETRACTED", "bob", False, True),        # M-2
+    (None, "SUPERSEDED", "bob", False, True),       # M-2
+    ("STALE", "ACTIVE", "alice", True, True),       # M-2
+    (None, "BOGUS", "alice", False, True),          # M-2
+    ("RETRACTED", "ACTIVE", "alice", False, True),
+    ("RETRACTED", "STALE", "alice", True, True),
 ]
 
 
-@pytest.mark.parametrize("before,move,actor,refused", MOVES)
+@pytest.mark.parametrize("before,move,actor,premise,refused", MOVES)
 def test_both_readers_refuse_the_same_status_moves(tmp_path, before, move,
-                                                   actor, refused):
+                                                   actor, premise, refused):
     log, ev, mem = _world(tmp_path)
-    mem.remember(memory_id="m1", text=TEXT, author="alice")
+    if premise:
+        dg = ev.put(b"a measurement later withdrawn")
+        mem.remember(memory_id="m1", text=TEXT, author="alice",
+                     derived_from=(dg,))
+        log.append(actor="system", action="memory.invalidate", target=dg,
+                   payload={"source": dg, "reason": "withdrawn"})
+    else:
+        mem.remember(memory_id="m1", text=TEXT, author="alice")
     if before:
         log.append(actor="alice", action=ACT_MEMORY_STATUS, target="m1",
                    payload={"memory_id": "m1", "status": before,
@@ -312,6 +324,79 @@ def test_both_readers_refuse_the_same_status_moves(tmp_path, before, move,
     assert bool(second.anomalies) is refused, second.anomalies
     t = assess(log, "m1", evidence=ev)
     assert (t.answers["consistently_reconstructed"].value == NO) is refused
+
+
+def _premised(tmp_path):
+    """A world where alice's m1 rests on a source the log has invalidated,
+    and mallory has a note of her own."""
+    log, ev, mem = _world(tmp_path)
+    dg = ev.put(b"a measurement later withdrawn")
+    mem.remember(memory_id="m1", text=TEXT, author="alice",
+                 derived_from=(dg,))
+    mem.remember(memory_id="m2", text="mallory's own note", author="mallory")
+    log.append(actor="system", action="memory.invalidate", target=dg,
+               payload={"source": dg, "reason": "withdrawn"})
+    return log, ev, dg
+
+
+#: (actor, action, payload, refused?). Records past the status table: what
+#: each reader does with a record's fields (AUD-043 to AUD-045).
+RECORDS = [
+    ("mallory", ACT_MEMORY_STATUS,                       # AUD-043
+     {"memory_id": "m1", "status": "STALE", "reason": "r",
+      "superseded_by": "m2"}, True),
+    ("bob", ACT_MEMORY_STATUS,                           # its control
+     {"memory_id": "m1", "status": "STALE", "reason": "r"}, False),
+    ("mallory", ACT_MEMORY_WRITE,                        # AUD-043
+     {"entry": {"memory_id": "m9", "text": "t", "author": "mallory",
+                "status": "RETRACTED"}}, True),
+    ("mallory", ACT_MEMORY_WRITE,                        # AUD-045
+     {"entry": {"memory_id": "m9", "text": 123, "author": "mallory"}}, True),
+    ("mallory", ACT_MEMORY_WRITE,                        # its control
+     {"entry": {"memory_id": "m9", "text": "t", "author": "mallory"}}, False),
+    ("alice", ACT_MEMORY_STATUS,                         # AUD-045
+     {"memory_id": ["m1"], "status": "RETRACTED"}, True),
+    ("system", "memory.invalidate",                      # AUD-044
+     {"source": ["x"], "reason": "r"}, True),
+    ("system", "memory.invalidate",                      # its control
+     {"source": "x" * 64, "reason": "r"}, False),
+    ("mallory", "memory.rewrite",                        # AUD-046
+     {"memory_id": "m1", "text": "changed"}, True),
+    ("mallory", ACT_MEMORY_WRITE,                        # AUD-045
+     {"entry": {"memory_id": "m9", "text": "t", "author": "mallory",
+                "status": ["ACTIVE"]}}, True),
+    ("alice", ACT_MEMORY_STATUS,                         # AUD-045
+     {"memory_id": "m1", "status": ["RETRACTED"]}, True),
+]
+
+
+@pytest.mark.parametrize("actor,action,payload,refused", RECORDS)
+def test_both_readers_refuse_the_same_records(tmp_path, actor, action,
+                                              payload, refused):
+    log, ev, _ = _premised(tmp_path)
+    log.append(actor=actor, action=action, target="t", payload=payload)
+    try:
+        MemoryStore(EventLog(log.path), evidence=ev).load()
+        primary_refused = False
+    except MemoryError_:
+        primary_refused = True
+    second = rc.reconstruct_subsystems(log)
+    assert primary_refused is refused
+    assert bool(second.anomalies) is refused, second.anomalies
+
+
+def test_both_readers_hold_an_entry_written_after_its_source_went_stale(
+        tmp_path):
+    """AUD-044: the invalidation is a fact for every reader, so an entry
+    citing the source is born STALE in both."""
+    log, ev, dg = _premised(tmp_path)
+    mem = MemoryStore(EventLog(log.path), evidence=ev).load()
+    mem.remember(memory_id="late", text="a note on the withdrawn source",
+                 author="carol", derived_from=(dg,))
+    second = rc.reconstruct_subsystems(log)
+    assert mem.get("late").status.value == "STALE"
+    assert second.memory["late"]["status"] == "STALE"
+    assert second.anomalies == []
 
 
 @pytest.mark.parametrize("payload,why", [

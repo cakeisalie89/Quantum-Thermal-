@@ -66,6 +66,7 @@ import re
 from dataclasses import dataclass, replace
 from enum import Enum
 
+from . import actions
 from .canonical import digest, is_digest
 from .events import (
     EventLogError, projection_fold, projection_load, require_extends,
@@ -73,6 +74,9 @@ from .events import (
 
 ACT_MEMORY_WRITE = "memory.write"
 ACT_MEMORY_STATUS = "memory.status"
+#: A source withdrawn, recorded whether or not anything rests on it yet
+#: (AUD-044).
+ACT_MEMORY_INVALIDATE = "memory.invalidate"
 
 #: An entry longer than this is refused. Memory that nobody can read is not
 #: memory, and an unbounded entry is a replay-time memory bomb.
@@ -208,6 +212,7 @@ def entry_from_record(rec: dict) -> MemoryEntry:
             f"memory record carries unknown fields {sorted(unknown)}; "
             "refusing to project an entry this version does not fully "
             "understand")
+    _check_record_types(rec)
     try:
         return MemoryEntry(
             memory_id=rec["memory_id"], text=rec["text"],
@@ -222,6 +227,48 @@ def entry_from_record(rec: dict) -> MemoryEntry:
             summarizes=tuple(rec.get("summarizes", ())))
     except (KeyError, TypeError, ValueError) as exc:
         raise MemoryError_(f"memory record is malformed: {exc}") from exc
+
+
+#: The type each field of a memory record holds, when it is present.
+_STR_FIELDS = ("memory_id", "text", "author", "confidence", "status_reason")
+_LIST_FIELDS = ("derived_from", "summarizes")
+_SEQ_FIELDS = ("created_seq", "updated_seq")
+
+
+def _check_record_types(rec: dict) -> None:
+    """Refuse a record whose fields do not hold what an entry holds.
+
+    AUD-045. The keys were checked and their values were not. A write whose
+    text was a number loaded, and then live_bytes() raised AttributeError on
+    it, and so did every later remember() by any author, since each checks
+    the store's total first. A record the store cannot use is refused when
+    it is read, not when something later trips over it."""
+    for name in _STR_FIELDS:
+        if name in rec and not isinstance(rec[name], str):
+            raise MemoryError_(
+                f"memory record's {name} is {type(rec[name]).__name__}, not "
+                "str; a record the store cannot use is refused when it is "
+                "read")
+    if rec.get("memory_id") == "":
+        raise MemoryError_("memory record's memory_id is empty")
+    for name in _LIST_FIELDS:
+        if name in rec and (
+                not isinstance(rec[name], (list, tuple))
+                or not all(isinstance(x, str) for x in rec[name])):
+            raise MemoryError_(
+                f"memory record's {name} is not a list of str; a record the "
+                "store cannot use is refused when it is read")
+    sup = rec.get("superseded_by")
+    if sup is not None and not isinstance(sup, str):
+        raise MemoryError_(
+            f"memory record's superseded_by is {type(sup).__name__}, not a "
+            "memory id")
+    for name in _SEQ_FIELDS:
+        if name in rec and (isinstance(rec[name], bool)
+                            or not isinstance(rec[name], int)):
+            raise MemoryError_(
+                f"memory record's {name} is {type(rec[name]).__name__}, not "
+                "int")
 
 
 class MemoryStore:
@@ -317,6 +364,17 @@ class MemoryStore:
                     "no entry; a record this store cannot read is refused "
                     "rather than projected")
             entry = entry_from_record(p["entry"])
+            if (entry.status is not MemoryStatus.ACTIVE
+                    or entry.superseded_by is not None):
+                # AUD-043. A status is derived from events and never
+                # asserted; the write path writes every entry ACTIVE, and
+                # a write that named its own status or its own replacement
+                # would be a status move no rule was asked about.
+                raise MemoryError_(
+                    f"seq {ev.seq}: memory {entry.memory_id!r} is written "
+                    f"as {entry.status.value}, superseded by "
+                    f"{entry.superseded_by!r}; an entry is written ACTIVE "
+                    "and its status moves only by a status record")
             if entry.memory_id in self._entries:
                 raise MemoryError_(
                     f"seq {ev.seq}: memory {entry.memory_id!r} written twice; "
@@ -351,6 +409,11 @@ class MemoryStore:
             # record and escapes every caller that handles a refusal
             # (D-2026-158, as the "carries no entry" case above).
             mid = p.get("memory_id")
+            if not isinstance(mid, str):
+                # AUD-045: a list here raised a raw TypeError, unhashable.
+                raise MemoryError_(
+                    f"seq {ev.seq}: a status change from {ev.actor!r} for "
+                    f"unknown memory {mid!r} is refused rather than projected")
             cur = self._entries.get(mid)
             if cur is None:
                 raise MemoryError_(
@@ -400,6 +463,9 @@ class MemoryStore:
                 raise MemoryError_(
                     f"seq {ev.seq}: {mid!r} was written by {cur.author!r}; "
                     f"{ev.actor!r} may not {verb} it.")
+            why = self._move_refusal(cur, dst, p)
+            if why is not None:
+                raise MemoryError_(f"seq {ev.seq}: {why}")
             self._entries[mid] = replace(
                 cur, status=dst,
                 status_reason=p.get("reason", ""),
@@ -407,9 +473,90 @@ class MemoryStore:
                 updated_seq=ev.seq)
             if p.get("invalidated_source"):
                 self._invalidated.add(p["invalidated_source"])
+        elif ev.action == ACT_MEMORY_INVALIDATE:
+            # AUD-044. An invalidation is a fact of the log for every
+            # reader, whether or not anything rests on the source yet.
+            src, reason = p.get("source"), p.get("reason", "")
+            if not isinstance(src, str) or not src \
+                    or not isinstance(reason, str):
+                raise MemoryError_(
+                    f"seq {ev.seq}: an invalidation from {ev.actor!r} names "
+                    f"source {src!r} with reason {reason!r}; a record this "
+                    "store cannot read is refused rather than projected")
+            self._invalidated.add(src)
         else:
+            if actions.owner(ev.action) is None:
+                # AUD-046. Another subsystem's action is skipped; one that
+                # no module writes is refused, as the authority store
+                # refuses it: a newer schema, or no business in the log.
+                raise MemoryError_(
+                    f"seq {ev.seq}: unknown action {ev.action!r}; no module "
+                    "in this package writes it, so this store would be "
+                    "missing whatever it recorded")
             return False
         return True
+
+    def _move_refusal(self, cur: MemoryEntry, dst: MemoryStatus,
+                      p: dict) -> str | None:
+        """Why a status move the edge and authorship rules allow is still
+        refused, or None. Replay and the write path ask the same question.
+        """
+        reason = p.get("reason", "")
+        if not isinstance(reason, str):
+            return (f"the move of {cur.memory_id!r} gives a reason that is "
+                    f"{type(reason).__name__}, not str")
+        sup = p.get("superseded_by")
+        if sup is not None:
+            # AUD-043. Only its author's SUPERSEDED move names what replaces
+            # an entry. Taken from any status record, a STALE move from
+            # anybody pointed every reader of the author's note at a note of
+            # the mover's own: the substitution the authorship rule stops.
+            if dst is not MemoryStatus.SUPERSEDED:
+                return (f"a move of {cur.memory_id!r} to {dst.value} names "
+                        f"{sup!r} as its replacement; only its author's "
+                        "SUPERSEDED move does that")
+            if not isinstance(sup, str) or sup not in self._entries:
+                return (f"{cur.memory_id!r} is superseded by {sup!r}, which "
+                        "this store does not hold")
+        src = p.get("invalidated_source")
+        if src:
+            if not isinstance(src, str):
+                return (f"the move of {cur.memory_id!r} names an invalidated "
+                        f"source that is {type(src).__name__}, not str")
+            if dst is not MemoryStatus.STALE:
+                return (f"a move of {cur.memory_id!r} to {dst.value} carries "
+                        "an invalidated source; only a STALE move does")
+        if dst is MemoryStatus.STALE and not self._rests_on_invalidated(
+                cur, also=src or None):
+            # AUD-043. STALE is open to every actor, so that invalidating a
+            # source cascades over entries with many authors. What makes
+            # that safe is its premise, and replay never checked it.
+            return (f"{cur.memory_id!r} is moved to STALE, and nothing it "
+                    "rests on has been invalidated; an entry goes stale "
+                    "because a source it derives from was withdrawn, not "
+                    "because somebody says so")
+        return None
+
+    def _rests_on_invalidated(self, entry: MemoryEntry, *,
+                              also: str | None = None) -> bool:
+        """True when ``entry`` derives from an invalidated source, directly
+        or through the entries it summarizes or derives from: the reach of
+        invalidate_source's cascade. ``also`` is a source the record being
+        decided invalidates itself."""
+        seen: set = set()
+        frontier = [entry]
+        while frontier:
+            e = frontier.pop()
+            if e.memory_id in seen:
+                continue
+            seen.add(e.memory_id)
+            for ref in e.derived_from + e.summarizes:
+                if ref in self._invalidated or ref == also:
+                    return True
+                up = self._entries.get(ref)
+                if up is not None:
+                    frontier.append(up)
+        return False
 
     # ---- reads ---------------------------------------------------------
     def live_bytes(self) -> int:
@@ -598,6 +745,9 @@ class MemoryStore:
                     f"{actor!r} may not withdraw it")
             if superseded_by is not None:
                 self.get(superseded_by)
+            why = self._move_refusal(cur, status, payload)
+            if why is not None:
+                raise MemoryError_(why)
             return {"actor": actor, "action": ACT_MEMORY_STATUS,
                     "target": memory_id, "payload": payload}
 
@@ -643,10 +793,33 @@ class MemoryStore:
         Transitive: a summary of a stale entry is stale, because compressing
         something that stopped being true does not make it true again.
         """
+        if not isinstance(source, str) or not source \
+                or not isinstance(reason, str):
+            raise MemoryError_(
+                "an invalidation names a source and a reason, each a str")
+
+        # AUD-044. The invalidation is a record of its own, written before
+        # the cascade, whether or not anything rests on the source yet. It
+        # used to travel on the cascade's first STALE record only, and a
+        # cascade over nothing wrote none: the source reached this
+        # process's set and no other reader's, so after a reload an entry
+        # citing it was born ACTIVE. Recorded once: invalidating a source
+        # the log already holds invalidated adds nothing to it, so that
+        # settling an invalidation again changes nothing.
+        def decide():
+            if source in self._invalidated:
+                raise _AlreadyInvalidated()
+            return {"actor": actor, "action": ACT_MEMORY_INVALIDATE,
+                    "target": source,
+                    "payload": {"source": source, "reason": reason}}
+
+        try:
+            self._append_decided(decide)
+        except _AlreadyInvalidated:
+            pass
         moved: list = []
         seen: set = set()
         frontier = list(self.derived_from(source))
-        first = True
         while frontier:
             mid = frontier.pop()
             if mid in seen:
@@ -660,23 +833,21 @@ class MemoryStore:
                     mid, MemoryStatus.STALE, actor=actor,
                     reason=(f"derived from {source[:12]}, which was "
                             f"invalidated: {reason}"),
-                    invalidated_source=source if first else None,
                     only_if_current=True))
             except _NoLongerCurrent:
                 continue
-            first = False
             frontier.extend(
                 e.memory_id for e in self._entries.values()
                 if mid in e.summarizes or mid in e.derived_from)
-        if not moved:
-            # Record the invalidation anyway, so an entry written LATER that
-            # cites this source is born stale rather than briefly current.
-            self._invalidated.add(source)
         return tuple(moved)
 
 
 class _NoLongerCurrent(Exception):
     """A cascade found an entry no longer current under the lock."""
+
+
+class _AlreadyInvalidated(Exception):
+    """The log already holds the source invalidated; nothing to record."""
 
 
 # ---- the boundary, as a callable refusal --------------------------------

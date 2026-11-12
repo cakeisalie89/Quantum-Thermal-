@@ -1455,11 +1455,19 @@
    "reproduction": "At 0afa231: alice writes a note and mallory one of her own; mallory appends a memory.status record moving alice's note to STALE with superseded_by naming mallory's. A fresh load projects alice's note as STALE, superseded by mallory's, and drops it from current().",
    "observed": "Memory is not authority, and no authority decision reads it, but recall feeds the agent's context.",
    "expected": "Refused on replay: a STALE move whose entry rests on no invalidated source, and a superseded_by on anything but the author's SUPERSEDED move.",
-   "correction": "Not applied. The independent reader restates the memory rules and has to learn the same ones, so the change is both readers' together.",
-   "regression_tests": [],
-   "residual_risk": "Until it is fixed, a history may hold such a record, and every reader accepts it.",
+   "correction": "Replay and the write path ask one question of a status move beyond its edge and its author, MemoryStore._move_refusal: only the author's SUPERSEDED move names a replacement, and one the store holds; only a STALE move carries an invalidated source; and a STALE move needs its entry to rest on a source the log has invalidated, directly or through the entries it summarizes or derives from, which is as far as the cascade reaches. A write is ACTIVE when written and names no replacement, since a status is derived from events. The independent reader restates each rule and now holds what each entry rests on.",
+   "regression_tests": [
+    "tests/test_agent_memory.py::test_replay_refuses_a_stale_move_that_points_readers_elsewhere",
+    "tests/test_agent_memory.py::test_replay_refuses_a_stale_move_with_no_invalidated_source",
+    "tests/test_agent_memory.py::test_a_move_carrying_what_another_move_carries_is_refused",
+    "tests/test_agent_memory.py::test_a_write_that_asserts_a_status_is_refused",
+    "tests/test_agent_memory.py::test_the_write_path_refuses_the_move_replay_refuses",
+    "tests/test_memory_trust.py::test_both_readers_refuse_the_same_status_moves",
+    "tests/test_memory_trust.py::test_both_readers_refuse_the_same_records"
+   ],
+   "residual_risk": "Who may invalidate a source is not decided: any actor may, as before, and through it may move another's note to STALE. That is the cascade's design, a premise and not a withdrawal, and the premise is now in the log for every reader to check. The assurance graph reads what records say and applies none of these rules.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED"
   },
   {
    "id": "AUD-044",
@@ -1478,11 +1486,18 @@
    "reproduction": "At 0afa231: invalidate_source on a source nothing derives from moves nothing and leaves the log empty. In that process a new entry citing the source is born STALE; after a reload one is born ACTIVE.",
    "observed": "A note resting on a withdrawn source can be current, until something invalidates the source again.",
    "expected": "The invalidation recorded whether or not anything rested on the source yet.",
-   "correction": "Not applied. It needs a record of an invalidation alone, which both readers have to learn.",
-   "regression_tests": [],
-   "residual_risk": "As stated.",
+   "correction": "An invalidation is a record of its own, memory.invalidate, written by invalidate_source under the writer lock before its cascade, once per source, whether or not anything rests on the source yet. Once, because settle() invalidates its sources again and settling again must change nothing. Both readers and the action registry learn it, both inventories classify it, and the second reader's coverage label reads 56 of 56. An entry citing an invalidated source is born STALE for the independent reader too, which it was not. A history written before this change, whose cascade's first STALE record carries the invalidation, still replays.",
+   "regression_tests": [
+    "tests/test_agent_memory.py::test_an_invalidation_nothing_rests_on_yet_is_a_fact_of_the_log",
+    "tests/test_agent_memory.py::test_another_process_learns_of_the_invalidation",
+    "tests/test_agent_memory.py::test_an_invalidation_is_recorded_once",
+    "tests/test_agent_memory.py::test_a_malformed_invalidation_is_refused_not_raised",
+    "tests/test_agent_memory.py::test_a_history_written_before_the_invalidation_record_still_replays",
+    "tests/test_memory_trust.py::test_both_readers_hold_an_entry_written_after_its_source_went_stale"
+   ],
+   "residual_risk": "A cascade stopped part way leaves entries resting on the source current until something moves them, as before; settle() is what finishes one. The assurance graph counts memory.invalidate among the actions it does not read, and holds a note born STALE as ACTIVE, as before.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED"
   },
   {
    "id": "AUD-045",
@@ -1501,11 +1516,45 @@
    "reproduction": "At 0afa231: a memory.write by mallory with text 123 loads; live_bytes() and alice's remember() then raise AttributeError.",
    "observed": "Fail-closed, but one record makes the store unwritable for every author.",
    "expected": "MemoryError_ at load, naming the field.",
-   "correction": "Not applied; with AUD-043, a change to both readers.",
-   "regression_tests": [],
-   "residual_risk": "As stated.",
+   "correction": "entry_from_record holds every field of an entry record to its type when it is read (_check_record_types), and a status record's memory id and moved source are checked before either is used as a key, where a list raised a raw TypeError. The independent reader restates the checks, and notes a status of the wrong type, where it raised TypeError although it is to note what it cannot read and never raise. A record the store cannot use is refused at load, naming the field.",
+   "regression_tests": [
+    "tests/test_agent_memory.py::test_a_memory_record_is_refused_when_a_field_holds_the_wrong_type",
+    "tests/test_agent_memory.py::test_a_status_record_naming_no_memory_id_is_refused_not_raised",
+    "tests/test_memory_trust.py::test_both_readers_refuse_the_same_records"
+   ],
+   "residual_risk": "The write path's bounds on text, non-empty and the per-entry size, are not re-checked on replay. A record the store refuses still makes the store unloadable until the history is repaired: fail-closed, and now named.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-046",
+   "title": "The memory store and the subsystems' second reader read past an action no module writes",
+   "severity": "P3",
+   "subsystem": "the agent memory store and the independent subsystem reader",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "apply: an action not memory's returned False, known or not"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct_subsystems: no branch for an action no module writes"
+    }
+   ],
+   "behavior": "The action registry separates another subsystem's action, which a reducer skips, from one no module writes, which it refuses: a newer schema this build cannot read, or something with no business in the log. The authority store refuses such an action and reconstruct() notes it. The memory store returned False for any action not its own, known or not, and reconstruct_subsystems had no branch for one, so both read past it. memory_trust.assess, which asks those two, would call a memory consistently reconstructed on a history holding one.",
+   "invariant": "An action no module writes is refused by a primary reader and noted by the independent one, never skipped.",
+   "mechanism": "Neither consulted the registry for an action outside its own.",
+   "reproduction": "At 0afa231: a log holding a memory.write and then a memory.rewrite record, an action nothing writes. MemoryStore.load() loads it and reconstruct_subsystems() notes nothing; AuthorityStore.load() raises StoreError (unknown action) and reconstruct() notes it.",
+   "observed": "Found while fixing AUD-044: on the code as committed, the second reader read past the new memory.invalidate record without a note.",
+   "expected": "Refused by the store, noted by the second reader.",
+   "correction": "MemoryStore.apply raises MemoryError_ for an action the registry does not hold, and reconstruct_subsystems notes one as an anomaly, for every subsystem it reads.",
+   "regression_tests": [
+    "tests/test_agent_memory.py::test_an_action_no_module_writes_is_refused",
+    "tests/test_memory_trust.py::test_both_readers_refuse_the_same_records"
+   ],
+   "residual_risk": "The other subsystem reducers were not changed here. By reading, none of agents, capability, inference, netauth, policy, research, roles, scheduler and secrets consults the registry in its apply(); that is for a later pass to reproduce and decide.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

@@ -264,6 +264,21 @@
       "authority_note": "Binds a key to a task inside an owner's namespace. A forged bind makes a later submission resolve to somebody else's work."
     },
     {
+      "action": "memory.invalidate",
+      "module": "memory.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the actor is ev.actor; invalidating a source is open to every actor, as the cascade it starts is (AUD-044)"
+        }
+      ],
+      "note": "",
+      "authority_changing": false,
+      "authority_note": "Same as memory.status: it changes which notes a reader is handed as current, never what anything is permitted to do."
+    },
+    {
       "action": "memory.status",
       "module": "memory.py",
       "independent_reader": "YES",
