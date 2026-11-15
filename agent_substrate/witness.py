@@ -57,7 +57,8 @@ Given a log, cosignatures (from the log's holder or asked of each witness),
 and a :class:`TrustRoot`, the verifier:
 
 * ignores, and reports, a cosignature by a witness the trust root does not
-  name, one whose signature does not verify, or one for another log;
+  name, one whose signature does not verify, or one for another log, and
+  anything it is handed that is not a cosignature of this protocol;
 * reports TRUNCATED when the log ends before a cosigned position;
 * reports FORKED when the log's record at a cosigned position has another
   hash;
@@ -152,12 +153,32 @@ class Checkpoint:
         return cls(rec["origin"], rec["seq"], rec["head"])
 
 
+def _check_cosignature(c, kind: type) -> None:
+    """What a cosignature is, however it was built: a witness's id, whole
+    seconds, a signature as a string, and a checkpoint of its own protocol.
+
+    A verifier looks the id up in the trust root. One that was a list raised
+    ``TypeError`` there, out of a check whose answer to junk is a note, and
+    the record form read it without asking what it was (AUD-049)."""
+    if not isinstance(c.witness_id, str) or not _ID.match(c.witness_id):
+        raise WitnessError(f"witness id {c.witness_id!r} is not an id")
+    if isinstance(c.time, bool) or not isinstance(c.time, int):
+        raise WitnessError("a cosignature's time is whole seconds")
+    if not isinstance(c.signature, str):
+        raise WitnessError("a cosignature's signature is hex")
+    if not isinstance(c.checkpoint, kind):
+        raise WitnessError(f"a cosignature covers a {kind.__name__}")
+
+
 @dataclass(frozen=True)
 class Cosignature:
     witness_id: str
     time: int
     signature: str
     checkpoint: Checkpoint
+
+    def __post_init__(self):
+        _check_cosignature(self, Checkpoint)
 
     def message(self) -> bytes:
         return cosigned_message(self.checkpoint, self.time)
@@ -173,12 +194,7 @@ class Cosignature:
                 "witness_id", "time", "signature", "checkpoint"}:
             raise WitnessError("a cosignature is exactly witness_id, time, "
                                "signature, checkpoint")
-        t = rec["time"]
-        if isinstance(t, bool) or not isinstance(t, int):
-            raise WitnessError("a cosignature's time is whole seconds")
-        if not isinstance(rec["signature"], str):
-            raise WitnessError("a cosignature's signature is hex")
-        return cls(rec["witness_id"], t, rec["signature"],
+        return cls(rec["witness_id"], rec["time"], rec["signature"],
                    Checkpoint.from_record(rec["checkpoint"]))
 
 
@@ -223,7 +239,8 @@ class Witness:
     clock: Callable = time.time
 
     def __post_init__(self):
-        if not _ID.match(self.witness_id):
+        if not isinstance(self.witness_id, str) or \
+                not _ID.match(self.witness_id):
             raise WitnessError(f"witness id {self.witness_id!r} is not an id")
         self.state_dir = Path(self.state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -317,13 +334,22 @@ class Witness:
                                    f"({exc})") from None
             if ev.seq != want:
                 raise WitnessError(f"record {want}: numbered {ev.seq}")
-            if ev.recompute_hash() != ev.hash:
+            try:
+                hashed = ev.recompute_hash()
+            except (ValueError, RecursionError) as exc:
+                # a number no canonical form holds, or nesting past what the
+                # interpreter encodes: the encoder's error came out raw,
+                # where every other refusal is the witness's own (AUD-049)
+                raise WitnessError(f"record {want}: cannot be hashed "
+                                   f"({type(exc).__name__})") from None
+            if hashed != ev.hash:
                 raise WitnessError(f"record {want}: does not hash to "
                                    f"{str(ev.hash)[:12]}")
+            # str() below: a link that is not a string is still named
             if ev.prev_hash != prev:
                 raise Fork(f"{new.origin}: record {want} links to "
-                           f"{ev.prev_hash[:12]}, not to {prev[:12]}, the "
-                           f"head {self.witness_id} cosigned")
+                           f"{str(ev.prev_hash)[:12]}, not to {prev[:12]}, "
+                           f"the head {self.witness_id} cosigned")
             prev = ev.hash
         if prev != new.head:
             raise WitnessError(f"{new.origin}: the records end at "
@@ -416,6 +442,11 @@ def verify_witnessed(events, cosignatures, root: TrustRoot, *,
         return out
     best: dict = {}             # witness id -> (seq, time) of what counts
     for c in cosignatures:
+        if not isinstance(c, Cosignature):
+            # a record nobody parsed, a tree cosignature, anything else:
+            # each raised AttributeError here (AUD-049)
+            out.notes.append("not a head cosignature; not counted")
+            continue
         cp = c.checkpoint
         if c.witness_id not in root.witnesses:
             out.notes.append(f"{c.witness_id}: not a witness the trust root "
@@ -523,6 +554,9 @@ class TreeCosignature:
     time: int
     signature: str
     checkpoint: TreeCheckpoint
+
+    def __post_init__(self):
+        _check_cosignature(self, TreeCheckpoint)
 
     def message(self) -> bytes:
         return tree_cosigned_message(self.checkpoint, self.time)
@@ -635,7 +669,10 @@ class TreeWitness(Witness):
 def _tree_screen(c, root: TrustRoot, provider) -> str | None:
     """Why a tree cosignature counts for nothing, or None when it counts:
     a witness the trust root does not name, another log, a signature that
-    does not verify. Anybody can hand a verifier junk."""
+    does not verify. Anybody can hand a verifier junk, a head cosignature
+    included: it is signed, by this witness, over another message."""
+    if not isinstance(c, TreeCosignature):
+        return "not a tree cosignature"
     cp = c.checkpoint
     if c.witness_id not in root.witnesses:
         return f"{c.witness_id}: not a witness the trust root names"

@@ -1,6 +1,6 @@
 {
  "title": "A tree witness refuses what a head witness refuses, from a logarithmic proof",
- "note": "Phase C. Each mutation removes one rule of the tree checkpoints in agent_substrate/witness.py: rollback, a fork at the cosigned size, an extension whose consistency is not proven, recording before answering, provisioning at the first record's leaf and only once, refusing a lost state, TRUNCATED and FORKED by root, the screening of junk (another witness, another log, a bad signature), the quorum's reach, STALE, the trust root's log, the scheme kept apart from the head protocol's, and the checkpoint's shape. tests/test_witness_tree.py holds each.",
+ "note": "Phase C. Each mutation removes one rule of the tree checkpoints in agent_substrate/witness.py: rollback, a fork at the cosigned size, an extension whose consistency is not proven, recording before answering, provisioning at the first record's leaf and only once, refusing a lost state, TRUNCATED and FORKED by root, the screening of junk (another witness, another log, a bad signature), the quorum's reach, STALE, the trust root's log, the scheme kept apart from the head protocol's, and the checkpoint's shape. tests/test_witness_tree.py holds each. TW20 to TW22 (AUD-049): what is not a tree cosignature is a note, a head cosignature included, and a tree cosignature is held to its shape and to its own kind of checkpoint.",
  "suites": [
   "tests/test_witness_tree.py"
  ],
@@ -137,6 +137,27 @@
    "find": "        if not isinstance(rec, dict) or set(rec) != {\"origin\", \"size\",",
    "replace": "        if not isinstance(rec, dict) or False and set(rec) != {\"origin\", \"size\",",
    "rationale": "a tree checkpoint may carry fields its cosignature does not cover"
+  },
+  {
+   "name": "TW20_what_is_not_a_tree_cosignature_raises",
+   "path": "agent_substrate/witness.py",
+   "find": "    if not isinstance(c, TreeCosignature):\n        return \"not a tree cosignature\"\n",
+   "replace": "    if False:\n        return \"not a tree cosignature\"\n",
+   "rationale": "a head cosignature, a record nobody parsed or nothing at all in the list raises AttributeError out of the tree check (AUD-049)"
+  },
+  {
+   "name": "TW21_a_tree_cosignature_is_not_checked_when_built",
+   "path": "agent_substrate/witness.py",
+   "find": "        _check_cosignature(self, TreeCheckpoint)\n",
+   "replace": "        pass\n",
+   "rationale": "nothing holds a tree cosignature to its shape, and a list for its witness raises TypeError in the screen (AUD-049)"
+  },
+  {
+   "name": "TW22_a_tree_cosignature_covers_anything",
+   "path": "agent_substrate/witness.py",
+   "find": "    if not isinstance(c.checkpoint, kind):\n        raise WitnessError(f\"a cosignature covers a {kind.__name__}\")\n",
+   "replace": "    if False:\n        raise WitnessError(f\"a cosignature covers a {kind.__name__}\")\n",
+   "rationale": "a tree cosignature is built over a head checkpoint, or over a record nobody parsed (AUD-049)"
   }
  ]
 }

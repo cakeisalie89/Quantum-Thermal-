@@ -1,6 +1,6 @@
 {
   "title": "An authenticated history cannot be read around, and nothing unvetted signs for it",
-  "note": "D-2026-92. AP1-AP9: the signature-provider seam -- the reference implementation is an oracle and a test-identity signer, never a production provider by default or by label; a provider is judged on RFC 8032's vectors and on every refusal a conforming Ed25519 makes, a raising verifier included; production needs both a vetted provider and a provisioned registry. EP1-EP9: the history's security profile, enforced in the verified-read primitives every reader reads through -- no authenticator reads nothing of an AUTHENTICATED_REQUIRED history, a refused event ends the read and fails the report, a declaration is genesis-only and known, anchored catch-up is gated like a full read, and a pinned deployment refuses a downgrade. EP10-EP11: an authenticator asking only some actors -- or none -- reads nothing of a REQUIRED history (AUD-012). RC1-RC3: the independent reader restates the profile, and the scope rule, in its own code. AR1: the declaration is a registered action.",
+  "note": "D-2026-92. AP1-AP9: the signature-provider seam -- the reference implementation is an oracle and a test-identity signer, never a production provider by default or by label; a provider is judged on RFC 8032's vectors and on every refusal a conforming Ed25519 makes, a raising verifier included; production needs both a vetted provider and a provisioned registry. EP1-EP9: the history's security profile, enforced in the verified-read primitives every reader reads through -- no authenticator reads nothing of an AUTHENTICATED_REQUIRED history, a refused event ends the read and fails the report, a declaration is genesis-only and known, anchored catch-up is gated like a full read, and a pinned deployment refuses a downgrade. EP10-EP11: an authenticator asking only some actors -- or none -- reads nothing of a REQUIRED history (AUD-012). RC1-RC3: the independent reader restates the profile, and the scope rule, in its own code. EP12: a declared profile is a string before it is looked up, so one that is a list is a problem the log states and not an exception (AUD-048). AR1: the declaration is a registered action.",
   "suites": [
     "tests/test_authenticated_history.py",
     "tests/test_actor_authentication.py"
@@ -145,6 +145,13 @@
       "find": "        if required and nonempty and scope is not None:\n",
       "replace": "        if required and nonempty and scope:\n",
       "rationale": "require=frozenset() -- asking nobody -- reads as no scope, and a REQUIRED history is read with no event authenticated"
+    },
+    {
+      "name": "EP12_a_declared_profile_is_looked_up_before_it_is_a_string",
+      "path": "agent_substrate/events.py",
+      "find": "    if not isinstance(profile, str) or profile not in PROFILES:\n        return f\"unknown security profile {profile!r}\"\n",
+      "replace": "    if profile not in PROFILES:\n        return f\"unknown security profile {profile!r}\"\n",
+      "rationale": "a declaration whose profile is a list or a dictionary raises TypeError out of every read and every append of the log, where each states a problem (AUD-048)"
     },
     {
       "name": "RC1_the_independent_reader_does_not_restate_the_profile",

@@ -28,6 +28,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from agent_substrate import witness as W  # noqa: E402
+from agent_substrate.canonical import digest  # noqa: E402
 from agent_substrate.events import ChainState, EventLog  # noqa: E402
 
 NAME = "lab-log"
@@ -202,6 +203,22 @@ def test_a_witness_refuses_another_head_at_a_position_it_cosigned(w):
     assert again.checkpoint == cp
 
 
+def _nested(depth: int) -> dict:
+    """A payload nested ``depth`` deep: more than any interpreter encodes."""
+    out = cur = {}
+    for _ in range(depth):
+        cur["k"] = {}
+        cur = cur["k"]
+    return out
+
+
+def _rehashed(rec: dict) -> dict:
+    """``rec`` with its hash recomputed: a record that hashes, whatever a
+    field of it was changed to."""
+    body = {k: v for k, v in rec.items() if k != "hash"}
+    return dict(body, hash=digest(body))
+
+
 @pytest.mark.parametrize("damage, why", [
     (lambda p: p[:-1], "needs exactly"),
     (lambda p: p + p[-1:], "needs exactly"),
@@ -209,6 +226,16 @@ def test_a_witness_refuses_another_head_at_a_position_it_cosigned(w):
     (lambda p: [dict(p[0], seq=p[0]["seq"] + 1)] + p[1:], "numbered"),
     (lambda p: p[1:] + p[:1], "numbered"),
     (lambda p: [dict(p[0], extra=1)] + p[1:], "not a log record"),
+    # AUD-049: each of these raised an error that was not the witness's --
+    # the encoder's on a number no canonical form holds and on nesting past
+    # what the interpreter encodes, TypeError on a link that is no string
+    (lambda p: [dict(p[0], wall_time=float("nan"))] + p[1:],
+     "cannot be hashed"),
+    (lambda p: [dict(p[0], payload=_nested(100_000))] + p[1:],
+     "cannot be hashed"),
+    (lambda p: [_rehashed(dict(p[0], prev_hash=7))] + p[1:], "links to 7"),
+    (lambda p: [_rehashed(dict(p[0], prev_hash=None))] + p[1:],
+     "links to None"),
 ])
 def test_a_witness_refuses_records_that_do_not_extend_its_head(
         w, damage, why):
@@ -231,6 +258,52 @@ def test_a_witness_refuses_a_head_the_records_do_not_reach(w):
     with pytest.raises(W.WitnessError, match="end at"):
         w.witnesses["w1"].add_checkpoint(cp, W.proof_records(ev, 0,
                                                              ev[-1].seq))
+
+
+def test_a_checkpoint_at_the_witnessed_head_takes_no_records(w):
+    """Asked again for the head it cosigned, a witness signs it again, and
+    is shown nothing: records beside it prove nothing it would check."""
+    w.witness()
+    ev = w.events()
+    with pytest.raises(W.WitnessError, match="needs no records"):
+        w.witnesses["w1"].add_checkpoint(w.checkpoint_at(4),
+                                         W.proof_records(ev, 3, 4))
+
+
+def test_one_log_under_two_names_is_two_origins_to_a_witness(w):
+    """A witness keeps one file for each origin, named by the origin with
+    what a file name cannot hold replaced. Two names that differ only there
+    share the file, and neither is taken for the other."""
+    ev = w.events()
+    wit = W.Witness("w7", key("w7"), w.tmp / "witness" / "w7")
+    colon = W.Checkpoint(W.origin_of("lab:log", ev), 0, ev[0].hash)
+    under = W.Checkpoint(W.origin_of("lab_log", ev), 0, ev[0].hash)
+    assert colon.origin != under.origin
+    assert wit._path(colon.origin) == wit._path(under.origin)
+    wit.provision(colon)
+    with pytest.raises(W.WitnessError, match="already witnesses"):
+        wit.provision(under)
+    head = W.Checkpoint(under.origin, 4, ev[4].hash)
+    with pytest.raises(W.WitnessError, match="names another origin"):
+        wit.add_checkpoint(head, W.proof_records(ev, 0, 4))
+    # the name it was provisioned for still extends
+    assert wit.add_checkpoint(W.Checkpoint(colon.origin, 4, ev[4].hash),
+                              W.proof_records(ev, 0, 4)).checkpoint.seq == 4
+
+
+@pytest.mark.parametrize("name", ["", "lab log", "lab/log", "l" * 65, 7,
+                                  None, ["lab-log"]])
+def test_a_log_or_a_witness_is_named_by_an_id(w, tmp_path, name):
+    with pytest.raises(W.WitnessError, match="is not an id"):
+        W.origin_of(name, w.events())
+    with pytest.raises(W.WitnessError, match="is not an id"):
+        W.Witness(name, key("w1"), tmp_path / "nowhere")
+    assert not (tmp_path / "nowhere").exists(), "and it keeps no state"
+
+
+def test_an_empty_log_has_no_origin():
+    with pytest.raises(W.WitnessError, match="no origin"):
+        W.origin_of(NAME, [])
 
 
 def test_a_witness_that_lost_its_state_trusts_nothing_it_is_shown(w):
@@ -299,6 +372,110 @@ def test_junk_cosignatures_count_for_nothing(w, tmp_path):
     # junk beside a good cosignature changes nothing
     rep = w.verify(cosigs=[foreign, forged, moved, retimed, good])
     assert rep.ok and rep.witnessed_through == 4
+
+
+def test_what_is_not_a_head_cosignature_is_a_note(w, tmp_path):
+    """AUD-049. A verifier is handed a list by whoever holds the log. An
+    item of it that is not a head cosignature raised ``AttributeError``: a
+    record nobody parsed, nothing at all, and a TREE cosignature -- which
+    is genuine, signed by this very witness, over another message."""
+    good = w.witness()
+    ev = w.events()
+    tree_witness = W.TreeWitness("w1", key("w1"), tmp_path / "tree")
+    tree_witness.provision_tree(W.tree_checkpoint_of(NAME, ev[:1]))
+    tree = tree_witness.add_tree_checkpoint(
+        W.tree_checkpoint_of(NAME, ev), W.tree_proof(ev, 1, len(ev)))
+    junk = [tree, good.to_record(), None, 7, [good]]
+    rep = w.verify(cosigs=junk)
+    assert rep.witnessed_through == -1 and not rep.ok and rep.problems == []
+    assert rep.notes == ["not a head cosignature; not counted"] * len(junk)
+    # beside a good cosignature it changes nothing
+    rep = w.verify(cosigs=junk + [good])
+    assert rep.ok and rep.witnessed_through == 4
+    assert len(rep.notes) == len(junk)
+
+
+# ------------------------------------------------------- the record forms
+_ORIGIN = "lab-log/" + "a" * 64
+_CP = {"origin": _ORIGIN, "seq": 3, "head": "b" * 64}
+_COSIG = {"witness_id": "w1", "time": 1_800_000_000, "signature": "00" * 64,
+          "checkpoint": _CP}
+
+
+def test_a_cosignature_and_its_record_are_one_thing(w):
+    good = w.witness()
+    again = W.Cosignature.from_record(good.to_record())
+    assert again == good and again.checkpoint == good.checkpoint
+    assert w.verify(cosigs=[again]).ok, "what was parsed counts as it did"
+    assert W.Checkpoint.from_record(_CP).to_record() == _CP
+
+
+@pytest.mark.parametrize("rec, why", [
+    (dict(_COSIG, witness_id=["w1"]), "not an id"),
+    (dict(_COSIG, witness_id={"w1": 1}), "not an id"),
+    (dict(_COSIG, witness_id=7), "not an id"),
+    (dict(_COSIG, witness_id=None), "not an id"),
+    (dict(_COSIG, witness_id=""), "not an id"),
+    (dict(_COSIG, witness_id="w 1"), "not an id"),
+    (dict(_COSIG, witness_id="w" * 65), "not an id"),
+    (dict(_COSIG, time=True), "whole seconds"),
+    (dict(_COSIG, time=1.5), "whole seconds"),
+    (dict(_COSIG, time="1800000000"), "whole seconds"),
+    (dict(_COSIG, time=None), "whole seconds"),
+    (dict(_COSIG, signature=7), "is hex"),
+    (dict(_COSIG, signature=None), "is hex"),
+    (dict(_COSIG, signature=["00"]), "is hex"),
+    (dict(_COSIG, checkpoint=None), "exactly origin, seq, head"),
+    (dict(_COSIG, checkpoint=dict(_CP, extra=1)), "exactly origin, seq, head"),
+    (dict(_COSIG, checkpoint={"origin": _ORIGIN, "seq": 3}),
+     "exactly origin, seq, head"),
+    (dict(_COSIG, checkpoint=list(_CP)), "exactly origin, seq, head"),
+    (dict(_COSIG, extra=1), "exactly witness_id"),
+    ({k: v for k, v in _COSIG.items() if k != "time"}, "exactly witness_id"),
+    (list(_COSIG), "exactly witness_id"),
+    (None, "exactly witness_id"),
+])
+def test_a_record_that_is_not_a_cosignature_is_refused(rec, why):
+    """AUD-049. ``witness_id`` was read without asking what it was, and a
+    list went on to raise ``TypeError`` in the verifier. No test held the
+    record form at all: every rule here could be removed unnoticed."""
+    with pytest.raises(W.WitnessError, match=why):
+        W.Cosignature.from_record(rec)
+
+
+@pytest.mark.parametrize("change, why", [
+    ({"origin": "a\nb"}, "not one line"),
+    ({"origin": " "}, "not one line"),
+    ({"origin": 7}, "not one line"),
+    ({"seq": -1}, "not a position"),
+    ({"seq": True}, "not a position"),
+    ({"seq": 3.0}, "not a position"),
+    ({"seq": "3"}, "not a position"),
+    ({"head": "B" * 64}, "not a sha256 digest"),
+    ({"head": "b" * 63}, "not a sha256 digest"),
+    ({"head": 7}, "not a sha256 digest"),
+])
+def test_a_record_that_is_not_a_checkpoint_is_refused(change, why):
+    with pytest.raises(W.WitnessError, match=why):
+        W.Checkpoint.from_record(dict(_CP, **change))
+    with pytest.raises(W.WitnessError, match=why):
+        W.Cosignature.from_record(dict(_COSIG, checkpoint=dict(_CP,
+                                                               **change)))
+
+
+def test_a_cosignature_built_in_process_is_held_to_the_same_shape():
+    """The rules are the object's, not the record form's: whatever builds a
+    cosignature, a verifier is never handed a malformed one."""
+    cp = W.Checkpoint.from_record(_CP)
+    tree = W.TreeCheckpoint(_ORIGIN, 4, "c" * 64)
+    assert W.Cosignature("w1", 1, "00" * 64, cp).checkpoint is cp
+    for args, why in (((["w1"], 1, "00" * 64, cp), "not an id"),
+                      (("w1", True, "00" * 64, cp), "whole seconds"),
+                      (("w1", 1, b"\x00" * 64, cp), "is hex"),
+                      (("w1", 1, "00" * 64, tree), "covers a Checkpoint"),
+                      (("w1", 1, "00" * 64, _CP), "covers a Checkpoint")):
+        with pytest.raises(W.WitnessError, match=why):
+            W.Cosignature(*args)
 
 
 def test_an_authorized_witness_s_cosignature_of_another_log_counts_nothing(

@@ -1146,6 +1146,7 @@
      "tools/mutations/agent_recovery.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_substrate.json",
+     "tools/mutations/archive.json",
      "tools/mutations/authenticated_history.json",
      "tools/mutations/governed_history.json",
      "tools/mutations/history_time.json",

@@ -194,8 +194,8 @@
     },
     {
       "filename": "agent_substrate/archive.py",
-      "size_bytes": 16420,
-      "sha256": "48c1484b1cba2a2055384fa0c0b3b8b243fd6ccb2f13496b69c2297c224f05f0"
+      "size_bytes": 16452,
+      "sha256": "90ee4117b4fc8f1b692a04722dcc45e3e60536b5beb6c193e461ca89d02c7d47"
     },
     {
       "filename": "agent_substrate/assurance_graph.py",
@@ -244,8 +244,8 @@
     },
     {
       "filename": "agent_substrate/events.py",
-      "size_bytes": 90989,
-      "sha256": "2e23f56fea166dfa76b9e4e1edc25498ddbd94cc2596d50f86fb6e61c4e55438"
+      "size_bytes": 91224,
+      "sha256": "d10787725921abc2040e90c70494e8cbd8fa75c3bec2b4abbdee1e64bfd99cb5"
     },
     {
       "filename": "agent_substrate/evidence.py",
@@ -434,8 +434,8 @@
     },
     {
       "filename": "agent_substrate/witness.py",
-      "size_bytes": 30341,
-      "sha256": "d6625a4966c16b5c46c7f3a1147ae407d7350aa9d5a28bb11c0126a051598759"
+      "size_bytes": 32258,
+      "sha256": "dc1198725c7971084beacd3c76bb706551def37a4d244dd90cc97afd9517c152"
     },
     {
       "filename": "authorities.json",
@@ -574,18 +574,18 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 176733,
-      "sha256": "7784b5ebe1c350c6bc8d50f00881fe46c7239332b26d9463e77b73f21ecc655e"
+      "size_bytes": 183684,
+      "sha256": "d332b128b71e9a9218cbb90b4448bdaacbfc8109d15bdda8c3d5466c32495dab"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
-      "size_bytes": 39146,
-      "sha256": "7edb2e6f0ebce60867ab5ef92a16c4df3293ac0b1b0aa98a108c9676c4041728"
+      "size_bytes": 40155,
+      "sha256": "b96f964928ed3e8895b30dd3f4de2eb4646c0b7ab295b3bbd1861f8de6dfe0f8"
     },
     {
       "filename": "docs/audit/findings.json",
-      "size_bytes": 161480,
-      "sha256": "9995bdb8ebe43ce99d6c347f23bea97bd6ec338e8c061073bf8053671088d8ac"
+      "size_bytes": 173176,
+      "sha256": "151f0a7b7b0dc8cd9d66c54aa9866785f207448ae718c080b1cbf7828d87cbc8"
     },
     {
       "filename": "docs/audit/op_costs.json",
@@ -594,8 +594,8 @@
     },
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
-      "size_bytes": 537759,
-      "sha256": "dbd9906648014e5dfeefa389c3e1c235c4d53e0685009b777e734f24ceba1450"
+      "size_bytes": 538563,
+      "sha256": "f5e60e77f0d998a3f9a001225bd917326bc60fee3f5719507f1e1cfcecc12916"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -615,7 +615,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5788,
-      "sha256": "69bdbb42313409a64b0f7c258c14ca0f2ff411c7cd905a2215dba65fbed5af17"
+      "sha256": "808d5c826bb3477029b2300208f7bba53388efd9cdd7e8bb3984af36fd4001cd"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -874,8 +874,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 298747,
-      "sha256": "629bc2766e97f733085a759b7b74766bcc4342deff2d85e8f670ee369a7d5113"
+      "size_bytes": 298784,
+      "sha256": "0b39823ac37840211366ef231617327a04a4fd5a1b992e7a52d7d0afec8203e0"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -1674,8 +1674,8 @@
     },
     {
       "filename": "tests/test_archive.py",
-      "size_bytes": 21224,
-      "sha256": "ff48be8ed6be45e7c82ad2d7c209b49518ea02dcdab252b15123a68baf3d62a1"
+      "size_bytes": 23374,
+      "sha256": "cb5a0f3e7e0090e2c1dad26ca96ebc1a58e6ab7110b9805671f7fa0bd6e3c3cd"
     },
     {
       "filename": "tests/test_assurance_graph.py",
@@ -1699,8 +1699,8 @@
     },
     {
       "filename": "tests/test_authenticated_history.py",
-      "size_bytes": 30665,
-      "sha256": "3b83c423cdb9cbb4a641934cfbd8a9e95c53f33580ffcba44f0862e3368b72fb"
+      "size_bytes": 33007,
+      "sha256": "97871c3972978136a6a984f98d240c11bc4b026aac160dc92ccdd8b2f964cbb1"
     },
     {
       "filename": "tests/test_authority_inventory.py",
@@ -2344,8 +2344,8 @@
     },
     {
       "filename": "tests/test_witness.py",
-      "size_bytes": 14526,
-      "sha256": "c68172a56655f21dc2aeed1f73676753ee5c81899786df5784bedea9dc066830"
+      "size_bytes": 22709,
+      "sha256": "aea0fa360b580ade62200eaba3db9f3c2fe7d5e817a3340b529e62361d9d4612"
     },
     {
       "filename": "tests/test_witness_quorum.py",
@@ -2354,8 +2354,8 @@
     },
     {
       "filename": "tests/test_witness_tree.py",
-      "size_bytes": 9975,
-      "sha256": "4d0db85d2793494a390119a89bbd77be70ed87c3a358c2abd127f22a967391ff"
+      "size_bytes": 12001,
+      "sha256": "6f964541db7eae8dd93bb38a5c680b27850bb318181b641c98d93df7853b1804"
     },
     {
       "filename": "tests/test_work_counts.py",
@@ -2734,8 +2734,8 @@
     },
     {
       "filename": "tools/mutations/archive.json",
-      "size_bytes": 8485,
-      "sha256": "526d4ef1df6731fe0c1c206a8b50ebd80000267b3bf824262e551fd8cce24dad"
+      "size_bytes": 9870,
+      "sha256": "8d881fe00d651ee6de14c01d94828f134af6de92f7d070da845144130123f3f8"
     },
     {
       "filename": "tools/mutations/assurance_graph.json",
@@ -2744,8 +2744,8 @@
     },
     {
       "filename": "tools/mutations/authenticated_history.json",
-      "size_bytes": 10965,
-      "sha256": "1592a716929fd76feb503f45c8ac5178092a986f0e5f046f3c4be62932b5d18f"
+      "size_bytes": 11670,
+      "sha256": "b6493c62a4e7b4aee901d89de528ea6d23616d14886b17109b5b654ba21223b1"
     },
     {
       "filename": "tools/mutations/authority_inventory.json",
@@ -3254,8 +3254,8 @@
     },
     {
       "filename": "tools/mutations/witness.json",
-      "size_bytes": 8299,
-      "sha256": "136c63f5410ce16b0de57627dffee020c551cdbae2f385ec89a39cf26f65937c"
+      "size_bytes": 23052,
+      "sha256": "68e685f705e4b774cb142f2f58dbd4900ba3a7c13886c9b291c5385a73039f40"
     },
     {
       "filename": "tools/mutations/witness_quorum.json",
@@ -3264,8 +3264,8 @@
     },
     {
       "filename": "tools/mutations/witness_tree.json",
-      "size_bytes": 6687,
-      "sha256": "3e302e4cb5d79569c6890f70b648d28fe7c0d94b1300b8110989c8a0599e6a57"
+      "size_bytes": 8088,
+      "sha256": "f987971e1a33187eeb6f39a262bcbbeb0b57827a24c7ea8ef465c854cc6b9afc"
     },
     {
       "filename": "tools/mutations/workflow_generic.json",

@@ -320,6 +320,50 @@ def test_an_unknown_declared_profile_reads_as_nothing(tmp_path):
     assert any("unknown security profile" in p for p in report.problems)
 
 
+@pytest.mark.parametrize("profile", [["GOVERNED"], {"profile": "GOVERNED"},
+                                     7, None],
+                         ids=["a list", "a dict", "a number", "nothing"])
+def test_a_declared_profile_that_is_not_a_string_is_a_problem_not_a_raise(
+        tmp_path, profile):
+    """AUD-048. The rule asked the set of profiles whether it held the
+    declared one, and a list or a dict cannot be asked: ``TypeError`` came
+    out of the log's own check -- both whole reads, both anchored ones, the
+    writer's head check and a writer's own declaration -- where each states
+    a problem. A number and nothing were always a problem, and are here so
+    the four read alike."""
+    path = tmp_path / "log.jsonl"
+    _forge(path, actor="p", action=ACT_SECURITY_PROFILE, target="history",
+           payload={"profile": profile})
+    for i in (1, 2):
+        _forge(path, actor="p", action="record.create", target=f"r{i}",
+               payload={"record_id": f"r{i}", "kind": "k", "proposer": "p"})
+    lines = path.read_bytes().splitlines(keepends=True)
+    anchor = ev_mod.Anchor(seq=1, head_hash=json.loads(lines[1])["hash"],
+                           record_offset=len(lines[0]),
+                           next_offset=len(lines[0]) + len(lines[1]))
+    why = f"seq 0: unknown security profile {profile!r}"
+
+    assert why in EventLog(path).verify().problems
+    report, events = EventLog(path).read_verified()
+    assert not report.ok and events == [] and why in report.problems
+    report, tail = EventLog(path).read_verified_from(anchor)
+    assert not report.ok and tail == [] and why in report.problems
+    assert why in EventLog(path).verify_from(anchor).problems
+
+    before = path.read_bytes()
+    with pytest.raises(ChainBroken, match="unknown security profile"):
+        EventLog(path).append(
+            actor="p", action="record.create", target="x",
+            payload={"record_id": "x", "kind": "k", "proposer": "p"})
+    assert path.read_bytes() == before, "nothing is appended onto it"
+
+    fresh = tmp_path / "fresh.jsonl"
+    with pytest.raises(EventLogError, match="must be one of"):
+        EventLog(fresh).append(actor="p", action=ACT_SECURITY_PROFILE,
+                               target="history", payload={"profile": profile})
+    assert not fresh.exists() or fresh.read_bytes() == b""
+
+
 def test_the_anchored_read_is_gated_too(tmp_path):
     log, att = _required_history(tmp_path)
     anchor = log._anchor

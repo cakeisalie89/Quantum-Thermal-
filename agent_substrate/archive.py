@@ -279,7 +279,7 @@ def verify_segment(record: Any, data: Any, *, size: Any, root: Any,
     ``size``. ``profile`` is the one the history declares. The segment's
     records are returned when it requires no authentication, and none when
     it does. Raises :class:`ArchiveError`."""
-    if profile not in PROFILES:
+    if not isinstance(profile, str) or profile not in PROFILES:
         raise ArchiveError(f"{profile!r} is not a profile a history "
                            "declares")
     seg = Segment.from_record(record)

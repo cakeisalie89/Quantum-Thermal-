@@ -3580,3 +3580,154 @@ a time, so a fault that needs two wrong values together is not covered.
 **Also corrected.** The report's readiness table and its list of
 unknowns said 874 files were not reviewed, the count D-2026-193 had
 already corrected in the coverage table. Both now say 867.
+
+### Stage 5, fifth pass: verification refuses in its own words (AUD-048 to AUD-050)
+
+**What was claimed.** Three verifiers each say what they do with what
+they cannot use. The log reports a problem and the history does not
+verify. The archive raises `ArchiveError`, and its docstrings say
+nothing else. The witness refuses with `WitnessError`, and its verifier
+says that anybody can hand it junk, and junk is a note.
+
+**AUD-048 (P3), fixed.** The log looked the declared security profile
+up in a set before asking what it was, and a list or a dictionary
+cannot be looked up. `TypeError` came out of every path that reads the
+profile:
+
+- `verify`, `read_verified`, and both anchored reads;
+- the head check an append makes, and a writer's own declaration.
+
+The archive asks the same rule of a sealed history's first record, so
+`verify_archive`, `restore` and `verify_segment` raised it too. And
+`verify_segment`'s own test of the profile a caller pins, which this
+audit wrote, had the same fault. Both tests now ask for a string
+first. A list, a dictionary, a number and nothing are each an unknown
+security profile, stated the way that path states a refusal.
+
+**AUD-049 (P2), fixed.** The witness was read in full, and then swept
+as AUD-047 swept the readers: one field of a proof record, a
+cosignature record or a checkpoint record replaced by a value of
+another kind, re-hashed where a hash covers it. In 585 runs, three
+places raised something that was not the witness's:
+
+- a proof record holding NaN raised the encoder's error, and one
+  nested too deep to encode raised `RecursionError`;
+- a record that hashes and whose link is not a string raised
+  `TypeError` where the witness names the fork;
+- a cosignature record whose `witness_id` is a list was accepted, and
+  raised `TypeError` when the verifier looked it up.
+
+Both verifiers also raised `AttributeError` on an item of their list
+that was not a cosignature of their protocol. That includes the other
+protocol's cosignature, which is genuine and signed by the same
+witness. In every case the witness kept its state and nothing was
+counted.
+
+The sweep also showed what the suite did not hold. No test read a
+cosignature or a checkpoint from its record form, and no mutation
+touched either, the checkpoint's shape, a checkpoint at the witnessed
+head, one state file under two names, the names of a log and a
+witness, or an empty log.
+
+**The repair.**
+
+- A cosignature is held to its shape when it is built, whoever builds
+  it: an id, whole seconds, a signature that is a string, and a
+  checkpoint of its own protocol. The record form states its keys and
+  builds the object.
+- The witness refuses a record it cannot hash, and names a link that is
+  not a string.
+- Each verifier notes what is not a cosignature of its protocol and
+  counts nothing for it.
+- A witness's id is a string before it is matched.
+
+**AUD-050 (P2), open.** Found by the same sweep. The defect ledger
+already holds the rule for the attestation reader and the registries:
+a line nested deep enough to exhaust the JSON parser is malformed, not
+a crash of every reader. The log's own line parser does not hold it.
+One line nested 100,000 deep is 600 KB, inside the bound on a record's
+size, and raises `RecursionError` out of `verify`, `read_verified`,
+`read_verified_from` and every append. The head witness file and the
+checkpoint store's two parsers do the same.
+
+How deep a record may nest is whatever the interpreter allows:
+
+| Interpreter | `json.loads` takes | `json.dumps` takes |
+|---|---|---|
+| 3.12.3 and 3.12.13 | 9,997 levels | 9,996 |
+| 3.13.17 | 9,998 | 9,997 |
+| 3.11.17 | 993, fewer from a deep call | 992 |
+
+So a line at 9,997 levels is parsed and encoded on 3.13 and cannot be
+encoded on 3.12, and a payload 2,000 deep is appended and read back on
+both. The repair is a rule the writer and the parser both hold, for how
+deep a record nests, and it is the next change. It is not in this one.
+
+**Tests.** `tests/test_authenticated_history.py` holds the six paths of
+the log for a list, a dictionary, a number and nothing.
+`tests/test_archive.py` holds the three archive paths and the pinned
+profile. `tests/test_witness.py` and `tests/test_witness_tree.py` hold
+the witness: the three refusals, the two verifiers' lists, both record
+forms with every field of every kind the sweep used, and the rules
+that had no test.
+
+**Mutations.** Thirty-six new:
+
+- EP12 in `authenticated_history`;
+- AR27 and AR28 in `archive`;
+- WT24 to WT53 in `witness`;
+- TW20 to TW22 in `witness_tree`.
+
+AR26 and WT4 were repaired to the lines the change rewrote, and each
+still removes the same rule.
+
+Every mutation anchored in `events.py`, `witness.py` or `archive.py`
+ran on this change: 203 in 19 specs. Five specs ran whole and
+the others as a part holding exactly their mutations in those files,
+with the spec's own suites. All were killed and every source restored.
+The other mutations of the part specs, and the specs with none in
+those files, were not run here; hosted CI runs every spec whole.
+
+| Spec | Killed, of its mutations in the three files | Its mutations in all | |
+|---|---|---|---|
+| agent_checkpoint | 9 of 9 | 51 | |
+| agent_cross_process | 2 of 2 | 11 | |
+| agent_fault_injection | 6 of 6 | 11 | |
+| agent_incremental | 8 of 8 | 27 | |
+| agent_recovery | 3 of 3 | 19 | |
+| agent_snapshot_coherence | 4 of 4 | 20 | |
+| agent_substrate | 15 of 15 | 64 | |
+| archive | 28 of 28 | 28 | whole |
+| authenticated_history | 27 of 27 | 27 | whole |
+| composed_campaigns | 1 of 1 | 7 | |
+| governed_history | 6 of 6 | 13 | |
+| history_time | 1 of 1 | 21 | |
+| signed_append_lifecycle | 5 of 5 | 33 | |
+| signing_seam | 1 of 1 | 8 | |
+| t2_closure | 6 of 6 | 41 | |
+| verified_read_guard | 3 of 3 | 12 | |
+| witness | 53 of 53 | 53 | whole |
+| witness_quorum | 3 of 3 | 3 | whole |
+| witness_tree | 22 of 22 | 22 | whole |
+
+**Reviews bound.** `agent_substrate/witness.py` (698 lines),
+`tests/test_witness.py` (379 lines) and `tools/mutations/witness.json`
+(23 mutations) were read in full at 2cbba91, and each change to them
+here was written and reviewed as a diff. The ledger now holds 80 files
+read in full, 18 in part and 865 not reviewed.
+
+**What is not established.**
+
+- A witness's own state file that is not JSON raises the parser's
+  error; that is the witness's own storage and was not swept.
+- A trust root is the owner's data and is checked for its quorum only.
+- `ReducerIdentity.from_record` and `ProcessIdentity.from_record` were
+  not checked for a test of each rule.
+- For AUD-050, the snapshot parser in `store.py`, the separate
+  verifier's reading of its child's answer and the recorded-fixture
+  adapter have the same handler and were read, not run.
+- The sweeps replace one value at a time.
+
+**Also corrected.** Section 5 of the report said the audit had added 45
+mutations, in the present tense. That was the count at d3cddc3. It now
+says so, and says where the later ones are listed.

@@ -215,6 +215,45 @@ def test_junk_counts_for_nothing_and_the_reach_is_stated(tmp_path):
     assert stale.stale and not stale.ok
 
 
+def test_what_is_not_a_tree_cosignature_is_a_note(tmp_path):
+    """AUD-049. A HEAD cosignature handed to the tree check is genuine: this
+    witness signed it, over the head protocol's message. It raised
+    ``AttributeError`` after its signature was looked at, and so did
+    anything else that was not a tree cosignature."""
+    w = World(tmp_path, n=5)
+    good = w.witness()
+    ev = w.events()
+    head_witness = W.Witness("w1", key("w1"), tmp_path / "head")
+    head_witness.provision(W.checkpoint_of(NAME, ev[:1]))
+    head = head_witness.add_checkpoint(W.checkpoint_of(NAME, ev),
+                                       W.proof_records(ev, 0, ev[-1].seq))
+    junk = [head, None, 7, {"witness_id": "w1"}, [good]]
+    rep = W.verify_tree_witnessed(ev, junk, w.trust())
+    assert rep.witnessed_through == -1 and not rep.ok and rep.problems == []
+    assert rep.notes == ["not a tree cosignature; not counted"] * len(junk)
+    rep = W.verify_tree_witnessed(ev, junk + [good], w.trust())
+    assert rep.ok and rep.witnessed_through == 4
+    assert len(rep.notes) == len(junk)
+
+
+def test_a_tree_cosignature_is_held_to_its_shape():
+    """The shape a head cosignature is held to (AUD-049), and its own kind
+    of checkpoint: a verifier is never handed a malformed one."""
+    origin = "lab-log/" + "a" * 64
+    tree = W.TreeCheckpoint(origin, 4, "c" * 64)
+    head = W.Checkpoint(origin, 3, "b" * 64)
+    assert W.TreeCosignature("w1", 1, "00" * 64, tree).checkpoint is tree
+    for args, why in (((["w1"], 1, "00" * 64, tree), "not an id"),
+                      (("w 1", 1, "00" * 64, tree), "not an id"),
+                      (("w1", True, "00" * 64, tree), "whole seconds"),
+                      (("w1", 1, 7, tree), "is hex"),
+                      (("w1", 1, "00" * 64, head), "covers a TreeCheckpoint"),
+                      (("w1", 1, "00" * 64, tree.to_record()),
+                       "covers a TreeCheckpoint")):
+        with pytest.raises(W.WitnessError, match=why):
+            W.TreeCosignature(*args)
+
+
 def test_one_protocols_cosignature_is_never_the_others():
     tree = W.TreeCheckpoint("lab-log/" + "a" * 64, 1, "b" * 64)
     head = W.Checkpoint("lab-log/" + "a" * 64, 0, "b" * 64)

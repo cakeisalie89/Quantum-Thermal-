@@ -1440,18 +1440,19 @@
     "AUD-006",
     "AUD-008",
     "AUD-012",
-    "AUD-020"
+    "AUD-020",
+    "AUD-048"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at the baseline blob (b0058f6) in session 1; the audit's own changes to it (AUD-002, AUD-003, AUD-005, AUD-006, AUD-008, AUD-012) written and reviewed as diffs, each with a regression test that fails before it and a killed mutation; the audit's GOVERNED profile (AUD-020: the declaration and its shape, the gate's comparison of both registries, the profiles' order under a pin, the signed declaration, the refusals naming the profile) written and reviewed as a diff, with GH1-GH6 killed; the audit's signing seam (AUD-021: a handle's signing of every append that brings no pre-write hook, and the unsigned refusal naming the history's own profile) written and reviewed as a diff, with SS1 killed",
+   "method": "every line read at the baseline blob (b0058f6) in session 1; the audit's own changes to it (AUD-002, AUD-003, AUD-005, AUD-006, AUD-008, AUD-012) written and reviewed as diffs, each with a regression test that fails before it and a killed mutation; the audit's GOVERNED profile (AUD-020: the declaration and its shape, the gate's comparison of both registries, the profiles' order under a pin, the signed declaration, the refusals naming the profile) written and reviewed as a diff, with GH1-GH6 killed; the audit's signing seam (AUD-021: a handle's signing of every append that brings no pre-write hook, and the unsigned refusal naming the history's own profile) written and reviewed as a diff, with SS1 killed; the AUD-048 change (_declaration_problem asks that the profile is a string before it looks it up) written and reviewed as a diff, with EP12 and AR28 killed",
    "mode": "100644",
-   "new_blob": "09922077051fd91a0dc9d225be7a1a148666b928",
+   "new_blob": "3009397366c2a14baedcf90290cc870b947da441",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/events.py",
-   "reviewed_blob": "09922077051fd91a0dc9d225be7a1a148666b928",
-   "sha256": "2e23f56fea166dfa76b9e4e1edc25498ddbd94cc2596d50f86fb6e61c4e55438",
-   "size": 90989,
+   "reviewed_blob": "3009397366c2a14baedcf90290cc870b947da441",
+   "sha256": "d10787725921abc2040e90c70494e8cbd8fa75c3bec2b4abbdee1e64bfd99cb5",
+   "size": 91224,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -2136,19 +2137,20 @@
    "change": "ADDED",
    "findings": [
     "AUD-018",
-    "AUD-019"
+    "AUD-019",
+    "AUD-049"
    ],
    "kind": "source:agent_substrate",
-   "method": "read, to write the tree checkpoints beside them: the module docstring, Checkpoint, Cosignature, cosigned_message, origin_of, checkpoint_of, proof_records, Witness (state, provision, latest, add_checkpoint, _extends, _cosign), TrustRoot, WitnessReport and verify_witnessed; not reviewed adversarially line by line: the head protocol; written by the audit and reviewed as diffs: the tree checkpoints (TreeCheckpoint, TreeCosignature, TreeWitness, tree_proof, _tree_screen, verify_tree_witnessed), with TW1-TW19 killed and the head protocol's 23 mutations still killed, and TrustRoot's majority rule and tolerates (AUD-018) with the lost-state rule in the module docstring (AUD-019), with WQ1-WQ3 killed",
+   "method": "every line read at 2cbba91 (blob 5ab57e5d94fa, 698 lines): the module docstring, the record forms, the witness and its state, the trust root, the head verifier and the tree protocol; then swept with one field of a proof, cosignature or checkpoint record replaced by a value of another kind (585 runs), which is a test of it and not a reading; written by the audit and reviewed as diffs: the tree checkpoints (TW1-TW19 killed), TrustRoot's majority rule and tolerates (AUD-018) with the lost-state rule in the docstring (AUD-019, WQ1-WQ3 killed), and the AUD-049 change (_check_cosignature, the record form, _extends, both verifiers' screens and the witness's id), with WT24-WT53 and TW20-TW22 killed and WT4's anchor repaired",
    "mode": "100644",
-   "new_blob": "5ab57e5d94fa4bb6169c40d906ba117b3466bc68",
+   "new_blob": "57db1f9c502cc2ad12d6f029ace0c9d9c0416871",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/witness.py",
-   "reviewed_blob": "5ab57e5d94fa4bb6169c40d906ba117b3466bc68",
-   "sha256": "d6625a4966c16b5c46c7f3a1147ae407d7350aa9d5a28bb11c0126a051598759",
-   "size": 30341,
-   "status": "REVIEWED_IN_PART"
+   "reviewed_blob": "57db1f9c502cc2ad12d6f029ace0c9d9c0416871",
+   "sha256": "dc1198725c7971084beacd3c76bb706551def37a4d244dd90cc97afd9517c152",
+   "size": 32258,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -10758,18 +10760,19 @@
    "change": "ADDED",
    "findings": [
     "AUD-011",
-    "AUD-012"
+    "AUD-012",
+    "AUD-048"
    ],
    "kind": "test",
-   "method": "read: the module docstring, the profile helpers (_authenticator, _required_history, _forge), the profile, anchored-read and second-reader tests, the reader-coverage behaviour table and the coverage scan (session 4); the AUD-012 tests, the AUD-011 RoleDelegations entry and the archive-sealing behaviour entry (Phase C) written by the audit; not read: the provider-seam tests",
+   "method": "read: the module docstring, the profile helpers (_authenticator, _required_history, _forge), the profile, anchored-read and second-reader tests, the reader-coverage behaviour table and the coverage scan (session 4); the AUD-012 tests, the AUD-011 RoleDelegations entry and the archive-sealing behaviour entry (Phase C) written by the audit; not read: the provider-seam tests; the AUD-048 test written by the audit and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "489206171a5a7431f01bf179785b4a110a4ed76e",
+   "new_blob": "d33ab830554d7c50982bb5ef48c99665d1b1552b",
    "note": "",
    "old_blob": null,
    "path": "tests/test_authenticated_history.py",
-   "reviewed_blob": "489206171a5a7431f01bf179785b4a110a4ed76e",
-   "sha256": "3b83c423cdb9cbb4a641934cfbd8a9e95c53f33580ffcba44f0862e3368b72fb",
-   "size": 30665,
+   "reviewed_blob": "d33ab830554d7c50982bb5ef48c99665d1b1552b",
+   "sha256": "97871c3972978136a6a984f98d240c11bc4b026aac160dc92ccdd8b2f964cbb1",
+   "size": 33007,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -13627,18 +13630,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-049"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "every line read at 2cbba91 (blob c43523e43826, 379 lines); the AUD-049 tests written by the audit and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "c43523e43826aa4980b35eb40bb946e637350197",
-   "note": "not yet examined",
+   "new_blob": "acce49a48db55a893f7b12a834227e2c89e20cdc",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_witness.py",
-   "reviewed_blob": null,
-   "sha256": "c68172a56655f21dc2aeed1f73676753ee5c81899786df5784bedea9dc066830",
-   "size": 14526,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "acce49a48db55a893f7b12a834227e2c89e20cdc",
+   "sha256": "aea0fa360b580ade62200eaba3db9f3c2fe7d5e817a3340b529e62361d9d4612",
+   "size": 22709,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -15016,18 +15021,19 @@
    "change": "ADDED",
    "findings": [
     "AUD-012",
-    "AUD-020"
+    "AUD-020",
+    "AUD-048"
    ],
    "kind": "mutation-spec",
-   "method": "every mutation read (AP1-AP9, EP1-EP9, RC1-RC2, AR1, AH22-AH23) with its anchor and rationale; EP10, EP11 and RC3 added by the audit and killed; EP5, EP7, RC1 and RC3's anchors repaired to the lines AUD-020 rewrote, each still removing the same rule",
+   "method": "every mutation read (AP1-AP9, EP1-EP9, RC1-RC2, AR1, AH22-AH23) with its anchor and rationale; EP10, EP11 and RC3 added by the audit and killed; EP5, EP7, RC1 and RC3's anchors repaired to the lines AUD-020 rewrote, each still removing the same rule; EP12 added by the audit and killed (AUD-048)",
    "mode": "100644",
-   "new_blob": "53eda6d60a1bf1638fd29cc5f38ae793dc56edef",
+   "new_blob": "50f254552fee716b43dda4c833479f6329ea0e8f",
    "note": "",
    "old_blob": null,
    "path": "tools/mutations/authenticated_history.json",
-   "reviewed_blob": "53eda6d60a1bf1638fd29cc5f38ae793dc56edef",
-   "sha256": "1592a716929fd76feb503f45c8ac5178092a986f0e5f046f3c4be62932b5d18f",
-   "size": 10965,
+   "reviewed_blob": "50f254552fee716b43dda4c833479f6329ea0e8f",
+   "sha256": "b6493c62a4e7b4aee901d89de528ea6d23616d14886b17109b5b654ba21223b1",
+   "size": 11670,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -16653,18 +16659,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-049"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "every mutation read at 2cbba91 (blob 7bd79509aed0: WT1 to WT23, each with its anchor, its replacement and its rationale); WT4's anchor repaired to the line AUD-049 rewrote, still removing the same rule; WT24 to WT53 added by the audit and killed",
    "mode": "100644",
-   "new_blob": "7bd79509aed06fd48bb9274cc3ecae5512ef5feb",
-   "note": "not yet examined",
+   "new_blob": "720cd61bb64be8c46cb2423d10f1ecba3fd48b8f",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/witness.json",
-   "reviewed_blob": null,
-   "sha256": "136c63f5410ce16b0de57627dffee020c551cdbae2f385ec89a39cf26f65937c",
-   "size": 8299,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "720cd61bb64be8c46cb2423d10f1ecba3fd48b8f",
+   "sha256": "68e685f705e4b774cb142f2f58dbd4900ba3a7c13886c9b291c5385a73039f40",
+   "size": 23052,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,

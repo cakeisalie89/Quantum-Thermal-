@@ -469,7 +469,10 @@ def test_bytes_that_are_not_bytes_are_refused(world):
 def test_a_profile_is_one_a_history_declares(world):
     _, events, manifest, blobs = world
     rec = manifest["segments"][1]
-    for bad in ("LEGACY", None, PROFILE_AUTHENTICATED_REQUIRED.lower()):
+    # a list and a dict cannot be looked up in a set: each raised TypeError
+    # where the others were refused (AUD-048)
+    for bad in ("LEGACY", None, PROFILE_AUTHENTICATED_REQUIRED.lower(),
+                [LEGACY], {"profile": LEGACY}):
         with pytest.raises(A.ArchiveError, match="profile"):
             A.verify_segment(rec, blobs[rec["digest"]], profile=bad,
                              proof=_proof(events, 10, 23),
@@ -479,3 +482,41 @@ def test_a_profile_is_one_a_history_declares(world):
     assert len(_segment(first, blobs[first["digest"]],
                         proof=_proof(events, 5, 23),
                         **_checkpoint(events))) == 5
+
+
+def _declaring(events: list, profile) -> tuple:
+    """The history with its first record made a declaration of ``profile``,
+    re-hashed and every link after it repaired, then sealed as its keeper
+    would seal it: a consistent archive of a history no log would write."""
+    data = _rehashed(events, 0, lambda b: dict(
+        b, action="history.security_profile", target="history",
+        payload={"profile": profile}))
+    forged = [Event(**json.loads(line)) for line in _lines(data)]
+    manifest, blobs = A._seal(forged, 5)
+    return forged, manifest, blobs
+
+
+@pytest.mark.parametrize("profile", [["GOVERNED"], {"profile": "GOVERNED"},
+                                     "LAX"],
+                         ids=["a list", "a dict", "an unknown name"])
+def test_an_archive_whose_first_record_declares_no_profile_is_refused(
+        world, tmp_path, profile):
+    """AUD-048. The archive asks the log's rule what the first record
+    declares, and that rule raised ``TypeError`` on a profile that was a
+    list or a dict: out of both verifiers and the restore, each of which
+    raises ``ArchiveError`` and nothing else. An unknown name was always
+    refused, and is here so the three read alike."""
+    _, events, _, _ = world
+    forged, manifest, blobs = _declaring(events, profile)
+    checkpoint = _checkpoint(forged)
+    with pytest.raises(A.ArchiveError, match="unknown security profile"):
+        A.verify_archive(manifest, blobs.__getitem__, proof=[], **checkpoint)
+    restored = tmp_path / "restored.jsonl"
+    with pytest.raises(A.ArchiveError, match="unknown security profile"):
+        A.restore(manifest, blobs.__getitem__, restored, proof=[],
+                  **checkpoint)
+    assert not restored.exists(), "nothing is restored of it"
+    first = manifest["segments"][0]
+    with pytest.raises(A.ArchiveError, match="unknown security profile"):
+        _segment(first, blobs[first["digest"]],
+                 proof=_proof(forged, 5, 23), **checkpoint)

@@ -1591,24 +1591,107 @@
   },
   {
    "id": "AUD-048",
-   "title": "The log's own verification raises on a genesis declaration whose profile is a list",
+   "title": "The log's own verification raised on a declared profile that was a list, and the archive's with it",
    "severity": "P3",
-   "subsystem": "the event log's read primitive",
+   "subsystem": "the event log's read primitive, and the archive that asks its rule",
    "files": [
     {
      "path": "agent_substrate/events.py",
-     "lines": "_declaration_problem: profile not in PROFILES"
+     "lines": "_declaration_problem: the profile is looked up in PROFILES"
+    },
+    {
+     "path": "agent_substrate/archive.py",
+     "lines": "verify_segment: the pinned profile is looked up in PROFILES; _declared asks the log's rule"
     }
    ],
-   "behavior": "A history's first record may declare its security profile. verify() and read_verified() report an unknown profile as a problem, and the history does not verify. Where the profile is a list or a dictionary, the membership test raises TypeError instead, and the caller gets no report at all.",
+   "behavior": "A history's first record may declare its security profile. The log reports an unknown profile as a problem, and the history does not verify. Where the profile was a list or a dictionary, the membership test raised TypeError instead, and the caller got no report at all. Every path that reads the declared profile raised: verify, read_verified, both anchored reads, the writer's head check, and a writer's own declaration. The archive asks the same rule of a sealed history's first record, so verify_archive, restore and verify_segment raised TypeError where each raises ArchiveError and nothing else. verify_segment's own test of the profile its caller pins, written during this audit, had the same fault.",
    "invariant": "Verification answers with a report, never with an exception raised by the content it was verifying.",
    "mechanism": "The profile is tested for membership in a frozenset before its type is asked, and a list cannot be hashed.",
-   "reproduction": "At ba02ed0: a one-record log whose record is a history.security_profile declaration, canonically encoded with its hash recomputed, with profile set to ['GOVERNED']. EventLog.verify() and read_verified() raise TypeError (unhashable type: 'list') at events.py line 193. With profile 7, None or 'BOGUS' both return a report whose problem is 'unknown security profile'.",
+   "reproduction": "At ba02ed0: a one-record log whose record is a history.security_profile declaration, canonically encoded with its hash recomputed, with profile set to ['GOVERNED']. EventLog.verify() and read_verified() raise TypeError (unhashable type: 'list') at events.py line 193. With profile 7, None or 'BOGUS' both return a report whose problem is 'unknown security profile'. At 2cbba91: the same on six paths of the log (verify, read_verified, read_verified_from, verify_from, an append onto such a history, an append of such a declaration) and on three of the archive (verify_archive, restore, and verify_segment of the first segment), for a list and for a dictionary; and verify_segment handed profile=['GOVERNED'] raises TypeError at archive.py line 282.",
    "observed": "Found by the sweep written for AUD-047, which reached the same test in the reader's restatement.",
-   "expected": "A report that is not ok, naming the unknown profile.",
+   "expected": "A report that is not ok, naming the unknown profile; ChainBroken from the writer's head check; EventLogError from a writer's own declaration; ArchiveError from the archive.",
+   "correction": "The rule asks that the profile is a string before it looks it up (events._declaration_problem), and the archive's test of a pinned profile does the same. A list, a dictionary, a number and nothing are each an unknown security profile, stated the way that path states a refusal.",
+   "regression_tests": [
+    "tests/test_authenticated_history.py::test_a_declared_profile_that_is_not_a_string_is_a_problem_not_a_raise",
+    "tests/test_archive.py::test_an_archive_whose_first_record_declares_no_profile_is_refused",
+    "tests/test_archive.py::test_a_profile_is_one_a_history_declares"
+   ],
+   "residual_risk": "EventLog(required_profile=...) given a list still raises TypeError when the log is opened. That is the deployment's own argument and not content, and nothing is read. Nesting deep enough to exhaust the parser raises out of the same reads, and is AUD-050.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-049",
+   "title": "The witness protocol answered junk with errors that were not its own, and no test held its record forms",
+   "severity": "P2",
+   "subsystem": "the witness protocol: the witness, its two verifiers and the record forms",
+   "files": [
+    {
+     "path": "agent_substrate/witness.py",
+     "lines": "Cosignature.from_record; Witness._extends; verify_witnessed; _tree_screen; TreeCosignature; Witness.__post_init__"
+    },
+    {
+     "path": "tests/test_witness.py",
+     "lines": "no test of Checkpoint.from_record, Cosignature.from_record, a checkpoint at the witnessed head, one state file under two names, origin_of, or a witness's id"
+    },
+    {
+     "path": "tools/mutations/witness.json",
+     "lines": "23 mutations; none on the record forms, the checkpoint's shape, or a witness the trust root does not name"
+    }
+   ],
+   "behavior": "A witness refuses with WitnessError, and a verifier's answer to a cosignature that does not count is a note: 'anybody can hand a verifier junk, and junk is not evidence of anything'. Three places raised something else. Cosignature.from_record read witness_id without asking what it was, and a list went on to raise TypeError where verify_witnessed looks it up in the trust root. Witness.add_checkpoint raised the encoder's CanonicalizationError on a proof record holding NaN, RecursionError on one nested past what the interpreter encodes, and TypeError or KeyError on a record that hashes and whose prev_hash is not a string. Both verifiers raised AttributeError on an item of the list that was not a cosignature of their protocol: a record nobody parsed, nothing at all, and the other protocol's cosignature, which is genuine and signed by the same witness. Beside that, no test held the record forms: Checkpoint.from_record and Cosignature.from_record had no test and no mutation, nor had the checkpoint's shape, a checkpoint at the witnessed head, one state file under two names, the names of a log and a witness, or an empty log.",
+   "invariant": "What the witness protocol is handed and cannot use, it refuses or notes in its own words; and each rule that says what it can use is held by a test a mutation fails.",
+   "mechanism": "The dataclasses for a checkpoint check their own shape and the ones for a cosignature did not, so the record form checked two of four fields. The witness wrapped the construction of a proof record and not its hashing. The verifiers read attributes of whatever the list held. The suite was written from the protocol's side, with objects it built itself, and never from the side of what arrives.",
+   "reproduction": "At 2cbba91, by a script of the audit's that is not in the tree: one field of a proof record, a cosignature record or a checkpoint record replaced by a value of another kind, re-hashed where a hash covers it, 585 runs. Eleven of them raise something that is not WitnessError, at three places: canonical.py line 76 (NaN in any field of a proof record), witness.py line 325 (a record that hashes with prev_hash None, a number or a dictionary) and witness.py line 420 (a parsed cosignature whose witness_id is a list or a dictionary). verify_witnessed handed a genuine tree cosignature raises AttributeError at witness.py line 437, verify_tree_witnessed handed a genuine head cosignature at line 677, and each handed None, a number, a string, a record or a list at lines 419 and 639. A proof record nested 100,000 deep raises RecursionError. In every case the witness's state is unchanged and nothing is counted.",
+   "observed": "Read in full at 0afa231 and probed then; swept at 2cbba91 after AUD-047 showed what one replaced value finds.",
+   "expected": "WitnessError from the witness and from the record forms; a note from a verifier.",
+   "correction": "A cosignature is held to its shape however it is built: witness._check_cosignature, called when a Cosignature or a TreeCosignature is made, asks for a witness's id, whole seconds, a signature that is a string, and a checkpoint of its own protocol. The record form states its keys and builds the object. Witness._extends refuses a record it cannot hash as 'cannot be hashed', and names a link that is not a string. verify_witnessed and the tree screen note what is not a cosignature of their protocol and count nothing for it. A witness's id is asked to be a string before it is matched. Thirty mutations in the head protocol's spec and three in the tree's hold these and the rules that had none; WT4's anchor was repaired to the line the change rewrote.",
+   "regression_tests": [
+    "tests/test_witness.py::test_a_witness_refuses_records_that_do_not_extend_its_head",
+    "tests/test_witness.py::test_what_is_not_a_head_cosignature_is_a_note",
+    "tests/test_witness.py::test_a_cosignature_and_its_record_are_one_thing",
+    "tests/test_witness.py::test_a_record_that_is_not_a_cosignature_is_refused",
+    "tests/test_witness.py::test_a_record_that_is_not_a_checkpoint_is_refused",
+    "tests/test_witness.py::test_a_cosignature_built_in_process_is_held_to_the_same_shape",
+    "tests/test_witness.py::test_a_checkpoint_at_the_witnessed_head_takes_no_records",
+    "tests/test_witness.py::test_one_log_under_two_names_is_two_origins_to_a_witness",
+    "tests/test_witness.py::test_a_log_or_a_witness_is_named_by_an_id",
+    "tests/test_witness.py::test_an_empty_log_has_no_origin",
+    "tests/test_witness_tree.py::test_what_is_not_a_tree_cosignature_is_a_note",
+    "tests/test_witness_tree.py::test_a_tree_cosignature_is_held_to_its_shape"
+   ],
+   "residual_risk": "Fail-closed before and after: nothing was cosigned or counted that should not have been. A witness's own state file that is not JSON still raises the parser's error, and a trust root is the owner's data and is not checked beyond its quorum. The witness here is a fixture in this process; a deployed one is the owner's (AUD-019).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-050",
+   "title": "A line nested past the interpreter's parser raises RecursionError out of the log's own reads",
+   "severity": "P2",
+   "subsystem": "the event log's line parser, its head witness file and the checkpoint store",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "_parse_line: json.loads under except (UnicodeDecodeError, ValueError); EventLog.head: the same; _write_event: canonical_bytes"
+    },
+    {
+     "path": "agent_substrate/checkpoint.py",
+     "lines": "_last_seq and CheckpointStore._parse: json.loads under except ValueError"
+    },
+    {
+     "path": "agent_substrate/canonical.py",
+     "lines": "canonical_bytes: json.dumps under except ValueError and TypeError"
+    }
+   ],
+   "behavior": "The defect ledger states the rule for the attestation reader and the registries: a line nested deep enough to exhaust the JSON parser is malformed, not a crash of every reader. The log's own line parser does not hold it. One line nested 100,000 deep, 600 KB and so well inside the bound on a record's size, raises RecursionError out of verify, read_verified, read_verified_from and the head check every append makes. The head witness file and the checkpoint store's two parsers do the same. An append of a payload that deep raises RecursionError from the encoder, before anything is written. A payload 2,000 deep is appended and read back: how deep a record may nest is whatever the interpreter allows.",
+   "invariant": "Verification answers with a report, never with an exception raised by the content it was verifying; and the same bytes verify the same way under every supported interpreter.",
+   "mechanism": "RecursionError is a RuntimeError and not a ValueError, so the handlers written for unparseable JSON do not catch it. The earlier repair was made where it was found, at three boundaries, and not swept. The fuzzer's inputs are too short to nest that deep on this interpreter.",
+   "reproduction": "At 2cbba91, by scripts of the audit's that are not in the tree. A log whose second line is '{\"a\":' 100,000 times, a 1 and as many closing braces: EventLog.verify(), read_verified(), read_verified_from() and append() raise RecursionError from the JSON decoder (events.py line 534). The same document as the head witness file raises from EventLog.head() and verify() (line 776), and as a checkpoint file from checkpoint._last_seq (line 316) and CheckpointStore._parse (line 461). Controls: the attestation reader lists the line as malformed, KeyRegistry.from_bytes and RoleRegistry.from_bytes refuse it, and the standalone verifier's strict_json refuses it. Measured limits of json.loads and json.dumps: 9,997 and 9,996 levels on Python 3.12.3 and 3.12.13, 9,998 and 9,997 on 3.13.17, and 993 and 992 on 3.11.17, where it also depends on the depth of the call.",
+   "observed": "Found while sweeping the witness for AUD-049: a proof record too deep to hash raised RecursionError there, and the log's parser was tried next.",
+   "expected": "A report that is not ok, naming the line; MalformedEvent from the head witness; CheckpointCorrupt from the checkpoint store; a refusal of a payload that nests too deep, in the log's own error, at the same depth under every interpreter.",
    "correction": "",
    "regression_tests": [],
-   "residual_risk": "Fail-closed: nothing is read from such a history. But a verifier that expects a report gets an exception, and one malformed first record is enough.",
+   "residual_risk": "Fail-closed: nothing is read from such a log. But every reader of it gets an exception where it expects a report, from one line of a file a holder of it can write. Two readers on different interpreters can disagree about a line near the limit: at 9,997 levels Python 3.13 parses and encodes it and 3.12 cannot encode it. The snapshot parser in store.py, the separate verifier's reading of its child's answer and the recorded-fixture adapter have the same handler and were read, not run. The witness's part is fixed under AUD-049.",
    "verification": "REPRODUCED",
    "resolution": "OPEN"
   }

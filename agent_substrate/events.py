@@ -190,7 +190,10 @@ _GOVERNED_FIELDS = frozenset({"profile", "requirement", "key_registry",
 def _declaration_problem(payload) -> str | None:
     """Why a security-profile declaration is not one, or None."""
     profile = payload.get("profile") if isinstance(payload, dict) else None
-    if profile not in PROFILES:
+    # A string before it is looked up: a profile that was a list raised
+    # here, in the check every read and every append of the log makes, and
+    # in the archive's, which asks this rule (AUD-048).
+    if not isinstance(profile, str) or profile not in PROFILES:
         return f"unknown security profile {profile!r}"
     if profile == PROFILE_GOVERNED and (
             set(payload) != _GOVERNED_FIELDS
