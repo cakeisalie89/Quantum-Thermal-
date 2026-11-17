@@ -12230,3 +12230,57 @@ it.
   they have run.
 - Where the interpreter lives in /usr, the whole of /usr is still
   granted, as before. That is not changed here.
+
+## D-2026-195 — AUD-057's mapped-address rule was held only on an interpreter that reads the address as IPv6
+
+**FOUND BY HOSTED CI.** At 219f377, in the pull-request run 44113499718,
+mutation shard 2 failed: `egress_perimeter` exited 1, with NP1 SURVIVED
+and 13 of its 14 mutations killed. NP1 takes away the line by which
+`classify_address` reads an IPv4 address carried in IPv6 as the address
+it carries (AUD-057). The other fifteen specs of the shard passed. Read
+at 16:33 UTC: every other check of that run and of the push run that had
+finished had passed, the push run's shard 2 among those still running.
+Here, at 219f377's tree, all 118 mutations of that change were killed.
+
+**THE CAUSE.** The interpreter. The shard runs under the CPython 3.12
+that `uv sync` provides for a project requiring 3.12 (D-2026-194 read
+3.12.16 there). Asked of an IPv4 address carried in IPv6, CPython
+3.12.13 and 3.13.17 answer each of the seven flags the classifier reads
+as the IPv4 address carried, for each of eleven addresses tried. CPython
+3.12.3, the interpreter this container's environment is built on,
+answers six of them otherwise for at least one: `::ffff:127.0.0.1` is
+not loopback and `::ffff:0.0.0.0` is not unspecified, so without the
+line NP1 takes away both read as PRIVATE. On 3.12.13 nothing a test can
+ask tells NP1 from the code as committed; on 3.12.3 it does, and NP1 was
+killed. The mapped-address half of AUD-057 reproduces on 3.12.3 and not
+on 3.12.13, and the test written for it held the rule only where the
+interpreter reads the address as IPv6.
+
+**REPRODUCED HERE** under CPython 3.12.13, with the locked
+environment built on it. At 0278dcf, whose classifier and egress tests
+are 219f377's, `egress_perimeter` kills 13 of its 14 mutations, NP1
+SURVIVED, as hosted. Under 3.12.3 it killed all 14 at 219f377.
+
+**THE REPAIR.** `test_a_mapped_address_is_classified_alike_on_any_interpreter`
+puts back the older answers, `is_loopback` and `is_unspecified` read as
+IPv6, checks that they are in place, and holds `::ffff:127.0.0.1` as
+LOOPBACK and `::ffff:0.0.0.0` as SPECIAL, with `::1` and `::` as the
+controls the replaced answers must still give. The classifier's code is
+as committed. Its docstring, the test module's and AUD-057's register
+entry now say which interpreter the mapped-address half reproduces on.
+
+**MUTATION.** NP1 is as committed. With the new test `egress_perimeter`
+kills 14 of 14 under CPython 3.12.13 and again under 3.12.3, NP1 by the
+new test, and every source is restored.
+
+**WHAT THIS IS NOT.**
+
+- Not a pin. Naming an interpreter in the workflow would have turned the
+  shard green and left the rule held only where one interpreter happens
+  to need it.
+- Not a change to what any interpreter classifies: the classifier was
+  right on both, by its own code on 3.12.3 and by the standard
+  library's on 3.12.13. What changed is that the test now tells the two
+  apart on both.
+- Not a claim that hosted CI is green. That is for this commit's own
+  runs to show.

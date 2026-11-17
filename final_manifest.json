@@ -319,8 +319,8 @@
     },
     {
       "filename": "agent_substrate/netauth.py",
-      "size_bytes": 91203,
-      "sha256": "ac684be417b32740dc6bbb6b26536727e15ce35fbf2a5e1bae4e5b41fbcf48f1"
+      "size_bytes": 91366,
+      "sha256": "762ab0f59ab4b5a2b6958c4ab4e184ce8a82be142d77970c880bf0d62d3cd072"
     },
     {
       "filename": "agent_substrate/policy.py",
@@ -459,8 +459,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 662474,
-      "sha256": "aa61ff39984a59c0d2f8d79ba88ddec38b8fb4543b473504af056f6fd0209221"
+      "size_bytes": 665481,
+      "sha256": "9bde9d8f6f9d73d9633260a39d857d74cb0651a9ad92e0511b47c5565192df47"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -574,8 +574,8 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 220305,
-      "sha256": "fef2abdd862b13f02b3a5f6898e5396c1778c741ba574cd83e8a84167bf1d404"
+      "size_bytes": 222538,
+      "sha256": "9a5ce5ac05f8147f7bc0d0c4718d856ad83de98cbf72eff6641d3014acd82b38"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
@@ -584,8 +584,8 @@
     },
     {
       "filename": "docs/audit/findings.json",
-      "size_bytes": 222897,
-      "sha256": "65fb40088a82f4daf88e317b9ec3dc984dda651ff986355adcf8c3e19c98d85a"
+      "size_bytes": 223240,
+      "sha256": "38f231729a10080a80e462f2140e146ff68e94dee7da4f0c7ee64f47a538909b"
     },
     {
       "filename": "docs/audit/op_costs.json",
@@ -594,8 +594,8 @@
     },
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
-      "size_bytes": 552520,
-      "sha256": "7900f1e342ad91057a772203855a327520d326820d33ca12456c09a4953910e7"
+      "size_bytes": 552674,
+      "sha256": "eb0912d56afcb9f1785df70e48f545a5b53592928d6f9988ab9ebd833a33af57"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -615,7 +615,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5788,
-      "sha256": "221fbb95155b98a24b4d0882ca37e2e22e6d88bc91fc76c3169c50604385b0a4"
+      "sha256": "17cc419e4a8d347e2f3633cfaea0a7b77dceb91d1b31fcee86332d4992b2d0fc"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -1824,8 +1824,8 @@
     },
     {
       "filename": "tests/test_egress_perimeter.py",
-      "size_bytes": 11839,
-      "sha256": "4ad8a80739a2d1a55ddb5f93548a9c9d0136521302b01e797518c6f4fdd05982"
+      "size_bytes": 13282,
+      "sha256": "dcb99c555978692d9aff98a8742dfea333d732a5dc0708ce6fe3ef274eca61a2"
     },
     {
       "filename": "tests/test_evidence_objects.py",

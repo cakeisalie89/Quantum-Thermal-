@@ -167,8 +167,11 @@ def classify_address(addr: str) -> AddressClass:
     therefore tested first, and the broad ones last.
 
     An IPv4 address carried in IPv6, ``::ffff:a.b.c.d``, is classified as
-    the IPv4 address a connection to it reaches: by its IPv6 flags,
-    ``::ffff:127.0.0.1`` read as private rather than loopback. And PUBLIC
+    the IPv4 address a connection to it reaches. Read by its IPv6 flags,
+    where the interpreter reads them as IPv6 (CPython 3.12.3),
+    ``::ffff:127.0.0.1`` was private rather than loopback; 3.12.13 and
+    3.13.17 read the address carried, and this answers alike on each
+    (D-2026-195). And PUBLIC
     means globally reachable. An address that is none of the classes above
     and still not global -- the shared address space 100.64.0.0/10, which
     carriers, clouds and overlay networks use inside their own perimeter --

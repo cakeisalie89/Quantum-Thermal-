@@ -1745,15 +1745,15 @@
     "AUD-059"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at 2e8e7f2, all 1,829: the module docstring and its three layers, classify_address and the host matcher, parse_target, the host and path normalisers, Service and its contract, EgressGrant, grant() and grant_from_record, the secret-pairing refusal, NetworkRequest and NetworkDecision, NetworkAuthority's load, _refresh and apply on every action, the service reads, register_service, issue, _require_issuer, _authorize_revoke, revoke, set_position, authorize, _decide, _covers, record and record_result, and the socket guard: _check with a pinned decision, an unpinned one and none, _install, _address_parts, the resolved candidates and their selection, and _maybe_ip. Earlier, in part: read: NetworkAuthority's constructor, load(), the network.grant branch of apply(), issue(), _authorize_revoke(), and where the governed runner applies the authority (socket_guard, three sites in governed_tasks.py); the AUD-017 EGRESS_ISSUER check written and reviewed as a diff (session 4); not read: authorize(), the service and request branches of apply(), the label-wise host rules and socket_guard itself; the binding to its log's role registry (roles.enforced, AUD-020) reviewed as a diff; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA8 killed; the AUD-057, AUD-058 and AUD-059 changes (an address classified as what it reaches; the reducer's refusals in its own words; who may contract a host, and one host, one contract) written and reviewed as a diff, with NP1 to NP8 and NP12 to NP14 killed, and E43 and UA8 re-anchored to the lines the change rewrote",
+   "method": "every line read at 2e8e7f2, all 1,829: the module docstring and its three layers, classify_address and the host matcher, parse_target, the host and path normalisers, Service and its contract, EgressGrant, grant() and grant_from_record, the secret-pairing refusal, NetworkRequest and NetworkDecision, NetworkAuthority's load, _refresh and apply on every action, the service reads, register_service, issue, _require_issuer, _authorize_revoke, revoke, set_position, authorize, _decide, _covers, record and record_result, and the socket guard: _check with a pinned decision, an unpinned one and none, _install, _address_parts, the resolved candidates and their selection, and _maybe_ip. Earlier, in part: read: NetworkAuthority's constructor, load(), the network.grant branch of apply(), issue(), _authorize_revoke(), and where the governed runner applies the authority (socket_guard, three sites in governed_tasks.py); the AUD-017 EGRESS_ISSUER check written and reviewed as a diff (session 4); not read: authorize(), the service and request branches of apply(), the label-wise host rules and socket_guard itself; the binding to its log's role registry (roles.enforced, AUD-020) reviewed as a diff; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA8 killed; the AUD-057, AUD-058 and AUD-059 changes (an address classified as what it reaches; the reducer's refusals in its own words; who may contract a host, and one host, one contract) written and reviewed as a diff, with NP1 to NP8 and NP12 to NP14 killed, and E43 and UA8 re-anchored to the lines the change rewrote; classify_address's docstring made to say on which interpreter the mapped-address half of AUD-057 reproduces (D-2026-195), written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "7403dbba9de6838b05bd9986c27b1e5f99ef4986",
+   "new_blob": "06fc5afc7a7acd91078c977fe7bf06de7e956e5e",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/netauth.py",
-   "reviewed_blob": "7403dbba9de6838b05bd9986c27b1e5f99ef4986",
-   "sha256": "ac684be417b32740dc6bbb6b26536727e15ce35fbf2a5e1bae4e5b41fbcf48f1",
-   "size": 91203,
+   "reviewed_blob": "06fc5afc7a7acd91078c977fe7bf06de7e956e5e",
+   "sha256": "762ab0f59ab4b5a2b6958c4ab4e184ce8a82be142d77970c880bf0d62d3cd072",
+   "size": 91366,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -3303,13 +3303,13 @@
    "kind": "documentation",
    "method": "",
    "mode": "100644",
-   "new_blob": "115107af6c791ea6292ff0a0df2653498c0c6e61",
+   "new_blob": "5ae445b834700348e384237fce0c8f2631dc3791",
    "note": "not yet examined",
    "old_blob": null,
    "path": "docs/DEFECT_LEDGER.md",
    "reviewed_blob": null,
-   "sha256": "aa61ff39984a59c0d2f8d79ba88ddec38b8fb4543b473504af056f6fd0209221",
-   "size": 662474,
+   "sha256": "9bde9d8f6f9d73d9633260a39d857d74cb0651a9ad92e0511b47c5565192df47",
+   "size": 665481,
    "status": "NOT_REVIEWED"
   },
   {

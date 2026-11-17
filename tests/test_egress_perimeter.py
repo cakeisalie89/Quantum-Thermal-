@@ -5,8 +5,11 @@ AUD-057. A grant permits address classes, PUBLIC only by default, because
 reaching an inside network from a governed tool is a different act. The
 classifier called the shared address space, 100.64.0.0/10, PUBLIC, though
 the classes say it is PRIVATE; and it classified an IPv4 address carried in
-IPv6 by its IPv6 flags, so ``::ffff:127.0.0.1`` read as PRIVATE rather than
-LOOPBACK. Both the decision and the socket guard ask the classifier.
+IPv6 by its IPv6 flags, so that where the interpreter reads those flags as
+IPv6 (CPython 3.12.3, this container's) ``::ffff:127.0.0.1`` read as
+PRIVATE rather than LOOPBACK. CPython 3.12.13 and 3.13.17 read the address
+carried, so a test below puts the older flags back (D-2026-195). Both the decision and
+the socket guard ask the classifier.
 
 AUD-058. Three malformed network records raised KeyError out of the
 reducer, where its refusals are NetworkError.
@@ -67,6 +70,34 @@ HOST = "api.example.org"
     ("0.0.0.0", "SPECIAL"),
 ])
 def test_an_address_is_classified_by_where_it_reaches(addr, cls):
+    assert classify_address(addr).value == cls
+
+
+def _older_ipv6_flags(monkeypatch) -> None:
+    """The flags of an interpreter that reads an IPv4 address carried in
+    IPv6 as IPv6 (D-2026-195). CPython 3.12.3, this container's, says
+    ``::ffff:127.0.0.1`` is not loopback and ``::ffff:0.0.0.0`` is not
+    unspecified; 3.12.13 and 3.13.17 answer as the IPv4 address carried,
+    and where they do, the test above holds whether or not the classifier
+    reads the address carried."""
+    import ipaddress
+    monkeypatch.setattr(ipaddress.IPv6Address, "is_loopback",
+                        property(lambda self: int(self) == 1))
+    monkeypatch.setattr(ipaddress.IPv6Address, "is_unspecified",
+                        property(lambda self: int(self) == 0))
+    assert not ipaddress.ip_address("::ffff:127.0.0.1").is_loopback
+    assert not ipaddress.ip_address("::ffff:0.0.0.0").is_unspecified
+
+
+@pytest.mark.parametrize("addr, cls", [
+    ("::ffff:127.0.0.1", "LOOPBACK"),
+    ("::ffff:0.0.0.0", "SPECIAL"),
+    ("::1", "LOOPBACK"),                    # IPv6's own, as they were
+    ("::", "SPECIAL"),
+])
+def test_a_mapped_address_is_classified_alike_on_any_interpreter(
+        monkeypatch, addr, cls):
+    _older_ipv6_flags(monkeypatch)
     assert classify_address(addr).value == cls
 
 

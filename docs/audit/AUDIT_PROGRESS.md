@@ -4417,3 +4417,42 @@ mutation anchored in the directory was left out.
   whether a quorum should count agents is the owner's.
 - The remaining reducers were not swept for a bare `KeyError` on a
   malformed record.
+
+### Hosted CI at 219f377: the mapped-address rule was held on one interpreter (D-2026-195)
+
+**What failed.** Read from the API at 16:33 UTC: in the pull-request run
+44113499718, mutation shard 2 failed. `egress_perimeter` exited 1 with
+NP1 SURVIVED, 13 of its 14 mutations killed; the shard's fifteen other
+specs passed. Every other check of the two runs that had finished had
+passed. The push run's shard 2 was still running.
+
+**The cause.** The interpreter, not the change. Asked of an IPv4 address
+carried in IPv6, CPython 3.12.13 and 3.13.17 answer each of the seven
+flags `classify_address` reads as the IPv4 address carried, for each of
+eleven addresses tried. CPython 3.12.3, which this container's
+environment is built on, answers six of them otherwise for at least one:
+`::ffff:127.0.0.1` is not loopback and `::ffff:0.0.0.0` is not
+unspecified. NP1 takes away the line that reads the address carried. On
+3.12.13 nothing a test can ask tells NP1 from the code; on 3.12.3 it
+does, and here NP1 was killed. The mapped-address half of AUD-057
+reproduces on 3.12.3 and not on 3.12.13, and its test held the rule only
+where the interpreter reads the address as IPv6. Hosted CI's shards run
+under the CPython 3.12 `uv sync` provides (D-2026-194 read 3.12.16).
+
+**Reproduced here** under CPython 3.12.13, with the locked
+environment built on it. At 0278dcf, whose classifier and egress tests
+are 219f377's, `egress_perimeter` kills 13 of its 14 mutations, NP1
+SURVIVED, as hosted. Under 3.12.3 it killed all 14 at 219f377.
+
+**The repair.** A test puts back the older answers, `is_loopback` and
+`is_unspecified` read as IPv6, and holds `::ffff:127.0.0.1` as LOOPBACK
+and `::ffff:0.0.0.0` as SPECIAL, with `::1` and `::` as controls. The
+classifier's code is as committed; its docstring, the test module's and
+AUD-057's register entry say which interpreter the mapped-address half
+reproduces on.
+
+**What was run.** `egress_perimeter` whole, on this commit's tree,
+under CPython 3.12.13 and under 3.12.3: 14 of 14 killed under each, NP1
+by the new test, and every source restored. No other mutation is
+anchored within three lines of a line the change wrote, and no other
+spec runs the changed test file. The shard plan is unchanged.
