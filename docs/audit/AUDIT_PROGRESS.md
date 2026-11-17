@@ -4272,3 +4272,99 @@ CI runs every spec whole.
 - Outside the package, the readers of a stated resolution in
   `scientific/` were not swept for this; the quantity refuses one below
   zero where it is made.
+
+### Stage 5, eleventh pass: the egress perimeter (AUD-057 to AUD-059)
+
+`agent_substrate/netauth.py`, CRITICAL in the inventory and read in part
+until now, was read in full, every line of its 1,829 at 2e8e7f2. Three
+defects were reproduced in it.
+
+**AUD-057 (P1), fixed.** A grant permits address classes, PUBLIC only by
+default. `classify_address` took PUBLIC to mean whatever was not
+unspecified, loopback, multicast, link-local, private or reserved by the
+standard library's flags. The shared address space 100.64.0.0/10 is
+none of those and is not global, so it read as PUBLIC, though
+`AddressClass.PRIVATE` lists it. A PUBLIC-only grant authorized a
+request resolved to 100.64.0.1, and the socket guard, resolving a granted
+name itself, connected to it: a probe in this session's container
+connected through the guard to 100.64.0.1:443, which is live there, and
+closed the connection without sending anything. No test makes such a
+connection; each records the connection the guard lets through instead.
+An IPv4 address carried in IPv6 was classified by its IPv6 flags:
+`::ffff:127.0.0.1` and `::ffff:0.0.0.0` read as PRIVATE, so a grant
+permitting private ranges and not loopback reached loopback. Rated P1
+rather than the scale's P0 for a security boundary because the host the
+grant names still bounds what is asked for; the inside network is
+reached when such a name resolves there, which is the case the class
+check exists for.
+
+`classify_address` now classifies a mapped address as the IPv4 address
+it carries, and an address that is none of the other classes and not
+global as PRIVATE. The decision and the guard both ask it.
+
+**AUD-058 (P3), fixed.** A revocation naming no grant, a grant record
+carrying no grant and a service record carrying no service raised
+`KeyError` out of the reducer, and a revocation naming its grant by a
+list raised `TypeError`. Each is refused with `NetworkError` naming its
+position. AUD-007's class, in a reducer it did not reach.
+
+**AUD-059 (P1), fixed.** A service contract narrows what a grant permits
+on the hosts it claims: the operations under contract and a per-task
+budget. Registering one asked nothing of its registrar, under a role
+registry too, and a request was decided by the first registered service,
+by name, among those claiming its host. An actor holding no role
+registered a contract for a host another principal's grant covered, and
+both readers took it. A wider contract under a name that sorts first
+lifted a narrower one's limits: beside a contract permitting
+`GET /v1/read` once per task, one permitting `GET /` a thousand times
+made `GET /v1/admin` allowed.
+
+A registration is now refused unless its registrar holds EGRESS_ISSUER
+over every host it claims, where it is written and on replay, when a role
+registry is in force. A registration claiming a host that a registered
+service's patterns also match is refused, with or without one, by
+`netauth.patterns_overlap`. The second reader restates both in its own
+code.
+
+**Tests.** `tests/test_egress_perimeter.py`, new, 39 tests: the classes,
+with the edges of 100.64.0.0/10; the decision and the guard on shared
+address space and on a mapped loopback address; the four malformed
+records; who may contract a host; when two patterns overlap; the
+displacement as it was; one host, one contract with no role registry.
+At 2e8e7f2, 28 of them fail, eight because the overlap matcher is new;
+two that need an IPv6 socket skip in this session's container, where
+none can be made.
+
+**Mutations.** Fourteen, in a new spec, `egress_perimeter`: NP1 and NP2
+in the classifier, NP3 to NP8 in the primary's contract rules and its
+matcher, NP9 to NP11 in the second reader's, and NP12 to NP14 in the
+reducer's refusals. The shard plan was regenerated for 145 specs. Two
+existing anchors moved with the lines the change rewrote:
+`agent_netauth` E43, on the revocation, and `unknown_actions` UA8, whose
+anchor came to match the new refusal as well as its own. Each was
+re-anchored and still removes the same rule.
+
+Run here, on this commit's tree: 118 mutations in 9 specs. That is
+`egress_perimeter` whole, 14; `agent_netauth` whole, 61, the egress
+authority's own spec, whose source the change rewrote in the classifier
+and the reducer; `unknown_actions` whole, 10, and `mutation_shards`
+whole, 12; and every other mutation anchored in `netauth.py` or in the
+import list's test, in `agent_service_authority`,
+`agent_snapshot_coherence`, `decided_appends`, `role_authority` and
+`t2_closure`. All were killed and every source restored.
+
+Not run here: the other 328 mutations anchored in the second reader,
+each more than three lines from any line the change wrote. Their
+anchors were checked to match once, as all 3,070 were, and hosted CI
+runs every spec whole.
+
+**What is not established.**
+
+- NAT64 and 6to4 addresses are still classified by their IPv6 flags,
+  which refuses them under a PUBLIC grant; the address a translator would
+  reach is not derived.
+- Which role registers a service contract is the owner's to provision
+  with the rest of the role registry; EGRESS_ISSUER over the claimed
+  hosts is what is asked here.
+- Other reducers were not swept for a bare `KeyError` on a malformed
+  record in this pass.

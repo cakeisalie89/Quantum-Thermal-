@@ -57,8 +57,8 @@
   {
    "name": "UA8_netauth_reads_past_an_unknown_action",
    "path": "agent_substrate/netauth.py",
-   "find": "            raise NetworkError(why)\n",
-   "replace": "            pass\n",
+   "find": "        why = actions.unknown_refusal(ev)\n        if why is not None:\n            raise NetworkError(why)\n",
+   "replace": "        why = actions.unknown_refusal(ev)\n        if why is not None:\n            pass\n",
    "rationale": "an action no module writes is read past by the network authority: a newer schema's service, grant or request is dropped (AUD-054)"
   },
   {

@@ -302,8 +302,8 @@
     {
       "name": "E43_an_egress_grant_may_be_revoked_by_anyone",
       "path": "agent_substrate/netauth.py",
-      "find": "                self._authorize_revoke(ev, p[\"grant_id\"])\n                self._revoked.add(p[\"grant_id\"])",
-      "replace": "                self._revoked.add(p[\"grant_id\"])",
+      "find": "                self._authorize_revoke(ev, gid)\n                self._revoked.add(gid)",
+      "replace": "                self._revoked.add(gid)",
       "rationale": "egress authority is what a task's network access rests on; an unrelated actor revoking it fails the task closed on somebody else's say-so"
     },
     {

@@ -1,0 +1,107 @@
+{
+ "title": "The egress perimeter: what an address is, who may contract a host, and a malformed record refused in the reducer's own words",
+ "note": "AUD-057 to AUD-059. An address is classified as what a connection to it reaches, and PUBLIC means globally reachable (NP1, NP2). A contract for a host is put in force only by an egress issuer over every host it claims, and one host is decided by one contract, in the primary (NP3 to NP8) and the second reader (NP9 to NP11). The reducer refuses a malformed grant, revocation or service record in its own words (NP12 to NP14). tests/test_egress_perimeter.py holds each.",
+ "suites": [
+  "tests/test_egress_perimeter.py"
+ ],
+ "mutations": [
+  {
+   "name": "NP1_a_mapped_address_is_classified_by_its_ipv6_flags",
+   "path": "agent_substrate/netauth.py",
+   "find": "    mapped = getattr(ip, \"ipv4_mapped\", None)\n    if mapped is not None:\n        ip = mapped\n",
+   "replace": "    mapped = getattr(ip, \"ipv4_mapped\", None)\n    if False:\n        ip = mapped\n",
+   "rationale": "::ffff:127.0.0.1 reads as PRIVATE, and a grant permitting private ranges reaches loopback"
+  },
+  {
+   "name": "NP2_shared_address_space_is_public",
+   "path": "agent_substrate/netauth.py",
+   "find": "    if not ip.is_global:\n        return AddressClass.PRIVATE\n",
+   "replace": "    if False:\n        return AddressClass.PRIVATE\n",
+   "rationale": "a grant permitting PUBLIC only reaches 100.64.0.0/10, an inside network, at the decision and at the socket"
+  },
+  {
+   "name": "NP3_replay_takes_an_overlapping_contract",
+   "path": "agent_substrate/netauth.py",
+   "find": "                why = self._contract_overlap(svc)\n                if why is not None:\n                    raise NetworkError(f\"seq {ev.seq}: {why}\")\n",
+   "replace": "                why = self._contract_overlap(svc)\n                if False:\n                    raise NetworkError(f\"seq {ev.seq}: {why}\")\n",
+   "rationale": "a history holding a second contract for a contracted host loads, and the one sorting first decides"
+  },
+  {
+   "name": "NP4_a_writer_writes_an_overlapping_contract",
+   "path": "agent_substrate/netauth.py",
+   "find": "                why = self._contract_overlap(svc)\n                if why is not None:\n                    raise NetworkError(why)\n",
+   "replace": "                why = self._contract_overlap(svc)\n                if False:\n                    raise NetworkError(why)\n",
+   "rationale": "a wider contract under a name that sorts first is written over a contracted host, and lifts its operations and budget"
+  },
+  {
+   "name": "NP5_replay_takes_a_contract_from_anyone",
+   "path": "agent_substrate/netauth.py",
+   "find": "                        self._require_registrar(ev.actor, svc, ev.seq)\n",
+   "replace": "                        pass\n",
+   "rationale": "a contract written by an actor holding no egress authority over its hosts is in force on replay"
+  },
+  {
+   "name": "NP6_a_writer_writes_a_contract_for_anyone",
+   "path": "agent_substrate/netauth.py",
+   "find": "                        self._require_registrar(actor, svc, head_seq + 1)\n",
+   "replace": "                        pass\n",
+   "rationale": "an actor holding no egress authority over a host puts a contract for it in force"
+  },
+  {
+   "name": "NP7_wildcards_overlap_only_when_identical",
+   "path": "agent_substrate/netauth.py",
+   "find": "    return n > 0 and sa[-n:] == sb[-n:]\n",
+   "replace": "    return sa == sb\n",
+   "rationale": "*.example.org and *.api.example.org both claim x.api.example.org, and both contracts are put in force"
+  },
+  {
+   "name": "NP8_a_wildcard_never_overlaps_a_name",
+   "path": "agent_substrate/netauth.py",
+   "find": "    if wild_a and not wild_b:\n        return host_matches(a, b)\n",
+   "replace": "    if wild_a and not wild_b:\n        return False\n",
+   "rationale": "a contract for *.example.org and one for api.example.org are both in force, and the first by name decides for api.example.org"
+  },
+  {
+   "name": "NP9_the_second_reader_takes_a_contract_from_anyone",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if not (isinstance(rec, dict) and refused(\n                    ev, \"EGRESS_ISSUER\",\n                    [f\"egress:{h}\" for h in hosts or []] or [\"egress:*\"])):\n                _sub_service(ev, p, out)\n",
+   "replace": "            if True:\n                _sub_service(ev, p, out)\n",
+   "rationale": "the second reader holds a contract nobody may make, and agrees with a history the primary refuses"
+  },
+  {
+   "name": "NP10_the_second_reader_takes_an_overlapping_contract",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "                if _sub_hosts_overlap(a, b):\n",
+   "replace": "                if False:\n",
+   "rationale": "the second reader holds two contracts for one host, and reports nothing"
+  },
+  {
+   "name": "NP11_the_second_reader_overlaps_wildcards_only_when_identical",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        return n > 0 and la[-n:] == lb[-n:]\n",
+   "replace": "        return la == lb\n",
+   "rationale": "the second reader reads *.example.org and *.api.example.org as claiming different hosts"
+  },
+  {
+   "name": "NP12_a_revocation_naming_no_grant_raises",
+   "path": "agent_substrate/netauth.py",
+   "find": "                if not isinstance(gid, str) or not gid:\n                    # in this reducer's own words, not a KeyError (AUD-058)\n",
+   "replace": "                if False:\n                    # in this reducer's own words, not a KeyError (AUD-058)\n",
+   "rationale": "a revocation naming a grant by a list raises TypeError out of the reducer, not its refusal"
+  },
+  {
+   "name": "NP13_a_grant_record_with_no_grant_is_refused_in_other_words",
+   "path": "agent_substrate/netauth.py",
+   "find": "                if not isinstance(rec, dict):\n                    raise NetworkError(f\"seq {ev.seq}: network.grant carries \"\n",
+   "replace": "                if False:\n                    raise NetworkError(f\"seq {ev.seq}: network.grant carries \"\n",
+   "rationale": "a grant record carrying no grant is refused without its position, by the record builder's words"
+  },
+  {
+   "name": "NP14_a_service_record_with_no_service_is_refused_in_other_words",
+   "path": "agent_substrate/netauth.py",
+   "find": "            if not isinstance(rec, dict):\n                # in this reducer's own words, not a KeyError (AUD-058)\n",
+   "replace": "            if False:\n                # in this reducer's own words, not a KeyError (AUD-058)\n",
+   "rationale": "a service record carrying no service is refused without its position, by the record builder's words"
+  }
+ ]
+}

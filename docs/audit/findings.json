@@ -1996,6 +1996,93 @@
    "residual_risk": "The package's own producers cannot write such a bundle, and a verifier verified the record, so the reach is a bundle a proposer wrote some other way, or a history or store written some other way; a history an earlier build wrote on such a value no longer loads. A value that bounds no interval for another reason now decides nothing too: a value no float holds, where the evaluation raised OverflowError, and a value of true or false, which it took for one or zero. The portable verifier computes its verdict from its own exact solution, not from a stated resolution; it was read for this and not changed.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-057",
+   "title": "The egress classifier called shared address space PUBLIC and an IPv4-mapped address by its IPv6 flags, so a PUBLIC-only grant reached an inside network",
+   "severity": "P1",
+   "subsystem": "the egress authority: the address classes a grant permits",
+   "files": [
+    {
+     "path": "agent_substrate/netauth.py",
+     "lines": "classify_address, which the decision's class check and both of the socket guard's class checks ask"
+    }
+   ],
+   "behavior": "A grant permits address classes, PUBLIC only by default. classify_address took PUBLIC to mean whatever was not unspecified, loopback, multicast, link-local, private or reserved by the standard library's flags. The shared address space 100.64.0.0/10 is none of those and is not global, so it read as PUBLIC, though AddressClass.PRIVATE lists it: a PUBLIC-only grant authorized a request resolved to 100.64.0.1, and the socket guard, resolving a granted name itself, connected to it. An IPv4 address carried in IPv6 was classified by its IPv6 flags: ::ffff:127.0.0.1 and ::ffff:0.0.0.0 read as PRIVATE, so a grant permitting private ranges and not loopback reached loopback, and a mapped public address read as SPECIAL. Rated P1: the scale puts a security-boundary violation at P0, and this one is held at P1 because the host the grant names still bounds what is asked for; the inside network is reached when such a name resolves there, the rebinding case the class check exists for.",
+   "invariant": "An address is classified as what a connection to it reaches, and a grant reaches only the classes it names.",
+   "mechanism": "PUBLIC was the fall-through after a list of flags rather than what is globally reachable, and the flags of an IPv4-mapped IPv6 address are the IPv6 address's, not those of the IPv4 address a connection reaches.",
+   "reproduction": "At 2e8e7f2, by tests/test_egress_perimeter.py: classify_address of 100.64.0.0 to 100.127.255.255 is PUBLIC; a PUBLIC-only grant authorizes a request resolved to 100.64.0.1 or 100.127.255.254; the socket guard, with the name resolving to 100.64.0.1 and its connect recorded rather than made, connects; a PRIVATE-only grant authorizes ::ffff:127.0.0.1 and ::ffff:0.0.0.0. Before the test was written, a probe in this session's container connected through the guard to 100.64.0.1:443, which is live there, and closed the connection without sending anything.",
+   "observed": "Found reading agent_substrate/netauth.py in full, which had been read in part.",
+   "expected": "100.64.0.0/10 PRIVATE, ::ffff:a.b.c.d classified as a.b.c.d, and both refused under a grant that does not name their class.",
+   "correction": "classify_address classifies an IPv4-mapped address as the IPv4 address it carries, and an address that is none of the other classes and not global as PRIVATE. The decision and the guard both ask it, so both hold the corrected classes: the guard's own resolution of a granted name refuses a candidate in shared address space.",
+   "regression_tests": [
+    "tests/test_egress_perimeter.py::test_an_address_is_classified_by_where_it_reaches",
+    "tests/test_egress_perimeter.py::test_a_public_grant_does_not_reach_shared_address_space",
+    "tests/test_egress_perimeter.py::test_a_private_grant_does_not_reach_loopback_by_a_mapped_address",
+    "tests/test_egress_perimeter.py::test_the_guard_does_not_connect_a_public_grant_to_shared_address_space",
+    "tests/test_egress_perimeter.py::test_the_guard_classifies_a_mapped_address_as_what_it_reaches"
+   ],
+   "residual_risk": "A mapped public address, which read as SPECIAL and was refused, is PUBLIC: a connection to it reaches a public address. NAT64 and 6to4 addresses are still classified by their IPv6 flags, SPECIAL and PRIVATE here, which refuses them under a PUBLIC grant; the IPv4 address a translator would reach is not derived. 240.0.0.0/4 and the broadcast address read as PRIVATE rather than SPECIAL; neither carries a TCP connection. The classes are the standard library's, at the interpreter in use. The guard tests on an IPv6 socket skip where none can be made, as in this session's container. The guard is not containment, and the module says so.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-058",
+   "title": "Three malformed network records raised KeyError out of the egress reducer",
+   "severity": "P3",
+   "subsystem": "the egress authority's reducer",
+   "files": [
+    {
+     "path": "agent_substrate/netauth.py",
+     "lines": "NetworkAuthority.apply: network.grant and network.service"
+    }
+   ],
+   "behavior": "A network.grant revocation naming no grant, a network.grant record carrying no grant and a network.service record carrying no service raised KeyError on load, and a revocation naming its grant by a list raised TypeError. Each failed closed. None refused in the reducer's own NetworkError, so a caller handling the authority's refusal was handed an error it does not catch.",
+   "invariant": "A reducer refuses a record it cannot read in its own words, naming the record.",
+   "mechanism": "The payload was subscripted for the field before anything asked whether it was there.",
+   "reproduction": "At 2e8e7f2, by tests/test_egress_perimeter.py: a log holding each of the four records, loaded.",
+   "observed": "Found reading agent_substrate/netauth.py in full: AUD-007's class, in a reducer it did not reach.",
+   "expected": "NetworkError naming the record's position.",
+   "correction": "Each is refused with NetworkError naming its position. The second reader already noted each and does not raise.",
+   "regression_tests": [
+    "tests/test_egress_perimeter.py::test_a_malformed_network_record_is_refused_in_the_reducers_words"
+   ],
+   "residual_risk": "Fail-closed before and after; the change is in the error a caller is handed. Other reducers were not swept for this in this pass.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-059",
+   "title": "Anyone could put an egress service contract in force, and the first contract by name among those claiming a host decided for it",
+   "severity": "P1",
+   "subsystem": "the egress authority: service contracts",
+   "files": [
+    {
+     "path": "agent_substrate/netauth.py",
+     "lines": "register_service and NetworkAuthority.apply on network.service; service_for"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "the second reader's fold of network.service, _sub_service"
+    }
+   ],
+   "behavior": "A service contract narrows what a grant permits on the hosts it claims: the operations under contract and a per-task budget. Registering one asked nothing of its registrar, under a role registry too, and a request was decided by the first registered service, by name, among those claiming its host. An actor holding no role registered a contract for a host another principal's grant covered: on reload the granted request was refused by it, and the second reader reported nothing. And a wider contract under a name that sorts first lifted a narrower one's limits: with zz-contract permitting GET /v1/read once per task, aa-anything, permitting GET / a thousand times and registered by an actor holding no role, made GET /v1/admin allowed. Rated P1 with AUD-015, an unauthorized record taking effect on authority; the grant still bounds the host, port, method and path.",
+   "invariant": "A contract for a host is put in force only by an authority over egress to it, and one host is decided by one contract.",
+   "mechanism": "register_service and the reducer checked a contract's form, and that a service id was not registered again with other terms; they asked no role, and service_for returns the first service by id whose patterns match the host.",
+   "reproduction": "At 2e8e7f2, by tests/test_egress_perimeter.py: under a role registry granting EGRESS_ISSUER over api.example.org to eve alone, mallory registers a contract for it and the primary and the second reader both take it; a wider contract under an earlier name, registered beside a narrower one, decides for the host; and with no role registry two contracts claiming one host are both put in force.",
+   "observed": "Found reading agent_substrate/netauth.py in full, which had been read in part.",
+   "expected": "A registration by an actor without EGRESS_ISSUER over every host it claims refused, and a second contract for a claimed host refused, by both readers.",
+   "correction": "A registration is refused unless its registrar holds EGRESS_ISSUER over every host it claims, at the position it is written and on replay, when a role registry is in force; and a registration claiming a host that a registered service's patterns also match is refused, with or without one, by netauth.patterns_overlap. The second reader restates both in its own code. A contract registered again with the same terms is still one contract.",
+   "regression_tests": [
+    "tests/test_egress_perimeter.py::test_only_an_egress_issuer_over_its_hosts_contracts_a_host",
+    "tests/test_egress_perimeter.py::test_a_contract_nobody_may_make_is_refused_by_both_readers",
+    "tests/test_egress_perimeter.py::test_when_two_host_patterns_overlap",
+    "tests/test_egress_perimeter.py::test_a_second_contract_for_a_contracted_host_is_refused",
+    "tests/test_egress_perimeter.py::test_one_host_one_contract_holds_with_no_role_registry"
+   ],
+   "residual_risk": "Which role registers a contract is the owner's to provision with the rest of the role registry (AUD-011, AUD-017); EGRESS_ISSUER over the claimed hosts is the authority that grants egress to them, and is what is asked here. A history holding two contracts for one host, or one registered by an actor without the role, no longer loads; none is known. With no role registry, anyone may still contract a host no contract claims, as anyone may issue an egress grant there.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

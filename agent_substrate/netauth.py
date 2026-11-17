@@ -165,8 +165,19 @@ def classify_address(addr: str) -> AddressClass:
     somewhere a request goes, and calling it private would let a grant that
     permits private ranges cover it. The specific classifications are
     therefore tested first, and the broad ones last.
+
+    An IPv4 address carried in IPv6, ``::ffff:a.b.c.d``, is classified as
+    the IPv4 address a connection to it reaches: by its IPv6 flags,
+    ``::ffff:127.0.0.1`` read as private rather than loopback. And PUBLIC
+    means globally reachable. An address that is none of the classes above
+    and still not global -- the shared address space 100.64.0.0/10, which
+    carriers, clouds and overlay networks use inside their own perimeter --
+    is PRIVATE, as the classes say it is (AUD-057).
     """
     ip = ipaddress.ip_address(addr)
+    mapped = getattr(ip, "ipv4_mapped", None)
+    if mapped is not None:
+        ip = mapped
     if ip.is_unspecified:
         return AddressClass.SPECIAL
     if ip.is_loopback:
@@ -177,6 +188,8 @@ def classify_address(addr: str) -> AddressClass:
         return AddressClass.PRIVATE
     if ip.is_reserved:
         return AddressClass.SPECIAL
+    if not ip.is_global:
+        return AddressClass.PRIVATE
     return AddressClass.PUBLIC
 
 
@@ -212,6 +225,26 @@ def host_matches(pattern: str, host: str) -> bool:
         # Strictly longer: a wildcard covers subdomains, not the apex.
         return len(h) > len(stem) and h[-len(stem):] == stem
     return h == p
+
+
+def patterns_overlap(a: str, b: str) -> bool:
+    """Whether some host matches both patterns, by the rule ``host_matches``
+    applies (AUD-059). ``*.example.org`` and ``*.api.example.org`` overlap,
+    since ``x.api.example.org`` matches both; a wildcard and its own apex do
+    not."""
+    if not isinstance(a, str) or not isinstance(b, str) or not a or not b:
+        return False
+    la, lb = _labels(a), _labels(b)
+    wild_a, wild_b = la[0] == "*", lb[0] == "*"
+    if not wild_a and not wild_b:
+        return la == lb
+    if wild_a and not wild_b:
+        return host_matches(a, b)
+    if wild_b and not wild_a:
+        return host_matches(b, a)
+    sa, sb = la[1:], lb[1:]
+    n = min(len(sa), len(sb))
+    return n > 0 and sa[-n:] == sb[-n:]
 
 
 @dataclass(frozen=True)
@@ -933,7 +966,12 @@ class NetworkAuthority(DecidedWriter):
                 raise NetworkError(str(exc)) from exc
             return False
         if ev.action == ACT_SERVICE_REGISTER:
-            svc = service_from_record(ev.payload["service"])
+            rec = ev.payload.get("service")
+            if not isinstance(rec, dict):
+                # in this reducer's own words, not a KeyError (AUD-058)
+                raise NetworkError(f"seq {ev.seq}: network.service carries "
+                                   "no service record")
+            svc = service_from_record(rec)
             claimed = ev.payload.get("service_digest")
             if claimed != svc.digest():
                 raise NetworkError(
@@ -949,6 +987,19 @@ class NetworkAuthority(DecidedWriter):
                     f"seq {ev.seq}: service {svc.service_id!r} is registered "
                     "again with different terms; the contract in force would "
                     "be replaced by one nobody reviewed")
+            if existing is None:
+                # WHO MAY CONTRACT A HOST, and whether another contract
+                # already decides for it (AUD-059), at this position.
+                why = self._contract_overlap(svc)
+                if why is not None:
+                    raise NetworkError(f"seq {ev.seq}: {why}")
+                if self._role_view is not None:
+                    try:
+                        self._require_registrar(ev.actor, svc, ev.seq)
+                    except RoleRefused as exc:
+                        raise NetworkError(
+                            f"seq {ev.seq}: {ev.actor!r} registered service "
+                            f"{svc.service_id!r}: {exc}") from exc
             self._services[svc.service_id] = svc
             self._at_seq = ev.seq
             return True
@@ -966,10 +1017,19 @@ class NetworkAuthority(DecidedWriter):
         if ev.action == ACT_NET_GRANT:
             p = ev.payload
             if p.get("revoke"):
-                self._authorize_revoke(ev, p["grant_id"])
-                self._revoked.add(p["grant_id"])
+                gid = p.get("grant_id")
+                if not isinstance(gid, str) or not gid:
+                    # in this reducer's own words, not a KeyError (AUD-058)
+                    raise NetworkError(f"seq {ev.seq}: a revocation names no "
+                                       "egress grant")
+                self._authorize_revoke(ev, gid)
+                self._revoked.add(gid)
             else:
-                g = grant_from_record(p["grant"])
+                rec = p.get("grant")
+                if not isinstance(rec, dict):
+                    raise NetworkError(f"seq {ev.seq}: network.grant carries "
+                                       "no grant record")
+                g = grant_from_record(rec)
                 claimed = p.get("grant_digest")
                 if claimed != g.digest():
                     raise NetworkError(
@@ -1069,6 +1129,15 @@ class NetworkAuthority(DecidedWriter):
                     "different terms; changing a contract in force would "
                     "make every decision recorded under the old one read as "
                     "though it had been made under the new")
+            if existing is None:
+                why = self._contract_overlap(svc)
+                if why is not None:
+                    raise NetworkError(why)
+                if self._role_view is not None:
+                    try:
+                        self._require_registrar(actor, svc, head_seq + 1)
+                    except RoleRefused as exc:
+                        raise NetworkError(str(exc)) from exc
             return {"actor": actor, "action": ACT_SERVICE_REGISTER,
                     "target": svc.service_id,
                     "payload": {"service": svc.body(),
@@ -1138,6 +1207,42 @@ class NetworkAuthority(DecidedWriter):
         for value in [f"egress:{h}" for h in g.hosts] or ["egress:*"]:
             view.require(actor, EGRESS_ISSUER, value, seq,
                          what=f"egress grant {g.grant_id!r}: ")
+
+    def _require_registrar(self, actor: str, svc: "Service",
+                           seq: int) -> None:
+        """EGRESS_ISSUER over every host ``svc`` claims, or RoleRefused
+        (AUD-059). A contract decides what may be asked of a host and how
+        often, which is authority over egress to it: the authority that
+        grants egress to the host is the one that may contract it."""
+        view = self._role_view
+        if view is None:
+            return
+        for h in svc.hosts:
+            view.require(actor, EGRESS_ISSUER, f"egress:{h}", seq,
+                         what=f"service {svc.service_id!r}: ")
+
+    def _contract_overlap(self, svc: "Service") -> str | None:
+        """Why ``svc`` may not be put in force beside the contracts already
+        in force, or None (AUD-059).
+
+        One host, one contract. A request is decided by the one service
+        that claims its host, so a second contract claiming a host the
+        first claims would decide instead of it, and whichever sorted first
+        would set the operations and the budget -- a wider contract under an
+        earlier name lifted a narrower one's limits."""
+        for other in sorted(self._services.values(),
+                            key=lambda s: s.service_id):
+            if other.service_id == svc.service_id:
+                continue
+            for a in svc.hosts:
+                for b in other.hosts:
+                    if patterns_overlap(a, b):
+                        return (f"service {svc.service_id!r} claims {a!r}, "
+                                f"which overlaps {b!r} of service "
+                                f"{other.service_id!r}; one host is decided "
+                                "by one contract, and a second would decide "
+                                "instead of the one in force")
+        return None
 
     def _authorize_revoke(self, ev, grant_id: str) -> None:
         """May ``ev.actor`` withdraw this egress grant? Or raise.

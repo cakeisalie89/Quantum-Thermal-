@@ -2182,7 +2182,13 @@ def reconstruct_subsystems(log: EventLog, *, roles=None,
         elif a == "memory.invalidate":
             _sub_memory_invalidate(ev, p, out)
         elif a == "network.service":
-            _sub_service(ev, p, out)
+            # who may contract a host (AUD-059), restated
+            rec = p.get("service")
+            hosts = rec.get("hosts") if isinstance(rec, dict) else None
+            if not (isinstance(rec, dict) and refused(
+                    ev, "EGRESS_ISSUER",
+                    [f"egress:{h}" for h in hosts or []] or ["egress:*"])):
+                _sub_service(ev, p, out)
         elif a == "network.request":
             _sub_service_call(ev, p, out)
             _sub_egress_use(ev, p, out)
@@ -3764,6 +3770,18 @@ def _sub_service(ev, p: dict, out) -> None:
                            "different terms; the contract in force would be "
                            "replaced by one nobody reviewed")
         return
+    # One host, one contract (AUD-059): a second contract claiming a host
+    # another claims would decide for it instead of the one in force.
+    for other in sorted(out.services.values(),
+                        key=lambda s: str(s["service_id"])):
+        for a in rec.get("hosts") or ():
+            for b in other["hosts"]:
+                if _sub_hosts_overlap(a, b):
+                    _note(out, ev, f"service {sid!r} claims {a!r}, which "
+                                   f"overlaps {b!r} of service "
+                                   f"{other['service_id']!r}; one host is "
+                                   "decided by one contract; not applied")
+                    return
     out.services[sid] = {
         "service_id": sid, "digest": p.get("service_digest"),
         "hosts": tuple(rec.get("hosts") or ()),
@@ -3774,6 +3792,24 @@ def _sub_service(ev, p: dict, out) -> None:
             if isinstance(o, dict))),
         "registered_seq": ev.seq,
     }
+
+
+def _sub_hosts_overlap(a, b) -> bool:
+    """Whether some host matches both host patterns, in this reader's own
+    words: labels compared right-anchored, ``*.`` covering strict subdomains
+    and never its own apex (AUD-059)."""
+    if not isinstance(a, str) or not isinstance(b, str) or not a or not b:
+        return False
+    la = tuple(a.rstrip(".").lower().split("."))
+    lb = tuple(b.rstrip(".").lower().split("."))
+    if la[0] != "*" and lb[0] != "*":
+        return la == lb
+    if la[0] == "*" and lb[0] == "*":
+        n = min(len(la), len(lb)) - 1
+        return n > 0 and la[-n:] == lb[-n:]
+    wild, name = (la, lb) if la[0] == "*" else (lb, la)
+    stem = wild[1:]
+    return bool(stem) and len(name) > len(stem) and name[-len(stem):] == stem
 
 
 def _sub_service_call(ev, p: dict, out) -> None:

@@ -190,7 +190,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/evidence_objects.json",
                # A resolution below zero decides nothing (AUD-056).
                "tests/test_resolution_bound.py",
-               "tools/mutations/resolution_bound.json")
+               "tools/mutations/resolution_bound.json",
+               # The egress perimeter (AUD-057 to AUD-059).
+               "tests/test_egress_perimeter.py",
+               "tools/mutations/egress_perimeter.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

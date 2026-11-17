@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 655,
+   "ADDED": 657,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 232,
-   "MEDIUM": 369
+   "LOW": 233,
+   "MEDIUM": 370
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 144,
+   "assurance": 145,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 207,
+   "tests": 208,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 687
+  "files": 689
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -578,6 +578,7 @@
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
      "tests/test_ed25519_encodings.py",
+     "tests/test_egress_perimeter.py",
      "tests/test_evidence_objects.py",
      "tests/test_evidence_terms.py",
      "tests/test_execution_containment.py",
@@ -1230,6 +1231,7 @@
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
+     "tests/test_egress_perimeter.py",
      "tests/test_evidence_objects.py",
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
@@ -1798,6 +1800,7 @@
      "tools/mutations/agent_service_authority.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/decided_appends.json",
+     "tools/mutations/egress_perimeter.json",
      "tools/mutations/role_authority.json",
      "tools/mutations/t2_closure.json",
      "tools/mutations/unknown_actions.json"
@@ -1812,6 +1815,7 @@
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
+     "tests/test_egress_perimeter.py",
      "tests/test_governed_history.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_refused_fold.py",
@@ -2075,6 +2079,7 @@
      "tools/mutations/authenticated_history.json",
      "tools/mutations/composed_campaigns.json",
      "tools/mutations/decision_proof.json",
+     "tools/mutations/egress_perimeter.json",
      "tools/mutations/freshness.json",
      "tools/mutations/governed_history.json",
      "tools/mutations/governed_run.json",
@@ -2119,6 +2124,7 @@
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
+     "tests/test_egress_perimeter.py",
      "tests/test_formal_conformance.py",
      "tests/test_freshness.py",
      "tests/test_gate_b_acceptance.py",
@@ -2274,6 +2280,7 @@
     "tests": [
      "tests/test_assurance_package.py",
      "tests/test_authenticated_history.py",
+     "tests/test_egress_perimeter.py",
      "tests/test_governed_history.py",
      "tests/test_governed_research_run.py",
      "tests/test_role_authority.py",
@@ -7276,6 +7283,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_egress_perimeter.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_evidence_objects.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -10606,6 +10630,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/ed25519_encodings.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/egress_perimeter.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",
