@@ -4368,3 +4368,52 @@ runs every spec whole.
   hosts is what is asked here.
 - Other reducers were not swept for a bare `KeyError` on a malformed
   record in this pass.
+
+### Stage 5, twelfth pass: an answer closes its question (AUD-060, AUD-061)
+
+`agent_substrate/agents.py`, HIGH in the inventory and read in part until
+now, was read in full, every line of its 1,396 at 219f377. Its
+registration of a principal that is not human asks nothing of the
+registrar, by design since AUD-011: a registration is not a grant, and
+under a role registry the roles are held there. Two defects were
+reproduced.
+
+**AUD-060 (P2), fixed.** An escalation answer moves the question to
+ANSWERED, or, from its asker, WITHDRAWN. The directory took any state but
+WITHDRAWN on the answer path. An answer whose state was OPEN recorded a
+person's answer and its author on a question still open, and the next
+answer, by another person, replaced it. `answer()` and `withdraw()` never
+write such a record. The second reader refused it, so the two readers
+disagreed about the history. The directory now refuses an answer that
+moves the question to any state but those two, and one naming a state
+that does not exist.
+
+**AUD-061 (P3), fixed.** Eight malformed directory records raised
+`KeyError`, `ValueError` or `TypeError` out of the reducer, where every
+refusal it makes is an `AgentError`. Each is refused with the
+directory's own error naming its position. AUD-058's class, in another
+reducer.
+
+**Tests.** `tests/test_agent_directory_records.py`, new, 12 tests. At
+219f377, 11 of them fail; the control passes.
+
+**Mutations.** Nine, in a new spec, `agent_directory_records`: AD1 and
+AD9 in the answer's state, AD2 to AD8 in the refusals of malformed
+records. The shard plan was regenerated for 146 specs.
+
+Run here, on this commit's tree: 91 mutations in 9 specs. That is
+`agent_directory_records` whole, 9; `mutation_shards` whole, 12; and
+every mutation anchored in `agents.py` or in the import list's test, in
+`agent_agents`, `agent_incremental`, `agent_service_authority`,
+`agent_snapshot_coherence`, `agent_toctou`, `t2_closure` and
+`unknown_actions`. All were killed and every source restored. No
+mutation anchored in the directory was left out.
+
+**What is not established.**
+
+- A quorum counts distinct instances, as `ConflictRule.REQUIRE_QUORUM`
+  says, so two runs of one agent make two. Separation of duties counts
+  them as one party. Nothing outside the directory resolves claims today;
+  whether a quorum should count agents is the owner's.
+- The remaining reducers were not swept for a bare `KeyError` on a
+  malformed record.

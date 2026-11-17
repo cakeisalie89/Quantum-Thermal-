@@ -193,7 +193,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/resolution_bound.json",
                # The egress perimeter (AUD-057 to AUD-059).
                "tests/test_egress_perimeter.py",
-               "tools/mutations/egress_perimeter.json")
+               "tools/mutations/egress_perimeter.json",
+               # The agent directory's records (AUD-060, AUD-061).
+               "tests/test_agent_directory_records.py",
+               "tools/mutations/agent_directory_records.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

@@ -2083,6 +2083,58 @@
    "residual_risk": "Which role registers a contract is the owner's to provision with the rest of the role registry (AUD-011, AUD-017); EGRESS_ISSUER over the claimed hosts is the authority that grants egress to them, and is what is asked here. A history holding two contracts for one host, or one registered by an actor without the role, no longer loads; none is known. With no role registry, anyone may still contract a host no contract claims, as anyone may issue an egress grant there.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-060",
+   "title": "The agent directory took an escalation answer that left the question open, and the next answer replaced it",
+   "severity": "P2",
+   "subsystem": "the agent directory: escalations",
+   "files": [
+    {
+     "path": "agent_substrate/agents.py",
+     "lines": "AgentDirectory.apply on agent.escalation.answer"
+    }
+   ],
+   "behavior": "An escalation answer moves the question to ANSWERED, or, from its asker, WITHDRAWN. The directory read an answer record's state from the payload and took any state but WITHDRAWN on the answer path: an answer whose state was OPEN recorded a person's answer and its author on a question still open, and the next answer, by another person, replaced it. answer() and withdraw() never write such a record. The second reader refused it, as a move to a state neither answered nor withdrawn, so the two readers disagreed about the history, and the directory held as the answer on record one that decided nothing.",
+   "invariant": "An answer closes the question it answers, and a recorded answer is not replaced.",
+   "mechanism": "The reducer branched only on WITHDRAWN, and wrote the payload's state back whatever it was.",
+   "reproduction": "At 219f377, by tests/test_agent_directory_records.py: two registered humans and an agent's escalation; an answer record from the first human with state OPEN loads, holding that answer on an open question, and the second human's answer then loads over it, while the second reader notes the first record.",
+   "observed": "Found reading agent_substrate/agents.py in full, which had been read in part.",
+   "expected": "EscalationError on load naming the record, where the second reader notes it.",
+   "correction": "The directory refuses an answer record that moves the question to any state but ANSWERED or WITHDRAWN, and one naming a state that does not exist, in its own words.",
+   "regression_tests": [
+    "tests/test_agent_directory_records.py::test_an_answer_that_leaves_the_question_open_is_refused",
+    "tests/test_agent_directory_records.py::test_a_recorded_answer_is_not_replaced_by_the_next",
+    "tests/test_agent_directory_records.py::test_an_answer_and_a_withdrawal_still_close_it"
+   ],
+   "residual_risk": "A history holding such a record no longer loads; none is known, and only a registered human principal could have written one, around the directory. Rated P2 for the readers' disagreement; the record reached nothing beyond its escalation.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-061",
+   "title": "Eight malformed agent-directory records raised KeyError, ValueError or TypeError out of its reducer",
+   "severity": "P3",
+   "subsystem": "the agent directory's reducer",
+   "files": [
+    {
+     "path": "agent_substrate/agents.py",
+     "lines": "AgentDirectory.apply"
+    }
+   ],
+   "behavior": "A registration carrying no identity, a retirement naming no instance, a message carrying no message, a claim lacking its fields, an escalation carrying no escalation and an answer naming no escalation raised KeyError on load, a claim naming an unknown role raised ValueError, and a retirement naming its instance by a list raised TypeError, where every refusal the directory makes is an AgentError. Each failed closed; a caller handling the directory's refusal was handed an error it does not catch.",
+   "invariant": "A reducer refuses a record it cannot read in its own words, naming the record.",
+   "mechanism": "The payload was subscripted, or a field converted, before anything asked whether it was there and what it was.",
+   "reproduction": "At 219f377, by tests/test_agent_directory_records.py: a log holding each record, loaded.",
+   "observed": "Found reading agent_substrate/agents.py in full: AUD-058's class, in another reducer.",
+   "expected": "The directory's own error, naming the record's position.",
+   "correction": "Each is refused with the directory's own error, IdentityError, MessageError, ConflictError or EscalationError, naming its position. The second reader already noted each and does not raise.",
+   "regression_tests": [
+    "tests/test_agent_directory_records.py::test_a_malformed_directory_record_is_refused_in_its_own_words"
+   ],
+   "residual_risk": "Fail-closed before and after; the change is in the error a caller is handed. The remaining reducers were not swept for this.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

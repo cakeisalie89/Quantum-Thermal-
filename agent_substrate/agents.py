@@ -587,7 +587,12 @@ class AgentDirectory:
             self._folded_through, self._folded_hash = ev.seq, ev.hash
         p = ev.payload
         if ev.action == ACT_AGENT_REGISTER:
-            ident = identity_from_record(p["identity"])
+            rec = p.get("identity")
+            if not isinstance(rec, dict):
+                # in this directory's own words, not a KeyError (AUD-061)
+                raise IdentityError(f"seq {ev.seq}: agent.register carries "
+                                    "no identity record")
+            ident = identity_from_record(rec)
             if ident.instance_id in self._identities:
                 raise IdentityError(
                     f"seq {ev.seq}: instance {ident.instance_id!r} registered "
@@ -608,7 +613,7 @@ class AgentDirectory:
             # the same reason the executor comes from the execution record:
             # a field the registrant writes cannot establish who admitted it.
             self._check_may_register(ident, by=ev.actor, seq=ev.seq)
-            claimed_by = p["identity"].get("registered_by", "")
+            claimed_by = rec.get("registered_by", "")
             if claimed_by and claimed_by != ev.actor:
                 raise IdentityError(
                     f"seq {ev.seq}: the record says {ident.instance_id!r} was "
@@ -618,7 +623,10 @@ class AgentDirectory:
             self._identities[ident.instance_id] = replace(
                 ident, registered_by=ev.actor, registered_seq=ev.seq)
         elif ev.action == ACT_AGENT_RETIRE:
-            iid = p["instance_id"]
+            iid = p.get("instance_id")
+            if not isinstance(iid, str) or not iid:
+                raise IdentityError(f"seq {ev.seq}: a retirement names no "
+                                    "instance")
             if iid not in self._identities:
                 # A raw KeyError here leaks the projection's internals and
                 # skips the domain error every other refusal in this module
@@ -635,7 +643,11 @@ class AgentDirectory:
             self._identities[iid] = replace(self._identities[iid],
                                             retired_seq=ev.seq)
         elif ev.action == ACT_MESSAGE:
-            msg = message_from_record(p["message"])
+            rec = p.get("message")
+            if not isinstance(rec, dict):
+                raise MessageError(f"seq {ev.seq}: agent.message carries no "
+                                   "message record")
+            msg = message_from_record(rec)
             # WHO SENT IT IS THE EVENT'S ACTOR.
             #
             # The claim branch below has always checked this, in these words:
@@ -679,13 +691,26 @@ class AgentDirectory:
             # detection compares, so an attributable-to-anyone claim is a way
             # to manufacture or suppress a disagreement between two
             # "independent" parties.
-            claimed_by = p["by_instance"]
+            claimed_by = p.get("by_instance")
             if claimed_by != ev.actor:
                 raise ConflictError(
-                    f"seq {ev.seq}: claim {p['claim_id']!r} says it was made "
-                    f"by {claimed_by!r} but was appended by {ev.actor!r}; a "
-                    "claim is attributed to the instance that recorded it")
-            role = AgentRole(p["role"])
+                    f"seq {ev.seq}: claim {p.get('claim_id')!r} says it was "
+                    f"made by {claimed_by!r} but was appended by "
+                    f"{ev.actor!r}; a claim is attributed to the instance "
+                    "that recorded it")
+            lacking = [k for k in ("claim_id", "task_id", "subject",
+                                   "value_digest")
+                       if not isinstance(p.get(k), str)]
+            if lacking:
+                raise ConflictError(f"seq {ev.seq}: a claim record lacks "
+                                    f"{lacking}")
+            try:
+                role = AgentRole(p.get("role"))
+            except ValueError:
+                raise ConflictError(
+                    f"seq {ev.seq}: claim {p['claim_id']!r} names the role "
+                    f"{p.get('role')!r}, which is no role this directory "
+                    "knows") from None
             self.require(ev.actor, role, at_seq=ev.seq)
             claim = Claim(claim_id=p["claim_id"], task_id=p["task_id"],
                           subject=p["subject"],
@@ -697,7 +722,11 @@ class AgentDirectory:
                     f"seq {ev.seq}: claim {claim.claim_id!r} recorded twice")
             self._claims[claim.claim_id] = claim
         elif ev.action == ACT_ESCALATION:
-            esc = escalation_from_record(p["escalation"])
+            rec = p.get("escalation")
+            if not isinstance(rec, dict):
+                raise EscalationError(f"seq {ev.seq}: agent.escalation "
+                                      "carries no escalation record")
+            esc = escalation_from_record(rec)
             # WHO RAISED IT IS THE EVENT'S ACTOR.
             #
             # The answer side of this record was repaired first, and the
@@ -725,7 +754,10 @@ class AgentDirectory:
             self._escalations[esc.escalation_id] = replace(
                 esc, raised_seq=ev.seq)
         elif ev.action == ACT_ESCALATION_ANSWER:
-            eid = p["escalation_id"]
+            eid = p.get("escalation_id")
+            if not isinstance(eid, str) or not eid:
+                raise EscalationError(f"seq {ev.seq}: an answer names no "
+                                      "escalation")
             # RE-AUTHORIZE ON REPLAY. This used to assign the record's own
             # fields, so one appended line let an AGENT answer its own
             # escalation: the HUMAN-principal check and the not-the-asker
@@ -745,7 +777,26 @@ class AgentDirectory:
                     f"seq {ev.seq}: escalation {eid!r} is "
                     f"{cur.state.value}; answering it again would rewrite a "
                     "decision that was already recorded")
-            dst = EscalationState(p["state"])
+            try:
+                dst = EscalationState(p.get("state"))
+            except ValueError:
+                raise EscalationError(
+                    f"seq {ev.seq}: escalation {eid!r} is moved to "
+                    f"{p.get('state')!r}, which is no state an escalation "
+                    "has") from None
+            if dst not in (EscalationState.ANSWERED,
+                           EscalationState.WITHDRAWN):
+                # AN ANSWER CLOSES THE QUESTION OR IT IS NOT AN ANSWER
+                # (AUD-060). One that left the escalation OPEN was taken
+                # here: it recorded a person's answer on a question still
+                # open, and the next answer replaced it. answer() and
+                # withdraw() never write one, and the second reader refuses
+                # it.
+                raise EscalationError(
+                    f"seq {ev.seq}: escalation {eid!r} is moved to "
+                    f"{dst.value}, which is neither answered nor withdrawn; "
+                    "an answer that leaves the question open is not a "
+                    "decision")
             if dst is EscalationState.WITHDRAWN:
                 # A withdrawal is a different act from an answer: the ASKER
                 # says they no longer need the decision, and no human is
@@ -816,7 +867,7 @@ class AgentDirectory:
                     f"{list(cur.options)}; an answer that cannot be checked "
                     "against what was asked is a note, not a decision")
             self._escalations[eid] = replace(
-                cur, state=EscalationState(p["state"]),
+                cur, state=dst,
                 answer=p.get("answer"), answered_by=answered_by,
                 answer_reason=p.get("reason", ""), answered_seq=ev.seq)
         else:

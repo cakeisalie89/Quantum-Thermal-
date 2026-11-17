@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 657,
+   "ADDED": 659,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 233,
-   "MEDIUM": 370
+   "LOW": 234,
+   "MEDIUM": 371
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 145,
+   "assurance": 146,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 208,
+   "tests": 209,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 689
+  "files": 691
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -531,6 +531,7 @@
      "tests/test_agent_cross_process.py",
      "tests/test_agent_delegation.py",
      "tests/test_agent_differential.py",
+     "tests/test_agent_directory_records.py",
      "tests/test_agent_evidence.py",
      "tests/test_agent_execution.py",
      "tests/test_agent_fault_injection.py",
@@ -748,6 +749,7 @@
     ],
     "mutation_specs": [
      "tools/mutations/agent_agents.json",
+     "tools/mutations/agent_directory_records.json",
      "tools/mutations/agent_incremental.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_toctou.json",
@@ -759,6 +761,7 @@
      "tests/test_agent_collusion.py",
      "tests/test_agent_compensation.py",
      "tests/test_agent_crash_recovery.py",
+     "tests/test_agent_directory_records.py",
      "tests/test_agent_governed_tasks.py",
      "tests/test_agent_hostile_campaign.py",
      "tests/test_agent_idempotency.py",
@@ -1194,6 +1197,7 @@
      "tests/test_agent_cross_process.py",
      "tests/test_agent_delegation.py",
      "tests/test_agent_differential.py",
+     "tests/test_agent_directory_records.py",
      "tests/test_agent_evidence.py",
      "tests/test_agent_execution.py",
      "tests/test_agent_fault_injection.py",
@@ -2106,6 +2110,7 @@
      "tests/test_agent_crash_recovery.py",
      "tests/test_agent_delegation.py",
      "tests/test_agent_differential.py",
+     "tests/test_agent_directory_records.py",
      "tests/test_agent_fuzz.py",
      "tests/test_agent_hostile_campaign.py",
      "tests/test_agent_idempotency.py",
@@ -6304,6 +6309,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_agent_directory_records.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_agent_evidence.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -9610,6 +9632,7 @@
      "tools/mutations/grounding_bench.json"
     ],
     "tests": [
+     "tests/test_agent_directory_records.py",
      "tests/test_agent_substrate_isolation.py",
      "tests/test_grounding_bench.py"
     ]
@@ -10046,6 +10069,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/agent_delegation.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/agent_directory_records.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",
