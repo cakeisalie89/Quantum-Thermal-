@@ -4201,3 +4201,74 @@ kind no admission rule reads. Not fixed in this commit.
   a kind no admission rule reads, citing whatever bytes its proposer
   stored, once a verifier verifies it; that, or a history or store
   written some other way, is the reach.
+
+### Stage 5, tenth pass: a resolution below zero decides nothing (AUD-056)
+
+**AUD-056 (P2), fixed.** Registered open in the ninth pass. A quantity
+refuses a resolution below zero where it is made, and so does the
+ranking; the readers of a bundle did not. The research ledger observed
+a stated resolution of -5 K as it stood, and the one evaluation held
+the value to an interval whose lower end is above its upper, so that
+300 K supported `T > 302 K`. The claim check, which asks the same
+evaluation and computes the same interval for a claim of equality, and
+the second reader's verdict agreed with it.
+
+**The repair.** `research.holds_an_interval` states once what bounds an
+interval: a finite value, and a resolution that is a finite number no
+less than zero. The research ledger's reader of outputs leaves out an
+output whose resolution is below zero, as it does one that is not a
+number. The evaluation decides nothing on a value that bounds no
+interval, INCONCLUSIVE with its reason, and the claim check judges such
+a value INSUFFICIENT_EVIDENCE, a claim of equality too. The second
+reader's verdict restates the rule in its own code. A history an
+earlier build wrote observing such a value is refused on load: with an
+evidence store, for values its bundle does not hold; without one, for
+the verdict computed on them. The second reader reports that verdict.
+
+Every use of a stated resolution in the package's arithmetic was read
+for this: the evaluation, the claim check's interval and its test of a
+citation, the widening by a check's agreement, and the agreement checks
+in the admission rules and the second reader, which already refused a
+resolution below zero. The portable verifier computes its verdict from
+its own exact solution, not from a stated resolution, and was read and
+not changed.
+
+**Tests.** `tests/test_resolution_bound.py`, new: what bounds an
+interval; the reader of outputs; the evaluation, the claim check and
+the second reader's verdict, each on a prediction or claim the inside-
+out interval would decide the wrong way, with 0.5 K and 0 K as the
+controls; the ledger observing such a bundle and deciding nothing; a
+history written as an earlier build wrote it, refused with and without
+an evidence store and reported by the second reader. At 143c38f, 32
+of its 33 tests fail, fifteen of them because `holds_an_interval` is
+new; the ledger's control passes.
+
+**Mutations.** Five, in a new spec, `resolution_bound`: NB1 in the
+reader of outputs, NB2 in `holds_an_interval`, NB3 in the evaluation,
+NB4 in the claim check and NB5 in the second reader. The shard plan
+was regenerated for 144 specs.
+
+Run here, on this commit's tree: 47 mutations in 8 specs. That is
+`resolution_bound` whole, 5; `claim_check` whole, 25, whose judge the
+change guards; `mutation_shards` whole, 12; the four of other specs
+anchored within three lines of a line the change wrote, `research`
+RS15, `simulation` SM8, `evidence_objects` EO10 and
+`rc_counterfactuals` OV11; and the one anchored in the import list's
+test, in `agent_service_authority`. All were killed and every source
+restored.
+
+Not run here: the other 417 mutations anchored in the three sources,
+89 in the research ledger, 327 in the second reader and one in the
+claim check, each more than three lines from any line the change wrote.
+Their anchors were checked to match once, as all 3,056 were, and hosted
+CI runs every spec whole.
+
+**What is not established.**
+
+- A value that bounds no interval for another reason now decides
+  nothing too: a value no float holds, where the evaluation raised
+  `OverflowError`, and a value of true or false, which it took for one
+  or zero. Neither was found in a history.
+- Outside the package, the readers of a stated resolution in
+  `scientific/` were not swept for this; the quantity refuses one below
+  zero where it is made.

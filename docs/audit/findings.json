@@ -1979,14 +1979,23 @@
    "behavior": "A measurement record verified through the authority store, citing a bundle that states T = 300 K with a resolution of -5 K and a report that states no agreement, is observed with that resolution, and the one evaluation holds the value to the interval from 305 K to 295 K, whose lower end is above its upper: the prediction T > 302 K is SUPPORTED by a value below 302 K. With a resolution of 0.5 K the same prediction is REFUTED. The second reader's verdict computes the same interval, so it agrees and reports nothing.",
    "invariant": "A verdict holds a value to an interval that contains it: a resolution is a bound, never below zero.",
    "mechanism": "A quantity refuses a resolution below zero where it is made (scientific/quantity.py), and so does the ranking (scientific/ranking.py). The research ledger's reader of outputs takes a bundle's resolution with no test of its sign, and the evaluation and the second reader's verdict compute value - resolution and value + resolution without asking which is lower. Under admission/2 a report's agreement replaces the producer's resolution with a bound that is never below zero, so the path is a report that states no agreement: a record admitted under admission/1, or of a kind no admission rule reads.",
-   "reproduction": "At 699b04b, and again with AUD-055's change, with the log, evidence store and verified measurement record that tests/test_evidence_objects.py builds, whose report is not JSON: ResearchLedger.observe of a bundle stating T = 300 K with resolution -5 K records the resolution, research.evaluate of T > 302 K against the observation returns SUPPORTED, and the history loads. With resolution 0.5 K the evaluation returns REFUTED.",
+   "reproduction": "At 699b04b, and again with AUD-055's change, with the log, evidence store and verified measurement record that tests/test_evidence_objects.py builds, whose report is not JSON: ResearchLedger.observe of a bundle stating T = 300 K with resolution -5 K records the resolution, research.evaluate of T > 302 K against the observation returns SUPPORTED, and the history loads. With resolution 0.5 K the evaluation returns REFUTED. At 143c38f, by tests/test_resolution_bound.py: 32 of its 33 tests fail, fifteen of them because holds_an_interval is new; the ledger's control passes.",
    "observed": "Found while correcting AUD-055's record: its reader of outputs was made total over values that are not numbers, and a number below zero was still read.",
    "expected": "A value whose resolution is below zero decides nothing, in either reader.",
-   "correction": "Not applied in the commit that registers it.",
-   "regression_tests": [],
-   "residual_risk": "The package's own producers cannot write such a bundle, and a verifier verified the record, so the reach is a bundle a proposer wrote some other way, or a history or store written some other way. Other readers of a stated resolution were not swept.",
+   "correction": "research.holds_an_interval states once what bounds an interval: a finite value, and a resolution that is a finite number no less than zero. The research ledger's reader of outputs leaves out an output whose resolution is below zero, as it does one that is not a number. The evaluation decides nothing, INCONCLUSIVE with its reason, on a value that bounds no interval, and the claim check judges such a value INSUFFICIENT_EVIDENCE, a claim of equality too. The second reader's verdict restates the rule. A history an earlier build wrote observing such a value is refused on load, with an evidence store for the values its bundle does not hold and without one for the verdict computed on them, and the second reader reports the verdict.",
+   "regression_tests": [
+    "tests/test_resolution_bound.py::test_what_holds_an_interval",
+    "tests/test_resolution_bound.py::test_the_reader_of_outputs_leaves_out_a_resolution_below_zero",
+    "tests/test_resolution_bound.py::test_the_evaluation_decides_nothing_on_a_resolution_below_zero",
+    "tests/test_resolution_bound.py::test_the_second_reader_decides_nothing_on_a_resolution_below_zero",
+    "tests/test_resolution_bound.py::test_the_claim_check_judges_nothing_on_a_resolution_below_zero",
+    "tests/test_resolution_bound.py::test_the_ledger_observes_no_value_from_a_resolution_below_zero",
+    "tests/test_resolution_bound.py::test_a_history_an_earlier_build_wrote_on_such_a_value_is_refused",
+    "tests/test_resolution_bound.py::test_the_second_reader_reports_such_a_verdict"
+   ],
+   "residual_risk": "The package's own producers cannot write such a bundle, and a verifier verified the record, so the reach is a bundle a proposer wrote some other way, or a history or store written some other way; a history an earlier build wrote on such a value no longer loads. A value that bounds no interval for another reason now decides nothing too: a value no float holds, where the evaluation raised OverflowError, and a value of true or false, which it took for one or zero. The portable verifier computes its verdict from its own exact solution, not from a stated resolution; it was read for this and not changed.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED"
   }
  ]
 }

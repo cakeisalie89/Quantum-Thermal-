@@ -242,6 +242,11 @@ def evaluate(prediction: dict, observations: list) -> tuple:
                 f"reports {pred['quantity']}")
     verdicts = set()
     for got in usable:
+        if not holds_an_interval(got):
+            return ("INCONCLUSIVE", f"{pred['quantity']} is reported as "
+                    f"{got.get('value')!r} with a resolution of "
+                    f"{got.get('resolution')!r}, which bound no interval "
+                    "around it; nothing is decided on it")
         lo = got["value"] - got["resolution"]
         hi = got["value"] + got["resolution"]
         t = pred["value"]
@@ -288,6 +293,18 @@ def _finite(v: object) -> TypeGuard[float]:
         return math.isfinite(v)
     except OverflowError:
         return False
+
+
+def holds_an_interval(got) -> bool:
+    """Whether an observed value and its resolution bound an interval
+    that holds the value: a finite value, and a resolution that is a
+    finite number no less than zero (AUD-056). A resolution below zero
+    would put the interval's lower end above its upper, and a value would
+    support what it contradicts."""
+    if not isinstance(got, dict):
+        return False
+    r = got.get("resolution")
+    return _finite(got.get("value")) and _finite(r) and r >= 0
 
 
 def _no_constant(token: str):
@@ -350,6 +367,9 @@ def values_of(bundle: dict) -> dict:
             continue
         r = q.get("resolution") or 0.0
         if isinstance(r, bool) or not isinstance(r, (int, float)):
+            continue
+        if r < 0:
+            # a resolution is a bound, and none is below zero (AUD-056)
             continue
         out[o["name"]] = {"value": q["value"], "unit": q.get("unit"),
                           "resolution": r}

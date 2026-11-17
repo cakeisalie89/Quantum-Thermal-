@@ -113,6 +113,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_json_nesting.py",
     "tests/test_unknown_actions.py",
     "tests/test_evidence_objects.py",
+    "tests/test_resolution_bound.py",
     "tests/test_agent_readpath.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",

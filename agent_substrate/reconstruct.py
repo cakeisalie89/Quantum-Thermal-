@@ -4384,6 +4384,11 @@ def _rs_verdict(pred: dict, observations: list) -> str:
     seen = set()
     t, op = pred.get("value"), pred.get("op")
     for v in found:
+        r = v.get("resolution")
+        if not (_sci_number(v.get("value")) and _sci_number(r)) or r < 0:
+            # a resolution is a bound: one below zero turns the interval
+            # inside out, and decides nothing (AUD-056)
+            return "INCONCLUSIVE"
         lo, hi = v["value"] - v["resolution"], v["value"] + v["resolution"]
         if op == "<":
             seen.add("SUPPORTED" if hi < t else "REFUTED" if lo >= t

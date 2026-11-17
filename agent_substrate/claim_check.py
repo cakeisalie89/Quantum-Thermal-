@@ -72,7 +72,7 @@ from enum import Enum
 from .canonical import json_object
 from .evidence_terms import Property
 from .freshness import USABLE, Standing
-from .research import COMPARATORS, evaluate, values_of
+from .research import COMPARATORS, evaluate, holds_an_interval, values_of
 from .result_rules import ADMITTED
 from .trust_labels import Label, Origin, establish
 
@@ -175,6 +175,12 @@ def judge(claim: Structured, observations: list, *, convert=None) -> tuple:
     each = set()
     for o in usable:
         got = o["values"][claim.quantity]
+        if not holds_an_interval(got):
+            # a resolution below zero would turn the interval inside out
+            # (AUD-056): the observation decides nothing
+            return (Verdict.INSUFFICIENT_EVIDENCE,
+                    f"{claim.quantity} is reported with a resolution that "
+                    "bounds no interval around its value", used)
         unit, value = got.get("unit"), claim.value
         if unit != claim.unit:
             if convert is None:

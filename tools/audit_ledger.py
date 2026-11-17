@@ -187,7 +187,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                # Evidence that is not a JSON object is refused in each
                # primary's own words (AUD-055).
                "tests/test_evidence_objects.py",
-               "tools/mutations/evidence_objects.json")
+               "tools/mutations/evidence_objects.json",
+               # A resolution below zero decides nothing (AUD-056).
+               "tests/test_resolution_bound.py",
+               "tools/mutations/resolution_bound.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

@@ -1,0 +1,44 @@
+{
+ "title": "A resolution is a bound, and none is below zero",
+ "note": "AUD-056. A stated resolution below zero turned the interval a verdict holds a value to inside out, so a value supported what it contradicts. The research ledger's reader of outputs leaves such an output out (NB1); research.holds_an_interval states what bounds an interval (NB2), and the evaluation (NB3) and the claim check (NB4) decide nothing on a value that does not; the second reader restates the rule in its verdict (NB5). tests/test_resolution_bound.py holds each.",
+ "suites": [
+  "tests/test_resolution_bound.py"
+ ],
+ "mutations": [
+  {
+   "name": "NB1_a_resolution_below_zero_is_observed",
+   "path": "agent_substrate/research.py",
+   "find": "        if r < 0:\n            # a resolution is a bound, and none is below zero (AUD-056)\n",
+   "replace": "        if False:\n            # a resolution is a bound, and none is below zero (AUD-056)\n",
+   "rationale": "an output stating a resolution below zero is observed with it, and a verdict on it holds the value to an interval turned inside out"
+  },
+  {
+   "name": "NB2_an_interval_turned_inside_out_holds_a_value",
+   "path": "agent_substrate/research.py",
+   "find": "    return _finite(got.get(\"value\")) and _finite(r) and r >= 0\n",
+   "replace": "    return _finite(got.get(\"value\")) and _finite(r)\n",
+   "rationale": "a resolution below zero is taken to bound an interval, and the evaluation and the claim check decide on it"
+  },
+  {
+   "name": "NB3_the_evaluation_decides_on_any_interval",
+   "path": "agent_substrate/research.py",
+   "find": "        if not holds_an_interval(got):\n            return (\"INCONCLUSIVE\", f\"{pred['quantity']} is reported as \"\n",
+   "replace": "        if False:\n            return (\"INCONCLUSIVE\", f\"{pred['quantity']} is reported as \"\n",
+   "rationale": "the one evaluation holds a value to an interval whose lower end is above its upper, and a value below a threshold supports a prediction that it exceeds it"
+  },
+  {
+   "name": "NB4_the_claim_check_judges_on_any_interval",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        if not holds_an_interval(got):\n",
+   "replace": "        if False:\n",
+   "rationale": "a claim that a value equals what it equals is contradicted on an interval turned inside out, and the check gives no reason of its own for deciding nothing"
+  },
+  {
+   "name": "NB5_the_second_reader_decides_on_any_interval",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if not (_sci_number(v.get(\"value\")) and _sci_number(r)) or r < 0:\n",
+   "replace": "        if not (_sci_number(v.get(\"value\")) and _sci_number(r)):\n",
+   "rationale": "the second reader agrees with a verdict an earlier build computed on an interval turned inside out, and reports nothing"
+  }
+ ]
+}
