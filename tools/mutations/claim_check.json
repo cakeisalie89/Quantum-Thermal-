@@ -134,7 +134,7 @@
   {
    "name": "CC19_the_bytes_are_not_compared_with_the_observation",
    "path": "agent_substrate/claim_check.py",
-   "find": "        elif not bytes_say(json.loads(evidence.get(dg)), body[\"values\"]):\n",
+   "find": "        elif not bytes_say(bundle, body[\"values\"]):\n",
    "replace": "        elif False:\n",
    "rationale": "an observation planted with values its bundle does not hold is cited INTACT by a reader whose ledger could not hold it to its bytes"
   },

@@ -64,12 +64,12 @@ established here).
 """
 from __future__ import annotations
 
-import json
 import math
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 
+from .canonical import json_object
 from .evidence_terms import Property
 from .freshness import USABLE, Standing
 from .research import COMPARATORS, evaluate, values_of
@@ -310,7 +310,12 @@ def check(text: str, *, cites=(), objective_id: str, ledger, store,
         if not evidence.contains(dg):
             problems.append(f"{oid}: its result bytes are missing or no "
                             "longer re-hash")
-        elif not bytes_say(json.loads(evidence.get(dg)), body["values"]):
+        elif (bundle := json_object(evidence.get(dg))) is None:
+            # a citation, not a crash: the claim is not established on it
+            # (AUD-055)
+            problems.append(f"{oid}: its result bytes are not a result "
+                            "bundle")
+        elif not bytes_say(bundle, body["values"]):
             problems.append(f"{oid}: its result bytes say something other "
                             "than the observation recorded")
     citation = "NONE" if not cites else "BROKEN" if problems else "INTACT"

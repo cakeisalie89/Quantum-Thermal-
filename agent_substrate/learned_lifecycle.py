@@ -40,11 +40,10 @@ from ``scientific`` or ``scientific_ai``.
 """
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from .authority import Role, State
-from .canonical import canonical_bytes, digest
+from .canonical import canonical_bytes, digest, json_object
 from .learned_rules import KINDS
 
 
@@ -105,8 +104,12 @@ class LearnedLedger:
 
     def document(self, record_id: str) -> dict:
         rec = self.store.get(record_id)
-        raw = self.evidence.get(rec.evidence["document"])
-        return json.loads(raw)
+        doc = json_object(self.evidence.get(rec.evidence["document"]))
+        if doc is None:
+            # this ledger's refusal, not the parser's (AUD-055)
+            raise LedgerError(f"{record_id}: its document is not a JSON "
+                              "object")
+        return doc
 
     def register(self, document: dict, *, actor: str,
                  depends_on: tuple = ()) -> str:

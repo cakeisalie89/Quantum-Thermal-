@@ -56,7 +56,7 @@ from pathlib import Path
 
 from .agents import AgentRole, PrincipalKind, identity
 from .authority import Role, State
-from .canonical import canonical_bytes, digest
+from .canonical import canonical_bytes, digest, json_object
 from .events import EventLog
 from .evidence import EvidenceStore
 from .invalidation import (INVALIDATABLE, InvalidationPlan, apply_plan,
@@ -491,8 +491,13 @@ class GovernedModelRuns:
     def _record_of(self, sha: str) -> dict:
         """A JSON record the tools wrote, read from the evidence store by
         the digest the capture recorded -- not from the workspace, which may
-        have moved since."""
-        return json.loads(self.evidence.get(sha))
+        have moved since. Bytes that are no JSON object are refused here,
+        in this module's words (AUD-055)."""
+        doc = json_object(self.evidence.get(sha))
+        if doc is None:
+            raise ModelRunRefused(f"evidence {sha[:12]} is not a JSON "
+                                  "record")
+        return doc
 
     # -- the path ---------------------------------------------------------
 

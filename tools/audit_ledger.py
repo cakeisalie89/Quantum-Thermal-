@@ -183,7 +183,11 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tests/fuzz_corpus/hdf5_bundle-crashed-43230537.json",
                # Every reducer refuses an action no module writes (AUD-054).
                "tests/test_unknown_actions.py",
-               "tools/mutations/unknown_actions.json")
+               "tools/mutations/unknown_actions.json",
+               # Evidence that is not a JSON object is refused in each
+               # primary's own words (AUD-055).
+               "tests/test_evidence_objects.py",
+               "tools/mutations/evidence_objects.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

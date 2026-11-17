@@ -77,18 +77,19 @@
    "findings": [
     "AUD-044",
     "AUD-050",
-    "AUD-054"
+    "AUD-054",
+    "AUD-055"
    ],
    "kind": "workflow",
-   "method": "read at 0afa231, every line but the generated shard matrix's spec lists, which tools/mutation_shards.py --check holds to --emit: the triggers, default-deny, the NF-1T requirement, the namespace probe and its sysctl, the lint over git's file list and its count, the type check, every committed verifier and recorded-result check, the agent suites, the identity inventory, the model check, the TLA+ step with its pinned jar, the collection check, the corpus allowlist, the long horizon, the fuzz floors, the governed rules and their auditor, and the tree checks after every step that runs code; the shards' timeout, run and git-checked tree; the aggregate, red unless every shard succeeded; the full suite with history; the dispatch-sensitivity job with its own check that the dispatch changed; the second interpreter with the unpinned packages its comment declares. The fuzz step and the shard weights are this audit's own edits (D-2026-191, D-2026-192), reviewed as diffs, not independently; the identity-inventory step's coverage label, 55 of 55 to 56 of 56 (AUD-044), written and reviewed as a diff; the generated shard matrix regenerated for 141 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-050 adds json_nesting); the generated shard matrix regenerated for 142 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-054 adds unknown_actions)",
+   "method": "read at 0afa231, every line but the generated shard matrix's spec lists, which tools/mutation_shards.py --check holds to --emit: the triggers, default-deny, the NF-1T requirement, the namespace probe and its sysctl, the lint over git's file list and its count, the type check, every committed verifier and recorded-result check, the agent suites, the identity inventory, the model check, the TLA+ step with its pinned jar, the collection check, the corpus allowlist, the long horizon, the fuzz floors, the governed rules and their auditor, and the tree checks after every step that runs code; the shards' timeout, run and git-checked tree; the aggregate, red unless every shard succeeded; the full suite with history; the dispatch-sensitivity job with its own check that the dispatch changed; the second interpreter with the unpinned packages its comment declares. The fuzz step and the shard weights are this audit's own edits (D-2026-191, D-2026-192), reviewed as diffs, not independently; the identity-inventory step's coverage label, 55 of 55 to 56 of 56 (AUD-044), written and reviewed as a diff; the generated shard matrix regenerated for 141 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-050 adds json_nesting); the generated shard matrix regenerated for 142 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-054 adds unknown_actions); the generated shard matrix regenerated for 143 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-055 adds evidence_objects)",
    "mode": "100644",
-   "new_blob": "1f26e6779f2bea969111df4588070e3fb4143e40",
+   "new_blob": "4a345deffccb646f92d096f8f8d898b56d1ee96c",
    "note": "",
    "old_blob": null,
    "path": ".github/workflows/agent-substrate.yml",
-   "reviewed_blob": "1f26e6779f2bea969111df4588070e3fb4143e40",
-   "sha256": "e15e2d9036f9bb89bd1559be1f0d2080a6bcc63093313fc8bdc862b7b9335279",
-   "size": 42334,
+   "reviewed_blob": "4a345deffccb646f92d096f8f8d898b56d1ee96c",
+   "sha256": "199b97b9b6c2f5a50475b0914b2e020310f64b91192334e555e1be920ac81f88",
+   "size": 42386,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -1333,18 +1334,19 @@
    "change": "ADDED",
    "findings": [
     "AUD-008",
-    "AUD-050"
+    "AUD-050",
+    "AUD-055"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read; serialization probed for values JSON cannot tell apart (AUD-008); the docstring now says which; the AUD-050 change (the encoder's RecursionError is a CanonicalizationError) written and reviewed as a diff, with JN1 killed",
+   "method": "every line read; serialization probed for values JSON cannot tell apart (AUD-008); the docstring now says which; the AUD-050 change (the encoder's RecursionError is a CanonicalizationError) written and reviewed as a diff, with JN1 killed; the AUD-055 change (json_object, what a reader of evidence may take as an object) written and reviewed as a diff, with EO1 to EO3 killed",
    "mode": "100644",
-   "new_blob": "1d8e16a8d826341fc12fe000fac538efba6681fc",
+   "new_blob": "7f78aedb09bfdbb9ecb81c6d15597aab8d097b99",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/canonical.py",
-   "reviewed_blob": "1d8e16a8d826341fc12fe000fac538efba6681fc",
-   "sha256": "e3b5ec5ede4e9826734db39dbed9a4fc220fde40e87f0d8a1976801d54a4670c",
-   "size": 5426,
+   "reviewed_blob": "7f78aedb09bfdbb9ecb81c6d15597aab8d097b99",
+   "sha256": "3e15b32f992c4b9c856aa1c3fa034d3d297c2a2ad89612ec0a33dd3554ce4ce9",
+   "size": 6085,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1391,18 +1393,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-025"
+    "AUD-025",
+    "AUD-055"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at cbc9bed: the closed grammar read in full or not at all, judge through research.evaluate one observation at a time with no conversion unless a converter is passed, assess_with's opinion never established, citation integrity re-hashed and re-read, admission from the ledger's currency and the store's admission, and the label establishing SEMANTICALLY_SUPPORTED only for a deterministic SUPPORTED with every citation intact; AUD-025's bytes_say -- a citation holds each observed output to its bundle's value and unit and to a resolution no smaller than the bundle's -- written and reviewed as a diff, found by reading the consumers of an observation's values: the exact comparison it replaces read every citation of a result admitted under admission/2 as BROKEN; with CC19 to CC24 killed; bytes_say's resolution test moved into _finite, which refuses an integer no float holds rather than raising OverflowError, written and reviewed as a diff, with CC25 killed and CC20 and CC24 repaired to the same intent",
+   "method": "every line read at cbc9bed: the closed grammar read in full or not at all, judge through research.evaluate one observation at a time with no conversion unless a converter is passed, assess_with's opinion never established, citation integrity re-hashed and re-read, admission from the ledger's currency and the store's admission, and the label establishing SEMANTICALLY_SUPPORTED only for a deterministic SUPPORTED with every citation intact; AUD-025's bytes_say -- a citation holds each observed output to its bundle's value and unit and to a resolution no smaller than the bundle's -- written and reviewed as a diff, found by reading the consumers of an observation's values: the exact comparison it replaces read every citation of a result admitted under admission/2 as BROKEN; with CC19 to CC24 killed; bytes_say's resolution test moved into _finite, which refuses an integer no float holds rather than raising OverflowError, written and reviewed as a diff, with CC25 killed and CC20 and CC24 repaired to the same intent; the AUD-055 change (a citation of bytes that are not a bundle is broken) written and reviewed as a diff, with EO13 killed",
    "mode": "100644",
-   "new_blob": "c44c6f3c8e704b27a1f462c6050be09a52bcf9cc",
-   "note": "the claim benchmark's reports are placeholders that state no agreement, so its observations keep the producer's values and could not show the exact comparison failing",
+   "new_blob": "e702ad35f47be6b9be0415a7b45f04633e4b7274",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/claim_check.py",
-   "reviewed_blob": "c44c6f3c8e704b27a1f462c6050be09a52bcf9cc",
-   "sha256": "a29a59f2e62d96f83b3028e956f7e3c12767a3d78ebb03268d1b9943adc01442",
-   "size": 16087,
+   "reviewed_blob": "e702ad35f47be6b9be0415a7b45f04633e4b7274",
+   "sha256": "cf96380fc8552a458d7fa54cd7afc0b7b092d26f7e18ceb52c5409c17f076e8e",
+   "size": 16361,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1539,18 +1542,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-025"
+    "AUD-025",
+    "AUD-055"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at 7a18167: the tool registry, the run identity and reuse (re-derived evidence, admission, report support, origin now), propose and propose_fmu, the record per governed task, GovernedOrigins (one verified read, the as-of producers, the executor separation), invalidation and its following, settle, check and decide; AUD-025's reuse under the policy that admitted the record written and reviewed as a diff, with GR23 killed",
+   "method": "every line read at 7a18167: the tool registry, the run identity and reuse (re-derived evidence, admission, report support, origin now), propose and propose_fmu, the record per governed task, GovernedOrigins (one verified read, the as-of producers, the executor separation), invalidation and its following, settle, check and decide; AUD-025's reuse under the policy that admitted the record written and reviewed as a diff, with GR23 killed; the AUD-055 change (_record_of refuses what is not an object) written and reviewed as a diff, with EO12 killed",
    "mode": "100644",
-   "new_blob": "abf2174978de259f59f3b2170b940ebc44638b98",
-   "note": "reuse checks artefacts with EvidenceStore.contains, which re-hashes by default; GovernedOrigins keeps one VERIFIED interval per task, sound because VERIFIED's only exit is INVALIDATED, which is sealed; an ADMITTED record's basis always names its policy (the store's _admit), so reuse reads it directly",
+   "new_blob": "8d0e08bba1b0937fc4066fbdeedc97089738889a",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/governed_model.py",
-   "reviewed_blob": "abf2174978de259f59f3b2170b940ebc44638b98",
-   "sha256": "5f5cd5226b978169857d1a757fec32bde94940d6e67854bfa6bf10d1bc6f748a",
-   "size": 45338,
+   "reviewed_blob": "8d0e08bba1b0937fc4066fbdeedc97089738889a",
+   "sha256": "175ff594ed9f44627235bebce2fcc03b1e5635b735cad4fc1ed6536cfc02d67a",
+   "size": 45600,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1650,17 +1654,19 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-055"
+   ],
    "kind": "source:agent_substrate",
-   "method": "every line read at cbc9bed: register's schema check, the refusal of revoked, rejected and stale upstreams, the digest links of LINKS against every named upstream, reject and documents",
+   "method": "every line read at cbc9bed: register's schema check, the refusal of revoked, rejected and stale upstreams, the digest links of LINKS against every named upstream, reject and documents; the AUD-055 change (document refuses what is not an object) written and reviewed as a diff, with EO11 killed",
    "mode": "100644",
-   "new_blob": "18edded617ab878b3fc3485e2407236acdbc32ea",
-   "note": "P3: a document missing a key a LINKS check reads raises KeyError rather than LedgerError; nothing is written either way",
+   "new_blob": "cf9139ad68fd1070feff4b9558ac593a818445ea",
+   "note": "",
    "old_blob": null,
    "path": "agent_substrate/learned_lifecycle.py",
-   "reviewed_blob": "18edded617ab878b3fc3485e2407236acdbc32ea",
-   "sha256": "471b6a97120100e1f8e5e73ea2c1c5df46b484cfd410e5fa205027341894ea66",
-   "size": 7227,
+   "reviewed_blob": "cf9139ad68fd1070feff4b9558ac593a818445ea",
+   "sha256": "d6e7e90c4e133b9e6260d0aba93b62fda20a30fa6d800fe2da811514ef2b15df",
+   "size": 7431,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1889,7 +1895,8 @@
     "AUD-044",
     "AUD-045",
     "AUD-046",
-    "AUD-047"
+    "AUD-047",
+    "AUD-056"
    ],
    "kind": "source:agent_substrate",
    "method": "read: the authority edge restatement and _auth_refusal, the record.transition and record.depend replay, the create rule, the canonical() computation, the security-profile restatement and the authentication verdict (AUD-012 written and reviewed as a diff), the policy-binding fold, _bound_promotion_refusal, _sub_policy_publish and _sub_policy_withdraw (AUD-015 written and reviewed as a diff), the reconstruct_tasks loop and the reconstruct_subsystems dispatch (session 4); the AUD-011/AUD-017 role restatement (_roles_read, _role_refusal, _role_delegation_refusal, _role_fold) and its use in all three entry points written and reviewed as a diff; not read: scientific-admission reconstruction but for its content rule (AUD-025, below), and the subsystem rules other than the policy, grant and role ones; the GOVERNED restatement (_profile_declared, _governed_problem and its use in reconstruct, reconstruct_tasks and reconstruct_subsystems, AUD-020) written and reviewed as a diff, with GH10-GH13 killed; the decision proof's roots (_PrefixAuthenticator, _prefix_roots, and their use in derive_decision_proof, _record_proof, _research_proof and verify_decision_proof, AUD-023) written and reviewed as a diff, with SG15, SG16 and the repaired FR39 killed; the decision proof's prefix carrying the history's roots (_Prefix's authenticator and roles, and _at handing them, AUD-023 completed) written and reviewed as a diff, with GR1 and the twice-repaired FR39 killed; Stage 5: the research observation and status restatement (_sub_research_status) and the decision proof's evidence test (_resolves, as _record_proof and _research_proof use it) read, the AUD-028 restatement and the AUD-029 digest test written and reviewed as diffs, with RR10 and S18 killed; AUD-025: the scientific-admission content restatement -- the policies and field sets, _sci_number, _sci_agreement_ok and _sci_content(policy), as _sci_admission asks them, the number test typed as a TypeGuard for the type check -- written and reviewed as a diff, with RX10 to RX22 killed and RX8 and RX16 killed again by the tests their survival called for; the number test restated without the math module, which the reader's import allow-list does not hold, refusing an integer no float holds rather than raising OverflowError, written and reviewed as a diff, with RX23 and RX24 killed and RX21 repaired to the same intent; the second reader's memory restatement for AUD-043 to AUD-046 written and reviewed as a diff: _sub_memory_write with _memory_field_types and the born-STALE rule, _sub_memory_status with the replacement, source and premise rules, _sub_memory_invalidate, and the dispatch's note for an action no module writes, and a status of the wrong type noted where it raised TypeError, with MT18 to MT28 killed; the AUD-047 change written and reviewed as a diff: _never_raising, the three readers' loop tops and _profile_declared, with R113 to R129 killed. The three readers' dispatches were also swept with one payload value replaced at a time, which is a test of them and not a reading",
@@ -1911,18 +1918,20 @@
     "AUD-028",
     "AUD-034",
     "AUD-050",
-    "AUD-054"
+    "AUD-054",
+    "AUD-055",
+    "AUD-056"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at cbc9bed: the record kinds and their exact keys, evaluate() and its resolution intervals, values_of, the fold and its record.create, record.transition and proposal.receive reads, each _apply_ rule shared by writer and replay, freshness standing, _status_problem, propagate, currency, scientific_context and the writers; probed with a verdict citing another objective's observation (AUD-028); the audit's refusal written and reviewed as a diff, with RS27 killed; AUD-025's observed_values (max(r_producer, |v_producer - v_check| + r_check), only the outputs the check compared) and _report_of, and their use in observe and in _apply_observation, written and reviewed as a diff, its finiteness test typed as a TypeGuard for the type check, with OV1 to OV10 and OB1 to OB4 killed; the number test made to refuse an integer no float holds, which raised OverflowError out of the observation, written and reviewed as a diff, with OV11 killed and OV9 repaired to the same intent; AUD-034's prediction check, through the number test that refuses an integer no float holds, written and reviewed as a diff, with RS28 killed; the AUD-050 change (_report_of's handler) written and reviewed as a diff, with JN20 killed; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA9 killed",
+   "method": "every line read at cbc9bed: the record kinds and their exact keys, evaluate() and its resolution intervals, values_of, the fold and its record.create, record.transition and proposal.receive reads, each _apply_ rule shared by writer and replay, freshness standing, _status_problem, propagate, currency, scientific_context and the writers; probed with a verdict citing another objective's observation (AUD-028); the audit's refusal written and reviewed as a diff, with RS27 killed; AUD-025's observed_values (max(r_producer, |v_producer - v_check| + r_check), only the outputs the check compared) and _report_of, and their use in observe and in _apply_observation, written and reviewed as a diff, its finiteness test typed as a TypeGuard for the type check, with OV1 to OV10 and OB1 to OB4 killed; the number test made to refuse an integer no float holds, which raised OverflowError out of the observation, written and reviewed as a diff, with OV11 killed and OV9 repaired to the same intent; AUD-034's prediction check, through the number test that refuses an integer no float holds, written and reviewed as a diff, with RS28 killed; the AUD-050 change (_report_of's handler) written and reviewed as a diff, with JN20 killed; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA9 killed; the AUD-055 change (_bundle_of at replay, observe and the context; the report read through json_object; values_of total) written and reviewed as a diff, with EO4 to EO10 killed",
    "mode": "100644",
-   "new_blob": "ef46d0ce07f936d4ef0f00e9aff653930c65618d",
+   "new_blob": "5d89f4bcb175ab0873977afe2383bc021417f422",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/research.py",
-   "reviewed_blob": "ef46d0ce07f936d4ef0f00e9aff653930c65618d",
-   "sha256": "d4650157f2cd2afc675a10c6b8fa8ecbedd2ec5b7e4d96594722e72c958ef2c6",
-   "size": 57445,
+   "reviewed_blob": "5d89f4bcb175ab0873977afe2383bc021417f422",
+   "sha256": "fa3cbb39e502f3d2a4d2e2c1303d366cff735b133d9b49d24da3330866a8f9e3",
+   "size": 58656,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -3761,12 +3770,12 @@
    "kind": "evidence-or-data",
    "method": "",
    "mode": "100644",
-   "new_blob": "5dd055d8a0bea04da72bce23dbe44cb5404a76cf",
+   "new_blob": "7e141235ea7e35a7fbecb57e78ab1b8066bdc400",
    "note": "not yet examined",
    "old_blob": null,
    "path": "docs/completion_matrix.json",
    "reviewed_blob": null,
-   "sha256": "1ea4b0a12a8fafe2738320d6d413b75549b8d588d97a2e08445f179d0f3651d3",
+   "sha256": "95c0114fb104ef0d4d0360ad411fdabee6e8c60bcefffb584ed90040645bc720",
    "size": 256121,
    "status": "NOT_REVIEWED"
   },
@@ -10683,18 +10692,19 @@
    "findings": [
     "AUD-011",
     "AUD-050",
-    "AUD-054"
+    "AUD-054",
+    "AUD-055"
    ],
    "kind": "test",
-   "method": "read: ALLOWED_IMPORTERS, LAYERS, IO_LAYER, the narrative-document test, and the importer, layering, earlier-layer and IO-layer tests; written by the audit and reviewed as diffs: the AUD-011 entries (the role test, the roles layer, its IO entry), the assurance package's builder as an importer (it drives the governed run and asks the second reader for decision proofs), the transparency layer with its test, the witness's tree-checkpoint test with the layer notes that the witness now imports the tree, the archive layer with its test and its cost instrument as importers, the witness quorum test, the counterfactual evaluation test, and the governed-history test (AUD-020); not read: the remaining structural tests; the three Stage 2 importers (AUD-021 to AUD-023) added and reviewed as a diff; the governed research run's and the assurance package test's importers added and reviewed as a diff; the two importers added after that review, read as a diff at a5cf136 from the blob it was bound to (1cb54e2): tests/test_ed25519_encodings.py (Stage 5, AUD-026) and tests/test_rc_counterfactuals.py (Stage 3), each with the comment saying why it drives the stores; the AUD-047 entry in ALLOWED_IMPORTERS, tests/test_agent_readers_never_raise.py, written and reviewed as a diff; the AUD-050 entry in ALLOWED_IMPORTERS, tests/test_json_nesting.py, written and reviewed as a diff; the AUD-054 entry in ALLOWED_IMPORTERS, tests/test_unknown_actions.py, written and reviewed as a diff",
+   "method": "read: ALLOWED_IMPORTERS, LAYERS, IO_LAYER, the narrative-document test, and the importer, layering, earlier-layer and IO-layer tests; written by the audit and reviewed as diffs: the AUD-011 entries (the role test, the roles layer, its IO entry), the assurance package's builder as an importer (it drives the governed run and asks the second reader for decision proofs), the transparency layer with its test, the witness's tree-checkpoint test with the layer notes that the witness now imports the tree, the archive layer with its test and its cost instrument as importers, the witness quorum test, the counterfactual evaluation test, and the governed-history test (AUD-020); not read: the remaining structural tests; the three Stage 2 importers (AUD-021 to AUD-023) added and reviewed as a diff; the governed research run's and the assurance package test's importers added and reviewed as a diff; the two importers added after that review, read as a diff at a5cf136 from the blob it was bound to (1cb54e2): tests/test_ed25519_encodings.py (Stage 5, AUD-026) and tests/test_rc_counterfactuals.py (Stage 3), each with the comment saying why it drives the stores; the AUD-047 entry in ALLOWED_IMPORTERS, tests/test_agent_readers_never_raise.py, written and reviewed as a diff; the AUD-050 entry in ALLOWED_IMPORTERS, tests/test_json_nesting.py, written and reviewed as a diff; the AUD-054 entry in ALLOWED_IMPORTERS, tests/test_unknown_actions.py, written and reviewed as a diff; the AUD-055 entry in ALLOWED_IMPORTERS, tests/test_evidence_objects.py, written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "ce82b9a2850958985648bc885410d61c0d696956",
+   "new_blob": "c38fa061ee5869c81db9e73e3043b6d73b8b4ae0",
    "note": "",
    "old_blob": null,
    "path": "tests/test_agent_substrate_isolation.py",
-   "reviewed_blob": "ce82b9a2850958985648bc885410d61c0d696956",
-   "sha256": "30443e8b60270f9773f8506bf2e78e7336d740a76f0f3ec7317b2052c0e846db",
-   "size": 57320,
+   "reviewed_blob": "c38fa061ee5869c81db9e73e3043b6d73b8b4ae0",
+   "sha256": "a901df60c476ce60cb855c9c4e65cab9c3ec482276b8ec8ae1f25332a36dd7e6",
+   "size": 57358,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -11110,13 +11120,13 @@
    "kind": "test",
    "method": "",
    "mode": "100644",
-   "new_blob": "3bfe3311501224ebea5c7c24c16ba7511f8b5b9b",
+   "new_blob": "94c2e5d6df61d570650de5848e0db639b1010987",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tests/test_completion_matrix.py",
    "reviewed_blob": null,
-   "sha256": "822e833a945228fc667ae83005060f46cf4eaa48bf871f190fd8423014572c15",
-   "size": 54146,
+   "sha256": "f2bde4ea949969804cef12cb95359ef194a7457ca12442b31f21a8f24fec04c6",
+   "size": 54368,
    "status": "NOT_REVIEWED"
   },
   {
@@ -11434,6 +11444,22 @@
    "note": "not independently reviewed",
    "old_blob": null,
    "path": "tests/test_ed25519_encodings.py",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "test",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "",
+   "old_blob": null,
+   "path": "tests/test_evidence_objects.py",
    "reviewed_blob": null,
    "sha256": null,
    "size": null,
@@ -14553,15 +14579,15 @@
    "change": "ADDED",
    "findings": [],
    "kind": "tool",
-   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff; the comment on specs that gained mutations after the weights were measured, which said twelve where thirty had, restated with the count measured at ce93e58, written by the audit and reviewed as a diff; the comment on specs added after the weights were measured names unknown_actions (AUD-054), written and reviewed as a diff",
+   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff; the comment on specs that gained mutations after the weights were measured, which said twelve where thirty had, restated with the count measured at ce93e58, written by the audit and reviewed as a diff; the comment on specs added after the weights were measured names unknown_actions (AUD-054), written and reviewed as a diff; the comment on specs added after the weights were measured names evidence_objects (AUD-055), written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "22ffd2c096e72664eadcb0aa0c6749955c1957e0",
+   "new_blob": "0a794d13357cf6a505713df054063300dcec036c",
    "note": "",
    "old_blob": null,
    "path": "tools/mutation_shards.py",
-   "reviewed_blob": "22ffd2c096e72664eadcb0aa0c6749955c1957e0",
-   "sha256": "956269a9b7b8680591a9e5f3844413746e919dda4d751d33a237b80f4b6cb01c",
-   "size": 14622,
+   "reviewed_blob": "0a794d13357cf6a505713df054063300dcec036c",
+   "sha256": "d672883f4ee78413650c1324bbb7f20039d5808f9fb53e67651614a38ffa2b56",
+   "size": 14654,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -15223,13 +15249,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "3c4418b7065bdda40bdf535c556dd497e977e4b7",
+   "new_blob": "119d26f1ace0e09331cd40308d1bc4a92808fcdf",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/claim_check.json",
    "reviewed_blob": null,
-   "sha256": "37a362e5ef2956541a677e2bba7f4817ddff89faf5ce00e6001063d1d7615fd2",
-   "size": 10184,
+   "sha256": "99a4fb4d357b2190b83db8bd540d86644f4f76e740c7924567069c683c04f106",
+   "size": 10162,
    "status": "NOT_REVIEWED"
   },
   {
@@ -15455,6 +15481,22 @@
    "sha256": "4010e6a331406041b824e2713620017633d6fd770469d6920c371a3bf20b2423",
    "size": 1956,
    "status": "NOT_REVIEWED"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "mutation-spec",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "",
+   "old_blob": null,
+   "path": "tools/mutations/evidence_objects.json",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,
@@ -16301,12 +16343,12 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "1bf925c4e4998689cf4d7f6ddb7bf267134e8e34",
+   "new_blob": "315fff1ab7057c3ee3c58544ae6471d6363c90dc",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/research.json",
    "reviewed_blob": null,
-   "sha256": "7ea4435fabf01331dea07740dea85eba76fab9007ea6eb939b9511e2f64a1eea",
+   "sha256": "e6c750d3a47f0c9067cd7030a3914e85ac8ec3ee73e8ca9d5f0bb79c12f17a29",
    "size": 17642,
    "status": "NOT_REVIEWED"
   },

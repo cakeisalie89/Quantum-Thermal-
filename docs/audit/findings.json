@@ -1585,7 +1585,7 @@
     "tests/test_agent_second_reader.py::test_a_failure_that_is_not_a_records_still_raises",
     "tests/test_agent_second_reader.py::test_a_declared_profile_that_is_not_a_string_declares_nothing"
    ],
-   "residual_risk": "The guard catches whatever a record's fold raises, so a fault in a reader's own code on a well-formed record would read as a note against that record. It would still be a finding and never a silent pass, and the suites that hold honest histories to no anomalies would show it. The primaries are not changed: a store that meets such a record refuses the log or raises, which is fail-closed, and whether each refuses with its own error is not established. derive_decision_proof and verify_decision_proof were not swept.",
+   "residual_risk": "The guard catches whatever a record's fold raises, so a fault in a reader's own code on a well-formed record would read as a note against that record. It would still be a finding and never a silent pass, and the suites that hold honest histories to no anomalies would show it. The primaries are not changed: a store that meets such a record refuses the log or raises, which is fail-closed, and whether each refuses with its own error is not established. AUD-054 and AUD-055 made the reducers refuse an action no module writes, and the readers of evidence refuse what is not a JSON object, each in its own words. derive_decision_proof and verify_decision_proof were not swept.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
   },
@@ -1749,7 +1749,7 @@
     "tests/test_json_nesting.py::test_every_json_parse_in_the_package_answers_for_nesting",
     "tests/test_inference_gateway.py::test_an_answer_nested_past_the_parser_is_refused_and_settled"
    ],
-   "residual_risk": "The sweep is of agent_substrate: the 149 JSON parses in the rest of the tracked code that is not a test, 130 of them in tools, were not read for nesting. Eighteen parses, in fifteen functions, are listed as needing no handler. Seven of them, in six functions, read evidence with no handler for bytes that are not JSON at all, in research.py, learned_lifecycle.py, governed_model.py and claim_check.py: what a primary answers to a record citing such evidence is AUD-047's remainder, and is not changed here. The bound is the log's own. A document that is not a log record is held to the parser's limit, or to its own bound where it has one, as a proposal is to eight levels. A history holding a record nested past 64 levels no longer reads. None is known, and the suite passes with the bound in force, so no record its tests write and read back nests that deep.",
+   "residual_risk": "The sweep is of agent_substrate: the 149 JSON parses in the rest of the tracked code that is not a test, 130 of them in tools, were not read for nesting. Eighteen parses, in fifteen functions, are listed as needing no handler. Seven of them, in six functions, read evidence with no handler for bytes that are not JSON at all, in research.py, learned_lifecycle.py, governed_model.py and claim_check.py: what a primary answers to a record citing such evidence is AUD-047's remainder, and is not changed here. AUD-055 gave each of the six functions a refusal of its own, and eleven parses, in nine functions, remain listed. The bound is the log's own. A document that is not a log record is held to the parser's limit, or to its own bound where it has one, as a proposal is to eight levels. A history holding a record nested past 64 levels no longer reads. None is known, and the suite passes with the bound in force, so no record its tests write and read back nests that deep.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
   },
@@ -1912,6 +1912,81 @@
    "residual_risk": "A log holding an action no module writes now stops nine more readers, as it stopped the authority store: fail-closed, and a deployment adding an action must add it to the registry, as the registry requires. Governed tasks, idempotency and the second reader already consulted the registry. Readers that hold no subsystem's state, such as the audit's explanations, the provenance export and the assurance graph, were not looked at for this. A forger gains nothing from an action nobody applies, so the consequence falls on a reader of a newer build's history, and no newer build exists yet.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-055",
+   "title": "Evidence that is not a JSON object raised the parser's error out of four primaries, or was read as one",
+   "severity": "P3",
+   "subsystem": "the readers of evidence: the research ledger, the learned-model ledger, the governed model runs and the claim check",
+   "files": [
+    {
+     "path": "agent_substrate/canonical.py",
+     "lines": "json_object, the one statement of what a reader of evidence may take as an object"
+    },
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "_apply_observation, observe and scientific_context: the bundle, and the report; values_of"
+    },
+    {
+     "path": "agent_substrate/learned_lifecycle.py",
+     "lines": "LearnedLedger.document"
+    },
+    {
+     "path": "agent_substrate/governed_model.py",
+     "lines": "GovernedModelRuns._record_of"
+    },
+    {
+     "path": "agent_substrate/claim_check.py",
+     "lines": "check: the bundle a citation names"
+    }
+   ],
+   "behavior": "Evidence is content-addressed, so the bytes a record cites are the bytes it was written with; what they hold is still the writer's. Four readers parsed such bytes and used the value as an object before anything asked whether it was one. Where that raised, the reader failed closed, but not in its own words: the research ledger raised JSONDecodeError, RecursionError or AttributeError, and not its ResearchError, when it observed a bundle that is not an object, loaded a history observing one, or read such a report for an observation's context, and its reader of outputs raised AttributeError, KeyError or TypeError on an output or a quantity that is not one; the learned-model ledger raised what the parser raised for a document, the governed model runs for a record their tools wrote, and the claim check for the bundle a citation names. A caller handling a ledger's refusal was handed an error it does not catch. Where nothing raised, the bytes were read as an object: the research ledger observed a bundle holding NaN, recording an honest output beside it, and an OK output whose resolution is text, with the text, and loaded both histories; the claim check reported a citation of a bundle holding NaN intact; and the learned-model ledger and the governed model runs handed their callers a list, a number or an object holding NaN as the document or record.",
+   "invariant": "A primary that reads evidence refuses, in its own words, evidence that is not what it reads.",
+   "mechanism": "Each parse caught nothing, or only what the parser raises for bytes that are not JSON, and took the constants the parser takes beyond JSON. The value was used as an object before anything asked whether it was one, and the reader of outputs took each output and quantity for an object and each resolution for a number. AUD-047 made the independent readers never raise on content, and left the primaries.",
+   "reproduction": "At 699b04b, by tests/test_evidence_objects.py: bytes that are not JSON, a JSON list, a JSON number, a constant JSON does not have (NaN), and nesting past the parser, each as the bundle of a verified measurement record, a record's report, a learned record's document, a governed record and a cited bundle, and six bundles whose outputs are not what an OK output's are. 35 of its 38 tests fail: ResearchLedger.observe raises JSONDecodeError, AttributeError or RecursionError, or observes the bundle holding NaN; load raises them, or refuses the history observing NaN for another reason; scientific_context raises them on a report; values_of raises AttributeError, KeyError or TypeError, or reads a resolution that is text; LearnedLedger.document and GovernedModelRuns._record_of raise what the parser raises or return what it gives; and claim_check.check raises, or for a bundle holding NaN reports the citation intact, where it reports a citation it cannot follow as broken. Two histories written at 699b04b, observing a bundle that holds NaN beside an honest output and an OK output whose resolution is text, load at 699b04b and are refused with the change.",
+   "observed": "Left by AUD-047, whose residual risk said the primaries were not changed, and by AUD-050, which listed the seven parses.",
+   "expected": "ResearchError, LedgerError and ModelRunRefused naming the record, and a broken citation from the claim check.",
+   "correction": "canonical.json_object states once what a reader of evidence may take as an object: a JSON object, with no constant JSON does not have and no nesting past the parser, or None. The research ledger refuses a bundle that is not one when it observes it and when it replays a history observing it, and reads a record's report that is not one as stating nothing, as it already did for an observation. Its reader of outputs is total: an output, a quantity or a resolution that is not what an OK output's is, is not read. The learned-model ledger refuses such a document with LedgerError, the governed model runs such a record with ModelRunRefused, and the claim check reports such a citation broken. The scan of the package's JSON parses no longer lists the six functions.",
+   "regression_tests": [
+    "tests/test_evidence_objects.py::test_the_ledger_refuses_to_observe_what_is_not_a_bundle",
+    "tests/test_evidence_objects.py::test_a_history_observing_what_is_not_a_bundle_is_refused",
+    "tests/test_evidence_objects.py::test_a_report_that_is_not_an_object_states_nothing",
+    "tests/test_evidence_objects.py::test_a_bundle_is_read_for_its_ok_outputs_whatever_else_it_holds",
+    "tests/test_evidence_objects.py::test_the_learned_ledger_refuses_a_document_that_is_not_an_object",
+    "tests/test_evidence_objects.py::test_a_governed_record_that_is_not_an_object_is_refused",
+    "tests/test_evidence_objects.py::test_a_citation_of_bytes_that_are_not_a_bundle_is_broken",
+    "tests/test_json_nesting.py::test_every_json_parse_in_the_package_answers_for_nesting"
+   ],
+   "residual_risk": "Where these readers raised before, they failed closed, and the change is in the error a caller is handed. Where they did not, the change refuses what they read: a history observing a bundle that holds a constant JSON does not have, or an OK output whose resolution is not a number, loaded and is refused now, and a citation of such a bundle is broken. The package's own producers write these documents as JSON objects with no constant JSON lacks; the authority store admits a record of a kind no admission rule reads, citing whatever bytes its proposer stored, once a verifier verifies it, and that, or a history or store written some other way, is the reach. The reader of outputs now leaves out what it cannot read: an observation of such a bundle records fewer values, and its replay agrees with it. It reads each value's kind, not a number's sign: a resolution below zero is still read, and is AUD-056. A JSON object with the wrong contents elsewhere in these readers was not swept.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-056",
+   "title": "A stated resolution below zero inverts the interval a verdict holds a value to, so a value supports a claim it contradicts",
+   "severity": "P2",
+   "subsystem": "the research ledger's evaluation and the second reader's verdict",
+   "files": [
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "values_of: a bundle's resolution taken with no test of its sign; evaluate: the interval from value - resolution to value + resolution"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_rs_verdict: the same interval"
+    }
+   ],
+   "behavior": "A measurement record verified through the authority store, citing a bundle that states T = 300 K with a resolution of -5 K and a report that states no agreement, is observed with that resolution, and the one evaluation holds the value to the interval from 305 K to 295 K, whose lower end is above its upper: the prediction T > 302 K is SUPPORTED by a value below 302 K. With a resolution of 0.5 K the same prediction is REFUTED. The second reader's verdict computes the same interval, so it agrees and reports nothing.",
+   "invariant": "A verdict holds a value to an interval that contains it: a resolution is a bound, never below zero.",
+   "mechanism": "A quantity refuses a resolution below zero where it is made (scientific/quantity.py), and so does the ranking (scientific/ranking.py). The research ledger's reader of outputs takes a bundle's resolution with no test of its sign, and the evaluation and the second reader's verdict compute value - resolution and value + resolution without asking which is lower. Under admission/2 a report's agreement replaces the producer's resolution with a bound that is never below zero, so the path is a report that states no agreement: a record admitted under admission/1, or of a kind no admission rule reads.",
+   "reproduction": "At 699b04b, and again with AUD-055's change, with the log, evidence store and verified measurement record that tests/test_evidence_objects.py builds, whose report is not JSON: ResearchLedger.observe of a bundle stating T = 300 K with resolution -5 K records the resolution, research.evaluate of T > 302 K against the observation returns SUPPORTED, and the history loads. With resolution 0.5 K the evaluation returns REFUTED.",
+   "observed": "Found while correcting AUD-055's record: its reader of outputs was made total over values that are not numbers, and a number below zero was still read.",
+   "expected": "A value whose resolution is below zero decides nothing, in either reader.",
+   "correction": "Not applied in the commit that registers it.",
+   "regression_tests": [],
+   "residual_risk": "The package's own producers cannot write such a bundle, and a verifier verified the record, so the reach is a bundle a proposer wrote some other way, or a history or store written some other way. Other readers of a stated resolution were not swept.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
   }
  ]
 }

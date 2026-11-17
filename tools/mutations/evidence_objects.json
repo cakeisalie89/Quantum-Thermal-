@@ -1,0 +1,100 @@
+{
+ "title": "Evidence that is not a JSON object is refused in each primary's own words",
+ "note": "AUD-055, the remainder of AUD-047. canonical.json_object states once what a reader of evidence may take as an object (EO1 to EO3). The research ledger refuses a bundle that is not one, on replay, from its caller and in the context, and reads a bundle's outputs whatever else it holds (EO4 to EO10); the learned-model ledger refuses such a document (EO11), the governed model runs such a record (EO12), and the claim check reports such a citation broken (EO13). tests/test_evidence_objects.py holds each.",
+ "suites": [
+  "tests/test_evidence_objects.py"
+ ],
+ "mutations": [
+  {
+   "name": "EO1_a_json_value_of_another_kind_is_an_object",
+   "path": "agent_substrate/canonical.py",
+   "find": "    return doc if isinstance(doc, dict) else None\n",
+   "replace": "    return doc\n",
+   "rationale": "a JSON list or number is handed on as an object, and the first .get on it raises AttributeError out of every reader"
+  },
+  {
+   "name": "EO2_a_constant_json_does_not_have_is_read",
+   "path": "agent_substrate/canonical.py",
+   "find": "        doc = json.loads(raw, parse_constant=_no_constant)\n",
+   "replace": "        doc = json.loads(raw)\n",
+   "rationale": "evidence holding NaN or Infinity, which are not JSON, is read as an object"
+  },
+  {
+   "name": "EO3_nesting_past_the_parser_raises",
+   "path": "agent_substrate/canonical.py",
+   "find": "    except (ValueError, RecursionError):\n        return None\n    return doc if isinstance(doc, dict) else None\n",
+   "replace": "    except (ValueError,):\n        return None\n    return doc if isinstance(doc, dict) else None\n",
+   "rationale": "evidence nested past the parser raises RecursionError out of every reader of it"
+  },
+  {
+   "name": "EO4_the_ledger_hands_on_what_is_not_a_bundle",
+   "path": "agent_substrate/research.py",
+   "find": "    doc = json_object(raw)\n    if doc is None:\n",
+   "replace": "    doc = json_object(raw)\n    if False:\n",
+   "rationale": "the research ledger hands None on as a bundle, and raises AttributeError where it would refuse"
+  },
+  {
+   "name": "EO5_replay_parses_the_bundle_itself",
+   "path": "agent_substrate/research.py",
+   "find": "            bundle = _bundle_of(self.evidence.get(b[\"result_bundle\"]),\n                                f\"seq {ev.seq}: {oid!r}\")\n",
+   "replace": "            bundle = json.loads(self.evidence.get(b[\"result_bundle\"]))\n",
+   "rationale": "a history observing bytes that are not a bundle raises the parser's error out of the ledger's load (AUD-055)"
+  },
+  {
+   "name": "EO6_observe_parses_the_callers_bytes_itself",
+   "path": "agent_substrate/research.py",
+   "find": "        bundle = _bundle_of(bundle_bytes, repr(observation_id))\n",
+   "replace": "        bundle = json.loads(bundle_bytes)\n",
+   "rationale": "the caller's bytes that are not a bundle raise the parser's error out of observe"
+  },
+  {
+   "name": "EO7_the_context_parses_the_report_itself",
+   "path": "agent_substrate/research.py",
+   "find": "        report = (json_object(self.evidence.get(report_sha)) or {}) \\\n",
+   "replace": "        report = (json.loads(self.evidence.get(report_sha)) or {}) \\\n",
+   "rationale": "a record's report that is not an object raises out of the scientific context, where _report_of reads it as stating nothing"
+  },
+  {
+   "name": "EO8_an_output_that_is_not_an_object_is_read",
+   "path": "agent_substrate/research.py",
+   "find": "        if not isinstance(o, dict) or not isinstance(o.get(\"name\"), str):\n            continue\n",
+   "replace": "        if False:\n            continue\n",
+   "rationale": "an output that is not an object raises AttributeError out of the bundle reader"
+  },
+  {
+   "name": "EO9_a_quantity_that_is_not_an_object_is_read",
+   "path": "agent_substrate/research.py",
+   "find": "        if not isinstance(q, dict) or o.get(\"status\") != \"OK\" or \\\n",
+   "replace": "        if o.get(\"status\") != \"OK\" or \\\n",
+   "rationale": "a quantity that is not an object raises AttributeError out of the bundle reader"
+  },
+  {
+   "name": "EO10_a_resolution_that_is_not_a_number_is_read",
+   "path": "agent_substrate/research.py",
+   "find": "        if isinstance(r, bool) or not isinstance(r, (int, float)):\n            continue\n",
+   "replace": "        if False:\n            continue\n",
+   "rationale": "a resolution that is not a number is observed, and widening it by a check's agreement raises TypeError"
+  },
+  {
+   "name": "EO11_the_learned_ledger_hands_on_what_is_not_a_document",
+   "path": "agent_substrate/learned_lifecycle.py",
+   "find": "        doc = json_object(self.evidence.get(rec.evidence[\"document\"]))\n        if doc is None:\n",
+   "replace": "        doc = json_object(self.evidence.get(rec.evidence[\"document\"]))\n        if False:\n",
+   "rationale": "the learned ledger returns None as a document, where it would refuse in its own words"
+  },
+  {
+   "name": "EO12_the_governed_runs_hand_on_what_is_not_a_record",
+   "path": "agent_substrate/governed_model.py",
+   "find": "        doc = json_object(self.evidence.get(sha))\n        if doc is None:\n",
+   "replace": "        doc = json_object(self.evidence.get(sha))\n        if False:\n",
+   "rationale": "the governed model runs return None as a record their tools wrote, where they would refuse"
+  },
+  {
+   "name": "EO13_a_citation_of_what_is_not_a_bundle_is_intact",
+   "path": "agent_substrate/claim_check.py",
+   "find": "        elif (bundle := json_object(evidence.get(dg))) is None:\n",
+   "replace": "        elif (bundle := json_object(evidence.get(dg))) is None and False:\n",
+   "rationale": "a citation of bytes that are not a bundle is reported intact"
+  }
+ ]
+}

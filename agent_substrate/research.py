@@ -92,7 +92,7 @@ from typing import Callable, TypeGuard
 
 from . import actions
 from . import freshness as F
-from .canonical import digest, digest_bytes, is_digest
+from .canonical import digest, digest_bytes, is_digest, json_object
 from .events import DecidedWriter, judged_at, projection_load
 
 ACT_OBJECTIVE = "research.objective"
@@ -334,16 +334,37 @@ def observed_values(bundle: dict, report: dict | None) -> dict:
 
 
 def values_of(bundle: dict) -> dict:
-    """The OK outputs of a result bundle: name -> value, unit, resolution."""
-    out = {}
-    for o in bundle.get("outputs", ()):
+    """The OK outputs of a result bundle: name -> value, unit, resolution.
+
+    Total over whatever the bytes held (AUD-055): an output that is not an
+    object, has no name or no quantity, or states a resolution that is not
+    a number is not an OK output with a value, and is not read."""
+    out: dict = {}
+    outputs = bundle.get("outputs") if isinstance(bundle, dict) else None
+    for o in outputs if isinstance(outputs, list) else ():
+        if not isinstance(o, dict) or not isinstance(o.get("name"), str):
+            continue
         q = o.get("quantity") or {}
-        if o.get("status") != "OK" or not isinstance(q.get("value"),
-                                                     (int, float)):
+        if not isinstance(q, dict) or o.get("status") != "OK" or \
+                not isinstance(q.get("value"), (int, float)):
+            continue
+        r = q.get("resolution") or 0.0
+        if isinstance(r, bool) or not isinstance(r, (int, float)):
             continue
         out[o["name"]] = {"value": q["value"], "unit": q.get("unit"),
-                          "resolution": q.get("resolution") or 0.0}
+                          "resolution": r}
     return out
+
+
+def _bundle_of(raw, where: str) -> dict:
+    """A result bundle's bytes as the object they must be, or this ledger's
+    refusal (AUD-055). Evidence is content-addressed, so the bytes are the
+    ones cited; what they hold is still the writer's."""
+    doc = json_object(raw)
+    if doc is None:
+        raise ResearchError(f"{where}: its result bundle is not a JSON "
+                            "object")
+    return doc
 
 
 @dataclass(frozen=True)
@@ -585,7 +606,8 @@ class ResearchLedger(DecidedWriter):
             raise ResearchError(f"seq {ev.seq}: {oid!r} names a bundle its "
                                 "record does not cite")
         if self.evidence is not None:
-            bundle = json.loads(self.evidence.get(b["result_bundle"]))
+            bundle = _bundle_of(self.evidence.get(b["result_bundle"]),
+                                f"seq {ev.seq}: {oid!r}")
             if observed_values(bundle, self._report_of(sci)) != \
                     b["values"] or \
                     bundle.get("model_id") != b["model_id"] or \
@@ -856,12 +878,15 @@ class ResearchLedger(DecidedWriter):
         if obs is None or obs.kind != "observation":
             raise ResearchError(f"no observation {observation_id!r}")
         b = obs.body
-        bundle = json.loads(self.evidence.get(b["result_bundle"]))
+        bundle = _bundle_of(self.evidence.get(b["result_bundle"]),
+                            repr(observation_id))
         sci = self._sci.get(b["record_id"]) or {}
         at = judged_at(self._latest_wall, self.clock())
         standing, why = self._standing(observation_id, at)
         report_sha = (sci.get("evidence") or {}).get("verification_report")
-        report = json.loads(self.evidence.get(report_sha)) \
+        # a report that is no JSON object states nothing, as _report_of
+        # reads it (AUD-025); its digest must still resolve
+        report = (json_object(self.evidence.get(report_sha)) or {}) \
             if report_sha else {}
         run = {k: bundle.get(k) for k in (
             "model_id", "model_version", "implementation_digest",
@@ -969,7 +994,7 @@ class ResearchLedger(DecidedWriter):
         """Record what a VERIFIED result's bundle says. The values -- and
         when it was observed, if the bundle says -- are read from the bundle
         here; nobody's summary of it is accepted."""
-        bundle = json.loads(bundle_bytes)
+        bundle = _bundle_of(bundle_bytes, repr(observation_id))
         sci = self._sci.get(record_id)
         body = {"observation_id": observation_id,
                 "objective_id": objective_id, "record_id": record_id,

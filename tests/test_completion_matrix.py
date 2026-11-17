@@ -996,7 +996,10 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 8 -> 7 when the fuzzer was seeded with nesting at the log's three file
 #: boundaries (AUD-050, tools/fuzz_substrate.py, cited by R50), which
 #: predates it until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 7
+#: 7 -> 6 when the learned-model ledger came to refuse a document that is
+#: not a JSON object (AUD-055, agent_substrate/learned_lifecycle.py, cited
+#: by R60), which predates it until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 6
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

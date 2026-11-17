@@ -18,8 +18,9 @@ Three things are held here.
   level under every interpreter.
 * A BOUNDARY THAT REFUSES ANSWERS IN ITS OWN WORDS. Each place that refuses
   bytes that are not JSON is handed a document nested past the parser, and
-  makes the same refusal. Seven parses of evidence have no refusal to make
-  for either, and are on the list below (AUD-047's remainder).
+  makes the same refusal. Seven parses of evidence had no refusal to make
+  for either; AUD-055 gave each of their readers one, through
+  ``canonical.json_object``.
 * THE SWEEP IS A TEST. The earlier repair was made where it was found, and
   the other boundaries were left. Every ``json.loads`` and ``json.load`` in
   the package is found here from its source, and each either has a handler
@@ -499,25 +500,6 @@ UNGUARDED = {
     ("reconstruct.py", "_sci_fetch"):
         "inside the second reader's fold, where a raise is a note against "
         "the record (AUD-047)",
-    ("research.py", "_apply_observation"):
-        "the bundle a VERIFIED record cites. A forged history reaches it "
-        "with any bytes, and bytes that are not JSON raise here too: what "
-        "a primary answers to such a record is AUD-047's remainder",
-    ("research.py", "scientific_context"):
-        "the evidence of an observation the ledger holds; no handler for "
-        "bytes that are not JSON either",
-    ("research.py", "observe"):
-        "the caller's bytes, parsed before anything is recorded; no "
-        "handler for bytes that are not JSON either",
-    ("learned_lifecycle.py", "document"):
-        "a document this module registered; no handler for bytes that are "
-        "not JSON either",
-    ("governed_model.py", "_record_of"):
-        "a record the governed tools wrote, by the digest the capture "
-        "recorded; no handler for bytes that are not JSON either",
-    ("claim_check.py", "check"):
-        "evidence whose digest the store has just re-hashed; no handler "
-        "for bytes that are not JSON either",
     ("research_loop.py", "script"):
         "a scripted stand-in for a model, reading the gateway's own prompt",
     ("_ns_init.py", "main"):

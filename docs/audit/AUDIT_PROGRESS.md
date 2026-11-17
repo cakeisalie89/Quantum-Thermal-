@@ -4084,3 +4084,120 @@ runs every spec whole.
   not looked at for this.
 - No newer build exists to write an action this one cannot read, so
   the consequence was for a history nobody has written yet.
+
+### Stage 5, ninth pass: evidence that is not a JSON object is refused in each primary's own words (AUD-055; AUD-056 registered)
+
+**AUD-055 (P3), fixed.** AUD-047 made the independent readers never
+raise on content, and left the primaries. AUD-050 listed seven parses of
+evidence, in six functions, with no handler for bytes that are not
+JSON. Evidence is content-addressed, so the bytes a record cites are the
+bytes it was written with; what they hold is still the writer's.
+
+Reproduced at 699b04b with five kinds of bytes: not JSON, a JSON list,
+a JSON number, a constant JSON does not have (NaN), and nesting past
+the parser. Where a reader raised, it failed closed, but not in its own
+words, so a caller handling a ledger's refusal was handed an error it
+does not catch:
+
+- The research ledger raised `JSONDecodeError`, `RecursionError` or
+  `AttributeError`, and not its own `ResearchError`, when it observed a
+  bundle that is not an object, when it loaded a history observing
+  one, and when it read such a report for an observation's context.
+- Its reader of outputs raised `AttributeError`, `KeyError` or
+  `TypeError` on an output or a quantity that is not one.
+- The learned-model ledger raised what the parser raised for a
+  document, and so did the governed model runs for a record their
+  tools wrote, and the claim check for the bundle a citation names.
+
+Where nothing raised, the bytes were read as if they were an object:
+
+- The research ledger observed a bundle holding NaN. Written at
+  699b04b with an honest output beside the NaN, the observation
+  recorded the output's value, and the history loaded.
+- Its reader of outputs read an OK output whose resolution is text,
+  with the text, and a history observing it loaded.
+- The claim check reported a citation of a bundle holding NaN intact.
+- The learned-model ledger and the governed model runs handed their
+  callers the list, the number or the object holding NaN as the
+  document or record.
+
+**The repair.** `canonical.json_object` states once what a reader of
+evidence may take as an object. The research ledger refuses a bundle
+that is not one, on replay and from its caller. It reads a record's
+report that is not one as stating nothing, as it already did for an
+observation, and its reader of outputs is total. The learned-model
+ledger refuses such a document with `LedgerError`, and the governed
+model runs such a record with `ModelRunRefused`. The claim check
+reports such a citation broken. The scan of the package's JSON parses
+no longer lists the six functions: it finds 31 parses, where it
+found 37, 20 with a handler and 11, in nine functions, listed with
+the reason they need none.
+The two histories written at 699b04b, above, are refused with the
+change, each in the ledger's own words.
+
+**Tests.** `tests/test_evidence_objects.py`, new, hands each reader the
+five kinds of bytes, with an honest bundle as the control. At 699b04b,
+35 of its 38 tests fail.
+
+**Mutations.** Thirteen, in a new spec, `evidence_objects`: EO1 to EO3
+in `canonical.json_object`, EO4 to EO10 in the research ledger, and one
+each in the learned-model ledger, the governed model runs and the claim
+check. The shard plan was regenerated for 143 specs.
+
+Two existing anchors moved with the lines the change rewrote:
+`claim_check` CC19 and `research` RS7. Each was re-anchored to the
+new line and still removes the same rule, under its old name and
+rationale. Every one of the 3,051 committed mutations' anchors
+occurs exactly once in its target.
+
+Run here, on this commit's tree: 139 mutations in 11 specs. That is
+`evidence_objects` whole, 13; `json_nesting` whole, 35, whose test no
+longer lists the six functions; `claim_check` whole, 25, and `research`
+whole, 46, whose sources the change rewrote and whose anchors moved;
+`mutation_shards` whole, 12; every mutation anchored in `canonical.py`,
+in `learned_lifecycle.py` or in the import list's test, in
+`agent_incremental`, `witness`, `neural_authority` and
+`agent_service_authority`; and the three of other specs anchored within
+three lines of a line the change wrote in the research ledger,
+`rc_counterfactuals` OV5 and `research_science` OB2 and OB3. All were
+killed and every source restored.
+
+Not run here: the other 106 mutations anchored in the five sources, 54
+in the research ledger and 52 in the governed model runs, each more
+than three lines from any line the change wrote. Their anchors were
+checked to match once, as all 3,051 were, and hosted CI runs every spec
+whole.
+
+**Hosted evidence.** R60 cites `agent_substrate/learned_lifecycle.py`,
+which this change edits, so the hosted run it cites no longer covers
+its implementation. The rows whose evidence covers their
+implementation go from 7 to 6, as `tests/test_completion_matrix.py`
+now states, until the evidence commit after hosted CI.
+
+**AUD-056 (P2), registered open.** Found while correcting this
+record: the reader of outputs was made total over values that are not
+numbers, and a number below zero is still read. A measurement record
+verified through the authority store, with a report that states no
+agreement and a bundle stating T = 300 K with a resolution of -5 K, is
+observed with that resolution, and the one evaluation holds the value
+to the interval from 305 K down to 295 K: `T > 302 K` is SUPPORTED by a
+value below 302 K. With 0.5 K it is REFUTED. Reproduced at 699b04b and
+with this change. The second reader's verdict computes the same
+interval, so it agrees. A quantity refuses a resolution below zero
+where it is made, so the package's own producers cannot write such a
+bundle, and under admission/2 the agreement a PASS must state replaces
+the producer's resolution with a bound that is never below zero; the
+reach is a report that states no agreement, under admission/1 or for a
+kind no admission rule reads. Not fixed in this commit.
+
+**What is not established.**
+
+- The reader of outputs reads each value's kind, not a number's sign:
+  a resolution below zero is still read, and is AUD-056, above. A JSON
+  object with the wrong contents elsewhere in these readers was not
+  swept.
+- The package's own producers write these documents as JSON objects
+  with no constant JSON lacks. The authority store admits a record of
+  a kind no admission rule reads, citing whatever bytes its proposer
+  stored, once a verifier verifies it; that, or a history or store
+  written some other way, is the reach.

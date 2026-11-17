@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 651,
+   "ADDED": 653,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 230,
-   "MEDIUM": 367
+   "LOW": 231,
+   "MEDIUM": 368
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 142,
+   "assurance": 143,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 205,
+   "tests": 206,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 683
+  "files": 685
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -578,6 +578,7 @@
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
      "tests/test_ed25519_encodings.py",
+     "tests/test_evidence_objects.py",
      "tests/test_evidence_terms.py",
      "tests/test_execution_containment.py",
      "tests/test_filesystem_confinement.py",
@@ -884,6 +885,7 @@
      "tests/test_checkpoint_recovery.py",
      "tests/test_composed_campaigns.py",
      "tests/test_decision_proof.py",
+     "tests/test_evidence_objects.py",
      "tests/test_formal_conformance.py",
      "tests/test_freshness.py",
      "tests/test_gate_b_acceptance.py",
@@ -922,6 +924,7 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/agent_incremental.json",
+     "tools/mutations/evidence_objects.json",
      "tools/mutations/json_nesting.json",
      "tools/mutations/witness.json"
     ],
@@ -1081,11 +1084,13 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/claim_check.json"
+     "tools/mutations/claim_check.json",
+     "tools/mutations/evidence_objects.json"
     ],
     "tests": [
      "tests/test_claim_check.py",
      "tests/test_composed_campaigns.py",
+     "tests/test_evidence_objects.py",
      "tests/test_integration_demo.py",
      "tests/test_trust_labels.py"
     ]
@@ -1222,6 +1227,7 @@
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
      "tests/test_decision_proof.py",
+     "tests/test_evidence_objects.py",
      "tests/test_formal_conformance.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
@@ -1323,6 +1329,7 @@
      "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
+     "tests/test_evidence_objects.py",
      "tests/test_evidence_terms.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
@@ -1451,6 +1458,7 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/checkpoint_recovery.json",
+     "tools/mutations/evidence_objects.json",
      "tools/mutations/governed_model.json",
      "tools/mutations/governed_model_reuse.json",
      "tools/mutations/policy_binding.json",
@@ -1466,6 +1474,7 @@
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_completion_matrix.py",
+     "tests/test_evidence_objects.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_generic_consistency.py",
      "tests/test_governed_model.py",
@@ -1672,9 +1681,12 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
+     "tools/mutations/evidence_objects.json",
      "tools/mutations/neural_authority.json"
     ],
     "tests": [
+     "tests/test_completion_matrix.py",
+     "tests/test_evidence_objects.py",
      "tests/test_neural_provenance.py"
     ]
    }
@@ -2150,6 +2162,7 @@
      "tools/mutations/adversarial_eval.json",
      "tools/mutations/composed_campaigns.json",
      "tools/mutations/counterfactual_eval.json",
+     "tools/mutations/evidence_objects.json",
      "tools/mutations/freshness.json",
      "tools/mutations/json_nesting.json",
      "tools/mutations/rc_counterfactuals.json",
@@ -2166,6 +2179,7 @@
      "tests/test_composed_campaigns.py",
      "tests/test_counterfactual_eval.py",
      "tests/test_decision_proof.py",
+     "tests/test_evidence_objects.py",
      "tests/test_freshness.py",
      "tests/test_integration_demo.py",
      "tests/test_json_nesting.py",
@@ -2465,6 +2479,7 @@
      "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
      "tests/test_decision_proof.py",
+     "tests/test_evidence_objects.py",
      "tests/test_formal_conformance.py",
      "tests/test_freshness.py",
      "tests/test_governed_history.py",
@@ -4341,6 +4356,7 @@
      "tests/test_container_workflow_contract.py",
      "tests/test_decision_proof.py",
      "tests/test_dimensions.py",
+     "tests/test_evidence_objects.py",
      "tests/test_external_models.py",
      "tests/test_filesystem_confinement.py",
      "tests/test_generic_consistency.py",
@@ -4351,7 +4367,6 @@
      "tests/test_hdf5_bundle.py",
      "tests/test_hostile_composition.py",
      "tests/test_integration_demo.py",
-     "tests/test_json_nesting.py",
      "tests/test_model_evidence.py",
      "tests/test_neural_accounting.py",
      "tests/test_neural_boundary.py",
@@ -7235,6 +7250,23 @@
   {
    "change": "ADDED",
    "path": "tests/test_ed25519_encodings.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_evidence_objects.py",
    "risk": "LOW",
    "runtime_dependencies": [
     "pytest"
@@ -10559,6 +10591,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/enforcement_asserts.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/evidence_objects.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

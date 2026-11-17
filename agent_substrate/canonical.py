@@ -92,6 +92,23 @@ def digest(obj: Any) -> str:
     return hashlib.sha256(canonical_bytes(obj)).hexdigest()
 
 
+def _no_constant(token: str):
+    raise ValueError(f"{token} is not a JSON value")
+
+
+def json_object(raw) -> dict | None:
+    """``raw`` parsed as a JSON object, or None when it is not one: bytes
+    that are not JSON, a constant JSON does not have (NaN, Infinity),
+    nesting past the parser, or a value of another kind. For a reader of
+    evidence, whose bytes are the ones cited and whose content is still the
+    writer's: each refuses None in its own words (AUD-055)."""
+    try:
+        doc = json.loads(raw, parse_constant=_no_constant)
+    except (ValueError, RecursionError):
+        return None
+    return doc if isinstance(doc, dict) else None
+
+
 def digest_bytes(raw: bytes) -> str:
     """SHA-256 of raw bytes. For files and payloads already serialized."""
     return hashlib.sha256(raw).hexdigest()

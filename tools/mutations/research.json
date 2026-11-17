@@ -51,8 +51,8 @@
   {
    "name": "RS7_observed_values_are_not_reread",
    "path": "agent_substrate/research.py",
-   "find": "        if self.evidence is not None:\n            bundle = json.loads(self.evidence.get(b[\"result_bundle\"]))",
-   "replace": "        if False:\n            bundle = json.loads(self.evidence.get(b[\"result_bundle\"]))",
+   "find": "        if self.evidence is not None:\n            bundle = _bundle_of(self.evidence.get(b[\"result_bundle\"]),",
+   "replace": "        if False:\n            bundle = _bundle_of(self.evidence.get(b[\"result_bundle\"]),",
    "rationale": "an observation could report values its bundle does not hold"
   },
   {
