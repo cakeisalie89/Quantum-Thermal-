@@ -1,13 +1,13 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 648,
+   "ADDED": 649,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 228,
+   "LOW": 229,
    "MEDIUM": 366
   },
   "by_subsystem": {
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 203,
+   "tests": 204,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 680
+  "files": 681
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -5809,6 +5809,19 @@
   {
    "change": "ADDED",
    "path": "tests/fuzz_corpus/fmu_description-crashed-09459953.json",
+   "risk": "LOW",
+   "runtime_dependencies": [],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/fuzz_corpus/hdf5_bundle-crashed-43230537.json",
    "risk": "LOW",
    "runtime_dependencies": [],
    "subsystem": "tests",

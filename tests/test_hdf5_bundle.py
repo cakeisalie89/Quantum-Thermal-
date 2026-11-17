@@ -3,8 +3,12 @@ on round trip, refusing anything whose parts disagree, and claiming no
 authority."""
 from __future__ import annotations
 
+import base64
 import json
 import shutil
+import sys
+import time
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -185,3 +189,205 @@ def test_corrupt_metadata_is_a_refusal_not_a_library_error(tmp_path):
             continue
         assert got.digest() == b.digest()   # a harmless byte: same bundle
     assert refused > 0
+
+
+# ------------------------------------------------ the library, in a child
+# AUD-053. The HDF5 library is native code. A file found by fuzzing makes it
+# fault, and a fault kills the process it happens in: no handler in the
+# reader runs. So the library reads in a child, and the tests below stand a
+# program of their own in the child's place to say what the parent makes of
+# each way a child can end. None of them depends on a file that happens to
+# break one build of the library.
+def _stand_in(monkeypatch, program: str) -> None:
+    monkeypatch.setattr(H, "_CHILD", program)
+
+
+#: The input the fuzzer found, kept in its regression corpus. It made h5py
+#: 3.16.0 with HDF5 2.0.0 fault in its attribute reader and killed the
+#: process; under another build it may be refused for another reason.
+CRASHED = (Path(__file__).resolve().parent / "fuzz_corpus"
+           / "hdf5_bundle-crashed-43230537.json")
+
+
+def test_the_file_that_killed_the_reader_is_refused(tmp_path):
+    """AUD-053 as it was found. The reader's process survives the file
+    (this test goes on running), and the file is refused."""
+    case = json.loads(CRASHED.read_text(encoding="utf-8"))
+    bad = tmp_path / "crashed.h5"
+    bad.write_bytes(base64.b64decode(case["input_b64"]))
+    with pytest.raises(H.Hdf5Refused, match="not a readable representation"):
+        H.read(bad)
+
+
+_NO_CORE = "import resource; resource.setrlimit(resource.RLIMIT_CORE, (0, 0)); "
+
+
+@pytest.mark.parametrize("program, why", [
+    (_NO_CORE + "import os, signal; os.kill(os.getpid(), signal.SIGSEGV)",
+     r"the HDF5 library died reading it \(SIGSEGV\)"),
+    ("import os, signal; os.kill(os.getpid(), signal.SIGKILL)",
+     r"died reading it \(SIGKILL\)"),
+    # a signal the interpreter has no name for is still named
+    ("import os, signal; os.kill(os.getpid(), signal.SIGRTMIN + 3)",
+     r"died reading it \(signal \d+\)"),
+])
+def test_a_child_that_dies_by_a_signal_is_a_refusal_of_the_file(
+        written, monkeypatch, program, why):
+    _stand_in(monkeypatch, program)
+    with pytest.raises(H.Hdf5Refused, match=why):
+        H.read(written)
+    with pytest.raises(H.Hdf5Refused, match="died reading it"):
+        H.manifest(written)
+
+
+def test_a_child_that_does_not_answer_in_time_is_a_refusal(written,
+                                                           monkeypatch):
+    """A file that makes the library loop held its reader for good."""
+    _stand_in(monkeypatch, "import time; time.sleep(15)")
+    monkeypatch.setattr(H, "READ_TIMEOUT_S", 0.5)
+    started = time.monotonic()
+    with pytest.raises(H.Hdf5Refused, match=r"did not end in 0\.5 s"):
+        H.read(written)
+    assert time.monotonic() - started < 10
+
+
+@pytest.mark.parametrize("program, why", [
+    ("raise SystemExit(3)", r"child failed \(exit 3\)"),
+    ("raise ValueError('boom')", r"child failed \(exit 1\)[\s\S]*boom"),
+    ("import sys; sys.stdout.write('not json')", "did not answer in JSON"),
+    ("import sys; sys.stdout.write('[' * 100000)",
+     "did not answer in JSON: RecursionError"),
+    ("import sys; sys.stdout.write('[1, 2]')", "not an object"),
+    ("import sys; sys.stdout.write('{}')", "not one: KeyError"),
+])
+def test_a_child_that_ends_any_other_way_is_the_readers_fault(
+        written, monkeypatch, program, why):
+    """Not a refusal: nothing here is a statement about the file, and a
+    caller that handles refusals must not be handed one."""
+    _stand_in(monkeypatch, program)
+    with pytest.raises(H.Hdf5ReaderFault, match=why):
+        H.read(written)
+    assert not issubclass(H.Hdf5ReaderFault, H.Hdf5Refused)
+    assert not issubclass(H.Hdf5Refused, H.Hdf5ReaderFault)
+
+
+def test_a_refusal_reaches_the_caller_in_the_readers_own_words(written):
+    """The child's refusal is the reader's, word for word: what a caller
+    reads is what it read when the library ran in its own process."""
+    _edit(written, lambda f: f.attrs.__setitem__("schema",
+                                                 "result-bundle-hdf5/0"))
+    with pytest.raises(H.Hdf5Refused) as refusal:
+        H.read(written)
+    assert str(refusal.value) == ("schema 'result-bundle-hdf5/0' is not "
+                                  "result-bundle-hdf5/1")
+
+
+def _answering(slab, **changed) -> str:
+    """A program that writes what an honest child answers for the slab
+    bundle, with ``changed`` in its place."""
+    b, pay, _ = slab
+    answer = {"record": b.to_record(), "digest": b.digest(),
+              "artifacts": {k: base64.b64encode(v).decode("ascii")
+                            for k, v in pay.items()},
+              "links": ["a" * 64]}
+    answer.update(changed)
+    return f"import sys; sys.stdout.write({json.dumps(answer)!r})"
+
+
+def test_an_honest_answer_is_accepted(slab, written, monkeypatch):
+    """The control for the forged answers below: the same answer, unchanged,
+    is the bundle."""
+    b, pay, _ = slab
+    _stand_in(monkeypatch, _answering(slab))
+    b2, arts, links = H.read(written)
+    assert b2.digest() == b.digest() and arts == pay
+    assert links == ("a" * 64,)
+
+
+def _other_bytes(slab) -> dict:
+    _, pay, _ = slab
+    return {k: base64.b64encode(v[:-1] + b"\x00").decode("ascii")
+            for k, v in pay.items()}
+
+
+@pytest.mark.parametrize("change, why", [
+    (lambda slab: {"digest": "f" * 64},
+     "named a bundle its own record is not"),
+    (lambda slab: {"artifacts": _other_bytes(slab)},
+     "bytes for temperature_field that the bundle does not cite"),
+    (lambda slab: {"artifacts": {"uncited": base64.b64encode(b"x").decode()}},
+     "bytes for uncited that the bundle does not cite"),
+    (lambda slab: {"artifacts": {"temperature_field": "not base64 !"}},
+     "not one: Error"),
+    (lambda slab: {"links": ["a" * 64, 7]}, "a link that is not text"),
+    # a string is a sequence of strings: one link a character
+    (lambda slab: {"links": "a" * 64}, "links that are not a list"),
+    (lambda slab: {"record": {"not": "a bundle"}}, "not one: "),
+])
+def test_an_answer_is_held_to_itself_not_believed(slab, written, monkeypatch,
+                                                  change, why):
+    """The parent rebuilds the bundle and re-hashes the bytes. A child that
+    a file had made to lie could hand back nothing the bundle does not
+    itself cite."""
+    _stand_in(monkeypatch, _answering(slab, **change(slab)))
+    with pytest.raises(H.Hdf5ReaderFault, match=why):
+        H.read(written)
+
+
+def test_the_child_imports_nothing_from_where_its_caller_stands(
+        written, tmp_path, monkeypatch):
+    """Isolated mode. A module planted in the caller's directory, or named
+    by its environment, is not the child's."""
+    planted = tmp_path / "planted"
+    (planted / "scientific").mkdir(parents=True)
+    (planted / "json.py").write_text("raise SystemExit('planted json')\n")
+    (planted / "scientific" / "__init__.py").write_text(
+        "raise SystemExit('planted package')\n")
+    monkeypatch.chdir(planted)
+    monkeypatch.setenv("PYTHONPATH", str(planted))
+    b2, _, _ = H.read(written)
+    assert b2.observation_kind
+
+
+def test_the_child_leaves_nothing_where_its_caller_stands(slab, written,
+                                                        tmp_path, monkeypatch):
+    """A child stands in a directory of its own, and it is gone when the
+    child is: a core file of a fault would otherwise land in the caller's
+    directory, which in CI is the repository."""
+    caller = tmp_path / "caller"
+    caller.mkdir()
+    monkeypatch.chdir(caller)
+    _stand_in(monkeypatch, "import os; open('left', 'w').write(os.getcwd()); "
+              + _answering(slab))
+    H.read(written)
+    assert list(caller.iterdir()) == []
+
+
+def test_a_path_relative_to_the_caller_is_read(slab, written, monkeypatch):
+    """The child stands elsewhere, so it is handed the path the caller
+    meant."""
+    monkeypatch.chdir(written.parent)
+    b2, _, _ = H.read(written.name)
+    assert b2.digest() == slab[0].digest()
+
+
+def test_the_child_compiles_where_its_parent_was_told_to(written, tmp_path,
+                                                         monkeypatch):
+    """Isolated mode ignores the environment variable that moves the
+    bytecode cache, so the parent passes on where its own was moved to. The
+    mutation harness moves it for every run; a child that compiled beside
+    the source would run one mutation's bytecode for the next."""
+    prefix = tmp_path / "pyc"
+    monkeypatch.setattr(sys, "pycache_prefix", str(prefix))
+    monkeypatch.setattr(sys, "dont_write_bytecode", False)
+    argv = H._child_argv(written)
+    assert argv[:4] == [sys.executable, "-I", "-X",
+                        f"pycache_prefix={prefix}"]
+    assert "-B" not in argv and argv[-1] == str(written)
+    H.read(written)
+    assert list(prefix.rglob("hdf5_bundle*.pyc")), "the child compiled there"
+    monkeypatch.setattr(sys, "pycache_prefix", None)
+    monkeypatch.setattr(sys, "dont_write_bytecode", True)
+    argv = H._child_argv(written)
+    assert argv[:3] == [sys.executable, "-I", "-B"] and "-X" not in argv
+

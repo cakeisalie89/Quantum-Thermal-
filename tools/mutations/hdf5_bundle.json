@@ -1,6 +1,6 @@
 {
  "title": "The generic HDF5 representation of a ResultBundle",
- "note": "H1-H8: each disagreement between the structured view, the record, the stated digest and the artefact bytes is refused; authority is never claimed.",
+ "note": "H1-H8: each disagreement between the structured view, the record, the stated digest and the artefact bytes is refused; authority is never claimed. H9 to H31 (AUD-053): the library reads in a child process. A child that dies by a signal or runs out of time is a refusal of the file; one that ends any other way, or whose answer does not hold to itself, is the reader's fault and never a refusal; the child is isolated from its caller's directory and environment, stands in a directory of its own, and compiles where its parent was told to. Each is held by a test that stands a program of its own in the child's place, so none depends on a file that breaks one build of the library.",
  "suites": [
   "tests/test_hdf5_bundle.py"
  ],
@@ -60,6 +60,167 @@
    "find": "        if digest_bytes(raw) != refs[name].digest or \\\n                len(raw) != refs[name].size_bytes:\n",
    "replace": "        if False:\n",
    "rationale": "bytes the bundle does not cite are written as its artefact"
+  },
+  {
+   "name": "H9_the_library_reads_in_the_readers_own_process",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    answer = _ask(Path(path).absolute())\n",
+   "replace": "    try:\n        return _read(path)[1:]\n    except Hdf5Refused:\n        raise\n    except _LIBRARY_ERRORS as exc:\n        raise Hdf5Refused(f\"not a readable representation: \"\n                          f\"{type(exc).__name__}: {exc}\") from None\n",
+   "rationale": "the reader as it was: the library reads in the reader's own process, its errors named as before, and a file that makes it fault kills the reader, and one that makes it loop holds it (AUD-053)"
+  },
+  {
+   "name": "H10_a_child_killed_by_a_signal_is_the_readers_fault",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    if proc.returncode < 0:\n",
+   "replace": "    if False:\n",
+   "rationale": "a file that kills the library is reported as the reader's failure and not refused as a file"
+  },
+  {
+   "name": "H11_a_signal_without_a_name_raises",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "        except ValueError:\n            name = f\"signal {-proc.returncode}\"\n",
+   "replace": "        except ZeroDivisionError:\n            name = f\"signal {-proc.returncode}\"\n",
+   "rationale": "a child killed by a signal the interpreter has no name for raises ValueError out of the reader"
+  },
+  {
+   "name": "H12_a_read_has_no_deadline",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "                                  timeout=READ_TIMEOUT_S, cwd=cwd)\n",
+   "replace": "                                  timeout=None, cwd=cwd)\n",
+   "rationale": "a file that makes the library loop holds its reader for as long as it loops"
+  },
+  {
+   "name": "H13_a_child_out_of_time_raises_the_librarys_timeout",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    except subprocess.TimeoutExpired:\n",
+   "replace": "    except ZeroDivisionError:\n",
+   "rationale": "a read that ran out of time raises subprocess.TimeoutExpired where the reader refuses"
+  },
+  {
+   "name": "H14_a_child_that_failed_is_asked_for_its_answer",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    if proc.returncode != 0:\n",
+   "replace": "    if False:\n",
+   "rationale": "a child that ended with a traceback is read for an answer, and its exit status and what it said are lost"
+  },
+  {
+   "name": "H15_an_answer_that_is_not_json_raises",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    except (ValueError, RecursionError) as exc:\n        raise Hdf5ReaderFault(f\"the reader's child did not answer in \"\n",
+   "replace": "    except ZeroDivisionError as exc:\n        raise Hdf5ReaderFault(f\"the reader's child did not answer in \"\n",
+   "rationale": "what a child wrote that is not JSON raises the parser's error out of the reader"
+  },
+  {
+   "name": "H16_an_answer_nested_past_the_parser_raises",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    except (ValueError, RecursionError) as exc:\n        raise Hdf5ReaderFault(f\"the reader's child did not answer in \"\n",
+   "replace": "    except (ValueError,) as exc:\n        raise Hdf5ReaderFault(f\"the reader's child did not answer in \"\n",
+   "rationale": "an answer nested past the interpreter's parser raises RecursionError out of the reader (AUD-050's rule, at a parse outside the package it swept)"
+  },
+  {
+   "name": "H17_an_answer_that_is_not_an_object_is_read_as_one",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    if not isinstance(answer, dict):\n",
+   "replace": "    if False:\n",
+   "rationale": "an answer that is a list is indexed as an object, and the fault names a TypeError and not what was wrong"
+  },
+  {
+   "name": "H18_a_childs_refusal_is_not_raised",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    if \"refused\" in answer:\n",
+   "replace": "    if False:\n",
+   "rationale": "a file the child refused is reported as the reader's failure, and no caller handling refusals sees it"
+  },
+  {
+   "name": "H19_the_bundle_the_child_named_is_believed",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    if bundle.digest() != answer[\"digest\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "the parent returns a bundle that is not the one its child named"
+  },
+  {
+   "name": "H20_bytes_the_bundle_does_not_cite_are_returned",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "        if name not in refs or digest_bytes(raw) != refs[name].digest:\n",
+   "replace": "        if name not in refs:\n",
+   "rationale": "artefact bytes are returned because the child said so, whatever digest the bundle cites for them"
+  },
+  {
+   "name": "H21_an_artefact_the_bundle_does_not_name_is_looked_up",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "        if name not in refs or digest_bytes(raw) != refs[name].digest:\n",
+   "replace": "        if digest_bytes(raw) != refs[name].digest:\n",
+   "rationale": "an artefact the bundle does not name raises KeyError, and the fault does not say what was returned"
+  },
+  {
+   "name": "H22_a_link_that_is_not_text_is_returned",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    if not all(isinstance(link, str) for link in links):\n",
+   "replace": "    if False:\n",
+   "rationale": "the parent returns a verification link that is a number"
+  },
+  {
+   "name": "H23_the_child_is_not_isolated",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    argv = [sys.executable, \"-I\"]\n",
+   "replace": "    argv = [sys.executable]\n",
+   "rationale": "the child imports whatever stands in its caller's directory or is named by its environment"
+  },
+  {
+   "name": "H24_the_child_compiles_beside_the_source",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    if sys.pycache_prefix:\n",
+   "replace": "    if False:\n",
+   "rationale": "the child ignores where its parent was told to keep bytecode, and can run a stale cache of the module it reads with"
+  },
+  {
+   "name": "H25_the_child_writes_bytecode_its_parent_was_told_not_to",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    if sys.dont_write_bytecode:\n",
+   "replace": "    if False:\n",
+   "rationale": "the child writes bytecode beside the source in a run that was told to write none"
+  },
+  {
+   "name": "H26_a_library_error_in_the_child_is_a_traceback",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    except _LIBRARY_ERRORS as exc:\n",
+   "replace": "    except ZeroDivisionError as exc:\n",
+   "rationale": "a file with corrupt metadata is the reader's failure with a traceback, where it was a refusal naming the library's error"
+  },
+  {
+   "name": "H27_a_refusal_loses_its_own_words",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    except Hdf5Refused as exc:\n        out = {\"refused\": str(exc)}\n",
+   "replace": "    except ZeroDivisionError as exc:\n        out = {\"refused\": str(exc)}\n",
+   "rationale": "a refusal the reader made in its own words reaches the caller wrapped as a library error"
+  },
+  {
+   "name": "H28_an_answer_that_is_not_one_raises_raw",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    except (KeyError, TypeError, ValueError, AttributeError,\n            IndexError) as exc:\n        raise Hdf5ReaderFault(\n",
+   "replace": "    except ZeroDivisionError as exc:\n        raise Hdf5ReaderFault(\n",
+   "rationale": "an answer missing what an answer holds raises KeyError out of the reader"
+  },
+  {
+   "name": "H29_links_that_are_a_string_are_one_a_character",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    if not isinstance(answer[\"links\"], list):\n",
+   "replace": "    if False:\n",
+   "rationale": "a child that answers its links as one string is read as sixty-four links of one character each"
+  },
+  {
+   "name": "H30_the_child_stands_where_its_caller_does",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "                                  timeout=READ_TIMEOUT_S, cwd=cwd)\n",
+   "replace": "                                  timeout=READ_TIMEOUT_S)\n",
+   "rationale": "what a child leaves, the core file of a fault among it, lands in its caller's directory"
+  },
+  {
+   "name": "H31_a_relative_path_is_read_from_the_childs_directory",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "    answer = _ask(Path(path).absolute())\n",
+   "replace": "    answer = _ask(Path(path))\n",
+   "rationale": "a path relative to the caller is looked for where the child stands, and a file that is there is refused as missing"
   }
  ]
 }

@@ -3923,3 +3923,99 @@ the 141 specs. Hosted CI runs every spec whole.
   AUD-052's. That one was found by its failure, not by a search.
 - A history holding a record nested past 64 levels no longer reads.
   None is known.
+
+### Stage 5, seventh pass: the HDF5 reader outlives the file it reads (AUD-053)
+
+**AUD-053 (P2), fixed.** `scientific/hdf5_bundle.read` is where an
+HDF5 file is trusted or refused. Its docstring says nothing escapes it
+unnamed, and every library error on a corrupt file is an `Hdf5Refused`
+naming it. A file of 44,982 bytes, found by the substrate's fuzzer at
+0432885, makes h5py's attribute reader fault in native code. At
+ce93e58, with h5py 3.16.0 and HDF5 2.0.0, the fault handler names
+`h5py/_hl/attrs.py` line 77, reached from `_read` at
+`node.attrs.get`, and the process exits 139. No handler runs, so
+nothing is refused or recorded. A file that made the library loop would
+hold its caller the same way. The fuzzer is such a caller in CI, at a
+random seed, and a campaign that reaches such an input dies before it
+can record a finding.
+
+**The repair.** The library reads in a child process:
+
+- the interpreter in isolated mode, standing in an empty directory of
+  its own and handed the package's directory and the file's absolute
+  path. It compiles where its parent was told to keep bytecode, which
+  isolated mode would otherwise ignore, and the mutation harness relies
+  on;
+- the child does what `read()` did, every check of the file against
+  its own record included, and writes one line: the record, the
+  bundle's digest, the artefact bytes and the links, or its refusal;
+- a child that dies by a signal is a refusal naming the signal, and one
+  that has not answered in 60 seconds is a refusal;
+- one that ends any other way, or answers with what is not an answer,
+  is `Hdf5ReaderFault`. That is a `RuntimeError` and never a refusal,
+  so a caller handling refusals is not handed one, and the fuzzer
+  reports it as a finding;
+- the parent takes none of the answer on trust. It rebuilds the bundle
+  from the record and requires the digest the child named, re-hashes
+  each artefact against the digest the bundle cites, and requires the
+  links to be a list of text.
+
+The file is kept in the fuzz corpus as a finding record, written from
+the input and the fault because the harness could not write it, and is
+replayed on every run.
+
+**Tests.** `tests/test_hdf5_bundle.py` holds the kept file refused,
+with the test's own process still running. The rest stand a program of
+their own in the child's place, so none depends on a file that breaks
+one build of the library: a child killed by SIGSEGV, SIGKILL or a
+signal with no name; one that sleeps past the deadline; one that exits
+3, raises, writes what is not JSON, nests past the parser, or answers
+with a list or an empty object; an honest answer, accepted, and seven
+forged ones, each refused; a module planted in the caller's directory
+and environment, not imported; a file the child leaves, not left; a
+relative path, read; and the bytecode cache passed on. The file went
+from 19 tests in 2.0 seconds to 43 in 14.2.
+
+**Mutations.** Twenty-three new in `hdf5_bundle`, H9 to H31. H9 puts
+back the reader as it was, in the caller's process, and the kept file
+kills the suite with it. The others remove one rule each: the signal,
+the deadline, each way a child can fail, each check of an answer, the
+isolation, the directory, the path and the bytecode cache. A first run,
+before H9 was restated as the old reader and before the directory and
+the path were added, killed all 29 then in the spec. The type check
+then refused the child's answer, built as one kind of dictionary and
+filled as another, and the variable was annotated. Everything below
+ran again on the tree this commit holds.
+
+Run here, on this commit's tree: `hdf5_bundle` whole, 31 mutations,
+and `fuzz_harness` whole, 9, whose suite replays the corpus the kept
+file joined. All 40 were killed and every source restored. H9 was
+killed by the kept file: the suite's own process died reading it.
+
+**What it costs.** An honest bundle reads in 162 ms, the median of 30
+reads, where it read in 8.6 ms. A CI-sized fuzz campaign, 4,000 cases,
+takes 28 to 30 seconds where it took 8 to 13. The fuzzer no longer
+sees the lines the child runs, so its guidance at this target is
+weaker. Over six seeds the campaign reached 4,580 to 4,707 lines and 69
+to 80 transitions, against 4,650 to 4,720 lines and 69 to 78 transitions before, far above its floors of
+2,200 and 55.
+
+**The shard plan's weights.** Its comment said twelve specs had gained
+mutations since the hosted run that measured the weights. Thirty have
+now. The comment states the rule and the count, and the weights are
+unchanged, so the plan is too.
+
+**What is not established.**
+
+- The library still faults on the file. This contains the fault and
+  does not fix it, and whether a newer h5py or HDF5 does was not tried.
+- The child is a fault boundary and not a sandbox. It runs with its
+  parent's privileges, and what HDF5 itself opens for a file, an
+  external link among it, was not examined.
+- A child that a file could make lie could return only what the bundle
+  it names cites. A different bundle that holds to itself is not
+  detected, as it was not before.
+- The other native parser the package calls in process is expat,
+  through `xml.etree`, for an FMU's description and the VTK export. It
+  was not looked at for faults beyond the fuzzer's `fmu_description`
+  target.

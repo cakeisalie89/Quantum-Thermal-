@@ -176,7 +176,11 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                # Stage 5: the log's nesting bound, and what a boundary
                # answers to a document nested past the parser (AUD-050).
                "tests/test_json_nesting.py",
-               "tools/mutations/json_nesting.json")
+               "tools/mutations/json_nesting.json",
+               # The file that made the HDF5 library fault, kept in the fuzz
+               # corpus as a finding record the harness could not write
+               # (AUD-053).
+               "tests/fuzz_corpus/hdf5_bundle-crashed-43230537.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

@@ -118,10 +118,10 @@
   {
    "@id": "HDF5_DATA_MODEL.md",
    "@type": "File",
-   "contentSize": "1228",
+   "contentSize": "1569",
    "description": "HDF5 result-bundle data model",
    "name": "HDF5_DATA_MODEL.md",
-   "sha256": "f8c40c1cb99ef6e6130d5641abfb2e1fb01e559af4da5e58f7061f34c70650f3"
+   "sha256": "f5f385cb15169758f2cc140b795f35c1b5c9b99b1a174938dc62ef2596d9e4b7"
   },
   {
    "@id": "README.md",
@@ -180,7 +180,7 @@
    "contentSize": "18454",
    "description": "the completion status derived from the contract's inputs",
    "name": "harness_status.json",
-   "sha256": "bc6b72c075af7daeaee87439d8c3cb61d15cf5b1f4ac13cf98a4d018e38efdb9"
+   "sha256": "3df949220443d28d7749edf8853b097425abf8ad452e9dcb9fbebbc3ce1636fe"
   },
   {
    "@id": "docs/neural/claims.json",
@@ -204,7 +204,7 @@
    "contentSize": "2935",
    "description": "the repository content audit of the current tree",
    "name": "repo_content_audit.json",
-   "sha256": "b272b798aef7516ce7399bb02b384a546fb2183bde8367550e54310ebb7e91de"
+   "sha256": "9414fb7b8d03f771954e260c978699fca9cafdea9ce82d8c19324371c70c93e1"
   },
   {
    "@id": "docs/repository_inventory.json",
@@ -217,7 +217,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "120962",
+   "contentSize": "121160",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"

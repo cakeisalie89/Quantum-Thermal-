@@ -609,18 +609,20 @@
   {
    "binary": false,
    "change": "MODIFIED",
-   "findings": [],
+   "findings": [
+    "AUD-053"
+   ],
    "kind": "documentation",
-   "method": "",
+   "method": "every line read at ce93e58; the AUD-053 bullet, a reader that outlives the file, written by the audit",
    "mode": "100644",
-   "new_blob": "2806cf49a7422849d14e6e9421729f1968efee47",
-   "note": "not yet examined",
+   "new_blob": "e06b9290bdb8ed168f4870d49bee802c72bdbc71",
+   "note": "",
    "old_blob": "460048649adf69df30e5d05cb2f0d198ec2c0e81",
    "path": "HDF5_DATA_MODEL.md",
-   "reviewed_blob": null,
-   "sha256": "f8c40c1cb99ef6e6130d5641abfb2e1fb01e559af4da5e58f7061f34c70650f3",
-   "size": 1228,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "e06b9290bdb8ed168f4870d49bee802c72bdbc71",
+   "sha256": "f5f385cb15169758f2cc140b795f35c1b5c9b99b1a174938dc62ef2596d9e4b7",
+   "size": 1569,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -8526,18 +8528,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-053"
+   ],
    "kind": "source:scientific",
-   "method": "",
+   "method": "every line read at ce93e58: the writer, the reader, the slab field's decoder and the manifest; the AUD-053 change (the library reads in a child: read, _child_argv, _ask, _accept and _child; Hdf5ReaderFault; _read returning the record it read) written by the audit and reviewed as a diff, with H9 to H31 killed",
    "mode": "100644",
-   "new_blob": "471e290a1a3e030c34f5f80e7c9afa8c1600809d",
-   "note": "not yet examined",
+   "new_blob": "b9125483dc1d281e7d6af25c183c36044334c298",
+   "note": "",
    "old_blob": null,
    "path": "scientific/hdf5_bundle.py",
-   "reviewed_blob": null,
-   "sha256": "8964db97a257619fdad39990568e71dc884cd66a52b7dd7cb9f526387c2d34c7",
-   "size": 13305,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "b9125483dc1d281e7d6af25c183c36044334c298",
+   "sha256": "bd56d06d2871e90a3d85f56b95ce5e22f4e3df282911bccea392aaec0bf31207",
+   "size": 20279,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -9804,6 +9808,22 @@
    "sha256": "adc40081c6e89ae5dc805830c623f0863a15244d98ee16da59333e5341b747ae",
    "size": 7570,
    "status": "NOT_REVIEWED"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [],
+   "kind": "test-fixture",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "",
+   "old_blob": null,
+   "path": "tests/fuzz_corpus/hdf5_bundle-crashed-43230537.json",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,
@@ -11791,18 +11811,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-053"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "every line read at ce93e58; the AUD-053 tests (the kept file, and a program in the child's place) written by the audit and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "550d40e0d7a2d7cd123b3e0cb4472b9f5338e59d",
-   "note": "not yet examined",
+   "new_blob": "e093e5adbf9e46bfee64e077d82bb4ffbcbb5355",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_hdf5_bundle.py",
-   "reviewed_blob": null,
-   "sha256": "0b5c37dcb64047d5b05746401f47978c41930378bf7193417396f8e69469b99d",
-   "size": 7001,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "e093e5adbf9e46bfee64e077d82bb4ffbcbb5355",
+   "sha256": "201b458e0200834c1cd82fda97c9f961f5f43c46796233a81386ddd66ed0a0fa",
+   "size": 16097,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -14500,15 +14522,15 @@
    "change": "ADDED",
    "findings": [],
    "kind": "tool",
-   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff",
+   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff; the comment on specs that gained mutations after the weights were measured, which said twelve where thirty had, restated with the count measured at ce93e58, written by the audit and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "64e3495fa3f947257623765778b62b28c96263a0",
+   "new_blob": "cafbdcae41501e37000212ee0c9cd750e22a154c",
    "note": "",
    "old_blob": null,
    "path": "tools/mutation_shards.py",
-   "reviewed_blob": "64e3495fa3f947257623765778b62b28c96263a0",
-   "sha256": "36a31ef8732d73b140595d00cd5b9885f265c4d3b41340de41bd728b7c72402e",
-   "size": 14552,
+   "reviewed_blob": "cafbdcae41501e37000212ee0c9cd750e22a154c",
+   "sha256": "db4e096163e7564415cb77406c150ee388b08bfda9b0869e9c10ed27aa6f2726",
+   "size": 14586,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -15710,18 +15732,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-053"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "every line read at ce93e58 (the title, the note, H1 to H8); H9 to H31 written by the audit and reviewed as a diff, each killed",
    "mode": "100644",
-   "new_blob": "d5f1994bc03627e716354bcce1beec46cbe5c095",
-   "note": "not yet examined",
+   "new_blob": "5caaacbd3272bc6caaac31a167636fc6c035ae68",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/hdf5_bundle.json",
-   "reviewed_blob": null,
-   "sha256": "92b9c08177c429e2e8d401da499e03631582377255838c1c1d862959666ea1c9",
-   "size": 2452,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "5caaacbd3272bc6caaac31a167636fc6c035ae68",
+   "sha256": "e78e4dc3ea2bd8dc92ba006eb7e16f5943a9225bec17645dc60a1ee67f26fa6d",
+   "size": 11393,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
