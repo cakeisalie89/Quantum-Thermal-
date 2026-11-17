@@ -73,6 +73,7 @@ import json
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from . import actions
 from .events import DecidedWriter, projection_load
 from .principals import registry_digest
 
@@ -720,7 +721,12 @@ class RoleDelegations(DecidedWriter):
 
     def apply(self, ev) -> bool:
         self._folded(ev)
-        return self.view.fold(ev)
+        if self.view.fold(ev):
+            return True
+        why = actions.unknown_refusal(ev)
+        if why is not None:
+            raise RoleError(why)
+        return False
 
     def delegate(self, *, actor: str, delegation_id: str, parent: str,
                  principal: str, scope, valid_until_seq: int | None = None

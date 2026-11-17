@@ -749,8 +749,10 @@ def test_an_expired_grant_stays_expired_after_a_restart(tmp_path):
     s = SecretStore(log)
     s.register("api-token", VALUE)
     s.issue(_grant(expires_after_seq=0), actor="owner")
+    # Records of another subsystem move the log on; the store skips them.
+    # An action no module writes would be refused instead (AUD-054).
     for i in range(3):
-        log.append(actor="filler", action="filler.tick", target=str(i),
+        log.append(actor="filler", action="file.read", target=str(i),
                    payload={})
     fresh = SecretStore(log).load()
     fresh.register("api-token", VALUE)

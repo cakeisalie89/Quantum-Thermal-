@@ -69,7 +69,7 @@ import urllib.parse
 from dataclasses import dataclass, replace
 from typing import FrozenSet
 
-from . import safeio
+from . import actions, safeio
 from .canonical import digest
 from .events import DecidedWriter, projection_load
 from .roles import ACTIONS as ROLE_ACTIONS
@@ -778,6 +778,9 @@ class SecretStore(DecidedWriter):
             self._at_seq = max(self._at_seq, ev.seq)
             return False
         if ev.action != ACT_SECRET_GRANT:
+            why = actions.unknown_refusal(ev)
+            if why is not None:
+                raise SecretError(why)
             self._at_seq = max(self._at_seq, ev.seq)
             return False
         p = ev.payload

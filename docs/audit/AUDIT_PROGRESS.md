@@ -4019,3 +4019,68 @@ unchanged, so the plan is too.
   through `xml.etree`, for an FMU's description and the VTK export. It
   was not looked at for faults beyond the fuzzer's `fmu_description`
   target.
+
+### Stage 5, eighth pass: an action no module writes is refused by every reducer (AUD-054)
+
+**AUD-054 (P3), fixed.** AUD-046 made the memory store refuse an
+action no module writes, and left the other reducers for a later pass
+to reproduce and decide. The action registry states the rule. Another
+subsystem's action is that subsystem's to fold, and a reducer over a
+shared log skips it. An action no module writes is a newer schema this
+build cannot read, or something with no business in the log, and a
+reducer that read past it would be missing whatever it recorded.
+
+Reproduced at 5339794. A log holding one record whose action is
+`<subsystem>.unheard_of` was loaded by all nine: the capability
+ledger, the role delegations, the policy store, the secret store, the
+scheduler, the agent directory, the network authority, the research
+ledger and the inference gateway. The authority store refused the same
+log. Five of the nine hold authority. A newer build's revocation of a
+grant, a delegation, a policy, a secret or an egress grant would have
+been dropped by an older reader, which would go on honouring what the
+history had withdrawn.
+
+**The repair.** `actions.unknown_refusal` states the refusal once.
+Each reducer asks it where it skipped an action, and raises its own
+error with it. A reducer folds what other writers appended before it
+decides, so one appended after a load is refused at the next fold.
+
+Two tests had written an action no module writes as filler, into logs
+the secret store and the scheduler read. They now write another
+subsystem's action, which those reducers skip.
+
+**Tests.** `tests/test_unknown_actions.py`, new: each of the nine
+refuses the action in its own error, and loads another subsystem's
+action as the control; the refusal's wording; and an action appended
+after a load. At 5339794, all nine refusals and both of the others
+fail, and every control passes.
+
+**Mutations.** Ten, in a new spec, `unknown_actions`: UA1 makes the
+one statement answer that every action is known, and UA2 to UA10 each
+remove one reducer's refusal. The shard plan was regenerated for 142
+specs.
+
+Run here, on this commit's tree: 90 mutations in 9 specs. That is
+`unknown_actions` whole, 10; `agent_secrets` whole, 36, and
+`agent_cross_process` whole, 11, whose suites' filler records changed;
+`stress_campaign_coverage` whole, 15, which mutates the cross-process
+test file; `mutation_shards` whole, 12; and every mutation anchored in
+`actions.py` or in the import list's test, in `agent_actions`,
+`authenticated_history`, `second_reader_audit_actions` and
+`agent_service_authority`. All were killed and every source restored.
+They ran on the tree this commit holds, after the type check, run with
+the other fast checks, refused the agent directory's refusal under a
+name the function had already given a string, and it was renamed.
+
+Not run here: the other 522 mutations anchored in the nine reducers'
+sources, where the change adds one refusal at the end of a fold. Their
+anchors were checked to match once, as all 3,038 were, and hosted CI
+runs every spec whole.
+
+**What is not established.**
+
+- Readers that hold no subsystem's state, such as the audit's
+  explanations, the provenance export and the assurance graph, were
+  not looked at for this.
+- No newer build exists to write an action this one cannot read, so
+  the consequence was for a history nobody has written yet.

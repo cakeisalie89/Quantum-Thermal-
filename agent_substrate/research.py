@@ -90,6 +90,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, TypeGuard
 
+from . import actions
 from . import freshness as F
 from .canonical import digest, digest_bytes, is_digest
 from .events import DecidedWriter, judged_at, projection_load
@@ -463,6 +464,9 @@ class ResearchLedger(DecidedWriter):
         elif a == ACT_FRESHNESS:
             self._apply_freshness(ev, p)
         else:
+            why = actions.unknown_refusal(ev)
+            if why is not None:
+                raise ResearchError(why)
             return False
         return True
 

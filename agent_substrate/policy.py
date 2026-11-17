@@ -99,6 +99,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 
+from . import actions
 from .canonical import digest
 from .roles import ACTIONS as ROLE_ACTIONS
 from .roles import POLICY_OWNER, RoleError, RoleRefused, RoleView, enforced
@@ -775,6 +776,9 @@ class PolicyStore:
             self._recheck_decision(ev)
             self._loaded_through = ev.seq
             return True
+        why = actions.unknown_refusal(ev)
+        if why is not None:
+            raise PolicyError(why)
         return False
 
     def _recheck_withdrawal(self, ev) -> None:

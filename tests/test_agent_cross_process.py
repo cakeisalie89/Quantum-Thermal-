@@ -1356,13 +1356,19 @@ def _reopen(tmp_path):
     return _open_scheduler(str(tmp_path / "log.jsonl"))
 
 
+#: What moves the log on while a lease lapses: another subsystem's record,
+#: which the scheduler skips. An action no module writes would be refused
+#: instead (AUD-054).
+FILLER = "file.read"
+
+
 def _burn_one_attempt(sched, tag):
     """Dispatch, let the lease lapse, requeue. Costs exactly one attempt."""
     sched.catch_up()
     sched.dispatch(job_id="j", worker=f"w{tag}", lease_id=f"L{tag}",
                    lease_seqs=1)
     for _ in range(4):
-        sched.log.append(actor="filler", action="noop", target="x", payload={})
+        sched.log.append(actor="filler", action=FILLER, target="x", payload={})
     sched.catch_up()
     sched.reconcile(actor="rec")
     sched.catch_up()
@@ -1381,7 +1387,7 @@ def test_a_stale_reconcile_decision_cannot_requeue_a_spent_job(tmp_path):
     sched.catch_up()
     sched.dispatch(job_id="j", worker="w1", lease_id="L1", lease_seqs=1)
     for _ in range(4):
-        sched.log.append(actor="filler", action="noop", target="x", payload={})
+        sched.log.append(actor="filler", action=FILLER, target="x", payload={})
     sched.catch_up()
     assert sched.get("j").attempts == 2, sched.get("j")
 
@@ -1398,7 +1404,7 @@ def test_a_stale_reconcile_decision_cannot_requeue_a_spent_job(tmp_path):
             other.dispatch(job_id="j", worker="w3", lease_id="L3",
                            lease_seqs=1)              # attempts -> 3
             for _ in range(4):
-                other.log.append(actor="filler", action="noop", target="x",
+                other.log.append(actor="filler", action=FILLER, target="x",
                                  payload={})
             other.catch_up()
         return real(self, **kw)
@@ -1433,7 +1439,7 @@ def test_dispatch_refuses_a_job_whose_budget_is_already_spent(tmp_path):
     sched.catch_up()
     sched.dispatch(job_id="j", worker="w1", lease_id="L1", lease_seqs=1)
     for _ in range(4):
-        sched.log.append(actor="filler", action="noop", target="x", payload={})
+        sched.log.append(actor="filler", action=FILLER, target="x", payload={})
     sched.catch_up()
     assert sched.get("j").attempts == 2, sched.get("j")
 
@@ -1467,7 +1473,7 @@ def test_replay_refuses_a_history_that_spends_more_than_its_budget(tmp_path):
     sched.catch_up()
     sched.dispatch(job_id="j", worker="w0", lease_id="L0", lease_seqs=1)
     for _ in range(4):
-        sched.log.append(actor="filler", action="noop", target="x", payload={})
+        sched.log.append(actor="filler", action=FILLER, target="x", payload={})
     sched.catch_up()
     assert sched.get("j").attempts == 1, sched.get("j")
 
@@ -1516,7 +1522,7 @@ def test_a_budget_spent_by_LAPSES_ALONE_reaches_a_terminal_state(tmp_path):
         sched.dispatch(job_id="j", worker=f"w{tag}", lease_id=f"L{tag}",
                        lease_seqs=1)
         for _ in range(4):
-            sched.log.append(actor="filler", action="noop", target="x",
+            sched.log.append(actor="filler", action=FILLER, target="x",
                              payload={})
         sched.catch_up()
         sched.reconcile(actor="rec")        # the worker never reports

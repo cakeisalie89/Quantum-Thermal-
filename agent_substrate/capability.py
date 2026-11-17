@@ -78,6 +78,7 @@ from enum import Enum
 from pathlib import PurePosixPath
 from typing import FrozenSet
 
+from . import actions
 from .canonical import digest, is_digest
 from .events import DecidedWriter, check_projection, projection_load
 
@@ -690,6 +691,9 @@ class CapabilityLedger(DecidedWriter):
             self._authorize_revoke(ev, cap_id)
             self._revoked.add(cap_id)
         else:
+            why = actions.unknown_refusal(ev)
+            if why is not None:
+                raise CapabilityError(why)
             return False
         self._at_seq = ev.seq
         return True

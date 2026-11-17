@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 649,
+   "ADDED": 651,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 229,
-   "MEDIUM": 366
+   "LOW": 230,
+   "MEDIUM": 367
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 141,
+   "assurance": 142,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 204,
+   "tests": 205,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 681
+  "files": 683
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -638,6 +638,7 @@
      "tests/test_transparency.py",
      "tests/test_trust_labels.py",
      "tests/test_typecheck_scope.py",
+     "tests/test_unknown_actions.py",
      "tests/test_verified_read_guard.py",
      "tests/test_witness.py",
      "tests/test_witness_quorum.py",
@@ -718,13 +719,15 @@
     "mutation_specs": [
      "tools/mutations/agent_actions.json",
      "tools/mutations/authenticated_history.json",
-     "tools/mutations/second_reader_audit_actions.json"
+     "tools/mutations/second_reader_audit_actions.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_agent_readers_never_raise.py",
      "tests/test_agent_readpath.py",
      "tests/test_agent_second_reader.py",
-     "tests/test_second_reader_audit_actions.py"
+     "tests/test_second_reader_audit_actions.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -745,7 +748,8 @@
      "tools/mutations/agent_incremental.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/agent_toctou.json",
-     "tools/mutations/t2_closure.json"
+     "tools/mutations/t2_closure.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_agent_agents.py",
@@ -769,7 +773,8 @@
      "tests/test_research_loop.py",
      "tests/test_role_authority.py",
      "tests/test_second_reader_audit_actions.py",
-     "tests/test_t2_governed.py"
+     "tests/test_t2_governed.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -991,7 +996,8 @@
      "tools/mutations/agent_execution.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/decided_appends.json",
-     "tools/mutations/t2_closure.json"
+     "tools/mutations/t2_closure.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_agent_crash_recovery.py",
@@ -1019,7 +1025,8 @@
      "tests/test_refused_fold.py",
      "tests/test_research_loop.py",
      "tests/test_t2_closure.py",
-     "tests/test_t2_governed.py"
+     "tests/test_t2_governed.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -1256,6 +1263,7 @@
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py",
      "tests/test_typecheck_scope.py",
+     "tests/test_unknown_actions.py",
      "tests/test_verified_read_guard.py",
      "tests/test_witness.py",
      "tests/test_witness_quorum.py",
@@ -1349,7 +1357,8 @@
      "tests/test_simulation_research.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py",
-     "tests/test_trust_labels.py"
+     "tests/test_trust_labels.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -1608,7 +1617,8 @@
      "tools/mutations/history_time.json",
      "tools/mutations/inference_gateway.json",
      "tools/mutations/json_nesting.json",
-     "tools/mutations/simulation.json"
+     "tools/mutations/simulation.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_authenticated_history.py",
@@ -1624,7 +1634,8 @@
      "tests/test_noninterference.py",
      "tests/test_research_loop.py",
      "tests/test_research_science.py",
-     "tests/test_simulation_gateway.py"
+     "tests/test_simulation_gateway.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -1771,7 +1782,8 @@
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/decided_appends.json",
      "tools/mutations/role_authority.json",
-     "tools/mutations/t2_closure.json"
+     "tools/mutations/t2_closure.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_agent_collusion.py",
@@ -1789,7 +1801,8 @@
      "tests/test_repo_contract.py",
      "tests/test_role_authority.py",
      "tests/test_second_reader_audit_actions.py",
-     "tests/test_t2_closure.py"
+     "tests/test_t2_closure.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -1813,7 +1826,8 @@
      "tools/mutations/policy_binding.json",
      "tools/mutations/policy_semantics.json",
      "tools/mutations/role_authority.json",
-     "tools/mutations/t2_closure.json"
+     "tools/mutations/t2_closure.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_adversarial_controls.py",
@@ -1853,7 +1867,8 @@
      "tests/test_refused_fold.py",
      "tests/test_research_loop.py",
      "tests/test_role_authority.py",
-     "tests/test_scientific_authority_replay.py"
+     "tests/test_scientific_authority_replay.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -2140,7 +2155,8 @@
      "tools/mutations/rc_counterfactuals.json",
      "tools/mutations/research.json",
      "tools/mutations/research_science.json",
-     "tools/mutations/simulation.json"
+     "tools/mutations/simulation.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_adversarial_controls.py",
@@ -2159,7 +2175,8 @@
      "tests/test_research_ledger.py",
      "tests/test_research_loop.py",
      "tests/test_research_science.py",
-     "tests/test_simulation_research.py"
+     "tests/test_simulation_research.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -2227,7 +2244,8 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/governed_history.json",
-     "tools/mutations/role_authority.json"
+     "tools/mutations/role_authority.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_assurance_package.py",
@@ -2236,7 +2254,8 @@
      "tests/test_governed_research_run.py",
      "tests/test_role_authority.py",
      "tests/test_separate_reads_governed.py",
-     "tests/test_signing_seam.py"
+     "tests/test_signing_seam.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -2277,7 +2296,8 @@
      "tools/mutations/agent_scheduler.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/performance_counters.json",
-     "tools/mutations/t2_closure.json"
+     "tools/mutations/t2_closure.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_agent_concurrency.py",
@@ -2302,7 +2322,8 @@
      "tests/test_generated_mutations.py",
      "tests/test_model_check.py",
      "tests/test_refused_fold.py",
-     "tests/test_security_findings.py"
+     "tests/test_security_findings.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -2323,7 +2344,8 @@
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/decided_appends.json",
      "tools/mutations/role_authority.json",
-     "tools/mutations/t2_closure.json"
+     "tools/mutations/t2_closure.json",
+     "tools/mutations/unknown_actions.json"
     ],
     "tests": [
      "tests/test_agent_context.py",
@@ -2338,7 +2360,8 @@
      "tests/test_refused_fold.py",
      "tests/test_role_authority.py",
      "tests/test_second_reader_audit_actions.py",
-     "tests/test_t2_closure.py"
+     "tests/test_t2_closure.py",
+     "tests/test_unknown_actions.py"
     ]
    }
   },
@@ -8959,6 +8982,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_unknown_actions.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_verified_read_guard.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -11565,6 +11605,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/typecheck_scope.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/unknown_actions.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

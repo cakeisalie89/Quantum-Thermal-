@@ -50,6 +50,7 @@ from dataclasses import dataclass, replace
 from enum import Enum
 from typing import FrozenSet
 
+from . import actions
 from .canonical import digest, is_digest
 from .events import (
     EventLogError, projection_fold, projection_load, require_extends,
@@ -819,6 +820,9 @@ class AgentDirectory:
                 answer=p.get("answer"), answered_by=answered_by,
                 answer_reason=p.get("reason", ""), answered_seq=ev.seq)
         else:
+            refusal = actions.unknown_refusal(ev)
+            if refusal is not None:
+                raise AgentError(refusal)
             return False
         self._at_seq = ev.seq
         return True

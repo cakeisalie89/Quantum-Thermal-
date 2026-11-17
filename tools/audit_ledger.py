@@ -180,7 +180,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                # The file that made the HDF5 library fault, kept in the fuzz
                # corpus as a finding record the harness could not write
                # (AUD-053).
-               "tests/fuzz_corpus/hdf5_bundle-crashed-43230537.json")
+               "tests/fuzz_corpus/hdf5_bundle-crashed-43230537.json",
+               # Every reducer refuses an action no module writes (AUD-054).
+               "tests/test_unknown_actions.py",
+               "tools/mutations/unknown_actions.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

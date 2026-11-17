@@ -149,6 +149,19 @@ def owner(action: str) -> str | None:
     return OWNERS.get(action)
 
 
+def unknown_refusal(ev) -> str | None:
+    """Why a reducer refuses ``ev``, or None when this package writes its
+    action. Worded once, for every reducer over a shared log: another
+    subsystem's action is skipped, and one no module writes is refused, as
+    a newer schema this build cannot read or something with no business in
+    the log (AUD-046, AUD-054)."""
+    if owner(ev.action) is not None:
+        return None
+    return (f"seq {ev.seq}: unknown action {ev.action!r}; no module in this "
+            "package writes it, so a reader that read past it would be "
+            "missing whatever it recorded")
+
+
 def classify(action: str, *, mine) -> str:
     """MINE, FOREIGN or UNKNOWN, from one reducer's point of view.
 

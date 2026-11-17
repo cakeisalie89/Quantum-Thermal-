@@ -98,6 +98,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from . import actions
 from . import proposals as P
 from .canonical import canonical_bytes, digest, digest_bytes, is_digest
 from .context import ACT_CONTEXT_BUILD, Context, ContextError, \
@@ -817,6 +818,9 @@ class InferenceGateway(DecidedWriter):
         elif a == ACT_RESULT:
             self._apply_result(ev, p)
         else:
+            why = actions.unknown_refusal(ev)
+            if why is not None:
+                raise InferenceError(why)
             return False
         return True
 

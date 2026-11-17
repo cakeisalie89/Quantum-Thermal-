@@ -53,6 +53,7 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any, FrozenSet
 
+from . import actions
 from .canonical import digest, is_digest
 from .events import (
     EventLogError, projection_fold, projection_load, require_extends,
@@ -597,6 +598,9 @@ class Scheduler:
             # conditional append compares against the log's head, and a
             # projection that only tracked its own records would think the
             # head was where it left it and be refused on every write.
+            why = actions.unknown_refusal(ev)
+            if why is not None:
+                raise SchedulerError(why)
             self._saw(ev)
             return False
         self._loaded_through = ev.seq

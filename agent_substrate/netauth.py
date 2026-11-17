@@ -81,6 +81,7 @@ from pathlib import PurePosixPath
 # secrets precedes netauth in the layer order, so this direction is
 # the permitted one. It is what makes the confused-deputy check a
 # boundary rather than a helper nobody calls.
+from . import actions
 from .secrets import check_egress_composition
 
 from .canonical import digest
@@ -1017,6 +1018,9 @@ class NetworkAuthority(DecidedWriter):
         if ev.action in (ACT_NET_REQUEST, ACT_NET_RESULT):
             self._at_seq = ev.seq
             return True
+        why = actions.unknown_refusal(ev)
+        if why is not None:
+            raise NetworkError(why)
         return False
 
     # ---- service reads -------------------------------------------------
