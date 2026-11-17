@@ -1,6 +1,6 @@
 {
   "title": "Agent substrate: state machine, log, projection, invalidation, reconstruction",
-  "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that. S38 was REMOVED as equivalent, not because it survived: the guard immediately above the Record construction refuses any create whose claimed proposer differs from ev.actor, UNCONDITIONALLY and with no try/except between the two, so `proposer=ev.actor` and `proposer=p['proposer']` are the same value by the time either runs. Note the contrast with agents.py, where the equivalent-looking M37 is NOT equivalent: that guard is conditional on a registrar being claimed, so an empty one leaves the derivation observable. The equivalence here is asserted by a test over the guard's shape rather than by this sentence. M47-M50 attack D-2026-31. The property suite asserted that no PROMOTED record depends on a STALE, REVOKED or REJECTED one; the audit suite asserted, deliberately, that exactly that state is reachable and is reported as a provenance gap. Both were written on purpose and only the second was true. canonical() now means promoted AND resting on foundations that are themselves canonical, transitively.",
+  "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that. S38 was REMOVED as equivalent, not because it survived: the guard immediately above the Record construction refuses any create whose claimed proposer differs from ev.actor, UNCONDITIONALLY and with no try/except between the two, so `proposer=ev.actor` and `proposer=p['proposer']` are the same value by the time either runs. Note the contrast with agents.py, where the equivalent-looking M37 is NOT equivalent: that guard is conditional on a registrar being claimed, so an empty one leaves the derivation observable. The equivalence here is asserted by a test over the guard's shape rather than by this sentence. M47-M50 attack D-2026-31. The property suite asserted that no PROMOTED record depends on a STALE, REVOKED or REJECTED one; the audit suite asserted, deliberately, that exactly that state is reachable and is reported as a provenance gap. Both were written on purpose and only the second was true. canonical() now means promoted AND resting on foundations that are themselves canonical, transitively. M72 to M74 (AUD-051): the writer holds the line it built to the reader's rule before anything is written, and the bound on a record's size is held on both sides.",
   "suites": [
     "tests/test_agent_concurrency.py",
     "tests/test_agent_differential.py",
@@ -457,6 +457,27 @@
       "find": "        body = json.loads(canonical_bytes(body))\n        ev = Event(**body, hash=digest(body))\n",
       "replace": "        ev = Event(**body, hash=digest(body))\n",
       "rationale": "AUD-008. append() hands back the caller's tuples and int keys under the hash of their JSON form, so a projection folding its own append holds what no replay of the log does"
+    },
+    {
+      "name": "M72_the_writer_writes_what_its_own_reader_refuses",
+      "path": "agent_substrate/events.py",
+      "find": "        try:\n            _parse_line(line, \"this event\")\n        except MalformedEvent as exc:\n",
+      "replace": "        try:\n            len(line)\n        except MalformedEvent as exc:\n",
+      "rationale": "AUD-051. An actor, an action, a target, an event id or a wall time of the wrong kind is encoded, hashed and written, and the log no longer reads"
+    },
+    {
+      "name": "M73_the_writer_writes_an_event_of_any_size",
+      "path": "agent_substrate/events.py",
+      "find": "        if len(line) > MAX_EVENT_BYTES:\n            raise MalformedEvent(\n                f\"event is {len(line)} bytes, above the \"\n",
+      "replace": "        if False:\n            raise MalformedEvent(\n                f\"event is {len(line)} bytes, above the \"\n",
+      "rationale": "AUD-051. The writer's own bound on a record's size, which no test held"
+    },
+    {
+      "name": "M74_a_reader_reads_a_line_of_any_size",
+      "path": "agent_substrate/events.py",
+      "find": "    if len(raw) > MAX_EVENT_BYTES:\n        raise MalformedEvent(\n",
+      "replace": "    if False:\n        raise MalformedEvent(\n",
+      "rationale": "AUD-051. The reader's bound on a line's size, which no test held: a line past it verifies"
     }
   ]
 }

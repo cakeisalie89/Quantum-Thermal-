@@ -809,12 +809,17 @@ def _targets() -> dict:
                    [b'{"seq":0,"event_id":"a","wall_time":1.0,"actor":"a",'
                     b'"action":"record.create","target":"t","payload":{},'
                     b'"prev_hash":"' + b"0" * 64 + b'","hash":"' + b"1" * 64
-                    + b'","canonical_form_version":1}\n']),
+                    + b'","canonical_form_version":1}\n',
+                    # nesting past the parser, as the attestation reader
+                    # and the key registry are seeded (AUD-050)
+                    b"[" * 100_000 + b"\n"]),
         "log_head": (_head_reader, (EventLogError,) + common,
-                     [b'{"seq": 3, "head_hash": "' + b"a" * 64 + b'"}']),
+                     [b'{"seq": 3, "head_hash": "' + b"a" * 64 + b'"}',
+                      b"[" * 100_000]),
         "checkpoint": (_checkpoint_reader, (CheckpointError,) + common,
                        [b'{"seq": 1, "head_hash": "' + b"b" * 64
-                        + b'", "state_digest": null}']),
+                        + b'", "state_digest": null}',
+                        b"[" * 100_000]),
         "evidence_name": (_evidence_name, (EvidenceError,) + common,
                           [b"c" * 64, b"../../etc/passwd", b""]),
         "capability": (_record_target(capability_from_record),

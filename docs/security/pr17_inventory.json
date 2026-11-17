@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 646,
+   "ADDED": 648,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 227,
-   "MEDIUM": 365
+   "LOW": 228,
+   "MEDIUM": 366
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 140,
+   "assurance": 141,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 202,
+   "tests": 203,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 678
+  "files": 680
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -598,6 +598,7 @@
      "tests/test_inference_second_reader.py",
      "tests/test_integration_demo.py",
      "tests/test_isolation_contract.py",
+     "tests/test_json_nesting.py",
      "tests/test_memory_trust.py",
      "tests/test_model_check.py",
      "tests/test_neural_boundary.py",
@@ -915,7 +916,9 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/agent_incremental.json"
+     "tools/mutations/agent_incremental.json",
+     "tools/mutations/json_nesting.json",
+     "tools/mutations/witness.json"
     ],
     "tests": [
      "tests/test_agent_agents.py",
@@ -958,6 +961,7 @@
      "tests/test_governed_model_reuse.py",
      "tests/test_hostile_composition.py",
      "tests/test_inference_gateway.py",
+     "tests/test_json_nesting.py",
      "tests/test_policy_semantics.py",
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
@@ -1003,6 +1007,7 @@
      "tests/test_agent_second_reader.py",
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
+     "tests/test_agent_substrate.py",
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
@@ -1030,7 +1035,8 @@
     "mutation_specs": [
      "tools/mutations/agent_checkpoint.json",
      "tools/mutations/agent_fault_injection.json",
-     "tools/mutations/checkpoint_recovery.json"
+     "tools/mutations/checkpoint_recovery.json",
+     "tools/mutations/json_nesting.json"
     ],
     "tests": [
      "tests/test_actor_authentication.py",
@@ -1047,6 +1053,7 @@
      "tests/test_decided_appends.py",
      "tests/test_governed_history.py",
      "tests/test_history_time.py",
+     "tests/test_json_nesting.py",
      "tests/test_policy_binding.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
@@ -1150,6 +1157,7 @@
      "tools/mutations/authenticated_history.json",
      "tools/mutations/governed_history.json",
      "tools/mutations/history_time.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/signed_append_lifecycle.json",
      "tools/mutations/signing_seam.json",
      "tools/mutations/t2_closure.json",
@@ -1219,6 +1227,7 @@
      "tests/test_hostile_composition.py",
      "tests/test_inference_concurrency.py",
      "tests/test_inference_gateway.py",
+     "tests/test_json_nesting.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
      "tests/test_noninterference.py",
@@ -1268,6 +1277,7 @@
      "tools/mutations/agent_evidence.json",
      "tools/mutations/agent_fault_injection.json",
      "tools/mutations/agent_readpath.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/performance_counters.json"
     ],
     "tests": [
@@ -1317,6 +1327,7 @@
      "tests/test_inference_concurrency.py",
      "tests/test_inference_gateway.py",
      "tests/test_integration_demo.py",
+     "tests/test_json_nesting.py",
      "tests/test_memory_trust.py",
      "tests/test_neural_provenance.py",
      "tests/test_policy_binding.py",
@@ -1596,6 +1607,7 @@
      "tools/mutations/formal.json",
      "tools/mutations/history_time.json",
      "tools/mutations/inference_gateway.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/simulation.json"
     ],
     "tests": [
@@ -1608,6 +1620,7 @@
      "tests/test_inference_gateway.py",
      "tests/test_inference_second_reader.py",
      "tests/test_integration_demo.py",
+     "tests/test_json_nesting.py",
      "tests/test_noninterference.py",
      "tests/test_research_loop.py",
      "tests/test_research_science.py",
@@ -1909,6 +1922,7 @@
     "mutation_specs": [
      "tools/mutations/agent_incremental.json",
      "tools/mutations/inference_gateway.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/proposal_ingress.json"
     ],
     "tests": [
@@ -1920,6 +1934,7 @@
      "tests/test_gate_b_acceptance.py",
      "tests/test_inference_gateway.py",
      "tests/test_inference_second_reader.py",
+     "tests/test_json_nesting.py",
      "tests/test_noninterference.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
@@ -1962,13 +1977,15 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/corpus_allowlist.json",
-     "tools/mutations/governed_tasks_authority.json"
+     "tools/mutations/governed_tasks_authority.json",
+     "tools/mutations/json_nesting.json"
     ],
     "tests": [
      "tests/test_agent_authority_boundaries.py",
      "tests/test_agent_long_horizon.py",
      "tests/test_agent_retrieval.py",
      "tests/test_completion_matrix.py",
+     "tests/test_json_nesting.py",
      "tests/test_proposal_concurrency.py",
      "tests/test_proposal_crash_recovery.py",
      "tests/test_proposal_ingress.py"
@@ -2119,6 +2136,7 @@
      "tools/mutations/composed_campaigns.json",
      "tools/mutations/counterfactual_eval.json",
      "tools/mutations/freshness.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/rc_counterfactuals.json",
      "tools/mutations/research.json",
      "tools/mutations/research_science.json",
@@ -2134,6 +2152,7 @@
      "tests/test_decision_proof.py",
      "tests/test_freshness.py",
      "tests/test_integration_demo.py",
+     "tests/test_json_nesting.py",
      "tests/test_noninterference.py",
      "tests/test_prov_export.py",
      "tests/test_rc_counterfactuals.py",
@@ -2183,12 +2202,14 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/authority_result_rules.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/scientific_authority_replay.json"
     ],
     "tests": [
      "tests/test_agent_result_rules.py",
      "tests/test_governed_model_reuse.py",
      "tests/test_hostile_composition.py",
+     "tests/test_json_nesting.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_trust_labels.py"
@@ -2332,12 +2353,14 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/agent_separate_verify.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/separate_governed.json"
     ],
     "tests": [
      "tests/test_agent_separate_verify.py",
      "tests/test_decision_proof.py",
      "tests/test_governed_research_run.py",
+     "tests/test_json_nesting.py",
      "tests/test_separate_reads_governed.py"
     ]
    }
@@ -2385,6 +2408,7 @@
      "tools/mutations/decided_appends.json",
      "tools/mutations/formal.json",
      "tools/mutations/history_time.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/neural_authority.json",
      "tools/mutations/policy_binding.json",
      "tools/mutations/replay_origin_view.json",
@@ -2426,6 +2450,7 @@
      "tests/test_grounding_bench.py",
      "tests/test_history_time.py",
      "tests/test_hostile_composition.py",
+     "tests/test_json_nesting.py",
      "tests/test_neural_provenance.py",
      "tests/test_no_enforcing_asserts.py",
      "tests/test_noninterference.py",
@@ -2565,6 +2590,7 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/composed_campaigns.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/witness.json",
      "tools/mutations/witness_quorum.json",
      "tools/mutations/witness_tree.json"
@@ -2572,6 +2598,7 @@
     "tests": [
      "tests/test_archive.py",
      "tests/test_composed_campaigns.py",
+     "tests/test_json_nesting.py",
      "tests/test_witness.py",
      "tests/test_witness_quorum.py",
      "tests/test_witness_tree.py"
@@ -4301,6 +4328,7 @@
      "tests/test_hdf5_bundle.py",
      "tests/test_hostile_composition.py",
      "tests/test_integration_demo.py",
+     "tests/test_json_nesting.py",
      "tests/test_model_evidence.py",
      "tests/test_neural_accounting.py",
      "tests/test_neural_boundary.py",
@@ -7634,6 +7662,23 @@
    }
   },
   {
+   "change": "ADDED",
+   "path": "tests/test_json_nesting.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
    "change": "MODIFIED",
    "path": "tests/test_manifest_completeness.py",
    "risk": "LOW",
@@ -9353,12 +9398,14 @@
    "verification": {
     "findings": [],
     "mutation_specs": [
-     "tools/mutations/fuzz_harness.json"
+     "tools/mutations/fuzz_harness.json",
+     "tools/mutations/json_nesting.json"
     ],
     "tests": [
      "tests/test_agent_fuzz.py",
      "tests/test_agent_substrate_isolation.py",
-     "tests/test_completion_matrix.py"
+     "tests/test_completion_matrix.py",
+     "tests/test_json_nesting.py"
     ]
    }
   },
@@ -10800,6 +10847,19 @@
   },
   {
    "change": "ADDED",
+   "path": "tools/mutations/json_nesting.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tools/mutations/manifest.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
@@ -11975,6 +12035,7 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/ed25519_encodings.json",
+     "tools/mutations/json_nesting.json",
      "tools/mutations/separate_governed.json",
      "tools/mutations/verify_assurance.json"
     ],
@@ -11982,6 +12043,7 @@
      "tests/test_assurance_package.py",
      "tests/test_assurance_package_build.py",
      "tests/test_ed25519_encodings.py",
+     "tests/test_json_nesting.py",
      "tests/test_reproduce_guide.py",
      "tests/test_restated_authentication.py",
      "tests/test_separate_reads_governed.py"

@@ -1068,7 +1068,7 @@ class AuthorityStore:
         raw = blobs.get(cp.state_digest)      # verified on read by the store
         try:
             snap = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, ValueError) as exc:
+        except (UnicodeDecodeError, ValueError, RecursionError) as exc:
             raise StoreError(
                 f"snapshot {cp.state_digest[:12]} is unparseable: "
                 f"{type(exc).__name__}") from exc

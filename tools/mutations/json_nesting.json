@@ -1,0 +1,254 @@
+{
+ "title": "A record nests no deeper than the log's bound, and a boundary that refuses what is not JSON refuses a document nested past the parser",
+ "note": "AUD-050. The JSON parser recurses once for each level and raises RecursionError past the interpreter's limit, which no handler written for 'this is not JSON' catches. JN1: the encoder. JN2 to JN12: the log's own bound, MAX_NESTING, held by the line parser and by the writer at the same level, counted without recursion, for objects, arrays and tuples, with the bracket count that decides which lines are walked. JN13 to JN25: each of these boundaries makes, for a document nested past the parser, the refusal it makes for bytes that are not JSON: the head witness, the checkpoint store, a snapshot, a model's answer, a stored prompt, cited evidence, the corpus files, an evidence sidecar, a recorded response, the separate verifier's verdict. JN26 to JN29: a witness whose state is not a document has lost it, and says so. JN30 to JN32: the standalone verifier restates the bound. JN33 to JN35: the fuzzer is seeded with nesting at the log's three file boundaries, as it was at the attestation reader and the key registry. tests/test_json_nesting.py holds each.",
+ "suites": [
+  "tests/test_json_nesting.py"
+ ],
+ "mutations": [
+  {
+   "name": "JN1_the_encoder_s_limit_is_a_runtime_error",
+   "path": "agent_substrate/canonical.py",
+   "find": "    except RecursionError:\n        # The encoder recurses once for each level and stops at the\n",
+   "replace": "    except ZeroDivisionError:\n        # The encoder recurses once for each level and stops at the\n",
+   "rationale": "a value too deep to encode raises RecursionError out of canonical_bytes and digest, past every handler written for what cannot be encoded"
+  },
+  {
+   "name": "JN2_a_line_past_the_parser_raises_out_of_every_read",
+   "path": "agent_substrate/events.py",
+   "find": "    except RecursionError:\n        # Past the parser's own limit, which is far past the bound. NOT\n",
+   "replace": "    except ZeroDivisionError:\n        # Past the parser's own limit, which is far past the bound. NOT\n",
+   "rationale": "AUD-050 as found: one line of brackets raises RecursionError out of verify, both reads and every append"
+  },
+  {
+   "name": "JN3_a_reader_takes_a_line_of_any_depth",
+   "path": "agent_substrate/events.py",
+   "find": "    if _too_deep(raw, rec):\n",
+   "replace": "    if False:\n",
+   "rationale": "how deep a record nests is the interpreter's limit again: a line one level past the bound verifies"
+  },
+  {
+   "name": "JN4_the_writer_takes_a_payload_of_any_depth",
+   "path": "agent_substrate/events.py",
+   "find": "        if _nests_deeper(payload, MAX_NESTING - 1):\n",
+   "replace": "        if False:\n",
+   "rationale": "the writer writes a record every reader refuses, and raises the encoder's error on one too deep to encode"
+  },
+  {
+   "name": "JN5_the_writer_s_bound_is_one_level_past_the_reader_s",
+   "path": "agent_substrate/events.py",
+   "find": "        if _nests_deeper(payload, MAX_NESTING - 1):\n",
+   "replace": "        if _nests_deeper(payload, MAX_NESTING):\n",
+   "rationale": "a payload exactly one level too deep is written, and the log it is in no longer reads"
+  },
+  {
+   "name": "JN6_a_record_at_the_bound_is_refused",
+   "path": "agent_substrate/events.py",
+   "find": "        if depth > bound:\n            return True\n",
+   "replace": "        if depth >= bound:\n            return True\n",
+   "rationale": "the bound is one level tighter than stated, on both sides"
+  },
+  {
+   "name": "JN7_objects_are_not_levels",
+   "path": "agent_substrate/events.py",
+   "find": "        if isinstance(item, dict):\n            inside = item.values()\n        elif isinstance(item, (list, tuple)):\n            inside = item\n",
+   "replace": "        if isinstance(item, (list, tuple)):\n            inside = item\n",
+   "rationale": "nesting made of objects is not counted, and a record of any depth of them is written and read"
+  },
+  {
+   "name": "JN8_a_tuple_is_not_a_list_to_the_writer",
+   "path": "agent_substrate/events.py",
+   "find": "        if isinstance(item, dict):\n            inside = item.values()\n        elif isinstance(item, (list, tuple)):\n            inside = item\n",
+   "replace": "        if isinstance(item, dict):\n            inside = item.values()\n        elif isinstance(item, list):\n            inside = item\n",
+   "rationale": "a payload nested in tuples passes the writer, is encoded as lists, and is refused by every reader of its own log"
+  },
+  {
+   "name": "JN9_only_objects_are_counted_before_the_walk",
+   "path": "agent_substrate/events.py",
+   "find": "    return (line.count(b\"{\") + line.count(b\"[\") > MAX_NESTING\n",
+   "replace": "    return (line.count(b\"{\") > MAX_NESTING\n",
+   "rationale": "a line nested in arrays past the bound is never walked, and verifies"
+  },
+  {
+   "name": "JN10_only_arrays_are_counted_before_the_walk",
+   "path": "agent_substrate/events.py",
+   "find": "    return (line.count(b\"{\") + line.count(b\"[\") > MAX_NESTING\n",
+   "replace": "    return (line.count(b\"[\") > MAX_NESTING\n",
+   "rationale": "a line nested in objects past the bound is never walked, and verifies"
+  },
+  {
+   "name": "JN11_many_brackets_are_taken_for_depth",
+   "path": "agent_substrate/events.py",
+   "find": "            and _nests_deeper(rec, MAX_NESTING))\n",
+   "replace": "            and True)\n",
+   "rationale": "a wide, shallow record is refused for a depth it does not have"
+  },
+  {
+   "name": "JN12_the_log_s_bound_moves",
+   "path": "agent_substrate/events.py",
+   "find": "MAX_NESTING = 64\n",
+   "replace": "MAX_NESTING = 65\n",
+   "rationale": "the log's bound is no longer the one the standalone verifier restates"
+  },
+  {
+   "name": "JN13_a_head_witness_past_the_parser_raises",
+   "path": "agent_substrate/events.py",
+   "find": "        except (OSError, UnicodeDecodeError, ValueError,\n                RecursionError) as exc:\n",
+   "replace": "        except (OSError, UnicodeDecodeError, ValueError) as exc:\n",
+   "rationale": "a head witness file of brackets raises RecursionError out of head(), verify and every append"
+  },
+  {
+   "name": "JN14_a_log_tail_past_the_parser_raises",
+   "path": "agent_substrate/checkpoint.py",
+   "find": "        except (ValueError, AttributeError, RecursionError):\n",
+   "replace": "        except (ValueError, AttributeError):\n",
+   "rationale": "the reader of a log's last position raises RecursionError where it answers None"
+  },
+  {
+   "name": "JN15_a_checkpoint_past_the_parser_raises",
+   "path": "agent_substrate/checkpoint.py",
+   "find": "        except (ValueError, RecursionError) as exc:\n            raise CheckpointCorrupt(\n",
+   "replace": "        except ValueError as exc:\n            raise CheckpointCorrupt(\n",
+   "rationale": "a checkpoint file of brackets raises RecursionError out of the store's read and its audit, where it is corrupt"
+  },
+  {
+   "name": "JN16_a_snapshot_past_the_parser_raises",
+   "path": "agent_substrate/store.py",
+   "find": "        except (UnicodeDecodeError, ValueError, RecursionError) as exc:\n            raise StoreError(\n",
+   "replace": "        except (UnicodeDecodeError, ValueError) as exc:\n            raise StoreError(\n",
+   "rationale": "a snapshot of brackets raises RecursionError out of a checkpointed load, where it is unparseable"
+  },
+  {
+   "name": "JN17_a_model_s_answer_past_the_parser_raises",
+   "path": "agent_substrate/inference.py",
+   "find": "    except RecursionError:\n        # The body is the model's, and twenty kilobytes of brackets exhaust\n",
+   "replace": "    except ZeroDivisionError:\n        # The body is the model's, and twenty kilobytes of brackets exhaust\n",
+   "rationale": "a model's answer of brackets raises RecursionError out of the gateway after dispatch and before settlement"
+  },
+  {
+   "name": "JN18_a_prompt_past_the_parser_raises",
+   "path": "agent_substrate/inference.py",
+   "find": "    except (UnicodeDecodeError, ValueError, RecursionError) as exc:\n        return [f\"the prompt is not JSON: {exc}\"]\n",
+   "replace": "    except (UnicodeDecodeError, ValueError) as exc:\n        return [f\"the prompt is not JSON: {exc}\"]\n",
+   "rationale": "a stored prompt of brackets raises RecursionError where its problems are listed"
+  },
+  {
+   "name": "JN19_evidence_past_the_parser_raises_in_the_result_rules",
+   "path": "agent_substrate/result_rules.py",
+   "find": "        except (ValueError, RecursionError) as exc:\n            docs[key] = exc\n",
+   "replace": "        except ValueError as exc:\n            docs[key] = exc\n",
+   "rationale": "a cited bundle or report of brackets raises RecursionError out of the admission decision, where it is a problem"
+  },
+  {
+   "name": "JN20_a_report_past_the_parser_raises_in_the_research_ledger",
+   "path": "agent_substrate/research.py",
+   "find": "        except (ValueError, RecursionError):\n            return None\n",
+   "replace": "        except ValueError:\n            return None\n",
+   "rationale": "a verification report of brackets raises RecursionError where it states no agreement"
+  },
+  {
+   "name": "JN21_a_corpus_allowlist_past_the_parser_raises",
+   "path": "agent_substrate/rag_index.py",
+   "find": "    except (ValueError, RecursionError) as exc:\n        raise CorpusMembershipError(\n",
+   "replace": "    except ValueError as exc:\n        raise CorpusMembershipError(\n",
+   "rationale": "an allowlist of brackets raises RecursionError where retrieval refuses"
+  },
+  {
+   "name": "JN22_an_index_document_past_the_parser_raises",
+   "path": "agent_substrate/rag_index.py",
+   "find": "    except (ValueError, RecursionError) as exc:\n        raise ValueError(\n",
+   "replace": "    except ValueError as exc:\n        raise ValueError(\n",
+   "rationale": "an index document of brackets raises RecursionError where it is unparseable"
+  },
+  {
+   "name": "JN23_an_evidence_sidecar_past_the_parser_raises",
+   "path": "agent_substrate/evidence.py",
+   "find": "            except (OSError, UnicodeDecodeError, ValueError, RecursionError):\n",
+   "replace": "            except (OSError, UnicodeDecodeError, ValueError):\n",
+   "rationale": "a sidecar of brackets raises RecursionError out of info(), where it says nothing"
+  },
+  {
+   "name": "JN24_a_recorded_response_past_the_parser_raises",
+   "path": "agent_substrate/proposals.py",
+   "find": "                except (ValueError, RecursionError) as exc:\n",
+   "replace": "                except ValueError as exc:\n",
+   "rationale": "a recorded response of brackets raises RecursionError where it is refused"
+  },
+  {
+   "name": "JN25_a_verdict_past_the_parser_raises",
+   "path": "agent_substrate/separate_verify.py",
+   "find": "    except (ValueError, RecursionError):\n        return SeparateVerification(\n",
+   "replace": "    except ValueError:\n        return SeparateVerification(\n",
+   "rationale": "the separate verifier's answer, nested past the parser, raises RecursionError where it is no verdict"
+  },
+  {
+   "name": "JN26_a_witness_s_unreadable_state_raises_the_parser_s_error",
+   "path": "agent_substrate/witness.py",
+   "find": "                \"owner's act\") from None\n        except (ValueError, RecursionError) as exc:\n",
+   "replace": "                \"owner's act\") from None\n        except ZeroDivisionError as exc:\n",
+   "rationale": "a head witness whose state file is not a document raises the parser's error, where it has lost its state"
+  },
+  {
+   "name": "JN27_a_witness_s_state_past_the_parser_raises",
+   "path": "agent_substrate/witness.py",
+   "find": "                \"owner's act\") from None\n        except (ValueError, RecursionError) as exc:\n",
+   "replace": "                \"owner's act\") from None\n        except ValueError as exc:\n",
+   "rationale": "a head witness whose state file is brackets raises RecursionError"
+  },
+  {
+   "name": "JN28_a_tree_witness_s_unreadable_state_raises_the_parser_s_error",
+   "path": "agent_substrate/witness.py",
+   "find": "            rec = json.loads(path.read_text(encoding=\"utf-8\"))\n        except (ValueError, RecursionError) as exc:\n",
+   "replace": "            rec = json.loads(path.read_text(encoding=\"utf-8\"))\n        except ZeroDivisionError as exc:\n",
+   "rationale": "a tree witness whose state file is not a document raises the parser's error"
+  },
+  {
+   "name": "JN29_a_tree_witness_s_state_past_the_parser_raises",
+   "path": "agent_substrate/witness.py",
+   "find": "            rec = json.loads(path.read_text(encoding=\"utf-8\"))\n        except (ValueError, RecursionError) as exc:\n",
+   "replace": "            rec = json.loads(path.read_text(encoding=\"utf-8\"))\n        except ValueError as exc:\n",
+   "rationale": "a tree witness whose state file is brackets raises RecursionError"
+  },
+  {
+   "name": "JN30_the_standalone_verifier_takes_a_line_of_any_depth",
+   "path": "tools/verify_assurance.py",
+   "find": "        if _nests_deeper(rec, MAX_NESTING):\n            raise Refused(\"every log record nests within the bound\",\n",
+   "replace": "        if False:\n            raise Refused(\"every log record nests within the bound\",\n",
+   "rationale": "the standalone verifier accepts a history the log refuses"
+  },
+  {
+   "name": "JN31_the_standalone_verifier_refuses_a_record_at_the_bound",
+   "path": "tools/verify_assurance.py",
+   "find": "        if depth > bound:\n            return True\n",
+   "replace": "        if depth >= bound:\n            return True\n",
+   "rationale": "the standalone verifier refuses a history the log accepts"
+  },
+  {
+   "name": "JN32_the_verifier_s_bound_is_not_the_log_s",
+   "path": "tools/verify_assurance.py",
+   "find": "MAX_NESTING = 64\n",
+   "replace": "MAX_NESTING = 65\n",
+   "rationale": "the restated bound drifts from the log's, and nothing says so"
+  },
+  {
+   "name": "JN33_the_log_reader_is_not_seeded_with_nesting",
+   "path": "tools/fuzz_substrate.py",
+   "find": "                    b\"[\" * 100_000 + b\"\\n\"]),\n        \"log_head\": (",
+   "replace": "                    ]),\n        \"log_head\": (",
+   "rationale": "the fuzzer's mutators nest two hundred levels at most, so without the seed a parser that recurses is never shown one deep enough"
+  },
+  {
+   "name": "JN34_the_head_reader_is_not_seeded_with_nesting",
+   "path": "tools/fuzz_substrate.py",
+   "find": "                     [b'{\"seq\": 3, \"head_hash\": \"' + b\"a\" * 64 + b'\"}',\n                      b\"[\" * 100_000]),\n",
+   "replace": "                     [b'{\"seq\": 3, \"head_hash\": \"' + b\"a\" * 64 + b'\"}']),\n",
+   "rationale": "the head witness reader is never shown nesting past the parser"
+  },
+  {
+   "name": "JN35_the_checkpoint_reader_is_not_seeded_with_nesting",
+   "path": "tools/fuzz_substrate.py",
+   "find": "                        + b'\", \"state_digest\": null}',\n                        b\"[\" * 100_000]),\n",
+   "replace": "                        + b'\", \"state_digest\": null}']),\n",
+   "rationale": "the checkpoint reader is never shown nesting past the parser"
+  }
+ ]
+}

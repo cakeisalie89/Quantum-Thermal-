@@ -157,6 +157,7 @@ class AuthorityMachine(RuleBasedStateMachine):
         self.dir = Path(tempfile.mkdtemp())
         self.store = AuthorityStore(EventLog(self.dir / "ev.jsonl")).load()
         self.counter = 0
+        self.reports = 0
 
     @initialize()
     def _seed(self):
@@ -186,10 +187,35 @@ class AuthorityMachine(RuleBasedStateMachine):
 
     @rule(rid=ids)
     def verify_record(self, rid):
+        """Every verification presents a report of its own.
+
+        This rule presented one constant digest. Since I3 asks for FRESH
+        evidence (AUD-004), that is refused the second time a record is
+        verified -- after an invalidation put it back under review -- so
+        the machine failed on any history it drew that re-verified, and
+        passed on every other: at random, on a tree with nothing wrong in
+        it (AUD-052)."""
         if self.store.get(rid).state is State.UNDER_REVIEW:
-            self.store.transition(record_id=rid, dst=State.VERIFIED,
-                                  actor="bob", role=Role.VERIFIER,
-                                  evidence={"verification_report": DIG})
+            self.reports += 1
+            self.store.transition(
+                record_id=rid, dst=State.VERIFIED, actor="bob",
+                role=Role.VERIFIER,
+                evidence={"verification_report":
+                          digest({"report": self.reports})})
+
+    @rule(rid=ids)
+    def verify_on_the_report_it_carried(self, rid):
+        """I3 as a history property: a record back under review is not
+        verified again on the report it already carried."""
+        rec = self.store.get(rid)
+        carried = rec.evidence.get("verification_report")
+        if rec.state is State.UNDER_REVIEW and carried is not None:
+            with pytest.raises(TransitionError, match="I3"):
+                self.store.transition(
+                    record_id=rid, dst=State.VERIFIED, actor="bob",
+                    role=Role.VERIFIER,
+                    evidence={"verification_report": carried})
+            assert self.store.get(rid).state is State.UNDER_REVIEW
 
     @rule(rid=ids)
     def promote(self, rid):
@@ -289,6 +315,39 @@ class AuthorityMachine(RuleBasedStateMachine):
     @invariant()
     def the_log_always_verifies(self):
         assert self.store.log.verify().ok
+
+
+def test_a_record_verified_again_after_an_invalidation_is_a_history_too():
+    """The history Hypothesis drew, kept: a child verified, its parent
+    invalidated, the child reviewed and verified again. The machine failed
+    on it for presenting the report the record already carried; it is run
+    here on every pass, with the refusal I3 makes of that report checked on
+    the way."""
+    state = AuthorityMachine()
+    try:
+        state.create_root()
+        parent = state.create_root()
+        child = state.create_child(parent=parent)
+        state.review(rid=child)
+        state.verify_record(rid=child)
+        first = state.store.get(child).evidence["verification_report"]
+        state.invalidate(rid=parent)
+        assert state.store.get(child).state is State.STALE
+        state.review(rid=child)
+        state.verify_on_the_report_it_carried(rid=child)
+        assert state.store.get(child).state is State.UNDER_REVIEW
+        state.verify_record(rid=child)
+        again = state.store.get(child)
+        assert again.state is State.VERIFIED
+        assert again.evidence["verification_report"] != first
+        for check_ in (state.promoted_records_were_verified_first,
+                       state.terminal_states_are_never_left,
+                       state.no_canonical_record_depends_on_a_stale_one,
+                       state.reconstruction_always_agrees,
+                       state.the_log_always_verifies):
+            check_()
+    finally:
+        state.teardown()
 
 
 TestAuthorityMachine = AuthorityMachine.TestCase

@@ -110,6 +110,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_differential.py",
     "tests/test_agent_atomicity.py",
     "tests/test_agent_readers_never_raise.py",
+    "tests/test_json_nesting.py",
     "tests/test_agent_readpath.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",

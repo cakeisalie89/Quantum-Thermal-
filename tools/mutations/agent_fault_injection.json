@@ -57,8 +57,8 @@
     {
       "name": "F8_a_corrupt_checkpoint_escapes_as_a_generic_error",
       "path": "agent_substrate/checkpoint.py",
-      "find": "        except ValueError as exc:\n            raise CheckpointCorrupt(\n                f\"{where}: unparseable ({type(exc).__name__})\") from exc",
-      "replace": "        except ValueError as exc:\n            raise ValueError(\n                f\"{where}: unparseable ({type(exc).__name__})\") from exc",
+      "find": "        except (ValueError, RecursionError) as exc:\n            raise CheckpointCorrupt(\n                f\"{where}: unparseable ({type(exc).__name__})\") from exc",
+      "replace": "        except (ValueError, RecursionError) as exc:\n            raise ValueError(\n                f\"{where}: unparseable ({type(exc).__name__})\") from exc",
       "rationale": "the failure escapes past every caller written to handle this module's errors, and audit() -- whose contract is that it never stops -- stops"
     },
     {

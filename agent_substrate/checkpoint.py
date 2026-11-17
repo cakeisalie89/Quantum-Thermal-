@@ -314,7 +314,7 @@ def _last_seq(path: Path, window: int = 1 << 20) -> int | None:
     for raw in reversed(lines):
         try:
             seq = json.loads(raw).get("seq")
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError, RecursionError):
             return None
         return seq if isinstance(seq, int) and not isinstance(seq, bool) \
             else None
@@ -459,7 +459,7 @@ class CheckpointStore:
     def _parse(raw: str, where: str) -> Checkpoint:
         try:
             rec = json.loads(raw)
-        except ValueError as exc:
+        except (ValueError, RecursionError) as exc:
             raise CheckpointCorrupt(
                 f"{where}: unparseable ({type(exc).__name__})") from exc
         rec = _validate(rec, where)

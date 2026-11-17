@@ -607,7 +607,7 @@ class ResearchLedger(DecidedWriter):
         try:
             doc = json.loads(self.evidence.get(sha),
                              parse_constant=_no_constant)
-        except ValueError:
+        except (ValueError, RecursionError):
             return None
         return doc if isinstance(doc, dict) else None
 

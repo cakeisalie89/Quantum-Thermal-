@@ -409,7 +409,7 @@ class RecordedFixtureAdapter:
             if line.strip():
                 try:
                     yield json.loads(line)
-                except ValueError as exc:
+                except (ValueError, RecursionError) as exc:
                     raise ProposalRefused(f"{self.source}:{n}: not "
                                           f"JSON: {exc}") from exc
 

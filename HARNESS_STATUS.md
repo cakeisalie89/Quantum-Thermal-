@@ -18,7 +18,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 | openusd | ADOPTED | R72 (COMPLETE, COVERS) | yes |
 | paraview-vtk | ADOPTED | R72 (COMPLETE, COVERS) | yes |
 | proposal-ingress | ADOPTED | R66 (COMPLETE, PREDATES) | NO |
-| pytest-hypothesis | ADOPTED | R50 (COMPLETE, COVERS), R51 (COMPLETE, PREDATES) | NO |
+| pytest-hypothesis | ADOPTED | R50 (COMPLETE, PREDATES), R51 (COMPLETE, PREDATES) | NO |
 | python-scientific-core | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | rag-read-only | ADOPTED | R35 (COMPLETE, PREDATES) | NO |
 | ro-crate | ADOPTED | R65 (COMPLETE, COVERS) | yes |
@@ -30,11 +30,11 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 ## Completion matrix
 
-49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 8, PREDATES_CURRENT_IMPLEMENTATION 41.
+49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 7, PREDATES_CURRENT_IMPLEMENTATION 42.
 
 ## Audits
 
-* repository_content: clean (files 678, findings 0, committed_report_current True)
+* repository_content: clean (files 680, findings 0, committed_report_current True)
 * repository_inventory: clean (problems 0, baseline_files 874)
 * claims_boundary: clean (problems 0)
 * workflow_contract: clean (problems 0)
@@ -45,7 +45,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * flagship_not_allocated_or_trained: holds
 * flagship_architecture_as_declared: holds
 
-## Unsatisfied (52)
+## Unsatisfied (53)
 
 * stack authority-substrate: ADOPTED
 * stack containers: ADOPTED
@@ -86,6 +86,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * row R47: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R48: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R49: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R50: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R51: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R52: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R53: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps

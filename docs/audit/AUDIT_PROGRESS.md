@@ -3731,3 +3731,195 @@ read in full, 18 in part and 865 not reviewed.
 **Also corrected.** Section 5 of the report said the audit had added 45
 mutations, in the present tense. That was the count at d3cddc3. It now
 says so, and says where the later ones are listed.
+
+### Stage 5, sixth pass: a record has a depth and a kind of its own (AUD-050 to AUD-052)
+
+**AUD-050 (P2), fixed.** It was registered open in the pass before
+this one: a line nested past the interpreter's JSON parser raised
+`RecursionError` out of every read of a log and every append to it.
+Before repairing it, every JSON parse in the package was read: 36
+calls of `json.loads` and one of `json.load`. The same handler, written
+for "this is not JSON" and catching `ValueError`, stood at more
+boundaries than the log's:
+
+- **the gateway's reading of a model's answer.** `parse_response`
+  raised on a body of 40 KB, after the call was dispatched and before
+  it was settled, where a body that is not JSON is settled as
+  SCHEMA_REFUSED. The body is the model's;
+- **the result rules' reading of a cited bundle or report**, inside
+  the admission decision;
+- the checkpoint store's two parsers, the snapshot loader, the head
+  witness file;
+- the research ledger's report reader, the corpus allowlist and index,
+  an evidence sidecar, a recorded response, the separate verifier's
+  verdict, and a witness's own state file.
+
+**The repair has two parts.**
+
+*A record has a depth of its own.* `events.MAX_NESTING` is 64 levels,
+the record counted. The writer refuses a payload past it before
+anything is encoded. The line parser refuses a line past it, as a
+malformed line and not as a torn final append, which the next write
+would cut off. Depth is counted with a stack and no recursion. A line
+with no more brackets than the bound cannot nest past it, so only a
+line with more is walked. The standalone verifier restates the bound.
+
+*A boundary that refuses answers in its own words.* Past the parser's
+limit, each boundary named above makes the refusal it already made for
+bytes that are not JSON. Seven parses of evidence had no such refusal
+and have none now; they are listed with what is not established.
+`canonical_bytes` raises `CanonicalizationError` for a value too deep
+to encode. A witness whose state file is not a document says it has
+lost its state, which closes what AUD-049 left.
+
+**The sweep is kept as a test.** The earlier repair was made at three
+boundaries, where it was found, and the rest were left. A test now
+finds each of those 37 calls in the package from its source. Nineteen
+have a handler for nesting around them. The other eighteen are in
+fifteen functions, each listed with the reason it needs none. A parse
+added without either fails the test.
+
+**How deep real records go.** The suite passes with the bound in
+force, so no record its tests write and read back nests past 64
+levels. A sample was also measured, with the line parser wrapped in the
+test process: over 19 test files that write the richest records,
+366,471 lines were parsed, the deepest record nested 6 levels,
+and 0 of them carried more than 64 brackets and were walked.
+
+**AUD-051 (P1), found while fixing it, and fixed.** The question
+whether the writer could write a line of the wrong depth led to
+whether it could write a line of the wrong kind. It could. The reader
+states what a line is. The writer built a record from its caller's
+arguments and did not ask. An actor, an action, a target, an event id
+or a wall time of the wrong kind was encoded, hashed, written and
+synced, and `append` returned the event. No reader would read that
+record, so every read failed from then on and every append was
+refused. The log had ended at a write its own writer acknowledged.
+
+One writer of the package is known to reach it:
+`CapabilityLedger.anoint` wrote its root record under whatever actor it
+was given, then raised on its own record with the log already
+unreadable.
+
+The writer now hands the line it built to `_parse_line`, the reader's
+own rule, before an attestation is prepared and before a byte is
+written. The bound on a record's size had no test on either side, and
+has one on both now. On 2,000 appends of a small record and a read of
+them, five rounds, an append cost 945 microseconds where it cost 960,
+and a verified read 23.6 microseconds a record where it cost 23.1.
+Neither difference is outside the rounds' own spread.
+
+**AUD-052 (P2), found by a red baseline, and fixed.** A mutation
+baseline over `tests/test_agent_substrate_properties.py` went red
+twice in a row on this change, and green when run again elsewhere. The
+harness refuses a baseline that fails, and its refusal is what showed
+it. The failure is not this change's. The file's stateful machine
+presented one constant digest as the report at every verification.
+AUD-004's fix made the authority ask for fresh evidence, so a history
+that re-verifies a record after an invalidation was refused by the
+store and failed the test. Hypothesis draws such a history only
+sometimes, so the test failed at random on a tree with nothing wrong
+in it, and replayed the failure on the commit before this one.
+
+Each verification the machine performs now presents a report of its
+own. A second rule tries the report a record already carried and
+requires the refusal. The history Hypothesis drew is kept as a test
+that runs on every pass.
+
+**Tests.** `tests/test_json_nesting.py`, new, holds AUD-050: the bound
+on both sides for objects, arrays, tuples and a mix; a line past the
+parser on every read; each boundary; the standalone verifier; the
+fuzzer's seeds; and the scan. `tests/test_inference_gateway.py` holds
+the gateway settling a model's answer of brackets as SCHEMA_REFUSED.
+`tests/test_agent_substrate.py` holds AUD-051 for each field and
+kind, through the capability ledger, and the size bound.
+
+**Mutations.** Thirty-eight new: JN1 to JN35 in a new spec,
+`json_nesting`, and M72 to M74 in `agent_substrate`. F8 in
+`agent_fault_injection` and S7 in `agent_separate_verify` were repaired
+to the lines the change rewrote. The shard plan was regenerated for 141
+specs.
+
+One mutation survived its first run on this change, and was right to.
+WT25 in `witness` removed the witness's handler for the encoder's
+`RecursionError` on a proof record too deep to hash. The encoder no
+longer raises it, so the handler it removed could not be reached, and
+no test could tell it was gone. The witness now catches the encoder's
+one error.
+WT25 removes the encoder's refusal of nesting, which is where the rule
+now stands, and the witness's test of a record too deep to hash kills
+it. WT24, anchored on the same line, was repaired beside it.
+
+Run here, on this change: 262 mutations in 23 specs. That
+is every mutation anchored in `events.py`, `witness.py`,
+`checkpoint.py` or `canonical.py`, and four specs whole: `json_nesting`,
+`agent_fault_injection`, `agent_separate_verify` and `fuzz_harness`.
+All were killed and every source restored. They ran as 28 pieces
+of a few minutes each, because this session's container restarts
+during a run of the length a whole spec needs. A piece a restart
+stopped ran again from its start. One piece's baseline was refused on
+its first run, and correctly: its worktree held the audit report as
+edited and the corpus allowlist as generated before the edit, so a test
+that builds the index stopped at setup. The type check, run with the
+other fast checks before the suite, then refused two assignments in the
+new depth walks, and the walked variable was annotated. After that
+every piece ran again, on the regenerated tree this commit holds.
+
+Not run here: the mutations anchored in the other files this change
+touches, where it adds one exception to one handler (`store.py`,
+`inference.py`, `result_rules.py`, `research.py`, `rag_index.py`,
+`evidence.py`, `proposals.py`) or one check beside the others
+(`tools/verify_assurance.py`). Their anchors were checked to match
+once, as all 743 anchored in the changed files were, and all 3,005 of
+the 141 specs. Hosted CI runs every spec whole.
+
+| Spec | Killed, of its mutations run here | Its mutations in all | |
+|---|---|---|---|
+| agent_checkpoint | 32 of 32 | 51 | |
+| agent_cross_process | 2 of 2 | 11 | |
+| agent_fault_injection | 11 of 11 | 11 | whole |
+| agent_incremental | 10 of 10 | 27 | |
+| agent_recovery | 3 of 3 | 19 | |
+| agent_separate_verify | 18 of 18 | 18 | whole |
+| agent_snapshot_coherence | 4 of 4 | 20 | |
+| agent_substrate | 18 of 18 | 67 | |
+| archive | 1 of 1 | 28 | |
+| authenticated_history | 14 of 14 | 27 | |
+| checkpoint_recovery | 4 of 4 | 10 | |
+| composed_campaigns | 1 of 1 | 7 | |
+| fuzz_harness | 9 of 9 | 9 | whole |
+| governed_history | 6 of 6 | 13 | |
+| history_time | 1 of 1 | 21 | |
+| json_nesting | 35 of 35 | 35 | whole |
+| signed_append_lifecycle | 5 of 5 | 33 | |
+| signing_seam | 1 of 1 | 8 | |
+| t2_closure | 6 of 6 | 41 | |
+| verified_read_guard | 3 of 3 | 12 | |
+| witness | 53 of 53 | 53 | whole |
+| witness_quorum | 3 of 3 | 3 | whole |
+| witness_tree | 22 of 22 | 22 | whole |
+
+**What is not established.**
+
+- Seven of the eighteen listed parses, in six functions, read evidence
+  with no handler for bytes that are not JSON at all: three functions
+  of `research.py`, `learned_lifecycle.document`,
+  `governed_model._record_of` and `claim_check.check`. What a primary
+  answers to a record that cites such evidence is AUD-047's remainder,
+  and is not changed here.
+- The sweep is of `agent_substrate`. The 149 JSON parses in the rest of
+  the tracked code that is not a test were not read for nesting: 130 in
+  `tools`, 12 in `scientific`, 2 each in `integrations` and
+  `scientific_ai`, and 3 at the root.
+- The bound is the log's. A document that is not a log record is held
+  to the parser's limit, or to its own bound where it has one: a
+  proposal to eight levels.
+- Which other writers of the package pass an id on unchecked was not
+  swept. Each now gets the log's refusal, and none can end the log
+  that way.
+- A history already ended by such a write stays ended. Cutting it at
+  the last record that verifies is the owner's repair.
+- Other stateful or randomised tests may have models as stale as
+  AUD-052's. That one was found by its failure, not by a search.
+- A history holding a record nested past 64 levels no longer reads.
+  None is known.

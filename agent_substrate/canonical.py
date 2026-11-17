@@ -78,6 +78,12 @@ def canonical_bytes(obj: Any) -> bytes:
     except TypeError as exc:
         raise CanonicalizationError(
             f"value contains a non-JSON type: {exc}") from exc
+    except RecursionError:
+        # The encoder recurses once for each level and stops at the
+        # interpreter's limit, about ten thousand levels, with a RuntimeError
+        # that no handler written for "cannot be encoded" catches (AUD-050).
+        raise CanonicalizationError(
+            "value nests deeper than this interpreter encodes") from None
     return text.encode("utf-8")
 
 

@@ -268,7 +268,7 @@ def _read(evidence: dict, fetch) -> dict:
                 f"({type(exc).__name__})") from None
         try:
             docs[key] = json.loads(raw, parse_constant=_not_json)
-        except ValueError as exc:
+        except (ValueError, RecursionError) as exc:
             docs[key] = exc
     return docs
 

@@ -215,7 +215,7 @@ def load_allowlist(root: StrPath | None = None) -> dict:
             "fallback is the state this file exists to end") from None
     try:
         doc = json.loads(raw)
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:
         raise CorpusMembershipError(
             f"corpus allowlist is unparseable: {exc}") from None
     if not isinstance(doc, dict):
@@ -641,7 +641,7 @@ def load_index(path: StrPath,
     raw = Path(path).read_text()
     try:
         doc = json.loads(raw)
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:
         raise ValueError(
             f"index document is unparseable ({type(exc).__name__})") from exc
     if not isinstance(doc, dict):

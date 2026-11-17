@@ -225,6 +225,16 @@ def proof_records(events, after: int, upto: int) -> list:
 
 # ----------------------------------------------------------------- the witness
 
+def _unreadable_state(witness_id: str, origin: str, exc) -> str:
+    """What a witness says of a state file that is not a document: bytes
+    that are not UTF-8 or not JSON, or nesting past the parser. It has lost
+    what it held, and the parser's error is not how it says so (AUD-049's
+    remainder, AUD-050)."""
+    return (f"{witness_id}'s state for {origin!r} cannot be read "
+            f"({type(exc).__name__}): it has lost what it held and trusts "
+            "nothing it is shown; re-provisioning is the owner's act")
+
+
 @dataclass
 class Witness:
     """One witness, its key and its durable state: one file per origin.
@@ -263,6 +273,9 @@ class Witness:
                 "never provisioned for it, or lost what it held. It does not "
                 "trust what it is shown first; re-provisioning is the "
                 "owner's act") from None
+        except (ValueError, RecursionError) as exc:
+            raise WitnessError(_unreadable_state(self.witness_id, origin,
+                                                 exc)) from None
         cp = Checkpoint.from_record(rec)
         if cp.origin != origin:
             raise WitnessError(f"{self.witness_id}'s state for {origin!r} "
@@ -336,9 +349,10 @@ class Witness:
                 raise WitnessError(f"record {want}: numbered {ev.seq}")
             try:
                 hashed = ev.recompute_hash()
-            except (ValueError, RecursionError) as exc:
+            except ValueError as exc:
                 # a number no canonical form holds, or nesting past what the
-                # interpreter encodes: the encoder's error came out raw,
+                # interpreter encodes: the encoder refuses both as a
+                # ValueError of its own (AUD-050), and that came out raw
                 # where every other refusal is the witness's own (AUD-049)
                 raise WitnessError(f"record {want}: cannot be hashed "
                                    f"({type(exc).__name__})") from None
@@ -593,8 +607,12 @@ class TreeWitness(Witness):
                 f"{self.witness_id} holds no tree for {origin!r}: it was "
                 "never provisioned for it, or lost what it held. "
                 "Re-provisioning is the owner's act")
-        cp = TreeCheckpoint.from_record(json.loads(path.read_text(
-            encoding="utf-8")))
+        try:
+            rec = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, RecursionError) as exc:
+            raise WitnessError(_unreadable_state(self.witness_id, origin,
+                                                 exc)) from None
+        cp = TreeCheckpoint.from_record(rec)
         if cp.origin != origin:
             raise WitnessError(f"{self.witness_id}'s tree for {origin!r} "
                                "names another origin")

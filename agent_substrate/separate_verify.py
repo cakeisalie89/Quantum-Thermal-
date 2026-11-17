@@ -200,7 +200,7 @@ def _run(argv: list, *, root: Path, timeout_s: float) -> SeparateVerification:
     err = (proc.stderr or "")[-2000:]
     try:
         doc = json.loads(proc.stdout or "")
-    except ValueError:
+    except (ValueError, RecursionError):
         return SeparateVerification(
             ok=False, exit_status=proc.returncode,
             reason=(f"the independent verifier exited {proc.returncode} and "

@@ -1660,40 +1660,158 @@
     "tests/test_witness_tree.py::test_what_is_not_a_tree_cosignature_is_a_note",
     "tests/test_witness_tree.py::test_a_tree_cosignature_is_held_to_its_shape"
    ],
-   "residual_risk": "Fail-closed before and after: nothing was cosigned or counted that should not have been. A witness's own state file that is not JSON still raises the parser's error, and a trust root is the owner's data and is not checked beyond its quorum. The witness here is a fixture in this process; a deployed one is the owner's (AUD-019).",
+   "residual_risk": "Fail-closed before and after: nothing was cosigned or counted that should not have been. A witness's own state file that is not JSON raised the parser's error when this finding was closed; AUD-050 made that the witness's refusal too. A trust root is the owner's data and is not checked beyond its quorum. The witness here is a fixture in this process; a deployed one is the owner's (AUD-019).",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
   },
   {
    "id": "AUD-050",
-   "title": "A line nested past the interpreter's parser raises RecursionError out of the log's own reads",
+   "title": "A line nested past the interpreter's parser raised RecursionError out of the log's own reads, and a model's answer out of the gateway",
    "severity": "P2",
-   "subsystem": "the event log's line parser, its head witness file and the checkpoint store",
+   "subsystem": "every boundary of the package that parses JSON it did not write: the event log first",
    "files": [
     {
      "path": "agent_substrate/events.py",
-     "lines": "_parse_line: json.loads under except (UnicodeDecodeError, ValueError); EventLog.head: the same; _write_event: canonical_bytes"
+     "lines": "_parse_line and EventLog.head: json.loads under handlers for ValueError; _write_event: no bound on a payload's depth"
     },
     {
      "path": "agent_substrate/checkpoint.py",
-     "lines": "_last_seq and CheckpointStore._parse: json.loads under except ValueError"
+     "lines": "_last_seq and CheckpointStore._parse"
     },
     {
      "path": "agent_substrate/canonical.py",
-     "lines": "canonical_bytes: json.dumps under except ValueError and TypeError"
+     "lines": "canonical_bytes: json.dumps under handlers for ValueError and TypeError"
+    },
+    {
+     "path": "agent_substrate/inference.py",
+     "lines": "parse_response, the model's answer; prompt_problems"
+    },
+    {
+     "path": "agent_substrate/result_rules.py",
+     "lines": "_read: a cited bundle or report, in the admission decision"
+    },
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "load_from: a snapshot"
+    },
+    {
+     "path": "agent_substrate/research.py",
+     "lines": "_report_of"
+    },
+    {
+     "path": "agent_substrate/rag_index.py",
+     "lines": "load_allowlist and load_index"
+    },
+    {
+     "path": "agent_substrate/evidence.py",
+     "lines": "info: a sidecar"
+    },
+    {
+     "path": "agent_substrate/proposals.py",
+     "lines": "RecordedFixtureAdapter.responses"
+    },
+    {
+     "path": "agent_substrate/separate_verify.py",
+     "lines": "_run: the child's verdict"
+    },
+    {
+     "path": "agent_substrate/witness.py",
+     "lines": "_load and _load_tree: a state file that is not a document"
+    },
+    {
+     "path": "tools/fuzz_substrate.py",
+     "lines": "the seeds of the events, log_head and checkpoint targets"
     }
    ],
-   "behavior": "The defect ledger states the rule for the attestation reader and the registries: a line nested deep enough to exhaust the JSON parser is malformed, not a crash of every reader. The log's own line parser does not hold it. One line nested 100,000 deep, 600 KB and so well inside the bound on a record's size, raises RecursionError out of verify, read_verified, read_verified_from and the head check every append makes. The head witness file and the checkpoint store's two parsers do the same. An append of a payload that deep raises RecursionError from the encoder, before anything is written. A payload 2,000 deep is appended and read back: how deep a record may nest is whatever the interpreter allows.",
+   "behavior": "The defect ledger states the rule for the attestation reader and the registries: a line nested deep enough to exhaust the JSON parser is malformed, not a crash of every reader. The log's own line parser does not hold it. One line nested 100,000 deep, 600 KB and so well inside the bound on a record's size, raises RecursionError out of verify, read_verified, read_verified_from and the head check every append makes. The head witness file and the checkpoint store's two parsers do the same. An append of a payload that deep raises RecursionError from the encoder, before anything is written. A payload 2,000 deep is appended and read back: how deep a record may nest is whatever the interpreter allows. A sweep of every json.loads and json.load in the package, 37 calls, then found the same handler where the gateway reads a model's answer: parse_response raised RecursionError on a body of 40 KB, after the call was dispatched and before it was settled, where a body that is not JSON is settled as SCHEMA_REFUSED. It found it where the result rules read a cited bundle or report, inside the admission decision, and at eight lesser boundaries.",
    "invariant": "Verification answers with a report, never with an exception raised by the content it was verifying; and the same bytes verify the same way under every supported interpreter.",
    "mechanism": "RecursionError is a RuntimeError and not a ValueError, so the handlers written for unparseable JSON do not catch it. The earlier repair was made where it was found, at three boundaries, and not swept. The fuzzer's inputs are too short to nest that deep on this interpreter.",
-   "reproduction": "At 2cbba91, by scripts of the audit's that are not in the tree. A log whose second line is '{\"a\":' 100,000 times, a 1 and as many closing braces: EventLog.verify(), read_verified(), read_verified_from() and append() raise RecursionError from the JSON decoder (events.py line 534). The same document as the head witness file raises from EventLog.head() and verify() (line 776), and as a checkpoint file from checkpoint._last_seq (line 316) and CheckpointStore._parse (line 461). Controls: the attestation reader lists the line as malformed, KeyRegistry.from_bytes and RoleRegistry.from_bytes refuse it, and the standalone verifier's strict_json refuses it. Measured limits of json.loads and json.dumps: 9,997 and 9,996 levels on Python 3.12.3 and 3.12.13, 9,998 and 9,997 on 3.13.17, and 993 and 992 on 3.11.17, where it also depends on the depth of the call.",
+   "reproduction": "At 2cbba91, by scripts of the audit's that are not in the tree. A log whose second line is '{\"a\":' 100,000 times, a 1 and as many closing braces: EventLog.verify(), read_verified(), read_verified_from() and append() raise RecursionError from the JSON decoder (events.py line 534). The same document as the head witness file raises from EventLog.head() and verify() (line 776), and as a checkpoint file from checkpoint._last_seq (line 316) and CheckpointStore._parse (line 461). Controls: the attestation reader lists the line as malformed, KeyRegistry.from_bytes and RoleRegistry.from_bytes refuse it, and the standalone verifier's strict_json refuses it. Measured limits of json.loads and json.dumps: 9,997 and 9,996 levels on Python 3.12.3 and 3.12.13, 9,998 and 9,997 on 3.13.17, and 993 and 992 on 3.11.17, where it also depends on the depth of the call. At the commit that registered this finding: inference.parse_response and prompt_problems raise RecursionError on 20,000 opening brackets, a 1 and as many closing ones; result_rules.record_problems raises it for a cited bundle of those bytes; a payload 2,000 levels deep is appended, and copy.deepcopy and an indented json.dumps of the record read back raise RecursionError.",
    "observed": "Found while sweeping the witness for AUD-049: a proof record too deep to hash raised RecursionError there, and the log's parser was tried next.",
-   "expected": "A report that is not ok, naming the line; MalformedEvent from the head witness; CheckpointCorrupt from the checkpoint store; a refusal of a payload that nests too deep, in the log's own error, at the same depth under every interpreter.",
-   "correction": "",
-   "regression_tests": [],
-   "residual_risk": "Fail-closed: nothing is read from such a log. But every reader of it gets an exception where it expects a report, from one line of a file a holder of it can write. Two readers on different interpreters can disagree about a line near the limit: at 9,997 levels Python 3.13 parses and encodes it and 3.12 cannot encode it. The snapshot parser in store.py, the separate verifier's reading of its child's answer and the recorded-fixture adapter have the same handler and were read, not run. The witness's part is fixed under AUD-049.",
+   "expected": "A report that is not ok, naming the line; MalformedEvent from the head witness; CheckpointCorrupt from the checkpoint store; ProposalRefused from the gateway's parser, settled as SCHEMA_REFUSED; a problem from the result rules; a refusal of a payload that nests too deep, in the log's own error, at the same depth under every interpreter.",
+   "correction": "A record has a depth of its own: events.MAX_NESTING, 64 levels with the record counted. The writer refuses a payload past it before anything is encoded, and the line parser refuses a line past it, as a malformed line and not as a torn one. Depth is counted with a stack and no recursion, and a count of the line's brackets decides which lines are walked at all. Past the parser's own limit, each boundary makes the refusal it already made for bytes that are not JSON: the line parser, the head witness, the checkpoint store, the snapshot loader, the gateway's two parsers, the result rules, the research ledger's report reader, the corpus files, an evidence sidecar, a recorded response and the separate verifier's verdict. canonical_bytes raises CanonicalizationError for a value too deep to encode. A witness whose state file is not a document says it has lost its state. The standalone verifier restates the bound. The fuzzer is seeded with nesting at the log's three file boundaries. And the sweep is kept as a test: every json.loads and json.load in the package is found from its source and either has a handler for nesting around it or is listed with the reason it need not.",
+   "regression_tests": [
+    "tests/test_json_nesting.py::test_a_record_at_the_bound_is_written_and_read_back",
+    "tests/test_json_nesting.py::test_a_payload_past_the_bound_is_refused_before_anything_is_written",
+    "tests/test_json_nesting.py::test_a_line_past_the_bound_is_a_problem_on_every_read",
+    "tests/test_json_nesting.py::test_a_line_past_the_parsers_limit_is_a_problem_not_a_raise",
+    "tests/test_json_nesting.py::test_wide_is_not_deep",
+    "tests/test_json_nesting.py::test_depth_is_counted_without_recursion",
+    "tests/test_json_nesting.py::test_the_encoder_refuses_what_it_cannot_encode_as_it_refuses_the_rest",
+    "tests/test_json_nesting.py::test_a_head_witness_nested_past_the_parser_is_unreadable_not_a_raise",
+    "tests/test_json_nesting.py::test_a_checkpoint_nested_past_the_parser_is_corrupt_not_a_raise",
+    "tests/test_json_nesting.py::test_a_snapshot_nested_past_the_parser_is_unparseable_not_a_raise",
+    "tests/test_json_nesting.py::test_a_witness_whose_state_cannot_be_read_has_lost_it",
+    "tests/test_json_nesting.py::test_a_models_answer_nested_past_the_parser_is_refused_not_a_raise",
+    "tests/test_json_nesting.py::test_evidence_nested_past_the_parser_is_a_problem_not_a_raise",
+    "tests/test_json_nesting.py::test_the_standalone_verifier_holds_a_log_line_to_the_same_bound",
+    "tests/test_json_nesting.py::test_the_fuzzer_is_seeded_with_nesting_at_each_file_beside_a_log",
+    "tests/test_json_nesting.py::test_every_json_parse_in_the_package_answers_for_nesting",
+    "tests/test_inference_gateway.py::test_an_answer_nested_past_the_parser_is_refused_and_settled"
+   ],
+   "residual_risk": "The sweep is of agent_substrate: the 149 JSON parses in the rest of the tracked code that is not a test, 130 of them in tools, were not read for nesting. Eighteen parses, in fifteen functions, are listed as needing no handler. Seven of them, in six functions, read evidence with no handler for bytes that are not JSON at all, in research.py, learned_lifecycle.py, governed_model.py and claim_check.py: what a primary answers to a record citing such evidence is AUD-047's remainder, and is not changed here. The bound is the log's own. A document that is not a log record is held to the parser's limit, or to its own bound where it has one, as a proposal is to eight levels. A history holding a record nested past 64 levels no longer reads. None is known, and the suite passes with the bound in force, so no record its tests write and read back nests that deep.",
    "verification": "REPRODUCED",
-   "resolution": "OPEN"
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-051",
+   "title": "The log's writer wrote a record its own reader refuses, and the log no longer read",
+   "severity": "P1",
+   "subsystem": "the event log's writer",
+   "files": [
+    {
+     "path": "agent_substrate/events.py",
+     "lines": "_write_event: the record is built, hashed and written with no check of what kind its fields are"
+    },
+    {
+     "path": "agent_substrate/capability.py",
+     "lines": "anoint: one writer of the package that hands the log an actor of any kind"
+    },
+    {
+     "path": "tests/test_agent_substrate.py",
+     "lines": "no test of an argument of the wrong kind to append, nor of the bound on a record's size on either side"
+    }
+   ],
+   "behavior": "The reader states what a line is: every field present and of its kind, digests in lowercase hex, canonical bytes, a bounded size. The writer built a record from its caller's arguments and did not ask. An actor, an action, a target, an event id or a wall time that was a list, a number, nothing, or a string where a number goes was encoded, hashed, written and synced, and append returned the event. No reader would read that record. verify and both reads failed on it from then on, and every later append was refused as extending a broken chain: the log had ended, at a write its own writer acknowledged. One writer of the package is known to reach it. CapabilityLedger.anoint writes its root record under the actor it is given, and then raises on its own record with the log already unreadable.",
+   "invariant": "The writer writes only what every reader reads: one statement of what a line is, asked on both sides.",
+   "mechanism": "The rule lives in _parse_line and _validate_field_types, written for the reader. The writer checked that the payload could be encoded and that the line was not too long, and nothing else. AUD-008 had made the writer hand back the record as its bytes parse; it did not ask whether those bytes were a record.",
+   "reproduction": "At the commit before this one: EventLog.append with actor=['a'], actor=7, actor=None, action=7, target=7, target=None, target={'k': 1}, event_id=7, wall_time='now', wall_time=True or wall_time=[1.0] returns an event. EventLog.verify() then reports 'line 2: field ... is ..., expected ...', and append raises ChainBroken. CapabilityLedger(log).load().anoint(actor=7) raises CapabilityError after writing, and the log no longer verifies.",
+   "observed": "Found while reviewing the change AUD-050 makes to the writer: whether it could write a line of the wrong depth led to whether it could write a line of the wrong kind.",
+   "expected": "MalformedEvent before anything is written or signed, and a log that still reads.",
+   "correction": "The writer hands the line it built to _parse_line, the reader's own rule, before an attestation is prepared and before a byte is written, and refuses what that refuses. The bound on a record's size, which no test held on either side, is now held on both. Measured on 2,000 appends of a small record and a read of them, five rounds: an append costs 945 microseconds where it cost 960, and a verified read 23.6 microseconds a record where it cost 23.1; neither difference is outside the rounds' own spread.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_the_writer_refuses_what_its_own_reader_would",
+    "tests/test_agent_substrate.py::test_a_writer_of_the_package_cannot_end_the_log_with_a_bad_id",
+    "tests/test_agent_substrate.py::test_a_record_over_the_size_bound_is_refused_by_writer_and_reader"
+   ],
+   "residual_risk": "Which other writers of the package pass an id on unchecked was not swept. Each now gets the log's refusal where it had none of its own, and none can end the log that way. A payload argument that is not an object still raises TypeError or ValueError from dict(), before a record is built. A record the reader accepts and a projection refuses is another matter: what each primary answers to one is AUD-047's remainder. A history already ended this way stays ended: its repair is the owner's, by cutting the log at the last record that verifies.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-052",
+   "title": "The authority's stateful property test failed at random on a correct tree, since AUD-004's fix",
+   "severity": "P2",
+   "subsystem": "the tests of the authority state machine",
+   "files": [
+    {
+     "path": "tests/test_agent_substrate_properties.py",
+     "lines": "AuthorityMachine.verify_record: one constant report digest at every verification"
+    }
+   ],
+   "behavior": "The machine drives the real store through histories Hypothesis draws, and checks five invariants after every step. Its rule for a verification presented one constant digest as the report. AUD-004's fix made the authority ask for fresh evidence (I3): a record back under review is not verified on the report it already carried. A history that re-verifies a record, after an invalidation put it back under review, was then refused by the store and failed the test. Hypothesis draws such a history only sometimes, forty examples a run, so the test passed on most runs and failed on some, on a tree with nothing wrong in it. Every suite that holds the file could go red that way, and every mutation spec whose baseline runs it.",
+   "invariant": "A test fails for a fault in the tree, and for nothing else; and a rule the code gained is a rule its model knows.",
+   "mechanism": "The fix to AUD-004 changed what the store accepts and added tests of the new rule. It did not revisit the older model of the store, whose verification rule was written when any report would do.",
+   "reproduction": "At 2d1772f, with the example Hypothesis saved when a mutation baseline went red: create_root, create_root, create_child of the second, review and verify the child, invalidate the parent, review the child, verify it. The last step raises TransitionError (I3: UNDER_REVIEW -> VERIFIED requires fresh evidence ['verification_report']), and TestAuthorityMachine::runTest fails. The same file passes on a run that does not draw such a history.",
+   "observed": "A mutation baseline over the file was red twice in a row on this change, and green when run again elsewhere. The harness refuses a baseline that fails, and that refusal is what showed it. The failure does not depend on this change: it replays on the commit before it.",
+   "expected": "A model that presents a report of its own at each verification, and that checks the refusal I3 makes.",
+   "correction": "Each verification the machine performs presents a new report. A second rule tries the report a record already carried and requires the I3 refusal, so the property is exercised and not tripped over. The history Hypothesis drew is kept as a test of its own, run on every pass.",
+   "regression_tests": [
+    "tests/test_agent_substrate_properties.py::test_a_record_verified_again_after_an_invalidation_is_a_history_too"
+   ],
+   "residual_risk": "How often it failed in hosted CI was not measured: no run in this audit's records was red for it, and the suite ran dozens of times here without drawing the history. Other stateful or randomised tests may have models as stale; this one was found by its failure, not by a search for them.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

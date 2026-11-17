@@ -50,8 +50,8 @@
     {
       "name": "S7_an_unparseable_answer_is_a_verdict",
       "path": "agent_substrate/separate_verify.py",
-      "find": "    except ValueError:\n        return SeparateVerification(\n            ok=False, exit_status=proc.returncode,",
-      "replace": "    except ValueError:\n        return SeparateVerification(\n            ok=True, exit_status=proc.returncode,",
+      "find": "    except (ValueError, RecursionError):\n        return SeparateVerification(\n            ok=False, exit_status=proc.returncode,",
+      "replace": "    except (ValueError, RecursionError):\n        return SeparateVerification(\n            ok=True, exit_status=proc.returncode,",
       "rationale": "an unparseable verdict is not a verdict"
     },
     {

@@ -89,7 +89,7 @@ import stat
 import struct
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 VERSION = 2
 RECORD_SCHEMA = "scientific-assurance-record/2"
@@ -116,6 +116,9 @@ MAX_DEPTH = 4
 MAX_FILE_BYTES = 8 << 20
 MAX_TOTAL_BYTES = 32 << 20
 MAX_LINE_BYTES = 1 << 20
+#: how deep a log record nests, the record itself counted: the log's own
+#: bound (agent_substrate.events.MAX_NESTING), restated here as a number
+MAX_NESTING = 64
 _PATH = re.compile(r"[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*")
 _HEX = re.compile(r"[0-9a-f]{64}")
 _SUM_LINE = re.compile(r"([0-9a-f]{64})  (\S+)")
@@ -1222,6 +1225,25 @@ def _level_consistency(ctx, check):
           f"not named: {hidden}")
 
 
+def _nests_deeper(value, bound: int) -> bool:
+    """Whether ``value`` nests more than ``bound`` lists and objects deep,
+    itself counted; walked with a stack and no recursion."""
+    stack = [(value, 1)]
+    while stack:
+        item, depth = stack.pop()
+        inside: Iterable
+        if isinstance(item, dict):
+            inside = item.values()
+        elif isinstance(item, list):
+            inside = item
+        else:
+            continue
+        if depth > bound:
+            return True
+        stack.extend((x, depth + 1) for x in inside)
+    return False
+
+
 def _parse_log(raw: bytes) -> list:
     """The records of the log, each its canonical bytes and one newline,
     every field present and typed, its hash its body's digest, each linked
@@ -1253,6 +1275,9 @@ def _parse_log(raw: bytes) -> list:
         if not typed:
             raise Refused("every log record's fields have their types",
                           where)
+        if _nests_deeper(rec, MAX_NESTING):
+            raise Refused("every log record nests within the bound",
+                          f"{where}: deeper than {MAX_NESTING} levels")
         if canonical(rec) != line:
             raise Refused("every log line is its record's canonical bytes",
                           f"{where}: the hash covers the parsed record, so "

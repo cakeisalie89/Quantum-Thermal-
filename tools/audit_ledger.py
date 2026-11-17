@@ -172,7 +172,11 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/ed25519_encodings.json",
                # Stage 5: the sweeps that hold the independent readers to
                # never raising on a record's content (AUD-047).
-               "tests/test_agent_readers_never_raise.py")
+               "tests/test_agent_readers_never_raise.py",
+               # Stage 5: the log's nesting bound, and what a boundary
+               # answers to a document nested past the parser (AUD-050).
+               "tests/test_json_nesting.py",
+               "tools/mutations/json_nesting.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

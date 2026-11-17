@@ -22,8 +22,9 @@ from agent_substrate.authority import (  # noqa: E402
     EDGES, INITIAL, TERMINAL, Role, State, TransitionError,
     TransitionRequest, allowed_targets, check,
 )
+from agent_substrate import events as ev_mod  # noqa: E402
 from agent_substrate.canonical import (  # noqa: E402
-    CanonicalizationError, assert_digest_stable, digest,
+    CanonicalizationError, assert_digest_stable, canonical_bytes, digest,
     is_digest,
 )
 from agent_substrate.events import (  # noqa: E402
@@ -231,6 +232,82 @@ def test_the_event_append_returns_is_the_event_a_replay_reads(tmp_path):
     assert written.hash == replayed.hash
     assert written.payload == replayed.payload == {
         "deps": ["x", "y"], "m": {"1": "one"}}
+
+
+_GOOD = dict(actor="alice", action="record.create", target="r1",
+             payload={"record_id": "r1", "kind": "k", "proposer": "alice"})
+
+
+@pytest.mark.parametrize("field, value", [
+    ("actor", ["alice"]), ("actor", 7), ("actor", None),
+    ("action", ["record.create"]), ("action", 7), ("action", None),
+    ("target", ["r1"]), ("target", 7), ("target", None),
+    ("target", {"id": "r1"}),
+    ("event_id", 7), ("event_id", ["e"]),
+    ("wall_time", "now"), ("wall_time", True), ("wall_time", [1.0]),
+])
+def test_the_writer_refuses_what_its_own_reader_would(tmp_path, field, value):
+    """AUD-051. What a line is has one statement, and the writer did not ask
+    it. A field of the wrong kind was encoded, hashed and written; the
+    record was durable, no reader would read it, and from then on every
+    read of the log failed and every append was refused."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    log.append(actor="alice", action="record.create", target="r0",
+               payload={"record_id": "r0", "kind": "k", "proposer": "alice"})
+    before = log.path.read_bytes()
+    signed: list = []
+    with pytest.raises(MalformedEvent,
+                       match=f"refusing to write this event: field "
+                             f"'{field}' is"):
+        log.append(**dict(_GOOD, **{field: value}),
+                   before_write=signed.append)
+    assert log.path.read_bytes() == before, "nothing was written"
+    assert signed == [], "and nothing was signed for it"
+    assert EventLog(log.path).verify().ok
+    assert log.append(**_GOOD).seq == 1, "and the log goes on"
+
+
+def test_a_writer_of_the_package_cannot_end_the_log_with_a_bad_id(tmp_path):
+    """The same, reached through a module: the capability ledger wrote its
+    root record under whatever it was given, and the log no longer read."""
+    from agent_substrate.capability import CapabilityLedger
+    log = EventLog(tmp_path / "ev.jsonl")
+    log.append(**_GOOD)
+    for actor in (7, ["owner"], None):
+        with pytest.raises(MalformedEvent, match="refusing to write"):
+            CapabilityLedger(EventLog(log.path)).load().anoint(actor=actor)
+        assert EventLog(log.path).verify().ok
+    assert CapabilityLedger(EventLog(log.path)).load().anoint(
+        actor="owner") == "owner"
+
+
+def test_a_record_over_the_size_bound_is_refused_by_writer_and_reader(
+        tmp_path):
+    """The bound on a record's size had no test on either side."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    log.append(**_GOOD)
+    before = log.path.read_bytes()
+    big = {"text": "x" * ev_mod.MAX_EVENT_BYTES}
+    with pytest.raises(MalformedEvent, match="event is .* bytes, above the"):
+        log.append(actor="alice", action="note.fixture", target="big",
+                   payload=big)
+    assert log.path.read_bytes() == before
+    # the same record, hashed and chained by a holder of the file
+    prev = json.loads(before.splitlines()[-1])
+    body = {"seq": 1, "event_id": "forged", "wall_time": 2.0,
+            "actor": "alice", "action": "note.fixture", "target": "big",
+            "payload": big, "prev_hash": prev["hash"],
+            "canonical_form_version": ev_mod.CANONICAL_FORM_VERSION}
+    with log.path.open("ab") as fh:
+        fh.write(canonical_bytes(dict(body, hash=digest(body))) + b"\n")
+    for f in log.path.parent.glob(log.path.name + ".*"):
+        f.unlink()
+    report = EventLog(log.path).verify()
+    assert not report.ok and "exceeds the" in report.problems[0]
+    with pytest.raises(MalformedEvent, match="exceeds the"):
+        EventLog(log.path).read_verified_from(ev_mod.Anchor(
+            seq=0, head_hash=prev["hash"], record_offset=0,
+            next_offset=len(before)))
 
 
 def test_a_partial_trailing_line_is_reported_as_truncation(tmp_path):

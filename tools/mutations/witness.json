@@ -1,6 +1,6 @@
 {
  "title": "Independent witnesses to the log's head: monotonic, linked, verified against a trust root",
- "note": "Assurance E (D-2026-170). Each mutation deletes one rule of the witness (rollback, fork, the proof's hashing, numbering, length, linking and end, persist-before-answer, no trust on first use, provisioning) or of the verifier (signatures, origin, truncation, fork, quorum, distinct witnesses, staleness, the trust root's log, the signed time). tests/test_witness.py holds each with a control. WT24 to WT44 (AUD-049): what the witness and the verifier are handed that is not what they read. A proof record that cannot be hashed, or links to what is not a string, is the witness's own refusal; a cosignature is held to its shape however it was built, and its record and its checkpoint's to their keys; what is not a head cosignature is a note. No test held the record forms before. WT45 to WT53: rules of the protocol that had no mutation: a witness the trust root does not name, records beside the witnessed head, one state file under two names, what names a log and a witness, an empty log, and a quorum larger than the trust root. All but the first and the last had no test either.",
+ "note": "Assurance E (D-2026-170). Each mutation deletes one rule of the witness (rollback, fork, the proof's hashing, numbering, length, linking and end, persist-before-answer, no trust on first use, provisioning) or of the verifier (signatures, origin, truncation, fork, quorum, distinct witnesses, staleness, the trust root's log, the signed time). tests/test_witness.py holds each with a control. WT24 to WT44 (AUD-049): what the witness and the verifier are handed that is not what they read. A proof record that cannot be hashed, or links to what is not a string, is the witness's own refusal; a cosignature is held to its shape however it was built, and its record and its checkpoint's to their keys; what is not a head cosignature is a note. No test held the record forms before. WT45 to WT53: rules of the protocol that had no mutation: a witness the trust root does not name, records beside the witnessed head, one state file under two names, what names a log and a witness, an empty log, and a quorum larger than the trust root. All but the first and the last had no test either. WT24 and WT25 were repaired with AUD-050: the encoder now refuses a value nested too deep as it refuses NaN, the witness catches the encoder's one error, and WT25, which removed a handler nothing could reach any more and survived, removes the encoder's refusal instead.",
  "suites": [
   "tests/test_witness.py"
  ],
@@ -169,16 +169,16 @@
   {
    "name": "WT24_a_number_no_canonical_form_holds_raises_the_encoders_error",
    "path": "agent_substrate/witness.py",
-   "find": "            except (ValueError, RecursionError) as exc:\n",
-   "replace": "            except (RecursionError,) as exc:\n",
+   "find": "                hashed = ev.recompute_hash()\n            except ValueError as exc:\n",
+   "replace": "                hashed = ev.recompute_hash()\n            except ZeroDivisionError as exc:\n",
    "rationale": "a proof record holding NaN raises CanonicalizationError out of the witness, where every refusal is a WitnessError (AUD-049)"
   },
   {
    "name": "WT25_nesting_past_the_encoder_raises_recursion_error",
-   "path": "agent_substrate/witness.py",
-   "find": "            except (ValueError, RecursionError) as exc:\n",
-   "replace": "            except (ValueError,) as exc:\n",
-   "rationale": "a proof record nested past what the interpreter encodes raises RecursionError out of the witness (AUD-049)"
+   "path": "agent_substrate/canonical.py",
+   "find": "    except RecursionError:\n        # The encoder recurses once for each level and stops at the\n",
+   "replace": "    except ZeroDivisionError:\n        # The encoder recurses once for each level and stops at the\n",
+   "rationale": "a proof record nested past what the interpreter encodes raises RecursionError out of the witness (AUD-049). Since AUD-050 the encoder refuses such a value in its own error and the witness catches that one, so the rule is removed where it now stands, in the encoder"
   },
   {
    "name": "WT26_a_link_that_is_not_a_string_raises",

@@ -113,7 +113,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterable, Iterator
 
 try:                                    # POSIX advisory locking
     import fcntl
@@ -140,6 +140,25 @@ _HASHED_FIELDS = (
 #: make an O(new) read buffer an unbounded one. The whole-chain read holds
 #: the whole file, so its memory is bounded by the log's size, not by this.
 MAX_EVENT_BYTES = 4 * 1024 * 1024
+
+#: How deep a record nests: the record is the first level, its payload the
+#: second, and each list or object inside a level more. A record nesting
+#: deeper is refused by the writer and by every reader (AUD-050).
+#:
+#: The bound has to be the log's own. Left unstated, it was the
+#: interpreter's: the JSON parser recurses once for each level and raises
+#: ``RecursionError`` past its limit, which is 9,997 levels on CPython 3.12,
+#: 9,998 on 3.13 and under a thousand on 3.11, and the encoder stops one
+#: level sooner. One line of twenty kilobytes of brackets raised that out
+#: of every read of a log and out of every append to it; a line at the limit
+#: verified under one interpreter and not under another; and a payload two
+#: thousand levels deep was appended and read back, for whatever recursive
+#: code met it next.
+#:
+#: Sixty-four levels is far below any interpreter's limit, and
+#: ``tests/test_json_nesting.py`` holds it well above the eight a proposal
+#: is held to.
+MAX_NESTING = 64
 
 #: THE SECURITY PROFILE A HISTORY IS WRITTEN UNDER, declared by its FIRST
 #: event and by no other. A history with no declaration is
@@ -430,6 +449,38 @@ class VerifyReport:
         return self
 
 
+def _nests_deeper(value, bound: int) -> bool:
+    """Whether ``value`` nests more than ``bound`` lists and objects deep,
+    itself counted. Walked with a stack of its own and no recursion, so the
+    answer is the same however deep the caller already is. A tuple is a
+    list here, as it is to the encoder."""
+    stack = [(value, 1)]
+    while stack:
+        item, depth = stack.pop()
+        inside: Iterable
+        if isinstance(item, dict):
+            inside = item.values()
+        elif isinstance(item, (list, tuple)):
+            inside = item
+        else:
+            continue
+        if depth > bound:
+            return True
+        stack.extend((x, depth + 1) for x in inside)
+    return False
+
+
+def _too_deep(line: bytes, rec) -> bool:
+    """Whether the record ``line`` encodes nests past :data:`MAX_NESTING`.
+
+    Each level opens with a bracket, so a line with no more brackets than
+    the bound allows levels cannot nest past it, whatever its strings hold.
+    That is two counts, and it answers for nearly every record; only a line
+    with more brackets is walked."""
+    return (line.count(b"{") + line.count(b"[") > MAX_NESTING
+            and _nests_deeper(rec, MAX_NESTING))
+
+
 def _validate_field_types(rec: dict, where: str) -> None:
     checks = (
         ("seq", int), ("event_id", str), ("wall_time", (int, float)),
@@ -535,10 +586,19 @@ def _parse_line(raw: bytes, where: str) -> dict | None:
     except (UnicodeDecodeError, ValueError) as exc:
         raise _Unparseable(
             f"{where}: unparseable ({type(exc).__name__})") from exc
+    except RecursionError:
+        # Past the parser's own limit, which is far past the bound. NOT
+        # _Unparseable: the line is whole, and a reader that took it for a
+        # torn final append would let the next append cut it off.
+        raise MalformedEvent(
+            f"{where}: nests deeper than {MAX_NESTING} levels") from None
     if not isinstance(rec, dict):
         raise MalformedEvent(
             f"{where}: record is {type(rec).__name__}, not an object")
     _validate_field_types(rec, where)
+    if _too_deep(raw, rec):
+        raise MalformedEvent(
+            f"{where}: nests deeper than {MAX_NESTING} levels")
     try:
         canonical = canonical_bytes(rec)
     except CanonicalizationError as exc:
@@ -774,7 +834,8 @@ class EventLog:
             return None
         try:
             rec = json.loads(self.head_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, ValueError) as exc:
+        except (OSError, UnicodeDecodeError, ValueError,
+                RecursionError) as exc:
             raise MalformedEvent(
                 f"head witness is unreadable: {type(exc).__name__}") from exc
         if (not isinstance(rec, dict)
@@ -1599,6 +1660,14 @@ class EventLog:
             "prev_hash": head_hash,
             "canonical_form_version": CANONICAL_FORM_VERSION,
         }
+        # A payload nesting past the bound is refused here, before it is
+        # encoded: every reader would refuse the line, and the encoder's own
+        # limit is not the place to find out. The record is one level and
+        # the payload the next.
+        if _nests_deeper(payload, MAX_NESTING - 1):
+            raise MalformedEvent(
+                f"event nests deeper than {MAX_NESTING} levels, the bound "
+                "every reader holds a record to")
         # Reject unhashable payloads before touching the file, so a bad append
         # cannot leave a partial line behind.
         #
@@ -1614,6 +1683,18 @@ class EventLog:
             raise MalformedEvent(
                 f"event is {len(line)} bytes, above the "
                 f"{MAX_EVENT_BYTES}-byte bound")
+        # THE WRITER HOLDS ITS LINE TO THE READER'S RULE (AUD-051). What a
+        # line is has one statement, _parse_line, and the writer never asked
+        # it. An actor, an action, a target, an event id or a wall time of
+        # the wrong kind was encoded, hashed and written: the record was
+        # durable and no reader would read it, so every read of the log
+        # failed from then on and every append after it was refused. Asked
+        # here, before an attestation is prepared and before a byte is
+        # written.
+        try:
+            _parse_line(line, "this event")
+        except MalformedEvent as exc:
+            raise MalformedEvent(f"refusing to write {exc}") from None
         # A REQUIRED history is written only with its attestation prepared
         # FIRST: an unsigned record would be durable and unauthenticated,
         # and every read after it would fail closed. Refused here, before

@@ -448,7 +448,7 @@ class EvidenceStore:
         if meta.is_file():
             try:
                 rec = json.loads(meta.read_text(encoding="utf-8"))
-            except (OSError, UnicodeDecodeError, ValueError):
+            except (OSError, UnicodeDecodeError, ValueError, RecursionError):
                 rec = {}
             if isinstance(rec, dict):
                 mt = rec.get("media_type")

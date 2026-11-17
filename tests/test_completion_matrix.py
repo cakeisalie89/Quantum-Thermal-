@@ -993,7 +993,10 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 9 -> 8 when the confinement came to grant the loader's query wherever
 #: the interpreter lives (D-2026-194, agent_substrate/execution.py, cited
 #: by R21), which predates it until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 8
+#: 8 -> 7 when the fuzzer was seeded with nesting at the log's three file
+#: boundaries (AUD-050, tools/fuzz_substrate.py, cited by R50), which
+#: predates it until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 7
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

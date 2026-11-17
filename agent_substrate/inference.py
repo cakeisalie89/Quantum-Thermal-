@@ -440,7 +440,7 @@ def prompt_problems(prompt: bytes, manifest) -> list:
     """Does ``prompt`` show exactly what ``manifest`` records as shown?"""
     try:
         doc = json.loads(prompt.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError) as exc:
+    except (UnicodeDecodeError, ValueError, RecursionError) as exc:
         return [f"the prompt is not JSON: {exc}"]
     if not isinstance(doc, dict) or set(doc) != {
             "schema", "manifest_digest", "response_schema", "items"}:
@@ -734,6 +734,13 @@ def parse_response(body: bytes) -> dict:
         resp = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, ValueError) as exc:
         raise P.ProposalRefused(f"the response is not JSON: {exc}") from exc
+    except RecursionError:
+        # The body is the model's, and twenty kilobytes of brackets exhaust
+        # the parser. That raised out of the gateway after the call was
+        # dispatched and before it was settled (AUD-050). It is what the
+        # walk below refuses, found sooner.
+        raise P.ProposalRefused(
+            f"response: nested deeper than {P.MAX_DEPTH}") from None
     if not isinstance(resp, dict) or set(resp) != P.RESPONSE_KEYS:
         raise P.ProposalRefused(
             f"a response has exactly {sorted(P.RESPONSE_KEYS)}")

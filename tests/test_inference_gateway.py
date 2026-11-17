@@ -278,6 +278,22 @@ def test_a_malformed_response_is_refused_and_kept_for_audit(tmp_path, body):
     assert w.transcripts.get(res["response_sha256"]) == body
 
 
+def test_an_answer_nested_past_the_parser_is_refused_and_settled(tmp_path):
+    """AUD-050. Twenty kilobytes of brackets exhaust the JSON parser. That
+    raised ``RecursionError`` out of the gateway after the call was
+    dispatched and before it was settled, and the attempt stayed
+    outstanding. It is an answer that states no proposal, and is settled
+    as one."""
+    body = b"[" * 20_000 + b"1" + b"]" * 20_000
+    w = World(tmp_path, lambda r, p, n: I.ProviderReply("OK", body, USAGE),
+              max_attempts=1, max_output_bytes=100_000)
+    out = w.infer(w.request(max_attempts=1, max_output_bytes=100_000))
+    assert out.outcome == I.SCHEMA_REFUSED and "nested deeper" in out.error
+    res = w.records(I.ACT_RESULT)[0].payload
+    assert w.transcripts.get(res["response_sha256"]) == body
+    assert w.actions()[-1] == I.ACT_RESULT, "nothing is left outstanding"
+
+
 def test_an_oversized_response_is_refused_and_not_stored(tmp_path):
     big = json.dumps(dict(RESPONSE, rationale="x" * 5000)).encode()
     w = World(tmp_path, lambda r, p, n: I.ProviderReply("OK", big, USAGE))
