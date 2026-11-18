@@ -75,6 +75,15 @@ ACT_LEASE_RENEW = "scheduler.lease_renew"
 #: all -- which is the failure renewal is most likely to introduce.
 MAX_LEASE_RENEWALS = 16
 
+#: The farthest one grant of possession may reach, in sequence numbers: the
+#: lease a dispatch hands out, or one renewal's extension. MAX_LEASE_RENEWALS
+#: bounds how many times a lease is extended; this bounds how far each grant
+#: reaches. Without it the count bounded nothing: one renewal of any length,
+#: or one dispatch record naming its own end, held the job past every
+#: reconcile (AUD-069). With it, no attempt holds a job for more than
+#: (1 + MAX_LEASE_RENEWALS) * MAX_LEASE_SEQS positions past its dispatch.
+MAX_LEASE_SEQS = 1_000_000
+
 #: Priorities are bounded and small. 0 is most urgent. An unbounded priority
 #: is a denial-of-service on every other job, and a float one makes ordering
 #: depend on representation.
@@ -555,7 +564,11 @@ class Scheduler:
         """Fold one event in. True when it was a scheduler event."""
         p = ev.payload
         if ev.action == ACT_ENQUEUE:
-            job = job_from_record(p["job"])
+            try:
+                job = job_from_record(p.get("job"))
+            except SchedulerError as exc:
+                # Named by position, like every other refusal of the fold.
+                raise SchedulerError(f"seq {ev.seq}: {exc}") from exc
             if job.job_id in self._jobs:
                 raise DuplicateJob(
                     f"seq {ev.seq}: job {job.job_id!r} enqueued twice; a "
@@ -569,9 +582,9 @@ class Scheduler:
                 self._keys[job.idempotency_key] = (job.job_id,
                                                    job.work_digest)
         elif ev.action == ACT_JOB_TRANSITION:
-            cur = self._jobs[p["job_id"]]
-            src = JobState(p["src"])
-            dst = JobState(p["dst"])
+            cur = self._named_job(ev, p)
+            src = _job_state(p.get("src"), ev.seq, "src")
+            dst = _job_state(p.get("dst"), ev.seq, "dst")
             if cur.state is not src:
                 raise JobTransitionError(
                     f"seq {ev.seq}: {cur.job_id!r} is {cur.state.value}, but "
@@ -585,8 +598,12 @@ class Scheduler:
         elif ev.action == ACT_LEASE_RENEW:
             self._apply_renewal(ev, p)
         elif ev.action == ACT_PRIORITY:
-            cur = self._jobs[p["job_id"]]
-            new = int(p["priority"])
+            cur = self._named_job(ev, p)
+            # As set_priority writes it: an int in bounds, never a value
+            # converted into one. Read through int(), "0", 0.7 and True were
+            # priorities the writer refuses, and "abc" raised ValueError out
+            # of the fold (AUD-070).
+            new = p.get("priority")
             _require_priority(new)
             self._reauthorize_priority(cur, new, ev)
             self._jobs[cur.job_id] = replace(
@@ -613,6 +630,20 @@ class Scheduler:
         if ev.seq > self._seen_through:
             self._seen_through = ev.seq
             self._seen_hash = getattr(ev, "hash", None)
+
+    def _named_job(self, ev, p: dict) -> Job:
+        """The job a record names, or the refusal that it names none.
+
+        A record naming no job, or one no enqueue introduced, raised the
+        dictionary's KeyError out of the fold, where every refusal this
+        reducer makes is a SchedulerError (AUD-071; AUD-058's class).
+        """
+        jid = p.get("job_id")
+        if not isinstance(jid, str) or jid not in self._jobs:
+            raise UnknownJob(
+                f"seq {ev.seq}: {ev.action} names job {jid!r}, which no "
+                "enqueue introduced")
+        return self._jobs[jid]
 
     def _apply_renewal(self, ev, p: dict) -> None:
         """Extend a live lease, deciding every term from the replay's state.
@@ -642,8 +673,11 @@ class Scheduler:
           decides what that means from where it is standing.
         * renewals are counted and bounded. Otherwise a worker holds the job
           forever by asking often enough, which is the same as no lease.
+        * and each renewal is bounded in length, by MAX_LEASE_SEQS. Otherwise
+          asking once is enough (AUD-069).
         """
-        cur = self._jobs.get(p.get("job_id"))
+        named = p.get("job_id")
+        cur = self._jobs.get(named) if isinstance(named, str) else None
         if cur is None:
             raise SchedulerError(
                 f"seq {ev.seq}: lease renewal names unknown job "
@@ -679,6 +713,11 @@ class Scheduler:
         if not isinstance(seqs, int) or isinstance(seqs, bool) or seqs < 1:
             raise SchedulerError(
                 f"seq {ev.seq}: lease_seqs must be an int >= 1, got {seqs!r}")
+        if seqs > MAX_LEASE_SEQS:
+            raise SchedulerError(
+                f"seq {ev.seq}: a renewal of {seqs} positions reaches past "
+                f"the {MAX_LEASE_SEQS} bound on one grant; the renewal count "
+                "bounds possession only while each renewal is bounded too")
         new_end = ev.seq + seqs
         if new_end <= cur.lease_expires_after_seq:
             raise SchedulerError(
@@ -734,6 +773,13 @@ class Scheduler:
                 f"seq {ev.seq}: job {job.job_id!r} is enqueued with "
                 f"{job.attempts} attempts and revision {job.revision}; work "
                 "that has not run has neither")
+        if not _whole(job.lease_expires_after_seq):
+            # A POSITION IS A WHOLE NUMBER, at enqueue as on every edge
+            # (AUD-071). Compared below as one, 'x' raised TypeError out of
+            # the fold.
+            raise SchedulerError(
+                f"seq {ev.seq}: job {job.job_id!r} is enqueued with lease "
+                f"end {job.lease_expires_after_seq!r}; a position is an int")
         if (job.lease_id or job.lease_holder
                 or job.lease_expires_after_seq >= 0):
             raise SchedulerError(
@@ -756,7 +802,41 @@ class Scheduler:
             raise SchedulerError(
                 f"seq {ev.seq}: {len(job.depends_on)} dependencies exceeds "
                 f"the {MAX_DEPENDENCIES} bound")
+        # WHAT enqueue() REFUSES, REFUSED HERE AS WELL (AUD-068). The writer
+        # holds every cited digest to being one and every resource need to a
+        # whole, non-negative number of a named resource; replay took both as
+        # given. A need that was not a number made readiness -- which is
+        # total -- raise for every caller of ready_queue and reconcile, and a
+        # negative one cancelled other jobs' use of the capacity it was
+        # counted against. Capacity itself is still not re-checked: as above,
+        # it belongs to the executor replaying, not to the history.
+        for cited in job.requires_evidence:
+            if not is_digest(cited):
+                raise SchedulerError(
+                    f"seq {ev.seq}: job {job.job_id!r} cites {cited!r}, which "
+                    "is not a sha256 digest")
+        for name, need in job.resources.items():
+            if not isinstance(name, str) or not name:
+                raise SchedulerError(
+                    f"seq {ev.seq}: job {job.job_id!r} needs resource "
+                    f"{name!r}; a resource is named by a non-empty str")
+            if isinstance(need, bool) or not isinstance(need, int) \
+                    or need < 0:
+                raise SchedulerError(
+                    f"seq {ev.seq}: job {job.job_id!r} needs {need!r} of "
+                    f"{name!r}; a need is a whole, non-negative number")
+        for field_name in ("requires_capability", "idempotency_key",
+                           "task_id"):
+            value = getattr(job, field_name)
+            if value is not None and not isinstance(value, str):
+                raise SchedulerError(
+                    f"seq {ev.seq}: job {job.job_id!r} has {field_name} "
+                    f"{value!r}; it is a str or nothing")
         for dep in job.depends_on:
+            if not isinstance(dep, str) or not dep:
+                raise SchedulerError(
+                    f"seq {ev.seq}: {job.job_id!r} names dependency {dep!r}; "
+                    "a dependency is a job id (AUD-071)")
             if dep == job.job_id:
                 raise SchedulerError(
                     f"seq {ev.seq}: {job.job_id!r} cannot depend on itself")
@@ -1128,6 +1208,9 @@ class Scheduler:
                 idempotency_key: str | None = None,
                 task_id: str | None = None) -> Job:
         """Add a job. Idempotent under a key; refuses impossible work."""
+        if idempotency_key is not None and not isinstance(idempotency_key,
+                                                          str):
+            raise SchedulerError("idempotency_key must be a str")
         if idempotency_key:
             prior = self._keys.get(idempotency_key)
             if prior is not None:
@@ -1318,6 +1401,10 @@ class Scheduler:
         if not isinstance(lease_seqs, int) or isinstance(lease_seqs, bool) \
                 or lease_seqs < 1:
             raise SchedulerError("lease_seqs must be an int >= 1")
+        if lease_seqs > MAX_LEASE_SEQS:
+            raise SchedulerError(
+                f"lease_seqs {lease_seqs} reaches past the {MAX_LEASE_SEQS} "
+                "bound on one grant of possession (AUD-069)")
         # THE BUDGET, WHERE THE ATTEMPT IS SPENT.
         #
         # It used to be consulted only on the RETURN edges -- report() and
@@ -1715,6 +1802,15 @@ def reauthorize_job_edge(job: Job, dst: JobState, payload: dict, *,
     while the lease was live". It is not authentication, and the log file
     remains the trust boundary it always was.
     """
+    # A POSITION OR A COUNT IS A WHOLE NUMBER (AUD-071). These were read
+    # through int(), so "x" raised ValueError out of the fold, and "7", 7.9
+    # and True were taken for 7, 7 and 1: a record the writer never writes
+    # became state by conversion.
+    for name in _WHOLE_FIELDS:
+        if name in payload and not _whole(payload[name]):
+            raise JobTransitionError(
+                f"seq {seq}: {job.job_id!r} records {name} "
+                f"{payload[name]!r}; a position or a count is an int")
     # The write path decides at head_seq and the record it writes lands at
     # head_seq + 1. Evaluating liveness at ``seq`` would therefore refuse a
     # report that ``report`` had just accepted, at exactly the boundary seq.
@@ -1777,7 +1873,7 @@ def reauthorize_job_edge(job: Job, dst: JobState, payload: dict, *,
             f"{job.lease_expires_after_seq}. Reclaiming a live lease hands "
             "the same work to a second worker.")
     if "attempts" in payload:
-        want = int(payload["attempts"])
+        want = payload["attempts"]
         allowed = (job.attempts + 1
                    if (job.state is JobState.READY
                        and dst is JobState.DISPATCHED)
@@ -1808,6 +1904,39 @@ def reauthorize_job_edge(job: Job, dst: JobState, payload: dict, *,
             "carries a lease. Ownership is taken at dispatch and cleared on "
             "the way out; a record that grants one anywhere else is naming "
             "its own owner.")
+    if (job.state is JobState.READY and dst is JobState.DISPATCHED
+            and payload.get("lease_expires_after_seq", -1) - seq
+            > MAX_LEASE_SEQS):
+        # THE END A DISPATCH NAMES (AUD-069). A renewal's end is decided from
+        # its own position; a dispatch carries the end its writer computed,
+        # at + 1 + lease_seqs, which lands no farther than lease_seqs past
+        # the record. One reaching farther than any grant may is a record
+        # naming its own expiry, and it held the job past every reconcile.
+        raise JobTransitionError(
+            f"seq {seq}: {job.job_id!r} is handed out under a lease running "
+            f"to seq {payload['lease_expires_after_seq']}, past the "
+            f"{MAX_LEASE_SEQS} positions one grant of possession may reach")
+
+
+#: The transition fields that are positions or counts (AUD-071).
+_WHOLE_FIELDS = ("lease_expires_after_seq", "backoff_until_seq", "attempts",
+                 "lease_renewals")
+
+
+def _whole(value) -> bool:
+    """An int that is not a bool: a position or a count."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _job_state(value, seq: int, which: str) -> JobState:
+    """A record's state name as a JobState, or the refusal that it names
+    none. JobState() raised its own ValueError out of the fold (AUD-071)."""
+    try:
+        return JobState(value)
+    except (ValueError, TypeError):
+        raise JobTransitionError(
+            f"seq {seq}: the record's {which} is {value!r}, which is not a "
+            "job state") from None
 
 
 def _apply_edge(job: Job, edge: JobEdge, payload: dict, *, seq: int) -> Job:
@@ -1875,6 +2004,24 @@ def job_from_record(rec: dict) -> Job:
         raise SchedulerError(
             f"job record carries unknown fields {sorted(unknown)}; refusing "
             "to project a job this version does not fully understand")
+    named = rec.get("job_id")
+    if not isinstance(named, str) or not named:
+        # A job id is a key of every map this module keeps; a list there
+        # raised TypeError out of the fold (AUD-071).
+        raise SchedulerError(
+            f"job record names job_id {named!r}; a job is named by a "
+            "non-empty str")
+    for name, form in (("depends_on", list),
+                       ("requires_evidence", list),
+                       ("resources", dict)):
+        if name in rec and not isinstance(rec[name], form):
+            # In the form the writer writes (AUD-071). Converted, a
+            # dependency list written as a string named each of its letters,
+            # one written as a map named its keys, and a resource map written
+            # as pairs was taken for the map.
+            raise SchedulerError(
+                f"job record's {name} is {type(rec[name]).__name__}; the "
+                f"writer writes a {form.__name__}")
     try:
         return Job(
             job_id=rec["job_id"], work_digest=rec["work_digest"],

@@ -2309,6 +2309,133 @@
    "residual_risk": "Rated P2: a read trail is read by an investigation and authorizes nothing; the change is that a read the read path refused no longer reads as ordinary traffic. The mint side was already checked; this is the use side, as AUD-058's egress case was.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-068",
+   "title": "The scheduler's replay took an enqueue its writer refuses: a resource need or a citation of any kind, so one record stopped the queue or cancelled its capacity",
+   "severity": "P2",
+   "subsystem": "the scheduler: replay of an enqueue",
+   "files": [
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "Scheduler._reauthorize_enqueue"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_sub_enqueue"
+    }
+   ],
+   "behavior": "enqueue() refuses a resource need that is not a whole, non-negative number of a named resource, and a citation that is not a sha256 digest. _reauthorize_enqueue restates the writer's other rules on replay and not these two, so an enqueue appended directly, by its own submitter, became state. One whose need was a string, or whose citation was a number, made readiness -- documented as total -- raise TypeError, so ready_queue() and reconcile() raised for the whole queue, reconcile stopping at that job. One whose need was -5 slots cancelled other jobs' use of the capacity: at a capacity of two slots, five jobs were dispatched at once, and the in-flight count read -1. The second reader asked nothing of either, nor of an enqueue's lease end or of what a job waits on: an enqueue naming a lease end, or waiting on a job never enqueued, on a cancelled one or on more jobs than the scheduler allows, read clean there, though the primary refuses each.",
+   "invariant": "A record the writer refuses is refused on replay; readiness answers for every job replay admits.",
+   "mechanism": "The enqueue's validation of resources and citations lived on the write path alone; capacity is rightly not re-checked on replay, and the type of a need went with it.",
+   "reproduction": "At c82541e: an enqueue appended directly by its submitter with resources {'slots': 'many'} loads; ready_queue() and reconcile() raise TypeError. With requires_evidence [7], reconcile() raises TypeError. With resources {'slots': -5} at a capacity of 2, dispatch() hands out that job and four more; in_flight_resources() is {'slots': -1}. The writer refuses each of the three. And at c82541e, enqueues appended directly naming a lease end of 7, a dependency never enqueued, a cancelled dependency, or 65 dependencies, each refused by load(), are folded by reconstruct_subsystems with no anomaly.",
+   "observed": "Found reading agent_substrate/scheduler.py in full, comparing each enqueue() refusal with what _reauthorize_enqueue restates.",
+   "expected": "Each such record refused on replay at its position, as the writer refuses it.",
+   "correction": "_reauthorize_enqueue refuses a citation that is not a digest, a need that is not a whole, non-negative number of a resource named by a non-empty str, and a capability, idempotency key or task named by anything but a str. The writer's dry run refuses the same before anything is written. The second reader restates the citation and need rules in _sub_enqueue, and the enqueue's lease end and what a job waits on: a list of at most the scheduler's bound of jobs, each enqueued before it and each still able to succeed, derived from its own edge table. Capacity is still not re-checked: it is the replaying executor's.",
+   "regression_tests": [
+    "tests/test_scheduler_replay_rules.py::test_an_enqueue_its_writer_refuses_is_refused_on_replay",
+    "tests/test_scheduler_replay_rules.py::test_a_negative_need_no_longer_hands_out_more_than_the_capacity",
+    "tests/test_scheduler_replay_rules.py::test_a_genuine_need_and_citation_replay_on_a_smaller_executor",
+    "tests/test_scheduler_replay_rules.py::test_an_enqueue_the_primary_refuses_is_refused_by_both_readers",
+    "tests/test_scheduler_replay_rules.py::test_both_readers_bound_how_many_jobs_one_waits_on",
+    "tests/test_scheduler_replay_rules.py::test_an_enqueue_waiting_on_a_genuine_job_replays_in_both_readers"
+   ],
+   "residual_risk": "A refused record makes the history unloadable for the scheduler, as every record its reducer refuses does: fail closed, by the module's design, naming the record.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-069",
+   "title": "No grant of possession was bounded in length, and a dispatch record named its own lease end, so the renewal bound bounded nothing",
+   "severity": "P2",
+   "subsystem": "the scheduler: leases",
+   "files": [
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "MAX_LEASE_SEQS, Scheduler.dispatch, Scheduler._apply_renewal, reauthorize_job_edge"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_sub_job_transition, _sub_lease_renew"
+    }
+   ],
+   "behavior": "A lease may be renewed MAX_LEASE_RENEWALS (16) times, 'otherwise a worker holds the job forever by asking often enough, which is the same as no lease'. Neither dispatch() nor a renewal bounded the length it asked for: dispatch() with lease_seqs 10**15 and one renewal of 10**15 were both accepted. A renewal's end is computed from its position because 'a record that named its own expiry could name any'; a dispatch's end was taken from its record by both readers, and a dispatch record appended by another principal, naming itself the holder and an end of 2**62, replayed in both. reconcile() never reclaimed the job: the handover edges are refused while a lease is live, and this one did not lapse.",
+   "invariant": "A lease is a deadline: each grant of possession reaches a bounded distance, so the renewal count bounds how long an attempt holds its job.",
+   "mechanism": "The bound was put on the number of extensions and not on their length, and the end a dispatch names was read rather than judged.",
+   "reproduction": "At c82541e: dispatch(lease_seqs=10**15) returns a lease ending at 10**15 + 3; renew_lease(lease_seqs=10**15) extends one to 10**15 + 4; a READY -> DISPATCHED record by 'mallory' naming herself holder and lease_expires_after_seq 2**62 loads, reconcile() leaves the job DISPATCHED, and the second reader records nothing.",
+   "observed": "Found reading agent_substrate/scheduler.py in full, following MAX_LEASE_RENEWALS to what it bounds.",
+   "expected": "A grant past a stated bound refused at the writer and on replay, in both readers.",
+   "correction": "MAX_LEASE_SEQS (1,000,000 positions) bounds one grant: dispatch() and a renewal refuse a longer one, and replay refuses a dispatch whose lease ends farther than that past its own position -- the writer's end, at + 1 + lease_seqs, lands no farther than lease_seqs past its record. With MAX_LEASE_RENEWALS no attempt holds a job for more than 17,000,000 positions past its dispatch. The second reader restates the bound on both.",
+   "regression_tests": [
+    "tests/test_scheduler_replay_rules.py::test_dispatch_hands_out_no_lease_past_the_bound",
+    "tests/test_scheduler_replay_rules.py::test_a_renewal_reaches_no_farther_than_the_bound",
+    "tests/test_scheduler_replay_rules.py::test_a_renewal_at_the_bound_replays_in_both_readers",
+    "tests/test_scheduler_replay_rules.py::test_a_dispatch_record_naming_its_own_end_is_refused",
+    "tests/test_scheduler_replay_rules.py::test_a_dispatch_record_with_an_end_the_writer_could_write_replays"
+   ],
+   "residual_risk": "The bound is a number this module states, not one a deployment sets; the governed path asks for 400. Who may dispatch is asked by neither reader (see the progress record): the control here replays a dispatch by any principal to itself.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-070",
+   "title": "A priority the writer refuses was taken on replay by conversion, and the second reader checked no priority at all",
+   "severity": "P2",
+   "subsystem": "the scheduler: priority",
+   "files": [
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "Scheduler.apply on scheduler.priority"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_sub_priority, _sub_enqueue"
+    }
+   ],
+   "behavior": "set_priority() refuses a priority that is not an int, or one outside [0, 9]. Replay read the record's through int() before checking it, so '0', 0.7 and True became priorities 0, 0 and 1, and 'abc' raised ValueError out of the fold. The second reader took every priority as written, at an enqueue or a change, so a history the primary refuses to load for a priority of 99 or -1 read clean there.",
+   "invariant": "Replay takes a priority in the form its writer writes; the second reader refuses what the primary refuses.",
+   "mechanism": "A conversion ahead of the check, and a second reader that stored the field without restating its rule.",
+   "reproduction": "At c82541e: a scheduler.priority record with priority '0', 0.7 or True replays as 0, 0, 1; set_priority refuses each. With 99 or -1 the primary refuses the history and reconstruct_subsystems records no anomaly.",
+   "observed": "Found reading agent_substrate/scheduler.py in full.",
+   "expected": "Each refused by the primary as its writer refuses it, and noted by the second reader.",
+   "correction": "Replay checks the record's priority as written (an int, not a bool, in bounds) with no conversion. The second reader restates the form and the bounds at an enqueue and at a change, notes a priority outside them and leaves the job's as it was.",
+   "regression_tests": [
+    "tests/test_scheduler_replay_rules.py::test_a_priority_the_writer_refuses_is_refused_on_replay",
+    "tests/test_scheduler_replay_rules.py::test_the_second_reader_refuses_a_priority_the_primary_refuses",
+    "tests/test_scheduler_replay_rules.py::test_the_second_reader_refuses_an_enqueue_at_a_priority_out_of_range",
+    "tests/test_scheduler_replay_rules.py::test_a_raise_the_policy_allows_replays_in_both_readers"
+   ],
+   "residual_risk": "Whether a raise was the policy's to allow is not restated by the second reader: the scheduler asks the policy its constructor names, and the log does not name it.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-071",
+   "title": "Malformed scheduler records raised KeyError, ValueError or TypeError out of the reducer, or were taken by conversion",
+   "severity": "P3",
+   "subsystem": "the scheduler: replay of malformed records",
+   "files": [
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "Scheduler.apply, _named_job, _apply_renewal, _reauthorize_enqueue, reauthorize_job_edge, job_from_record"
+    }
+   ],
+   "behavior": "Every refusal the scheduler's reducer makes is a SchedulerError naming the record's position. Twelve malformed records raised something else out of load(): an enqueue with no job and a transition or priority change for a job never enqueued (KeyError); a transition with no source (KeyError) or from a state that is none (ValueError); a priority of 'abc' (ValueError) or None (TypeError); attempts or a backoff of 'x' (ValueError); a dependency or an idempotency key that is a list (TypeError); an enqueue whose lease end is 'x' (TypeError). A position or count written as '7' or True was taken by conversion, and so were a dependency or citation list written as a map, taken for its keys, and a resource map written as pairs; a dependency list written as a string was read as its letters.",
+   "invariant": "The reducer refuses a record in its own words, at the record's position.",
+   "mechanism": "Payload fields read by subscript, int() and JobState() ahead of any check: AUD-058's class, in another reducer.",
+   "reproduction": "At c82541e, each by one record appended directly to a scheduler's log and a fresh load(); the regression tests below hold each.",
+   "observed": "Found reading agent_substrate/scheduler.py in full.",
+   "expected": "A SchedulerError naming the position, for each.",
+   "correction": "A record's job is looked up through _named_job (UnknownJob), its states through _job_state, its positions and counts are ints as written (not converted), a job's id, dependencies and keys are strs, an enqueue's lease end is an int, its dependency and citation lists and its resource map are the list and the map the writer writes, and a malformed enqueue is refused at its position.",
+   "regression_tests": [
+    "tests/test_scheduler_replay_rules.py::test_a_malformed_record_is_refused_in_the_reducers_words",
+    "tests/test_scheduler_replay_rules.py::test_an_enqueue_the_primary_refuses_is_refused_by_both_readers",
+    "tests/test_scheduler_replay_rules.py::test_an_enqueue_naming_something_by_a_non_id_is_refused",
+    "tests/test_scheduler_replay_rules.py::test_the_writer_refuses_an_idempotency_key_that_is_not_a_str"
+   ],
+   "residual_risk": "None known; the second reader never raises (AUD-047).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 661,
+   "ADDED": 663,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 235,
-   "MEDIUM": 372
+   "LOW": 236,
+   "MEDIUM": 373
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 147,
+   "assurance": 148,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 210,
+   "tests": 211,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 693
+  "files": 695
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -625,6 +625,7 @@
      "tests/test_resolution_bound.py",
      "tests/test_restated_authentication.py",
      "tests/test_role_authority.py",
+     "tests/test_scheduler_replay_rules.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
@@ -982,6 +983,7 @@
      "tests/test_proposal_ingress.py",
      "tests/test_refused_fold.py",
      "tests/test_research_ledger.py",
+     "tests/test_scheduler_replay_rules.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_signed_append_lifecycle.py",
@@ -1271,6 +1273,7 @@
      "tests/test_resolution_bound.py",
      "tests/test_restated_authentication.py",
      "tests/test_role_authority.py",
+     "tests/test_scheduler_replay_rules.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
@@ -1902,6 +1905,7 @@
      "tests/test_refused_fold.py",
      "tests/test_research_loop.py",
      "tests/test_role_authority.py",
+     "tests/test_scheduler_replay_rules.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_second_reader_rules.py",
      "tests/test_unknown_actions.py"
@@ -2110,6 +2114,7 @@
      "tools/mutations/research.json",
      "tools/mutations/resolution_bound.json",
      "tools/mutations/role_authority.json",
+     "tools/mutations/scheduler_replay_rules.json",
      "tools/mutations/scientific_authority_replay.json",
      "tools/mutations/second_reader_audit_actions.json",
      "tools/mutations/second_reader_rules.json",
@@ -2168,6 +2173,7 @@
      "tests/test_research_loop.py",
      "tests/test_resolution_bound.py",
      "tests/test_role_authority.py",
+     "tests/test_scheduler_replay_rules.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
@@ -2346,6 +2352,7 @@
      "tools/mutations/agent_scheduler.json",
      "tools/mutations/agent_snapshot_coherence.json",
      "tools/mutations/performance_counters.json",
+     "tools/mutations/scheduler_replay_rules.json",
      "tools/mutations/t2_closure.json",
      "tools/mutations/unknown_actions.json"
     ],
@@ -2372,6 +2379,7 @@
      "tests/test_generated_mutations.py",
      "tests/test_model_check.py",
      "tests/test_refused_fold.py",
+     "tests/test_scheduler_replay_rules.py",
      "tests/test_security_findings.py",
      "tests/test_unknown_actions.py"
     ]
@@ -8695,6 +8703,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_scheduler_replay_rules.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_scientific_authority_replay.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -11525,6 +11550,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/run_identity_backend.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/scheduler_replay_rules.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",

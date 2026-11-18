@@ -1448,7 +1448,8 @@ def test_the_second_reader_refuses_a_move_the_machine_does_not_have(tmp_path):
     log = EventLog(tmp_path / "invented.jsonl")
     log.append(actor="sched", action="scheduler.enqueue", target="j1",
                payload={"job": {"job_id": "j1", "state": "WAITING",
-                                "submitter": "sched", "max_attempts": 3,
+                                "submitter": "sched", "priority": 9,
+                                "max_attempts": 3,
                                 "attempts": 0, "depends_on": []}})
     log.append(actor="sched", action="scheduler.transition", target="j1",
                payload={"job_id": "j1", "src": "WAITING", "dst": "SUCCEEDED"})
@@ -1467,7 +1468,8 @@ def test_the_second_reader_folds_a_move_the_machine_does_have(tmp_path):
     log = EventLog(tmp_path / "honest.jsonl")
     log.append(actor="sched", action="scheduler.enqueue", target="j1",
                payload={"job": {"job_id": "j1", "state": "WAITING",
-                                "submitter": "sched", "max_attempts": 3,
+                                "submitter": "sched", "priority": 9,
+                                "max_attempts": 3,
                                 "attempts": 0, "depends_on": []}})
     log.append(actor="sched", action="scheduler.transition", target="j1",
                payload={"job_id": "j1", "src": "WAITING", "dst": "READY"})

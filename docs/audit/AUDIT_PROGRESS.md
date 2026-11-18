@@ -4566,3 +4566,103 @@ other specs that hold one. All were killed and every source restored.
 - A capability expiry that is not an integer reads in the second reader
   as one that never expires. The capability ledger builds every grant
   through its validating constructor. Not reproduced.
+
+### Stage 5, fourteenth pass: the scheduler read in full (AUD-068 to AUD-071)
+
+`agent_substrate/scheduler.py`, read in part until now (its catch-up
+paths and the position bookkeeping), was read in full at c82541e, all
+1,901 lines, beside the second reader's scheduler rules. The questions
+the previous pass left for it are settled below. Four defects were
+reproduced, each a rule the writer held and its replay did not.
+
+**AUD-068 (P2), fixed.** `enqueue()` refuses a resource need that is
+not a whole, non-negative number of a named resource, and a citation
+that is not a digest; replay restated neither. An enqueue appended by
+its own submitter with a need of `'many'` slots made readiness, which
+is documented as total, raise, so `ready_queue()` and `reconcile()`
+raised for the whole queue. One needing -5 slots let five jobs be
+dispatched at a capacity of two. Both are refused on replay now, at
+their position, and the second reader restates both. It also read clean
+an enqueue naming a lease end, or waiting on a job never enqueued, on a
+cancelled one or on more jobs than the scheduler allows, all of which
+the primary refuses; it restates those rules now too.
+
+**AUD-069 (P2), fixed.** A lease may be renewed sixteen times, and
+nothing bounded how far one grant reached: `dispatch()` and a renewal
+each took 10**15 positions, and both readers took a dispatch's end from
+its record, so a dispatch appended by another principal, naming itself
+the holder and an end of 2**62, held the job past every reconcile.
+`MAX_LEASE_SEQS`, a million positions, now bounds one grant at the
+writer and on replay in both readers, so no attempt holds a job past
+seventeen million positions from its dispatch.
+
+**AUD-070 (P2), fixed.** Replay converted a priority with `int()` before
+checking it, so `'0'`, 0.7 and True were priorities the writer refuses;
+the second reader took any, so a history the primary refuses for a
+priority of 99 read clean there. Replay takes the form as written now,
+and the second reader restates the form and the bounds.
+
+**AUD-071 (P3), fixed.** Twelve malformed records raised KeyError,
+ValueError or TypeError out of the reducer, AUD-058's class again; a
+position or a count written as `'7'` or True was taken by conversion,
+and so were a dependency or citation list written as a map, and a
+resource map written as pairs. Each is refused in the reducer's words,
+at its position.
+
+**The previous pass's questions.**
+
+- Who dispatches a job is asked by neither reader, nor by the writer.
+  `dispatch()` takes its actor as given, and readiness asks the dispatch
+  policy about the job's submitter rather than about whoever dispatches.
+  A principal that can append a scheduler record can hand a READY job
+  to itself and, as its holder, report it SUCCEEDED. Under both shipped
+  policies every principal may dispatch, so no refusal is bypassed
+  today. A job's state moves the queue only: an admission asks the task
+  machine's verified tasks, not the scheduler's jobs. Whether a dispatch
+  is bound to a principal is an owner decision.
+- A lease's end and one renewal's length were bounded nowhere: AUD-069.
+- A priority change: the primary re-runs the policy gate on a raise at
+  the position it was made. The second reader cannot, because the policy
+  the scheduler asks is its constructor's and the log does not name it;
+  it now restates the form and the bounds (AUD-070).
+
+**Tests.** `tests/test_scheduler_replay_rules.py`, new, 56 tests. On
+the previous pass's tree, with the bound supplied where the constant is
+new, 51 of them fail; the 5 controls pass. Two existing cases met the
+restated rules: `tests/test_agent_differential.py` enqueued a job with no
+priority in its reproducer of D-2026-38 and in that reproducer's
+anti-vacuity control, and the second reader now refuses such an
+enqueue, as the primary does. Each now enqueues at priority 9, as the
+writer writes it, and asks what it asked before.
+
+**Mutations.** Thirty-six, in a new spec, `scheduler_replay_rules`:
+SK1 to SK6 the enqueue, SK7 to SK10 the bound on one grant, SK11 a
+priority's form, SK12 to SK18 the malformed records, SK19 to SK26 the
+second reader, SK27 to SK30 an enqueue's lease end and the forms of its
+lists and its map, and SK31 to SK36 the second reader's rules for an
+enqueue's lease end and what a job waits on. No existing anchor moved. The shard plan was regenerated
+for 148 specs.
+
+Run here, on this commit's tree: 156 mutations in 12 specs. That is
+`scheduler_replay_rules` whole, 36; `mutation_shards` whole, 12; and
+every other mutation anchored in `scheduler.py`, 91, in the second
+reader's scheduler rules, 16, or in the import list's test, 1, in the
+ten other specs that hold one. All were killed and every source
+restored.
+
+**What is not established.**
+
+- Who cancels is asked on the write path alone, as who dispatches is:
+  the `scheduler.cancel` gate is not re-run on replay. Both shipped
+  policies allow every principal to cancel.
+- The dependency half of readiness is not re-derived on replay: a
+  dispatch of a job whose dependency has not succeeded is accepted by
+  both readers, though the writer's `dispatch()` re-checks it. The
+  evidence, capability and policy halves cannot be re-derived by a
+  reducer that holds no resolver, capability set or policy binding.
+- Lowering a priority needs no reason on replay, where `set_priority`
+  asks one for every change. Not changed.
+- `dispatch()` computes a lease's end from the position it read before
+  taking the writer's lock, so under contention the lease is shorter
+  than asked by the records appended between. Not changed; the bound
+  holds for every end the writer can compute.

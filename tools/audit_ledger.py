@@ -200,7 +200,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                # What a capture is, and the second reader's rules
                # (AUD-062 to AUD-067).
                "tests/test_second_reader_rules.py",
-               "tools/mutations/second_reader_rules.json")
+               "tools/mutations/second_reader_rules.json",
+               # The scheduler's replay rules (AUD-068 to AUD-071).
+               "tests/test_scheduler_replay_rules.py",
+               "tools/mutations/scheduler_replay_rules.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

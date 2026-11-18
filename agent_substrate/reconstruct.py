@@ -2675,6 +2675,55 @@ def _sub_enqueue(ev, p: dict, out) -> None:
     if job.get("lease_holder") or job.get("lease_id"):
         _note(out, ev, f"job {jid!r} is enqueued already holding a lease")
         return
+    end = job.get("lease_expires_after_seq", -1)
+    if isinstance(end, bool) or not isinstance(end, int) or end >= 0:
+        # Restated (AUD-068): the scheduler refuses an enqueue naming a
+        # lease end, as it refuses one naming a holder; ownership, and how
+        # long it lasts, are taken at dispatch.
+        _note(out, ev, f"job {jid!r} is enqueued with a lease running to "
+                       f"{end!r}; a lease is taken at dispatch")
+        return
+    # What the scheduler's enqueue refuses, restated (AUD-068, AUD-070): a
+    # priority that is not a whole number from 0 to 9, a citation that is
+    # not a digest, a resource need that is not a whole, non-negative number
+    # of a named resource. The primary refuses a history holding one; a
+    # second reader that read it clean would be the only one left reading.
+    if not _job_priority_ok(job.get("priority")):
+        _note(out, ev, f"job {jid!r} is enqueued at priority "
+                       f"{job.get('priority')!r}; a priority is a whole "
+                       "number from 0 to 9")
+        return
+    cited = job.get("requires_evidence", [])
+    if not isinstance(cited, list) or not all(_is_digest(c) for c in cited):
+        _note(out, ev, f"job {jid!r} cites {cited!r}; what a job waits on is "
+                       "named by sha256 digests")
+        return
+    needs = job.get("resources", {})
+    if not isinstance(needs, dict) or not all(
+            isinstance(k, str) and k and isinstance(v, int)
+            and not isinstance(v, bool) and v >= 0
+            for k, v in needs.items()):
+        _note(out, ev, f"job {jid!r} declares the need {needs!r}; a need is "
+                       "a whole, non-negative number of a named resource")
+        return
+    # What a job waits on, restated (AUD-068): the scheduler refuses an
+    # enqueue whose dependencies are not a list of at most
+    # _MAX_JOB_DEPENDENCIES jobs, each enqueued before it and each still
+    # able to succeed. A dependency the primary refuses was read clean here.
+    deps = job.get("depends_on", [])
+    if not isinstance(deps, list) or len(deps) > _MAX_JOB_DEPENDENCIES:
+        _note(out, ev, f"job {jid!r} depends on {deps!r}; dependencies are "
+                       f"a list of at most {_MAX_JOB_DEPENDENCIES} job ids")
+        return
+    for dep in deps:
+        if not isinstance(dep, str) or dep not in out.jobs:
+            _note(out, ev, f"job {jid!r} depends on {dep!r}, which no "
+                           "enqueue before it introduced")
+            return
+        if out.jobs[dep]["state"] not in _JOB_CAN_SUCCEED:
+            _note(out, ev, f"job {jid!r} depends on {dep!r}, which is "
+                           f"{out.jobs[dep]['state']} and can never succeed")
+            return
     # The retry budget arrives here or nowhere. A job whose enqueue does not
     # state a whole, positive bound has no bound this reader can hold it to,
     # and saying so is better than quietly substituting a default that the
@@ -2796,6 +2845,18 @@ def _sub_job_transition(ev, p: dict, out) -> None:
                        "it is taken when the work is handed out and dropped "
                        "on the way back, never granted in passing")
         return
+    if src == "READY" and dst == "DISPATCHED":
+        # How far the possession handed out here reaches (AUD-069). The
+        # writer's end lands at most lease_seqs past the record; one reaching
+        # farther than any grant may names its own expiry.
+        reach = p.get("lease_expires_after_seq", -1)
+        if isinstance(reach, bool) or not isinstance(reach, int) or \
+                reach - ev.seq > _MAX_LEASE_SEQS:
+            _note(out, ev, f"job {jid!r} is handed out under a lease to seq "
+                           f"{reach!r}; one grant of possession reaches at "
+                           f"most {_MAX_LEASE_SEQS} positions past the record "
+                           "that makes it")
+            return
 
     cur["state"] = dst
     if "lease_holder" in p:
@@ -2829,6 +2890,44 @@ def _sub_job_transition(ev, p: dict, out) -> None:
 #: reconsidered. Restated rather than imported: if the scheduler's bound and
 #: this one drifted apart, the divergence is the finding.
 _MAX_LEASE_RENEWALS = 16
+
+#: The farthest one grant of possession reaches: a dispatch's lease, or one
+#: renewal's extension (AUD-069). Restated rather than imported, like the
+#: count above: the count bounds possession only while each grant is
+#: bounded too.
+_MAX_LEASE_SEQS = 1_000_000
+
+#: The priorities a job may have, restated rather than imported (AUD-070).
+_JOB_PRIORITIES = range(0, 10)
+
+
+def _job_priority_ok(value) -> bool:
+    """A whole number from 0 to 9: what the scheduler writes."""
+    return isinstance(value, int) and not isinstance(value, bool) and \
+        value in _JOB_PRIORITIES
+
+
+#: The most jobs one job may wait on, restated rather than imported (the
+#: scheduler's MAX_DEPENDENCIES; AUD-068).
+_MAX_JOB_DEPENDENCIES = 64
+
+
+def _job_can_still_succeed() -> frozenset:
+    """The job states from which SUCCEEDED is still reachable over
+    _JOB_EDGES, by backward search, as the scheduler derives its own
+    CAN_STILL_SUCCEED (AUD-068)."""
+    reach = {"SUCCEEDED"}
+    changed = True
+    while changed:
+        changed = False
+        for src, dst in _JOB_EDGES:
+            if dst in reach and src not in reach:
+                reach.add(src)
+                changed = True
+    return frozenset(reach)
+
+
+_JOB_CAN_SUCCEED = _job_can_still_succeed()
 
 
 def _sub_lease_renew(ev, p: dict, out) -> None:
@@ -2873,6 +2972,10 @@ def _sub_lease_renew(ev, p: dict, out) -> None:
     if not isinstance(seqs, int) or isinstance(seqs, bool) or seqs < 1:
         _note(out, ev, f"lease_seqs on {jid!r} is {seqs!r}")
         return
+    if seqs > _MAX_LEASE_SEQS:
+        _note(out, ev, f"a renewal of {seqs} positions on {jid!r} reaches "
+                       f"past the {_MAX_LEASE_SEQS} one grant may")
+        return
     new_end = ev.seq + seqs
     if new_end <= end:
         _note(out, ev, f"renewing {jid!r} to {new_end} would not extend a "
@@ -2888,7 +2991,16 @@ def _sub_priority(ev, p: dict, out) -> None:
     if cur is None:
         _note(out, ev, f"priority change for unknown job {jid!r}")
         return
-    cur["priority"] = p.get("priority")
+    # Restated (AUD-070): the primary refuses a priority that is not a whole
+    # number from 0 to 9, so a history holding one is read by nobody else.
+    # Whether a raise was the policy's to allow is not restated: the policy
+    # the scheduler asks is its constructor's, which the log does not name.
+    new = p.get("priority")
+    if not _job_priority_ok(new):
+        _note(out, ev, f"job {jid!r} is given priority {new!r}; a priority "
+                       "is a whole number from 0 to 9")
+        return
+    cur["priority"] = new
 
 
 def _sub_policy_publish(ev, p: dict, out) -> None:
