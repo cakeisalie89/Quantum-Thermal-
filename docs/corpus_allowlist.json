@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "e5d4b9c9908fe724a3a045b09ec1ce87dd6da03eb4e8bf9a279622fd033a6c99",
+  "entries_digest": "c95359855ad13fce49b8f26627b6a7bd0076aa65770719fd729f5b897aecad8a",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -26,7 +26,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "654af379738b653a36ad6a6cbe4014d773648242f680cbaf35eebe9790b48771"
+      "sha256": "db882d944f3d4e9fe7391b168db062343c703ddbf681c93a017df38ca1a91277"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -38,7 +38,7 @@
     },
     {
       "path": "MANIFEST_BOUNDARY.md",
-      "sha256": "45a2014b46b923a61d9e3dcae86db617e922dff17555bcc5f76aa9a2ab818e82"
+      "sha256": "571ebce4b2aa31b0eff1fac7c6f959095c9412a2b93750dde6bcf1fe5a684f24"
     },
     {
       "path": "NEURAL_SUBSTRATE.md",
@@ -54,7 +54,7 @@
     },
     {
       "path": "RO_CRATE_PROFILE.md",
-      "sha256": "3f6c34f590874b3fe26cafd89d09b1be401fff567c5a311992542ed99eacd845"
+      "sha256": "403ecb16a811eda30c1a4649955c8a7b163f7eb4b3d160a0df11b1fc1936b8e7"
     },
     {
       "path": "SCIENTIFIC_AI_STATUS.md",
@@ -98,11 +98,11 @@
     },
     {
       "path": "docs/audit/AUDIT_PROGRESS.md",
-      "sha256": "47b00708abc9ed224eb0806fd48a464f7224017a22c1facb8f16b37c0e22631a"
+      "sha256": "054199b783d93b75260c95b6f0c8e0010d22a5ed5771e4ca1ce877ea17a06795"
     },
     {
       "path": "docs/audit/AUDIT_REPORT.md",
-      "sha256": "a3e4dab222b85bf18e0905a00ae7d799dbd4840d5c9606cd753ab6fc90bdfa25"
+      "sha256": "4d57b3da01710d055e2d633a6c471cd3a64d844d0b30ce4d995ff5d633fe46bb"
     },
     {
       "path": "docs/formal/README.md",

@@ -21,16 +21,16 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 | pytest-hypothesis | ADOPTED | R50 (COMPLETE, PREDATES), R51 (COMPLETE, PREDATES) | NO |
 | python-scientific-core | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | rag-read-only | ADOPTED | R35 (COMPLETE, PREDATES) | NO |
-| ro-crate | ADOPTED | R65 (COMPLETE, COVERS) | yes |
+| ro-crate | ADOPTED | R65 (COMPLETE, PREDATES) | NO |
 | ruff-mypy-pydantic | ADOPTED | R70 (COMPLETE, PREDATES) | NO |
 | salib | ADOPTED | R72 (COMPLETE, COVERS) | yes |
-| slsa-sigstore | ADOPTED | R65 (COMPLETE, COVERS) | yes |
+| slsa-sigstore | ADOPTED | R65 (COMPLETE, PREDATES) | NO |
 | snakemake | ADOPTED | R55 (COMPLETE, PREDATES), R69 (COMPLETE, COVERS) | NO |
 | uv | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 
 ## Completion matrix
 
-49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 6, PREDATES_CURRENT_IMPLEMENTATION 43.
+49 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 49. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 5, PREDATES_CURRENT_IMPLEMENTATION 44.
 
 ## Audits
 
@@ -45,7 +45,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * flagship_not_allocated_or_trained: holds
 * flagship_architecture_as_declared: holds
 
-## Unsatisfied (54)
+## Unsatisfied (57)
 
 * stack authority-substrate: ADOPTED
 * stack containers: ADOPTED
@@ -56,7 +56,9 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * stack proposal-ingress: ADOPTED
 * stack pytest-hypothesis: ADOPTED
 * stack rag-read-only: ADOPTED
+* stack ro-crate: ADOPTED
 * stack ruff-mypy-pydantic: ADOPTED
+* stack slsa-sigstore: ADOPTED
 * stack snakemake: ADOPTED
 * row R21: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R22: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
@@ -98,6 +100,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * row R62: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R63: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R64: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R65: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R66: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R70: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 * row R71: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps

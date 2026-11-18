@@ -54,16 +54,35 @@ that a derived artifact describes:
 
 ```
 python tools/neural.py status                  # the learned-model status documents
+python tools/typecheck_scope.py write          # the type-checked scope
+python tools/pr_inventory.py derive            # the pull request's inventory
 python tools/repo_inventory.py derive          # the forensic inventory's dispositions
 python tools/repo_content_audit.py --write     # the content audit of the tree
+python tools/model_evidence.py derive          # the scientific models' evidence
 python tools/harness_status.py derive          # reads the content audit's report
 python tools/corpus_allowlist.py --write       # digests both status documents
+python tools/audit_ledger.py derive            # the audit's ledger of the pull request
 python ro_crate_tools.py                       # the crate hashes the above
-python generate_manifest.py                    # hashes everything, so it is last
+python generate_manifest.py                    # hashes everything, the crate too
+python ro_crate_tools.py                       # again: the crate states the manifest's size
+python generate_manifest.py                    # again: the manifest hashes the crate
 ```
 
-The manifest covers tracked files only: stage a new file before the last
-step, or it is reported as untracked rather than hashed.
+The crate and the manifest describe each other: the crate states the
+manifest's size, and the manifest hashes the crate. The first pair leaves
+the crate stating the size the manifest had before it was regenerated.
+Repeat the pair until `ro_crate_tools.py validate` and
+`generate_manifest.py --check` both pass; the second settles both unless
+a size gains a digit. Run once, the chain left the committed crate
+stating the manifest 370 bytes short, and nothing compared the two
+(AUD-076): the validator checks every size the crate states now. The
+list once named seven of the ten generators that rewrite a tracked file
+on every change, and not the audit's ledger; a test holds it to
+`tools/audit_ledger.py`'s table of them.
+
+The manifest and the audit's ledger read git's index: stage every change
+before them (`git add -A`), or a new file is reported as untracked rather
+than hashed, and the ledger describes the index rather than the tree.
 
 `ro_crate_tools.py validate` writes its verdict under `verification/`, which
 is untracked, so it can run in any order. Then verify, in any order — these

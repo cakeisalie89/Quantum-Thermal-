@@ -2543,6 +2543,93 @@
    "residual_risk": "Under a registry any principal that can append a record, and under a governed history any that holds a key, can reject, cancel or time out any task, take its lease or return it to the queue, and withdraw any verified task and with it every result resting on it. None of this forges a verdict: nothing it reaches moves a task or a result to VERIFIED.",
    "verification": "REPRODUCED",
    "resolution": "OWNER"
+  },
+  {
+   "id": "AUD-076",
+   "title": "The crate stated the manifest's size from before its last regeneration, and nothing compared a stated size with its file",
+   "severity": "P2",
+   "subsystem": "provenance: the RO-Crate and the regeneration chain",
+   "files": [
+    {
+     "path": "ro_crate_tools.py",
+     "lines": "validate, the check of each data entity; build"
+    },
+    {
+     "path": "MANIFEST_BOUNDARY.md",
+     "lines": "section 4, the regeneration order"
+    },
+    {
+     "path": "RO_CRATE_PROFILE.md",
+     "lines": "the data entities"
+    }
+   ],
+   "behavior": "ro-crate/ro-crate-metadata.json states each data entity's contentSize, the manifest's among them. The manifest hashes the crate, so the crate carries no checksum for final_manifest.json or manifest_hash.txt. The documented regeneration order (MANIFEST_BOUNDARY.md section 4) built the crate and then the manifest, so whenever the manifest's size changed the crate stated the size it had before. At the head of the pull request, 9a918a1, the committed crate stated 123,680 bytes for a 124,050-byte manifest. Of the forty latest commits on the branch's first-parent line, six were committed so: 97448ba, fd67b01, 2d1772f, 219f377, 6b12aef and 9a918a1. ro_crate_tools.py validate compared no stated size with its file, for the manifest pair or for any other file, and said VALID; a crate stating uv.lock as one byte validated. MANIFEST_BOUNDARY.md said that a mis-ordered regeneration fails the container rather than shipping, and RO_CRATE_PROFILE.md that every data entity carries its size. The order the document gave shipped a false size, and nothing failed. The same section named seven of the ten generators that rewrite a tracked file on every change: tools/typecheck_scope.py, tools/pr_inventory.py and tools/model_evidence.py were not in it, and neither was the audit's ledger.",
+   "invariant": "Every size the crate states is its file's, and the committed derived files are a fixed point of their generators.",
+   "mechanism": "The crate and the manifest describe each other: the crate states the manifest's size, and the manifest hashes the crate. The chain ran each once, the crate first. The validator checked no size, and for the manifest pair checked only that the files exist.",
+   "reproduction": "At 9a918a1 the crate's contentSize for final_manifest.json is 123680, the file 124,050 bytes, and ro_crate_tools.py validate prints RESULT: VALID. One run of the documented chain in a clean worktree at 9a918a1 changes three files: the crate's size of the manifest, and the manifest's and the detached hash's records of the crate. A second run changes nothing. A crate stating uv.lock as 1 byte, or the manifest as 7, validates.",
+   "observed": "Found by the campaign baseline: the derived chain, run over the committed head, did not reproduce it.",
+   "expected": "A stated size the file does not have refused, and the committed crate what its builder writes.",
+   "correction": "validate compares every data entity's contentSize with its file's size, the manifest pair's included, and refuses a mismatch or a size not stated. MANIFEST_BOUNDARY.md section 4 runs the pair of the crate and the manifest twice, and says to repeat it until both checks pass. It names every generator the ledger's table of them holds, and the ledger, in an order that a second run leaves unchanged with every check passing. The crate is regenerated to its fixed point. RO_CRATE_PROFILE.md says what the crate states and what is checked.",
+   "regression_tests": [
+    "tests/test_ro_crate_conformance.py::test_the_committed_crate_is_what_the_builder_writes",
+    "tests/test_ro_crate_conformance.py::test_a_size_its_file_does_not_have_is_refused",
+    "tests/test_ro_crate_conformance.py::test_the_documented_order_names_every_generator_and_ends_on_the_pair"
+   ],
+   "residual_risk": "The crate describes the manifest pair by size and existence only: a manifest of the right size holding other bytes passes the crate's check, and generate_manifest.py --check and the detached hash are what bind its bytes. A regeneration run once still leaves the crate stale; it now fails ro_crate_tools.py validate in CI and in the container rather than shipping.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-077",
+   "title": "The crate validator let any data entity go without a checksum, and hashed a data entity outside the tree",
+   "severity": "P3",
+   "subsystem": "provenance: the RO-Crate validator's scope",
+   "files": [
+    {
+     "path": "ro_crate_tools.py",
+     "lines": "NO_EMBED and NOT_EMBEDDED; validate, by _in_tree and _file_problems; build"
+    }
+   ],
+   "behavior": "The validator skipped the checksum of every data entity whose sha256 began 'not-embedded', the statement the builder writes for the manifest and its detached hash alone. A crate marking uv.lock so validated with uv.lock unchecked. A crate marking every file so verified no checksum and said VALID. That passed the guard against a validation over nothing (D-2026-39), which counted references and not checks. The validator also hashed the file at a data entity's @id wherever the path led: a crate naming /etc/hostname, with that file's checksum and size, validated, describing bytes the repository does not hold. The module documents relative POSIX paths only; that was the builder's property, and the validator did not hold it.",
+   "invariant": "VALID means every data entity is a file of the tree whose stated checksum was verified. The manifest pair is the one exception, excused by the circular dependency.",
+   "mechanism": "An exemption read from the crate rather than from a fixed set, and a path read as given.",
+   "reproduction": "At 9a918a1, each crate validated with ro_crate_tools.validate from the tree root. uv.lock's sha256 set to 'not-embedded': VALID. Every sha256 set so: VALID. A data entity /etc/hostname with its checksum and size: VALID. A relative path climbing out of the tree was refused only because it passed through /tmp/, a fragment the claim scan forbids.",
+   "observed": "Found reading ro_crate_tools.py in full beside AUD-076.",
+   "expected": "The exemption refused to every entity but the pair, and a data entity naming a path outside the tree refused.",
+   "correction": "NO_EMBED is a module constant the builder and the validator share. The validator refuses the not-embedded statement on any other entity. Before reading any file it refuses a data entity whose @id is empty or absolute, holds a NUL, climbs with '..', or names a scheme.",
+   "regression_tests": [
+    "tests/test_ro_crate_conformance.py::test_only_the_manifest_and_its_hash_go_without_a_checksum",
+    "tests/test_ro_crate_conformance.py::test_a_data_entity_outside_the_tree_is_refused"
+   ],
+   "residual_risk": "A '..' segment is refused even where it resolves inside the tree; the builder writes none. A symbolic link in the tree to bytes outside it is followed, as the manifest follows one; none is tracked.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-078",
+   "title": "Malformed crates raised out of the crate validator, and two refusals before its checks wrote no verdict",
+   "severity": "P3",
+   "subsystem": "provenance: the RO-Crate validator's refusals",
+   "files": [
+    {
+     "path": "ro_crate_tools.py",
+     "lines": "validate; _shape, _depth, _file_problems and _verdict"
+    }
+   ],
+   "behavior": "The validator's own rule is that a crash is not a refusal, and a crate with no root returned FAIL. Twenty-five other malformed crates raised KeyError, TypeError, AttributeError, JSONDecodeError, IsADirectoryError, OSError or RecursionError: metadata that is not JSON, or is a list or a number; no @graph, or one that is a mapping; an entity that is a string or has no @id; an @id that is a number or a list; a root with no hasPart, no @type or no description; a hasPart that is a mapping, or holds a string or an entry with no @id; a part with no checksum, or a number for one; a root description that is a number; a descriptor whose about is a string; a CreateAction with no @type; an @type holding an object; a part that is a directory, the empty string, or a name too long for the system; and an entity nested 1,200 levels. The two refusals made before the checks, no root and no CreateAction, wrote no verdict, so the report kept the last one: VALID, over a crate just refused. The second also named no reason.",
+   "invariant": "The validator refuses a crate in its own words, and the verdict it writes is the verdict it returns.",
+   "mechanism": "Fields were read by subscript and by method before anything checked their form, and an early return printed and returned without writing.",
+   "reproduction": "At 9a918a1, each crate written to a file and validated from the tree root under both interpreters, 3.12.3 and 3.12.13. Each of the twenty-five raised. A crate with no root, validated after the committed crate into the same report, left the report reading VALID. A crate with no CreateAction returned 1, named no problem and wrote no report.",
+   "observed": "Found reading ro_crate_tools.py in full.",
+   "expected": "FAIL, a reason, and the report written, for each.",
+   "correction": "validate reads the metadata under the parser's and the file system's errors and RecursionError. Before the checks index anything, _shape refuses metadata that is not an object, that nests deeper than 32 levels, or that holds an entity, an @id or a hasPart of the wrong form. The descriptor's about, the types, the root's type and description and the action's type are each read after their form is checked. _file_problems refuses a file it cannot read. _verdict prints and writes every verdict, the early ones included, and a missing CreateAction is named.",
+   "regression_tests": [
+    "tests/test_ro_crate_conformance.py::test_a_crate_the_checks_cannot_read_is_refused_in_their_words",
+    "tests/test_ro_crate_conformance.py::test_every_refusal_writes_its_verdict_and_says_why"
+   ],
+   "residual_risk": "A crate nested more than 32 levels is refused, whatever it holds; the committed crate nests five. The conformance tool's packaging trusts the committed crate's @ids (tools/ro_crate_conformance.py, package); the validator now refuses one outside the tree first.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

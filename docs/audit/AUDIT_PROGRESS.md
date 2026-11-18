@@ -4749,3 +4749,129 @@ other specs that hold one. All were killed and every source restored.
   a task. On any history the projection accepts that is the lease
   holder's, made while the task executed; on one it refuses, recovery
   does not run.
+
+### The campaign baseline: 9a918a1
+
+The whole-PR campaign starts from the head of the pull request as pushed,
+9a918a1, with origin/main at 096fb90 as the merge base.
+
+- **The change set.** 313 commits and 1,081 changed files: 665 added,
+  384 deleted and 32 modified, with no renames. GitHub's count for the
+  pull request is the same: 1,081 files and 313 commits.
+- **The ledger.** `docs/audit/pr17_audit_ledger.json`, sha256
+  110482b4894195e7…, with `check` reporting 0 problems:
+
+  | Disposition | Files |
+  |---|---|
+  | REVIEWED_IN_FULL | 89 |
+  | REVIEWED_IN_PART | 22 |
+  | NOT_REVIEWED | 852 |
+  | AUDIT_ARTIFACT | 92 |
+  | INSPECTED_BINARY | 20 |
+  | CHECKED_GENERATED | 4 |
+  | CHECKED_DATA | 2 |
+
+  Of the 852 not reviewed, 365 are deletions.
+- **The register.** `docs/audit/findings.json`, sha256 7a26cb55ee3669f6…:
+  75 findings. 69 are FIXED, 5 are the owner's (AUD-001, AUD-010,
+  AUD-019, AUD-035 and AUD-075) and 1 is OPEN (AUD-040).
+- **The environment.** Linux 6.18 on 4 CPUs. CPython 3.12.3 in the
+  repository's `.venv`, and 3.12.13 as the second interpreter, each with
+  the same 72 distributions (sha256 of their sorted names and versions
+  8e311a57535b4bc5…). `uv.lock` has sha256 64ce13c43a2d3882….
+- **Verification at 9a918a1.** The full suite passed 7,699 tests and
+  skipped 22, in 12 chunks. On the hosted side, all 44 check runs were
+  green, read from the API.
+- **Regeneration.** The documented chain was run over the committed tree
+  in a clean worktree. It changed three derived files: the crate's size
+  of `final_manifest.json` (123,680 bytes stated, 124,050 held) and the
+  two manifest files' records of the crate. A second run changed nothing.
+  The committed tree was one round short of its fixed point, and every
+  check had passed. This is AUD-076, below.
+
+### Stage 5, sixteenth pass: the provenance chain (AUD-076 to AUD-078)
+
+These were read in full: `ro_crate_tools.py`,
+`tools/ro_crate_conformance.py` with its test and its mutations,
+`MANIFEST_BOUNDARY.md` and `RO_CRATE_PROFILE.md`. Three findings were
+reproduced at 9a918a1 and fixed.
+
+**AUD-076 (P2).** The crate states each file's size, the manifest's among
+them, and the manifest hashes the crate. The documented order built the
+crate first, so the crate stated the size the manifest had before. Six of
+the branch's forty latest commits were committed this way, the head among
+them. The validator compared no size with its file: a crate stating
+`uv.lock` as one byte validated. It now compares every stated size,
+including the manifest pair's. Section 4 of `MANIFEST_BOUNDARY.md` runs
+the crate and the manifest twice, and says to repeat the pair until both
+checks pass. The section also named seven of the ten generators that
+rewrite a tracked file on every change, and not the audit's ledger. It
+names each now, in an order whose second run changes nothing, with every
+check passing.
+
+**AUD-077 (P3).** Any data entity whose checksum began "not-embedded",
+the manifest pair's exemption, went unchecked. A crate marking every file
+so verified nothing and validated. A data entity at `/etc/hostname`, with
+its checksum and size, also validated. The exemption now belongs to the
+pair alone, and a data entity must name a path inside the tree.
+
+**AUD-078 (P3).** Twenty-five malformed crates raised out of the
+validator, whose own rule is that a crash is not a refusal. Two refusals
+made before its checks wrote no verdict, so the report kept the last one:
+VALID, over a crate just refused. Each is now refused in the validator's
+own words, and every verdict is written.
+
+**Tests.** `tests/test_ro_crate_conformance.py` gains 33 tests:
+
+- the crate rebuilt from the tree equals the committed one;
+- a stated size is held to its file;
+- the exemption;
+- the tree;
+- 25 malformed crates;
+- the verdict file;
+- the documented order, against the ledger's table of generators.
+
+All 33 fail at 9a918a1. The 14 tests already in the file pass at both
+commits. The control test now asks that each negative control be refused
+for its own reason: a control refused for anything else does not test
+what it is named for. In `tests/test_manifest_policy.py` the check of the
+validator's command line asserted `"VALID"` in the upper-cased output.
+That held whatever the verdict, since the first line reads "RO-Crate
+validation". It asserts the verdict line now.
+
+**Mutations.** Sixteen were added to `ro_crate_conformance`, RC10 to
+RC25. They cover:
+
+- the size check;
+- the exemption;
+- the tree;
+- the shape and the depth;
+- the parser's and the file system's errors;
+- the early verdict and its reason;
+- the builder's sizes and exemptions;
+- the descriptor, type and description reads;
+- the documented order: a generator left out, and the pair run once.
+
+The spec keeps its measured weight (`tools/mutation_shards.py` says why),
+so the shard plan is unchanged.
+
+Run here, on this commit's tree: 37 mutations in 2 specs,
+`ro_crate_conformance` whole (25) and `mutation_shards` whole (12). These
+are the only specs holding a mutation anchored in a file this pass
+changed. All were killed, and every source was restored.
+
+**Hosted evidence.** R65 is the row the crate's job evidences. It read
+COVERS_CURRENT_IMPLEMENTATION at 9a918a1 and reads
+PREDATES_CURRENT_IMPLEMENTATION now, because its code changed after the
+run that evidenced it. Its two stack rows, `ro-crate` and `slsa-sigstore`,
+read unsatisfied until a hosted run of this commit is attached: 57
+unsatisfied, up from 54. Nothing is attached here.
+`tests/test_completion_matrix.py` pins the number of rows whose
+evidence covers their code, so that it moves only deliberately. It
+falls from 6 to 5 here, and the test's comment says why.
+
+**What is not established.**
+
+- The community validator's verdict on this crate. That validator runs
+  only on a hosted runner (`tools/ro_crate_conformance.py`). The crate's
+  keys and entities are unchanged; only regenerated values differ.

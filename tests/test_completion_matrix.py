@@ -999,7 +999,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: 7 -> 6 when the learned-model ledger came to refuse a document that is
 #: not a JSON object (AUD-055, agent_substrate/learned_lifecycle.py, cited
 #: by R60), which predates it until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 6
+#: 6 -> 5 when the crate's validator came to check every size the crate
+#: states, to keep the checksum exemption to the manifest pair and the
+#: data entities to the tree, and to refuse a crate it cannot read in
+#: its own words (AUD-076 to AUD-078, ro_crate_tools.py, cited by R65),
+#: which predates it until the evidence commit after hosted CI.
+EXPECTED_EVIDENCE_COVERS = 5
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

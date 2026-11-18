@@ -15,7 +15,12 @@ derived status, the completion matrix, the forensic inventory and the
 content audit, the equivalence contracts, the learned-model dataset manifest
 and claims; the manifest and its detached hash; and a `CreateAction`
 binding the workflow to the status it feeds. Every data entity carries its
-size and SHA-256. License: no authoritative record exists — stated, none
+size, and its SHA-256 but for the manifest and its detached hash: the
+manifest hashes the crate, so the crate states their sizes alone. The
+validator checks every size and checksum the crate states, refuses that
+exemption to any other file and a data entity outside the tree (AUD-076,
+AUD-077), and refuses in its own words a crate its checks cannot read
+(AUD-078). License: no authoritative record exists — stated, none
 invented.
 
 The root description says what the crate is not -- no experiment

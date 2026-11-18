@@ -337,7 +337,10 @@ def test_ro_crate_cli_validate_subcommand_works():
     r = _sp.run([_sys.executable, "ro_crate_tools.py", "validate"],
                 cwd=str(ROOT), capture_output=True, text=True, timeout=180)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "VALID" in r.stdout.upper()
+    # The verdict line itself: "VALID" in the upper-cased output held
+    # whatever the verdict, since the first line reads "RO-Crate
+    # validation".
+    assert "RESULT: VALID" in r.stdout, r.stdout
 
 
 def test_ro_crate_cli_still_accepts_an_explicit_directory(tmp_path):

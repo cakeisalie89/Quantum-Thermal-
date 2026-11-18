@@ -50,8 +50,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 49
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 6,
-   "PREDATES_CURRENT_IMPLEMENTATION": 43
+   "COVERS_CURRENT_IMPLEMENTATION": 5,
+   "PREDATES_CURRENT_IMPLEMENTATION": 44
   },
   "rows": 49
  },
@@ -332,12 +332,12 @@
    "rows": {
     "R65": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "ruff-mypy-pydantic": {
@@ -377,12 +377,12 @@
    "rows": {
     "R65": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "snakemake": {
@@ -479,7 +479,19 @@
   },
   {
    "external": false,
+   "id": "ro-crate",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
    "id": "ruff-mypy-pydantic",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "slsa-sigstore",
    "kind": "stack",
    "status": "ADOPTED"
   },
@@ -726,6 +738,12 @@
   {
    "external": false,
    "id": "R64",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R65",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },

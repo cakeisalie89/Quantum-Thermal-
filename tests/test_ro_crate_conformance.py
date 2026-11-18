@@ -55,10 +55,26 @@ def test_the_committed_crate_packages_completely(tmp_path):
     assert (tmp_path / "crate" / "HDF5_DATA_MODEL.md").is_file()
 
 
+#: What each negative control is refused for. Refused for anything else, a
+#: control does not test what it is named for.
+CONTROL_REASONS = {
+    "no_root_dataset": "root dataset entity missing",
+    "no_conformsTo": "no conformsTo an RO-Crate 1.x specification",
+    "no_datePublished": "no ISO 8601 datePublished",
+    "dangling_data_entity": "referenced file missing: does/not/exist.csv",
+    "data_entity_not_a_file": "requires File or Dataset",
+    "undefined_term": "keys no context defines",
+}
+
+
 def test_the_internal_validator_accepts_the_crate_and_refuses_every_control():
     assert RCC.internal(_meta()) == []
-    for name, broken in RCC._broken(_meta()).items():
-        assert RCC.internal(broken), name
+    controls = RCC._broken(_meta())
+    assert set(controls) == set(CONTROL_REASONS)
+    for name, broken in controls.items():
+        refused = RCC.internal(broken)
+        assert any(CONTROL_REASONS[name] in line for line in refused), \
+            (name, refused)
 
 
 def test_the_internal_validator_writes_nothing_while_judging(
@@ -239,3 +255,216 @@ def test_a_crate_missing_its_root_fails_rather_than_crashing(tmp_path):
     doc = _committed()
     doc["@graph"] = [e for e in doc["@graph"] if e["@id"] != "./"]
     assert _validate(doc, tmp_path) != 0
+
+
+# --- what the crate states about its files (AUD-076 to AUD-078) -------------
+
+def _entity(doc: dict, rid: str) -> dict:
+    return next(e for e in doc["@graph"] if e["@id"] == rid)
+
+
+def _report(doc, tmp_path, raw: str | None = None) -> dict:
+    """The verdict the validator writes on ``doc``, or on the text ``raw``,
+    from a judgment that must not raise."""
+    p = tmp_path / "ro-crate-metadata.json"
+    p.write_text(raw if raw is not None else json.dumps(doc),
+                 encoding="utf-8")
+    rep = tmp_path / "report.json"
+    rep.unlink(missing_ok=True)
+    rc = RC.validate(p, rep)
+    verdict = json.loads(rep.read_text(encoding="utf-8"))
+    assert rc == (0 if verdict["result"] == "VALID" else 1)
+    assert (verdict["result"] == "VALID") == (verdict["problems"] == [])
+    return verdict
+
+
+def test_the_committed_crate_is_what_the_builder_writes(tmp_path,
+                                                         monkeypatch):
+    """The crate states the manifest's size and the manifest hashes the
+    crate. Regenerated once, the chain left the committed crate stating the
+    size the manifest had before, 370 bytes short, and nothing compared the
+    two (AUD-076). Built again from the tree as it stands, the crate is the
+    committed one, byte for byte."""
+    monkeypatch.chdir(ROOT)
+    RC.build(tmp_path)
+    assert (tmp_path / "ro-crate-metadata.json").read_bytes() == \
+        (ROOT / RC.META).read_bytes()
+
+
+@pytest.mark.parametrize("rid", ["uv.lock", "final_manifest.json",
+                                 "manifest_hash.txt"])
+def test_a_size_its_file_does_not_have_is_refused(tmp_path, rid):
+    """Every size the crate states is its file's: the manifest's and its
+    detached hash's too, which carry no checksum here, so their size is what
+    can be checked. Nothing compared them, and the committed crate stated
+    the manifest 370 bytes short and validated (AUD-076)."""
+    true = (ROOT / rid).stat().st_size
+    for stated in (str(true - 370), str(true + 1), None):
+        doc = _committed()
+        if stated is None:
+            _entity(doc, rid).pop("contentSize")
+        else:
+            _entity(doc, rid)["contentSize"] = stated
+        assert _report(doc, tmp_path)["problems"] == [
+            f"contentSize mismatch: {rid} is stated as {stated!r}; the file "
+            f"has {true} bytes"], stated
+
+
+def test_only_the_manifest_and_its_hash_go_without_a_checksum(tmp_path):
+    """The validator skipped the checksum of any data entity whose sha256
+    began "not-embedded", the exemption the manifest pair needs. Marked so,
+    uv.lock went unchecked; with every file marked so, nothing was, and the
+    crate validated (AUD-077)."""
+    doc = _committed()
+    _entity(doc, "uv.lock")["sha256"] = RC.NOT_EMBEDDED
+    assert _report(doc, tmp_path)["problems"] == [
+        "data entity uv.lock claims the manifest's exemption from a "
+        "checksum; only ['final_manifest.json', 'manifest_hash.txt'] may"]
+    doc = _committed()
+    for e in doc["@graph"]:
+        if "sha256" in e:
+            e["sha256"] = RC.NOT_EMBEDDED
+    claimed = [p.split()[2] for p in _report(doc, tmp_path)["problems"]]
+    files = {x["@id"] for x in _entity(doc, "./")["hasPart"]}
+    assert RC.NO_EMBED <= files
+    assert sorted(claimed) == sorted(files - RC.NO_EMBED)
+    # the pair keeps the exemption it needs
+    assert _report(_committed(), tmp_path)["problems"] == []
+
+
+def test_a_data_entity_outside_the_tree_is_refused(tmp_path):
+    """The validator hashed the file at a data entity's @id wherever it
+    pointed: a crate naming /etc/hostname, with its checksum and size,
+    validated, describing bytes the repository does not hold (AUD-077).
+    The first path climbs out of the tree and back in, so the bytes are the
+    tree's own and only the rule that a data entity is a path inside the
+    tree refuses it."""
+    for rid in (f"../{ROOT.name}/uv.lock", str(ROOT / "uv.lock")):
+        doc = _committed()
+        doc["@graph"].append(dict(_entity(doc, "uv.lock"), **{"@id": rid}))
+        _entity(doc, "./")["hasPart"].append({"@id": rid})
+        problems = _report(doc, tmp_path)["problems"]
+        assert f"data entity {rid!r} is not a path inside this tree" \
+            in problems, problems
+        if rid.startswith(".."):
+            assert len(problems) == 1, problems
+
+
+def _set(rid, key, value):
+    def f(doc):
+        _entity(doc, rid)[key] = value
+    return f
+
+
+def _drop(rid, key):
+    def f(doc):
+        _entity(doc, rid).pop(key)
+    return f
+
+
+def _part(rid):
+    def f(doc):
+        doc["@graph"].append(dict(_entity(doc, "uv.lock"), **{"@id": rid}))
+        _entity(doc, "./")["hasPart"].append({"@id": rid})
+    return f
+
+
+def _edited(f) -> dict:
+    doc = _committed()
+    f(doc)
+    return doc
+
+
+def _malformed() -> dict:
+    """Crates the checks cannot read. On each the validator raised KeyError,
+    TypeError, AttributeError, OSError, IsADirectoryError, RecursionError
+    or the parser's error, where it returns a verdict now (AUD-078). Text
+    is the metadata as written; a mapping is the committed crate, edited."""
+    deep = json.dumps(_edited(_set("uv.lock", "description", "@@nest@@")))
+    return {
+        "a part with no checksum": _edited(_drop("uv.lock", "sha256")),
+        "a part's checksum a number": _edited(_set("uv.lock", "sha256", 7)),
+        "a hasPart entry a string": _edited(
+            lambda d: _entity(d, "./")["hasPart"].append("uv.lock")),
+        "a hasPart entry with no @id": _edited(
+            lambda d: _entity(d, "./")["hasPart"].append({"name": "x"})),
+        "a root with no hasPart": _edited(_drop("./", "hasPart")),
+        "hasPart a mapping": _edited(_set("./", "hasPart",
+                                          {"@id": "uv.lock"})),
+        "no @graph": _edited(lambda d: d.pop("@graph")),
+        "@graph a mapping": _edited(
+            lambda d: d.update({"@graph": {"@id": "./"}})),
+        "an entity a string": _edited(lambda d: d["@graph"].append("x")),
+        "an entity with no @id": _edited(
+            lambda d: d["@graph"].append({"name": "x"})),
+        "an @id a number": _edited(
+            lambda d: d["@graph"].append({"@id": 5, "sha256": "x"})),
+        "an @id a list": _edited(lambda d: d["@graph"].append({"@id": ["a"]})),
+        "a root with no @type": _edited(_drop("./", "@type")),
+        "a root with no description": _edited(_drop("./", "description")),
+        "a root description a number": _edited(_set("./", "description", 5)),
+        "a descriptor about a string": _edited(
+            _set("ro-crate-metadata.json", "about", "./")),
+        "an action with no @type": _edited(_drop("#workflow-action",
+                                                 "@type")),
+        "an @type holding an object": _edited(
+            _set("uv.lock", "@type", ["File", {"x": 1}])),
+        "a part that is a directory": _edited(_part("docs")),
+        "a part named the empty string": _edited(_part("")),
+        "a part named 5000 characters": _edited(_part("x" * 5000)),
+        "nested 1200 levels": deep.replace('"@@nest@@"',
+                                           "[" * 1200 + "]" * 1200),
+        "not JSON": "{not json",
+        "a JSON list": "[]",
+        "a JSON number": "5",
+    }
+
+
+_MALFORMED = _malformed()
+
+
+@pytest.mark.parametrize("name", sorted(_MALFORMED))
+def test_a_crate_the_checks_cannot_read_is_refused_in_their_words(
+        tmp_path, name):
+    case = _MALFORMED[name]
+    raw = case if isinstance(case, str) else None
+    verdict = _report(None if raw is not None else case, tmp_path, raw)
+    assert verdict["result"] == "FAIL" and verdict["problems"], name
+
+
+def test_every_refusal_writes_its_verdict_and_says_why(tmp_path):
+    """Refused before the checks -- no root, or no CreateAction -- the
+    validator wrote no verdict, and the file kept the last one: VALID, over
+    a crate just refused. With no CreateAction it named no reason
+    (AUD-078)."""
+    p = tmp_path / "ro-crate-metadata.json"
+    rep = tmp_path / "report.json"
+    for gone, why in (("./", "root dataset entity missing"),
+                      ("#workflow-action", "workflow CreateAction missing")):
+        assert _report(_committed(), tmp_path)["result"] == "VALID"
+        doc = _committed()
+        doc["@graph"] = [e for e in doc["@graph"] if e["@id"] != gone]
+        p.write_text(json.dumps(doc), encoding="utf-8")
+        assert RC.validate(p, rep) == 1
+        verdict = json.loads(rep.read_text(encoding="utf-8"))
+        assert verdict["result"] == "FAIL", gone
+        assert why in verdict["problems"], verdict["problems"]
+
+
+def test_the_documented_order_names_every_generator_and_ends_on_the_pair():
+    """Section 4 of MANIFEST_BOUNDARY.md is the order a contributor runs
+    after a change. It ran the crate and the manifest once each, which left
+    the crate stating the manifest's size from before (AUD-076), and named
+    seven of the ten generators that rewrite a tracked file on every change,
+    and not the audit's ledger. It names each, and ends on the pair, twice."""
+    import audit_ledger
+    text = (ROOT / "MANIFEST_BOUNDARY.md").read_text(encoding="utf-8")
+    section = text.split("## 4. ", 1)[1].split("\n## ", 1)[0]
+    block = section.split("```\n", 1)[1].split("```", 1)[0]
+    steps = [line.split("#", 1)[0].split(None, 1)[1].strip()
+             for line in block.splitlines() if line.strip()]
+    generators = {gen for gen, _check in audit_ledger.DERIVED.values()}
+    assert len(generators) == 10
+    assert sorted(generators - set(steps)) == []
+    assert "tools/audit_ledger.py derive" in steps
+    assert steps[-4:] == ["ro_crate_tools.py", "generate_manifest.py"] * 2

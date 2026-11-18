@@ -15,7 +15,8 @@ a checksum here attests bytes, never that anything in them is correct.
 
 Determinism: sorted entity/key ordering; relative POSIX paths only; no
 UUIDs; no wall-clock timestamps; stable checksum ordering; fail-closed
-on missing files, checksum mismatch, unresolved references.
+on missing files, checksum or size mismatch, unresolved references, and a
+crate the checks cannot read.
 """
 from __future__ import annotations
 
@@ -122,6 +123,13 @@ ROOT_DISCLAIMERS = (
     "attests bytes, not correctness",
 )
 
+#: The manifest and its detached hash. The manifest hashes this crate, so the
+#: crate cannot hash them -- a circular dependency -- and states their sizes
+#: alone. Nothing else may go without a checksum (AUD-077).
+NO_EMBED = frozenset({"final_manifest.json", "manifest_hash.txt"})
+NOT_EMBEDDED = ("not-embedded: circular dependency -- the manifest covers "
+                "this crate; the crate's own hash lives in the manifest")
+
 
 def build(dest_dir: Path = CRATE_DIR) -> None:
     dest = dest_dir / "ro-crate-metadata.json"
@@ -169,21 +177,16 @@ def build(dest_dir: Path = CRATE_DIR) -> None:
                         "derived from the registries and evidence by "
                         "tools/harness_status.py"},
     ]
-    NO_EMBED = {"final_manifest.json", "manifest_hash.txt"}
     for rel, typ, desc in FILES:
-        p = Path(rel.replace("../", ""))
+        rid = rel.replace("../", "")
+        p = Path(rid)
         if not p.exists():
             print(f"[RO-Crate FAIL-CLOSED] missing referenced file {p}")
             sys.exit(1)
-        ent = {"@id": rel.replace("../", ""), "@type": typ,
+        ent = {"@id": rid, "@type": typ,
                "name": p.name, "description": desc,
                "contentSize": str(p.stat().st_size)}
-        if p.name in NO_EMBED:
-            ent["sha256"] = ("not-embedded: circular dependency -- the "
-                            "manifest covers this crate; the crate's own "
-                            "hash lives in the manifest")
-        else:
-            ent["sha256"] = sha_file(p)
+        ent["sha256"] = NOT_EMBEDDED if rid in NO_EMBED else sha_file(p)
         graph.append(ent)
     doc = {"@context": CONTEXT, "@graph":
            sorted(graph, key=lambda e: str(e["@id"]))}
@@ -206,15 +209,143 @@ DEFAULT_VALIDATION_REPORT = Path(
     "verification/ro_crate/validation_report.json")
 
 
+#: How deep the metadata may nest. The committed crate nests five levels; the
+#: checks below walk it and ``json.dumps`` recurses, so a document nested past
+#: the interpreter's limit raised RecursionError out of the validator rather
+#: than a verdict (AUD-078).
+_MAX_DEPTH = 32
+
+
+def _depth(doc) -> int:
+    """How deep ``doc`` nests, measured without recursion."""
+    deepest, todo = 0, [(doc, 1)]
+    while todo:
+        o, d = todo.pop()
+        if isinstance(o, dict):
+            o = list(o.values())
+        if isinstance(o, list):
+            deepest = max(deepest, d)
+            todo.extend((x, d + 1) for x in o)
+    return deepest
+
+
+def _shape(doc) -> list:
+    """What the checks index, in the validator's own words. A crate they
+    could not read raised KeyError, TypeError or AttributeError out of the
+    validator, and a crash is not a refusal (AUD-078)."""
+    if not isinstance(doc, dict):
+        return ["the metadata is not a JSON object"]
+    if _depth(doc) > _MAX_DEPTH:
+        return [f"the metadata nests deeper than {_MAX_DEPTH} levels"]
+    g = doc.get("@graph")
+    if not isinstance(g, list):
+        return ["the metadata has no @graph that is a list of entities"]
+    out = [f"entity {i} is not an object with a string @id"
+           for i, e in enumerate(g)
+           if not (isinstance(e, dict) and isinstance(e.get("@id"), str))]
+    if not out:
+        for e in g:
+            parts = e.get("hasPart") if e["@id"] == "./" else []
+            if not (isinstance(parts, list) and all(
+                    isinstance(x, dict) and isinstance(x.get("@id"), str)
+                    for x in parts)):
+                out.append("the root's hasPart is not a list of references, "
+                           "each an object with a string @id")
+    return out
+
+
+def _in_tree(rid: str) -> bool:
+    """A data entity names a file of this tree: a relative POSIX path that
+    does not climb out of it. The validator hashes the file at the entity's
+    ``@id``, so a crate naming ``/etc/hostname`` had it hash bytes the
+    repository does not hold, and say VALID (AUD-077)."""
+    segments = rid.split("/")
+    return (rid != "" and "\x00" not in rid and not rid.startswith("/")
+            and ".." not in segments and ":" not in segments[0])
+
+
+def _file_problems(rid: str, ent: dict) -> list:
+    """What is wrong with what the crate states about the file at ``rid``:
+    its checksum and its size. A file that cannot be read -- a directory, a
+    name too long for the system -- raised IsADirectoryError or OSError out
+    of the validator (AUD-078); it is refused."""
+    p = Path(rid)
+    try:
+        if not p.exists():
+            return [f"referenced file missing: {rid}"]
+        out = []
+        # The manifest and its detached hash go without a checksum -- the
+        # manifest covers this crate -- and nothing else may: an exemption
+        # any entity could claim was a checksum nobody verified, under VALID
+        # (AUD-077).
+        sha = ent.get("sha256")
+        if not isinstance(sha, str):
+            out.append(f"data entity {rid} states no checksum")
+        elif sha.startswith("not-embedded"):
+            if rid not in NO_EMBED:
+                out.append(f"data entity {rid} claims the manifest's "
+                           f"exemption from a checksum; only "
+                           f"{sorted(NO_EMBED)} may")
+        elif sha_file(p) != sha:
+            out.append(f"checksum mismatch: {rid}")
+        # Every size the crate states is the file's, the manifest's too,
+        # which no checksum here covers. Unchecked, the committed crate
+        # stated the size the manifest had before its last regeneration
+        # (AUD-076).
+        size = str(p.stat().st_size)
+        if ent.get("contentSize") != size:
+            out.append(f"contentSize mismatch: {rid} is stated as "
+                       f"{ent.get('contentSize')!r}; the file has {size} "
+                       f"bytes")
+        return out
+    except OSError as exc:
+        return [f"data entity {rid} cannot be read: {exc}"]
+
+
+def _verdict(problems: list, entities: int, files: int, rep: Path) -> int:
+    """Print the verdict and write it to ``rep`` -- every verdict, a refusal
+    before the checks included. Those wrote nothing, and the file kept the
+    last verdict: VALID, over a crate just refused (AUD-078)."""
+    print(f"RO-Crate validation: {entities} entities | {files} referenced "
+          f"files | problems {len(problems)} {problems[:3]}")
+    print(f"RESULT: {'VALID' if not problems else 'FAIL'}")
+    rep.parent.mkdir(parents=True, exist_ok=True)
+    rep.write_text(
+        json.dumps({"spec": SPEC, "entities": entities,
+                    "referenced_files": files,
+                    "problems": problems,
+                    "result": "VALID" if not problems else "FAIL",
+                    "limitation": "structural in-repo validator; the "
+                                   "RO-Crate community validator "
+                                   "(roc-validator, profile ro-crate-1.1) "
+                                   "is run beside it by "
+                                   "tools/ro_crate_conformance.py on a "
+                                   "hosted runner, which can reach the "
+                                   "JSON-LD context this sandbox cannot"},
+                   indent=1, sort_keys=True) + "\n")
+    return 1 if problems else 0
+
+
 def validate(meta_path: Path = META,
              report_path: Path | None = None) -> int:
-    doc: dict = json.loads(meta_path.read_text())
+    rep = Path(report_path) if report_path is not None \
+        else DEFAULT_VALIDATION_REPORT
+    try:
+        doc = json.loads(meta_path.read_text())
+    except (OSError, ValueError, RecursionError) as exc:
+        return _verdict([f"the metadata is not readable JSON: "
+                         f"{type(exc).__name__}: {exc}"], 0, 0, rep)
+    shape = _shape(doc)
+    if shape:
+        g_ = doc.get("@graph") if isinstance(doc, dict) else None
+        return _verdict(shape, len(g_) if isinstance(g_, list) else 0, 0,
+                        rep)
     g: list = doc["@graph"]
     ids = [e["@id"] for e in g]
     problems = []
     if len(ids) != len(set(ids)):
         problems.append("duplicate entity IDs")
-    if not any(e["@id"] == "./" and "Dataset" in str(e["@type"])
+    if not any(e["@id"] == "./" and "Dataset" in str(e.get("@type"))
                for e in g):
         problems.append("root dataset entity missing")
     by = {e["@id"]: e for e in g}
@@ -251,7 +382,8 @@ def validate(meta_path: Path = META,
     if desc is None:
         problems.append("metadata descriptor entity missing")
     else:
-        if (desc.get("about") or {}).get("@id") != "./":
+        about = desc.get("about")
+        if not (isinstance(about, dict) and about.get("@id") == "./"):
             problems.append("metadata descriptor is not about the root")
         conforms = desc.get("conformsTo")
         conforms = conforms if isinstance(conforms, list) else [conforms]
@@ -268,10 +400,9 @@ def validate(meta_path: Path = META,
         # Without these the checks below index a dict that has no such key,
         # and the validator dies with a KeyError traceback instead of
         # returning a verdict. A crash is not a refusal.
-        print(f"RO-Crate validation: {len(g)} entities | problems "
-              f"{len(problems)} {problems[:3]}")
-        print("RESULT: FAIL")
-        return 1
+        if "#workflow-action" not in by:
+            problems.append("workflow CreateAction missing")
+        return _verdict(problems, len(g), 0, rep)
 
     # A VALIDATION OF NOTHING IS NOT A VALIDATION (D-2026-39).
     #
@@ -312,16 +443,15 @@ def validate(meta_path: Path = META,
         # hosted CI, did not (D-2026-111).
         types = by[rid].get("@type")
         types = types if isinstance(types, list) else [types]
-        if not {"File", "Dataset"} & set(types):
+        if not {"File", "Dataset"} & {t for t in types
+                                      if isinstance(t, str)}:
             problems.append(f"data entity {rid} is typed {types}; RO-Crate "
                             "1.1 requires File or Dataset among its types")
-        p = Path(rid)
-        if not p.exists():
-            problems.append(f"referenced file missing: {rid}")
-        elif by[rid]["sha256"].startswith("not-embedded"):
-            pass  # manifest pair: existence-only (circular dependency)
-        elif sha_file(p) != by[rid]["sha256"]:
-            problems.append(f"checksum mismatch: {rid}")
+        if not _in_tree(rid):
+            problems.append(f"data entity {rid!r} is not a path inside "
+                            "this tree")
+            continue
+        problems += _file_problems(rid, by[rid])
     # the root description is the sanctioned negative-claims disclaimer;
     # scanning it for its own negated phrases would self-flag -- exclude
     # it (and only it) from the claim scan, keep it in the path scan.
@@ -339,33 +469,16 @@ def validate(meta_path: Path = META,
                   "correctness"):
         if claim in blob:
             problems.append(f"claim-boundary violation: '{claim}'")
-    root = by["./"]["description"]
+    root = by["./"].get("description")
+    if not isinstance(root, str):
+        problems.append("the root description is not text")
+        root = ""
     for must in ROOT_DISCLAIMERS:
         if must not in root:
             problems.append(f"root description missing '{must}'")
-    if by["#workflow-action"]["@type"] != "CreateAction":
+    if by["#workflow-action"].get("@type") != "CreateAction":
         problems.append("workflow CreateAction missing")
-    print(f"RO-Crate validation: {len(g)} entities | "
-          f"{len(by['./']['hasPart'])} referenced files | "
-          f"problems {len(problems)} {problems[:3]}")
-    print(f"RESULT: {'VALID' if not problems else 'FAIL'}")
-    rep = Path(report_path) if report_path is not None \
-        else DEFAULT_VALIDATION_REPORT
-    rep.parent.mkdir(parents=True, exist_ok=True)
-    rep.write_text(
-        json.dumps({"spec": SPEC, "entities": len(g),
-                    "referenced_files": len(by["./"]["hasPart"]),
-                    "problems": problems,
-                    "result": "VALID" if not problems else "FAIL",
-                    "limitation": "structural in-repo validator; the "
-                                   "RO-Crate community validator "
-                                   "(roc-validator, profile ro-crate-1.1) "
-                                   "is run beside it by "
-                                   "tools/ro_crate_conformance.py on a "
-                                   "hosted runner, which can reach the "
-                                   "JSON-LD context this sandbox cannot"},
-                   indent=1, sort_keys=True) + "\n")
-    return 1 if problems else 0
+    return _verdict(problems, len(g), len(by["./"]["hasPart"]), rep)
 
 
 #: Tokens that look like subcommands. `ro_crate_tools.py build` used to be

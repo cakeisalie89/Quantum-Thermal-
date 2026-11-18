@@ -331,9 +331,12 @@
    "trust_boundary": "documentation and configuration",
    "verification": {
     "findings": [],
-    "mutation_specs": [],
+    "mutation_specs": [
+     "tools/mutations/ro_crate_conformance.json"
+    ],
     "tests": [
-     "tests/test_manifest_policy.py"
+     "tests/test_manifest_policy.py",
+     "tests/test_ro_crate_conformance.py"
     ]
    }
   },
@@ -4075,6 +4078,7 @@
      "tests/test_manifest_completeness.py",
      "tests/test_manifest_policy.py",
      "tests/test_offline_verify.py",
+     "tests/test_ro_crate_conformance.py",
      "tests/test_supply_chain.py"
     ]
    }
@@ -4098,6 +4102,7 @@
      "tests/test_manifest_policy.py",
      "tests/test_no_enforcing_asserts.py",
      "tests/test_reproduce_guide.py",
+     "tests/test_ro_crate_conformance.py",
      "tests/test_typecheck_scope.py"
     ]
    }
@@ -4327,6 +4332,7 @@
      "tests/test_manifest_completeness.py",
      "tests/test_manifest_policy.py",
      "tests/test_offline_verify.py",
+     "tests/test_ro_crate_conformance.py",
      "tests/test_supply_chain.py"
     ]
    }
@@ -4375,6 +4381,7 @@
      "tools/mutations/ro_crate_conformance.json"
     ],
     "tests": [
+     "tests/test_completion_matrix.py",
      "tests/test_container_workflow_contract.py",
      "tests/test_manifest_policy.py",
      "tests/test_ro_crate_conformance.py",
@@ -9396,7 +9403,8 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
-     "tests/test_audit_ledger.py"
+     "tests/test_audit_ledger.py",
+     "tests/test_ro_crate_conformance.py"
     ]
    }
   },
@@ -12476,6 +12484,7 @@
      "tests/test_dependency_declarations.py",
      "tests/test_offline_verify.py",
      "tests/test_reproduction_verdict.py",
+     "tests/test_ro_crate_conformance.py",
      "tests/test_supply_chain.py"
     ]
    }
