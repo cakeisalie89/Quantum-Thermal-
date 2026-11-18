@@ -2436,6 +2436,113 @@
    "residual_risk": "None known; the second reader never raises (AUD-047).",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-072",
+   "title": "A second task.create under an existing id replaced the task in the primary projection, where the second reader refused it",
+   "severity": "P1",
+   "subsystem": "the task projection: creation",
+   "files": [
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "GovernedTasks._project on task.create"
+    }
+   ],
+   "behavior": "The primary task projection folded every task.create into a new Task under the id it named, so a second create for an existing id replaced the first task and its history. A governed run standing VERIFIED, followed by a create reusing its id -- by its submitter, or by any actor naming itself submitter on a log without a role registry -- read CREATED, under the second record's tool and submitter, with no executor and no result. _tool_of, which picks the spec a task is verified and compensated against, still read the first create, so the projection and the runner's own lookup disagreed about which tool a task ran. The second reader refused the second create ('created twice'), and compare_tasks reported five or six fields apart.",
+   "invariant": "A task is created once; its id names one history.",
+   "mechanism": "The create branch assigned tasks[task_id] without asking whether the id was taken: the scheduler has always refused a second enqueue, and this projection did not.",
+   "reproduction": "At c82541e: a governed stage10.emit_artifact run reaches VERIFIED; a task.create naming its id, tool stage10.digest_index, is appended by stage10-submitter and, separately, by mallory naming herself; GovernedTasks.projection() then holds the task CREATED with the new tool and submitter, reconstruct_tasks holds it VERIFIED with an anomaly, and compare_tasks lists the differences.",
+   "observed": "Found reading agent_substrate/governed_tasks.py in full, comparing _project with the second reader's task replay record by record.",
+   "expected": "The second create refused, as the second reader refuses it.",
+   "correction": "The projection refuses a create naming a task it already holds, with a TaskTransitionError naming the position, so the history is refused rather than rewritten; _tool_of and the projection can then disagree about nothing.",
+   "regression_tests": [
+    "tests/test_task_projection_records.py::test_a_second_create_for_a_task_is_refused",
+    "tests/test_task_projection_records.py::test_a_genuine_run_reads_alike_in_both_readers"
+   ],
+   "residual_risk": "Under a role registry a second create needs PROPOSER over the tool it names, which bounded who could make one; it is refused now whoever makes it.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-073",
+   "title": "Malformed task records raised KeyError, ValueError or TypeError out of the primary task projection",
+   "severity": "P3",
+   "subsystem": "the task projection: malformed records",
+   "files": [
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "GovernedTasks._project, _task_id_of, _named_task, _task_state, _task_role, _lease_of"
+    }
+   ],
+   "behavior": "Every refusal the task projection makes is a TaskTransitionError naming the record's position. Fifteen malformed records raised something else: a create with no task_id, submitter, tool or inputs digest, and a transition or execution for a task never created (KeyError); a create naming its task by a list, or depending on a number (TypeError); a transition with no source or role (KeyError), from or to a state that is none, or in a role that is none (ValueError); a lease with a field no lease has, or one that is a list (TypeError).",
+   "invariant": "The projection refuses a record in its own words, at the record's position.",
+   "mechanism": "Payload fields read by subscript, TaskState(), TaskRole() and Lease(**) ahead of any check: AUD-058's class, in the task projection.",
+   "reproduction": "At c82541e, each by one record appended directly to a governed log and a fresh projection(); the regression test below holds each.",
+   "observed": "Found reading agent_substrate/governed_tasks.py in full.",
+   "expected": "A TaskTransitionError naming the position, for each.",
+   "correction": "A record's task is named through _task_id_of and _named_task, its states through _task_state, its role through _task_role, and its lease through _lease_of; a create names its submitter, tool and inputs digest as non-empty strs and its dependencies as a list of task ids.",
+   "regression_tests": [
+    "tests/test_task_projection_records.py::test_a_malformed_record_is_refused_in_the_projections_words"
+   ],
+   "residual_risk": "None known; the second reader never raises (AUD-047).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-074",
+   "title": "The second reader named a task by the record's target, and folded creates naming no tool or inputs, which the primary refuses",
+   "severity": "P2",
+   "subsystem": "the independent reader: tasks",
+   "files": [
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct_tasks, before and on task.create"
+    }
+   ],
+   "behavior": "The primary names a task by its record's task_id alone. It refuses a create, transition or execution naming none, and a create naming no tool or no inputs digest; a capture, a re-execution or a separate verification naming none it attributes to no task. reconstruct_tasks named a task by the payload's task_id or, failing that, by the record's target, and folded a create with no tool or no inputs digest. A create with no task_id, one with no tool and one with no inputs digest each folded there with no anomaly, where the primary refused to load: the second opinion accepted a wider language than the first. By reading, a capture naming its task by the target alone was folded as that task's capture, where the primary's readers of captures take none.",
+   "invariant": "The second reader names a task as the primary does, and refuses what the primary refuses, or notes it; it does not fold it.",
+   "mechanism": "A fallback to the target, and a create rule that restated the submitter and not the work.",
+   "reproduction": "At c82541e, by records appended directly: a create with no task_id, one with no tool and one with no inputs digest each fold in reconstruct_tasks with no anomaly.",
+   "observed": "Found comparing the two readers' task rules.",
+   "expected": "Each noted and not folded, as the primary refuses it.",
+   "correction": "reconstruct_tasks notes a task record of any kind whose payload names no task_id, and a create naming no tool or no inputs digest, and folds neither.",
+   "regression_tests": [
+    "tests/test_task_projection_records.py::test_the_second_reader_names_a_task_by_its_record",
+    "tests/test_task_projection_records.py::test_the_second_reader_refuses_a_create_naming_no_work",
+    "tests/test_task_projection_records.py::test_a_well_formed_create_is_folded_by_the_second_reader"
+   ],
+   "residual_risk": "None known.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-075",
+   "title": "Under a role registry no grant stands behind the task machine's SCHEDULER and SYSTEM moves, so any principal may reject, cancel or invalidate a task",
+   "severity": "P2",
+   "subsystem": "the task projection: the control plane's roles",
+   "files": [
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "_TASK_REGISTRY_ROLES; GovernedTasks._project on task.transition; GovernedTasks._move and invalidate"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_TASK_ROLE_BEHIND"
+    }
+   ],
+   "behavior": "Under a role registry a task move claiming SUBMITTER, WORKER or VERIFIER needs PROPOSER, EXECUTOR or VERIFIER over the tool, where it is written and on replay in both readers. A move claiming SCHEDULER or SYSTEM needs nothing: the edge alone decides it. Those two roles validate, queue, lease and requeue a task, time it out, reject or cancel it, and move a VERIFIED task to INVALIDATED. A principal holding no grant invalidated a VERIFIED task through invalidate() on the write path and by a record appended directly, rejected a CREATED task as SCHEDULER and cancelled one as SYSTEM, and both readers accepted each move. On a governed history, every record signed, a registered party no grant names signed the same invalidation, and the primary, the second reader and the separate process each accepted it. An invalidation is what GovernedModelRuns follows: a result resting on the task loses its origin, and following the invalidation makes the result STALE. The record authority binds its own SYSTEM to VERIFIER or PROMOTER over the kind, and the report's trust-boundary matrix named only the three granted task roles.",
+   "invariant": "Under a registry, every move a reader applies is made by a principal a grant names for it.",
+   "mechanism": "By stated design: _TASK_REGISTRY_ROLES and the second reader's _TASK_ROLE_BEHIND map SUBMITTER, WORKER and VERIFIER to registry roles and leave SCHEDULER and SYSTEM out, as moves for the control plane rather than for a party. The runner makes them as 'scheduler' and 'system', or as the worker for a cancellation. The governed world's registry (tools/adversarial_eval.py), found by granting each act a refusal named, gives those two parties keys and no grant, because nothing refused them.",
+   "reproduction": "At c82541e, under a registry granting PROPOSER, EXECUTOR and VERIFIER over stage10.emit_artifact to the runner's three parties: a governed run reaches VERIFIED; 'mallory', named by no grant, moves it to INVALIDATED as SYSTEM, both through GovernedTasks.invalidate and by an appended record; she rejects a CREATED task as SCHEDULER and cancels another as SYSTEM. GovernedTasks.projection() and reconstruct_tasks hold each move, with nothing unauthorized. Her own create is refused, NOT_GRANTED. And on the adversarial evaluation's governed world (tools/adversarial_eval.py), after its legitimate task succeeded: its registered colleague, 'ai-colleague', whom no grant names, signs a task.transition moving the first verified task to INVALIDATED as SYSTEM; the history still authenticates, GovernedTasks.projection() and reconstruct_tasks hold the task INVALIDATED with nothing unauthorized, and verify_in_separate_process answers ok.",
+   "observed": "Found reading agent_substrate/governed_tasks.py in full, comparing its registry roles with the record authority's.",
+   "expected": "A move the control plane makes is made by a principal the registry names for it, as the record authority's SYSTEM is.",
+   "correction": "None in code: which principal the control plane is, and which registry role stands behind its moves, is the owner's to decide. A grant for the runner's 'scheduler' and 'system' would need a role the registry does not have, or VERIFIER and PROPOSER grants that would let either verify or submit. _TASK_REGISTRY_ROLES now states every move the two roles make, and the trust-boundary matrix says no grant stands behind them.",
+   "regression_tests": [
+    "tests/test_task_projection_records.py::test_a_control_plane_move_is_made_under_no_grant"
+   ],
+   "residual_risk": "Under a registry any principal that can append a record, and under a governed history any that holds a key, can reject, cancel or time out any task, take its lease or return it to the queue, and withdraw any verified task and with it every result resting on it. None of this forges a verdict: nothing it reaches moves a task or a result to VERIFIED.",
+   "verification": "REPRODUCED",
+   "resolution": "OWNER"
   }
  ]
 }

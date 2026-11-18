@@ -224,11 +224,71 @@ OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
 
 #: The registry role behind each task role a record claims, under a role
 #: registry (AUD-011). SCHEDULER and SYSTEM move a task for the control plane
-#: rather than for a party: the lease, the timeout and the recovery. No
-#: registry grant stands behind them, and the edge alone decides them.
+#: rather than for a party, and no registry grant stands behind them: the
+#: edge alone decides them. Their moves are not only the lease, the timeout
+#: and the recovery. They validate, queue and requeue a task, reject or
+#: cancel it, and move a VERIFIED task to INVALIDATED, so under a registry
+#: any principal may make them. Which principal the control plane is, and
+#: which registry role stands behind it, is the owner's to decide (AUD-075).
 _TASK_REGISTRY_ROLES = {TaskRole.SUBMITTER: PROPOSER,
                         TaskRole.WORKER: EXECUTOR,
                         TaskRole.VERIFIER: ROLE_VERIFIER}
+
+
+def _task_id_of(ev, p: dict) -> str:
+    """The task a record names, by its payload's ``task_id``. A record
+    naming none raised KeyError out of the projection, where every refusal
+    it makes is a TaskTransitionError (AUD-073; AUD-058's class)."""
+    tid = p.get("task_id")
+    if not isinstance(tid, str) or not tid:
+        raise TaskTransitionError(
+            f"seq {ev.seq}: {ev.action} names task {tid!r}; a task is "
+            "named by its record's task_id, a non-empty str")
+    return tid
+
+
+def _named_task(ev, p: dict, tasks: dict) -> Task:
+    """The task a record names, which a create introduced, or the
+    refusal that it names none."""
+    tid = _task_id_of(ev, p)
+    if tid not in tasks:
+        raise TaskTransitionError(
+            f"seq {ev.seq}: {ev.action} names task {tid!r}, which no create "
+            "introduced")
+    return tasks[tid]
+
+
+def _task_state(value, seq: int, which: str) -> TaskState:
+    """A record's state name as a TaskState, or the refusal that it
+    names none (AUD-073)."""
+    try:
+        return TaskState(value)
+    except (ValueError, TypeError):
+        raise TaskTransitionError(
+            f"seq {seq}: the record's {which} is {value!r}, which is not a "
+            "task state") from None
+
+
+def _task_role(value, seq: int) -> TaskRole:
+    """A record's role as a TaskRole, or the refusal that it names none
+    (AUD-073)."""
+    try:
+        return TaskRole(value)
+    except (ValueError, TypeError):
+        raise TaskTransitionError(
+            f"seq {seq}: the record acts as {value!r}, which is not a task "
+            "role") from None
+
+
+def _lease_of(rec, seq: int) -> Lease:
+    """A record's lease, or the refusal that it is malformed (AUD-073).
+    A lease that is not a mapping of a lease's fields, a list or a str
+    among them, is refused by the constructor's own TypeError."""
+    try:
+        return Lease(**rec)
+    except (TypeError, ValueError) as exc:
+        raise TaskTransitionError(
+            f"seq {seq}: the record's lease is malformed: {exc}") from None
 
 
 def governed_policy(version: int = 1) -> PolicyDocument:
@@ -670,6 +730,32 @@ class GovernedTasks:
             seq = ev.seq
             p = ev.payload
             if ev.action == ACT_TASK_CREATE:
+                # ONE CREATE PER TASK (AUD-072). A second, appended under the
+                # same id, replaced the first: a task standing VERIFIED read
+                # CREATED, with another tool, another submitter and no
+                # executor, while _tool_of -- which picks the spec a task is
+                # verified and compensated against -- still read the first.
+                # The scheduler has always refused a second enqueue for the
+                # same reason, and the second reader refused this one.
+                tid = _task_id_of(ev, p)
+                if tid in tasks:
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: task {tid!r} is created twice; the "
+                        "second create would replace the first one's "
+                        "history, its verdict and its executor with a new "
+                        "task under the same name")
+                for name in ("submitter", "tool_id", "inputs_digest"):
+                    if not isinstance(p.get(name), str) or not p.get(name):
+                        raise TaskTransitionError(
+                            f"seq {ev.seq}: task {tid!r} is created with "
+                            f"{name} {p.get(name)!r}; the writer records "
+                            "it as a non-empty str (AUD-073)")
+                if not isinstance(p.get("depends_on", []), list) or not all(
+                        isinstance(d, str) for d in p.get("depends_on", [])):
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: task {tid!r} depends on "
+                        f"{p.get('depends_on')!r}; dependencies are task ids "
+                        "(AUD-073)")
                 # The submitter is who asked for the work, and it is what the
                 # policy gate was evaluated against when the task was
                 # admitted. Taken from the payload alone it is a name the
@@ -697,10 +783,10 @@ class GovernedTasks:
                     depends_on=tuple(p.get("depends_on", ())),
                     created_seq=ev.seq, updated_seq=ev.seq)
             elif ev.action == ACT_TASK_TRANSITION:
-                task = tasks[p["task_id"]]
+                task = _named_task(ev, p, tasks)
                 lease = None
                 if p.get("lease"):
-                    lease = Lease(**p["lease"])
+                    lease = _lease_of(p["lease"], ev.seq)
                 # THE SRC COMES FROM THE REPLAY, NOT FROM THE RECORD.
                 #
                 # This re-authorizes, and re-authorizing against a src the
@@ -720,7 +806,7 @@ class GovernedTasks:
                 # scheduler.apply and reconstruct.reconstruct both already do
                 # it this way. This projection was the odd one out, and it is
                 # the one on the production path.
-                claimed = TaskState(p["src"])
+                claimed = _task_state(p.get("src"), ev.seq, "src")
                 if task.state is not claimed:
                     raise TaskTransitionError(
                         f"seq {ev.seq}: {task.task_id!r} is "
@@ -770,8 +856,9 @@ class GovernedTasks:
                         "own work.")
                 req = TaskTransition(
                     task_id=p["task_id"], src=task.state,
-                    dst=TaskState(p["dst"]), actor=ev.actor,
-                    role=TaskRole(p["role"]), at_seq=ev.seq,
+                    dst=_task_state(p.get("dst"), ev.seq, "dst"),
+                    actor=ev.actor,
+                    role=_task_role(p.get("role"), ev.seq), at_seq=ev.seq,
                     lease_id=(lease.lease_id if lease else p.get("lease_id")),
                     executed_by=task.executed_by,
                     result_digest=p.get("result_digest"))
@@ -800,7 +887,7 @@ class GovernedTasks:
                 # unconditionally, a record appended after the verdict
                 # renamed the executor of work already judged, and both
                 # readers agreed with it.
-                task = tasks[p["task_id"]]
+                task = _named_task(ev, p, tasks)
                 check_execution(task, ev.actor, at_seq=ev.seq)
                 refusal = self._role_refusal(ev.actor, EXECUTOR,
                                              task.tool_id, ev.seq)

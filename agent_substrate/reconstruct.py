@@ -1729,12 +1729,31 @@ def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
             continue
 
         tid = p.get("task_id", ev.target)
+        if not isinstance(p.get("task_id"), str) or not p.get("task_id"):
+            # Named as the primary names it (AUD-074): by the record's
+            # task_id. Read by its target when the payload named none, such
+            # a record was folded here into a task the primary refuses to
+            # hear of, and the two readers held different histories.
+            out.anomalies.append(
+                f"seq {ev.seq}: {action} names task {p.get('task_id')!r}; "
+                "a task record names its task by its task_id")
+            continue
 
         if action == "task.create":
             if tid in tasks:
                 out.anomalies.append(
                     f"seq {ev.seq}: task {tid!r} created twice; the second "
                     "record would silently replace the first one's history")
+                continue
+            unnamed = [k for k in ("tool_id", "inputs_digest")
+                       if not isinstance(p.get(k), str) or not p.get(k)]
+            if unnamed:
+                # Restated (AUD-074): the primary refuses a create naming no
+                # tool or no inputs, and this reader folded one.
+                out.anomalies.append(
+                    f"seq {ev.seq}: task {tid!r} is created with no "
+                    f"{' and no '.join(unnamed)}; the work has to say what "
+                    "it runs and on what")
                 continue
             if p.get("submitter") != ev.actor:
                 # Restated here for the reason every rule in this module is:

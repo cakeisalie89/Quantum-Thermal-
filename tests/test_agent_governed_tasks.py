@@ -514,7 +514,7 @@ def test_the_replay_reads_src_from_itself_not_from_the_record(gov):
     assert "src=task.state" in rule, (
         "the replay must build its request from the state it replayed; "
         "re-authorizing against a src the writer supplied authorizes nothing")
-    assert "TaskState(p[\"src\"])" in rule, (
+    assert "_task_state(p.get(\"src\"), ev.seq, \"src\")" in rule, (
         "the record's claim must still be READ, so a disagreement can be "
         "reported rather than silently corrected")
 

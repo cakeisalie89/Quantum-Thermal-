@@ -143,8 +143,11 @@ KEYS = sorted(set(re.findall(r'\.get\(\s*"(\w+)"', inspect.getsource(RC)))
 
 
 def _event(seq, action, payload) -> Event:
+    """A record whose actor is "x", the plain value of every key the
+    sweep sets: a payload naming its submitter, proposer or author by the
+    plain value is the actor's own, and reaches what follows that check."""
     return Event(seq=seq, event_id=f"e{seq}", wall_time=1.0 + seq,
-                 actor="a", action=action, target="t", payload=payload,
+                 actor="x", action=action, target="t", payload=payload,
                  prev_hash="0" * 64, hash=f"{seq:064x}")
 
 

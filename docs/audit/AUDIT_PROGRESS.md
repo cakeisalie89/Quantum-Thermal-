@@ -4666,3 +4666,86 @@ restored.
   taking the writer's lock, so under contention the lease is shorter
   than asked by the records appended between. Not changed; the bound
   holds for every end the writer can compute.
+
+### Stage 5, fifteenth pass: the governed task runner read in full (AUD-072 to AUD-074)
+
+`agent_substrate/governed_tasks.py`, read in part until now, was read in
+full at c82541e, all 2,788 lines, beside the second reader's task replay.
+Four findings were reproduced: three defects, fixed, and one question
+for the owner.
+
+**AUD-072 (P1), fixed.** The task projection folded every create into a
+new task under the id it named. A governed run standing VERIFIED,
+followed by a create reusing its id, by its submitter or by any actor
+naming itself submitter, read CREATED under the second record's tool and
+submitter, with no executor. `_tool_of`, which picks the spec a task is
+verified and compensated against, still read the first create. The
+second reader refused the second create, so the readers held different
+histories. The projection refuses it now.
+
+**AUD-073 (P3), fixed.** Fifteen malformed task records raised KeyError,
+ValueError or TypeError out of the projection, AUD-058's class once
+more. Each is refused in the projection's words, at its position.
+
+**AUD-074 (P2), fixed.** The second reader named a task by the record's
+target when the payload named none, where the primary names it by the
+payload alone, and folded creates naming no tool or no inputs digest,
+which the primary refuses. It notes each and folds none.
+
+**AUD-075 (P2), the owner's.** Under a role registry a task move
+claiming SUBMITTER, WORKER or VERIFIER needs PROPOSER, EXECUTOR or
+VERIFIER over the tool. One claiming SCHEDULER or SYSTEM needs nothing,
+by stated design: those roles move a task for the control plane. Their
+moves include rejecting and cancelling a task and moving a VERIFIED task
+to INVALIDATED, which withdraws the origin of every result resting on
+it. A principal no grant names did each, through `invalidate()` and by
+records appended directly, and both readers held every move. On a
+governed history, every record signed, a registered party no grant
+names signed the same invalidation, and the separate process confirmed
+the history as well. The record
+authority binds its own SYSTEM to VERIFIER or PROMOTER over the kind,
+and the trust-boundary matrix named only the three granted roles; it
+says now that no grant stands behind the other two. Which principal the
+control plane is, and which role stands behind it, is the owner's to
+decide. Nothing it reaches forges a verdict: no SCHEDULER or SYSTEM move
+ends in VERIFIED.
+
+**Tests.** `tests/test_task_projection_records.py`, new, 23 tests. On
+the previous pass's tree 20 of them fail; the 2 controls pass, and so
+does the one that measures AUD-075.
+
+Three existing tests met the new rules, and each still asks what it
+asked. `tests/test_agent_governed_tasks.py` read the transition rule's
+source for the record's claimed source state as `TaskState(p["src"])`;
+the claim is read now through `_task_state`, and the test reads that.
+The AUD-047 cases in `tests/test_agent_second_reader.py` set aside a
+task record whose id is a list, which the task replay now refuses in its
+own words before any lookup; for that reader the case is a create whose
+dependency list is a number, which still reaches the guard, and the
+honest create after it names its inputs. And the sweeps in
+`tests/test_agent_readers_never_raise.py` built every record under an
+actor no plain value names, so a create's submitter check stopped each
+one short: without the guard, the sweep of registered actions found
+nothing the task replay raised on. Its records are now the actor's own,
+and that sweep finds the task replay raising again.
+
+**Mutations.** Ten, in a new spec, `task_projection_records`: TP1 the
+second create, TP2 and TP3 a create's fields, TP4 to TP8 the malformed
+records, TP9 and TP10 the second reader. No existing anchor moved. The
+shard plan was regenerated for 149 specs. A first run on this pass's
+tree left one alive: it removed a check that a lease is a mapping, which
+the lease's own constructor, its refusal caught just below, already
+made. The check is removed, and that mutation with it.
+
+Run here, on this commit's tree: 160 mutations in 28 specs. That is
+`task_projection_records` whole, 10; `mutation_shards` whole, 12; and
+every other mutation anchored in `governed_tasks.py`, 109, in the second
+reader's task replay, 28, or in the import list's test, 1, in the 26
+other specs that hold one. All were killed and every source restored.
+
+**What is not established.**
+
+- `_execution_record` answers with the last `task.execution` record for
+  a task. On any history the projection accepts that is the lease
+  holder's, made while the task executed; on one it refuses, recovery
+  does not run.

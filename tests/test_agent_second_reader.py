@@ -1692,7 +1692,10 @@ def test_an_honest_dependency_is_folded_by_both_readers(tmp_path):
 # in tests/test_agent_readers_never_raise.py; these hold what the guard does
 # with such a record, one thing at a time and for each reader. Each forged
 # record carries an id that is a list, which cannot be looked up: the lookup
-# raised TypeError. After it comes one honest record of the reader's own.
+# raised TypeError. The task replay names a task by its record's task_id
+# before it looks one up (AUD-074), so its forged record is a create whose
+# dependency list is a number, which cannot be listed. After it comes one
+# honest record of the reader's own.
 # ---------------------------------------------------------------------------
 
 _SET_ASIDE = {
@@ -1703,10 +1706,13 @@ _SET_ASIDE = {
                   {**_HONEST_CREATE, "record_id": "r"}),
         "held": lambda recon: "r" in recon.records},
     "reconstruct_tasks": {
-        "bad": ("task.transition",
-                lambda i: {"task_id": [i], "dst": "VALIDATED"}),
+        "bad": ("task.create",
+                lambda i: {"task_id": f"f{i}", "tool_id": "tool",
+                           "submitter": "mallory", "inputs_digest": "a" * 64,
+                           "depends_on": i + 1}),
         "after": ("alice", "task.create", "t",
-                  {"task_id": "t", "tool_id": "tool", "submitter": "alice"}),
+                  {"task_id": "t", "tool_id": "tool", "submitter": "alice",
+                   "inputs_digest": "a" * 64}),
         "held": lambda recon: "t" in recon.tasks},
     "reconstruct_subsystems": {
         "bad": ("scheduler.priority",
