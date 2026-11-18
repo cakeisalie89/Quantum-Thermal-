@@ -196,7 +196,11 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/egress_perimeter.json",
                # The agent directory's records (AUD-060, AUD-061).
                "tests/test_agent_directory_records.py",
-               "tools/mutations/agent_directory_records.json")
+               "tools/mutations/agent_directory_records.json",
+               # What a capture is, and the second reader's rules
+               # (AUD-062 to AUD-067).
+               "tests/test_second_reader_rules.py",
+               "tools/mutations/second_reader_rules.json")
 
 #: (glob, kind). First match wins.
 KINDS = (

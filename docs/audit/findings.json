@@ -2136,6 +2136,179 @@
    "residual_risk": "Fail-closed before and after; the change is in the error a caller is handed. The remaining reducers were not swept for this.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-062",
+   "title": "A task.evidence record by any actor at any time before the verdict was taken for a governed capture, so a report no check produced was admitted",
+   "severity": "P0",
+   "subsystem": "the scientific admission: origin",
+   "files": [
+    {
+     "path": "agent_substrate/governed_model.py",
+     "lines": "GovernedOrigins._view"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct_tasks on task.evidence, and _execution"
+    },
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "GovernedTasks._artifacts_of"
+    }
+   ],
+   "behavior": "An admission asks that the verification report and the result bundle each be captured by a governed task that stood VERIFIED before the transition. A capture is a task.evidence record, which the governed runner writes, as the actor 'system', while the task executes (_capture, between EXECUTING and the outcome). Both readers of origin -- the store's GovernedOrigins._view and the independent reconstruct_tasks -- took every task.evidence record naming the task as a capture of it, from any actor, at any position before the verdict. An actor holding no role appended a task.evidence record naming a report it wrote itself to a genuine, independently executed check task, after the task completed and before its verdict; the report held every content rule of a VerificationResult, in other bytes than the check produced. Both readers counted it as captured by that VERIFIED check, and the store admitted a scientific_result citing it: a report no governed check produced authorized a result. The decision proof's _execution named the producer of a bundle the same way, from the last record naming it.",
+   "invariant": "What a governed task produced is what its runner captured while it ran; a record by anyone else, or at any other time, is not a capture.",
+   "mechanism": "Origin asked which task.evidence records named a task, never which were the runner's captures of it while it executed.",
+   "reproduction": "At 0278dcf, by a governed run: a model run and its independent check as governed tasks; during the check, after it completes and before its verdict, another principal appends a task.evidence record naming the check task, whose artifact is the genuine report with its agreement's resolutions divided by a thousand. g.decide(run, that report) returns VERIFIED; the store loads the result VERIFIED; the independent reader admits it. Also by tests/test_second_reader_rules.py, by hand, on a legacy history.",
+   "observed": "Found reading agent_substrate/reconstruct.py in full, which had been read in part, and tracing the capture back through both readers of origin.",
+   "expected": "The result REJECTED, and the readers to admit nothing on a report the governed check did not capture.",
+   "correction": "A capture is counted only from a task.evidence record written by the runner ('system', the module constant CAPTURER) while the task is EXECUTING, in GovernedOrigins._view, reconstruct_tasks, the decision proof's _execution, and GovernedTasks._artifacts_of (which answers a duplicate submission). A record by another principal, or after the run, is not applied and is reported. A check task whose history already holds such a record is refused by its own separate-process verification, so no verdict stands on it. A task executes only before its one verdict, so the checks that a capture preceded the verdict, which the rule implies, are removed from GovernedOrigins._producers, captured_by and artefacts_of and from the second reader's _sci_task_producers: the rule is the one guard, and each half of it is held by a case that breaks that half alone.",
+   "regression_tests": [
+    "tests/test_second_reader_rules.py::test_a_report_attached_by_anyone_but_the_runner_is_no_capture",
+    "tests/test_second_reader_rules.py::test_the_runners_capture_while_it_executes_still_counts",
+    "tests/test_second_reader_rules.py::test_the_store_admits_nothing_on_a_report_no_check_produced",
+    "tests/test_second_reader_rules.py::test_a_check_whose_history_holds_anothers_capture_is_refused",
+    "tests/test_second_reader_rules.py::test_a_proof_names_the_task_that_captured_the_bundle",
+    "tests/test_second_reader_rules.py::test_a_duplicate_is_answered_with_the_runners_capture",
+    "tests/test_second_reader_rules.py::test_the_runners_name_outside_the_execution_is_no_capture",
+    "tests/test_second_reader_rules.py::test_anothers_record_while_the_task_executes_is_no_capture"
+   ],
+   "residual_risk": "The runner writes as 'system' on an unauthenticated log, so on such a log any writer may still use that name; the attestation of a governed history binds it, and AUD-063 makes the admission readers hold a governed history to its attestations. A capture made while the task executes is the runner's whoever it names, by construction.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-063",
+   "title": "The independent reader authenticated the events it folded, not the task and subsystem replays it consulted to decide an admission",
+   "severity": "P1",
+   "subsystem": "the independent reader: authentication",
+   "files": [
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct's task_view, reconstruct_tasks, reconstruct_subsystems, and the research proof"
+    }
+   ],
+   "behavior": "Given an authenticator, reconstruct refuses the records whose writers it does not attest, before it folds them (AUD-012). To decide a scientific admission it builds a task replay, reconstruct_tasks, which says whether a governed verification task stands behind the report; that replay read the whole history and took no authenticator, so a check task moved to VERIFIED by a record no key attests stood behind an admission the authenticated reader accepted. The research proof's two subsystem replays, which judge a research verdict, read the history unauthenticated the same way.",
+   "invariant": "A reader that authenticates what it folds authenticates what it consults to decide: an unattested record stands behind no admission.",
+   "mechanism": "The authenticator was applied in reconstruct's own fold and not threaded to reconstruct_tasks or reconstruct_subsystems.",
+   "reproduction": "At 0278dcf, by tests/test_second_reader_rules.py and by the handcrafted admission world: a legacy history admitted under admission/1, every record signed but the check task's verdict; reconstruct with an authenticator reports it unauthenticated and admits the result anyway; reconstruct_tasks and reconstruct_subsystems, given the authenticator, fold a record the authenticator refuses.",
+   "observed": "Found reading agent_substrate/reconstruct.py in full and following the admission path's task replay.",
+   "expected": "No admission to stand on a verdict the reader itself names unauthenticated.",
+   "correction": "reconstruct_tasks and reconstruct_subsystems take an authenticator and, through _attested, refuse the records it does not attest; reconstruct's task_view passes its own authenticator to the task replay, and derive_decision_proof passes it to the research proof's subsystem replays. A GOVERNED history is read with the registry the given authenticator names. Each reader the decision proof builds on a prefix of the history is handed its roots, so the prefix view keeps no copy of them.",
+   "regression_tests": [
+    "tests/test_second_reader_rules.py::test_an_admission_does_not_stand_on_a_verdict_nobody_attested",
+    "tests/test_second_reader_rules.py::test_the_task_and_subsystem_readers_refuse_what_they_cannot_attest",
+    "tests/test_second_reader_rules.py::test_a_research_proof_reads_its_subsystems_under_the_authenticator"
+   ],
+   "residual_risk": "Without an authenticator the readers fold as before, for a log that authenticates in its read primitive (events.read_verified) or a legacy one; the thread matters where a caller reads a history with an authenticator rather than through the log's own. The store's load authenticates the whole history, so its admission never ran on an unattested record.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-064",
+   "title": "The independent reader admitted a HUMAN that only a registered agent could not have minted, so a stranger's or a retired human's invented person answered an escalation",
+   "severity": "P1",
+   "subsystem": "the agent directory, second reader",
+   "files": [
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_sub_agent_register"
+    }
+   ],
+   "behavior": "The agent directory admits a HUMAN principal only by the out-of-band bootstrap or by an already-registered, active human (AUD-011's _check_may_register, enforced on load). The second reader refused only a HUMAN registered by a principal it held that was not HUMAN; a registrar it did not hold at all, or one it held as a retired human, passed. So an unregistered actor, or a retired human, registered a HUMAN, and that invented person answered an escalation: the directory refused the history on load, and the second reader recorded the escalation ANSWERED by the invented human, with no anomaly. The readers disagreed about who the people are.",
+   "invariant": "A HUMAN is admitted by the bootstrap or by an active human, in both readers.",
+   "mechanism": "The rule was stated as 'a registered non-human registrar', which a registrar that is absent, or retired, is not.",
+   "reproduction": "At 0278dcf, by tests/test_second_reader_rules.py: a bootstrapped human and an agent; the agent raises an escalation; an unregistered 'mallory', and in the other case a retired human, registers a HUMAN 'fake'; 'fake' answers the escalation. The directory raises IdentityError on load; the second reader admits 'fake' and records the answer.",
+   "observed": "Found reading agent_substrate/reconstruct.py in full.",
+   "expected": "The second reader to admit no such HUMAN and to leave the escalation OPEN.",
+   "correction": "_sub_agent_register refuses a HUMAN registration unless the registrar is the bootstrap, a held HUMAN, and not retired: a registrar it does not hold, or holds as retired, is reported and not applied, as the directory refuses it.",
+   "regression_tests": [
+    "tests/test_second_reader_rules.py::test_a_human_admitted_by_neither_the_bootstrap_nor_an_active_human",
+    "tests/test_second_reader_rules.py::test_a_human_admitted_by_an_active_human_still_answers",
+    "tests/test_agent_second_reader.py::test_a_HUMAN_registration_forgery_reaches_the_escalation_answer"
+   ],
+   "residual_risk": "The directory refused every such history on load before and after; the change is in the second reader, where it had agreed with a history the primary refuses. An escalation answer still rests on an attested writer under AUD-063.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-065",
+   "title": "The independent readers applied a transition whose starting state the replay did not agree with, which the primaries refuse",
+   "severity": "P2",
+   "subsystem": "the independent readers: state machines",
+   "files": [
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct on record.transition, and reconstruct_tasks on task.transition"
+    }
+   ],
+   "behavior": "A transition record names the state it moves from. The store and the governed task projection refuse a record whose named src is not the state the replay has reached: a transition whose starting state the replay does not agree with was not written through the gate. Both independent readers noted the disagreement as an anomaly and then applied the move, judged from the state the replay actually had, so a history the store refuses read here as canonical. The move applied was one the replayed state permits, so a writer naming the right state reaches it in both readers; what the readers disagreed about was whether a record not written through the gate stands.",
+   "invariant": "A move the replay applies is one whose starting state it agrees with; a record naming another is refused, as the primaries refuse it.",
+   "mechanism": "The readers judged the edge from the replayed state but did not refuse the record for naming a different one.",
+   "reproduction": "At 0278dcf, by tests/test_second_reader_rules.py: a record created PROPOSED, then a record.transition naming src VERIFIED moving to UNDER_REVIEW; the store raises StoreError, the second reader applied it. A governed task VERIFIED, then a task.transition naming src COMPLETED moving to INVALIDATED; the projection raises, the task reader applied it.",
+   "observed": "Found reading agent_substrate/reconstruct.py in full.",
+   "expected": "Both readers to refuse the record and not apply it, as the primaries do.",
+   "correction": "Each reader, when the claimed src is present and differs from the replayed state, reports the move as one the primary refuses and does not apply it. A record naming no src is judged from the replayed state, as the store judges it.",
+   "regression_tests": [
+    "tests/test_second_reader_rules.py::test_a_record_moved_from_where_it_is_not_is_refused_by_both",
+    "tests/test_second_reader_rules.py::test_a_record_naming_no_starting_state_is_judged_as_the_store_does",
+    "tests/test_second_reader_rules.py::test_a_task_moved_from_where_it_is_not_is_refused"
+   ],
+   "residual_risk": "Rated P2, as AUD-066: a history the primary refuses read as canonical in the second reader alone, and the move is one a record naming the right state makes in both. The readers still note the disagreement; they no longer apply it. A record naming no src is taken from the replayed state, matching the store.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-066",
+   "title": "The independent reader counted a policy publication whose version is not an integer, which the policy store and the authority store refuse, so a bound promotion stood on it",
+   "severity": "P2",
+   "subsystem": "the independent reader: policy binding",
+   "files": [
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct's policy.publish fold"
+    }
+   ],
+   "behavior": "A policy-bound promotion must name a policy published on the history. The policy store refuses a version that is not an integer no less than 1, and the authority store counts a publication only when its version is an integer. The second reader counted any publication whose document named a policy_id, whatever its version, so a bound promotion citing a policy whose only publication carries a non-integer version read here as published and the promotion as canonical, where the store refuses the history.",
+   "invariant": "A publication a promotion may stand on carries an integer version, in both readers.",
+   "mechanism": "The fold asked for a policy_id and not for a version an integer.",
+   "reproduction": "At 0278dcf, by tests/test_second_reader_rules.py: a policy published with version '1' (a string), bound, and a record promoted under it by a forged transition; the policy store refuses the version, the authority store refuses the promotion as unpublished, the second reader read the record PROMOTED and canonical.",
+   "observed": "Found reading agent_substrate/reconstruct.py in full against the store's _fold_policy_record.",
+   "expected": "The second reader not to count such a publication, and the promotion not to be canonical.",
+   "correction": "The fold notes a publication whose version is not an integer and does not count it, as the store does; a withdrawal still reaches its branch.",
+   "regression_tests": [
+    "tests/test_second_reader_rules.py::test_a_promotion_bound_to_a_version_that_is_no_integer_is_refused",
+    "tests/test_second_reader_rules.py::test_a_promotion_bound_to_an_integer_version_stands"
+   ],
+   "residual_risk": "Rated P2: a promotion bound to such a policy is refused by the store on load, so no such history loads; the second reader was the only reader that admitted it, and only for a policy whose sole publication is malformed.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-067",
+   "title": "The second reader's audit trail counted an allowed read under a delegated capability without asking whether its ancestors still held",
+   "severity": "P2",
+   "subsystem": "the second reader: the audit trail",
+   "files": [
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_sub_file_read and _sub_chain_problem"
+    }
+   ],
+   "behavior": "A file.read record states the capability that allowed it. The read path's check walks the capability chain, so a revoked or expired ancestor refuses the read: revoking a grant revokes its subtree. The second reader asked only whether the capability the read cited was itself live, and counted an allowed read under a child of a revoked or expired grant as an ordinary read, with no anomaly -- the same class as D-2026-156 for egress after revocation, which this reader already catches.",
+   "invariant": "A read the trail accepts cites a capability every ancestor of which still holds.",
+   "mechanism": "The liveness check consulted the cited grant and not its ancestors.",
+   "reproduction": "At 0278dcf, by tests/test_second_reader_rules.py: a root grant and a delegation of it; the root is revoked; an allowed file.read under the delegation. CapabilitySet.check raises CapabilityRevoked; the second reader counted the read.",
+   "observed": "Found reading agent_substrate/reconstruct.py in full against the capability set's _check_chain.",
+   "expected": "The read noted as under a capability an ancestor of which was revoked, and not counted.",
+   "correction": "_sub_chain_problem walks the chain from the cited capability, and _sub_file_read reports a read whose ancestor was revoked, expired or never issued, or sits on a cycle, and does not count it.",
+   "regression_tests": [
+    "tests/test_second_reader_rules.py::test_a_read_under_a_child_of_a_revoked_grant_is_noted",
+    "tests/test_second_reader_rules.py::test_a_read_under_a_live_line_still_counts"
+   ],
+   "residual_risk": "Rated P2: a read trail is read by an investigation and authorizes nothing; the change is that a read the read path refused no longer reads as ordinary traffic. The mint side was already checked; this is the use side, as AUD-058's egress case was.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

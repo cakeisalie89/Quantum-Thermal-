@@ -190,6 +190,13 @@ ACT_CAP_ISSUE = _cap_actions.ACT_ISSUE
 ACT_CAP_REVOKE = _cap_actions.ACT_REVOKE
 ACT_EXECUTION = "task.execution"
 ACT_EVIDENCE = "task.evidence"
+#: Who records what a governed tool produced: the runner, while the task
+#: executes, between EXECUTING and its outcome. A record of
+#: ``ACT_EVIDENCE`` by anybody else, or at any other time, is not a
+#: capture: the readers of origin take only these, so one record by
+#: another principal cannot make a report no check produced read as
+#: captured by a governed verification.
+CAPTURER = "system"
 #: A compensating action that was RUN, and the answered escalation that
 #: authorized running it. Separate from task.execution because a
 #: compensation is not an attempt at the work -- it is an attempt to undo it,
@@ -2311,9 +2318,15 @@ class GovernedTasks:
         record here is an answer nobody's chain vouches for.
         """
         found: dict = {}
+        state = None
         for ev in self._verified_events():
-            if ev.action == ACT_EVIDENCE and ev.payload.get("task_id") == \
-                    task_id:
+            if ev.payload.get("task_id") != task_id:
+                continue
+            if ev.action == ACT_TASK_TRANSITION:
+                state = ev.payload.get("dst")
+            elif ev.action == ACT_EVIDENCE and ev.actor == CAPTURER and \
+                    state == TaskState.EXECUTING.value:
+                # the runner's capture, not any record naming the task
                 found = dict(ev.payload.get("artifacts", {}))
         return found
 
@@ -2518,7 +2531,7 @@ class GovernedTasks:
             rel = path.relative_to(self.root).as_posix()
             artifacts[rel] = self.evidence.put_file(
                 path, media_type="application/octet-stream")
-        self.log.append(actor="system", action=ACT_EVIDENCE, target=task_id,
+        self.log.append(actor=CAPTURER, action=ACT_EVIDENCE, target=task_id,
                         payload={"task_id": task_id,
                                  "artifacts": dict(sorted(artifacts.items()))})
         return artifacts

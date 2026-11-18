@@ -326,6 +326,9 @@ _TASK_TERMINAL = frozenset({"VERIFIED", "REJECTED", "CANCELLED",
 
 _TASK_LEASED = "LEASED"
 _TASK_EXECUTING = "EXECUTING"
+#: Who records what a governed tool produced: the runner, under this name,
+#: while the task executes (governed_tasks._capture), restated.
+_CAPTURER = "system"
 _TASK_QUEUED = "QUEUED"
 _TASK_COMPLETED = "COMPLETED"
 _TASK_VERIFIED = "VERIFIED"
@@ -675,9 +678,10 @@ def _sci_content(policy) -> tuple:
 def _sci_task_producers(tasks: dict, sha: str, tools: frozenset,
                         at_seq: int) -> list:
     """``(task_id, executor)`` for every task of ``tools`` that captured
-    ``sha`` before its own VERIFIED verdict and was still VERIFIED at
-    ``at_seq``. ``executor`` is whoever the last execution record before the
-    verdict names."""
+    ``sha`` and was still VERIFIED at ``at_seq``. A capture is its runner's,
+    made while the task executed (``reconstruct_tasks``), so it precedes the
+    task's one verdict. ``executor`` is whoever the last execution record
+    before the verdict names."""
     found = []
     for tid, t in sorted(tasks.items()):
         if t.get("tool_id") not in tools:
@@ -692,8 +696,7 @@ def _sci_task_producers(tasks: dict, sha: str, tools: frozenset,
                 verdict = seq
         if state_then != "VERIFIED" or verdict is None:
             continue
-        if not any(seq < verdict and dg == sha
-                   for seq, dg in t.get("captured", ())):
+        if not any(dg == sha for _, dg in t.get("captured", ())):
             continue
         before = [actor for seq, actor in t.get("executions", ())
                   if seq < verdict]
@@ -1141,6 +1144,33 @@ def _bound_promotion_refusal(binding: dict, policies: dict, policy_ids,
     return None
 
 
+def _attested(events, authenticator, findings: list) -> tuple:
+    """``(events, refused seqs)`` for a reader given ``authenticator``: the
+    authenticator's verdict on who wrote each event, and this module's
+    refusal of what it refuses, noted in ``findings``. With none, the events
+    as read, for a log that authenticates in its read primitive.
+
+    :func:`reconstruct` authenticated the events it folded and nothing it
+    consulted: its task replay, which decides whether a governed
+    verification stands behind an admission, and the research proof's
+    subsystem replay read the same history unauthenticated. A verdict the
+    reader itself named unauthenticated decided an admission (restated for
+    the task and subsystem readers)."""
+    if authenticator is None:
+        return events, set()
+    scope = getattr(authenticator, "require", None)
+    declared = _profile_declared(events)
+    if declared in _AUTHENTICATED and scope is not None:
+        findings.append(
+            f"the history is {declared}, where every actor authenticates, "
+            f"and the authenticator given asks only "
+            f"{sorted(str(p) for p in scope)}: none of its events is folded")
+        return [], set()
+    auth = authenticator(events)
+    findings.extend(f"unauthenticated: {line}" for line in auth.lines())
+    return events, set(auth.refused)
+
+
 #: How many records of one history a reader sets aside as unreadable before
 #: it stops folding. Each one costs a fold of the whole history, so without
 #: a bound a history made of nothing else would cost its length squared.
@@ -1262,9 +1292,13 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 f"{problem}: none of the history's events is folded")
             events = []
 
+    # Authenticated as this reader is: a verification task stands behind an
+    # admission only on records whose writers are attested, where an
+    # authenticator is given (restated).
     def task_view() -> dict:
         if not held:
-            held.append(reconstruct_tasks(log, roles=roles).tasks)
+            held.append(reconstruct_tasks(log, roles=roles,
+                                          authenticator=authenticator).tasks)
             out.task_replays += 1
         return held[0]
 
@@ -1334,8 +1368,19 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                         "applied")
                     out.foreign_events += 1
                     continue
-            if isinstance(doc, dict) and isinstance(doc.get("policy_id"),
-                                                    str):
+            if (isinstance(doc, dict)
+                    and isinstance(doc.get("policy_id"), str)
+                    and not isinstance(doc.get("version"), int)):
+                # The store counts a version that is an integer and no
+                # other, and the policy store refuses one; this reader took
+                # any, so a bound promotion stood here on a policy the
+                # store says was never published (restated).
+                out.anomalies.append(
+                    f"seq {ev.seq}: a version {doc.get('version')!r} of "
+                    f"{doc['policy_id']!r} that is not an integer; not "
+                    "counted as published")
+            elif isinstance(doc, dict) and isinstance(doc.get("policy_id"),
+                                                      str):
                 limit = doc.get("not_after")
                 entry = policies.setdefault(
                     doc["policy_id"], {"by": ev.actor, "versions": [],
@@ -1400,6 +1445,18 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 out.anomalies.append(
                     f"seq {ev.seq}: {rid} claims src {src_claimed} but replay "
                     f"has it in {cur['state']}")
+                if reauthorize and src_claimed is not None:
+                    # The store refuses it: a transition whose starting state
+                    # the replay does not agree with was not written through
+                    # the gate. This reader judged it from the state it had
+                    # and applied it, so a history the store refuses read
+                    # here as canonical (restated).
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {rid} {cur['state']} -> "
+                        f"{p.get('dst')} would be refused today: it moves "
+                        f"the record from {src_claimed}, where the replay "
+                        "does not have it; not applied")
+                    continue
             if reauthorize:
                 # Judged against THIS module's restatement of the rules, not
                 # by calling authority.check. A second reader that asks the
@@ -1589,7 +1646,8 @@ class TaskReconstruction:
 
 
 def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
-                      roles=None, _unreadable: dict | None = None,
+                      roles=None, authenticator=None,
+                      _unreadable: dict | None = None,
                       _at: list | None = None) -> TaskReconstruction:
     """Replay the task lifecycle from the log alone. Never raises on content.
 
@@ -1603,14 +1661,16 @@ def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
     """
     if _unreadable is None or _at is None:
         return _never_raising(reconstruct_tasks, log,
-                              reauthorize=reauthorize, roles=roles)
+                              reauthorize=reauthorize, roles=roles,
+                              authenticator=authenticator)
     report, events = log.read_verified()
     report.raise_if_bad()
     out = TaskReconstruction(head_seq=report.head_seq,
                              head_hash=report.head_hash)
-    why = _governed_problem(events, getattr(getattr(log, "authenticator",
-                                                    None), "registry", None),
-                            roles)
+    events, unsigned = _attested(events, authenticator, out.unauthorized)
+    why = _governed_problem(events, getattr(
+        authenticator or getattr(log, "authenticator", None), "registry",
+        None), roles)
     if why is not None:
         out.unauthorized.append(why)
         events = []
@@ -1644,6 +1704,8 @@ def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
                 break
             continue
         action = ev.action
+        if ev.seq in unsigned:
+            continue
         if roles is not None and action in ("role.delegate", "role.revoke"):
             why = _role_fold(role_grants, delegations, ev, ev.payload)
             if why is not None:
@@ -1720,6 +1782,20 @@ def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
 
         if action == "task.evidence":
             arts = p.get("artifacts") or {}
+            if reauthorize and (cur["state"] != _TASK_EXECUTING
+                                or ev.actor != _CAPTURER):
+                # A capture is the runner's, made while the tool's work is
+                # the task's: between EXECUTING and its outcome. Folded from
+                # anyone at any time before the verdict, one record by
+                # another principal made a report no check produced read as
+                # captured by a governed verification, and an admission
+                # stood on it -- in this reader and in the primary.
+                out.unauthorized.append(
+                    f"seq {ev.seq}: {tid} capture recorded by {ev.actor!r} "
+                    f"while {cur['state']}; what a tool produced is "
+                    f"recorded by the runner ({_CAPTURER!r}) while the task "
+                    "executes; not applied")
+                continue
             cur["artifacts"].update(arts)
             cur["captured"].extend((ev.seq, dg) for dg in arts.values())
             continue
@@ -1770,6 +1846,18 @@ def reconstruct_tasks(log: EventLog, *, reauthorize: bool = True,
             out.anomalies.append(
                 f"seq {ev.seq}: {tid} claims src {claimed} but replay has it "
                 f"in {cur['state']}")
+            if reauthorize:
+                # The task projection refuses it, and one that names no
+                # starting state: a record whose src the replay does not
+                # agree with was not written through the gate. Judged from
+                # the state this replay had and applied, it read here as a
+                # move the primary refuses (restated).
+                out.unauthorized.append(
+                    f"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} "
+                    f"would be refused today: it moves the task from "
+                    f"{claimed}, where the replay does not have it; not "
+                    "applied")
+                continue
         # The same question about the OTHER field the record gets to name.
         # Who executed the task decides who is allowed to verify it, and only
         # a task.execution record establishes it. A transition may repeat
@@ -2065,6 +2153,7 @@ _ESC_MIN_OPTIONS = 2
 
 
 def reconstruct_subsystems(log: EventLog, *, roles=None,
+                           authenticator=None,
                            _unreadable: dict | None = None,
                            _at: list | None = None
                            ) -> SubsystemReconstruction:
@@ -2078,13 +2167,15 @@ def reconstruct_subsystems(log: EventLog, *, roles=None,
     that issues them (AUD-011, AUD-017), restated here.
     """
     if _unreadable is None or _at is None:
-        return _never_raising(reconstruct_subsystems, log, roles=roles)
+        return _never_raising(reconstruct_subsystems, log, roles=roles,
+                              authenticator=authenticator)
     report, events = log.read_verified()
     report.raise_if_bad()
     out = SubsystemReconstruction(head_seq=report.head_seq)
-    why = _governed_problem(events, getattr(getattr(log, "authenticator",
-                                                    None), "registry", None),
-                            roles)
+    events, unsigned = _attested(events, authenticator, out.anomalies)
+    why = _governed_problem(events, getattr(
+        authenticator or getattr(log, "authenticator", None), "registry",
+        None), roles)
     if why is not None:
         out.anomalies.append(why)
         events = []
@@ -2129,6 +2220,9 @@ def reconstruct_subsystems(log: EventLog, *, roles=None,
             # The record is in the chain whether or not it could be read:
             # the next one's claim about its predecessor is about this one.
             prev = (ev.seq, ev.hash)
+            continue
+        if ev.seq in unsigned:
+            prev = (ev.seq, ev.hash)        # in the chain, attested or not
             continue
         p = ev.payload if isinstance(ev.payload, dict) else {}
         a = ev.action
@@ -2346,6 +2440,32 @@ def _sub_grant_live(entry: dict, at_seq: int) -> str:
     return ""
 
 
+def _sub_chain_problem(out, cap: dict, at_seq: int) -> str:
+    """Why a delegated capability authorizes nothing at ``at_seq`` for a
+    reason above it: an ancestor revoked, expired or never issued, or a
+    cycle. Empty when every ancestor is in force there.
+
+    Restated from the capability set's check, which walks the chain: a
+    revoked parent takes its subtree with it. This reader asked only of the
+    capability a read cited, so a read under a child of a revoked grant,
+    which the read path refuses, read here as covered."""
+    seen = {cap.get("capability_id")}
+    cur = cap
+    while cur.get("parent_id"):
+        pid = cur["parent_id"]
+        if pid in seen:
+            return f"sits on a delegation cycle through {pid!r}"
+        seen.add(pid)
+        parent = out.capabilities.get(pid)
+        if parent is None:
+            return f"derives from {pid!r}, which this log never issued"
+        why = _sub_grant_live(parent, at_seq)
+        if why:
+            return f"derives from {pid!r}, which {why}"
+        cur = parent
+    return ""
+
+
 def _sub_file_read(ev, p: dict, out) -> None:
     req = p.get("request")
     if not isinstance(req, dict):
@@ -2374,7 +2494,8 @@ def _sub_file_read(ev, p: dict, out) -> None:
         _note(out, ev, f"an allowed read cites capability {cid!r}, which "
                        "this log never issued")
         return
-    why = _sub_grant_live(cap, ev.seq)
+    why = _sub_grant_live(cap, ev.seq) or _sub_chain_problem(out, cap,
+                                                              ev.seq)
     if why:
         _note(out, ev, f"an allowed read cites capability {cid!r}, which "
                        f"{why}")
@@ -3066,12 +3187,25 @@ def _sub_agent_register(ev, p: dict, out) -> None:
     kind = ident.get("kind")
     by = ev.actor
     registrar = out.agents.get(by)
-    if kind == "HUMAN" and registrar is not None and \
-            registrar.get("kind") != "HUMAN":
-        # An agent that can mint a HUMAN is one step from answering its own
+    if kind == "HUMAN" and by != _BOOTSTRAP:
+        # A HUMAN is admitted by the out-of-band bootstrap or by a human the
+        # log holds and has not retired: the directory's rule, restated. An
+        # agent that can mint a HUMAN is one step from answering its own
         # escalation, which is both halves of the human gate at once.
-        _note(out, ev, f"{by!r} is not HUMAN and registers {iid!r} as HUMAN")
-        return
+        if registrar is not None and registrar.get("kind") != "HUMAN":
+            _note(out, ev, f"{by!r} is not HUMAN and registers {iid!r} as "
+                           "HUMAN")
+            return
+        # And neither is a name the log never admitted, or a human who has
+        # left: this reader took both, and the human each minted answered
+        # escalations here while the directory refused the history.
+        if registrar is None or registrar.get("retired_seq") is not None:
+            _note(out, ev, f"{by!r} registers {iid!r} as HUMAN and is "
+                           + ("no principal this log admitted"
+                              if registrar is None else "a retired human")
+                           + "; a human is admitted by the bootstrap or by "
+                           "an active human")
+            return
     out.agents[iid] = {
         "instance_id": iid, "agent_id": ident.get("agent_id"),
         "kind": kind, "roles": tuple(sorted(ident.get("roles") or ())),
@@ -4974,17 +5108,15 @@ _VERDICTS = ("SUPPORTED", "REFUTED", "INCONCLUSIVE")
 class _Prefix:
     """The verified history as it stood at ``upto``: a log-shaped view over
     the first records of a chain verified whole. A prefix of a verified
-    chain is a verified chain."""
+    chain is a verified chain.
 
-    def __init__(self, report, events: list, upto: int, *,
-                 authenticator=None, roles=None):
+    It carries no roots. The proof hands the history's authenticator and
+    roles to each reader it builds on a prefix (AUD-063), and a reader
+    handed them asks its log for none: a copy kept here as well would be a
+    second way to hand them over, held to nothing."""
+
+    def __init__(self, report, events: list, upto: int):
         import dataclasses
-        #: The history's roots, for a reader that asks its log for them:
-        #: the task reader takes its key registry from its log's
-        #: authenticator, and without it folds nothing of a GOVERNED
-        #: history -- so no verification task stood behind any admission.
-        self.authenticator = authenticator
-        self.roles = roles
         self._events = [e for e in events if e.seq <= upto]
         last = self._events[-1] if self._events else None
         self._report = dataclasses.replace(
@@ -4995,10 +5127,11 @@ class _Prefix:
         return self._report, list(self._events)
 
 
-def _at(report, events: list, upto: int, roots=None) -> EventLog:
+def _at(report, events: list, upto: int) -> EventLog:
     """The history at ``upto``, for readers that take a log: they call
-    nothing on it but ``read_verified``, and ask it for its roots."""
-    return cast(EventLog, _Prefix(report, events, upto, **(roots or {})))
+    nothing on it but ``read_verified``, and are handed its roots beside
+    it."""
+    return cast(EventLog, _Prefix(report, events, upto))
 
 
 class _PrefixAuthenticator:
@@ -5119,11 +5252,16 @@ def _execution(events: list, bundle, before: int) -> dict | None:
     """The governed task that captured ``bundle``: who executed it, who
     verified it, under which capabilities, and the proposal it answered."""
     cap = None
+    state: dict = {}
     for e in events:
         if e.seq >= before:
             break
-        if e.action == "task.evidence" and bundle in (
-                (e.payload.get("artifacts") or {}).values()):
+        if e.action == "task.transition":
+            state[(e.payload or {}).get("task_id")] = e.payload.get("dst")
+        # a capture is the runner's, while its task executes (restated)
+        if e.action == "task.evidence" and e.actor == _CAPTURER and \
+                state.get(e.payload.get("task_id")) == _TASK_EXECUTING \
+                and bundle in (e.payload.get("artifacts") or {}).values():
             cap = e
     if cap is None:
         return None
@@ -5184,7 +5322,7 @@ def derive_decision_proof(log, seq: int, *, evidence=None,
 
 def _record_proof(base, report, events, ev, p, evidence, roots):
     rid, outcome = p.get("record_id"), p.get("dst")
-    after = reconstruct(_at(report, events, ev.seq, roots),
+    after = reconstruct(_at(report, events, ev.seq),
                         evidence=evidence, **roots)
     rec = after.records.get(rid) or {}
     cited = dict(rec.get("evidence") or {})
@@ -5212,9 +5350,10 @@ def _record_proof(base, report, events, ev, p, evidence, roots):
 
 def _research_proof(base, report, events, ev, p, evidence, roots):
     hid, outcome = ev.target, p.get("status")
-    sub = reconstruct_subsystems(_at(report, events, ev.seq, roots),
-                                 roles=roots["roles"])
-    recs = reconstruct(_at(report, events, ev.seq, roots), **roots).records
+    sub = reconstruct_subsystems(_at(report, events, ev.seq),
+                                 roles=roots["roles"],
+                                 authenticator=roots["authenticator"])
+    recs = reconstruct(_at(report, events, ev.seq), **roots).records
     hyp = next((e.payload.get("hypothesis") or {} for e in events
                 if e.action == "research.hypothesis" and e.target == hid
                 and e.seq < ev.seq), {})
@@ -5232,8 +5371,9 @@ def _research_proof(base, report, events, ev, p, evidence, roots):
         "proposed_by": hyp.get("proposed_by")}
     # what each observation was AT the decision: judged against the history
     # before it, at the time the decision record carries (Assurance F)
-    before = reconstruct_subsystems(_at(report, events, ev.seq - 1, roots),
-                                    roles=roots["roles"])
+    before = reconstruct_subsystems(_at(report, events, ev.seq - 1),
+                                    roles=roots["roles"],
+                                    authenticator=roots["authenticator"])
     at = judged_at(before.latest_wall, ev.wall_time)
     basis = []
     for oid in p.get("basis") or ():

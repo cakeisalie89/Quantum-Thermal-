@@ -4456,3 +4456,113 @@ under CPython 3.12.13 and under 3.12.3: 14 of 14 killed under each, NP1
 by the new test, and every source restored. No other mutation is
 anchored within three lines of a line the change wrote, and no other
 spec runs the changed test file. The shard plan is unchanged.
+
+### Stage 5, thirteenth pass: the second reader read in full (AUD-062 to AUD-067)
+
+`agent_substrate/reconstruct.py`, CRITICAL in the inventory and read in
+part until now, was read in full, every line of its 5,347 at 0278dcf.
+Six defects were reproduced. One of them is in the primary as well.
+
+**AUD-062 (P0), fixed.** An admission asks that the report be captured
+by a governed verification task standing VERIFIED before the
+transition. Both readers of origin took any `task.evidence` record
+naming the task as a capture of it, from any actor, at any position
+before the verdict. One record by another principal, naming a report it
+wrote itself, made that report read as the check's, and the store
+admitted a result on it. Reproduced in a governed run: the report was
+the genuine one with its agreement's resolutions divided by a thousand,
+and `decide` returned VERIFIED. A capture is now the runner's, made
+while its task executes, in the origin view, the duplicate's answer,
+the second reader's task replay and the decision proof. A check task
+whose history already holds such a record is refused by its own
+separate-process verification.
+
+**AUD-063 (P1), fixed.** Given an authenticator, the second reader
+refused the records it does not attest and decided admissions on a task
+replay, and research proofs on subsystem replays, that read the history
+without it. The authenticator now reaches both.
+
+**AUD-064 (P1), fixed.** The directory admits a HUMAN by the bootstrap
+or by an active human. The second reader also took one admitted by a
+name the log never admitted, or by a retired human, and that human's
+answer to an escalation.
+
+**AUD-065 (P2), fixed.** A transition naming a starting state the replay
+does not have is refused by the store and the task projection. Both
+independent readers applied it, judged from the state they had.
+
+**AUD-066 (P2), fixed.** The store counts a policy version that is an
+integer. The second reader counted any, and a bound promotion stood on
+a policy the store says was never published.
+
+**AUD-067 (P2), fixed.** The read path's check walks the capability
+chain. The second reader asked only of the capability a read cited, and
+counted a read under a child of a revoked grant.
+
+**Tests.** `tests/test_second_reader_rules.py`, new, 28 tests. At
+0278dcf, with the runner's name supplied where the constant is new, 21
+of them fail; the 7 controls pass. One existing case met the new rule:
+`tests/test_scientific_invalidation.py` attaches bytes to a check task
+after its verdict, under the runner's name, and asked that the second
+reader's task replay refuse nothing. That record is no capture now, so
+the case asks that the replay refuse it by name, at its position, and
+nothing else; what the case asked before it still asks. A run of the
+whole suite on this tree before that change failed there alone.
+
+**Mutations.** Twenty, in a new spec, `second_reader_rules`: SR1 to SR8
+the capture rule, SR9 to SR13 the authenticator, SR14 and SR15 the
+HUMAN rule, SR16 and SR17 the starting state, SR18 the version, SR19
+and SR20 the chain. Two existing anchors moved with lines the change
+rewrote, `agent_second_reader` D9 on the HUMAN rule and
+`replay_origin_view` RV10 on the admission's task view; each was
+re-anchored and still removes the same rule. A first run on this
+pass's tree left six alive, each a check the change had made
+redundant or a rule the cases struck twice:
+
+- `scientific_invalidation` SI10 and `scientific_authority_replay` SA9
+  and RX5 removed the check that a capture preceded its task's
+  verdict. The capture rule refused the same late record first: a
+  task executes only before its one verdict. The checks were removed,
+  leaving the capture rule the one guard; each of the three was
+  re-anchored on it and is killed by the case that names its intent,
+  and SI11 follows its rewritten line.
+- `governed_run` GR1 removed the prefix view's copy of the history's
+  roots, which no reader asks for now that the proof hands each one
+  the roots. The copy was removed and GR1 re-anchored on the
+  hand-off; SR13 and `freshness` FR39 follow the call as written.
+- SR5 and SR6 each removed one half of the store's capture rule, and
+  every forged record in the cases broke both halves. Two cases
+  break one half each: the runner's name outside the execution, and
+  another principal while the task executes, with the check's
+  separate verification, which refuses that run first, set aside.
+
+The shard plan was regenerated for 147 specs.
+
+Run here, on this commit's tree: 525 mutations in 51 specs. That is
+`second_reader_rules` whole, 20; `mutation_shards` whole, 12; and every
+other mutation anchored in `reconstruct.py`, `governed_model.py` or
+`governed_tasks.py`, 492, or in the import list's test, 1, in the 49
+other specs that hold one. All were killed and every source restored.
+
+**What is not established.**
+
+- The research ledger, and the second reader's research replay after
+  it, read a scientific record's state from its transitions unjudged,
+  by stated design ("Read, not judged: the store judges them"). A
+  consumer that loaded the research ledger without the store would take
+  an observation from a record whose transition the store refuses. The
+  readers here that decide on research also load the store, and the
+  decision proof reads the record's state from the authority replay.
+  Recorded, not changed.
+- On an unauthenticated log any writer may still record under the
+  runner's name. A governed history's attestations bind it.
+- `_attested` restates the two other readers' authentication beside
+  `reconstruct`'s own block rather than replacing it, which leaves the
+  mutations anchored on that block as they were.
+- The second reader's scheduler rules ask nothing of who dispatches a
+  job, bound neither a lease's end nor one renewal's length, and check
+  nothing of a priority change. Whether the scheduler's reducer holds
+  those is for the scheduler pass.
+- A capability expiry that is not an integer reads in the second reader
+  as one that never expires. The capability ledger builds every grant
+  through its validating constructor. Not reproduced.

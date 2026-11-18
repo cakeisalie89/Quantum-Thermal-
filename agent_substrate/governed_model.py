@@ -65,7 +65,7 @@ from . import result_rules
 from .result_rules import KIND as RECORD_KIND
 from .result_rules import record_problems
 from .governed_tasks import (
-    ACT_EVIDENCE, ACT_EXECUTION, ACT_TASK_TRANSITION, POLICY_ID,
+    ACT_EVIDENCE, ACT_EXECUTION, ACT_TASK_TRANSITION, CAPTURER, POLICY_ID,
     SUBMITTER_ID, VERIFIER_ID, WORKER_ID, WORKSPACE_PREFIX, GovernedRun,
     GovernedTasks,
 )
@@ -303,7 +303,12 @@ class GovernedOrigins:
         verdict. The projection has re-authorized every task
         transition in this read -- it raises otherwise -- so these positions
         are of transitions the task machine admits. ``captured[sha]`` lists
-        ``(seq, task_id)`` for every ``task.evidence`` record naming ``sha``.
+        ``(seq, task_id)`` for every capture of ``sha``: a ``task.evidence``
+        record its runner wrote while the task executed (AUD-062). A task
+        executes only before its one verdict -- VERIFIED is entered once,
+        from COMPLETED, and left only for INVALIDATED -- so every capture
+        listed here precedes the verdict it is asked about, and the readers
+        below need not ask again.
         """
         if self._shared:
             return self._shared[0]
@@ -312,16 +317,25 @@ class GovernedOrigins:
         captured: dict = {}
         when: dict = {}
         ran: dict = {}
+        state: dict = {}
         for ev in events:
             p = ev.payload
             if ev.action == ACT_EVIDENCE:
                 tid = p.get("task_id")
+                # A capture is the runner's, made while the task executes.
+                # Taken from any record naming the task, one appended by
+                # another principal before the verdict made a report no
+                # check produced read as captured by this verification.
+                if ev.actor != CAPTURER or \
+                        state.get(tid) != TaskState.EXECUTING.value:
+                    continue
                 for sha in (p.get("artifacts") or {}).values():
                     captured.setdefault(sha, []).append((ev.seq, tid))
             elif ev.action == ACT_EXECUTION:
                 ran[p.get("task_id")] = ev.actor
             elif ev.action == ACT_TASK_TRANSITION:
                 tid = p.get("task_id")
+                state[tid] = p.get("dst")
                 if p.get("dst") == TaskState.VERIFIED.value:
                     # Who ran the work THIS verdict judged: an execution
                     # record appended after the verdict does not change it.
@@ -339,21 +353,22 @@ class GovernedOrigins:
         """Tasks of ``tools`` that produced ``sha`` and stood VERIFIED at
         ``before_seq`` (None: now).
 
-        Produced means CAPTURED BEFORE THE TASK WAS VERIFIED: the artefacts a
-        governed verification examined are the ones captured before its
-        verdict. The projection does not fold ``task.evidence`` records, so a
-        record naming a new artefact for a task verified long ago is refused
-        here rather than attached to somebody else's verdict.
+        Produced means CAPTURED BY ITS RUNNER WHILE IT EXECUTED: the
+        artefacts a governed verification examined are those, and they are
+        captured before its verdict. The projection does not fold
+        ``task.evidence`` records, so a record naming a new artefact for a
+        task verified long ago is no capture (``_view``) rather than
+        something attached to somebody else's verdict.
         """
         projection, when, captured = self._view()
         horizon = float("inf") if before_seq is None else before_seq
         out = []
-        for seq, tid in captured.get(sha, ()):
+        for _, tid in captured.get(sha, ()):
             task = projection.tasks.get(tid)
             if task is None or task.tool_id not in tools or tid not in when:
                 continue
             verified, left, executor = when[tid]
-            if not (seq < verified < horizon):
+            if not verified < horizon:
                 continue
             if left is not None and left < horizon:
                 continue
@@ -361,22 +376,22 @@ class GovernedOrigins:
         return out
 
     def captured_by(self, sha: str) -> tuple:
-        """Tasks standing VERIFIED now that captured ``sha`` before their
-        own verdict: the governed origins an artefact's authority comes
-        from."""
+        """Tasks standing VERIFIED now that captured ``sha``, which they did
+        before their own verdict (``_view``): the governed origins an
+        artefact's authority comes from."""
         _, when, captured = self._view()
         return tuple(sorted({
-            tid for seq, tid in captured.get(sha, ())
-            if tid in when and when[tid][1] is None and seq < when[tid][0]}))
+            tid for _, tid in captured.get(sha, ())
+            if tid in when and when[tid][1] is None}))
 
     def artefacts_of(self, task_ids) -> frozenset:
-        """Every artefact ``task_ids`` captured before their own verdicts:
-        what those verdicts lent authority to."""
+        """Every artefact ``task_ids`` captured, before their own verdicts
+        (``_view``): what those verdicts lent authority to."""
         ids = frozenset(task_ids)
         _, when, captured = self._view()
         return frozenset(
-            sha for sha, seen in captured.items() for seq, tid in seen
-            if tid in ids and tid in when and seq < when[tid][0])
+            sha for sha, seen in captured.items() for _, tid in seen
+            if tid in ids and tid in when)
 
     def problems(self, *, report_sha: str, bundle_sha: str, proposer: str,
                  actor: str, before_seq) -> list:

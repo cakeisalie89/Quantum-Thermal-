@@ -66,8 +66,8 @@
     {
       "name": "D9_an_agent_may_mint_a_human",
       "path": "agent_substrate/reconstruct.py",
-      "find": "    if kind == \"HUMAN\" and registrar is not None and \\\n            registrar.get(\"kind\") != \"HUMAN\":",
-      "replace": "    if False:",
+      "find": "    if kind == \"HUMAN\" and by != _BOOTSTRAP:\n",
+      "replace": "    if False:\n",
       "rationale": "the second reader accepts an invented human, so the confederate that answers the escalation looks legitimate to both readers"
     },
     {

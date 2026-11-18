@@ -88,9 +88,11 @@ def _open(base: Path) -> GovernedModelRuns:
                              evidence=EvidenceStore(base / "evidence"))
 
 
-def _replayed(base: Path, *rids) -> dict:
+def _replayed(base: Path, *rids, refused=()) -> dict:
     """Both readers, fresh from the bytes: the states they reach, after
-    checking they reach them without a refusal and agree on everything."""
+    checking they reach them without a refusal and agree on everything.
+    ``refused`` is the task replay's refusals a case expects, each by the
+    start of its text, in order; any other refusal fails the case."""
     g = _open(base)
     log = EventLog(base / "log.jsonl")
     recon = rc.reconstruct(log, evidence=EvidenceStore(base / "evidence"))
@@ -98,7 +100,10 @@ def _replayed(base: Path, *rids) -> dict:
         recon.unauthorized, recon.anomalies)
     assert rc.compare(g.authority, recon) == ()
     tasks = rc.reconstruct_tasks(log)
-    assert not tasks.unauthorized and not tasks.anomalies
+    assert len(tasks.unauthorized) == len(refused) and all(
+        u.startswith(r) for u, r in zip(tasks.unauthorized, refused)), (
+        tasks.unauthorized)
+    assert not tasks.anomalies
     assert rc.compare_tasks(g.gov.projection(), tasks) == ()
     states = {}
     for rid in rids:
@@ -204,19 +209,26 @@ def test_bytes_attached_to_a_task_after_its_verdict_carry_no_authority(world):
     """A capture record naming new bytes for a task verified long ago is
     not something that task's verdict examined, so withdrawing those bytes
     finds no origin to invalidate -- and the task, and what rests on it,
-    stay as they are."""
+    stay as they are.
+
+    Nor is the record a capture (AUD-062): what a tool produced is recorded
+    by the runner while its task executes, so the second reader's task
+    replay refuses this one by name, at its position, and folds the rest
+    of the history as before."""
     (a, chk) = world["a"]
     base = _copy("late-capture")
     g = _open(base)
     late = g.evidence.put(b"attached after the verdict")
-    EventLog(base / "log.jsonl").append(
+    late_seq = EventLog(base / "log.jsonl").append(
         actor="system", action="task.evidence", target=chk.governed.task_id,
         payload={"task_id": chk.governed.task_id,
-                 "artifacts": {"late/extra.bin": late}})
+                 "artifacts": {"late/extra.bin": late}}).seq
     with pytest.raises(ModelRunRefused, match="no authority here"):
         _open(base).withdraw_evidence(late, reason="r")
     assert _task_state(base, chk.governed.task_id) is TaskState.VERIFIED
-    assert _replayed(base, a.record_id) == {a.record_id: State.VERIFIED}
+    assert _replayed(base, a.record_id, refused=[
+        f"seq {late_seq}: {chk.governed.task_id} capture recorded by "
+        "'system' while VERIFIED"]) == {a.record_id: State.VERIFIED}
 
 
 # ---- how far it reaches ----------------------------------------------------

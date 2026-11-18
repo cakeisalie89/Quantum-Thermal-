@@ -116,6 +116,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_resolution_bound.py",
     "tests/test_egress_perimeter.py",
     "tests/test_agent_directory_records.py",
+    "tests/test_second_reader_rules.py",
     "tests/test_agent_readpath.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",

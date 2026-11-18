@@ -8,8 +8,8 @@
     {
       "name": "GR1_the_prefix_hands_no_roots_to_the_task_reader",
       "path": "agent_substrate/reconstruct.py",
-      "find": "        self.authenticator = authenticator\n        self.roles = roles\n        self._events = [e for e in events if e.seq <= upto]",
-      "replace": "        self.authenticator = None\n        self.roles = roles\n        self._events = [e for e in events if e.seq <= upto]",
+      "find": "    after = reconstruct(_at(report, events, ev.seq),\n                        evidence=evidence, **roots)\n",
+      "replace": "    after = reconstruct(_at(report, events, ev.seq),\n                        evidence=evidence, roles=roots[\"roles\"])\n",
       "rationale": "a governed scientific result's decision proof is not accepted: the task reader on the prefix folds nothing, so no verification task stands behind the admission"
     },
     {

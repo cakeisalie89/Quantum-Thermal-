@@ -71,15 +71,15 @@
     {
       "name": "SI10_late_bytes_carry_authority",
       "path": "agent_substrate/governed_model.py",
-      "find": "            if tid in when and when[tid][1] is None and seq < when[tid][0]}))",
-      "replace": "            if tid in when and when[tid][1] is None}))",
+      "find": "                if ev.actor != CAPTURER or \\\n                        state.get(tid) != TaskState.EXECUTING.value:\n                    continue\n",
+      "replace": "                if ev.actor != CAPTURER:\n                    continue\n",
       "rationale": "bytes attached to a task after its verdict are withdrawn as though the verdict examined them"
     },
     {
       "name": "SI11_an_invalidated_task_still_vouches",
       "path": "agent_substrate/governed_model.py",
-      "find": "            if tid in when and when[tid][1] is None and seq < when[tid][0]}))",
-      "replace": "            if tid in when and seq < when[tid][0]}))",
+      "find": "            if tid in when and when[tid][1] is None}))",
+      "replace": "            if tid in when}))",
       "rationale": "a task already invalidated is chosen again as an origin to withdraw"
     },
     {

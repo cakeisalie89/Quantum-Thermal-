@@ -1,19 +1,19 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 659,
+   "ADDED": 661,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 234,
-   "MEDIUM": 371
+   "LOW": 235,
+   "MEDIUM": 372
   },
   "by_subsystem": {
    "agent-substrate": 34,
    "ai-ingress": 3,
-   "assurance": 146,
+   "assurance": 147,
    "authority-core": 5,
    "boundaries": 6,
    "ci-workflows": 6,
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 209,
+   "tests": 210,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 691
+  "files": 693
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -629,6 +629,7 @@
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_security_findings.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_signed_append_lifecycle.py",
@@ -779,6 +780,7 @@
      "tests/test_research_loop.py",
      "tests/test_role_authority.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_t2_governed.py",
      "tests/test_unknown_actions.py"
     ]
@@ -911,6 +913,7 @@
      "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_signing_seam.py",
      "tests/test_supply_chain.py",
@@ -1032,6 +1035,7 @@
      "tests/test_proposal_concurrency.py",
      "tests/test_refused_fold.py",
      "tests/test_research_loop.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_t2_closure.py",
      "tests/test_t2_governed.py",
      "tests/test_unknown_actions.py"
@@ -1271,6 +1275,7 @@
      "tests/test_scientific_identity.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_signed_append_lifecycle.py",
      "tests/test_signing_seam.py",
@@ -1370,6 +1375,7 @@
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_signing_seam.py",
      "tests/test_simulation_research.py",
@@ -1477,7 +1483,8 @@
      "tools/mutations/proposal_ingress.json",
      "tools/mutations/replay_origin_view.json",
      "tools/mutations/scientific_authority_replay.json",
-     "tools/mutations/scientific_invalidation.json"
+     "tools/mutations/scientific_invalidation.json",
+     "tools/mutations/second_reader_rules.json"
     ],
     "tests": [
      "tests/test_adversarial_controls.py",
@@ -1500,7 +1507,8 @@
      "tests/test_research_science.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
-     "tests/test_second_reader_audit_actions.py"
+     "tests/test_second_reader_audit_actions.py",
+     "tests/test_second_reader_rules.py"
     ]
    }
   },
@@ -1533,6 +1541,7 @@
      "tools/mutations/proposal_crash_recovery.json",
      "tools/mutations/role_authority.json",
      "tools/mutations/scientific_invalidation.json",
+     "tools/mutations/second_reader_rules.json",
      "tools/mutations/separate_governed.json",
      "tools/mutations/t2_closure.json",
      "tools/mutations/task_execution_phase.json"
@@ -1568,6 +1577,7 @@
      "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py"
@@ -1893,6 +1903,7 @@
      "tests/test_research_loop.py",
      "tests/test_role_authority.py",
      "tests/test_scientific_authority_replay.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_unknown_actions.py"
     ]
    }
@@ -1926,6 +1937,7 @@
      "tests/test_memory_trust.py",
      "tests/test_restated_authentication.py",
      "tests/test_role_authority.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_signed_append_lifecycle.py",
      "tests/test_signing_seam.py"
@@ -2100,6 +2112,7 @@
      "tools/mutations/role_authority.json",
      "tools/mutations/scientific_authority_replay.json",
      "tools/mutations/second_reader_audit_actions.json",
+     "tools/mutations/second_reader_rules.json",
      "tools/mutations/separate_governed.json",
      "tools/mutations/t2_closure.json",
      "tools/mutations/task_execution_phase.json"
@@ -2158,6 +2171,7 @@
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_invalidation.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_signing_seam.py",
      "tests/test_simulation_gateway.py",
@@ -2420,6 +2434,7 @@
      "tests/test_decision_proof.py",
      "tests/test_governed_research_run.py",
      "tests/test_json_nesting.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_separate_reads_governed.py"
     ]
    }
@@ -2525,6 +2540,7 @@
      "tests/test_scientific_authority_replay.py",
      "tests/test_scientific_identity.py",
      "tests/test_second_reader_audit_actions.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_security_findings.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_signing_seam.py",
@@ -2568,6 +2584,7 @@
      "tests/test_proposal_crash_recovery.py",
      "tests/test_role_authority.py",
      "tests/test_scientific_invalidation.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_separate_reads_governed.py",
      "tests/test_t2_governed.py",
      "tests/test_task_execution_phase.py"
@@ -4419,6 +4436,7 @@
      "tests/test_scientific_integrations.py",
      "tests/test_scientific_interfaces.py",
      "tests/test_scientific_invalidation.py",
+     "tests/test_second_reader_rules.py",
      "tests/test_security_findings.py",
      "tests/test_sensitivity_cross_check.py",
      "tests/test_slab_uq.py",
@@ -8780,6 +8798,23 @@
   },
   {
    "change": "ADDED",
+   "path": "tests/test_second_reader_rules.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
    "path": "tests/test_security_findings.py",
    "risk": "LOW",
    "runtime_dependencies": [
@@ -9634,7 +9669,8 @@
     "tests": [
      "tests/test_agent_directory_records.py",
      "tests/test_agent_substrate_isolation.py",
-     "tests/test_grounding_bench.py"
+     "tests/test_grounding_bench.py",
+     "tests/test_second_reader_rules.py"
     ]
    }
   },
@@ -11580,6 +11616,19 @@
   {
    "change": "ADDED",
    "path": "tools/mutations/second_reader_audit_actions.json",
+   "risk": "MEDIUM",
+   "runtime_dependencies": [],
+   "subsystem": "assurance",
+   "trust_boundary": "mutation specifications",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tools/mutations/second_reader_rules.json",
    "risk": "MEDIUM",
    "runtime_dependencies": [],
    "subsystem": "assurance",
