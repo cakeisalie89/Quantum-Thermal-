@@ -123,6 +123,17 @@ def test_a_malformed_envelope_is_refused(path, value, why):
         PR.ProposalEnvelope.parse(_mutated(path, value))
 
 
+@pytest.mark.parametrize("start, end", [(True, True), (1, True), (True, 2)])
+def test_a_citation_numbered_by_booleans_is_refused(start, end):
+    """AUD-083. A line number is a number. bool is an int, so a citation at
+    lines true..true was taken as line 1, in an envelope whose other
+    numbers, the iteration and the inference's attempt, refuse a boolean."""
+    with pytest.raises(PR.ProposalRefused, match="line range"):
+        PR.ProposalEnvelope.parse(_mutated(("context", "retrieved"), [{
+            "path": "a.md", "line_start": start, "line_end": end,
+            "source_sha256": "0" * 64}]))
+
+
 @pytest.mark.parametrize("key", ["status", "verdict", "verified",
                                  "signature", "evidence", "out_dir",
                                  "transition", "Promoted"])

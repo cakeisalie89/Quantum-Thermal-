@@ -1432,17 +1432,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-084",
+    "AUD-085"
+   ],
    "kind": "source:agent_substrate",
-   "method": "every line read at cbc9bed: the tiers and which are mandatory, add's refusals, build's secret refusal, the mandatory budget that fails rather than drops, the declared drop order and the omissions it records, the summary provenance checked at build, record_context writing the manifest and never the text, and manifest_from_record with its versioned key sets and the provenance checked from the manifest alone",
+   "method": "every line read at cbc9bed: the tiers and which are mandatory, add's refusals, build's secret refusal, the mandatory budget that fails rather than drops, the declared drop order and the omissions it records, the summary provenance checked at build, record_context writing the manifest and never the text, and manifest_from_record with its versioned key sets and the provenance checked from the manifest alone; read again in full at 8f0714e (blob 974c1b1), all 648 lines, for the campaign's Wave A: the tiers, the builder's add and build, the summary provenance, record_context, manifest_from_record and _check_manifest_provenance. AUD-084 and AUD-085 found there; their corrections written and reviewed as a diff, with X34 to X45 killed",
    "mode": "100644",
-   "new_blob": "974c1b13eb769bfc45ce101b7ff46eda2a0b140f",
-   "note": "minor: a manifest read back takes byte_len, budget_bytes and used_bytes as given; none decides anything",
+   "new_blob": "1049241c4f4b92c1e95743fe1249d643686237e8",
+   "note": "minor: a manifest read back takes byte_len, budget_bytes and used_bytes as given; none decides anything; a manifest's byte counts and digests are as its builder stated them, and the text is not in the log to check them against",
    "old_blob": null,
    "path": "agent_substrate/context.py",
-   "reviewed_blob": "974c1b13eb769bfc45ce101b7ff46eda2a0b140f",
-   "sha256": "f97f300ea33d118528d5a986f3147def05db9b4ef1b765a6ae1686a1758476d3",
-   "size": 29478,
+   "reviewed_blob": "1049241c4f4b92c1e95743fe1249d643686237e8",
+   "sha256": "d9ef59b681d9758955f609da4e0c0e5c2f9840587aff9ee885076253ba3c5a7e",
+   "size": 32122,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1651,18 +1654,19 @@
     "AUD-079",
     "AUD-080",
     "AUD-081",
-    "AUD-082"
+    "AUD-082",
+    "AUD-086"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at fddfdf6 (blob 76b07c5, as at 9a918a1), all 1,513 lines, beside the second reader's restatement: the module docstring and constants, the errors, _count, _name and _exact, cost_micro and input_bound, Budget and Budget.from_body, InferenceRequest with for_prompt and from_body, render_prompt and prompt_problems, ProviderReply, FixtureProvider, SubprocessProvider and _kill_group, _Draft, _Attempt, _BudgetState, Outcome, settlement, _usage, _claimed, _scrub, parse_response, and the gateway: its construction, load and apply, the context, budget, reserve, dispatch and result folds with grant_problem, _next_attempt and _held, the reads, publish_budget and withdraw_budget, _policy_problem, _reserve, _dispatch, _settle, _call, _classify, infer, _budget_provider, recover and binding_problems, _Answered, _Settled, _ms and envelope_from_inference. AUD-079 measured and AUD-080 to AUD-082 found there; their corrections written and reviewed as a diff, with MR1 to MR7 killed. Earlier, read at 7a18167: the module docstring, _count/_name/_exact, cost_micro, input_bound, Budget and Budget.from_body, render_prompt and prompt_problems, SubprocessProvider and _kill_group, settlement, _usage, _claimed, _scrub, parse_response, grant_problem, _next_attempt, the reserve, dispatch and result folds with _held, _policy_problem, _reserve, _dispatch, _settle, _call, _classify, recover, binding_problems and envelope_from_inference; not read: InferenceRequest's body and from_body, FixtureProvider, the gateway's construction, load and apply, the budget and context folds, the reads, publish_budget and withdraw_budget, and infer; the AUD-050 change (parse_response's and prompt_problems' handlers) written and reviewed as a diff, with JN17 and JN18 killed; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA10 killed",
+   "method": "every line read at fddfdf6 (blob 76b07c5, as at 9a918a1), all 1,513 lines, beside the second reader's restatement: the module docstring and constants, the errors, _count, _name and _exact, cost_micro and input_bound, Budget and Budget.from_body, InferenceRequest with for_prompt and from_body, render_prompt and prompt_problems, ProviderReply, FixtureProvider, SubprocessProvider and _kill_group, _Draft, _Attempt, _BudgetState, Outcome, settlement, _usage, _claimed, _scrub, parse_response, and the gateway: its construction, load and apply, the context, budget, reserve, dispatch and result folds with grant_problem, _next_attempt and _held, the reads, publish_budget and withdraw_budget, _policy_problem, _reserve, _dispatch, _settle, _call, _classify, infer, _budget_provider, recover and binding_problems, _Answered, _Settled, _ms and envelope_from_inference. AUD-079 measured and AUD-080 to AUD-082 found there; their corrections written and reviewed as a diff, with MR1 to MR7 killed. Earlier, read at 7a18167: the module docstring, _count/_name/_exact, cost_micro, input_bound, Budget and Budget.from_body, render_prompt and prompt_problems, SubprocessProvider and _kill_group, settlement, _usage, _claimed, _scrub, parse_response, grant_problem, _next_attempt, the reserve, dispatch and result folds with _held, _policy_problem, _reserve, _dispatch, _settle, _call, _classify, recover, binding_problems and envelope_from_inference; not read: InferenceRequest's body and from_body, FixtureProvider, the gateway's construction, load and apply, the budget and context folds, the reads, publish_budget and withdraw_budget, and infer; the AUD-050 change (parse_response's and prompt_problems' handlers) written and reviewed as a diff, with JN17 and JN18 killed; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA10 killed; the AUD-086 change to _apply_context (the stated digest is the record's and its reading's) written and reviewed as a diff, with MX1 killed",
    "mode": "100644",
-   "new_blob": "cbcab1b514ef3ec55910ed36323e141810cefa49",
+   "new_blob": "5c2734a637f0fb3f545ffeca08461e454cdc5068",
    "note": "the input bound assumes no tokenizer emits more tokens than bytes, plus 256 for framing, and a provider reporting more is an overrun, flagged; under a registry no grant stands behind a reservation (AUD-079, open); prompt_problems encodes each item's text as UTF-8, which an escaped lone surrogate would refuse with UnicodeEncodeError (the prompts it reads are canonical ASCII JSON)",
    "old_blob": null,
    "path": "agent_substrate/inference.py",
-   "reviewed_blob": "cbcab1b514ef3ec55910ed36323e141810cefa49",
-   "sha256": "3601da97e8b16a49834a2399084f5efde5539e6a03b71253856fb258835492df",
-   "size": 69853,
+   "reviewed_blob": "5c2734a637f0fb3f545ffeca08461e454cdc5068",
+   "sha256": "2e56fcc8390f60831333211642f38f190094948ce393d2adcbec33a7fe770301",
+   "size": 70266,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1845,18 +1849,19 @@
     "AUD-003",
     "AUD-006",
     "AUD-041",
-    "AUD-050"
+    "AUD-050",
+    "AUD-083"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at 0afa231: in this pass the module docstring, the schemas, kinds, adapters and closed key sets, the forbidden keys and the credential pattern, _walk, body_of and proposal_id_of, _exact, _request for each kind, ProposalEnvelope.parse, seal, both adapters, envelope and envelope_record, assemble_context, citations, received, _fold_receipts, the ingress's constructor, receive, pending and submit; earlier, at the same blob, its catch-up path and the position bookkeeping. AUD-041 found there: _walk searched string values for a credential and checked keys only against the forbidden words. Its correction written and reviewed as a diff, with PI19 killed and PI2 and PI3 left on their lines; the AUD-050 change (the recorded fixture's handler) written and reviewed as a diff, with JN24 killed",
+   "method": "every line read at 0afa231: in this pass the module docstring, the schemas, kinds, adapters and closed key sets, the forbidden keys and the credential pattern, _walk, body_of and proposal_id_of, _exact, _request for each kind, ProposalEnvelope.parse, seal, both adapters, envelope and envelope_record, assemble_context, citations, received, _fold_receipts, the ingress's constructor, receive, pending and submit; earlier, at the same blob, its catch-up path and the position bookkeeping. AUD-041 found there: _walk searched string values for a credential and checked keys only against the forbidden words. Its correction written and reviewed as a diff, with PI19 killed and PI2 and PI3 left on their lines; the AUD-050 change (the recorded fixture's handler) written and reviewed as a diff, with JN24 killed; read again in full at 8f0714e (blob a671e50), all 711 lines, for the campaign's Wave A: _walk, _exact, _request, ProposalEnvelope.parse, seal, the adapters, envelope_record, assemble_context, citations, received, _fold_receipts and the ingress. AUD-083 found there; its correction written and reviewed as a diff, with PI20 killed. The parse's serialization before its depth bound probed and not reproduced",
    "mode": "100644",
-   "new_blob": "a671e50713e9f487e6c14b8907bfbe2b962e4610",
+   "new_blob": "169b1454ea9aaee4df835a4c5ec25d7770826420",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/proposals.py",
-   "reviewed_blob": "a671e50713e9f487e6c14b8907bfbe2b962e4610",
-   "sha256": "0d58d07c23461d28c370adc9891cf9be94d693d06fbaddcd8c90127a9b287fb2",
-   "size": 34219,
+   "reviewed_blob": "169b1454ea9aaee4df835a4c5ec25d7770826420",
+   "sha256": "657bcf7baa1ca7aee0d3466f4debad41e6390425781e44047336fb1da7ad00cd",
+   "size": 34377,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1941,18 +1946,19 @@
     "AUD-069",
     "AUD-070",
     "AUD-074",
-    "AUD-075"
+    "AUD-075",
+    "AUD-086"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at 0278dcf, all 5,347, blob f196fde9: the module docstring and the restated authority, task, lease and scientific-admission rules (_create_refusal, _auth_refusal, _task_refusal, _parse_lease, _sci_fetch, _sci_invariants_hold, _sci_number, _sci_agreement_ok, _sci_content, _sci_task_producers, _sci_admission), the role restatement, Reconstruction and canonical_ids, the security profile and GOVERNED restatements, _bound_promotion_refusal, _never_raising, reconstruct, TaskReconstruction and reconstruct_tasks, SubsystemReconstruction and reconstruct_subsystems, every subsystem rule (messages, reads, egress, secrets, jobs and leases, priority, policy publish, withdraw and decision, capabilities, agents, escalations, checkpoints, claims, compensations, memory, grants, services, context, proposals, inference budgets, reservations, dispatch and results, research objectives, hypotheses, freshness, observations, status and steps), the comparisons and bindings, and the decision proof (_Prefix, _at, _PrefixAuthenticator, _prefix_roots, _resolves, _policy_in_force, _proposal_chain, _execution, derive_decision_proof, _record_proof, _research_proof, _differences, _conditions, verify_decision_proof); earlier, in part: read: the authority edge restatement and _auth_refusal, the record.transition and record.depend replay, the create rule, the canonical() computation, the security-profile restatement and the authentication verdict (AUD-012 written and reviewed as a diff), the policy-binding fold, _bound_promotion_refusal, _sub_policy_publish and _sub_policy_withdraw (AUD-015 written and reviewed as a diff), the reconstruct_tasks loop and the reconstruct_subsystems dispatch (session 4); the AUD-011/AUD-017 role restatement (_roles_read, _role_refusal, _role_delegation_refusal, _role_fold) and its use in all three entry points written and reviewed as a diff; not read: scientific-admission reconstruction but for its content rule (AUD-025, below), and the subsystem rules other than the policy, grant and role ones; the GOVERNED restatement (_profile_declared, _governed_problem and its use in reconstruct, reconstruct_tasks and reconstruct_subsystems, AUD-020) written and reviewed as a diff, with GH10-GH13 killed; the decision proof's roots (_PrefixAuthenticator, _prefix_roots, and their use in derive_decision_proof, _record_proof, _research_proof and verify_decision_proof, AUD-023) written and reviewed as a diff, with SG15, SG16 and the repaired FR39 killed; the decision proof's prefix carrying the history's roots (_Prefix's authenticator and roles, and _at handing them, AUD-023 completed) written and reviewed as a diff, with GR1 and the twice-repaired FR39 killed; Stage 5: the research observation and status restatement (_sub_research_status) and the decision proof's evidence test (_resolves, as _record_proof and _research_proof use it) read, the AUD-028 restatement and the AUD-029 digest test written and reviewed as diffs, with RR10 and S18 killed; AUD-025: the scientific-admission content restatement -- the policies and field sets, _sci_number, _sci_agreement_ok and _sci_content(policy), as _sci_admission asks them, the number test typed as a TypeGuard for the type check -- written and reviewed as a diff, with RX10 to RX22 killed and RX8 and RX16 killed again by the tests their survival called for; the number test restated without the math module, which the reader's import allow-list does not hold, refusing an integer no float holds rather than raising OverflowError, written and reviewed as a diff, with RX23 and RX24 killed and RX21 repaired to the same intent; the second reader's memory restatement for AUD-043 to AUD-046 written and reviewed as a diff: _sub_memory_write with _memory_field_types and the born-STALE rule, _sub_memory_status with the replacement, source and premise rules, _sub_memory_invalidate, and the dispatch's note for an action no module writes, and a status of the wrong type noted where it raised TypeError, with MT18 to MT28 killed; the AUD-047 change written and reviewed as a diff: _never_raising, the three readers' loop tops and _profile_declared, with R113 to R129 killed. The three readers' dispatches were also swept with one payload value replaced at a time, which is a test of them and not a reading; the AUD-056 change (the second reader's verdict decides nothing on a resolution below zero) written and reviewed as a diff, with NB5 killed; the AUD-059 change (the second reader restates who may contract a host, and one host, one contract, in its fold of network.service and _sub_hosts_overlap) written and reviewed as a diff, with NP9 to NP11 killed; the AUD-062 to AUD-067 changes written and reviewed as a diff -- the capture rule in the task replay and the decision proof's _execution (AUD-062), _attested and the authenticator given to the task and subsystem replays, the admission's task view and the research proof (AUD-063), the HUMAN registration rule (AUD-064), the refusal of a move from a state the replay does not have, in both machines (AUD-065), the integer policy version (AUD-066) and _sub_chain_problem (AUD-067) -- with SR1 to SR20 killed and D9 and RV10 re-anchored to the same intent; the check that a capture preceded its task's verdict, which the task replay's capture rule implies, removed from _sci_task_producers, and the prefix view's unread copy of the roots removed from _Prefix and _at, written and reviewed as a diff, with RX5 re-anchored on the capture rule and GR1 on the proof's hand-off of the roots, both killed, and SR13 and FR39 following the call; the AUD-068 to AUD-070 changes written and reviewed as a diff -- the scheduler rules restated in _sub_enqueue (a priority's form and bounds, citations and resource needs, the enqueue's lease end and what a job waits on, with _job_can_still_succeed derived from _JOB_EDGES), _sub_job_transition and _sub_lease_renew (the bound on one grant of possession) and _sub_priority -- with SK19 to SK26 and SK31 to SK36 killed; the AUD-074 change written and reviewed as a diff -- reconstruct_tasks notes a task record whose payload names no task_id, and a create naming no tool or no inputs digest, and folds neither -- with TP9 and TP10 killed; _TASK_ROLE_BEHIND, which leaves SCHEDULER and SYSTEM to no grant, measured agreeing with the primary (AUD-075)",
+   "method": "every line read at 0278dcf, all 5,347, blob f196fde9: the module docstring and the restated authority, task, lease and scientific-admission rules (_create_refusal, _auth_refusal, _task_refusal, _parse_lease, _sci_fetch, _sci_invariants_hold, _sci_number, _sci_agreement_ok, _sci_content, _sci_task_producers, _sci_admission), the role restatement, Reconstruction and canonical_ids, the security profile and GOVERNED restatements, _bound_promotion_refusal, _never_raising, reconstruct, TaskReconstruction and reconstruct_tasks, SubsystemReconstruction and reconstruct_subsystems, every subsystem rule (messages, reads, egress, secrets, jobs and leases, priority, policy publish, withdraw and decision, capabilities, agents, escalations, checkpoints, claims, compensations, memory, grants, services, context, proposals, inference budgets, reservations, dispatch and results, research objectives, hypotheses, freshness, observations, status and steps), the comparisons and bindings, and the decision proof (_Prefix, _at, _PrefixAuthenticator, _prefix_roots, _resolves, _policy_in_force, _proposal_chain, _execution, derive_decision_proof, _record_proof, _research_proof, _differences, _conditions, verify_decision_proof); earlier, in part: read: the authority edge restatement and _auth_refusal, the record.transition and record.depend replay, the create rule, the canonical() computation, the security-profile restatement and the authentication verdict (AUD-012 written and reviewed as a diff), the policy-binding fold, _bound_promotion_refusal, _sub_policy_publish and _sub_policy_withdraw (AUD-015 written and reviewed as a diff), the reconstruct_tasks loop and the reconstruct_subsystems dispatch (session 4); the AUD-011/AUD-017 role restatement (_roles_read, _role_refusal, _role_delegation_refusal, _role_fold) and its use in all three entry points written and reviewed as a diff; not read: scientific-admission reconstruction but for its content rule (AUD-025, below), and the subsystem rules other than the policy, grant and role ones; the GOVERNED restatement (_profile_declared, _governed_problem and its use in reconstruct, reconstruct_tasks and reconstruct_subsystems, AUD-020) written and reviewed as a diff, with GH10-GH13 killed; the decision proof's roots (_PrefixAuthenticator, _prefix_roots, and their use in derive_decision_proof, _record_proof, _research_proof and verify_decision_proof, AUD-023) written and reviewed as a diff, with SG15, SG16 and the repaired FR39 killed; the decision proof's prefix carrying the history's roots (_Prefix's authenticator and roles, and _at handing them, AUD-023 completed) written and reviewed as a diff, with GR1 and the twice-repaired FR39 killed; Stage 5: the research observation and status restatement (_sub_research_status) and the decision proof's evidence test (_resolves, as _record_proof and _research_proof use it) read, the AUD-028 restatement and the AUD-029 digest test written and reviewed as diffs, with RR10 and S18 killed; AUD-025: the scientific-admission content restatement -- the policies and field sets, _sci_number, _sci_agreement_ok and _sci_content(policy), as _sci_admission asks them, the number test typed as a TypeGuard for the type check -- written and reviewed as a diff, with RX10 to RX22 killed and RX8 and RX16 killed again by the tests their survival called for; the number test restated without the math module, which the reader's import allow-list does not hold, refusing an integer no float holds rather than raising OverflowError, written and reviewed as a diff, with RX23 and RX24 killed and RX21 repaired to the same intent; the second reader's memory restatement for AUD-043 to AUD-046 written and reviewed as a diff: _sub_memory_write with _memory_field_types and the born-STALE rule, _sub_memory_status with the replacement, source and premise rules, _sub_memory_invalidate, and the dispatch's note for an action no module writes, and a status of the wrong type noted where it raised TypeError, with MT18 to MT28 killed; the AUD-047 change written and reviewed as a diff: _never_raising, the three readers' loop tops and _profile_declared, with R113 to R129 killed. The three readers' dispatches were also swept with one payload value replaced at a time, which is a test of them and not a reading; the AUD-056 change (the second reader's verdict decides nothing on a resolution below zero) written and reviewed as a diff, with NB5 killed; the AUD-059 change (the second reader restates who may contract a host, and one host, one contract, in its fold of network.service and _sub_hosts_overlap) written and reviewed as a diff, with NP9 to NP11 killed; the AUD-062 to AUD-067 changes written and reviewed as a diff -- the capture rule in the task replay and the decision proof's _execution (AUD-062), _attested and the authenticator given to the task and subsystem replays, the admission's task view and the research proof (AUD-063), the HUMAN registration rule (AUD-064), the refusal of a move from a state the replay does not have, in both machines (AUD-065), the integer policy version (AUD-066) and _sub_chain_problem (AUD-067) -- with SR1 to SR20 killed and D9 and RV10 re-anchored to the same intent; the check that a capture preceded its task's verdict, which the task replay's capture rule implies, removed from _sci_task_producers, and the prefix view's unread copy of the roots removed from _Prefix and _at, written and reviewed as a diff, with RX5 re-anchored on the capture rule and GR1 on the proof's hand-off of the roots, both killed, and SR13 and FR39 following the call; the AUD-068 to AUD-070 changes written and reviewed as a diff -- the scheduler rules restated in _sub_enqueue (a priority's form and bounds, citations and resource needs, the enqueue's lease end and what a job waits on, with _job_can_still_succeed derived from _JOB_EDGES), _sub_job_transition and _sub_lease_renew (the bound on one grant of possession) and _sub_priority -- with SK19 to SK26 and SK31 to SK36 killed; the AUD-074 change written and reviewed as a diff -- reconstruct_tasks notes a task record whose payload names no task_id, and a create naming no tool or no inputs digest, and folds neither -- with TP9 and TP10 killed; _TASK_ROLE_BEHIND, which leaves SCHEDULER and SYSTEM to no grant, measured agreeing with the primary (AUD-075); the AUD-086 change, the context manifest's form and rules restated (_ctx_count, _ctx_rows_held, _ctx_summaries_held, _ctx_manifest_held) and asked in _sub_context, written and reviewed as a diff, with MX2 to MX15 killed and the readers agreeing on the table's 2,772 records",
    "mode": "100644",
-   "new_blob": "445ff1d83b49e01513d72d827b27a7f3b7bee503",
-   "note": "",
+   "new_blob": "0361320849868f1accfa7fd1386bd183fa9c01a2",
+   "note": "the context rules are restated from context.py and must change with it; test_both_readers_hold_the_same_contexts is the check",
    "old_blob": null,
    "path": "agent_substrate/reconstruct.py",
-   "reviewed_blob": "445ff1d83b49e01513d72d827b27a7f3b7bee503",
-   "sha256": "dbe47feab890f93d29d8db7c79e9ba1dc1828f70e3db5fd2de92a7f28e98c72f",
-   "size": 261853,
+   "reviewed_blob": "0361320849868f1accfa7fd1386bd183fa9c01a2",
+   "sha256": "55537a873ed4d24e41ae2e1c5d05c63371a8d4d9b9f51741e12a1a707ca00bbf",
+   "size": 266599,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -10064,18 +10070,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-084"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "read in part at 8f0714e: its imports, and lines 25 to 75, the attack table's test and the tests of the controller's sources. The test of AUD-084 written and reviewed as a diff, failing at 8f0714e with UnicodeEncodeError out of the controller's step",
    "mode": "100644",
-   "new_blob": "ec72d4dec212dd9c6e8acecec572af84333f5177",
-   "note": "not yet examined",
+   "new_blob": "35eb611e9151e8b047f4df598d046b146d3815cb",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_adversarial_scenarios.py",
-   "reviewed_blob": null,
-   "sha256": "23a4df0087fe6ca04d260476533f2c0bbcefabe8439499a5232720e7c9e02bc1",
-   "size": 3140,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "35eb611e9151e8b047f4df598d046b146d3815cb",
+   "sha256": "35f06fee1936c6186c013cee645405c3486c7cfed641cf869bcfe66253dc0b6e",
+   "size": 3764,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -10224,18 +10232,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-084",
+    "AUD-085"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "read in part at 8f0714e: lines 14 to 50, the imports and the builder helpers; 93 to 124, the round trip, the unknown fields, the malformed manifests and the manifest appended alone; and 286 to 300, the replaced source's round trip. The 28 cases of AUD-084 and AUD-085 written and reviewed as a diff, the 27 regression cases failing at 8f0714e and the control passing at both",
    "mode": "100644",
-   "new_blob": "87abfcd96e3aef267720f967c0f94b53b1984f0b",
-   "note": "not yet examined",
+   "new_blob": "5647e09c7329f95f526af2953f7a2e1ab1119705",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_agent_context.py",
-   "reviewed_blob": null,
-   "sha256": "a96679a4c663a03387f4f49daf9efbf8dc0411b821a62a6aa82a860e57987aea",
-   "size": 25052,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "5647e09c7329f95f526af2953f7a2e1ab1119705",
+   "sha256": "931fe6d0a05ea37935e34bd58a14b8b5a3050d7fc9dce7e6a75ef547d382aa2b",
+   "size": 29439,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -11205,16 +11216,16 @@
    "change": "ADDED",
    "findings": [],
    "kind": "test",
-   "method": "",
+   "method": "read in part at 8f0714e: EXPECTED_EVIDENCE_COVERS, its history and the evidence-axis test that holds it. The change for R34, whose hosted evidence predates context.py after AUD-084 and AUD-085, written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "f2a7f90207bb0020f967474ad4c70b8c951afb5b",
-   "note": "not yet examined",
+   "new_blob": "8f29812634b32e08abd83e7b4a19434c7b349b8a",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_completion_matrix.py",
-   "reviewed_blob": null,
-   "sha256": "0084b541b33d86bb4ace6d5bbcba2701ce92eba5b8f8f2742b4f6579389ce2ff",
-   "size": 54717,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "8f29812634b32e08abd83e7b4a19434c7b349b8a",
+   "sha256": "0a74efd9929f6843e1a976d6c0a3e145371b47b54906cc23b733f4960c033279",
+   "size": 55024,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -12090,18 +12101,20 @@
     "AUD-079",
     "AUD-080",
     "AUD-081",
-    "AUD-082"
+    "AUD-082",
+    "AUD-085",
+    "AUD-086"
    ],
    "kind": "test",
-   "method": "every line read at fddfdf6: the helpers and the World, the B1 contract, B2 budget, B3 context-binding and proposal tests, one key one question, recovery, replay refusing forgeries, the request body, and the B4 process boundary. No test wrote a reservation by an actor other than the gateway or the caller (AUD-079). The 12 tests of AUD-079 to AUD-082 written and reviewed as a diff, the 11 regression tests failing at fddfdf6",
+   "method": "every line read at fddfdf6: the helpers and the World, the B1 contract, B2 budget, B3 context-binding and proposal tests, one key one question, recovery, replay refusing forgeries, the request body, and the B4 process boundary. No test wrote a reservation by an actor other than the gateway or the caller (AUD-079). The 12 tests of AUD-079 to AUD-082 written and reviewed as a diff, the 11 regression tests failing at fddfdf6; the 6 tests of AUD-085 and AUD-086 written and reviewed as a diff, the 5 regression tests failing at 8f0714e and the control passing at both",
    "mode": "100644",
-   "new_blob": "694b679410ae60d8934ca6fda2a53249d9e3236b",
+   "new_blob": "0ef29c1c3b5eee6a8dd2965162ae6a35e62a0546",
    "note": "the hung-worker test bounds its wall time at 15 s; the World's budget holds the provider every test names",
    "old_blob": null,
    "path": "tests/test_inference_gateway.py",
-   "reviewed_blob": "694b679410ae60d8934ca6fda2a53249d9e3236b",
-   "sha256": "fb6152b4f4c78ef3afa7ac6a64fa1f85bf5501e6cc6273d7546e4665b1da9b8d",
-   "size": 43617,
+   "reviewed_blob": "0ef29c1c3b5eee6a8dd2965162ae6a35e62a0546",
+   "sha256": "661485c538cb07c7be30eb39434bb1d8d10b965052016c7185948e472b6e7f64",
+   "size": 51900,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -12815,18 +12828,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-083"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "read in part at 8f0714e: lines 1 to 80, the module docstring, the imports, the context, response and record helpers and the first schema tests; and 88 to 130, the malformed-envelope table and the start of the authority-key test. The 3 cases of AUD-083 written and reviewed as a diff, each failing at 8f0714e",
    "mode": "100644",
-   "new_blob": "ad613b2c12f40c58cc3c37c4a9857bf16750d0f0",
-   "note": "not yet examined",
+   "new_blob": "e99add1fc257d1324328a34dd9dad1f27537d9c0",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_proposal_ingress.py",
-   "reviewed_blob": null,
-   "sha256": "f72c46776b7426cf27db467d9b426317a2f24c86af3ca87e7e618405ab72e4a5",
-   "size": 27219,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "e99add1fc257d1324328a34dd9dad1f27537d9c0",
+   "sha256": "64f15e87aa2da20ca68a9972e95d1ba212744f4c958a54f8e44fc5b5061cae71",
+   "size": 27829,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -14754,15 +14769,15 @@
    "change": "ADDED",
    "findings": [],
    "kind": "tool",
-   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff; the comment on specs that gained mutations after the weights were measured, which said twelve where thirty had, restated with the count measured at ce93e58, written by the audit and reviewed as a diff; the comment on specs added after the weights were measured names unknown_actions (AUD-054), written and reviewed as a diff; the comment on specs added after the weights were measured names evidence_objects (AUD-055), written and reviewed as a diff; the comment on specs added after the weights were measured names resolution_bound (AUD-056), written and reviewed as a diff; the comment on specs added after the weights were measured names egress_perimeter (AUD-057 to AUD-059), written and reviewed as a diff; the comment on specs added after the weights were measured names agent_directory_records (AUD-060 and AUD-061), written and reviewed as a diff, its six names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names second_reader_rules (AUD-062 to AUD-067), written and reviewed as a diff, its seven names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names scheduler_replay_rules (AUD-068 to AUD-071), written and reviewed as a diff, its eight names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then named task_projection_records (AUD-072 to AUD-074) too, written and reviewed as a diff, its nine names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then counted thirty-one measured specs grown since the measured run, ro_crate_conformance the latest (AUD-076 to AUD-078), written and reviewed as a diff, the count checked by script against a5cf136; the comment then counted thirty-two, inference_gateway the latest (AUD-080 to AUD-082), written and reviewed as a diff, the count checked by script against a5cf136",
+   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff; the comment on specs that gained mutations after the weights were measured, which said twelve where thirty had, restated with the count measured at ce93e58, written by the audit and reviewed as a diff; the comment on specs added after the weights were measured names unknown_actions (AUD-054), written and reviewed as a diff; the comment on specs added after the weights were measured names evidence_objects (AUD-055), written and reviewed as a diff; the comment on specs added after the weights were measured names resolution_bound (AUD-056), written and reviewed as a diff; the comment on specs added after the weights were measured names egress_perimeter (AUD-057 to AUD-059), written and reviewed as a diff; the comment on specs added after the weights were measured names agent_directory_records (AUD-060 and AUD-061), written and reviewed as a diff, its six names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names second_reader_rules (AUD-062 to AUD-067), written and reviewed as a diff, its seven names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names scheduler_replay_rules (AUD-068 to AUD-071), written and reviewed as a diff, its eight names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then named task_projection_records (AUD-072 to AUD-074) too, written and reviewed as a diff, its nine names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then counted thirty-one measured specs grown since the measured run, ro_crate_conformance the latest (AUD-076 to AUD-078), written and reviewed as a diff, the count checked by script against a5cf136; the comment then counted thirty-two, inference_gateway the latest (AUD-080 to AUD-082), written and reviewed as a diff, the count checked by script against a5cf136; the comment's latest specs then named agent_memory_context, inference_gateway and proposal_ingress (AUD-083 to AUD-086), written and reviewed as a diff, the count of thirty-two checked by script against a5cf136",
    "mode": "100644",
-   "new_blob": "f986c970fc66ae14dcfe7a44a45e7904b708ee5d",
+   "new_blob": "cec496216af57fce09a7689fc01714ec986d68fc",
    "note": "",
    "old_blob": null,
    "path": "tools/mutation_shards.py",
-   "reviewed_blob": "f986c970fc66ae14dcfe7a44a45e7904b708ee5d",
-   "sha256": "f3e91140220bc15bae33e1b5887255c96c44684641d0b33fbfa6ba4c9f695d6b",
-   "size": 14933,
+   "reviewed_blob": "cec496216af57fce09a7689fc01714ec986d68fc",
+   "sha256": "310e35bca83c53fcd074d5958e87e7789437dfe3b44bef224d8ba9639efc08cc",
+   "size": 14976,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -15064,13 +15079,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "0849d5cd68a248d089c794b71ccea8a3e13e0e90",
+   "new_blob": "a4e3ea3aaf1238187f22f6fcdd9d9b2b17fdce07",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/agent_memory_context.json",
    "reviewed_blob": null,
-   "sha256": "08029f2c9e49188c3003f3d9cd13029c6fbe890492d8d9b6ce9e240a9cfb0732",
-   "size": 32403,
+   "sha256": "2ca2207d909a5a1e68da39e6f5fcff30a45ce6156200e3de26b20a2393cf1063",
+   "size": 36911,
    "status": "NOT_REVIEWED"
   },
   {
@@ -16066,13 +16081,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "a949948ac0c1d792812f8039441d93286a9daed7",
+   "new_blob": "59844338ca2a5163c60feaf0f301bc2fe4184e1e",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/inference_gateway.json",
    "reviewed_blob": null,
-   "sha256": "549bea2c7ca8f6645cf4dda6bce459bd2fa45f3d8d90457ab4d104480ddb2367",
-   "size": 21365,
+   "sha256": "31c0277d19ea6a4992d9b74d6ebfd7744b95a3eccb0d71bec4a532b90e8715e0",
+   "size": 26431,
    "status": "NOT_REVIEWED"
   },
   {
@@ -16406,13 +16421,13 @@
    "kind": "mutation-spec",
    "method": "",
    "mode": "100644",
-   "new_blob": "fbf68df37bd3f4702030141bd5ed4c93eb3933cd",
+   "new_blob": "aa7cd8cdd01c645e5e3752648f595270ac525130",
    "note": "not yet examined",
    "old_blob": null,
    "path": "tools/mutations/proposal_ingress.json",
    "reviewed_blob": null,
-   "sha256": "616fb9ab4e238e8592fd764f166ece15c950d383837cb5c195e0ee2a77945505",
-   "size": 9418,
+   "sha256": "3f7e4971a57914017dd09d855718fb8e77b7210014bdca49515c89c638d39c2c",
+   "size": 9880,
    "status": "NOT_REVIEWED"
   },
   {

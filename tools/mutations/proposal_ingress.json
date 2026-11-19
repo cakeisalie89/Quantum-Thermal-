@@ -207,6 +207,13 @@
    "find": "            if _CREDENTIAL.search(k):\n",
    "replace": "            if False:\n",
    "rationale": "AUD-041: a credential written as a key of a free-form map in a proposal is sealed, received and appended to the log, where the same text as a value is refused and never stored"
+  },
+  {
+   "name": "PI20_a_citation_may_be_numbered_by_booleans",
+   "path": "agent_substrate/proposals.py",
+   "find": "            if any(isinstance(n, bool) or not isinstance(n, int)\n                   for n in lines) or not 1 <= lines[0] <= lines[1]:",
+   "replace": "            if any(not isinstance(n, int)\n                   for n in lines) or not 1 <= lines[0] <= lines[1]:",
+   "rationale": "a citation at lines true..true would be taken as line 1"
   }
  ]
 }

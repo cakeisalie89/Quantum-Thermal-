@@ -1034,3 +1034,181 @@ def test_a_reservation_is_made_under_no_grant(tmp_path):
         manifest_digest=w.context.manifest.digest()))
     assert gw.binding_problems(env) == []
     assert not w.provider.calls
+
+
+# ---- which contexts each reader holds (AUD-085, AUD-086) ----------------
+def _context_record(w, change, *, task="t9", stated="raw", base=None):
+    """Append a context.build for ``task``: the World's manifest (or
+    ``base``), changed by ``change``, stating the digest of the record as
+    written (``raw``) or of the full form it was changed from (``full``)."""
+    import copy
+    from agent_substrate.context import ACT_CONTEXT_BUILD
+    rec = copy.deepcopy(base or w.context.manifest.to_record())
+    rec["task_id"] = task
+    full = digest(rec)
+    change(rec)
+    md = digest(rec) if stated == "raw" else full
+    w.log.append(actor="context-builder", action=ACT_CONTEXT_BUILD,
+                 target=task, payload={"manifest": rec, "manifest_digest": md})
+    return md
+
+
+def _reserved_under(w, md):
+    body = dict(w.request().body(), context_manifest_digest=md,
+                idempotency_key="k9")
+    req = I.InferenceRequest.from_body(body)
+    _append_raw(w, I.ACT_RESERVE, req.request_id, _granted(w, req))
+    return req
+
+
+def _noted_unknown(w):
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    return [a for a in reconstruct_subsystems(w.log).anomalies
+            if "a context no context.build on this log records" in a]
+
+
+def test_a_context_the_gateway_cannot_read_is_held_by_neither_reader(
+        tmp_path):
+    """AUD-086. The gateway's reader refuses a manifest with an item of no
+    tier, and holds no context for it. The second reader indexed the
+    manifest on its digest alone, so a reservation naming it, which the
+    gateway refuses, stood there as granted, and neither it nor the
+    separate process noted anything."""
+    w = World(tmp_path)
+    md = _context_record(w, lambda r: r["items"][0].update(
+        tier="NOT_A_TIER"))
+    _reserved_under(w, md)
+    with pytest.raises(I.InferenceError, match="no context.build"):
+        w.gateway()
+    assert _noted_unknown(w)
+
+
+def test_a_context_in_part_of_its_form_is_held_by_neither_reader(tmp_path):
+    """AUD-086, the other way. A record leaving out a field its reader fills
+    in, stating the digest of the full form. The gateway read it, filled
+    the field, found that digest and held the context; the second reader,
+    digesting what is written, held none. A reservation under it was
+    granted by the gateway and noted by the second reader."""
+    w = World(tmp_path)
+    md = _context_record(w, lambda r: r["items"][0].pop("source"),
+                         stated="full")
+    _reserved_under(w, md)
+    with pytest.raises(I.InferenceError, match="no context.build"):
+        w.gateway()
+    assert _noted_unknown(w)
+
+
+def test_a_context_no_builder_writes_is_held_by_neither_reader(tmp_path):
+    """AUD-085 seen from the readers: a byte count of true. Both held it as
+    a context a reservation could name."""
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    w = World(tmp_path)
+    md = _context_record(w, lambda r: r["items"][0].update(byte_len=True))
+    assert md not in w.gateway()._contexts
+    assert md not in reconstruct_subsystems(w.log).context_manifests
+
+
+def test_a_context_in_its_builders_form_is_held_by_both_readers(tmp_path):
+    """Control for the three above."""
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    w = World(tmp_path)
+    md = _context_record(w, lambda r: None)
+    assert md in w.gateway()._contexts
+    assert md in reconstruct_subsystems(w.log).context_manifests
+
+
+def _summarized_manifest(w):
+    """A manifest with a summary shown and its source omitted: the form in
+    which the summary rules have something to decide."""
+    long = "the full text of a retrieved document " * 20
+    b = ContextBuilder(task_id="t-sum", purpose="propose a model run",
+                       policy_identity=f"{POLICY}@1",
+                       policy_digest=_policy(1).digest(), at_seq=0)
+    b.add(item_id="instr", tier=Tier.OWNER_INSTRUCTION, text="propose a run")
+    b.add(item_id="long", tier=Tier.RETRIEVED_EVIDENCE, text=long)
+    b.add(item_id="sum", tier=Tier.RETRIEVED_EVIDENCE, text="a summary",
+          summary_of=digest_bytes(long.encode("utf-8")),
+          summarizes_item="long")
+    rec = b.build(budget_bytes=len("propose a run") + len("a summary")
+                  ).manifest.to_record()
+    assert [o["item_id"] for o in rec["omissions"]] == ["long"]
+    return rec
+
+
+#: what the table puts in each field, one at a time; DELETE takes it out
+_DELETE = object()
+_VALUES = (None, True, False, 0, 1, -1, -2, 1.5, 1e9, "", "x", "sum", "long",
+           "OWNER_INSTRUCTION", "0" * 64, [], ["x"], {}, _DELETE)
+
+
+def test_both_readers_hold_the_same_contexts(tmp_path, monkeypatch):
+    """AUD-086. Whatever one field of a context.build's manifest holds, under
+    either digest a writer might state, the gateway holds the context
+    exactly when the second reader does: every field of the manifest, of
+    each item and of each omission, of a plain manifest and of one with a
+    summary, set to each value in the table or taken out, one record each,
+    on one log."""
+    from agent_substrate import events as events_module
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    monkeypatch.setattr(events_module.os, "fsync", lambda fd: None)
+    w = World(tmp_path)
+    cases = {}
+    n = 0
+    for base in (w.context.manifest.to_record(), _summarized_manifest(w)):
+        paths = [()] + [("items", i) for i in range(len(base["items"]))] + \
+            [("omissions", i) for i in range(len(base["omissions"]))]
+        for path in paths:
+            row = base if not path else base[path[0]][path[1]]
+            for key in sorted(row) + ["extra"]:
+                for value in _VALUES:
+                    for stated in ("raw", "full"):
+                        n += 1
+
+                        def change(r, path=path, key=key, value=value):
+                            t = r if not path else r[path[0]][path[1]]
+                            if value is _DELETE:
+                                t.pop(key, None)
+                            else:
+                                t[key] = value
+                        md = _context_record(w, change, task=f"t{n}",
+                                             stated=stated, base=base)
+                        cases[md] = (path, key, value, stated)
+    # two rules no single field reaches: a source two summaries claim, and
+    # an omission naming a summary of other bytes that happen to be its own
+    rich = _summarized_manifest(w)
+    (long_,) = rich["omissions"]
+    second_summary = dict(rich["items"][1], item_id="sum2")
+    for crafted, label in (
+            (lambda r: r["items"].append(dict(second_summary)), "two claims"),
+            (lambda r: r["omissions"].append(dict(long_, item_id="long2")),
+             "a summary of another item's bytes")):
+        n += 1
+        md = _context_record(w, crafted, task=f"t{n}", base=rich)
+        cases[md] = ((), label, None, "raw")
+    held = set(w.gateway()._contexts)
+    second = set(reconstruct_subsystems(w.log).context_manifests)
+    differ = {md: cases[md] for md in (held ^ second) & set(cases)}
+    assert not differ, list(differ.values())[:5]
+    # the table holds manifests both readers take and many neither does
+    assert held & set(cases) and set(cases) - held
+    assert not {md for md, c in cases.items() if c[0] == ()
+                and c[1] in ("two claims",
+                             "a summary of another item's bytes")} & held
+
+
+def test_a_context_past_the_item_bound_is_held_by_neither_reader(tmp_path):
+    """AUD-085 and AUD-086: more rows than a builder may hold."""
+    from agent_substrate.context import MAX_ITEMS
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    w = World(tmp_path)
+    row = dict(w.context.manifest.to_record()["items"][-1])
+
+    def past(r):
+        r["omissions"] = [dict(row, item_id=f"o{i}", reason="cut",
+                               summarized_by=None)
+                          for i in range(MAX_ITEMS)]
+        for o in r["omissions"]:
+            o.pop("source"), o.pop("summary_of"), o.pop("summarizes_item")
+    md = _context_record(w, past)
+    assert md not in w.gateway()._contexts
+    assert md not in reconstruct_subsystems(w.log).context_manifests

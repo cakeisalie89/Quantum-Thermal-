@@ -2738,6 +2738,121 @@
    "residual_risk": "The worker is this repository's own script; a live provider's client would run behind it (OD-1).",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-083",
+   "title": "A proposal envelope took a citation's line numbers as numbers when they were booleans",
+   "severity": "P3",
+   "subsystem": "the proposal ingress: the envelope's citations",
+   "files": [
+    {
+     "path": "agent_substrate/proposals.py",
+     "lines": "ProposalEnvelope.parse, the citation checks"
+    }
+   ],
+   "behavior": "ProposalEnvelope.parse checked a citation's line range with isinstance(n, int), which is true of a boolean. A citation at lines true..true, 1..true or true..2 passed, and the envelope was sealed and could be received and logged with it, true read as line 1. The envelope's other numbers, its iteration and its inference's attempt, each refuse a boolean.",
+   "invariant": "Every number an envelope carries is a number.",
+   "mechanism": "bool is a subclass of int, and only the type was asked.",
+   "reproduction": "At 8f0714e, an envelope sealed with one citation at lines true..true, and again at 1..true and at true..2, parsed.",
+   "observed": "Found reading agent_substrate/proposals.py in full for Wave A: each parsed.",
+   "expected": "ProposalRefused: context.retrieved[0]: line range.",
+   "correction": "A line number that is a boolean is refused, before the range is asked of the pair.",
+   "regression_tests": [
+    "tests/test_proposal_ingress.py::test_a_citation_numbered_by_booleans_is_refused"
+   ],
+   "residual_risk": "None known. The citation still binds its path to the source digest, and a line read as 1 named line 1.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-084",
+   "title": "A context item whose text has no UTF-8 bytes was taken, and building the context raised past every caller that handles a refused one",
+   "severity": "P3",
+   "subsystem": "context assembly: what a context item may hold",
+   "files": [
+    {
+     "path": "agent_substrate/context.py",
+     "lines": "ContextBuilder.add; build, where each text is digested"
+    },
+    {
+     "path": "agent_substrate/research_loop.py",
+     "lines": "ResearchController.step, which records a refused context for ContextError"
+    }
+   ],
+   "behavior": "ContextBuilder.add took any str as an item's text, a lone surrogate included, and build() raised UnicodeEncodeError where it digested the text's UTF-8 bytes. The research controller records a step whose context is refused as CONTEXT REFUSED, for ContextError only. On the adversarial evaluation's world, a source item whose text held a lone surrogate made the step raise UnicodeEncodeError out of the controller; no prompt was sent. Such text reaches a source from the log: canonical JSON writes a lone surrogate as its escape, and the record reads back with it. An item's source was not asked to be a name either, and stood in the manifest as whatever it was.",
+   "invariant": "The builder refuses an item it cannot digest, in its own words, where the item is added.",
+   "mechanism": "add() asked that the text be a str, and a str need not encode as UTF-8.",
+   "reproduction": "At 8f0714e: the controller's step on the adversarial evaluation's world with one MEMORY source, 'remembered \\ud800 text'; and a builder given that item, built.",
+   "observed": "The step raised UnicodeEncodeError: 'utf-8' codec can't encode character '\\ud800'. The builder took the item and build() raised the same.",
+   "expected": "ContextError from add(), naming the item, and the step recorded as CONTEXT REFUSED with nothing sent.",
+   "correction": "add() encodes the text, and refuses one with no UTF-8 bytes with a ContextError naming the item and the position; it refuses a source that is not a str.",
+   "regression_tests": [
+    "tests/test_agent_context.py::test_text_with_no_utf8_bytes_is_refused_where_it_is_added",
+    "tests/test_agent_context.py::test_a_source_that_is_not_a_name_is_refused",
+    "tests/test_adversarial_scenarios.py::test_a_source_with_no_utf8_bytes_is_a_refused_context"
+   ],
+   "residual_risk": "None known in the builder. A caller that digests text outside it holds its own text to the same rule.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-085",
+   "title": "A context manifest was read back in forms its builder never writes",
+   "severity": "P3",
+   "subsystem": "context assembly: a manifest read back from a log",
+   "files": [
+    {
+     "path": "agent_substrate/context.py",
+     "lines": "manifest_from_record"
+    }
+   ],
+   "behavior": "manifest_from_record checked a manifest's key sets, its tiers and its summary claims, and took the rest as written. Each of 22 one-field changes to a builder's manifest was read back as a manifest: a budget of true, of 0 or of \"260\"; a use of none, of -1, of 1.5, or of 261 bytes of a 260-byte budget; a position of \"42\", of false or of -2; a task of 7 or of the empty string; a purpose that was a list; a policy identity of 2 and a policy digest of none; an item's byte count of true, -1, \"18\" or 2.0, and its source of 5; an omission's byte count of none and its reason of 3. So was a manifest of more rows than a builder may hold. The gateway held such a manifest, one with a byte count of true among them, as a context a reservation could name.",
+   "invariant": "A manifest read back is in a form its builder writes: names that are non-empty text, counts that are integers at or above their floor and not booleans, a use within the budget, and no more rows than a builder may hold.",
+   "mechanism": "The reader's checks were written for the claims a manifest makes, and not for the counts and names beside them.",
+   "reproduction": "At 8f0714e, a builder's manifest with one field changed at a time, read back; the same with 4,100 rows; and a context.build carrying the one with a byte count of true, on the inference tests' World.",
+   "observed": "Each was read back. The gateway held the last as a context, and so did the second reader.",
+   "expected": "ContextError for each, and no context held.",
+   "correction": "manifest_from_record refuses each in its own words: the task and purpose are non-empty text, the policy fields text, the budget at least 1, the use at least 0 and within the budget, the position at least -1, none a boolean; the rows are lists, no more than MAX_ITEMS of them; each row's byte count is a count and its source or reason text.",
+   "regression_tests": [
+    "tests/test_agent_context.py::test_a_manifest_in_a_form_its_builder_never_writes_is_refused",
+    "tests/test_agent_context.py::test_a_manifest_past_the_item_bound_is_refused",
+    "tests/test_inference_gateway.py::test_a_context_no_builder_writes_is_held_by_neither_reader",
+    "tests/test_inference_gateway.py::test_a_context_past_the_item_bound_is_held_by_neither_reader"
+   ],
+   "residual_risk": "A manifest is not checked against the bytes it describes: an item's byte count and digest are as its builder stated them, and the text is not in the log to check them against.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-086",
+   "title": "The gateway and the second reader held different contexts, so each could pass a reservation the other refused",
+   "severity": "P3",
+   "subsystem": "the inference records: which contexts each reader holds",
+   "files": [
+    {
+     "path": "agent_substrate/inference.py",
+     "lines": "InferenceGateway._apply_context"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_sub_context, and the manifest rules restated before it"
+    }
+   ],
+   "behavior": "The gateway held a context when manifest_from_record took the manifest and the digest of the manifest it read back was the one the record stated. The second reader held one whenever the digest of the record as written was the one stated, and asked nothing else. So it held contexts whose manifests the gateway's reader refuses: an item of no tier, an unknown field, a version-1 record. A reservation naming one, which the gateway refuses, stood granted in the second reader, and it noted nothing. The other way, a record leaving out a field its reader fills in, stating the digest of the full form, was held by the gateway under that digest and not by the second reader; a reservation the gateway granted under it was noted. Of 2,772 records, each a builder's manifest with one field set to one of 18 values or taken out, under either digest, the second reader held 849 the gateway did not, and the gateway 20 the second reader did not.",
+   "invariant": "The second reader holds exactly the contexts the gateway holds.",
+   "mechanism": "The gateway's test was its reader and the digest of its reading; the second reader's was the digest of the record. The two agree only on the builder's own full form.",
+   "reproduction": "At 8f0714e, on the inference tests' World: a context.build whose manifest has an item of tier NOT_A_TIER, and a reservation naming it; a context.build leaving out an item's source and stating the full form's digest, and a reservation naming it; and the table of 2,772 records on one log.",
+   "observed": "The gateway refused the first reservation and the second reader noted nothing; the gateway granted the second and the second reader noted it; the readers disagreed on 869 of the table's records.",
+   "expected": "Both readers holding the same contexts, record by record.",
+   "correction": "The gateway holds a context only when the stated digest is both the digest of the record as written and that of the manifest read back, which is so only for version 2's full form. The second reader restates that form and manifest_from_record's rules in its own words (_ctx_manifest_held) and holds only what they hold. On the table the two readers now hold the same 205 contexts.",
+   "regression_tests": [
+    "tests/test_inference_gateway.py::test_a_context_the_gateway_cannot_read_is_held_by_neither_reader",
+    "tests/test_inference_gateway.py::test_a_context_in_part_of_its_form_is_held_by_neither_reader",
+    "tests/test_inference_gateway.py::test_both_readers_hold_the_same_contexts"
+   ],
+   "residual_risk": "The restatement holds the rules as they stand. A change to the manifest's form must be made in both readers; the table test is the check that they agree.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

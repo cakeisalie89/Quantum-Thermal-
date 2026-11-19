@@ -4998,3 +4998,110 @@ and a provider reporting more is recorded as an overrun, not trimmed.
   model's own answers it does not: the research state is shown
   re-serialized as ASCII JSON, and a run carrying one in a hypothesis
   concluded. Memory and retrieved text are Wave B's.
+
+### Stage 5, eighteenth pass: what a model is shown, read again (AUD-083 to AUD-086)
+
+Wave A of the campaign, its second part. `agent_substrate/proposals.py`
+and `agent_substrate/context.py`, each read in full in an earlier pass,
+were read in full again at 8f0714e, all 711 and 648 lines. They were read
+for what the inference lifecycle hands them: the context a model is
+shown, and the envelope its answer becomes. Four defects were reproduced,
+and all four are fixed.
+
+**AUD-083 (P3), fixed.** A citation's line numbers were checked with
+`isinstance(n, int)`, which a boolean passes. An envelope citing lines
+true..true parsed, true read as line 1. The envelope's other numbers
+each refuse a boolean, and these do now.
+
+**AUD-084 (P3), fixed.** A context item's text was asked to be a str,
+and a str need not encode as UTF-8. A lone surrogate, which an escaped
+one in JSON decodes to, has no UTF-8 bytes, and `build()` raised
+UnicodeEncodeError where it digested the text. Canonical JSON writes
+such a string as its escape, so a record in the log can carry one and
+read back with it. On the adversarial evaluation's world, a source item
+holding one made the research controller's step raise out of the
+controller, which records a refused context only for ContextError. The
+builder refuses the item where it is added, in its own words, and the
+step is the refusal; nothing is shown or sent. A source that is not a
+name is refused there too.
+
+**AUD-085 (P3), fixed.** A manifest read back was held to its key sets,
+its tiers and its summary claims, and taken as written otherwise. Each
+of 22 one-field changes no builder makes was read back as a manifest, a
+budget of true and a byte count of "18" among them, and so was a
+manifest past the item bound. The gateway held one with a byte count of
+true as a context a reservation could name. The reader refuses each in
+its own words now.
+
+**AUD-086 (P3), fixed.** The gateway and the second reader held
+different contexts. The gateway's test was its reader and the digest of
+what it read; the second reader's was the digest of the record, and
+nothing else. A table of 2,772 records was built from a builder's
+manifest, one field set to one of 18 values or taken out, under either
+digest a writer might state. The second reader held 849 of them that the
+gateway did not, an item of no tier and an unknown field among them, so
+a reservation the gateway refuses stood granted there. The gateway held
+20 that the second reader did not: a record leaving out a field its
+reader fills in, stating the full form's digest. The gateway now holds a
+context only when the stated digest is both the record's and its
+reading's. The second reader restates the manifest's form and rules in
+its own words (`_ctx_manifest_held`). On the table both hold the same
+205.
+
+**Tests.** 38 cases in 14 test functions, two of them controls:
+
+- `tests/test_agent_context.py`, 28;
+- `tests/test_proposal_ingress.py`, 3;
+- `tests/test_adversarial_scenarios.py`, 1;
+- `tests/test_inference_gateway.py`, 6, the table among them.
+
+Each of the 36 regression cases fails at 8f0714e: by not refusing, by
+refusing in other words, by the readers' disagreeing, or, in the
+controller's step, by raising UnicodeEncodeError. The two controls pass
+at both. `tests/test_completion_matrix.py` records that R34's hosted
+evidence now predates `context.py`, which it cites: 5 rows covered
+become 4.
+
+**Mutations.** 28 were added:
+
+- X34 to X45 in `agent_memory_context`, the builder's and the reader's
+  new refusals;
+- PI20 in `proposal_ingress`, the boolean line number;
+- MX1 to MX15 in `inference_gateway`: the gateway's digest of the
+  record, and each rule the second reader restates.
+
+No existing anchor moved. The three specs keep their measured weights,
+so the shard plan is unchanged. MX7, which takes away the second
+reader's own check of the budget, survived the first run: every budget
+the table set was refused by the rule that the use fits the budget as
+well. The table gained a budget of 1e9, a float no count is and above
+any use, which only the budget's own rule refuses, and kills MX7.
+
+Run here, on this commit's tree: 229 mutations in 12 specs. Whole specs:
+`adversarial_eval` (10), `agent_memory_context` (90), `inference_gateway`
+(67), `proposal_ingress` (30) and `mutation_shards` (12). Also every
+other mutation anchored in `inference.py`, `proposals.py` or
+`context.py` (19, in the 7 other specs that hold one), and HT16 in
+`history_time`, the one other mutation anchored in the second reader's
+inference readers. All were killed, and every source was restored.
+
+**Read and not changed.**
+
+- `ProposalEnvelope.parse` serializes a record before it bounds its
+  depth, and catches only TypeError and ValueError. At each depth
+  probed that `json.loads` reads, from 500 to 9,750, under CPython
+  3.12.3 and 3.12.13, it refused the record in its own words, nested
+  deeper than 8. From 10,000, `json.loads` itself raised RecursionError.
+  Not reproduced.
+- The receipt fold refuses a malformed envelope without naming its
+  position. It refuses, and in the parse's words.
+- The redactor is asked of each item before any text is digested.
+
+**What is not established.**
+
+- A manifest is not checked against the bytes it describes. An item's
+  byte count and digest are as its builder stated them, and the text is
+  not in the log.
+- The second reader's restatement holds the manifest's rules as they
+  stand. A change to the form is made in both readers, and the table
+  test is the check that they agree.

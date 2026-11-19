@@ -290,6 +290,21 @@ class ContextBuilder:
                 f"context item {item_id!r} must be text; the manifest records "
                 "a digest of the exact bytes shown, and there are none "
                 f"for {type(text).__name__}")
+        try:
+            text.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            # A lone surrogate, as an escaped one in JSON decodes to: text
+            # with no UTF-8 bytes has no digest, and build() raised
+            # UnicodeEncodeError where it digested it, past every caller
+            # that handles ContextError.
+            raise ContextError(
+                f"context item {item_id!r} is not UTF-8 text ({exc.reason} "
+                f"at {exc.start}); the manifest records a digest of the "
+                "exact bytes shown, and this text has none") from None
+        if not isinstance(source, str):
+            raise ContextError(
+                f"context item {item_id!r} names its source as "
+                f"{source!r}; a source is a name")
         if len(self._pending) >= MAX_ITEMS:
             raise ContextError(
                 f"context would exceed {MAX_ITEMS} items")
@@ -512,6 +527,28 @@ def manifest_from_record(rec: dict) -> ContextManifest:
             f"context manifest carries unknown fields {sorted(unknown)}; "
             "refusing to read a manifest this version does not fully "
             "understand")
+    for key in ("task_id", "purpose"):
+        if not isinstance(rec.get(key), str) or not rec.get(key):
+            raise ContextError(f"context manifest {key} {rec.get(key)!r} is "
+                               "not a non-empty name")
+    for key in ("policy_identity", "policy_digest"):
+        if not isinstance(rec.get(key, ""), str):
+            raise ContextError(f"context manifest {key} {rec.get(key)!r} is "
+                               "not text")
+    for key, low in (("budget_bytes", 1), ("used_bytes", 0), ("at_seq", -1)):
+        n = rec.get(key, -1 if key == "at_seq" else None)
+        if isinstance(n, bool) or not isinstance(n, int) or n < low:
+            raise ContextError(f"context manifest {key} {n!r} is not a "
+                               f"count of at least {low}")
+    if rec["used_bytes"] > rec["budget_bytes"]:
+        raise ContextError(f"context manifest uses {rec['used_bytes']} bytes "
+                           f"of a {rec['budget_bytes']}-byte budget")
+    for key in ("items", "omissions"):
+        if not isinstance(rec.get(key), list):
+            raise ContextError(f"context manifest {key} is not a list")
+    if len(rec["items"]) + len(rec["omissions"]) > MAX_ITEMS:
+        raise ContextError(f"context manifest records more than {MAX_ITEMS} "
+                           "items")
     try:
         for kind, rows, allowed in (("item", rec["items"],
                                      _ITEM_KEYS[version]),
@@ -522,6 +559,14 @@ def manifest_from_record(rec: dict) -> ContextManifest:
                     raise ContextError(
                         f"manifest {kind} is not a version-{version} "
                         f"{kind} record: {r!r:.120}")
+                n = r.get("byte_len")
+                if isinstance(n, bool) or not isinstance(n, int) or n < 0:
+                    raise ContextError(f"manifest {kind} byte_len {n!r} is "
+                                       "not a count of bytes")
+                text_key = "source" if kind == "item" else "reason"
+                if not isinstance(r.get(text_key, ""), str):
+                    raise ContextError(f"manifest {kind} {text_key} "
+                                       f"{r.get(text_key)!r} is not text")
         items = tuple(
             ContextItem(item_id=i["item_id"], tier=Tier(i["tier"]),
                         content_digest=i["content_digest"],

@@ -1133,6 +1133,7 @@
      "tests/test_agent_context.py",
      "tests/test_agent_governed_tasks.py",
      "tests/test_agent_second_reader.py",
+     "tests/test_completion_matrix.py",
      "tests/test_composed_campaigns.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_inference_concurrency.py",

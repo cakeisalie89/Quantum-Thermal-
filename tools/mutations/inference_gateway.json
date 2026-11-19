@@ -370,6 +370,111 @@
       "find": "        except ValueError as exc:\n            return ProviderReply(\"ERROR\", error=f\"the worker's body is not \"\n",
       "replace": "        except KeyError as exc:\n            return ProviderReply(\"ERROR\", error=f\"the worker's body is not \"\n",
       "rationale": "a worker body that is not base64 raises binascii.Error out of the provider's call (AUD-082)"
+    },
+    {
+      "name": "MX1_the_gateway_holds_a_context_by_its_reading_alone",
+      "path": "agent_substrate/inference.py",
+      "find": "        if p.get(\"manifest_digest\") == m.digest() == digest(rec):",
+      "replace": "        if p.get(\"manifest_digest\") == m.digest():",
+      "rationale": "a record leaving out a field its reader fills in would be held under the full form's digest, which the second reader never holds"
+    },
+    {
+      "name": "MX2_the_second_reader_holds_any_manifest",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if _ctx_manifest_held(manifest):",
+      "replace": "    if isinstance(manifest, dict):",
+      "rationale": "the second reader would hold a context the gateway's reader refuses, and grant a reservation the gateway refuses"
+    },
+    {
+      "name": "MX3_any_key_set_is_held",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not isinstance(m, dict) or set(m) != _CTX_KEYS:",
+      "replace": "    if not isinstance(m, dict):",
+      "rationale": "a manifest with a field its builder never writes would be held"
+    },
+    {
+      "name": "MX4_any_version_is_held",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not (_ctx_count(m[\"manifest_version\"], 2)\n            and m[\"manifest_version\"] == 2):",
+      "replace": "    if False:",
+      "rationale": "a version-1 manifest, which the gateway never holds, would be held"
+    },
+    {
+      "name": "MX5_an_empty_task_is_held",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not all(isinstance(m[k], str) and m[k] for k in (\"task_id\",",
+      "replace": "    if not all(isinstance(m[k], str) for k in (\"task_id\",",
+      "rationale": "a manifest for the empty task would be held"
+    },
+    {
+      "name": "MX6_the_policy_fields_go_unread",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not all(isinstance(m[k], str) for k in (\"policy_identity\",",
+      "replace": "    if not all(True for k in (\"policy_identity\",",
+      "rationale": "a manifest naming its policy by a number would be held"
+    },
+    {
+      "name": "MX7_the_budget_goes_unread",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    if not (_ctx_count(m[\"budget_bytes\"], 1) and _ctx_count(m[\"used_bytes\"], 0)",
+      "replace": "    if not (True and _ctx_count(m[\"used_bytes\"], 0)",
+      "rationale": "a manifest with a budget of true or nothing would be held"
+    },
+    {
+      "name": "MX8_more_bytes_than_the_budget_is_held",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            and m[\"used_bytes\"] <= m[\"budget_bytes\"]):",
+      "replace": "            and True):",
+      "rationale": "a manifest using more than its budget would be held"
+    },
+    {
+      "name": "MX9_rows_past_the_bound_are_held",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            and len(m[\"items\"]) + len(m[\"omissions\"]) <= _CTX_MAX_ITEMS):",
+      "replace": "            and True):",
+      "rationale": "a manifest of more rows than a builder may hold would be held"
+    },
+    {
+      "name": "MX10_a_row_of_any_form_is_held",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            if not isinstance(r, dict) or set(r) != keys:",
+      "replace": "            if not isinstance(r, dict):",
+      "rationale": "an item with a field its builder never writes would be held"
+    },
+    {
+      "name": "MX11_a_row_of_any_tier_is_held",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                    and r[\"tier\"] in _CTX_TIERS",
+      "replace": "                    and True",
+      "rationale": "an item of no tier would be held"
+    },
+    {
+      "name": "MX12_a_row_byte_count_may_be_anything",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                    and _ctx_count(r[\"byte_len\"], 0)",
+      "replace": "                    and True",
+      "rationale": "an item whose byte count is true would be held"
+    },
+    {
+      "name": "MX13_two_summaries_may_claim_one_source",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        if available.get(src) != of or src in claimed:",
+      "replace": "        if available.get(src) != of:",
+      "rationale": "a source two summaries claim would be held"
+    },
+    {
+      "name": "MX14_an_omission_may_name_a_summary_of_another_item",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "                or s[\"summarizes_item\"] != o[\"item_id\"]:",
+      "replace": "                or False:",
+      "rationale": "an omission naming a summary of another item's identical bytes would be held"
+    },
+    {
+      "name": "MX15_a_claimed_omission_may_say_nothing",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "            if o[\"item_id\"] in claimed:\n                return False",
+      "replace": "            if False:\n                return False",
+      "rationale": "an omitted source a shown summary claims could stay silent about it"
     }
   ]
 }

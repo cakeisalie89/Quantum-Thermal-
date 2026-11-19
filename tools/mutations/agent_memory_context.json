@@ -551,6 +551,90 @@
       "find": "            if actions.owner(ev.action) is None:\n                # AUD-046.",
       "replace": "            if False:\n                # AUD-046.",
       "rationale": "AUD-046: an action no module writes is skipped by the memory store, where the authority store refuses it"
+    },
+    {
+      "name": "X34_text_with_no_utf8_bytes_is_taken",
+      "path": "agent_substrate/context.py",
+      "find": "            text.encode(\"utf-8\")\n        except UnicodeEncodeError as exc:",
+      "replace": "            pass\n        except UnicodeEncodeError as exc:",
+      "rationale": "a lone surrogate would be added, and build() would raise UnicodeEncodeError past every caller that handles ContextError"
+    },
+    {
+      "name": "X35_a_source_need_not_be_a_name",
+      "path": "agent_substrate/context.py",
+      "find": "        if not isinstance(source, str):\n            raise ContextError(\n                f\"context item {item_id!r} names its source as \"",
+      "replace": "        if False:\n            raise ContextError(\n                f\"context item {item_id!r} names its source as \"",
+      "rationale": "a list or a number would stand in the manifest as where an item came from"
+    },
+    {
+      "name": "X36_the_manifest_names_go_unread",
+      "path": "agent_substrate/context.py",
+      "find": "    for key in (\"task_id\", \"purpose\"):\n        if not isinstance(rec.get(key), str) or not rec.get(key):",
+      "replace": "    for key in (\"task_id\", \"purpose\"):\n        if False:",
+      "rationale": "a manifest for no task, or with no purpose, would be read back as one"
+    },
+    {
+      "name": "X37_an_empty_name_is_a_name",
+      "path": "agent_substrate/context.py",
+      "find": "        if not isinstance(rec.get(key), str) or not rec.get(key):",
+      "replace": "        if not isinstance(rec.get(key), str):",
+      "rationale": "a manifest whose task is the empty string would be read back"
+    },
+    {
+      "name": "X38_the_policy_fields_go_unread",
+      "path": "agent_substrate/context.py",
+      "find": "    for key in (\"policy_identity\", \"policy_digest\"):\n        if not isinstance(rec.get(key, \"\"), str):",
+      "replace": "    for key in (\"policy_identity\", \"policy_digest\"):\n        if False:",
+      "rationale": "the policy a context was built under could be a number or nothing"
+    },
+    {
+      "name": "X39_a_count_may_be_a_boolean",
+      "path": "agent_substrate/context.py",
+      "find": "        if isinstance(n, bool) or not isinstance(n, int) or n < low:",
+      "replace": "        if not isinstance(n, int) or n < low:",
+      "rationale": "a budget of true or a position of false would be read as a count"
+    },
+    {
+      "name": "X40_a_count_has_no_floor",
+      "path": "agent_substrate/context.py",
+      "find": "n < low:\n            raise ContextError(f\"context manifest {key} {n!r} is not a \"",
+      "replace": "False:\n            raise ContextError(f\"context manifest {key} {n!r} is not a \"",
+      "rationale": "a budget of nothing, a negative use or a position before the log would be read"
+    },
+    {
+      "name": "X41_more_bytes_than_the_budget",
+      "path": "agent_substrate/context.py",
+      "find": "    if rec[\"used_bytes\"] > rec[\"budget_bytes\"]:",
+      "replace": "    if False:",
+      "rationale": "a manifest using more bytes than its budget would be read back"
+    },
+    {
+      "name": "X42_rows_need_not_be_lists",
+      "path": "agent_substrate/context.py",
+      "find": "        if not isinstance(rec.get(key), list):\n            raise ContextError(f\"context manifest {key} is not a list\")",
+      "replace": "        if False:\n            raise ContextError(f\"context manifest {key} is not a list\")",
+      "rationale": "a number in place of the rows would raise TypeError from the count of them"
+    },
+    {
+      "name": "X43_no_bound_on_rows",
+      "path": "agent_substrate/context.py",
+      "find": "    if len(rec[\"items\"]) + len(rec[\"omissions\"]) > MAX_ITEMS:",
+      "replace": "    if False:",
+      "rationale": "a manifest of more items than any builder may hold would be read"
+    },
+    {
+      "name": "X44_a_byte_count_may_be_anything",
+      "path": "agent_substrate/context.py",
+      "find": "                if isinstance(n, bool) or not isinstance(n, int) or n < 0:",
+      "replace": "                if False:",
+      "rationale": "an item's byte count could be true, a string, a float or negative"
+    },
+    {
+      "name": "X45_a_row_text_may_be_anything",
+      "path": "agent_substrate/context.py",
+      "find": "                if not isinstance(r.get(text_key, \"\"), str):",
+      "replace": "                if False:",
+      "rationale": "an item's source or an omission's reason could be a number"
     }
   ]
 }

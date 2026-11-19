@@ -1004,7 +1004,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: data entities to the tree, and to refuse a crate it cannot read in
 #: its own words (AUD-076 to AUD-078, ro_crate_tools.py, cited by R65),
 #: which predates it until the evidence commit after hosted CI.
-EXPECTED_EVIDENCE_COVERS = 5
+#: 5 -> 4 when the context builder came to refuse text with no UTF-8 bytes
+#: and a source that is not a name, and its reader a manifest in a form
+#: its builder never writes (AUD-084 and AUD-085, agent_substrate/context.py,
+#: cited by R34), which predates it until the evidence commit after hosted
+#: CI.
+EXPECTED_EVIDENCE_COVERS = 4
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

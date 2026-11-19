@@ -330,9 +330,11 @@ class ProposalEnvelope:
                     or ".." in c["path"].split("/"):
                 raise ProposalRefused(f"context.retrieved[{i}].path is not "
                                       "a relative path")
-            if not (isinstance(c["line_start"], int)
-                    and isinstance(c["line_end"], int)
-                    and 1 <= c["line_start"] <= c["line_end"]):
+            # bool is an int: unrefused, true..true stood for line 1, as a
+            # line number every other field of the envelope refuses
+            lines = (c["line_start"], c["line_end"])
+            if any(isinstance(n, bool) or not isinstance(n, int)
+                   for n in lines) or not 1 <= lines[0] <= lines[1]:
                 raise ProposalRefused(f"context.retrieved[{i}]: line range")
             if not isinstance(c["source_sha256"], str) or \
                     not _DIGEST.match(c["source_sha256"]):

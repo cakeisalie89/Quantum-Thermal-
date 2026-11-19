@@ -848,7 +848,13 @@ class InferenceGateway(DecidedWriter):
             m = manifest_from_record(rec)
         except ContextError:
             return
-        if p.get("manifest_digest") == m.digest():
+        # The digest of the record as written, and of the manifest read back
+        # from it: equal only for version 2's full form, the form
+        # record_context writes. Asked of the reading alone, a record
+        # leaving out a field its reader fills in was held under the full
+        # form's digest, and the second reader, which digests what is
+        # written, held no such context.
+        if p.get("manifest_digest") == m.digest() == digest(rec):
             self._contexts.setdefault(m.digest(), (ev.seq, m))
 
     def _apply_budget(self, ev, p: dict, commit: bool = True) -> None:

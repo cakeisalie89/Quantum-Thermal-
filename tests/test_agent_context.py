@@ -599,3 +599,107 @@ def test_a_context_item_has_nowhere_to_put_the_text():
     assert "byte_len" in ContextItem.__dataclass_fields__, (
         "the length is what a reader gets INSTEAD of the text; without it "
         "the manifest cannot describe what was shown at all")
+
+
+# ---- the forms an item and a manifest take (AUD-084, AUD-085) -----------
+def test_text_with_no_utf8_bytes_is_refused_where_it_is_added():
+    """AUD-084. A lone surrogate, which an escaped one in JSON decodes to,
+    has no UTF-8 bytes and so no digest. Added, it made build() raise
+    UnicodeEncodeError where it digested the text: past every caller that
+    handles ContextError, the research loop among them, which records a
+    refused context only for that. The builder keeps what it held."""
+    b = _full(_builder())
+    with pytest.raises(ContextError, match="not UTF-8 text"):
+        b.add(item_id="memory", tier=Tier.MEMORY,
+              text="remembered \ud800 text")
+    ctx = b.build(budget_bytes=4096)
+    assert "memory" not in {i.item_id for i in ctx.manifest.items}
+    # a character outside the Basic Multilingual Plane is text, and is shown
+    b.add(item_id="note", tier=Tier.SCRATCH, text="a \U0001f600 b")
+    assert "note" in {i.item_id for i in
+                      b.build(budget_bytes=4096).manifest.items}
+
+
+def test_a_source_that_is_not_a_name_is_refused():
+    """AUD-084. The source is what the manifest says an item came from; a
+    list or a number there was carried into it as it was."""
+    with pytest.raises(ContextError, match="a source is a name"):
+        _builder().add(item_id="x", tier=Tier.SCRATCH, text="t",
+                       source=["a"])
+
+
+def _record_with_an_omission():
+    rec = _full(_builder()).add(item_id="scratch", tier=Tier.SCRATCH,
+                                text="z" * 900).build(
+        budget_bytes=260).manifest.to_record()
+    assert rec["omissions"], "an omission to change"
+    return rec
+
+
+@pytest.mark.parametrize("where, key, value", [
+    ("manifest", "budget_bytes", True),
+    ("manifest", "budget_bytes", 0),
+    ("manifest", "budget_bytes", "260"),
+    ("manifest", "used_bytes", None),
+    ("manifest", "used_bytes", -1),
+    ("manifest", "used_bytes", 1.5),
+    ("manifest", "used_bytes", 261),
+    ("manifest", "at_seq", "42"),
+    ("manifest", "at_seq", False),
+    ("manifest", "at_seq", -2),
+    ("manifest", "task_id", 7),
+    ("manifest", "task_id", ""),
+    ("manifest", "purpose", ["p"]),
+    ("manifest", "policy_identity", 2),
+    ("manifest", "policy_digest", None),
+    ("item", "byte_len", True),
+    ("item", "byte_len", -1),
+    ("item", "byte_len", "18"),
+    ("item", "byte_len", 2.0),
+    ("item", "source", 5),
+    ("omission", "byte_len", None),
+    ("omission", "reason", 3),
+])
+def test_a_manifest_in_a_form_its_builder_never_writes_is_refused(
+        where, key, value):
+    """AUD-085. A manifest read back is held to the forms its builder
+    writes. Its counts were read as whatever the record held: a byte count
+    of true, a budget of "260", a position of "42". Each was a manifest no
+    builder could have written, taken as one."""
+    rec = _record_with_an_omission()
+    target = {"manifest": rec, "item": rec["items"][0],
+              "omission": rec["omissions"][0]}[where]
+    target[key] = value
+    with pytest.raises(ContextError):
+        manifest_from_record(rec)
+
+
+@pytest.mark.parametrize("key, value", [("items", 5), ("omissions", None)])
+def test_a_manifest_whose_rows_are_not_a_list_is_refused(key, value):
+    """Refused before this pass too, by the TypeError the reader caught;
+    now in its own words, and before the rows are counted against the
+    bound, where a number would raise out of the reader."""
+    rec = _record_with_an_omission()
+    rec[key] = value
+    with pytest.raises(ContextError, match="is not a list"):
+        manifest_from_record(rec)
+
+
+def test_a_manifest_past_the_item_bound_is_refused():
+    """AUD-085. A builder refuses past MAX_ITEMS; so does its reader."""
+    from agent_substrate.context import MAX_ITEMS
+    rec = _record_with_an_omission()
+    row = dict(rec["omissions"][0])
+    rec["omissions"] = [dict(row, item_id=f"o{i}") for i in range(MAX_ITEMS)]
+    with pytest.raises(ContextError, match="more than"):
+        manifest_from_record(rec)
+
+
+def test_a_manifest_in_its_builders_form_is_read_back():
+    """Control for the refusals above: every count at its bound."""
+    rec = _record_with_an_omission()
+    rec["used_bytes"] = rec["budget_bytes"]
+    rec["at_seq"] = -1
+    rec["items"][0]["byte_len"] = 0
+    m = manifest_from_record(rec)
+    assert m.used_bytes == m.budget_bytes and m.at_seq == -1

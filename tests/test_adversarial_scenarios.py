@@ -72,6 +72,21 @@ def test_a_source_cannot_speak_as_the_owner_the_policy_or_the_state(tier):
         w.clean()
 
 
+def test_a_source_with_no_utf8_bytes_is_a_refused_context():
+    """AUD-084. A source whose text holds a lone surrogate, as an escaped one
+    in a JSON record decodes to. The step raised UnicodeEncodeError out of
+    the controller; it is the step's refusal now, and nothing is shown or
+    sent."""
+    w = _world("no-utf8", lambda o, n: [
+        ("memo", C.Tier.MEMORY, "remembered \ud800 text")])
+    try:
+        got = w.controller().step(E.OBJECTIVE)
+        assert (got.action, got.outcome) == ("CONTEXT", "REFUSED")
+        assert "not UTF-8 text" in got.detail and w.prompts == []
+    finally:
+        w.clean()
+
+
 @pytest.mark.parametrize("text, redact, why", [
     (f"a note: {E.CANARY}", (E.CANARY,), "registered secret"),
     (f"a note: {E.STRAY}", (), "looks like a credential"),

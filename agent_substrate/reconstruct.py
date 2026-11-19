@@ -4099,6 +4099,110 @@ def _sub_service_call(ev, p: dict, out) -> None:
                        f"past its {svc['quota_per_task']}-call budget")
 
 
+#: The context manifest, restated rather than imported from
+#: agent_substrate.context. The gateway holds a context when its reader
+#: takes the manifest and the record's stated digest is the digest of the
+#: record as written, which for that reader is version 2's full form. A
+#: reservation naming any other context.build names a context the gateway
+#: never holds, and this reader holds the same ones, by these rules.
+_CTX_TIERS = frozenset({
+    "OWNER_INSTRUCTION", "SYSTEM_POLICY", "TASK_STATE", "TASK_EVIDENCE",
+    "RETRIEVED_EVIDENCE", "TOOL_RESULT", "PRIOR_MODEL_OUTPUT", "SCRATCH",
+    "MEMORY"})
+_CTX_KEYS = frozenset({
+    "manifest_version", "task_id", "purpose", "items", "omissions",
+    "budget_bytes", "used_bytes", "policy_identity", "policy_digest",
+    "at_seq"})
+_CTX_ITEM_KEYS = frozenset({
+    "item_id", "tier", "content_digest", "byte_len", "source",
+    "summary_of", "summarizes_item"})
+_CTX_OMISSION_KEYS = frozenset({
+    "item_id", "tier", "content_digest", "byte_len", "reason",
+    "summarized_by"})
+_CTX_MAX_ITEMS = 4096
+
+
+def _ctx_count(n, low: int) -> bool:
+    return isinstance(n, int) and not isinstance(n, bool) and n >= low
+
+
+def _ctx_rows_held(m: dict) -> bool:
+    """Each item and omission in its full form, every field of its kind."""
+    for rows, keys, text_key in ((m["items"], _CTX_ITEM_KEYS, "source"),
+                                 (m["omissions"], _CTX_OMISSION_KEYS,
+                                  "reason")):
+        for r in rows:
+            if not isinstance(r, dict) or set(r) != keys:
+                return False
+            if not (isinstance(r["item_id"], str) and r["item_id"]
+                    and isinstance(r["tier"], str)
+                    and r["tier"] in _CTX_TIERS
+                    and _is_digest(r["content_digest"])
+                    and _ctx_count(r["byte_len"], 0)
+                    and isinstance(r[text_key], str)):
+                return False
+    return True
+
+
+def _ctx_summaries_held(items: list, omissions: list) -> bool:
+    """Every id once; a summary names a source available with exactly the
+    digest it claims, which no other summary claims; an omission a summary
+    replaced says so, and names that summary; one it did not says not."""
+    ids = [r["item_id"] for r in items + omissions]
+    if len(set(ids)) != len(ids):
+        return False
+    available = {r["item_id"]: r["content_digest"] for r in items + omissions}
+    shown = {r["item_id"]: r for r in items}
+    claimed: dict = {}
+    for r in items:
+        of, src = r["summary_of"], r["summarizes_item"]
+        if of is None and src is None:
+            continue
+        if of is None or src is None or not _is_digest(of):
+            return False
+        if not isinstance(src, str) or not src or src == r["item_id"]:
+            return False
+        if available.get(src) != of or src in claimed:
+            return False
+        claimed[src] = r["item_id"]
+    for o in omissions:
+        by = o["summarized_by"]
+        if by is None:
+            if o["item_id"] in claimed:
+                return False
+            continue
+        s = shown.get(by) if isinstance(by, str) else None
+        if s is None or s["summary_of"] != o["content_digest"] \
+                or s["summarizes_item"] != o["item_id"]:
+            return False
+    return True
+
+
+def _ctx_manifest_held(m) -> TypeGuard[dict]:
+    """Whether the gateway holds ``m`` as a context: version 2 in its full
+    form, every field of its kind, and its summaries consistent."""
+    if not isinstance(m, dict) or set(m) != _CTX_KEYS:
+        return False
+    if not (_ctx_count(m["manifest_version"], 2)
+            and m["manifest_version"] == 2):
+        return False
+    if not all(isinstance(m[k], str) and m[k] for k in ("task_id",
+                                                        "purpose")):
+        return False
+    if not all(isinstance(m[k], str) for k in ("policy_identity",
+                                               "policy_digest")):
+        return False
+    if not (_ctx_count(m["budget_bytes"], 1) and _ctx_count(m["used_bytes"], 0)
+            and _ctx_count(m["at_seq"], -1)
+            and m["used_bytes"] <= m["budget_bytes"]):
+        return False
+    if not (isinstance(m["items"], list) and isinstance(m["omissions"], list)
+            and len(m["items"]) + len(m["omissions"]) <= _CTX_MAX_ITEMS):
+        return False
+    return _ctx_rows_held(m) and _ctx_summaries_held(m["items"],
+                                                     m["omissions"])
+
+
 def _sub_context(ev, p: dict, out) -> None:
     manifest = p.get("manifest")
     digest_ = p.get("manifest_digest")
@@ -4107,8 +4211,11 @@ def _sub_context(ev, p: dict, out) -> None:
     out.contexts.setdefault(task or ev.target, []).append(
         {"digest": digest_, "seq": ev.seq})
     # Indexed by digest only where the digest is the manifest's own, so a
-    # record that states one digest and carries another cannot be cited.
-    if isinstance(manifest, dict):
+    # record that states one digest and carries another cannot be cited,
+    # and only a manifest the gateway would hold: indexed on its digest
+    # alone, one the gateway's reader refuses stood here as a context, and a
+    # reservation naming it, which the gateway refuses, was granted here.
+    if _ctx_manifest_held(manifest):
         try:
             own = _sci_json_digest(manifest)
         except (TypeError, ValueError):
