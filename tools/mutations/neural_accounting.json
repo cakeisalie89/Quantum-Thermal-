@@ -1,0 +1,150 @@
+{
+ "title": "Exact parameter accounting, configuration validation and the budget solver (NF-1T)",
+ "note": "NA1-NA20: the counts a 1T claim rests on -- off by one, shared or tied or buffer parameters mis-counted, all experts counted as active, a routing profile's top_k ignored -- and the configuration and solver refusals that keep an illegal or out-of-range architecture from being named.",
+ "suites": [
+  "tests/test_neural_accounting.py",
+  "tests/test_neural_config.py"
+ ],
+ "mutations": [
+  {
+   "name": "NA1_total_off_by_one",
+   "path": "scientific_ai/neural/accounting.py",
+   "find": "    c[\"normalization\"] = 2 * d * n_layers + d\n",
+   "replace": "    c[\"normalization\"] = 2 * d * n_layers + d + 1\n",
+   "rationale": "one parameter more than the tensors hold"
+  },
+  {
+   "name": "NA2_shared_active_omitted",
+   "path": "scientific_ai/neural/accounting.py",
+   "find": "    shared_active = sum(v for cat, v in act.items() if cat != \"expert\")\n",
+   "replace": "    shared_active = 0\n",
+   "rationale": "the always-active computation left out of the active count"
+  },
+  {
+   "name": "NA3_tied_parameter_double_counted",
+   "path": "scientific_ai/neural/accounting.py",
+   "find": "        c[\"reconstruction_head\"] = 1\n        tied = vf * d\n",
+   "replace": "        c[\"reconstruction_head\"] = vf * d + 1\n        tied = vf * d\n",
+   "rationale": "a tied decoder counted again under its own head"
+  },
+  {
+   "name": "NA4_all_experts_counted_active",
+   "path": "scientific_ai/neural/accounting.py",
+   "find": "    expert_active = moe_layers * k * per_expert\n",
+   "replace": "    expert_active = moe_layers * e * per_expert\n",
+   "rationale": "every expert reported as active per token"
+  },
+  {
+   "name": "NA5_profile_top_k_ignored",
+   "path": "scientific_ai/neural/accounting.py",
+   "find": "                    shared_active + moe_layers * pk * per_expert}\n",
+   "replace": "                    shared_active + moe_layers * k * per_expert}\n",
+   "rationale": "every routing profile reports the standard active count"
+  },
+  {
+   "name": "NA6_router_bias_invented",
+   "path": "scientific_ai/neural/accounting.py",
+   "find": "        c[\"router\"] = moe_layers * d * e\n",
+   "replace": "        c[\"router\"] = moe_layers * d * e + moe_layers * e\n",
+   "rationale": "a router bias counted that no tensor holds"
+  },
+  {
+   "name": "NA7_buffers_counted_trainable",
+   "path": "scientific_ai/neural/accounting.py",
+   "find": "    trainable = sum(c.values())\n",
+   "replace": "    trainable = sum(c.values()) + 2 * vf + 2 * n_heads\n",
+   "rationale": "normalisation buffers counted as trainable parameters"
+  },
+  {
+   "name": "NA8_whole_embedding_table_active",
+   "path": "scientific_ai/neural/accounting.py",
+   "find": "    act[\"feature_embedding\"] = d\n",
+   "replace": "    act[\"feature_embedding\"] = vf * d\n",
+   "rationale": "a token credited with every identity row instead of its own"
+  },
+  {
+   "name": "NA9_kv_heads_ignored",
+   "path": "scientific_ai/neural/accounting.py",
+   "find": "    per_attn = d * inner + 2 * d * kv + inner * d\n",
+   "replace": "    per_attn = 4 * d * inner\n",
+   "rationale": "grouped-query attention counted as full multi-head"
+  },
+  {
+   "name": "NA10_kv_heads_need_not_divide",
+   "path": "scientific_ai/neural/config.py",
+   "find": "        if self.num_kv_heads > self.num_heads \\\n                or self.num_heads % self.num_kv_heads:\n",
+   "replace": "        if self.num_kv_heads > self.num_heads:\n",
+   "rationale": "a kv-head count that does not divide the heads accepted"
+  },
+  {
+   "name": "NA11_top_k_above_experts",
+   "path": "scientific_ai/neural/config.py",
+   "find": "        if k > e:\n",
+   "replace": "        if k > e + 1:\n",
+   "rationale": "top_k one larger than the expert count accepted"
+  },
+  {
+   "name": "NA12_head_dims_not_checked",
+   "path": "scientific_ai/neural/config.py",
+   "find": "        if self.num_heads * self.head_dim != hidden_size:\n",
+   "replace": "        if False:\n",
+   "rationale": "an attention width that is not the hidden size accepted"
+  },
+  {
+   "name": "NA13_fp8_build_accepted",
+   "path": "scientific_ai/neural/config.py",
+   "find": "            if v == \"float8_e4m3\":\n",
+   "replace": "            if v == \"float8_e5m2\":\n",
+   "rationale": "a model built in unvalidated FP8"
+  },
+  {
+   "name": "NA14_router_precision_not_enforced",
+   "path": "scientific_ai/neural/config.py",
+   "find": "        if self.router_dtype != \"float32\":\n",
+   "replace": "        if False:\n",
+   "rationale": "routing decided in reduced precision"
+  },
+  {
+   "name": "NA15_solver_takes_the_wider_width",
+   "path": "scientific_ai/neural/solver.py",
+   "find": "    f = min(candidates, key=lambda x: (abs(total_at(x) - target.total), x))\n",
+   "replace": "    f = max(candidates)\n",
+   "rationale": "the solver no longer takes the nearest total"
+  },
+  {
+   "name": "NA16_solver_range_unchecked",
+   "path": "scientific_ai/neural/solver.py",
+   "find": "    if not (in_total and in_active):\n",
+   "replace": "    if False:\n",
+   "rationale": "a configuration outside its range returned as a solution"
+  },
+  {
+   "name": "NA17_active_at_or_above_total_accepted",
+   "path": "scientific_ai/neural/solver.py",
+   "find": "        if self.active >= self.total or \\\n",
+   "replace": "        if self.active > 10 * self.total and \\\n",
+   "rationale": "an active target equal to the total is not a mixture"
+  },
+  {
+   "name": "NA18_solve_record_digest_unchecked",
+   "path": "scientific_ai/neural/solver.py",
+   "find": "    if cfg.digest() != record[\"config_digest\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "a solve record whose configuration was edited is trusted"
+  },
+  {
+   "name": "NA19_bf16_bytes_wrong",
+   "path": "scientific_ai/neural/estimates.py",
+   "find": "DTYPE_BYTES = {\"float32\": 4, \"bfloat16\": 2, \"float8_e4m3\": 1}\n",
+   "replace": "DTYPE_BYTES = {\"float32\": 4, \"bfloat16\": 4, \"float8_e4m3\": 1}\n",
+   "rationale": "bfloat16 parameter storage reported at four bytes"
+  },
+  {
+   "name": "NA20_training_flops_understated",
+   "path": "scientific_ai/neural/estimates.py",
+   "find": "    train = 3 * fwd\n",
+   "replace": "    train = 2 * fwd\n",
+   "rationale": "training FLOPs without the second backward matmul"
+  }
+ ]
+}

@@ -1,0 +1,184 @@
+{
+ "title": "RO-Crate: the descriptor and datePublished rules, and the two-validator agreement",
+ "note": "RC1-RC2 the internal validator's RO-Crate 1.1 REQUIRED items (D-2026-106); RC3-RC5 the agreement, not-measured and side-effect rules of the conformance tool. RC8-RC9: the validator's scope -- a crate of nothing, and a checksum outside hasPart. RC10-RC23: what the crate states about its files (AUD-076 to AUD-078) -- every size checked, the checksum exemption the manifest pair's alone, a data entity inside the tree, the builder's sizes and exemptions, and a crate the checks cannot read refused in their words, with its verdict written. RC24-RC25: the documented regeneration order names every generator and ends on the pair, twice (AUD-076).",
+ "suites": [
+  "tests/test_ro_crate_conformance.py"
+ ],
+ "mutations": [
+  {
+   "name": "RC1_conformsTo_unchecked",
+   "path": "ro_crate_tools.py",
+   "find": "        if not any(isinstance(c, dict) and str(c.get(\"@id\", \"\")).startswith(\n                \"https://w3id.org/ro/crate/1.\") for c in conforms):\n",
+   "replace": "        if False:\n",
+   "rationale": "a descriptor naming no specification is valid"
+  },
+  {
+   "name": "RC2_datePublished_unchecked",
+   "path": "ro_crate_tools.py",
+   "find": "    if not re.fullmatch(r\"\\d{4}-\\d{2}-\\d{2}\",\n                        str(root_.get(\"datePublished\", \"\"))):\n",
+   "replace": "    if False:\n",
+   "rationale": "a root without datePublished is valid"
+  },
+  {
+   "name": "RC3_agreement_assumed",
+   "path": "tools/ro_crate_conformance.py",
+   "find": "            else:\n                agreement = \"DISAGREE\"\n",
+   "replace": "            else:\n                agreement = \"AGREE\"\n",
+   "rationale": "a disagreement between the validators is reported as agreement"
+  },
+  {
+   "name": "RC4_unmeasured_called_agreement",
+   "path": "tools/ro_crate_conformance.py",
+   "find": "                agreement = \"NOT_MEASURED\"\n",
+   "replace": "                agreement = \"AGREE\"\n",
+   "rationale": "an external validation that did not run is reported as agreement"
+  },
+  {
+   "name": "RC5_judging_overwrites_report",
+   "path": "tools/ro_crate_conformance.py",
+   "find": "                rc = RC.validate(p, report_path=Path(tmp) / \"report.json\")\n",
+   "replace": "                rc = RC.validate(p)\n",
+   "rationale": "judging a broken crate overwrites the committed validation report"
+  },
+  {
+   "name": "RC6_undefined_keys_accepted",
+   "path": "ro_crate_tools.py",
+   "find": "    if undefined:\n        problems.append(f\"keys no context defines: {sorted(undefined)}; the \"\n",
+   "replace": "    if False:\n        problems.append(f\"keys no context defines: {sorted(undefined)}; the \"\n",
+   "rationale": "a key no JSON-LD context defines passes the internal validator, which the specification's compacted form forbids and the community validator refuses (D-2026-122)"
+  },
+  {
+   "name": "RC7_any_disagreement_called_internal_stricter",
+   "path": "tools/ro_crate_conformance.py",
+   "find": "            elif name in INTERNAL_STRICTER and not ok_int:\n",
+   "replace": "            elif not ok_int:\n",
+   "rationale": "every control the community validator accepts and the internal one refuses passes as 'stricter', so a control both must refuse stops being compared at all"
+  },
+  {
+   "name": "RC8_a_crate_of_nothing_validates",
+   "path": "ro_crate_tools.py",
+   "find": "    if not parts:\n        problems.append(\n            \"the crate references no files, so no checksum was verified; a \"",
+   "replace": "    if False:\n        problems.append(\n            \"the crate references no files, so no checksum was verified; a \"",
+   "rationale": "a crate whose hasPart is empty verifies no checksum and still reads VALID"
+  },
+  {
+   "name": "RC9_a_checksum_nothing_checks_is_accepted",
+   "path": "ro_crate_tools.py",
+   "find": "    if unchecked:\n",
+   "replace": "    if False:\n",
+   "rationale": "an entity carrying a checksum outside hasPart is decoration the validator never reaches"
+  },
+  {
+   "name": "RC10_a_stated_size_is_not_checked",
+   "path": "ro_crate_tools.py",
+   "find": "        if ent.get(\"contentSize\") != size:\n",
+   "replace": "        if False:\n",
+   "rationale": "a crate stating a size its file does not have validates, as the committed one did with the manifest 370 bytes short (AUD-076)"
+  },
+  {
+   "name": "RC11_any_file_claims_the_manifests_exemption",
+   "path": "ro_crate_tools.py",
+   "find": "            if rid not in NO_EMBED:\n",
+   "replace": "            if False:\n",
+   "rationale": "any data entity marked not-embedded goes without a checksum, and a crate exempting every file verifies none (AUD-077)"
+  },
+  {
+   "name": "RC12_a_data_entity_outside_the_tree_is_read",
+   "path": "ro_crate_tools.py",
+   "find": "        if not _in_tree(rid):\n",
+   "replace": "        if False:\n",
+   "rationale": "the validator hashes the file at any @id, inside the tree or not (AUD-077)"
+  },
+  {
+   "name": "RC13_a_crate_the_checks_cannot_read_is_read",
+   "path": "ro_crate_tools.py",
+   "find": "    shape = _shape(doc)\n    if shape:\n",
+   "replace": "    shape = _shape(doc)\n    if False:\n",
+   "rationale": "a crate with an entity, an @id or a hasPart of the wrong form raises out of the validator (AUD-078)"
+  },
+  {
+   "name": "RC14_a_crate_of_any_depth_is_walked",
+   "path": "ro_crate_tools.py",
+   "find": "    if _depth(doc) > _MAX_DEPTH:\n",
+   "replace": "    if False:\n",
+   "rationale": "a crate nested past the interpreter's limit raises RecursionError out of the validator (AUD-078)"
+  },
+  {
+   "name": "RC15_unreadable_json_raises",
+   "path": "ro_crate_tools.py",
+   "find": "    except (OSError, ValueError, RecursionError) as exc:\n",
+   "replace": "    except ():\n",
+   "rationale": "metadata that is not JSON raises the parser's error out of the validator (AUD-078)"
+  },
+  {
+   "name": "RC16_an_unreadable_file_raises",
+   "path": "ro_crate_tools.py",
+   "find": "    except OSError as exc:\n        return [f\"data entity {rid} cannot be read: {exc}\"]\n",
+   "replace": "    except ():\n        return [f\"data entity {rid} cannot be read: {exc}\"]\n",
+   "rationale": "a data entity naming a directory, or a name too long for the system, raises out of the validator (AUD-078)"
+  },
+  {
+   "name": "RC17_an_early_refusal_writes_no_verdict",
+   "path": "ro_crate_tools.py",
+   "find": "        return _verdict(problems, len(g), 0, rep)\n",
+   "replace": "        return 1\n",
+   "rationale": "a crate refused before the checks leaves the last verdict in the report, VALID over a crate just refused (AUD-078)"
+  },
+  {
+   "name": "RC18_a_missing_action_is_unnamed",
+   "path": "ro_crate_tools.py",
+   "find": "            problems.append(\"workflow CreateAction missing\")\n",
+   "replace": "            pass\n",
+   "rationale": "a crate with no CreateAction is refused naming no reason, and its report reads VALID (AUD-078)"
+  },
+  {
+   "name": "RC19_the_builder_states_another_size",
+   "path": "ro_crate_tools.py",
+   "find": "               \"contentSize\": str(p.stat().st_size)}\n",
+   "replace": "               \"contentSize\": str(p.stat().st_size + 1)}\n",
+   "rationale": "the crate the builder writes states sizes its files do not have, and the committed crate is not what it writes (AUD-076)"
+  },
+  {
+   "name": "RC20_the_builder_exempts_every_file",
+   "path": "ro_crate_tools.py",
+   "find": "        ent[\"sha256\"] = NOT_EMBEDDED if rid in NO_EMBED else sha_file(p)\n",
+   "replace": "        ent[\"sha256\"] = NOT_EMBEDDED\n",
+   "rationale": "the builder writes no checksum for any file (AUD-077)"
+  },
+  {
+   "name": "RC21_the_descriptors_about_read_as_a_mapping",
+   "path": "ro_crate_tools.py",
+   "find": "        about = desc.get(\"about\")\n        if not (isinstance(about, dict) and about.get(\"@id\") == \"./\"):\n",
+   "replace": "        if (desc.get(\"about\") or {}).get(\"@id\") != \"./\":\n",
+   "rationale": "a descriptor whose about is a string raises AttributeError out of the validator (AUD-078)"
+  },
+  {
+   "name": "RC22_a_type_holding_an_object_is_hashed",
+   "path": "ro_crate_tools.py",
+   "find": "        if not {\"File\", \"Dataset\"} & {t for t in types\n                                      if isinstance(t, str)}:\n",
+   "replace": "        if not {\"File\", \"Dataset\"} & set(types):\n",
+   "rationale": "an @type holding an object raises TypeError out of the validator (AUD-078)"
+  },
+  {
+   "name": "RC23_the_root_description_read_as_text",
+   "path": "ro_crate_tools.py",
+   "find": "    if not isinstance(root, str):\n        problems.append(\"the root description is not text\")\n        root = \"\"\n",
+   "replace": "    if False:\n        problems.append(\"the root description is not text\")\n        root = \"\"\n",
+   "rationale": "a root description missing or not text raises TypeError out of the validator (AUD-078)"
+  },
+  {
+   "name": "RC24_a_generator_left_out_of_the_documented_order",
+   "path": "MANIFEST_BOUNDARY.md",
+   "find": "python tools/model_evidence.py derive          # the scientific models' evidence\n",
+   "replace": "\n",
+   "rationale": "the regeneration order a contributor follows leaves out a generator that rewrites a tracked file, as it left out three and the ledger (AUD-076)"
+  },
+  {
+   "name": "RC25_the_documented_order_runs_the_pair_once",
+   "path": "MANIFEST_BOUNDARY.md",
+   "find": "python ro_crate_tools.py                       # again: the crate states the manifest's size\n",
+   "replace": "\n",
+   "rationale": "the documented order runs the crate once, and the crate states the manifest's size from before (AUD-076)"
+  }
+ ]
+}

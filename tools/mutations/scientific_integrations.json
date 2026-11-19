@@ -1,0 +1,79 @@
+{
+ "title": "The generic integrations: VTK, OpenUSD and OpenMDAO over the scientific layer",
+ "note": "SX1-SX10 remove, one at a time, what keeps a representation or an exploration honest: the VTK cell order and its round-trip tolerance, the field's consistency checks, the USD scene's unit and domain checks, the DOE's admission of only declared, numeric, in-bounds parameters, its byte-for-byte cross-check of every case against a direct run, and its refusal of a response the model failed to compute.",
+ "suites": [
+  "tests/test_scientific_integrations.py"
+ ],
+ "mutations": [
+  {
+   "name": "SX1_cells_written_in_the_wrong_order",
+   "path": "scientific/integrations/vtk_export.py",
+   "find": "    return a.ravel(order=\"F\")\n",
+   "replace": "    return a.ravel(order=\"C\")\n",
+   "rationale": "a three-axis field is written z-fastest, so every reader places the values in the wrong cells"
+  },
+  {
+   "name": "SX2_the_round_trip_tolerates_anything",
+   "path": "scientific/integrations/vtk_export.py",
+   "find": "        if not np.all(err <= lim):\n",
+   "replace": "        if False and not np.all(err <= lim):\n",
+   "rationale": "a lossy document passes its own read-back"
+  },
+  {
+   "name": "SX3_a_cell_array_of_the_wrong_shape_is_accepted",
+   "path": "scientific/integrations/vtk_export.py",
+   "find": "            if tuple(got) != shape:\n",
+   "replace": "            if False and tuple(got) != shape:\n",
+   "rationale": "an array that does not fit the grid is exported as though it did"
+  },
+  {
+   "name": "SX4_a_cell_array_without_a_unit_is_accepted",
+   "path": "scientific/integrations/vtk_export.py",
+   "find": "            if name not in self.units:\n",
+   "replace": "            if False and name not in self.units:\n",
+   "rationale": "a field whose unit is not declared is exported, and a reader has to guess it"
+  },
+  {
+   "name": "SX5_a_non_positive_unit_scale_is_accepted",
+   "path": "scientific/integrations/usd_export.py",
+   "find": "        if not self.meters_per_unit > 0:\n",
+   "replace": "        if self.meters_per_unit is None:\n",
+   "rationale": "a stage with a zero or negative metersPerUnit is written"
+  },
+  {
+   "name": "SX6_a_probe_outside_the_domain_is_accepted",
+   "path": "scientific/integrations/usd_export.py",
+   "find": "                out.append(f\"probe {p.name} lies outside the domain\")\n",
+   "replace": "                pass\n",
+   "rationale": "a probe placed outside the modelled domain is drawn as if it were a reading of it"
+  },
+  {
+   "name": "SX7_an_undeclared_parameter_is_explored",
+   "path": "scientific/integrations/openmdao_doe.py",
+   "find": "        if p is None:\n            raise DOERefused(f\"{name} is not a parameter of \"\n",
+   "replace": "        if p is None and False:\n            raise DOERefused(f\"{name} is not a parameter of \"\n",
+   "rationale": "the exploration varies a name the model does not declare"
+  },
+  {
+   "name": "SX8_a_range_outside_the_declared_bounds_is_explored",
+   "path": "scientific/integrations/openmdao_doe.py",
+   "find": "        if (p.minimum is not None and lo < p.minimum) or \\\n                (p.maximum is not None and hi > p.maximum):\n",
+   "replace": "        if False:\n",
+   "rationale": "the exploration leaves the bounds within which the model applies"
+  },
+  {
+   "name": "SX9_the_cross_check_compares_to_a_tolerance",
+   "path": "scientific/integrations/openmdao_doe.py",
+   "find": "        same = all(float(got[r][0]).hex() == float(direct[r][0]).hex()\n",
+   "replace": "        same = all(abs(float(got[r][0]) - float(direct[r][0])) <= 1e-9 * abs(float(direct[r][0]))\n",
+   "rationale": "a case that came back through OpenMDAO one ulp away from the model's own output is called identical"
+  },
+  {
+   "name": "SX10_a_failed_response_is_explored",
+   "path": "scientific/integrations/openmdao_doe.py",
+   "find": "        if o.quantity is None:\n            raise DOERefused(f\"{r} is {o.status.value}: {o.reason}\")\n",
+   "replace": "        if o.quantity is None:\n            continue\n",
+   "rationale": "a response the model failed to compute is skipped, and the exploration reports a design space it never evaluated"
+  }
+ ]
+}

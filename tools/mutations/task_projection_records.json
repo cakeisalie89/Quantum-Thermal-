@@ -1,0 +1,79 @@
+{
+ "title": "The task projection reads each record in its own words, and the second reader names a task as it does",
+ "note": "AUD-072 to AUD-074. One create per task (TP1); a create names its submitter, tool, inputs and dependencies as the writer does (TP2, TP3); a record names its task, one a create introduced, its states and its role, and carries a lease the projection can read, each refused in its own words (TP4 to TP8); the second reader names a task by its record's task_id and refuses a create naming no work (TP9, TP10). tests/test_task_projection_records.py holds each.",
+ "suites": [
+  "tests/test_task_projection_records.py"
+ ],
+ "mutations": [
+  {
+   "name": "TP1_a_second_create_replaces_the_task",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "                if tid in tasks:\n                    raise TaskTransitionError(\n                        f\"seq {ev.seq}: task {tid!r} is created twice; the \"\n",
+   "replace": "                if False:\n                    raise TaskTransitionError(\n                        f\"seq {ev.seq}: task {tid!r} is created twice; the \"\n",
+   "rationale": "a VERIFIED task reads CREATED under the second record's tool and submitter"
+  },
+  {
+   "name": "TP2_a_create_may_name_no_work",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "                    if not isinstance(p.get(name), str) or not p.get(name):\n                        raise TaskTransitionError(\n                            f\"seq {ev.seq}: task {tid!r} is created with \"\n",
+   "replace": "                    if False:\n                        raise TaskTransitionError(\n                            f\"seq {ev.seq}: task {tid!r} is created with \"\n",
+   "rationale": "a create naming no submitter, tool or inputs raises KeyError out of the projection"
+  },
+  {
+   "name": "TP3_a_create_may_depend_on_anything",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "                if not isinstance(p.get(\"depends_on\", []), list) or not all(\n",
+   "replace": "                if False and not all(\n",
+   "rationale": "a create depending on a number raises TypeError out of the projection"
+  },
+  {
+   "name": "TP4_a_record_may_name_no_task",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "    if not isinstance(tid, str) or not tid:\n        raise TaskTransitionError(\n            f\"seq {ev.seq}: {ev.action} names task {tid!r}; a task is \"\n",
+   "replace": "    if False:\n        raise TaskTransitionError(\n            f\"seq {ev.seq}: {ev.action} names task {tid!r}; a task is \"\n",
+   "rationale": "a record naming no task, or naming one by a list, raises out of the projection"
+  },
+  {
+   "name": "TP5_a_record_may_name_a_task_never_created",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "    if tid not in tasks:\n        raise TaskTransitionError(\n            f\"seq {ev.seq}: {ev.action} names task {tid!r}, which no create \"\n",
+   "replace": "    if False:\n        raise TaskTransitionError(\n            f\"seq {ev.seq}: {ev.action} names task {tid!r}, which no create \"\n",
+   "rationale": "a record for a task never created raises KeyError out of the projection"
+  },
+  {
+   "name": "TP6_a_state_name_raises_its_own_error",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "    except (ValueError, TypeError):\n        raise TaskTransitionError(\n            f\"seq {seq}: the record's {which} is {value!r}, which is not a \"\n",
+   "replace": "    except LookupError:\n        raise TaskTransitionError(\n            f\"seq {seq}: the record's {which} is {value!r}, which is not a \"\n",
+   "rationale": "a state that is not one raises ValueError out of the projection"
+  },
+  {
+   "name": "TP7_a_role_name_raises_its_own_error",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "    except (ValueError, TypeError):\n        raise TaskTransitionError(\n            f\"seq {seq}: the record acts as {value!r}, which is not a task \"\n",
+   "replace": "    except LookupError:\n        raise TaskTransitionError(\n            f\"seq {seq}: the record acts as {value!r}, which is not a task \"\n",
+   "rationale": "a role that is not one raises ValueError out of the projection"
+  },
+  {
+   "name": "TP8_a_lease_may_carry_anything",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "    except (TypeError, ValueError) as exc:\n        raise TaskTransitionError(\n            f\"seq {seq}: the record's lease is malformed: {exc}\") from None\n",
+   "replace": "    except LookupError as exc:\n        raise TaskTransitionError(\n            f\"seq {seq}: the record's lease is malformed: {exc}\") from None\n",
+   "rationale": "a lease with a field no lease has, or one that is a list, raises TypeError out of the projection"
+  },
+  {
+   "name": "TP9_the_second_reader_names_a_task_by_its_target",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if not isinstance(p.get(\"task_id\"), str) or not p.get(\"task_id\"):\n",
+   "replace": "        if False:\n",
+   "rationale": "the second reader folds a record under its target that the primary refuses"
+  },
+  {
+   "name": "TP10_the_second_reader_folds_a_create_naming_no_work",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if unnamed:\n",
+   "replace": "            if False:\n",
+   "rationale": "the second reader folds a create naming no tool or inputs, which the primary refuses"
+  }
+ ]
+}

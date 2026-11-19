@@ -1,0 +1,500 @@
+{
+  "artifacts": [
+    {
+      "description": "magic QTSL1, a JSON header line, then x [m] and T [K] at the cell centres as little-endian float64",
+      "digest": "f73b33685d13ca2dc15c2f1220d9807546eb58390b115f6a33a740623d111dac",
+      "media_type": "application/octet-stream",
+      "name": "temperature_field",
+      "size_bytes": 1394
+    }
+  ],
+  "convergence": {
+    "estimate": "Richardson against n/2, m/2",
+    "method": "cell-centred finite volume, Crank-Nicolson",
+    "n_cells": 80,
+    "n_steps": 240
+  },
+  "environment_digest": "396f302a8d71df677ba2e15b1a566050117839a1ba2b2bc0af13b520b6ff8448",
+  "implementation_digest": "7a890c3eb8489beb67a54a2a27a718c3da1d81e44bcea8a882d1db63bf23f1b6",
+  "invariants": [
+    {
+      "criterion": "non-finite count == 0",
+      "derivation": "counted over the final field",
+      "holds": true,
+      "invariant_id": "finite",
+      "measured": {
+        "exact": true,
+        "reporting_digits": null,
+        "resolution": null,
+        "resolution_basis": "",
+        "resolution_class": "NOT_STATED",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "1",
+        "value": 0.0,
+        "zero_state": "EXACT_ZERO"
+      },
+      "threshold": {
+        "exact": true,
+        "reporting_digits": null,
+        "resolution": null,
+        "resolution_basis": "",
+        "resolution_class": "NOT_STATED",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "1",
+        "value": 0.0,
+        "zero_state": "EXACT_ZERO"
+      }
+    },
+    {
+      "criterion": "|residual| <= 1e-09",
+      "derivation": "Crank-Nicolson with the trapezoid boundary flux conserves heat exactly; the bound is accumulated rounding with margin",
+      "holds": true,
+      "invariant_id": "energy_balance",
+      "measured": {
+        "exact": false,
+        "reporting_digits": null,
+        "resolution": null,
+        "resolution_basis": "",
+        "resolution_class": "NOT_STATED",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "1",
+        "value": 3.194436430931091e-13,
+        "zero_state": "RESOLUTION_NOT_STATED"
+      },
+      "threshold": {
+        "exact": false,
+        "reporting_digits": null,
+        "resolution": null,
+        "resolution_basis": "",
+        "resolution_class": "NOT_STATED",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "1",
+        "value": 1e-09,
+        "zero_state": "RESOLUTION_NOT_STATED"
+      }
+    },
+    {
+      "criterion": "largest undershoot below min(T0, T_inf) <= 64 eps max|T|",
+      "derivation": "q >= 0 and both the initial field and the ambient are >= the floor",
+      "holds": true,
+      "invariant_id": "minimum_principle",
+      "measured": {
+        "exact": false,
+        "reporting_digits": null,
+        "resolution": null,
+        "resolution_basis": "",
+        "resolution_class": "NOT_STATED",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 0.0,
+        "zero_state": "RESOLUTION_NOT_STATED"
+      },
+      "threshold": {
+        "exact": false,
+        "reporting_digits": null,
+        "resolution": null,
+        "resolution_basis": "",
+        "resolution_class": "NOT_STATED",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 4.711542189259907e-12,
+        "zero_state": "RESOLUTION_NOT_STATED"
+      }
+    }
+  ],
+  "model_id": "thermal.slab_transient",
+  "model_version": "1.0.0",
+  "observation_kind": "SIMULATION_RESULT",
+  "outputs": [
+    {
+      "name": "T_at_0",
+      "quantity": {
+        "exact": false,
+        "reporting_digits": 10,
+        "resolution": 0.00010662129094877552,
+        "resolution_basis": "Richardson, second order: |T(n=80, m=240) - T(n=40, m=120)| / 3",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 331.5453069983014,
+        "zero_state": "RESOLVED"
+      },
+      "reason": "",
+      "status": "OK"
+    },
+    {
+      "name": "T_at_quarter",
+      "quantity": {
+        "exact": false,
+        "reporting_digits": 10,
+        "resolution": 0.00010786777998343193,
+        "resolution_basis": "Richardson, second order: |T(n=80, m=240) - T(n=40, m=120)| / 3",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 331.41580187355214,
+        "zero_state": "RESOLVED"
+      },
+      "reason": "",
+      "status": "OK"
+    },
+    {
+      "name": "T_at_half",
+      "quantity": {
+        "exact": false,
+        "reporting_digits": 10,
+        "resolution": 0.00011157768841485449,
+        "resolution_basis": "Richardson, second order: |T(n=80, m=240) - T(n=40, m=120)| / 3",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 331.01829807256496,
+        "zero_state": "RESOLVED"
+      },
+      "reason": "",
+      "status": "OK"
+    },
+    {
+      "name": "T_at_three_quarter",
+      "quantity": {
+        "exact": false,
+        "reporting_digits": 10,
+        "resolution": 0.00011766268816397012,
+        "resolution_basis": "Richardson, second order: |T(n=80, m=240) - T(n=40, m=120)| / 3",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 330.3259184704682,
+        "zero_state": "RESOLVED"
+      },
+      "reason": "",
+      "status": "OK"
+    },
+    {
+      "name": "T_at_L",
+      "quantity": {
+        "exact": false,
+        "reporting_digits": 10,
+        "resolution": 0.00012597679307191356,
+        "resolution_basis": "Richardson, second order: |T(n=80, m=240) - T(n=40, m=120)| / 3",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 329.29416109740384,
+        "zero_state": "RESOLVED"
+      },
+      "reason": "",
+      "status": "OK"
+    },
+    {
+      "name": "energy_in",
+      "quantity": {
+        "exact": false,
+        "reporting_digits": 10,
+        "resolution": 1.7053025658242404e-06,
+        "resolution_basis": "n_cells + n_steps accumulated roundings",
+        "resolution_class": "ACCUMULATED_BOUND",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "J m^-2",
+        "value": 6000000.0,
+        "zero_state": "RESOLVED"
+      },
+      "reason": "",
+      "status": "OK"
+    },
+    {
+      "name": "energy_out",
+      "quantity": {
+        "exact": false,
+        "reporting_digits": 10,
+        "resolution": 1.7053025658242404e-06,
+        "resolution_basis": "n_cells + n_steps accumulated roundings",
+        "resolution_class": "ACCUMULATED_BOUND",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "J m^-2",
+        "value": 452315.37119238277,
+        "zero_state": "RESOLVED"
+      },
+      "reason": "",
+      "status": "OK"
+    },
+    {
+      "name": "stored_energy_change",
+      "quantity": {
+        "exact": false,
+        "reporting_digits": 10,
+        "resolution": 1.7053025658242404e-06,
+        "resolution_basis": "n_cells + n_steps accumulated roundings",
+        "resolution_class": "ACCUMULATED_BOUND",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "J m^-2",
+        "value": 5547684.628805701,
+        "zero_state": "RESOLVED"
+      },
+      "reason": "",
+      "status": "OK"
+    },
+    {
+      "name": "energy_relative_residual",
+      "quantity": {
+        "exact": false,
+        "reporting_digits": 6,
+        "resolution": 1e-09,
+        "resolution_basis": "the balance's rounding bound",
+        "resolution_class": "ACCUMULATED_BOUND",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "1",
+        "value": 3.194436430931091e-13,
+        "zero_state": "BELOW_RESOLUTION"
+      },
+      "reason": "",
+      "status": "OK"
+    }
+  ],
+  "parameter_digest": "97115dc2ed68537fcb305a9fc0cd21dc297f48fcb40bca96efa8b1affd0221c5",
+  "parameters": {
+    "L_m": 0.05,
+    "T0_K": 300.0,
+    "T_inf_K": 300.0,
+    "h_W_m2_K": 50.0,
+    "k_W_m_K": 15.0,
+    "n_cells": 80,
+    "n_steps": 240,
+    "q_W_m3": 200000.0,
+    "rho_c_J_m3_K": 3600000.0,
+    "t_end_s": 600.0
+  },
+  "provenance": {
+    "environment": {
+      "backend": {
+        "cpu_count": 4,
+        "variables": {
+          "BLIS_NUM_THREADS": null,
+          "GLIBC_TUNABLES": null,
+          "GOTO_NUM_THREADS": null,
+          "MKL_CBWR": null,
+          "MKL_ENABLE_INSTRUCTIONS": null,
+          "MKL_NUM_THREADS": "1",
+          "NPY_DISABLE_CPU_FEATURES": null,
+          "NPY_ENABLE_CPU_FEATURES": null,
+          "NUMEXPR_NUM_THREADS": "1",
+          "OMP_NUM_THREADS": "1",
+          "OPENBLAS_CORETYPE": null,
+          "OPENBLAS_NUM_THREADS": "1",
+          "VECLIB_MAXIMUM_THREADS": null
+        }
+      },
+      "backend_status": "RESOLVED",
+      "cpu": {
+        "core": {
+          "cpu family": "6",
+          "model": "207",
+          "vendor_id": "GenuineIntel"
+        },
+        "simd": [
+          "amx_bf16",
+          "amx_int8",
+          "amx_tile",
+          "avx",
+          "avx2",
+          "avx512_bf16",
+          "avx512_bitalg",
+          "avx512_fp16",
+          "avx512_vbmi2",
+          "avx512_vnni",
+          "avx512_vpopcntdq",
+          "avx512bw",
+          "avx512cd",
+          "avx512dq",
+          "avx512f",
+          "avx512ifma",
+          "avx512vbmi",
+          "avx512vl",
+          "avx_vnni",
+          "bmi1",
+          "bmi2",
+          "f16c",
+          "fma",
+          "pni",
+          "popcnt",
+          "sse",
+          "sse2",
+          "sse4_1",
+          "sse4_2",
+          "ssse3"
+        ],
+        "source": "cpuinfo"
+      },
+      "distributions": {
+        "numpy": "2.4.4",
+        "scipy": "1.17.1"
+      },
+      "implementation": "cpython",
+      "machine": "x86_64",
+      "native": {
+        "numpy": {
+          "installed_sha256": "2ca50069df35e9ec81dae6ae2521c551c347b624843b0f69a49dc0a54693529e",
+          "modified": [],
+          "native_files": 22,
+          "native_sha256": "c042e4c5aad9c7642a900be06b94c1577356f9d02f7a358dd38eb7353b014a4b",
+          "status": "RESOLVED",
+          "unreadable": []
+        },
+        "scipy": {
+          "installed_sha256": "94024d1dfa0394069bb02b1420be5fcb118024ad0bed034eafc942acd99ac966",
+          "modified": [],
+          "native_files": 114,
+          "native_sha256": "dbc2b65f6a9adcfa026e0730278562697084f45b4a408a8cad9d6839b4f1d287",
+          "status": "RESOLVED",
+          "unreadable": []
+        }
+      },
+      "python": "3.12.3",
+      "runtime": {
+        "blas": {
+          "build": {
+            "blas": {
+              "name": "scipy-openblas",
+              "version": "0.3.31.188.0"
+            },
+            "lapack": {
+              "name": "scipy-openblas",
+              "version": "0.3.31.188.0"
+            }
+          },
+          "bundled": [
+            {
+              "config": "OpenBLAS 0.3.31.188.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY SkylakeX MAX_THREADS=64",
+              "distribution": "numpy",
+              "kernel": "SkylakeX",
+              "name": "libscipy_openblas64_-32a4b2a6.so",
+              "parallel": 1,
+              "sha256": "05c9f9eb89ee68a4b9d673184fa91c99587e736392c0c2d49180a8aa5303d080",
+              "threads": 1
+            },
+            {
+              "config": "OpenBLAS 0.3.30 DYNAMIC_ARCH NO_AFFINITY SkylakeX MAX_THREADS=64",
+              "distribution": "scipy",
+              "kernel": "SkylakeX",
+              "name": "libscipy_openblas-6cdc3b4a.so",
+              "parallel": 1,
+              "sha256": "8fb864c29cac4b25f6e2c139491ea96f2724dde42d51394f84e9c4a622e34790",
+              "threads": 1
+            }
+          ]
+        },
+        "interpreter": {
+          "name": "python3.12",
+          "sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+        },
+        "numpy": {
+          "cpu_features": [
+            "AVX",
+            "AVX2",
+            "AVX512BF16",
+            "AVX512BITALG",
+            "AVX512BW",
+            "AVX512CD",
+            "AVX512DQ",
+            "AVX512F",
+            "AVX512FP16",
+            "AVX512IFMA",
+            "AVX512VBMI",
+            "AVX512VBMI2",
+            "AVX512VL",
+            "AVX512VNNI",
+            "AVX512VPOPCNTDQ",
+            "AVX512_CLX",
+            "AVX512_CNL",
+            "AVX512_ICL",
+            "AVX512_SKX",
+            "AVX512_SPR",
+            "BMI",
+            "BMI2",
+            "CX16",
+            "F16C",
+            "FMA3",
+            "GFNI",
+            "LAHF",
+            "LZCNT",
+            "MMX",
+            "MOVBE",
+            "POPCNT",
+            "SSE",
+            "SSE2",
+            "SSE3",
+            "SSE41",
+            "SSE42",
+            "SSSE3",
+            "VAES",
+            "VPCLMULQDQ",
+            "X86_V2",
+            "X86_V3",
+            "X86_V4"
+          ],
+          "dispatch": {
+            "functions": 477,
+            "sha256": "514cee565346e482dac7588999f35b6735a5c4c4fe4a112285de09c40ce6340f",
+            "targets": {
+              "AVX512_SPR": 20,
+              "X86_V3": 244,
+              "X86_V4": 159,
+              "baseline(X86_V2)": 54
+            }
+          },
+          "simd": {
+            "baseline": [
+              "X86_V2"
+            ],
+            "found": [
+              "X86_V3",
+              "X86_V4",
+              "AVX512_ICL",
+              "AVX512_SPR"
+            ],
+            "not found": null
+          },
+          "version": "2.4.4"
+        },
+        "status": "RESOLVED",
+        "system_libraries": {
+          "c": {
+            "name": "libc.so.6",
+            "sha256": "3a15d66867d83762c7f2f1e37359cb8f6c5743edb369c65285cb0b1c4f7498bf"
+          },
+          "gfortran": null,
+          "gomp": null,
+          "loader": {
+            "name": "ld-linux-x86-64.so.2",
+            "sha256": "c20a2dc8917c755f02b94049356320fe1f62ac7d9f8994731f807d9df39302da"
+          },
+          "m": {
+            "name": "libm.so.6",
+            "sha256": "fce00b6f25f459cf4ae0b7fae4257909a1a8a86f9149e7c029a5d617baf1ccd0"
+          }
+        },
+        "unresolved": []
+      }
+    },
+    "run_identity": {
+      "backend_status": "RESOLVED",
+      "environment_digest": "396f302a8d71df677ba2e15b1a566050117839a1ba2b2bc0af13b520b6ff8448",
+      "implementation_digest": "7a890c3eb8489beb67a54a2a27a718c3da1d81e44bcea8a882d1db63bf23f1b6",
+      "model_id": "thermal.slab_transient",
+      "model_version": "1.0.0",
+      "parameter_digest": "97115dc2ed68537fcb305a9fc0cd21dc297f48fcb40bca96efa8b1affd0221c5",
+      "seeds": [],
+      "upstream_evidence": [],
+      "workflow_revision": ""
+    },
+    "solver": "scientific.models.slab_transient._solve"
+  },
+  "schema_version": 1,
+  "seeds": [],
+  "solver_config": {
+    "tridiagonal": "Thomas algorithm, in this file"
+  },
+  "warnings": [
+    "MODEL-ONLY: a forecast from declared inputs, not a measured temperature"
+  ]
+}

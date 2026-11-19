@@ -1,0 +1,58 @@
+{
+ "title": "The manifest over the tracked tree: membership both ways, bytes, the detached hash, its own schema",
+ "note": "MF1-MF7 remove, one at a time, what keeps final_manifest.json a provenance record: tracked-but-unlisted, listed-but-untracked, the sha256 and size of each entry, the detached hash, a field no generator writes, and the sorted order.",
+ "suites": [
+  "tests/test_manifest_policy.py"
+ ],
+ "mutations": [
+  {
+   "name": "MF1_a_tracked_file_may_be_unlisted",
+   "path": "generate_manifest.py",
+   "find": "    for f in sorted(tracked - listed):\n        problems.append(f\"tracked but not listed: {f}\")\n",
+   "replace": "    for f in ():\n        problems.append(f\"tracked but not listed: {f}\")\n",
+   "rationale": "a file added after the manifest was written is never recorded, the 30-file gap again"
+  },
+  {
+   "name": "MF2_a_listed_file_may_be_untracked",
+   "path": "generate_manifest.py",
+   "find": "    for f in sorted(listed - tracked):\n        problems.append(f\"listed but not tracked: {f}\")\n",
+   "replace": "    for f in ():\n        problems.append(f\"listed but not tracked: {f}\")\n",
+   "rationale": "a manifest names a file the repository does not carry"
+  },
+  {
+   "name": "MF3_changed_bytes_pass",
+   "path": "generate_manifest.py",
+   "find": "        if _sha256(path) != entry[\"sha256\"]:\n",
+   "replace": "        if False and _sha256(path) != entry[\"sha256\"]:\n",
+   "rationale": "a file whose bytes changed still matches its recorded hash"
+  },
+  {
+   "name": "MF4_the_detached_hash_is_not_compared",
+   "path": "generate_manifest.py",
+   "find": "    elif stored.group(1) != _sha256(MANIFEST):\n",
+   "replace": "    elif False:\n",
+   "rationale": "a rewritten manifest is not seen through its detached hash"
+  },
+  {
+   "name": "MF5_unwritten_fields_are_accepted",
+   "path": "generate_manifest.py",
+   "find": "    if extra:\n        problems.append(f\"fields no generator writes: {extra}\")\n",
+   "replace": "    if False:\n        problems.append(f\"fields no generator writes: {extra}\")\n",
+   "rationale": "a narrative field nothing re-derives rides along in the provenance record"
+  },
+  {
+   "name": "MF6_the_order_is_not_checked",
+   "path": "generate_manifest.py",
+   "find": "    if names != sorted(names):\n",
+   "replace": "    if False:\n",
+   "rationale": "a reordered list passes, so a regeneration is no longer a reviewable diff"
+  },
+  {
+   "name": "MF7_the_generator_does_not_sort",
+   "path": "generate_manifest.py",
+   "find": "    return sorted(f for f in out.splitlines() if f and f not in DETACHED)\n",
+   "replace": "    return [f for f in out.splitlines() if f and f not in DETACHED][::-1]\n",
+   "rationale": "the generator writes an order its own check and its documentation say it does not"
+  }
+ ]
+}

@@ -1,0 +1,72 @@
+{
+ "title": "An answer closes its question, and a directory record the reducer cannot read is refused in its own words",
+ "note": "AUD-060 and AUD-061. The agent directory refuses an escalation answer that leaves the question open (AD1), as the second reader does, and refuses each malformed record in its own words with its position (AD2 to AD9). tests/test_agent_directory_records.py holds each.",
+ "suites": [
+  "tests/test_agent_directory_records.py"
+ ],
+ "mutations": [
+  {
+   "name": "AD1_an_answer_may_leave_the_question_open",
+   "path": "agent_substrate/agents.py",
+   "find": "            if dst not in (EscalationState.ANSWERED,\n                           EscalationState.WITHDRAWN):\n",
+   "replace": "            if False:\n",
+   "rationale": "an answer left OPEN records a person's answer on a question still open, and the next answer replaces it"
+  },
+  {
+   "name": "AD2_a_registration_with_no_identity_is_refused_in_other_words",
+   "path": "agent_substrate/agents.py",
+   "find": "            rec = p.get(\"identity\")\n            if not isinstance(rec, dict):\n",
+   "replace": "            rec = p.get(\"identity\")\n            if False:\n",
+   "rationale": "a registration carrying no identity is refused without its position"
+  },
+  {
+   "name": "AD3_a_retirement_naming_no_instance_raises",
+   "path": "agent_substrate/agents.py",
+   "find": "            iid = p.get(\"instance_id\")\n            if not isinstance(iid, str) or not iid:\n",
+   "replace": "            iid = p.get(\"instance_id\")\n            if False:\n",
+   "rationale": "a retirement naming its instance by a list raises TypeError out of the reducer"
+  },
+  {
+   "name": "AD4_a_message_record_with_no_message_is_refused_in_other_words",
+   "path": "agent_substrate/agents.py",
+   "find": "            rec = p.get(\"message\")\n            if not isinstance(rec, dict):\n",
+   "replace": "            rec = p.get(\"message\")\n            if False:\n",
+   "rationale": "a message record carrying no message is refused without its position"
+  },
+  {
+   "name": "AD5_a_claim_lacking_its_fields_raises",
+   "path": "agent_substrate/agents.py",
+   "find": "            if lacking:\n",
+   "replace": "            if False:\n",
+   "rationale": "a claim record lacking its id, task, subject or value raises KeyError out of the reducer"
+  },
+  {
+   "name": "AD6_a_claim_in_no_known_role_raises",
+   "path": "agent_substrate/agents.py",
+   "find": "            try:\n                role = AgentRole(p.get(\"role\"))\n            except ValueError:\n",
+   "replace": "            try:\n                role = AgentRole(p.get(\"role\"))\n            except KeyError:\n",
+   "rationale": "a claim naming a role this version does not know raises ValueError out of the reducer"
+  },
+  {
+   "name": "AD7_an_escalation_record_with_no_escalation_is_refused_in_other_words",
+   "path": "agent_substrate/agents.py",
+   "find": "            rec = p.get(\"escalation\")\n            if not isinstance(rec, dict):\n",
+   "replace": "            rec = p.get(\"escalation\")\n            if False:\n",
+   "rationale": "an escalation record carrying no escalation is refused without its position"
+  },
+  {
+   "name": "AD8_an_answer_naming_no_escalation_is_refused_in_other_words",
+   "path": "agent_substrate/agents.py",
+   "find": "            eid = p.get(\"escalation_id\")\n            if not isinstance(eid, str) or not eid:\n",
+   "replace": "            eid = p.get(\"escalation_id\")\n            if False:\n",
+   "rationale": "an answer naming no escalation is refused as one for an escalation never opened"
+  },
+  {
+   "name": "AD9_an_answer_to_no_known_state_raises",
+   "path": "agent_substrate/agents.py",
+   "find": "            try:\n                dst = EscalationState(p.get(\"state\"))\n            except ValueError:\n",
+   "replace": "            try:\n                dst = EscalationState(p.get(\"state\"))\n            except KeyError:\n",
+   "rationale": "an answer moving the question to a state that does not exist raises ValueError out of the reducer"
+  }
+ ]
+}

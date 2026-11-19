@@ -1,0 +1,261 @@
+{
+ "title": "The scheduler's replay holds what its writer holds, and the second reader restates it",
+ "note": "AUD-068 to AUD-071. What enqueue() refuses is refused on replay -- a need that is not a whole, non-negative number of a named resource, a citation that is not a digest, an id that is not a str (SK1 to SK6); one grant of possession, a dispatch's lease or one renewal, reaches at most MAX_LEASE_SEQS (SK7 to SK10); a priority is an int as set_priority writes it (SK11); a malformed record is refused in the reducer's words, at its position (SK12 to SK18); the second reader restates the enqueue, lease and priority rules (SK19 to SK26); an enqueue names no lease end, and writes its lists and its map in the writer's form (SK27 to SK30); the second reader restates the enqueue's lease end and what a job waits on (SK31 to SK36). tests/test_scheduler_replay_rules.py holds each.",
+ "suites": [
+  "tests/test_scheduler_replay_rules.py"
+ ],
+ "mutations": [
+  {
+   "name": "SK1_a_need_may_be_anything",
+   "path": "agent_substrate/scheduler.py",
+   "find": "            if isinstance(need, bool) or not isinstance(need, int) \\\n                    or need < 0:\n",
+   "replace": "            if False:\n",
+   "rationale": "replay takes a resource need that is not a whole, non-negative number, and readiness raises or capacity is cancelled"
+  },
+  {
+   "name": "SK2_a_resource_may_be_named_by_anything",
+   "path": "agent_substrate/scheduler.py",
+   "find": "            if not isinstance(name, str) or not name:\n                raise SchedulerError(\n                    f\"seq {ev.seq}: job {job.job_id!r} needs resource \"\n",
+   "replace": "            if False:\n                raise SchedulerError(\n                    f\"seq {ev.seq}: job {job.job_id!r} needs resource \"\n",
+   "rationale": "replay takes a need of a resource with no name"
+  },
+  {
+   "name": "SK3_a_citation_may_be_anything",
+   "path": "agent_substrate/scheduler.py",
+   "find": "            if not is_digest(cited):\n",
+   "replace": "            if False:\n",
+   "rationale": "replay takes a citation that is not a digest, and readiness raises on it"
+  },
+  {
+   "name": "SK4_an_id_field_may_be_anything",
+   "path": "agent_substrate/scheduler.py",
+   "find": "            if value is not None and not isinstance(value, str):\n",
+   "replace": "            if False:\n",
+   "rationale": "replay takes a capability, key or task named by a non-str"
+  },
+  {
+   "name": "SK5_a_dependency_may_be_named_by_anything",
+   "path": "agent_substrate/scheduler.py",
+   "find": "            if not isinstance(dep, str) or not dep:\n",
+   "replace": "            if False:\n",
+   "rationale": "a dependency named by a list raises TypeError out of the fold"
+  },
+  {
+   "name": "SK6_the_writer_takes_any_idempotency_key",
+   "path": "agent_substrate/scheduler.py",
+   "find": "        if idempotency_key is not None and not isinstance(idempotency_key,\n                                                          str):\n",
+   "replace": "        if False:\n",
+   "rationale": "enqueue() raises TypeError on a key that is not a str"
+  },
+  {
+   "name": "SK7_dispatch_hands_out_any_length",
+   "path": "agent_substrate/scheduler.py",
+   "find": "        if lease_seqs > MAX_LEASE_SEQS:\n",
+   "replace": "        if False:\n",
+   "rationale": "dispatch() hands out a lease of any length"
+  },
+  {
+   "name": "SK8_a_renewal_reaches_any_distance",
+   "path": "agent_substrate/scheduler.py",
+   "find": "        if seqs > MAX_LEASE_SEQS:\n",
+   "replace": "        if False:\n",
+   "rationale": "one renewal of any length holds the job past every reconcile"
+  },
+  {
+   "name": "SK9_a_dispatch_record_names_its_own_end",
+   "path": "agent_substrate/scheduler.py",
+   "find": "            and payload.get(\"lease_expires_after_seq\", -1) - seq\n            > MAX_LEASE_SEQS):\n",
+   "replace": "            and False):\n",
+   "rationale": "replay takes the end a dispatch record names, however far"
+  },
+  {
+   "name": "SK10_the_bound_bounds_nothing",
+   "path": "agent_substrate/scheduler.py",
+   "find": "MAX_LEASE_SEQS = 1_000_000\n",
+   "replace": "MAX_LEASE_SEQS = 10 ** 18\n",
+   "rationale": "a bound no request reaches is no bound"
+  },
+  {
+   "name": "SK11_a_priority_is_converted",
+   "path": "agent_substrate/scheduler.py",
+   "find": "            new = p.get(\"priority\")\n",
+   "replace": "            new = int(p.get(\"priority\") or 0)\n",
+   "rationale": "replay converts \"0\", 0.7 and True into priorities the writer refuses"
+  },
+  {
+   "name": "SK12_a_record_may_name_no_job",
+   "path": "agent_substrate/scheduler.py",
+   "find": "        if not isinstance(jid, str) or jid not in self._jobs:\n",
+   "replace": "        if False:\n",
+   "rationale": "a record naming no job raises KeyError out of the fold"
+  },
+  {
+   "name": "SK13_a_state_name_raises_its_own_error",
+   "path": "agent_substrate/scheduler.py",
+   "find": "    except (ValueError, TypeError):\n        raise JobTransitionError(\n            f\"seq {seq}: the record's {which} is {value!r}, which is not a \"\n",
+   "replace": "    except LookupError:\n        raise JobTransitionError(\n            f\"seq {seq}: the record's {which} is {value!r}, which is not a \"\n",
+   "rationale": "a state that is not one raises ValueError out of the fold"
+  },
+  {
+   "name": "SK14_a_count_may_be_anything",
+   "path": "agent_substrate/scheduler.py",
+   "find": "        if name in payload and not _whole(payload[name]):\n",
+   "replace": "        if False:\n",
+   "rationale": "a position or a count is taken by conversion, or raises ValueError"
+  },
+  {
+   "name": "SK15_a_bool_is_a_count",
+   "path": "agent_substrate/scheduler.py",
+   "find": "    return isinstance(value, int) and not isinstance(value, bool)\n",
+   "replace": "    return isinstance(value, int)\n",
+   "rationale": "True is taken for a count of one"
+  },
+  {
+   "name": "SK16_a_job_may_be_named_by_anything",
+   "path": "agent_substrate/scheduler.py",
+   "find": "    if not isinstance(named, str) or not named:\n",
+   "replace": "    if False:\n",
+   "rationale": "a job named by a list raises TypeError out of the fold"
+  },
+  {
+   "name": "SK17_an_enqueue_refusal_names_no_position",
+   "path": "agent_substrate/scheduler.py",
+   "find": "                raise SchedulerError(f\"seq {ev.seq}: {exc}\") from exc\n",
+   "replace": "                raise\n",
+   "rationale": "a malformed enqueue is refused without saying where"
+  },
+  {
+   "name": "SK18_a_renewal_may_name_its_job_by_anything",
+   "path": "agent_substrate/scheduler.py",
+   "find": "        cur = self._jobs.get(named) if isinstance(named, str) else None\n",
+   "replace": "        cur = self._jobs.get(named)\n",
+   "rationale": "a renewal naming its job by a list raises TypeError out of the fold"
+  },
+  {
+   "name": "SK19_the_second_reader_takes_any_enqueue_priority",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if not _job_priority_ok(job.get(\"priority\")):\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader reads clean a history the primary refuses"
+  },
+  {
+   "name": "SK20_the_second_reader_takes_any_citation",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if not isinstance(cited, list) or not all(_is_digest(c) for c in cited):\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader reads clean a citation the primary refuses"
+  },
+  {
+   "name": "SK21_the_second_reader_takes_any_need",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if not isinstance(needs, dict) or not all(\n",
+   "replace": "    if False and not all(\n",
+   "rationale": "the second reader reads clean a need the primary refuses"
+  },
+  {
+   "name": "SK22_the_second_reader_takes_any_dispatch_end",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if isinstance(reach, bool) or not isinstance(reach, int) or \\\n                reach - ev.seq > _MAX_LEASE_SEQS:\n",
+   "replace": "        if False:\n",
+   "rationale": "the second reader takes the end a dispatch record names"
+  },
+  {
+   "name": "SK23_the_second_reader_takes_any_renewal_length",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if seqs > _MAX_LEASE_SEQS:\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader takes a renewal of any length"
+  },
+  {
+   "name": "SK24_the_second_reader_takes_any_priority_change",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if not _job_priority_ok(new):\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader takes a priority the primary refuses"
+  },
+  {
+   "name": "SK25_the_second_reader_takes_bools_for_priorities",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    return isinstance(value, int) and not isinstance(value, bool) and \\\n        value in _JOB_PRIORITIES\n",
+   "replace": "    return isinstance(value, int) and value in _JOB_PRIORITIES\n",
+   "rationale": "the second reader takes True for priority one"
+  },
+  {
+   "name": "SK26_the_second_readers_bound_bounds_nothing",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "_MAX_LEASE_SEQS = 1_000_000\n",
+   "replace": "_MAX_LEASE_SEQS = 10 ** 18\n",
+   "rationale": "the second reader's bound is reached by no request"
+  },
+  {
+   "name": "SK27_an_enqueue_names_a_lease_end_of_any_kind",
+   "path": "agent_substrate/scheduler.py",
+   "find": "        if not _whole(job.lease_expires_after_seq):\n            # A POSITION IS A WHOLE NUMBER, at enqueue as on every edge\n",
+   "replace": "        if False:\n            # A POSITION IS A WHOLE NUMBER, at enqueue as on every edge\n",
+   "rationale": "an enqueue whose lease end is 'x' raises TypeError out of the fold"
+  },
+  {
+   "name": "SK28_a_dependency_list_may_be_any_iterable",
+   "path": "agent_substrate/scheduler.py",
+   "find": "    for name, form in ((\"depends_on\", list),\n",
+   "replace": "    for name, form in (\n",
+   "rationale": "a dependency list written as a map is taken for its keys"
+  },
+  {
+   "name": "SK29_a_citation_list_may_be_any_iterable",
+   "path": "agent_substrate/scheduler.py",
+   "find": "    for name, form in ((\"depends_on\", list),\n                       (\"requires_evidence\", list),\n",
+   "replace": "    for name, form in ((\"depends_on\", list),\n",
+   "rationale": "a citation list written as a map is taken for its keys"
+  },
+  {
+   "name": "SK30_a_resource_map_may_be_pairs",
+   "path": "agent_substrate/scheduler.py",
+   "find": "                       (\"resources\", dict)):\n",
+   "replace": "                       ):\n",
+   "rationale": "a resource map written as pairs is taken for the map"
+  },
+  {
+   "name": "SK31_the_second_reader_takes_an_enqueue_lease_end",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if isinstance(end, bool) or not isinstance(end, int) or end >= 0:\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader folds an enqueue naming a lease end, which the primary refuses"
+  },
+  {
+   "name": "SK32_the_second_reader_takes_dependencies_of_any_form",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if not isinstance(deps, list) or len(deps) > _MAX_JOB_DEPENDENCIES:\n",
+   "replace": "    if len(deps) > _MAX_JOB_DEPENDENCIES:\n",
+   "rationale": "the second reader folds a dependency list written as a map"
+  },
+  {
+   "name": "SK33_the_second_reader_takes_any_number_of_dependencies",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    if not isinstance(deps, list) or len(deps) > _MAX_JOB_DEPENDENCIES:\n",
+   "replace": "    if not isinstance(deps, list):\n",
+   "rationale": "the second reader folds a job waiting on more jobs than the scheduler allows"
+  },
+  {
+   "name": "SK34_the_second_reader_takes_a_dependency_never_enqueued",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if not isinstance(dep, str) or dep not in out.jobs:\n",
+   "replace": "        if not isinstance(dep, str):\n",
+   "rationale": "the second reader folds a job waiting on one no enqueue introduced"
+  },
+  {
+   "name": "SK35_the_second_reader_takes_a_dependency_that_cannot_succeed",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if out.jobs[dep][\"state\"] not in _JOB_CAN_SUCCEED:\n",
+   "replace": "        if False:\n",
+   "rationale": "the second reader folds a job waiting on a cancelled one"
+  },
+  {
+   "name": "SK36_the_second_reader_counts_no_state_able_to_succeed",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    reach = {\"SUCCEEDED\"}\n",
+   "replace": "    reach = set()\n",
+   "rationale": "the second reader refuses a job waiting on one that can still succeed"
+  }
+ ]
+}

@@ -1,0 +1,117 @@
+{
+  "agreement": [
+    [
+      "T_at_0",
+      {
+        "exact": false,
+        "reporting_digits": null,
+        "resolution": 6.618734396758666e-06,
+        "resolution_basis": "the method of lines at 160 and 320 intervals: three times the second-order Richardson estimate (Roache's factor of safety), plus rounding",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 331.5454158482514,
+        "zero_state": "RESOLVED"
+      }
+    ],
+    [
+      "T_at_L",
+      {
+        "exact": false,
+        "reporting_digits": null,
+        "resolution": 1.647030707792812e-05,
+        "resolution_basis": "the method of lines at 160 and 320 intervals: three times the second-order Richardson estimate (Roache's factor of safety), plus rounding",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 329.29429254530083,
+        "zero_state": "RESOLVED"
+      }
+    ],
+    [
+      "T_at_half",
+      {
+        "exact": false,
+        "reporting_digits": null,
+        "resolution": 9.130806731411848e-06,
+        "resolution_basis": "the method of lines at 160 and 320 intervals: three times the second-order Richardson estimate (Roache's factor of safety), plus rounding",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 331.01841269503115,
+        "zero_state": "RESOLVED"
+      }
+    ],
+    [
+      "T_at_quarter",
+      {
+        "exact": false,
+        "reporting_digits": null,
+        "resolution": 7.249812930125361e-06,
+        "resolution_basis": "the method of lines at 160 and 320 intervals: three times the second-order Richardson estimate (Roache's factor of safety), plus rounding",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 331.41591217409734,
+        "zero_state": "RESOLVED"
+      }
+    ],
+    [
+      "T_at_three_quarter",
+      {
+        "exact": false,
+        "reporting_digits": null,
+        "resolution": 1.2224861426461191e-05,
+        "resolution_basis": "the method of lines at 160 and 320 intervals: three times the second-order Richardson estimate (Roache's factor of safety), plus rounding",
+        "resolution_class": "DISCRETIZATION_ESTIMATE",
+        "uncertainty_class": "NOT_ASSESSED",
+        "unit": "K",
+        "value": 330.3260401946143,
+        "zero_state": "RESOLVED"
+      }
+    ]
+  ],
+  "check_id": "thermal.slab_method_of_lines",
+  "check_type": "INDEPENDENT_IMPLEMENTATION",
+  "criterion": "max over the five sample points of |T_producer - T_check| / (3 (r_producer + r_check) + 64 eps |T|) <= 1",
+  "criterion_derivation": "Roache's factor of safety 3 on the sum of the two stated second-order Richardson estimates",
+  "establishes": "INDEPENDENT_NUMERICAL_AGREEMENT",
+  "evidence": [],
+  "independence": "DIFFERENT_DISCRETIZATION",
+  "limitations": [
+    "agreement of two discretizations of one model, not of the model with measurement",
+    "a wrong model of the physics is invisible to this check"
+  ],
+  "measured": {
+    "exact": false,
+    "reporting_digits": 6,
+    "resolution": 1e-06,
+    "resolution_basis": "a ratio of two stated values",
+    "resolution_class": "SINGLE_EVALUATION",
+    "uncertainty_class": "NOT_ASSESSED",
+    "unit": "1",
+    "value": 0.33340198719162595,
+    "zero_state": "RESOLVED"
+  },
+  "observations": [],
+  "producer_implementation_digest": "7a890c3eb8489beb67a54a2a27a718c3da1d81e44bcea8a882d1db63bf23f1b6",
+  "shared_components": [
+    "the slab equations: rho c T_t = k T_xx + q, insulated at x = 0, convective at x = L"
+  ],
+  "status": "PASS",
+  "subject_digest": "5c020174c1470124c967f2b917d4f6e1b6e8514162f7ddaf003ce164e6e71574",
+  "subject_model": "thermal.slab_transient@1.0.0",
+  "threshold": {
+    "exact": true,
+    "reporting_digits": null,
+    "resolution": null,
+    "resolution_basis": "",
+    "resolution_class": "NOT_STATED",
+    "uncertainty_class": "NOT_ASSESSED",
+    "unit": "1",
+    "value": 1.0,
+    "zero_state": "RESOLVED"
+  },
+  "verifier_id": "model-check-worker",
+  "verifier_implementation_digest": "1c0b721d1fb74ee199671b8828dfcabbbea49146fcfa8999fed47b605f58e933"
+}

@@ -1,0 +1,66 @@
+{
+ "schema": "isolation-contract/1",
+ "note": "Assurance I. What each isolation dimension relies on, and whether the kernel, an application rule or nothing enforces it. tools/isolation_contract.py probes it on the host it runs on; a result on a CI runner or a laptop says what that host does, nothing about a deployment.",
+ "dimensions": [
+  {
+   "id": "filesystem",
+   "enforcement": "KERNEL",
+   "mechanism": "A Landlock ruleset applied inside the tool's namespaces by agent_substrate/_ns_init.py: reads only the interpreter, its packages and the granted read paths; writes only the ToolSpec's writable scope. confine='high_assurance' refuses to run the tool where Landlock cannot be applied; 'research' runs unconfined and records why.",
+   "does_not_cover": "Landlock does not restrict every operation (ioctl, some metadata); it constrains paths, not what a granted path contains. There is no mount namespace: the tool sees the host's filesystem tree, restricted.",
+   "deployment_requirement": "RUN-3: the deployment runs tools/confinement_probe.py under its own identity and attests the result."
+  },
+  {
+   "id": "network",
+   "enforcement": "KERNEL",
+   "mechanism": "A network namespace of the tool's own (unshare --net, when the host allows unprivileged user namespaces): no route to the host's interfaces, loopback included. Where the host refuses namespaces the execution record says so; network access is then governed only by authority (no grant names a network) and the parent's in-process guard, which is not containment.",
+   "does_not_cover": "Egress filtering by destination: there is no network at all, so a tool that needs one cannot have a narrowed one. Hosts that refuse user namespaces get no kernel network boundary.",
+   "deployment_requirement": "A deployment that allows tools any network needs its own egress control; none is provided here."
+  },
+  {
+   "id": "namespaces",
+   "enforcement": "KERNEL",
+   "mechanism": "User, PID and network namespaces via unshare(1) with --kill-child, probed once per process (execution.namespace_isolation) and recorded per run.",
+   "does_not_cover": "Mount, IPC, UTS and cgroup namespaces are not entered: the tool shares those with the host.",
+   "deployment_requirement": "Unprivileged user namespaces enabled on the host, or the high_assurance mode refuses to run tools."
+  },
+  {
+   "id": "syscalls",
+   "enforcement": "NOT_PROVIDED",
+   "mechanism": "None. No seccomp filter is installed; a tool can make any system call its rlimits, namespaces and Landlock rules allow.",
+   "does_not_cover": "Kernel attack surface reduction. A kernel vulnerability reachable from an unprivileged user namespace is reachable from a tool.",
+   "deployment_requirement": "A deployment running untrusted code needs a syscall filter or a sandboxing runtime (gVisor or similar). This repository's tools are its own code under typed contracts; model output never becomes code, so none is adopted (D-2026-176)."
+  },
+  {
+   "id": "process_tree",
+   "enforcement": "KERNEL",
+   "mechanism": "The tool is a session and process-group leader (setsid), killed as a group on timeout. Inside its PID namespace every process dies when the namespace's init exits, including one that started a session of its own; unshare's --kill-child takes that init down if unshare alone is killed.",
+   "does_not_cover": "A process the host's own services start on the tool's behalf (there are none here).",
+   "deployment_requirement": "None beyond namespaces."
+  },
+  {
+   "id": "quotas",
+   "enforcement": "KERNEL",
+   "mechanism": "Per-process rlimits set between fork and exec: RLIMIT_CPU, RLIMIT_AS, RLIMIT_FSIZE, RLIMIT_NPROC (additional tasks over current usage), RLIMIT_NOFILE, RLIMIT_CORE=0; a wall-clock and an idle bound enforced by the executor.",
+   "does_not_cover": "Totals across a process tree (rlimits are per process; NPROC is per user), memory actually resident (AS bounds address space), disk use across files (FSIZE bounds each file), and GPUs: there is no GPU quota of any kind. No cgroup is used.",
+   "deployment_requirement": "A deployment needing tree-wide memory, disk or GPU quotas needs cgroups or its scheduler's; none is provided here."
+  },
+  {
+   "id": "credentials",
+   "enforcement": "APPLICATION",
+   "mechanism": "The tool's environment is exactly what the executor passes (env replaces, never extends), so the caller's credentials and tokens are not inherited; a credential file outside the tool's read paths is refused by Landlock (the KERNEL part of this dimension).",
+   "does_not_cover": "A credential deliberately passed in the environment or placed inside a granted path; credentials held by the parent process, which is not confined.",
+   "deployment_requirement": "Production credentials and secret stores are the owner's (O-series); none exist here."
+  },
+  {
+   "id": "audit",
+   "enforcement": "APPLICATION",
+   "mechanism": "Every run records the isolation it actually achieved -- namespaces entered, confinement applied or why not, the mode -- in its ExecutionResult, never assumed from the flags.",
+   "does_not_cover": "Attestation. A record written by the process that ran the tool is not independent evidence of how it ran; CI containment is not production attestation.",
+   "deployment_requirement": "RUN-3's deployment attestation, under the deployment's identity (tools/deployment_evidence.py)."
+  }
+ ],
+ "stronger_isolation": {
+  "gvisor": "NOT_ADOPTED",
+  "reason": "The workload runs this repository's own tools under typed contracts; no model output becomes executable code (an undeclared tool runs nothing: tests/test_agent_hostile_campaign.py::test_01_run_an_undeclared_tool). gVisor would narrow the syscall surface for code this system does not run, at the cost of a runtime the fixture CI path does not have. Revisit if a tool ever executes code it did not ship."
+ }
+}

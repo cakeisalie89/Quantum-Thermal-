@@ -1,0 +1,270 @@
+{
+ "development": {
+  "active_parameters_per_token": 135912,
+  "config_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+  "trainable_parameters": 431784,
+  "trained": true,
+  "variant": "development"
+ },
+ "family": "scientific-feature-token-moe",
+ "note": "every rung is the same architecture; each was solved against its budget and validated by abstract evaluation; only the development member was trained",
+ "rungs": [
+  {
+   "active_parameters_per_token": 10898568,
+   "active_relative_deviation": 0.0898568,
+   "config_digest": "9eba5a5c4c5f918694ef20551266f3170dd2fd3276b677574234c35c8c4420ef",
+   "expert_hidden": 192,
+   "hidden_size": 512,
+   "meta_counts_equal": true,
+   "meta_validation": "PASS",
+   "num_experts": 16,
+   "num_heads": 8,
+   "num_layers": 8,
+   "rung": "50m",
+   "target": {
+    "active": 10000000,
+    "active_means": "estimated_total_active_parameters_per_token",
+    "active_range": [
+     7500000,
+     12500000
+    ],
+    "total": 50000000,
+    "total_means": "trainable_parameters",
+    "total_range": [
+     45000000,
+     55000000
+    ]
+   },
+   "top_k": 1,
+   "total_relative_deviation": -0.0636824,
+   "trainable_parameters": 46815880,
+   "trained": false,
+   "variant": "ladder-50m"
+  },
+  {
+   "active_parameters_per_token": 64993544,
+   "active_relative_deviation": 0.08322573333333333,
+   "config_digest": "acc8e895af848aa0d88f498c2b4d083ed41d9e21b792c1e1e6ee8b03a41c721a",
+   "expert_hidden": 384,
+   "hidden_size": 1024,
+   "meta_counts_equal": true,
+   "meta_validation": "PASS",
+   "num_experts": 16,
+   "num_heads": 16,
+   "num_layers": 12,
+   "rung": "300m",
+   "target": {
+    "active": 60000000,
+    "active_means": "estimated_total_active_parameters_per_token",
+    "active_range": [
+     45000000,
+     75000000
+    ],
+    "total": 300000000,
+    "total_means": "trainable_parameters",
+    "total_range": [
+     270000000,
+     330000000
+    ]
+   },
+   "top_k": 1,
+   "total_relative_deviation": -0.07204690666666666,
+   "trainable_parameters": 278385928,
+   "trained": false,
+   "variant": "ladder-300m"
+  },
+  {
+   "active_parameters_per_token": 208880392,
+   "active_relative_deviation": 0.04440196,
+   "config_digest": "4d04567567f85b16e480983956e8ecabba2910e1ade529966da3d67ebc9eeb92",
+   "expert_hidden": 384,
+   "hidden_size": 1536,
+   "meta_counts_equal": true,
+   "meta_validation": "PASS",
+   "num_experts": 32,
+   "num_heads": 12,
+   "num_layers": 16,
+   "rung": "1b",
+   "target": {
+    "active": 200000000,
+    "active_means": "estimated_total_active_parameters_per_token",
+    "active_range": [
+     150000000,
+     250000000
+    ],
+    "total": 1000000000,
+    "total_means": "trainable_parameters",
+    "total_range": [
+     900000000,
+     1100000000
+    ]
+   },
+   "top_k": 2,
+   "total_relative_deviation": 0.061383432,
+   "trainable_parameters": 1061383432,
+   "trained": false,
+   "variant": "ladder-1b"
+  },
+  {
+   "active_parameters_per_token": 1401685512,
+   "active_relative_deviation": 0.0012039371428571428,
+   "config_digest": "8aac85d3de256b48292e909632bb7ad129ccbde0994ae27251d583a99cae5923",
+   "expert_hidden": 640,
+   "hidden_size": 3072,
+   "meta_counts_equal": true,
+   "meta_validation": "PASS",
+   "num_experts": 32,
+   "num_heads": 24,
+   "num_layers": 32,
+   "rung": "7b",
+   "target": {
+    "active": 1400000000,
+    "active_means": "estimated_total_active_parameters_per_token",
+    "active_range": [
+     1050000000,
+     1750000000
+    ],
+    "total": 7000000000,
+    "total_means": "trainable_parameters",
+    "total_range": [
+     6300000000,
+     7700000000
+    ]
+   },
+   "top_k": 1,
+   "total_relative_deviation": 0.037906286857142854,
+   "trainable_parameters": 7265344008,
+   "trained": false,
+   "variant": "ladder-7b"
+  },
+  {
+   "active_parameters_per_token": 5780167176,
+   "active_relative_deviation": -0.036638804,
+   "config_digest": "23756f4acfa90f28632d9c0c2624430cd31179b9ae699a83cb0ba3ce0f47b610",
+   "expert_hidden": 896,
+   "hidden_size": 4096,
+   "meta_counts_equal": true,
+   "meta_validation": "PASS",
+   "num_experts": 64,
+   "num_heads": 32,
+   "num_layers": 40,
+   "rung": "30b",
+   "target": {
+    "active": 6000000000,
+    "active_means": "estimated_total_active_parameters_per_token",
+    "active_range": [
+     4500000000,
+     7500000000
+    ],
+    "total": 30000000000,
+    "total_means": "trainable_parameters",
+    "total_range": [
+     27000000000,
+     33000000000
+    ]
+   },
+   "top_k": 7,
+   "total_relative_deviation": 0.029996083466666667,
+   "trainable_parameters": 30899882504,
+   "trained": false,
+   "variant": "ladder-30b"
+  },
+  {
+   "active_parameters_per_token": 19504237576,
+   "active_relative_deviation": -0.0247881212,
+   "config_digest": "9fd19e0ed168bbbaa4bda54789ae6c8f66be605733915b78437e1a9905ef8970",
+   "expert_hidden": 1536,
+   "hidden_size": 6144,
+   "meta_counts_equal": true,
+   "meta_validation": "PASS",
+   "num_experts": 64,
+   "num_heads": 48,
+   "num_layers": 48,
+   "rung": "100b",
+   "target": {
+    "active": 20000000000,
+    "active_means": "estimated_total_active_parameters_per_token",
+    "active_range": [
+     15000000000,
+     25000000000
+    ],
+    "total": 100000000000,
+    "total_means": "trainable_parameters",
+    "total_range": [
+     90000000000,
+     110000000000
+    ]
+   },
+   "top_k": 9,
+   "total_relative_deviation": -0.05728056312,
+   "trainable_parameters": 94271943688,
+   "trained": false,
+   "variant": "ladder-100b"
+  },
+  {
+   "active_parameters_per_token": 57785360392,
+   "active_relative_deviation": -0.036910660133333335,
+   "config_digest": "24be43482695c46bca440052445eea23cb2d3cba838d94771fcf2d3e79ccc08a",
+   "expert_hidden": 3840,
+   "hidden_size": 7168,
+   "meta_counts_equal": true,
+   "meta_validation": "PASS",
+   "num_experts": 64,
+   "num_heads": 56,
+   "num_layers": 56,
+   "rung": "300b",
+   "target": {
+    "active": 60000000000,
+    "active_means": "estimated_total_active_parameters_per_token",
+    "active_range": [
+     45000000000,
+     75000000000
+    ],
+    "total": 300000000000,
+    "total_means": "trainable_parameters",
+    "total_range": [
+     270000000000,
+     330000000000
+    ]
+   },
+   "top_k": 10,
+   "total_relative_deviation": 0.02507553112,
+   "trainable_parameters": 307522659336,
+   "trained": false,
+   "variant": "ladder-300b"
+  },
+  {
+   "active_parameters_per_token": 200832889864,
+   "active_relative_deviation": 0.00416444932,
+   "config_digest": "64a47fd2cb3bd51552fd31b5983cbcdde1a2540b368f8d9f2faa30d0bc4ee40a",
+   "expert_hidden": 9728,
+   "hidden_size": 8192,
+   "meta_counts_equal": true,
+   "meta_validation": "PASS",
+   "num_experts": 64,
+   "num_heads": 64,
+   "num_layers": 64,
+   "rung": "1t",
+   "target": {
+    "active": 200000000000,
+    "active_means": "estimated_total_active_parameters_per_token",
+    "active_range": [
+     150000000000,
+     250000000000
+    ],
+    "total": 1000000000000,
+    "total_means": "trainable_parameters",
+    "total_range": [
+     950000000000,
+     1050000000000
+    ]
+   },
+   "top_k": 12,
+   "total_relative_deviation": -0.0034907822,
+   "trainable_parameters": 996509217800,
+   "trained": false,
+   "variant": "flagship-1t"
+  }
+ ],
+ "schema": "scientific-moe-family/1"
+}

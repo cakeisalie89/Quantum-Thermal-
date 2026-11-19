@@ -1,0 +1,114 @@
+{
+  "title": "The stress campaign's start line and its coverage measure",
+  "note": "D-2026-91. The six-process scheduler campaign is the test that found the retry-budget and reconcile races (X6, X10), and it is only as good as two instruments of its own: a start line that makes the race a race, and a measure of what the campaign exercised. SC1-SC7 attack the start line on both sides -- a worker that does not wait, or waits in name only; a parent that releases early or on the first arrival; a line that never fills, or a worker that died, reported as anything but what it is. CV1-CV5 attack the coverage measure: judged on EDGES out of DISPATCHED, never on destination labels, never by repetition, never on another machine's records. SF1-SF3 attack the order and content of the safety judgement, which runs before any vacuity verdict so a thin run can never hide an unsafe one.",
+  "suites": [
+    "tests/test_agent_cross_process.py"
+  ],
+  "mutations": [
+    {
+      "name": "SC1_the_stress_worker_skips_the_start_line",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    rng = random.Random(seed)\n    _wait_for_start(go)\n    done = refused = 0\n",
+      "replace": "    rng = random.Random(seed)\n    done = refused = 0\n",
+      "rationale": "the campaign worker neither announces nor waits, so the campaign's concurrency is whatever overlap spawn timing leaves -- the defect D-2026-91 records"
+    },
+    {
+      "name": "SC2_the_stress_worker_announces_but_does_not_wait",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    rng = random.Random(seed)\n    _wait_for_start(go)\n    done = refused = 0\n",
+      "replace": "    rng = random.Random(seed)\n    Path(f\"{go}.ready\").mkdir(exist_ok=True)\n    (Path(f\"{go}.ready\") / uuid.uuid4().hex).write_text(\"\", encoding=\"utf-8\")\n    done = refused = 0\n",
+      "rationale": "a bypass that fills the line without honouring it: the worker says it is at the line and starts at once"
+    },
+    {
+      "name": "SC3_the_parent_releases_without_waiting",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "        _line_up(tmp_path, min(len(args), procs), pending)\n",
+      "replace": "        _release(tmp_path)\n",
+      "rationale": "the release no longer waits for anyone, which is the old timed line with the timer set to zero"
+    },
+    {
+      "name": "SC4_the_line_fills_at_the_first_arrival",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    while _arrivals(tmp_path) < expected:\n",
+      "replace": "    while _arrivals(tmp_path) < 1:\n",
+      "rationale": "one arrival releases everyone, so the late workers find the race already under way"
+    },
+    {
+      "name": "SC5_a_worker_never_announces",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    (arrived / uuid.uuid4().hex).write_text(\"\", encoding=\"utf-8\")\n",
+      "replace": "    arrived.stat()\n",
+      "rationale": "the announcement half of the line is gone; a line that never fills must fail, not start"
+    },
+    {
+      "name": "SC6_a_line_that_never_fills_starts_anyway",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "        if time.monotonic() > deadline:\n            raise AssertionError(\n                f\"{_arrivals(tmp_path)} of {expected} workers reached the \"\n                f\"start line within {START_TIMEOUT_S} s\")\n",
+      "replace": "        if time.monotonic() > deadline:\n            break\n",
+      "rationale": "giving up releases whoever turned up -- a sequential race reported as a concurrent one"
+    },
+    {
+      "name": "SC7_a_worker_that_died_early_is_hidden",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "            if result.ready():\n                result.get()\n",
+      "replace": "            if result.ready():\n                pass\n",
+      "rationale": "a worker that died before the line surfaces only as a line that never filled, not as its own error"
+    },
+    {
+      "name": "CV1_no_way_off_the_ordinary_path_is_required",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    if not seen & RECOVERY_EDGES:\n",
+      "replace": "    if False:\n",
+      "rationale": "a campaign of enqueue, dispatch and success alone passes as exercising contention"
+    },
+    {
+      "name": "CV2_any_event_type_counts_as_scheduler_coverage",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    return Counter((e.payload[\"src\"], e.payload[\"dst\"]) for e in events\n                   if e.action == ACT_JOB_TRANSITION)\n",
+      "replace": "    return Counter((e.payload.get(\"src\"), e.payload.get(\"dst\"))\n                   for e in events)\n",
+      "rationale": "a task or authority record shaped like a requeue is counted as one"
+    },
+    {
+      "name": "CV3_labels_not_edges",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    if not seen & RECOVERY_EDGES:\n",
+      "replace": "    if not {d for _, d in seen} & {d for _, d in RECOVERY_EDGES}:\n",
+      "rationale": "coverage judged on destination labels again -- the measurement D-2026-91 replaced, inverted: READY reached on the ordinary path now passes for a requeue"
+    },
+    {
+      "name": "CV4_repetition_counts_as_diversity",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    if not seen & RECOVERY_EDGES:\n",
+      "replace": "    if sum(edges.values()) < 3:\n",
+      "rationale": "the ordinary path taken often enough passes for recovery"
+    },
+    {
+      "name": "CV5_the_ordinary_path_is_not_required",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    problems = [f\"never recorded {src} -> {dst}\"\n                for src, dst in ORDINARY_EDGES if (src, dst) not in seen]\n",
+      "replace": "    problems = []\n",
+      "rationale": "a campaign that never dispatched or never succeeded is judged only on its failures"
+    },
+    {
+      "name": "SF1_vacuity_is_judged_before_safety",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "    unsafe = _safety_problems(jobs)\n    assert not unsafe, \"UNSAFE: \" + \"; \".join(unsafe)\n    # ANTI-VACUITY. Most operations are legitimately refused -- a dispatch\n    # of a job somebody else is running, a renewal of a lease that lapsed --\n    # so a ratio would be an arbitrary line. What must be true is that the\n    # campaign happened: every worker got work in, the log grew, and the\n    # queue took the ordinary path AND a way off it.\n    assert all(d > 0 for d in per_worker.values()), (\n        f\"VACUOUS: a worker recorded nothing at all: {per_worker}\")\n    assert records > len(per_worker) * 10, (\n        f\"VACUOUS: the log grew by only {records} records under \"\n        f\"{attempted} attempted operations\")\n    thin = _coverage_problems(edges)\n    assert not thin, \"VACUOUS: \" + \"; \".join(thin)\n",
+      "replace": "    # ANTI-VACUITY. Most operations are legitimately refused -- a dispatch\n    # of a job somebody else is running, a renewal of a lease that lapsed --\n    # so a ratio would be an arbitrary line. What must be true is that the\n    # campaign happened: every worker got work in, the log grew, and the\n    # queue took the ordinary path AND a way off it.\n    assert all(d > 0 for d in per_worker.values()), (\n        f\"VACUOUS: a worker recorded nothing at all: {per_worker}\")\n    assert records > len(per_worker) * 10, (\n        f\"VACUOUS: the log grew by only {records} records under \"\n        f\"{attempted} attempted operations\")\n    thin = _coverage_problems(edges)\n    assert not thin, \"VACUOUS: \" + \"; \".join(thin)\n    unsafe = _safety_problems(jobs)\n    assert not unsafe, \"UNSAFE: \" + \"; \".join(unsafe)\n",
+      "rationale": "the old order: a history that is both unsafe and thin is reported as thin, and the budget violation goes unsaid"
+    },
+    {
+      "name": "SF2_the_retry_budget_is_not_checked",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "        if job.attempts > job.max_attempts:\n",
+      "replace": "        if False:\n",
+      "rationale": "the campaign stops checking the property that found X6 -- a job attempted past its budget"
+    },
+    {
+      "name": "SF3_a_holderless_dispatch_is_accepted",
+      "path": "tests/test_agent_cross_process.py",
+      "find": "        if job.state is JobState.DISPATCHED and not job.lease_holder:\n",
+      "replace": "        if False:\n",
+      "rationale": "a DISPATCHED job with no lease holder -- a lease nobody owns -- is accepted"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+ "title": "An error budget says what each contribution rests on, and the slab's is the one the tool derives",
+ "note": "Part VI, item 20. Each mutation removes one rule of scientific/uncertainty.py or of the slab demonstration (tools/slab_uq.py): the refusal of a number for what nothing establishes, the measurement replacing its estimate, the comparison of the two propagations, the estimate held to its reference, the Monte Carlo's spread, the linear variance's units, the measurement's independence from the estimate. tests/test_slab_uq.py holds each, beside a negative control.",
+ "suites": [
+  "tests/test_slab_uq.py"
+ ],
+ "mutations": [
+  {
+   "name": "SU1_a_number_for_what_nothing_establishes",
+   "path": "scientific/uncertainty.py",
+   "find": "        if (self.basis == NOT_ESTABLISHED) != (self.half_width is None):",
+   "replace": "        if False:",
+   "rationale": "a contribution nothing establishes carries a number, which a reader takes for one"
+  },
+  {
+   "name": "SU2_an_estimate_is_kept_beside_its_measurement",
+   "path": "scientific/uncertainty.py",
+   "find": "        replaced = {c.supersedes for c in self.contributions if c.supersedes}",
+   "replace": "        replaced: set = set()",
+   "rationale": "the discretization is counted twice, as estimated and as measured"
+  },
+  {
+   "name": "SU3_the_propagations_always_agree",
+   "path": "scientific/uncertainty.py",
+   "find": "    agree = gap <= AGREEMENT_SE * se",
+   "replace": "    agree = True",
+   "rationale": "a response far from linear is reported as linear"
+  },
+  {
+   "name": "SU4_the_estimate_always_covers",
+   "path": "scientific/uncertainty.py",
+   "find": "    holds = measured <= estimate",
+   "replace": "    holds = True",
+   "rationale": "an estimate a reference contradicts is reported as covering it"
+  },
+  {
+   "name": "SU5_the_monte_carlo_ignores_the_spread",
+   "path": "scientific/uncertainty.py",
+   "find": "            p[k] = rng.gauss(float(base[k]), inputs[k].sigma)",
+   "replace": "            p[k] = float(base[k])",
+   "rationale": "the Monte Carlo samples one point, and its interval is the point"
+  },
+  {
+   "name": "SU6_linear_propagation_drops_the_sigma",
+   "path": "scientific/uncertainty.py",
+   "find": "        part = (c * inputs[k].sigma) ** 2",
+   "replace": "        part = c ** 2",
+   "rationale": "the linear variance is a sum of squared coefficients, in the wrong units"
+  },
+  {
+   "name": "SU7_the_measurement_is_the_estimate_again",
+   "path": "tools/slab_uq.py",
+   "find": "    measured = abs(out.value - reference)",
+   "replace": "    measured = out.resolution",
+   "rationale": "the discretization is 'measured' by repeating the model's own estimate"
+  },
+  {
+   "name": "SU8_a_measurement_replaces_anything",
+   "path": "scientific/uncertainty.py",
+   "find": "        if c.supersedes is not None and not any(\n                x.name == c.supersedes and x.basis == ESTIMATED",
+   "replace": "        if False and not any(\n                x.name == c.supersedes and x.basis == ESTIMATED",
+   "rationale": "a measurement replaces an assumed or another measured contribution in the total"
+  }
+ ]
+}

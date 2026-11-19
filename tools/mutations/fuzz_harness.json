@@ -1,0 +1,72 @@
+{
+  "title": "The fuzz harness's own guarantees",
+  "note": "R50 said the harness had no mutation matrix, unlike everything it tests. That matters more here than almost anywhere else: a fuzzer reports the same sentence -- no findings -- whether it exercised the whole package or nothing at all, so every guard that distinguishes those two is load-bearing and invisible. Z1-Z3 attack the refusal/finding distinction the harness rests on: a widened refusal set, a swallowed crash, a hang counted as a pass. Z4-Z6 attack the anti-vacuity machinery: the coverage floor that must FAIL rather than report, the feedback that must keep the declared seeds in play, and the sequence target's replay check which must sit outside the loop that tolerates refusals. Z7 attacks reproducibility, without which a finding is a rumour.",
+  "suites": [
+    "tests/test_agent_fuzz.py"
+  ],
+  "mutations": [
+    {
+      "name": "Z1_a_crash_is_reported_as_a_refusal",
+      "path": "tools/fuzz_substrate.py",
+      "find": "    except BaseException as exc:                    # noqa: BLE001 - the point\n        return {\"target\": name, \"kind\": CRASHED,",
+      "replace": "    except BaseException as exc:                    # noqa: BLE001 - the point\n        return None\n        return {\"target\": name, \"kind\": CRASHED,",
+      "rationale": "every undeclared exception becomes a correctly refused case, so the campaign finds nothing by definition and says so in the same words it uses when it finds nothing honestly"
+    },
+    {
+      "name": "Z2_a_hang_is_not_distinguished_from_a_pass",
+      "path": "tools/fuzz_substrate.py",
+      "find": "    except Hung as exc:\n        return {\"target\": name, \"kind\": HUNG, \"detail\": str(exc),",
+      "replace": "    except Hung as exc:\n        return None\n        return {\"target\": name, \"kind\": HUNG, \"detail\": str(exc),",
+      "rationale": "a parser that never returns on attacker-controlled input is the one failure a timeout-based harness exists to see, and it becomes indistinguishable from a clean run"
+    },
+    {
+      "name": "Z3_a_recursion_bound_is_treated_as_the_parser_s_own",
+      "path": "tools/fuzz_substrate.py",
+      "find": "    except RecursionError:",
+      "replace": "    except (RecursionError, AssertionError):",
+      "rationale": "the sequence target signals a broken invariant with AssertionError, and this reclassifies it as a note about interpreter nesting -- a finding filed under the wrong heading is a finding nobody reads"
+    },
+    {
+      "name": "Z4_the_coverage_floor_reports_but_does_not_fail",
+      "path": "tools/fuzz_substrate.py",
+      "find": "        if args.min_lines and stats[\"lines_reached\"] < args.min_lines:",
+      "replace": "        if False:",
+      "rationale": "the campaign prints how little it reached and exits zero, which is exactly the shape of every check that stopped checking"
+    },
+    {
+      "name": "Z5_the_feedback_corpus_dilutes_the_declared_seeds",
+      "path": "tools/fuzz_substrate.py",
+      "find": "            if corpus[name] and rng.random() >= SEED_SHARE:",
+      "replace": "            if corpus[name]:",
+      "rationale": "the first version of the feedback did exactly this: within a few hundred cases a valid record was the parent two per cent of the time, every case mutated something already broken, and coverage went DOWN"
+    },
+    {
+      "name": "Z6_the_sequence_target_stops_replaying_what_it_built",
+      "path": "tools/fuzz_substrate.py",
+      "find": "    report = EventLog(path).verify()\n    if not report.ok:\n        raise AssertionError(",
+      "replace": "    report = EventLog(path).verify()\n    if False:\n        raise AssertionError(",
+      "rationale": "a sequence of individually-refused operations can leave a perfect hash chain nobody can replay, and this is the check that would notice"
+    },
+    {
+      "name": "Z7_the_second_reader_is_not_consulted_after_a_sequence",
+      "path": "tools/fuzz_substrate.py",
+      "find": "    differences = compare(rebuilt_store, reconstruct(fresh_log))\n    if differences:",
+      "replace": "    differences = compare(rebuilt_store, reconstruct(fresh_log))\n    if False:",
+      "rationale": "the two readers agreeing is what makes a rebuilt projection evidence rather than an assertion, and a sequence that made them diverge would pass"
+    },
+    {
+      "name": "Z8_the_campaign_is_not_reproducible_from_its_seed",
+      "path": "tools/fuzz_substrate.py",
+      "find": "    rng = random.Random(seed)\n    targets = _targets()",
+      "replace": "    rng = random.Random()\n    targets = _targets()",
+      "rationale": "a finding nobody can reproduce is a rumour, and a campaign that cannot be re-run at the same seed cannot be bisected against a change"
+    },
+    {
+      "name": "Z9_the_input_bound_is_removed",
+      "path": "tools/fuzz_substrate.py",
+      "find": "    return bytes(data[:MAX_INPUT_BYTES])",
+      "replace": "    return bytes(data)",
+      "rationale": "an unbounded mutation makes case cost unbounded, so the campaign's wall time depends on its own luck and a slow run is indistinguishable from a hang"
+    }
+  ]
+}

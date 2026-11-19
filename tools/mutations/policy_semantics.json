@@ -1,0 +1,100 @@
+{
+ "title": "Policy semantics: the engine, an independent reference model and the replay verifier agree",
+ "note": "Section 6.2 (D-2026-172). The engine half is killed by the comparison with a reference written from the stated semantics (Cedar-shaped: permit and forbid sets, forbid overrides, default deny), the second-reader half by the replay comparison and the forged-verdict cases. tests/test_policy_semantics.py holds each. The reference is test-only; nothing at runtime calls it.",
+ "suites": [
+  "tests/test_policy_semantics.py"
+ ],
+ "mutations": [
+  {
+   "name": "PS1_the_first_match_decides",
+   "path": "agent_substrate/policy.py",
+   "find": "        if denies:\n            r = denies[0]",
+   "replace": "        if denies and matched[0].effect is Effect.DENY:\n            r = denies[0]",
+   "rationale": "6.2: an ALLOW listed before a DENY overrides it -- first-match, not deny-overrides"
+  },
+  {
+   "name": "PS2_the_last_deny_decides",
+   "path": "agent_substrate/policy.py",
+   "find": "            r = denies[0]",
+   "replace": "            r = denies[-1]",
+   "rationale": "6.2: the determining forbid is not the first in document order"
+  },
+  {
+   "name": "PS3_obligations_of_the_deciding_allow_only",
+   "path": "agent_substrate/policy.py",
+   "find": "            attached = sorted({o for a in allows for o in a.obligations})",
+   "replace": "            attached = sorted(set(r.obligations))",
+   "rationale": "6.2: a broad grant listed first drops a narrower grant's obligations"
+  },
+  {
+   "name": "PS4_a_wildcard_request_matches_everything",
+   "path": "agent_substrate/policy.py",
+   "find": "    return ANY in allowed or value in allowed",
+   "replace": "    return ANY in allowed or value in allowed or value == ANY",
+   "rationale": "6.2: a request that names '*' is granted what no rule spelled out"
+  },
+  {
+   "name": "PS5_a_rule_ignores_the_resource",
+   "path": "agent_substrate/policy.py",
+   "find": "                and _hit(self.roles, req.role)\n                and _hit(self.resources, req.resource))",
+   "replace": "                and _hit(self.roles, req.role))",
+   "rationale": "6.2: a rule scoped to one resource holds of every resource"
+  },
+  {
+   "name": "PS6_the_second_reader_trusts_the_verdict",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if got != want:\n            _note(out, ev, f\"a decision the rules of {pid!r} do not give: \"",
+   "replace": "        if False:\n            _note(out, ev, f\"a decision the rules of {pid!r} do not give: \"",
+   "rationale": "6.2: a verdict the rules do not give passes the independent reader"
+  },
+  {
+   "name": "PS7_the_second_reader_forgets_the_wildcard",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        return all(\"*\" in (r.get(f) or ()) or req.get(k) in (r.get(f) or ())",
+   "replace": "        return all(req.get(k) in (r.get(f) or ())",
+   "rationale": "6.2: honest decisions under '*' rules are reported as forgeries"
+  },
+  {
+   "name": "PS8_the_second_reader_lets_the_first_match_decide",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    deny = next((r for r in held if r.get(\"effect\") == \"DENY\"), None)",
+   "replace": "    deny = next((r for r in held[:1] if r.get(\"effect\") == \"DENY\"), None)",
+   "rationale": "6.2: the restatement is first-match, the engine deny-overrides"
+  },
+  {
+   "name": "PS9_the_second_reader_names_the_last_deny",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    deny = next((r for r in held if r.get(\"effect\") == \"DENY\"), None)",
+   "replace": "    deny = next((r for r in reversed(held) if r.get(\"effect\") == \"DENY\"), None)",
+   "rationale": "6.2: the restated determining forbid is the last, not the first"
+  },
+  {
+   "name": "PS10_the_second_reader_takes_one_allow_s_obligations",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "                sorted({o for r in allow for o in r.get(\"obligations\") or ()}))",
+   "replace": "                sorted(set(allow[0].get(\"obligations\") or ())))",
+   "rationale": "6.2: the restated obligations are the deciding rule's alone"
+  },
+  {
+   "name": "PS11_the_second_reader_ignores_the_resource",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "                                (\"subjects\", \"subject\"), (\"roles\", \"role\"),\n                                (\"resources\", \"resource\")))",
+   "replace": "                                (\"subjects\", \"subject\"), (\"roles\", \"role\")))",
+   "rationale": "6.2: the restatement drops a field the engine conjoins"
+  },
+  {
+   "name": "PS12_the_second_reader_judges_under_the_first_version",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        want = _sub_policy_verdict(versions[-1].get(\"rules\") or [],",
+   "replace": "        want = _sub_policy_verdict(versions[0].get(\"rules\") or [],",
+   "rationale": "6.2: a decision is restated under superseded rules"
+  },
+  {
+   "name": "PS13_the_second_reader_allows_by_default",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    return (False, \"DENY\", None, [])\n\n\ndef _sub_capability_root",
+   "replace": "    return (True, \"ALLOW\", None, [])\n\n\ndef _sub_capability_root",
+   "rationale": "6.2: the restated default is allow"
+  }
+ ]
+}

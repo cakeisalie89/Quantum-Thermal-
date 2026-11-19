@@ -1,36 +1,29 @@
-# QTA Authorities — Single Sources of Truth
+# Authorities -- single sources of truth
 
-MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+`authorities.json` is the machine-readable registry: every governed concept of
+the harness, the one executable authority for it, what that authority means
+and does not mean, and the tests that hold it. Code is the authority;
+documentation mirrors it and never overrides it. A concept with two sources
+is a conflict to resolve, not a choice (`authorities.json ->
+competing_sources_record`, empty today).
 
-`authorities.json` (schema 1.0) is the machine-readable registry mapping every
-governed concept to its one executable authority, its owner, its schema
-version, and its consumers. Rule: code is the authority; documentation mirrors
-code and never overrides it; canonical outputs live at the repository root and
-are byte-gated against regeneration by the package consistency checker.
-
-| Concept | Authority (owner) |
-|---|---|
-| Modes & species permissions | `qta_multiphysics/mode_sequence_3d.py` (CANONICAL_ACTIVE / RESIDUAL_ONLY / validators) |
-| States, transitions, interlocks, switches/valves/shutters | `qta_multiphysics/machine_fsm.py` (32 states, 38+8 transitions, 18 interlocks over 13 hardware axes) |
-| Per-mode device states | `qta_multiphysics/state_machine_3d.py` |
-| Units & physical parameters | `qta_multiphysics/config.py` (SI, validated) + provenance JSONs |
-| Solver profiles & tolerances | `SolverConfig` + `qta_full_sim.py` profiles (default / --ci / --deep / --heavy-3d) |
-| Meshes | `runner_3d.py` (CI 10×10×12; heavy 16×16×20) + `convergence_3d.py` (refined 14×14×18) |
-| Seeds & MC counts | `qta_full_sim.py` (42; N=10000/5000; mc_samples=30) + `uncertainty.py` (12345; n=120) |
-| Gates (83; PASS=0) | `metrics.py` + `qta_full_sim.py` → `results_gate_table.csv` |
-| Schemas | `deep_design_schema.json`, `deep_parameter_schema.json`, ledger vocabulary in `coupling_ledger_3d.py` |
-| Canonical output paths | repo root, enumerated by `final_manifest.json`, byte-gated by checker Step 2b |
-| Claim-boundary wording | `CLAIMS_BOUNDARY.md` + the MODEL_ONLY/FORECAST_ONLY label + per-record claim fields (checker-enforced) |
-| Provenance | `final_manifest.json` + `manifest_hash.txt` (generator `generate_manifest.py`; coverage = every git-tracked file minus the two detached, see `MANIFEST_BOUNDARY.md`. Hashing a file records its bytes, it does not make the file authoritative — this table does that) |
-| Cryopanel dynamics (Stage 2) | `qta_multiphysics/cryopanel_dynamics_3d.py` (ASSUMED sticking; PLACEHOLDER capacity) |
-| Campaign continuity (Stage 2) | `qta_multiphysics/campaign_state_3d.py` (schema 1.0; separate API) |
-| Campaign uncertainty (Stage 3) | `qta_multiphysics/campaign_uncertainty_3d.py` (seed 20260717; verified-source distributions; exclusions recorded) |
-| Measurement ingestion (Stage 4) | `qta_multiphysics/measurement_ingest_3d.py` (SYNTHETIC-only; read-only; fail-closed; never a gate input) |
-| Hardware governance (Stage 5) | `qta_multiphysics/hardware_governance_3d.py` (quarantine/dossier/audit-chain; human-only review; automatic_gate_effect=NONE) |
-| Validation roadmap (Stage 6) | registries + playbooks + schemas (planning only; 25/25 gates; automatic_gate_effect=NONE) |
-| Scientific-stack adoption (Stage 10) | `STACK.md` + `stack.json` (schema 1.0.0) — ADOPTED / STAGED / DEFERRED per element; implemented in `qta_multiphysics/stack/` (additive, workspace-only, automatic_gate_effect=NONE) |
-
-Competing sources are never resolved silently: see
-`authorities.json → competing_sources_record` (two historical entries, both
-resolved with evidence and recorded numerical consequences; the unresolved
-list is empty).
+| Concept | Authority | What it answers |
+|---|---|---|
+| event history | `agent_substrate/events.py` | what happened, in order, tamper-evident: every other state below is a projection of it |
+| authority fsm | `agent_substrate/authority.py` | which claims are PROPOSED, VERIFIED, PROMOTED or withdrawn, and who moved them |
+| scientific admission | `agent_substrate/result_rules.py` | that a scientific_result's evidence -- a PASS from an independent implementation about this exact bundle, captured by governed tasks -- supports VERIFIED or PRO |
+| task fsm | `agent_substrate/tasks.py` | whether a governed tool run was executed under lease and verified by an actor other than its executor |
+| scheduler fsm | `agent_substrate/scheduler.py` | which work is ready, running, finished or failed, across process deaths |
+| memory fsm | `agent_substrate/memory.py` | what an agent was told and still holds |
+| evidence store | `agent_substrate/evidence.py` | the exact bytes a cited digest names (artifact integrity) |
+| model registry | `scientific/registry.py` | which models exist, at which version, with which declared inputs |
+| scientific result schema | `scientific/result.py` | what a model run produced, with its invariants, provenance and run identity |
+| verification schema | `scientific/verification.py` | what a bounded check established, and how independent it was |
+| observation schema | `scientific/observation.py` | what kind of thing a value is -- raw, processed, synthetic, simulated, derived, calibrated -- and what it may be derived from |
+| run identity | `scientific/run_identity.py` | what counts as 'the same run' for reuse: a RESOLVED backend, identical in every recorded part (D-2026-94) |
+| claims boundary | `CLAIMS_BOUNDARY.md (prose) + docs/claims_boundary.json + tools/claims_enforcement.py` | which kinds of result may never be presented as which others |
+| release trust policy | `docs/supply_chain_ci_policy.json + tools/supply_chain.py` | who built which bytes in CI, and that they are the bytes signed |
+| provenance records | `final_manifest.json (every git-tracked file except the two detached ones, per-file SHA-256) + manifest_hash.txt (detached SHA-256 of the manifest); generator generate_manifest.py (reads the git index). The file count is not restated here: it is whatever the git index holds, and generate_manifest.py --check is the authority on membership.` | these bytes were present at this SHA-256 |
+| scientific stack adoption | `STACK.md (narrative) + stack.json (machine-readable, schema 2.0.0, validated by tools/stack_registry.py)` | additive and workspace-only: no scientific model imports an integration, every writer refuses to write outside verification/, authority_effect=NONE, and the tre |
+| agent authority substrate | `agent_substrate/authority.py` | Enforcement is verified by mutation testing rather than by coverage: each check is deleted in turn and the suite must fail. tools/mutation_matrix.py exits non-z |
+| repository content | `tools/repo_content_audit.py + docs/repo_content_audit.json` | that no tracked file carries the retired hardware programme -- its paths, imports, gate dependencies or vocabulary -- and that every baseline file is classified |

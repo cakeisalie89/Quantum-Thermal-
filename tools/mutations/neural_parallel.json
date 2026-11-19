@@ -1,0 +1,44 @@
+{
+ "title": "Distributed software readiness on simulated devices (NF-1T)",
+ "note": "NP1-NP5: the expert-parallel dispatch regrouped wrongly, a plan whose experts or layers do not divide accepted, a simulated profile allowed to claim hardware, data-parallel ranks given the same samples.",
+ "suites": [
+  "tests/test_neural_distributed.py"
+ ],
+ "mutations": [
+  {
+   "name": "NP1_dispatch_regrouped",
+   "path": "scientific_ai/neural/model/parallel.py",
+   "find": "        recv = recv.reshape(ep, e // ep, cap, d).transpose(1, 0, 2, 3) \\\n",
+   "replace": "        recv = recv.reshape(e // ep, ep, cap, d).transpose(0, 1, 2, 3) \\\n",
+   "rationale": "tokens delivered to the wrong local experts"
+  },
+  {
+   "name": "NP2_experts_need_not_divide",
+   "path": "scientific_ai/neural/model/parallel.py",
+   "find": "        if cfg.moe is not None and cfg.moe.num_experts % s[\"expert\"]:\n",
+   "replace": "        if False:\n",
+   "rationale": "64 experts accepted over 24 devices"
+  },
+  {
+   "name": "NP3_simulation_claims_hardware",
+   "path": "scientific_ai/neural/model/parallel.py",
+   "find": "        if self.kind in (\"CPU_DEVELOPMENT\", \"SIMULATED_MULTI_DEVICE\") and \\\n",
+   "replace": "        if False and \\\n",
+   "rationale": "eight CPU devices reported as a hardware execution"
+  },
+  {
+   "name": "NP4_ranks_share_samples",
+   "path": "scientific_ai/neural/model/parallel.py",
+   "find": "    return np.asarray(epoch_order[:usable]).reshape(-1, world)[:, rank]\n",
+   "replace": "    return np.asarray(epoch_order[:usable]).reshape(-1, world)[:, 0]\n",
+   "rationale": "every rank reads rank 0's share"
+  },
+  {
+   "name": "NP5_layers_need_not_divide",
+   "path": "scientific_ai/neural/model/parallel.py",
+   "find": "        if cfg.num_layers % s[\"pipeline\"]:\n",
+   "replace": "        if False:\n",
+   "rationale": "64 layers accepted into 24 pipeline stages"
+  }
+ ]
+}

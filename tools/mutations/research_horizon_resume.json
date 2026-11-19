@@ -1,0 +1,86 @@
+{
+ "title": "AUD-013: a campaign resumed after its process dies reaches what an uninterrupted one reaches",
+ "note": "Each mutation removes one part of the long-horizon campaign's resumption: the check that the log still holds the position the state names, the lock, finishing the objective in flight, counting what the dead process finished, skipping what was measured or withdrawn, keeping the world, and counting the restart. tests/test_research_horizon_resume.py kills the campaign's process at each point and resumes it in a new one.",
+ "suites": [
+  "tests/test_research_horizon_resume.py"
+ ],
+ "mutations": [
+  {
+   "name": "RHR1_a_rolled_back_history_is_resumed",
+   "path": "tools/research_horizon.py",
+   "find": "        if seq >= 0 and (seq >= len(events) or events[seq].hash != digest):",
+   "replace": "        if False:",
+   "rationale": "AUD-013: a campaign resumes over a log restored from an earlier copy and reports work the history does not show"
+  },
+  {
+   "name": "RHR2_two_processes_drive_one_campaign",
+   "path": "tools/research_horizon.py",
+   "find": "        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)",
+   "replace": "        pass",
+   "rationale": "AUD-013: a second process resumes a campaign a live one holds, and each counts the other's work"
+  },
+  {
+   "name": "RHR3_the_objective_in_flight_is_left_open",
+   "path": "tools/research_horizon.py",
+   "find": "            if found == \"OPEN\":\n                try:\n                    self.controller().run(oid)",
+   "replace": "            if False:\n                try:\n                    self.controller().run(oid)",
+   "rationale": "AUD-013: the objective the dead process was driving is never finished"
+  },
+  {
+   "name": "RHR4_an_objective_the_dead_process_finished_is_not_counted",
+   "path": "tools/research_horizon.py",
+   "find": "            else:\n                self.resets += 1",
+   "replace": "            else:\n                pass",
+   "rationale": "AUD-013: an objective finished before the process died is missing from the controllers counted"
+  },
+  {
+   "name": "RHR5_a_measured_stage_is_measured_again",
+   "path": "tools/research_horizon.py",
+   "find": "            if target in measured:\n                continue",
+   "replace": "            if False:\n                continue",
+   "rationale": "AUD-013: a resumed campaign reports a stage twice"
+  },
+  {
+   "name": "RHR6_a_recorded_withdrawal_is_attempted_again",
+   "path": "tools/research_horizon.py",
+   "find": "            if target in invalidate_at and target not in self.invalidated:",
+   "replace": "            if target in invalidate_at:",
+   "rationale": "AUD-013: a stage boundary's withdrawal, already recorded, is made again on resume"
+  },
+  {
+   "name": "RHR7_a_withdrawn_task_is_withdrawn_again",
+   "path": "tools/research_horizon.py",
+   "find": "        if gov.projection().tasks[task].state.value == \"INVALIDATED\":",
+   "replace": "        if False:",
+   "rationale": "AUD-013: a withdrawal the dead process made and did not record is repeated, and refused"
+  },
+  {
+   "name": "RHR8_the_world_is_rebuilt_on_resume",
+   "path": "tools/adversarial_eval.py",
+   "find": "        if resume:\n            # The world a stopped process left",
+   "replace": "        if False:\n            # The world a stopped process left",
+   "rationale": "AUD-013: resuming deletes the world the stopped process left, as every run used to"
+  },
+  {
+   "name": "RHR9_a_process_restart_is_not_counted",
+   "path": "tools/research_horizon.py",
+   "find": "        self.process_restarts = c[\"process_restarts\"] + 1",
+   "replace": "        self.process_restarts = c[\"process_restarts\"]",
+   "rationale": "AUD-013: a resumption of the campaign itself is not counted, so it reads as one uninterrupted run"
+  },
+  {
+   "name": "RHR10_nothing_is_saved_before_an_objective",
+   "path": "tools/research_horizon.py",
+   "find": "                # durable before the next objective: what is done, at the\n                # position it was done by\n                self._save((events[-1].seq, events[-1].hash))",
+   "replace": "                # durable before the next objective: what is done, at the\n                # position it was done by\n                pass",
+   "rationale": "AUD-013: a process that dies deep in a stage leaves no state, or one more than an objective behind the log"
+  },
+  {
+   "name": "RHR11_the_resume_counts_from_the_state_not_the_log",
+   "path": "tools/research_horizon.py",
+   "find": "        self.objectives = len(registered)",
+   "replace": "        self.objectives = done",
+   "rationale": "AUD-013: an objective the log registered after the last save is registered again under the same id"
+  }
+ ]
+}

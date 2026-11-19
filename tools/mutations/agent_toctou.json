@@ -1,0 +1,74 @@
+{
+ "title": "Writers decide under the writer lock, against the history they append onto",
+ "note": "D-2026-147. The agent directory and the memory store checked their rules against the projection they had loaded and appended outside the writer lock, so an honest race wrote a history the reducer refuses forever. Each mutation puts one decision back outside the lock or deletes one write-path restatement of a replay rule; tests/test_agent_toctou.py races two projections of one log (and two processes on a barrier) and requires the loser refused and the log loadable.",
+ "suites": [
+  "tests/test_agent_toctou.py",
+  "tests/test_agent_agents.py",
+  "tests/test_agent_memory.py"
+ ],
+ "mutations": [
+  {
+   "name": "T1_the_directory_decides_against_its_loaded_view",
+   "path": "agent_substrate/agents.py",
+   "find": "        def under_lock(head_seq):\n            self._fold_new()\n            return decide()",
+   "replace": "        kwargs = decide()\n\n        def under_lock(head_seq):\n            return kwargs",
+   "rationale": "D-2026-147: the directory's checks run against the projection it loaded, so a second answer from a stale view is written and the history no longer loads"
+  },
+  {
+   "name": "T2_the_directory_catch_up_folds_nothing_new",
+   "path": "agent_substrate/agents.py",
+   "find": "                for ev in events:\n                    if ev.seq > self._folded_through:\n                        self.apply(ev)\n                return",
+   "replace": "                return",
+   "rationale": "D-2026-147: the anchored catch-up reads what others appended and folds none of it, so the decision is again made against a stale view"
+  },
+  {
+   "name": "T3_a_retired_principal_answers_at_write_time",
+   "path": "agent_substrate/agents.py",
+   "find": "            if not ident.is_active(self._folded_through + 1):",
+   "replace": "            if False:",
+   "rationale": "D-2026-147: the write path lets a principal retired meanwhile answer; the replay refuses it, and the log stops loading"
+  },
+  {
+   "name": "T4_a_second_registration_is_written",
+   "path": "agent_substrate/agents.py",
+   "find": "            if ident.instance_id in self._identities:\n                raise IdentityError(\n                    f\"instance {ident.instance_id!r} is already registered; \"",
+   "replace": "            if False:\n                raise IdentityError(\n                    f\"instance {ident.instance_id!r} is already registered; \"",
+   "rationale": "D-2026-147: two registrations of one instance are both written; the replay refuses the second"
+  },
+  {
+   "name": "T5_a_second_escalation_with_one_id_is_written",
+   "path": "agent_substrate/agents.py",
+   "find": "            if escalation_id in self._escalations:",
+   "replace": "            if False:",
+   "rationale": "D-2026-147: two escalations with one id are both written; the replay refuses the second"
+  },
+  {
+   "name": "T6_a_second_claim_with_one_id_is_written",
+   "path": "agent_substrate/agents.py",
+   "find": "            if claim_id in self._claims:",
+   "replace": "            if False:",
+   "rationale": "D-2026-147: two claims with one id are both written; the replay refuses the second"
+  },
+  {
+   "name": "T7_memory_decides_against_its_loaded_view",
+   "path": "agent_substrate/memory.py",
+   "find": "        def under_lock(head_seq):\n            self._fold_new()\n            return decide()",
+   "replace": "        kwargs = decide()\n\n        def under_lock(head_seq):\n            return kwargs",
+   "rationale": "D-2026-147: two writers of one memory id both write it, and every later load refuses the history"
+  },
+  {
+   "name": "T8_memory_writes_an_edge_the_replay_refuses",
+   "path": "agent_substrate/memory.py",
+   "find": "            if status is not cur.status and status not in allowed:",
+   "replace": "            if False:",
+   "rationale": "D-2026-147: a supersede racing a retraction is written; the replay refuses RETRACTED -> SUPERSEDED"
+  },
+  {
+   "name": "T9_the_cascade_moves_an_entry_withdrawn_meanwhile",
+   "path": "agent_substrate/memory.py",
+   "find": "            if only_if_current and cur.status in NOT_CURRENT:",
+   "replace": "            if False:",
+   "rationale": "D-2026-147: the invalidation cascade moves an entry retracted meanwhile; the replay refuses RETRACTED -> STALE"
+  }
+ ]
+}

@@ -1,0 +1,58 @@
+{
+  "title": "Evidence terms: a check establishes one property, and is not read as another",
+  "note": "The vocabulary is only useful while it is held to the code. The mutations that matter are the ones that would let a check be described as establishing more than it does: an implication added between independent properties, a historical name re-pinned to semantic support, or a registered check that no longer exists.",
+  "suites": [
+    "tests/test_evidence_terms.py"
+  ],
+  "mutations": [
+    {
+      "name": "ET1_history_implies_the_world",
+      "path": "agent_substrate/evidence_terms.py",
+      "find": "    Property.CITED_BYTES_VERIFY: frozenset({Property.CITATION_EXISTS}),\n}",
+      "replace": "    Property.CITED_BYTES_VERIFY: frozenset({Property.CITATION_EXISTS}),\n    Property.HISTORY_RECORDS: frozenset({Property.CURRENT_WORLD}),\n}",
+      "rationale": "a log that records a state would read as the world being in that state"
+    },
+    {
+      "name": "ET2_verified_bytes_imply_support",
+      "path": "agent_substrate/evidence_terms.py",
+      "find": "    Property.CITED_BYTES_VERIFY: frozenset({Property.CITATION_EXISTS}),",
+      "replace": "    Property.CITED_BYTES_VERIFY: frozenset({Property.CITATION_EXISTS, Property.SEMANTICALLY_SUPPORTED}),",
+      "rationale": "a citation that resolves would read as one that supports the claim, which is the conflation the module exists to prevent"
+    },
+    {
+      "name": "ET3_memory_evidence_key_repinned_to_support",
+      "path": "agent_substrate/evidence_terms.py",
+      "find": "    Check(\"agent_substrate.memory_trust:assess#evidence_supported\",\n          P.CITED_BYTES_VERIFY,",
+      "replace": "    Check(\"agent_substrate.memory_trust:assess#evidence_supported\",\n          P.SEMANTICALLY_SUPPORTED,",
+      "rationale": "the historical key would be described as establishing semantic support it never checks"
+    },
+    {
+      "name": "ET4_registered_check_does_not_exist",
+      "path": "agent_substrate/evidence_terms.py",
+      "find": "    Check(\"agent_substrate.evidence:EvidenceStore.get\",",
+      "replace": "    Check(\"agent_substrate.evidence:EvidenceStore.fetch_unchecked\",",
+      "rationale": "the registry would describe a check the code does not have"
+    },
+    {
+      "name": "ET5_a_check_disclaims_what_it_establishes",
+      "path": "agent_substrate/evidence_terms.py",
+      "find": "          (P.SCIENTIFICALLY_VERIFIED, P.SEMANTICALLY_SUPPORTED,\n           P.CURRENT_WORLD),",
+      "replace": "          (P.DECISION_AUTHORIZED, P.SEMANTICALLY_SUPPORTED,\n           P.CURRENT_WORLD),",
+      "rationale": "the gate would be recorded as not establishing the one property it does establish"
+    },
+    {
+      "name": "ET6_an_assessed_check_backs_an_authority_decision",
+      "path": "agent_substrate/evidence_terms.py",
+      "find": "    Check(\"agent_substrate.evidence:EvidenceStore.contains\",\n          P.CITED_BYTES_VERIFY, S.DETERMINISTIC,",
+      "replace": "    Check(\"agent_substrate.evidence:EvidenceStore.contains\",\n          P.CITED_BYTES_VERIFY, S.ASSESSED,",
+      "rationale": "an authority decision would rest on a fallible judgement"
+    },
+    {
+      "name": "ET7_a_history_check_establishes_the_world",
+      "path": "agent_substrate/evidence_terms.py",
+      "find": "    Check(\"tools.grounding_bench.claims:verify\",\n          P.HISTORY_RECORDS,",
+      "replace": "    Check(\"tools.grounding_bench.claims:verify\",\n          P.CURRENT_WORLD,",
+      "rationale": "a claim matching the reconstructed history would be reported as true of the world"
+    }
+  ]
+}
