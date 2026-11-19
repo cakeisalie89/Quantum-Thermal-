@@ -4875,3 +4875,126 @@ falls from 6 to 5 here, and the test's comment says why.
 - The community validator's verdict on this crate. That validator runs
   only on a hosted runner (`tools/ro_crate_conformance.py`). The crate's
   keys and entities are unchanged; only regenerated values differ.
+
+### Hosted CI at fddfdf6: SM4 was killed only by the harness's bound (D-2026-196)
+
+**What failed.** Read from the API: in the pull-request run 44392500106,
+mutation shard 4 failed. `simulation` exited 1, with SM4 killed only by
+the harness's 300-second bound and its other 14 mutations killed by
+tests, and the run's `mutation-matrices` check failed with it. The push
+run 44392484601 passed the same shard on the same commit. Of the
+commit's 44 check runs, those two failed. Gate I was not met at fddfdf6.
+
+**The cause.** The interpreter, through the search's seed. Hypothesis
+seeds the derandomized gateway simulation from a digest that takes in
+the machine's source as `tokenize.untokenize` rewrites it, and CPython
+3.12.3 and 3.12.13 rewrite its three backslash continuations
+differently. With SM4 in place, under 3.12.3 the search found the corner
+and shrank it in 28 seconds. Under 3.12.13 it found it by a longer
+program and shrank it for 300 seconds, until Hypothesis's own limit
+stopped it, and the run took 320. The shrink alone used the harness's
+whole bound.
+
+**The repair.** Fixed paths through the same machines, their rules and
+their invariants, each defined before its file's search, for the three
+kills the search took more than half the bound to make under 3.12.13:
+
+- SM4, a recovery outcome inside the lease, NOT_SENT before a dispatch
+  and LOST after it;
+- SM1, the budget as a ceiling;
+- SM9, disagreeing observations.
+
+The machines and their digests are unchanged.
+
+**What was run.** `simulation` whole, on this commit's tree, under
+CPython 3.12.13 and under 3.12.3: 15 of 15 killed under each, by the same
+tests, and every source restored. The new paths kill SM1, SM3, SM4, SM6
+and SM9; D-2026-169's path kills SM7; the searches kill the other nine.
+Every fixed path passes under three hash seeds on each interpreter.
+
+### Stage 5, seventeenth pass: the inference gateway read in full (AUD-079 to AUD-082)
+
+Wave A of the campaign. `agent_substrate/inference.py`, read in part
+until now, was read in full at fddfdf6, all 1,513 lines, with its test
+file, `tests/test_inference_gateway.py`, also read in full. The worker,
+`agent_substrate/_inference_worker.py`, was read again and is unchanged.
+The gateway's lifecycle was checked step by step against the second
+reader's restatement:
+
+- the budget;
+- the reservation, at its worst case;
+- the dispatch, written before the call;
+- the provider, behind its process boundary;
+- the response and its settlement;
+- the transcript;
+- the proposal and its binding.
+
+Four findings were reproduced. Three were fixed, and one is open.
+
+**AUD-079 (P2), open.** The gateway refuses a reservation only when its
+writer is the request's caller. Under a role registry it asks the
+registry nothing, and nor does the second reader. On the adversarial
+evaluation's governed world, after its legitimate run, the registered
+colleague whom no grant names signed three records for the run's agent
+under the run's budget: a reservation, its dispatch and an OK result.
+Every record authenticated. The gateway held the colleague's response
+as the request's answer. The second reader and the separate process
+noted nothing, and the binding check passed a proposal made from it.
+Filed under an objective's next step, such a request is the one the
+research controller resumes. The mechanism is fixable here: a grant over
+the budget, which the registry's scopes do not yet name. It is scheduled
+with AUD-075's scheme. No verdict is forged this way, since an answer is
+input to the governed path.
+
+**AUD-080 (P3), fixed.** Six malformed inference records raised
+TypeError out of the gateway's fold, AUD-058's class once more. Each is
+refused in the fold's words, at its position.
+
+**AUD-081 (P3), fixed.** If recovery settled an attempt between its
+reservation and the check for cancellation, infer() raised its internal
+_Settled. It now returns what the log holds, as it already did after a
+dispatch.
+
+**AUD-082 (P3), fixed.** The provider boundary read the worker's reply
+as a mapping before asking whether it was one, so the refusal written
+for that case was never reached. The gateway caught the exception and
+settled the attempt, so no attempt was left open. The reply is now
+refused in the boundary's words.
+
+**Tests.** `tests/test_inference_gateway.py` gains 12 tests. Eleven are
+regression tests, ten of which fail at fddfdf6 by raising. The eleventh,
+a body that is not base64, was refused there too, in the decoder's
+words, and is held to the boundary's. The twelfth measures AUD-079 and
+passes at both commits.
+
+**Mutations.** Seven were added to `inference_gateway`, MR1 to MR7:
+
+- the two names, and the names before their repeats;
+- the cancellation's settlement;
+- the reply's form, the body's form and the body's decoding.
+
+No existing anchor moved. The spec keeps its measured weight, so the
+shard plan is unchanged.
+
+Run here, on this commit's tree: 89 mutations in 8 specs. These are
+`inference_gateway` whole (52), `simulation` whole (15),
+`mutation_shards` whole (12), and every other mutation anchored in
+`inference.py` (10), held by the 5 other specs. All were killed, and
+every source was restored.
+
+**Read and not changed.** The reservation's arithmetic and lease, the
+settlement rule, the lease and outcome rules of the fold, the policy
+freshness check and the binding check each agree with the second
+reader's restatement. The input bound assumes no tokenizer emits more
+tokens than bytes, plus 256 for framing. It is stated as an assumption,
+and a provider reporting more is recorded as an overrun, not trimmed.
+
+**What is not established.**
+
+- How the gateway behaves with a live provider, which needs an owner
+  decision (OD-1).
+- Whether an escaped lone surrogate in raw text shown as context raises
+  out of the context builder, as `.encode("utf-8")` would. Through the
+  model's own answers it does not: the research state is shown
+  re-serialized as ASCII JSON, and a run carrying one in a hypothesis
+  concluded. Memory and retrieved text are Wave B's.

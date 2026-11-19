@@ -376,6 +376,34 @@ class ResearchSimulation(RuleBasedStateMachine):
         assert sub.research_steps.get("o1", 0) == self.steps
 
 
+# Defined before the search, so a run that stops at its first failure, as
+# the mutation harness's does, stops here. The derandomized search takes its
+# seed from the machine's source as the interpreter re-tokenizes it, and
+# CPython 3.12.3 and 3.12.13 re-tokenize a backslash continuation
+# differently: on 3.12.13 the search reached SM9's corner in more than half
+# the time the harness allows (D-2026-196).
+def test_disagreeing_observations_on_a_fixed_path():
+    """SM9's corner, reached on one fixed path through the same machine,
+    its rules and its invariant. One verified result below the threshold
+    and one above it, both observed: the evaluation they disagree on is
+    INCONCLUSIVE, as the oracle has it, whichever is read first. The search
+    stays; this path does not depend on it."""
+    m = ResearchSimulation()
+    try:
+        m.setup()
+        m.hypothesize(0, "h1", [])
+        m.a_result_is_verified(350.0)
+        m.a_result_is_verified(450.0)
+        m.observe(0, 0)
+        m.observe(1, 0)
+        m.evaluate(1, "h1")
+        m.the_record_holds()
+        assert m.status["h1"] == "INCONCLUSIVE"
+        assert sorted(m.basis["h1"]) == ["obs-rec-1", "obs-rec-2"]
+    finally:
+        m.teardown()
+
+
 # Shorter programs, more of them, and one bug at a time: a failing example
 # must SHRINK within a bounded time, or the counterexample nobody can read
 # is the only thing the run produces (mutation testing found the shrink of

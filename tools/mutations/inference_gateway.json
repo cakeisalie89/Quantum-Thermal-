@@ -1,6 +1,6 @@
 {
   "title": "Gate B: the inference gateway, its budget, its context binding and its second reading",
-  "note": "Every mutation here would let a model call do something the gateway exists to stop: spend without authority, spend past a budget, answer under stale rules, leak a credential, or turn into a proposal that is not what the model said. The second reader's mutations check that it would notice each of those independently.",
+  "note": "Every mutation here would let a model call do something the gateway exists to stop: spend without authority, spend past a budget, answer under stale rules, leak a credential, or turn into a proposal that is not what the model said. The second reader's mutations check that it would notice each of those independently. MR1-MR7: the fold refuses a malformed record in its own words, infer() raises only what it documents, and the worker boundary refuses a reply that is not one (AUD-080 to AUD-082).",
   "suites": [
     "tests/test_inference_gateway.py",
     "tests/test_inference_second_reader.py",
@@ -321,6 +321,55 @@
       "find": "    if out.inference_keys.get(key, rid) != rid:",
       "replace": "    if False:",
       "rationale": "D-2026-184: the independent reader does not restate one key, one question"
+    },
+    {
+      "name": "MR1_a_withdrawal_naming_no_budget_is_looked_up",
+      "path": "agent_substrate/inference.py",
+      "find": "            if not isinstance(bid, str):\n                raise InferenceError(f\"seq {ev.seq}: withdraws budget \"\n",
+      "replace": "            if False:\n                raise InferenceError(f\"seq {ev.seq}: withdraws budget \"\n",
+      "rationale": "a withdrawal naming its budget by a list or a mapping raises TypeError out of the fold (AUD-080)"
+    },
+    {
+      "name": "MR2_an_attempt_naming_no_request_is_looked_up",
+      "path": "agent_substrate/inference.py",
+      "find": "        if not isinstance(rid, str):\n            raise InferenceError(f\"seq {ev.seq}: {ev.action} names request \"\n",
+      "replace": "        if False:\n            raise InferenceError(f\"seq {ev.seq}: {ev.action} names request \"\n",
+      "rationale": "a dispatch or a result naming its request by a list or a mapping raises TypeError out of the fold (AUD-080)"
+    },
+    {
+      "name": "MR3_repeats_asked_before_names",
+      "path": "agent_substrate/inference.py",
+      "find": "            for v in seq:\n                _name(v, f\"budget.{what}[]\")\n            # Repeats are asked of names: asked first, an entry that is a\n",
+      "replace": "            if len(set(seq)) != len(seq):\n                raise InferenceError(\"repeats\")\n            for v in seq:\n                _name(v, f\"budget.{what}[]\")\n            # Repeats are asked of names: asked first, an entry that is a\n",
+      "rationale": "a budget whose models or callers hold a list raises TypeError out of the fold, the check for repeats hashing it before the names are checked (AUD-080)"
+    },
+    {
+      "name": "MR4_a_settled_attempt_escapes_the_cancellation",
+      "path": "agent_substrate/inference.py",
+      "find": "                except _Settled:\n                    # recovery settled it first: what the log holds is\n",
+      "replace": "                except KeyError:\n                    # recovery settled it first: what the log holds is\n",
+      "rationale": "an attempt recovery settled before the cancellation raises the internal _Settled out of infer() (AUD-081)"
+    },
+    {
+      "name": "MR5_the_worker_reply_read_before_its_form",
+      "path": "agent_substrate/inference.py",
+      "find": "        if not isinstance(rep, dict):\n            return ProviderReply(\"ERROR\", error=\"the worker's reply is not \"\n                                 \"an object\")\n",
+      "replace": "        if False:\n            return ProviderReply(\"ERROR\", error=\"the worker's reply is not \"\n                                 \"an object\")\n",
+      "rationale": "a worker reply that is a list or a number raises AttributeError out of the provider's call (AUD-082)"
+    },
+    {
+      "name": "MR6_the_worker_body_decoded_whatever_it_is",
+      "path": "agent_substrate/inference.py",
+      "find": "        if not isinstance(b64, str):\n",
+      "replace": "        if False:\n",
+      "rationale": "a worker body that is not text raises TypeError out of the provider's call (AUD-082)"
+    },
+    {
+      "name": "MR7_a_body_that_is_not_base64_raises",
+      "path": "agent_substrate/inference.py",
+      "find": "        except ValueError as exc:\n            return ProviderReply(\"ERROR\", error=f\"the worker's body is not \"\n",
+      "replace": "        except KeyError as exc:\n            return ProviderReply(\"ERROR\", error=f\"the worker's body is not \"\n",
+      "rationale": "a worker body that is not base64 raises binascii.Error out of the provider's call (AUD-082)"
     }
   ]
 }

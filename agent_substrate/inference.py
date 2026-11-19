@@ -291,12 +291,16 @@ class Budget:
                      "budget.per_request")
         models, callers = body["models"], body["callers"]
         for what, seq in (("models", models), ("callers", callers)):
-            if not isinstance(seq, list) or not seq or \
-                    len(set(seq)) != len(seq):
+            if not isinstance(seq, list) or not seq:
                 raise InferenceError(f"budget.{what}: a non-empty list "
                                      "without repeats")
             for v in seq:
                 _name(v, f"budget.{what}[]")
+            # Repeats are asked of names: asked first, an entry that is a
+            # list raised TypeError out of the fold.
+            if len(set(seq)) != len(seq):
+                raise InferenceError(f"budget.{what}: a non-empty list "
+                                     "without repeats")
         prices = body["prices"]
         if not isinstance(prices, dict) or set(prices) != set(models):
             raise InferenceError("budget.prices must price exactly the "
@@ -593,13 +597,25 @@ class SubprocessProvider:
                                  error="the worker wrote past its bound")
         try:
             rep = json.loads(out.decode("utf-8"))
-            body = base64.b64decode(rep.get("body_b64", ""), validate=True)
         except (UnicodeDecodeError, ValueError) as exc:
             return ProviderReply("ERROR", error=f"the worker's reply is not "
                                  f"a reply ({exc}); exit {proc.returncode}")
+        # Asked before anything is read from it: read first, a reply that
+        # was a list or a number raised AttributeError out of the call,
+        # and this refusal was never reached.
         if not isinstance(rep, dict):
             return ProviderReply("ERROR", error="the worker's reply is not "
                                  "an object")
+        b64 = rep.get("body_b64", "")
+        if not isinstance(b64, str):
+            return ProviderReply("ERROR", error="the worker's reply carries "
+                                 "its body as something other than base64 "
+                                 "text")
+        try:
+            body = base64.b64decode(b64, validate=True)
+        except ValueError as exc:
+            return ProviderReply("ERROR", error=f"the worker's body is not "
+                                 f"base64 ({exc})")
         return ProviderReply(str(rep.get("status", "ERROR")), body,
                              rep.get("usage"), rep.get("claimed"),
                              str(rep.get("error", ""))[:MAX_ERROR_CHARS])
@@ -838,6 +854,9 @@ class InferenceGateway(DecidedWriter):
     def _apply_budget(self, ev, p: dict, commit: bool = True) -> None:
         if p.get("withdraw"):
             bid = p.get("budget_id")
+            if not isinstance(bid, str):
+                raise InferenceError(f"seq {ev.seq}: withdraws budget "
+                                     f"{bid!r}, which is not a name")
             st = self._budgets.get(bid)
             if st is None:
                 raise InferenceError(f"seq {ev.seq}: withdraws {bid!r}, "
@@ -999,7 +1018,11 @@ class InferenceGateway(DecidedWriter):
         if isinstance(n, bool) or not isinstance(n, int):
             raise InferenceError(f"seq {ev.seq}: attempt {n!r} is not a "
                                  "number")
-        key = (p.get("request_id"), n)
+        rid = p.get("request_id")
+        if not isinstance(rid, str):
+            raise InferenceError(f"seq {ev.seq}: {ev.action} names request "
+                                 f"{rid!r}, which is not a request id")
+        key = (rid, n)
         got = self._attempts.get(key)
         if got is None:
             raise InferenceError(f"seq {ev.seq}: no granted reservation for "
@@ -1374,8 +1397,13 @@ class InferenceGateway(DecidedWriter):
                                          "and its answer cannot be read")
                 return done
             if cancel.is_set():
-                seq = self._settle(att, req, CANCELLED,
-                                   error="cancelled before dispatch")
+                try:
+                    seq = self._settle(att, req, CANCELLED,
+                                       error="cancelled before dispatch")
+                except _Settled:
+                    # recovery settled it first: what the log holds is
+                    # the answer, as after a dispatch recovery settled
+                    return self._outcome_of(att)
                 return Outcome(req.request_id, att.attempt, CANCELLED, seq)
             try:
                 self._dispatch(att)

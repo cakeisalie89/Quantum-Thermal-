@@ -33,6 +33,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
 from hypothesis import HealthCheck, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import (
@@ -292,6 +293,72 @@ class GatewaySimulation(RuleBasedStateMachine):
         assert sub.anomalies == [], sub.anomalies
         assert sub.inference_budgets["b1"]["cost"] == \
             fresh.budget_usage("b1")["cost_micro"]
+
+
+def _every_invariant(m):
+    m.nothing_held_exceeds_the_budget()
+    m.at_most_one_open_and_one_ok_attempt_per_request()
+    m.the_model_and_the_implementation_agree()
+    m.every_reader_agrees()
+
+
+# The fixed paths are defined before the search, so a run that stops at its
+# first failure, as the mutation harness's does, stops at one of them. The
+# derandomized search takes its seed from the machine's source as the
+# interpreter re-tokenizes it, and CPython 3.12.3 and 3.12.13 re-tokenize a
+# backslash continuation differently. On 3.12.13 the search reached SM4's
+# corner by a long program whose shrink took longer than the harness
+# allows, and SM1's in more than half that time (D-2026-196).
+def test_the_budget_is_a_ceiling_on_a_fixed_path():
+    """SM1's corner, reached on one fixed path through the same machine,
+    its rules and its invariants. The budget holds one call's worst case.
+    A second question, from the other process, is not granted, and nothing
+    held exceeds the budget. The search stays; this path does not depend
+    on it."""
+    m = GatewaySimulation()
+    try:
+        m.setup(budget_calls=1)
+        _every_invariant(m)
+        m.reserve(p=0, key="q1")
+        _every_invariant(m)
+        m.reserve(p=1, key="q2")
+        _every_invariant(m)
+        assert list(m.model.open) == [("q1", 1)]
+    finally:
+        m.teardown()
+
+
+@pytest.mark.parametrize("dispatched", [False, True],
+                         ids=["not_sent", "lost"])
+def test_recovery_inside_the_lease_on_a_fixed_path(dispatched):
+    """SM4's corner, reached on one fixed path through the same machine,
+    its rules and its invariants. A recovery outcome written out of turn
+    while the attempt's lease holds is refused and leaves the log as it
+    was: NOT_SENT before the attempt's dispatch, LOST after it. Once the
+    lease runs out, the same outcome is written and settles the attempt.
+    The search stays; this path does not depend on it."""
+    m = GatewaySimulation()
+    try:
+        m.setup(budget_calls=1)
+        _every_invariant(m)
+        m.reserve(p=0, key="q1")
+        _every_invariant(m)
+        if dispatched:
+            m.dispatch_and_call(p=0, i=0)
+            _every_invariant(m)
+        outcome = I.LOST if dispatched else I.NOT_SENT
+        before = m.world.log.head().seq
+        m.settle_out_of_turn(p=0, i=0, outcome=outcome)
+        _every_invariant(m)
+        assert m.world.log.head().seq == before
+        assert list(m.model.open) == [("q1", 1)]
+        m.time_passes()
+        m.settle_out_of_turn(p=0, i=0, outcome=outcome)
+        _every_invariant(m)
+        assert m.world.log.head().seq == before + 1
+        assert m.model.open == {} and m.model.settled == {("q1", 1)}
+    finally:
+        m.teardown()
 
 
 GatewaySimulation.TestCase.settings = settings(

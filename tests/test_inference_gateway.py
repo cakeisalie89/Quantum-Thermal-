@@ -911,3 +911,126 @@ def test_replay_refuses_a_dispatch_outside_its_lease(tmp_path):
     from agent_substrate.reconstruct import reconstruct_subsystems
     assert any("outside its lease" in a
                for a in reconstruct_subsystems(w.log).anomalies)
+
+
+# ----------------------------------- malformed records, in the gateway's words
+
+def _malformed_budget(**over):
+    body = budget(budget_id="b2").body()
+    body.update(over)
+    return body
+
+
+@pytest.mark.parametrize("action, payload", [
+    (I.ACT_BUDGET, {"withdraw": True, "budget_id": ["b1"], "reason": "x"}),
+    (I.ACT_BUDGET, {"withdraw": True, "budget_id": {"b": 1}, "reason": "x"}),
+    (I.ACT_DISPATCH, {"request_id": ["r"], "attempt": 1, "reserve_seq": 1}),
+    (I.ACT_RESULT, {"request_id": {"r": 1}, "attempt": 1, "outcome": I.OK}),
+    (I.ACT_BUDGET, {"budget": _malformed_budget(models=[[MODEL]]),
+                    "budget_digest": "0" * 64}),
+    (I.ACT_BUDGET, {"budget": _malformed_budget(callers=[{"c": 1}]),
+                    "budget_digest": "0" * 64}),
+], ids=["withdraw-list", "withdraw-mapping", "dispatch-list",
+        "result-mapping", "budget-model-list", "budget-caller-mapping"])
+def test_a_malformed_record_is_refused_in_the_gateways_words(
+        tmp_path, action, payload):
+    """Each raised TypeError out of the gateway's fold: a withdrawal or an
+    attempt naming its budget or request by a list or a mapping, which a
+    dict lookup cannot hash, and a budget whose models or callers hold one,
+    which the check for repeats hashed before the names were checked. The
+    fold refuses a record it cannot read in its own words, as the
+    scheduler's and the task projection's do (AUD-071, AUD-073)."""
+    w = World(tmp_path)
+    _append_raw(w, action, "x", payload, actor="owner")
+    with pytest.raises(I.InferenceError):
+        w.gateway()
+
+
+def test_an_attempt_recovery_settled_before_the_cancellation_is_its_outcome(
+        tmp_path):
+    """Between the reservation and the check for cancellation, a gateway
+    of the same name recovered the attempt, its lease run out. infer()
+    raised its internal _Settled, which it documents nowhere. It returns
+    what the log holds, as it does when recovery settles a dispatched
+    attempt first."""
+    w = World(tmp_path)
+    req = w.request()
+    reserve = w.gw._reserve
+
+    def paused(r):
+        att = reserve(r)
+        w.clock.t += r.timeout_s + I.LEASE_GRACE_S + 1
+        assert [o.outcome for o in w.gateway().recover()] == [I.NOT_SENT]
+        return att
+
+    w.gw._reserve = paused
+    stop = threading.Event()
+    stop.set()
+    out = w.gw.infer(req, w.prompt, cancel=stop)
+    assert (out.outcome, out.attempt) == (I.NOT_SENT, 1)
+    assert [r.payload["outcome"] for r in w.records(I.ACT_RESULT)] == \
+        [I.NOT_SENT]
+
+
+@pytest.mark.parametrize("reply, why", [
+    ("[]", "not an object"),
+    ("5", "not an object"),
+    ('{"status": "OK", "body_b64": 5}', "other than base64 text"),
+    ('{"status": "OK", "body_b64": "%%%"}', "not base64"),
+])
+def test_a_worker_reply_that_is_not_one_is_refused_at_the_boundary(
+        tmp_path, reply, why):
+    """The worker's reply was read as a mapping before anything asked
+    whether it was one: a reply that is a list or a number raised
+    AttributeError out of the provider's call, a body that is not text
+    raised TypeError, and the refusal written for them was never
+    reached. Each is a reply refused in the boundary's words."""
+    fake = tmp_path / "worker"
+    fake.write_text(f"#!{sys.executable}\n"
+                    "import sys\n"
+                    "sys.stdin.read()\n"
+                    f"sys.stdout.write({reply!r})\n")
+    fake.chmod(0o755)
+    prov = I.SubprocessProvider(PROVIDER, mode="fixture", python=str(fake))
+    got = prov.call(request={}, prompt=b"x", attempt=1, timeout_s=30,
+                    max_output_bytes=100, cancel=threading.Event())
+    assert got.status == "ERROR" and why in got.error, got
+
+
+def test_a_reservation_is_made_under_no_grant(tmp_path):
+    """AUD-079, open: measured, not fixed. A reservation is refused when its
+    writer is the request's caller, and otherwise asks nobody. mallory,
+    neither the gateway nor the caller, reserves the caller's request,
+    dispatches it and settles it OK with an answer of her own. The gateway
+    and the second reader hold it as the request's answer, and the binding
+    check passes a proposal made from it. On a governed history, every
+    record signed, a registered party no grant names did the same. When
+    spending is bound to a grant, this test changes with the register."""
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    w = World(tmp_path)
+    req = w.request()
+    _append_raw(w, I.ACT_RESERVE, req.request_id, _granted(w, req),
+                actor="mallory")
+    _append_raw(w, I.ACT_DISPATCH, req.request_id, {
+        "request_id": req.request_id, "attempt": 1,
+        "reserve_seq": w.log.head().seq}, actor="mallory")
+    raw = _body(dict(RESPONSE, rationale="mallory's words, as the model's"))
+    sha = w.transcripts.put(raw, media_type="application/json")
+    _append_raw(w, I.ACT_RESULT, req.request_id, {
+        "request_id": req.request_id, "attempt": 1, "outcome": I.OK,
+        "dispatched": True, "usage": {"input_tokens": 1, "output_tokens": 1},
+        "cost_micro": I.cost_micro(budget().prices, MODEL, 1, 1),
+        "overrun": False, "response_sha256": sha,
+        "response_bytes": len(raw), "claimed": None, "error": "",
+        "latency_ms": 1, "settled_by": "gateway"}, actor="mallory")
+    gw = w.gateway()
+    got = gw.outcome(req.request_id)
+    assert got.ok and got.response["rationale"] == \
+        "mallory's words, as the model's"
+    assert not [a for a in reconstruct_subsystems(w.log).anomalies
+                if "inference" in a]
+    env = PR.ProposalEnvelope.parse(I.envelope_from_inference(
+        got, context=_retrieval(), agent_id=CALLER,
+        manifest_digest=w.context.manifest.digest()))
+    assert gw.binding_problems(env) == []
+    assert not w.provider.calls

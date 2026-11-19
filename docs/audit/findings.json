@@ -2630,6 +2630,114 @@
    "residual_risk": "A crate nested more than 32 levels is refused, whatever it holds; the committed crate nests five. The conformance tool's packaging trusts the committed crate's @ids (tools/ro_crate_conformance.py, package); the validator now refuses one outside the tree first.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-079",
+   "title": "Under a role registry no grant stands behind an inference reservation, so a principal no grant names can spend a budget and answer for the model",
+   "severity": "P2",
+   "subsystem": "the inference gateway: who spends and who answers",
+   "files": [
+    {
+     "path": "agent_substrate/inference.py",
+     "lines": "InferenceGateway._apply_reserve and _held; the writer's _reserve"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "_sub_inference_reserve and _inf_attempt"
+    },
+    {
+     "path": "agent_substrate/roles.py",
+     "lines": "NAMESPACES: none names a budget"
+    }
+   ],
+   "behavior": "The gateway refuses a reservation only when its writer is the request's caller, and refuses a dispatch or a result only when its writer did not make the reservation. Under a role registry the gateway asks the registry nothing, and neither does the second reader's restatement, so a governed history's mandatory authorization does not reach the inference records. On the adversarial evaluation's governed world, after its legitimate task succeeded, its registered colleague 'ai-colleague', whom no grant names, signed three records for the run's agent under the run's budget: a reservation, its dispatch, and an OK result whose response it wrote into the transcript store, claiming provider 'trusted-provider' and model 'certified-model'. Every record authenticated. The gateway held the response as the request's OK answer, the second reader noted nothing, the binding check found no problem with a proposal made from it, and the separate process confirmed the history. Filed under the idempotency key of an objective's next step, such a request is the one the research controller resumes, and it would take the colleague's answer as the model's. No grant names the gateway either. The governed world's registry was found by granting each refusal, and nothing here refuses.",
+   "invariant": "Under a registry, every record a reader applies is made by a principal a grant names for it, the spending of a budget and the answer to a request among them.",
+   "mechanism": "The registry is asked only where a module asks it (roles.RoleView.require), and the gateway's fold, its writer and the second reader ask it nothing. The registry's scopes name record kinds, tools, policies, secrets, egress, approvals and releases, and no scope names a budget.",
+   "reproduction": "At fddfdf6, whose inference code is 9a918a1's, on the adversarial evaluation's governed world after its legitimate run: the three records above, each signed with the colleague's TEST key, read back under the world's key and role registries.",
+   "observed": "Found reading agent_substrate/inference.py in full: _apply_reserve refuses the caller and no one else, and the second reader restates the same rule.",
+   "expected": "The reservation refused, as made by a principal that no grant names over the budget it spends.",
+   "correction": "Not yet made. The mechanism is fixable here: under a registry, only a principal holding a grant over the budget it spends makes a reservation. The grant would be EXECUTOR over a new budget scope, checked in the writer, the fold and the second reader alike. A dispatch and a result already follow the reserving principal. Which principal is the gateway is the registry's to say and the owner's to provision. The change is scheduled with AUD-075's scheme, which settles the roles that stand behind the control plane's acts.",
+   "regression_tests": [
+    "tests/test_inference_gateway.py::test_a_reservation_is_made_under_no_grant"
+   ],
+   "residual_risk": "Until then, any principal that can append a record can do two things. It can spend a budget on behalf of the callers the budget names, up to its bounds. It can also choose the answer a request receives. Nothing it reaches forges a verdict: an answer is a proposal, and a proposal is input to the governed path.",
+   "verification": "REPRODUCED",
+   "resolution": "OPEN"
+  },
+  {
+   "id": "AUD-080",
+   "title": "Malformed inference records raised TypeError out of the gateway's fold",
+   "severity": "P3",
+   "subsystem": "the inference gateway: malformed records",
+   "files": [
+    {
+     "path": "agent_substrate/inference.py",
+     "lines": "Budget.from_body; InferenceGateway._apply_budget on a withdrawal; _held"
+    }
+   ],
+   "behavior": "Six malformed inference records raised TypeError out of InferenceGateway.load: a withdrawal naming its budget by a list or a mapping, a dispatch or a result naming its request by one, and a budget whose models or callers held one. In the last case the check for repeats hashed the entries before anything checked their form. The second reader set each record aside, as AUD-047 has it do: 'could not be read (TypeError); not applied'.",
+   "invariant": "The fold refuses a record it cannot read in its own words, at the record's position.",
+   "mechanism": "Dictionary lookups, and a set built from payload values, ran before any check of the values' form. This is AUD-058's class, in the inference gateway.",
+   "reproduction": "At 9a918a1, each record appended directly to a log holding a budget, followed by a fresh gateway's load.",
+   "observed": "Found reading agent_substrate/inference.py in full.",
+   "expected": "An InferenceError naming the position, for each.",
+   "correction": "A withdrawal names its budget, and a dispatch or a result its request, by a str, or is refused with an InferenceError naming its position. A budget's names are checked before their repeats.",
+   "regression_tests": [
+    "tests/test_inference_gateway.py::test_a_malformed_record_is_refused_in_the_gateways_words"
+   ],
+   "residual_risk": "None known.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-081",
+   "title": "An attempt recovery settled before the cancellation raised the gateway's internal _Settled out of infer()",
+   "severity": "P3",
+   "subsystem": "the inference gateway: recovery and cancellation",
+   "files": [
+    {
+     "path": "agent_substrate/inference.py",
+     "lines": "InferenceGateway.infer, before dispatch"
+    }
+   ],
+   "behavior": "infer() documents three refusals: InferenceRefused, AttemptOutstanding and KeyHeld. Between its reservation and its check for cancellation, a gateway of the same name can recover the attempt once the lease has run out, as when a process is paused past its lease and then resumes. The cancellation's settlement then found the attempt settled and raised _Settled, an internal signal, out of infer(). The two other places that settle after recovery may have done so catch it and return what the log holds.",
+   "invariant": "infer() raises only what it documents, and an attempt another gateway settled is answered by what the log holds.",
+   "mechanism": "The settlement on the cancellation path was the one settlement outside a handler for _Settled.",
+   "reproduction": "At 9a918a1: a gateway's reservation, and before its check for cancellation a second gateway's recovery past the lease, which settled the attempt NOT_SENT. infer() with its cancellation set then raised agent_substrate.inference._Settled.",
+   "observed": "Found reading agent_substrate/inference.py in full.",
+   "expected": "The recorded outcome returned, NOT_SENT, as after a dispatch that recovery settled first.",
+   "correction": "The cancellation's settlement catches _Settled and returns the recorded outcome, as the settlements after a dispatch and after a result already did.",
+   "regression_tests": [
+    "tests/test_inference_gateway.py::test_an_attempt_recovery_settled_before_the_cancellation_is_its_outcome"
+   ],
+   "residual_risk": "The interleaving needs a process paused past its lease, 30 s beyond its timeout.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-082",
+   "title": "The provider boundary read the worker's reply as a mapping before asking whether it was one",
+   "severity": "P3",
+   "subsystem": "the inference gateway: the process boundary",
+   "files": [
+    {
+     "path": "agent_substrate/inference.py",
+     "lines": "SubprocessProvider.call"
+    }
+   ],
+   "behavior": "SubprocessProvider.call decoded the worker's reply and read its body with rep.get before checking that the reply was an object. The refusal written for a reply that is not one was therefore never reached. A reply that is a list or a number raised AttributeError out of the call, and a body that is not text raised TypeError. The gateway's _call catches any exception from a provider and settles the attempt as PROVIDER_ERROR, so no attempt was left open. The error recorded was the exception's text, not the boundary's refusal.",
+   "invariant": "The boundary refuses a reply that is not one in its own words.",
+   "mechanism": "The read came before the check of form.",
+   "reproduction": "At 9a918a1, a stand-in worker wrote '[]', then '5', then a reply whose body_b64 is 5. SubprocessProvider.call raised AttributeError, AttributeError and TypeError. A body that is not base64 was refused, under the decoder's message.",
+   "observed": "Found reading agent_substrate/inference.py in full.",
+   "expected": "An ERROR reply naming what the reply is not, for each.",
+   "correction": "The reply must be an object, and its body base64 text, before either is read. A body that is not base64 is refused in the boundary's words.",
+   "regression_tests": [
+    "tests/test_inference_gateway.py::test_a_worker_reply_that_is_not_one_is_refused_at_the_boundary"
+   ],
+   "residual_risk": "The worker is this repository's own script; a live provider's client would run behind it (OD-1).",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

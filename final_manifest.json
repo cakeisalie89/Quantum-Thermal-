@@ -289,8 +289,8 @@
     },
     {
       "filename": "agent_substrate/inference.py",
-      "size_bytes": 68348,
-      "sha256": "6718670584ed7c3268e0a87734a525ff80fda0ae29611b4cdc19365c0080e8b6"
+      "size_bytes": 69853,
+      "sha256": "3601da97e8b16a49834a2399084f5efde5539e6a03b71253856fb258835492df"
     },
     {
       "filename": "agent_substrate/invalidation.py",
@@ -459,8 +459,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 665481,
-      "sha256": "9bde9d8f6f9d73d9633260a39d857d74cb0651a9ad92e0511b47c5565192df47"
+      "size_bytes": 670148,
+      "sha256": "1dfec50521159207d303b0015e7f582b8d9792559cea8c2d47858ac06f5eff6e"
     },
     {
       "filename": "docs/EVIDENCE_TERMS.md",
@@ -574,18 +574,18 @@
     },
     {
       "filename": "docs/audit/AUDIT_PROGRESS.md",
-      "size_bytes": 244926,
-      "sha256": "054199b783d93b75260c95b6f0c8e0010d22a5ed5771e4ca1ce877ea17a06795"
+      "size_bytes": 250956,
+      "sha256": "bf0581b49a0e97639ba7cf5557b5238dc6fab26d2500e289c842516eef57ef7f"
     },
     {
       "filename": "docs/audit/AUDIT_REPORT.md",
-      "size_bytes": 50519,
-      "sha256": "4d57b3da01710d055e2d633a6c471cd3a64d844d0b30ce4d995ff5d633fe46bb"
+      "size_bytes": 52278,
+      "sha256": "24591f568d2acd60f5cccf88fe5fc32225c5abcaa298ef561784c79ff378d1f2"
     },
     {
       "filename": "docs/audit/findings.json",
-      "size_bytes": 276530,
-      "sha256": "9b5107899c048ac0b6ccac5c876c451d713fbb6b59cdef2c804c96dd15ff12bd"
+      "size_bytes": 286258,
+      "sha256": "0498fa03e645147e8017a77f5bb6394703ac714e14ab7d21e0c906e0d1bfb498"
     },
     {
       "filename": "docs/audit/op_costs.json",
@@ -594,8 +594,8 @@
     },
     {
       "filename": "docs/audit/pr17_audit_ledger.json",
-      "size_bytes": 568092,
-      "sha256": "c099252bb0bdd01a412eaaa8ca1b067ce11cf943ed0ae970221f3e8137795f06"
+      "size_bytes": 572042,
+      "sha256": "8445b844aa800cf0ddaa3ca1a7207cb1a005cffc2ed9ab6021ee848974a17d9a"
     },
     {
       "filename": "docs/audit/work_counts.json",
@@ -615,7 +615,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 5788,
-      "sha256": "a30d92d7c6a5df4cf8b87c1e8de980bf099fceecd2fef8653bfa1377b03ea38b"
+      "sha256": "9cafcc9f729b4d10be2ee40ce1af91ff2e90a40e1f5359131bd1778efc9800be"
     },
     {
       "filename": "docs/dependency_inventory.json",
@@ -874,8 +874,8 @@
     },
     {
       "filename": "docs/security/pr17_inventory.json",
-      "size_bytes": 310793,
-      "sha256": "ecf9691bda1765c53cb28a0d241bde5decf7eb51b651436e9948284aa0bc7578"
+      "size_bytes": 310807,
+      "sha256": "9bdb5c93abb5f2cfb199f45942b4b91d2e1d2833751d8fa5e41eef2233c19c79"
     },
     {
       "filename": "docs/security/readiness_matrix.json",
@@ -1949,8 +1949,8 @@
     },
     {
       "filename": "tests/test_inference_gateway.py",
-      "size_bytes": 37804,
-      "sha256": "21a853bda5605d16ad32694f58aabc9d5fc55f88712fff239c9235daf7097e60"
+      "size_bytes": 43617,
+      "sha256": "fb6152b4f4c78ef3afa7ac6a64fa1f85bf5501e6cc6273d7546e4665b1da9b8d"
     },
     {
       "filename": "tests/test_inference_second_reader.py",
@@ -2309,13 +2309,13 @@
     },
     {
       "filename": "tests/test_simulation_gateway.py",
-      "size_bytes": 12408,
-      "sha256": "678815a43e7e5c84950e5555aeab2c41f9b2e647caed06dfe2bca98440b9fe9b"
+      "size_bytes": 15174,
+      "sha256": "3af190713cb795ded62e5a6d09b94b2a02c8a77d3767f240b1f52bccf110213e"
     },
     {
       "filename": "tests/test_simulation_research.py",
-      "size_bytes": 19312,
-      "sha256": "b6705bc2ea40d71dab391a5bfaf0e3c6a413ebcc4b454d8cbb713235e9a27458"
+      "size_bytes": 20539,
+      "sha256": "31d2a86df1a02d85e89c88bfb6fdf1f0953b76f28f5263926173e520ac0317c9"
     },
     {
       "filename": "tests/test_slab_uq.py",
@@ -2619,8 +2619,8 @@
     },
     {
       "filename": "tools/mutation_shards.py",
-      "size_bytes": 14936,
-      "sha256": "4fd63cd7967e8a5c6baf1c3e47e89b8e06b60f7b2c2e7ebc92cd208030abe213"
+      "size_bytes": 14933,
+      "sha256": "f3e91140220bc15bae33e1b5887255c96c44684641d0b33fbfa6ba4c9f695d6b"
     },
     {
       "filename": "tools/mutations/actor_authentication.json",
@@ -3024,8 +3024,8 @@
     },
     {
       "filename": "tools/mutations/inference_gateway.json",
-      "size_bytes": 17553,
-      "sha256": "4ecb6674b2608406a2a62fc27018bfd463e13a7f5b50be7fd4368e52ac6aed7a"
+      "size_bytes": 21365,
+      "sha256": "549bea2c7ca8f6645cf4dda6bce459bd2fa45f3d8d90457ab4d104480ddb2367"
     },
     {
       "filename": "tools/mutations/integration_demo_harness.json",

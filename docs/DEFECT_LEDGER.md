@@ -12284,3 +12284,88 @@ new test, and every source is restored.
   apart on both.
 - Not a claim that hosted CI is green. That is for this commit's own
   runs to show.
+
+## D-2026-196 — SM4 was killed only by a search whose seed moves with the interpreter
+
+**FOUND BY HOSTED CI.** At fddfdf6, in the pull-request run 44392500106,
+mutation shard 4 failed: `simulation` exited 1. SM4 was killed only by
+the harness's 300-second bound, which the harness does not count as
+coverage, and the spec's other 14 mutations were killed by tests. The
+run's `mutation-matrices` check failed with it. In the push run
+44392484601 the same shard passed on the same commit, `simulation` among
+its specs. Of the commit's 44 check runs those two failed and every other
+passed. SM4 takes away the fold's refusal of a recovery outcome, NOT_SENT
+or LOST, written while the attempt's lease holds.
+
+**THE CAUSE.** The interpreter, by way of the search's seed.
+`tests/test_simulation_gateway.py` is a derandomized Hypothesis state
+machine. Hypothesis seeds a derandomized run from a digest of the test,
+and for a state machine the digest takes in the machine's source as
+`tokenize.untokenize` rewrites it. CPython 3.12.3 and 3.12.13 rewrite a
+backslash continuation differently: 3.12.3 drops the space before the
+backslash and 3.12.13 keeps it. The gateway machine has three such lines,
+so its digest, and with it the sequence of programs its search tries,
+differs between the two interpreters; the research machine's digest
+differs between them too. Run as the harness runs it, with SM4 in place
+and nothing else running:
+
+- under 3.12.3 the search found the corner in 12 seconds and shrank it in
+  16, to a reservation and one recovery written out of turn, and the run
+  took 30 seconds;
+- under 3.12.13 it found the corner in 17 seconds by a longer program,
+  and was still shrinking it when Hypothesis's own limit on shrinking,
+  300 seconds, stopped it at nine steps. The run took 320 seconds.
+
+The shrink alone used the harness's whole bound. Hosted CI's shards run
+under the CPython 3.12 that `uv sync` provides (D-2026-194 read 3.12.16),
+and there the kill exceeded the bound in one run and not in the other.
+
+**REPRODUCED HERE** under CPython 3.12.13, with the locked environment,
+at pass N's tree, whose simulation tests are fddfdf6's: the run under SM4
+took 320 seconds, past the bound. Under 3.12.3 it took 30 seconds, and 34
+under each of two other hash seeds, three runs at a time.
+
+**THE REPAIR.** Fixed paths, as D-2026-169 gave the research simulation,
+for each kill the search took more than half the bound to make under
+3.12.13. Each drives the same machine through its own rules and
+invariants:
+
+- `test_recovery_inside_the_lease_on_a_fixed_path` reaches SM4's corner
+  twice, NOT_SENT before the attempt's dispatch and LOST after it. Each is
+  refused while the lease holds, and written once it has run out.
+- `test_the_budget_is_a_ceiling_on_a_fixed_path` reaches SM1's: with one
+  call's worst case in the budget, a second question from the other
+  process is not granted.
+- `test_disagreeing_observations_on_a_fixed_path` reaches SM9's: a
+  verified result below the threshold and one above it, both observed,
+  make the evaluation INCONCLUSIVE.
+
+Each is defined before its file's search, so a run that stops at its
+first failure, as the harness's does, stops at it. The machines are
+unchanged, and so are their digests under each interpreter, so each
+search tries the programs it tried before.
+
+**MUTATION.** Before the repair, each of the 15 mutations of `simulation`
+was timed under 3.12.13 at pass N's tree. SM4 took 320 seconds on its
+own. With up to four runs at a time, SM9 took 215 seconds, SM1 164, and
+the other twelve between 27 and 118. With the repair, SM4, SM1 and SM9
+are each killed by their fixed path under 3.12.3 and under 3.12.13: SM4
+and SM1 in about 2 seconds, and SM9 in about 38, once the gateway file
+has passed. Each of SM4's two paths kills it alone, and SM9's path kills
+it under each of six hash seeds. `simulation` whole, on this commit's
+tree: 15 of 15 killed under each interpreter, by the same tests under
+each, and every source restored. Run first, the lease paths kill SM3 and
+SM6 as well; D-2026-169's path kills SM7, as before; and the searches
+kill the other nine, SM2, SM5 and SM15 in the gateway file and SM8 and
+SM10 to SM14 in the research file.
+
+**WHAT THIS IS NOT.**
+
+- Not a change to the harness's bound, to either machine or its
+  settings, or to either search. Each search runs as before, after the
+  fixed paths.
+- Not a pin of the interpreter or of the seed. A pinned seed draws other
+  programs as soon as the machine changes, and the corners would again
+  depend on where the search happens to go.
+- Not a claim that hosted CI is green. That is for this commit's own runs
+  to show.
