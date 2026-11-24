@@ -227,6 +227,8 @@ def validate_spec(spec) -> list:
         problems.append("'mutations' must be a non-empty list")
         return problems
     seen: set = set()
+    made: dict = {}
+    sources: dict = {}
     for i, m in enumerate(mutations):
         where = f"mutation {i}"
         if not isinstance(m, dict):
@@ -250,7 +252,42 @@ def validate_spec(spec) -> list:
         path = m.get("path")
         if isinstance(path, str) and path and not (ROOT / path).exists():
             problems.append(f"{where} ({name}): {path!r} does not exist")
+            continue
+        # TWO ENTRIES, ONE MUTANT (AUD-087). Anchors that differ can make the
+        # same source, and re-anchoring onto a rule two checks were merged
+        # into does exactly that: the run then counts one fault twice and
+        # reports a second fault covered that is the first.
+        mutant = _mutant(path, m.get("find"), m.get("replace"), sources)
+        if mutant is not None:
+            if mutant in made:
+                problems.append(
+                    f"{where} ({name}) makes the same mutant as "
+                    f"{made[mutant]!r}, so the run would count one fault "
+                    "twice; give it a fault of its own, or fold its "
+                    "rationale into the other")
+            else:
+                made[mutant] = name
     return problems
+
+
+def _mutant(path, find, replace, sources: dict):
+    """A digest of the source ``find`` and ``replace`` make of ``path``, or
+    None where a rule above already objects or the anchor does not match
+    exactly once, which the run reports itself."""
+    if not all(isinstance(x, str) and x for x in (path, find, replace)) \
+            or find == replace:
+        return None
+    if path not in sources:
+        try:
+            sources[path] = (ROOT / path).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            sources[path] = None
+    src = sources[path]
+    if src is None or src.count(find) != 1:
+        return None
+    return hashlib.sha256(
+        (path + "\0" + src.replace(find, replace)).encode("utf-8")
+    ).hexdigest()
 
 
 def main() -> int:

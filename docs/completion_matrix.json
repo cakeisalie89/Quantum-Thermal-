@@ -1975,7 +1975,8 @@
         "tests/test_agent_governed_tasks.py",
         "tests/test_agent_substrate.py",
         "tests/test_generated_mutations.py",
-        "tests/test_mutation_harness.py"
+        "tests/test_mutation_harness.py",
+        "tests/test_mutation_specs.py"
       ],
       "property_tests": [],
       "mutation_tests": [

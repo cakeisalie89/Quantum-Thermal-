@@ -1,13 +1,13 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 665,
+   "ADDED": 666,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 237,
+   "LOW": 238,
    "MEDIUM": 374
   },
   "by_subsystem": {
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 212,
+   "tests": 213,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 697
+  "files": 698
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -1699,6 +1699,7 @@
     ],
     "tests": [
      "tests/test_agent_audit.py",
+     "tests/test_agent_checkpoint.py",
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
      "tests/test_formal_conformance.py"
@@ -1880,6 +1881,7 @@
     "tests": [
      "tests/test_adversarial_controls.py",
      "tests/test_agent_audit.py",
+     "tests/test_agent_checkpoint.py",
      "tests/test_agent_concurrency.py",
      "tests/test_agent_crash_recovery.py",
      "tests/test_agent_cross_process.py",
@@ -6196,6 +6198,7 @@
    "path": "tests/test_agent_checkpoint.py",
    "risk": "LOW",
    "runtime_dependencies": [
+    "hypothesis",
     "pytest"
    ],
    "subsystem": "tests",
@@ -7952,12 +7955,29 @@
    "verification": {
     "findings": [],
     "mutation_specs": [],
-    "tests": []
+    "tests": [
+     "tests/test_mutation_specs.py"
+    ]
    }
   },
   {
    "change": "ADDED",
    "path": "tests/test_mutation_shards.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": []
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_mutation_specs.py",
    "risk": "LOW",
    "runtime_dependencies": [
     "pytest"
@@ -10018,6 +10038,7 @@
     ],
     "tests": [
      "tests/test_mutation_harness.py",
+     "tests/test_mutation_specs.py",
      "tests/test_no_enforcing_asserts.py",
      "tests/test_repo_contract.py"
     ]
@@ -11204,7 +11225,9 @@
    "verification": {
     "findings": [],
     "mutation_specs": [],
-    "tests": []
+    "tests": [
+     "tests/test_mutation_specs.py"
+    ]
    }
   },
   {

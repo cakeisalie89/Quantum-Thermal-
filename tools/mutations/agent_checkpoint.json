@@ -1,6 +1,6 @@
 {
   "title": "Checkpointing, incremental verification, and the projection snapshot",
-  "note": "A checkpoint caches a verification RESULT. These mutations delete the checks that keep it from becoming a second source of truth: the anchor is re-hashed rather than trusted, an incremental report is forced to admit it is incremental, and a checkpoint that does not describe the log in front of it is refused rather than used. C28-C34 attack D-2026-30: the checkpoint FILE pinned a snapshot and nothing anchored the pin, so a rewritten file naming a forged snapshot restored a canonical record no history could produce -- while the log itself went on verifying perfectly, because the forgery was never in it. The claim is now also a checkpoint.state record under the hash chain, and these remove one part of that binding each.",
+  "note": "A checkpoint caches a verification RESULT. These mutations delete the checks that keep it from becoming a second source of truth: the anchor is re-hashed rather than trusted, an incremental report is forced to admit it is incremental, and a checkpoint that does not describe the log in front of it is refused rather than used. C28-C34 attack D-2026-30: the checkpoint FILE pinned a snapshot and nothing anchored the pin, so a rewritten file naming a forged snapshot restored a canonical record no history could produce -- while the log itself went on verifying perfectly, because the forgery was never in it. The claim is now also a checkpoint.state record under the hash chain, and these remove one part of that binding each.  CD1-CD15 are Wave B's: each takes one field out of the snapshot, as it is written or as it is restored, or keeps the cheap load from folding the checkpoint's own record, so that a load from a checkpoint holds what a replay from genesis does not. Before the differential and its fixed paths, these suites killed 2 of the 15.",
   "suites": [
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_substrate.py",
@@ -14,7 +14,7 @@
       "path": "agent_substrate/checkpoint.py",
       "find": "        if not report.ok and not report.torn_tail_only():\n            raise ChainBroken(\n                \"refusing to checkpoint a log",
       "replace": "        if False:\n            raise ChainBroken(\n                \"refusing to checkpoint a log",
-      "rationale": "a checkpoint past a break would hide it from every later verification; re-anchored after D-2026-51 narrowed the refusal to exclude a torn final append"
+      "rationale": "a checkpoint past a break would hide it from every later verification; re-anchored after D-2026-51 narrowed the refusal to exclude a torn final append. C34 (C34_the_torn_tail_tolerance_swallows_every_failure), added with D-2026-51 on the anchor C1 was moved to, made this same mutant and is folded into it (AUD-087). Its rationale: the D-2026-51 tolerance widened to accept ANY log that does not verify, so a checkpoint could be written past a real break -- the exact thing the refusal exists for"
     },
     {
       "name": "C2_skip_checkpoint_self_hash",
@@ -248,13 +248,6 @@
       "rationale": "D-2026-34: the backwards walk stops at a checkpoint that merely fits, leaving the one that describes the log unexamined below it"
     },
     {
-      "name": "C34_the_torn_tail_tolerance_swallows_every_failure",
-      "path": "agent_substrate/checkpoint.py",
-      "find": "        if not report.ok and not report.torn_tail_only():",
-      "replace": "        if False:",
-      "rationale": "the D-2026-51 tolerance widened to accept ANY log that does not verify, so a checkpoint could be written past a real break -- the exact thing the refusal exists for"
-    },
-    {
       "name": "C35_torn_tail_only_stops_checking_for_other_problems",
       "path": "agent_substrate/events.py",
       "find": "        return self.truncated_tail and len(self.problems) == 1",
@@ -365,6 +358,111 @@
       "find": "        if witness.seq == cp.seq - 1 and _holds_record(log, cp):\n            return\n",
       "replace": "        if _holds_record(log, cp):\n            return\n",
       "rationale": "AUD-009 and C5. A witness rolled back by more than a crash leaves is accepted whenever the record is there"
+    },
+    {
+      "name": "CD1_restore_forgets_the_idempotency_keys",
+      "path": "agent_substrate/store.py",
+      "find": "        self._applied_keys = dict(keys)\n",
+      "replace": "        self._applied_keys = {}\n",
+      "rationale": "a restored projection would apply a second time a request whose key it already applied"
+    },
+    {
+      "name": "CD2_restore_drops_a_records_evidence",
+      "path": "agent_substrate/store.py",
+      "find": "                    revision=r[\"revision\"], evidence=dict(r[\"evidence\"]),\n",
+      "replace": "                    revision=r[\"revision\"], evidence={},\n",
+      "rationale": "a restored record would lose the evidence its moves were decided on"
+    },
+    {
+      "name": "CD3_restore_drops_what_a_record_rests_on",
+      "path": "agent_substrate/store.py",
+      "find": "                    depends_on=tuple(r[\"depends_on\"]),\n",
+      "replace": "                    depends_on=(),\n",
+      "rationale": "a restored record would rest on nothing, and stay canonical on a foundation that is not"
+    },
+    {
+      "name": "CD4_restore_forgets_why_a_record_went_stale",
+      "path": "agent_substrate/store.py",
+      "find": "                    stale_reason=r[\"stale_reason\"],\n",
+      "replace": "                    stale_reason=None,\n",
+      "rationale": "a restored STALE record would no longer say why"
+    },
+    {
+      "name": "CD5_restore_resets_a_records_revision",
+      "path": "agent_substrate/store.py",
+      "find": "                    revision=r[\"revision\"], evidence=dict(r[\"evidence\"]),\n",
+      "replace": "                    revision=0, evidence=dict(r[\"evidence\"]),\n",
+      "rationale": "an expected-revision check would pass against a count the history never reached"
+    },
+    {
+      "name": "CD6_restore_takes_the_creation_for_the_last_update",
+      "path": "agent_substrate/store.py",
+      "find": "                    updated_seq=r[\"updated_seq\"],\n",
+      "replace": "                    updated_seq=r[\"created_seq\"],\n",
+      "rationale": "a restored record would date its last move to its creation"
+    },
+    {
+      "name": "CD7_restore_drops_a_records_policy",
+      "path": "agent_substrate/store.py",
+      "find": "                    policy_id=r[\"policy_id\"], created_seq=r[\"created_seq\"],\n",
+      "replace": "                    policy_id=None, created_seq=r[\"created_seq\"],\n",
+      "rationale": "a restored promotion would name no policy"
+    },
+    {
+      "name": "CD8_restore_drops_the_policy_binding",
+      "path": "agent_substrate/store.py",
+      "find": "        self._binding = binding\n",
+      "replace": "        self._binding = None\n",
+      "rationale": "a writer restarted from a checkpoint would promote on policies the history bound it to"
+    },
+    {
+      "name": "CD9_restore_forgets_a_withdrawal",
+      "path": "agent_substrate/store.py",
+      "find": "                                   \"withdrawn_seq\": v.get(\"withdrawn_seq\")}\n",
+      "replace": "                                   \"withdrawn_seq\": None}\n",
+      "rationale": "a writer restarted from a checkpoint would promote on a withdrawn policy"
+    },
+    {
+      "name": "CD10_restore_forgets_who_published",
+      "path": "agent_substrate/store.py",
+      "find": "        self._policy_view = {pid: {\"publisher\": v.get(\"publisher\"),\n",
+      "replace": "        self._policy_view = {pid: {\"publisher\": None,\n",
+      "rationale": "a writer restarted from a checkpoint would refuse every promotion a binding permits"
+    },
+    {
+      "name": "CD11_restore_forgets_the_time_the_history_reached",
+      "path": "agent_substrate/store.py",
+      "find": "        self._latest_wall = latest\n",
+      "replace": "        self._latest_wall = None\n",
+      "rationale": "a writer restarted from a checkpoint would judge an expiry by a clock set back"
+    },
+    {
+      "name": "CD12_a_snapshot_leaves_out_the_time_the_history_reached",
+      "path": "agent_substrate/store.py",
+      "find": "            \"latest_wall\": self._latest_wall,\n",
+      "replace": "            \"latest_wall\": None,\n",
+      "rationale": "the same, from the snapshot's side: both sides of a snapshot comparison lose it"
+    },
+    {
+      "name": "CD13_a_snapshot_forgets_a_withdrawal",
+      "path": "agent_substrate/store.py",
+      "find": "                               \"withdrawn_seq\": v[\"withdrawn_seq\"]}\n",
+      "replace": "                               \"withdrawn_seq\": None}\n",
+      "rationale": "a snapshot would restore a withdrawn policy as in force"
+    },
+    {
+      "name": "CD14_a_snapshot_leaves_out_the_policy_binding",
+      "path": "agent_substrate/store.py",
+      "find": "            \"policy_binding\": self.policy_binding,\n",
+      "replace": "            \"policy_binding\": None,\n",
+      "rationale": "a snapshot would restore a bound history as unbound"
+    },
+    {
+      "name": "CD15_the_cheap_load_folds_no_checkpoint_record",
+      "path": "agent_substrate/store.py",
+      "find": "                    anchored = True\n            store._apply(ev)\n",
+      "replace": "                    anchored = True\n            if ev.action != ACT_CHECKPOINT_STATE:\n                store._apply(ev)\n",
+      "rationale": "the cheap load would stop short of the records it read, at a position and time the full load passes"
     }
   ]
 }

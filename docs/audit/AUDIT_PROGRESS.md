@@ -5105,3 +5105,219 @@ inference readers. All were killed, and every source was restored.
 - The second reader's restatement holds the manifest's rules as they
   stand. A change to the form is made in both readers, and the table
   test is the check that they agree.
+
+### Stage 5, nineteenth pass: the cheap load held to the full one (Wave B, part 1; AUD-087, AUD-088)
+
+Wave B of the campaign is memory and replay. This pass takes its first
+part: the authority store's checkpointed load, `AuthorityStore.load_from`,
+held to a replay from genesis; what authenticates the anchors it rests on;
+and how long a record altered before a checkpoint goes unseen. No defect
+was found in the load. Two were found in what the mutation harness's
+matrices count, and both are fixed (AUD-087, AUD-088).
+
+**Hosted CI at 8f0714e and bd818f8.** Read from the API: at each commit,
+all 44 check runs completed and passed, in eight workflow runs, the 16
+mutation shards and both mutation-matrices aggregates among them. Gate I
+is met at both. At 8f0714e the runs are 44603516543, 44603516413,
+44603516457, 44603516778 and 44603516493 (push), and 44603531136,
+44603531178 and 44603531203 (pull request). At bd818f8 they are
+44624122611, 44624122897, 44624122628, 44624122641 and 44624122627 (push),
+and 44624135034, 44624135085 and 44624135088 (pull request). The mutation
+shard holding `agent_checkpoint` took 61 of its 150 minutes at bd818f8.
+
+**The differential.** `tests/test_agent_checkpoint.py` gains a search,
+`test_a_load_from_any_checkpoint_agrees_with_a_full_load`, and the fixed
+paths in front of it. A history is a short program of operations written
+through the stores: records created, moved along the model's edges, moved
+where no edge goes, and created again under their idempotency keys; one
+record made to rest on another, and the cascade through it; policy
+versions published, expiring and withdrawn, and a binding to their
+publisher; a wall clock set forward and back; checkpoints; and writers
+reopened from a full read or from their own newest checkpoint. The clock
+is the `time` the log, the policy store, the store and the checkpoint
+module read, replaced by one the history sets. Each checkpoint a history
+took is copied alone into a store of its own and loaded from it, a
+checkpoint required. The load is held to the full one twice: on the
+snapshot, and on what the store holds read past `snapshot()` (its records,
+keys, policy view, binding, the time the history reached, its position and
+its canonical set), since a field `snapshot()` itself dropped would be
+missing from both sides of the first comparison.
+
+Measured on the 200 histories the search draws, counted under CPython
+3.12.3 and again under 3.12.13, with the same counts under each: 2,724
+operations; 208 checkpoints in 135 histories; restored there, idempotency
+keys at all 208, evidence at 123, a record's policy at 93, policies at 87
+(both of the two at 32), dependencies at 22, stale reasons at 20, the
+binding at 12 and a withdrawal at 10; 1,327 moves, along 13 of the model's
+14 edges. No history took PROMOTED to REVOKED, four other edges were taken
+once or twice, no checkpoint was followed only by records earlier than the
+time it restored, and none was followed by a promotion under a binding it
+restored. So four fixed paths come first, collected before the search:
+
+- a policy published, bound and withdrawn before a checkpoint, and a
+  writer restarted from it asked to promote on that policy, which it
+  refuses;
+- a version expiring 60 seconds after it is published, the clock moved 100
+  seconds on and a record written, the clock set back 60 seconds and a
+  checkpoint taken, and a writer restarted from it asked to promote, which
+  it refuses, judging at the time the history reached;
+- a record made to rest on another, promoted, and cascaded STALE for a
+  stated reason, before a checkpoint;
+- every one of the 14 edges, by seven records, with four checkpoints
+  between them, the log checked to hold each edge.
+
+At every checkpoint of every history and path, the cheap load held what
+the full load held.
+
+**How long an altered record goes unseen.** A record before a checkpoint,
+altered in place and at its width
+(`test_how_long_an_altered_prefix_goes_unseen`, and the search's last
+block, reached in 135 histories):
+
+- the cheap load does not read it, and says so: `loaded_prefix_verified`
+  is False, and its snapshot is the full load's;
+- a writer holding an anchor past it does not see it: its appends check
+  what follows the anchor, and it extends the altered history, as the
+  log's module states;
+- the store `load_from` returns holds no anchor of its own, so its first
+  write reads the whole log, and refuses it;
+- a fresh handle's first append, a full load, `log.verify()` and the next
+  checkpoint each read the whole chain, and refuse it, and so does the
+  anchored writer once `full_verify_every` is 1.
+
+It goes unseen until the next read of the whole chain, which a live
+writer's own appends never make unless `full_verify_every` is set.
+
+**What authenticates the anchors.** Read, not changed. The checkpoint file
+is authenticated by nothing: its self-hash is recomputable by whoever can
+write it, and a test says so. The `checkpoint.state` record, under the
+hash chain, pins the snapshot's digest to its position (D-2026-30), and
+`load_from` refuses a checkpoint no such record names, or names with
+another digest. The record an anchor names must parse, sit at the anchor's
+seq and hash to its hash, at the anchor's offsets. Under an authenticator
+`load_from` reads every record, since a snapshot says nothing about who
+wrote the records before it.
+
+**Mutations.** CD1 to CD15 are added to `agent_checkpoint`: each takes one
+field out of the snapshot as it is written or restored, or keeps the cheap
+load from folding the checkpoint's own record. At bd818f8 the spec's five
+suites killed 2 of the 15, CD1 and CD5, by the one fixed differential they
+held, and 13 survived. Whether a test elsewhere caught them was then asked
+of every test a trace found reaching the restore, the snapshot or the
+cheap load at all: 59 tests in 23 files, traced in each test's process and
+in the subprocesses that keep its environment. Each of the 13 was run
+against them at bd818f8 by node id, the 42 that reach the restore or the
+cheap load for a mutation of either and all 59 for one of the snapshot,
+each run with its own bytecode cache, after a green baseline and an inert
+edit that kept it green, with the source restored after each and the
+baseline green again at the end. Nine were killed there, by the first test
+to fail: CD2, CD6 and CD7 by the long-horizon campaign's checkpointed
+load, CD4 by the resumable campaign, CD8 and CD14 by the harness
+demonstration's generic leg, and CD10, CD11 and CD12 by history_time's
+checkpoint test. Four were killed by none of them: CD3, a restore that
+drops what a record rests on; CD9 and CD13, a withdrawal forgotten as a
+snapshot is restored or as it is written; and CD15, a cheap load that does
+not fold the checkpoint's own record. On this pass's tree all 15 are
+killed, none by the search: CD1 and CD5 by that differential, which comes
+first in the file, and the other 13 by the new fixed paths, 8 by the
+withdrawal's, 3 by the dependency's and 2 by the clock's. CD11 is
+history_time's HT10, the same mutant, held here against this spec's
+suites.
+
+**Whole runs.** On this pass's code and tests, before its records were
+written: `agent_checkpoint`, 65 of 65, under CPython 3.12.3 and again
+under 3.12.13, each mutation killed by the same test under both and none
+by the search; `inference_gateway`, 66 of 66; `agent_execution`, 65 of 65;
+`mutation_shards`, 12 of 12; and `mutation_harness`, 22 of 22, run after
+AUD-088's move, each entry killed by a test of the harness's behaviour,
+H17 and H18 by the test of the timeout rule. Every source was restored
+byte-identical and every post-run baseline was green. The first four ran
+on tree 35b654af, which differs from this commit's in
+`tests/test_mutation_harness.py`, in lacking
+`tests/test_mutation_specs.py`, and in the completion matrix, the records
+and the files derived from them. Their suites read none of these but for
+three tests of `tests/test_agent_substrate_isolation.py`, a suite of
+`agent_checkpoint` and `agent_execution`: two read every Python file the
+repository holds for an import of the substrate, and one for a definition
+bound twice. No mutation changes either harness test file, and the three
+pass unmutated on this tree, so each says of each mutation what it said on
+35b654af.
+
+**AUD-087 (P3), fixed.** Three mutation specs each counted one mutant
+twice. Two entries of one spec can make the same mutated source while
+their names and anchors differ, and the harness ran both and counted two
+kills: it refused a duplicated name, a missing field and a replacement
+equal to its find, and never compared what two entries make. C34 was added
+with D-2026-51 on the line C1 had been re-anchored to, with the same
+replacement, and the ledger recorded it as a second mutation for the new
+condition. IG2 was re-anchored onto the one budget rule left when the
+writer's and the replay's were merged, with IG1's find and replacement.
+X62 had X11's. No fault went untested: each was its partner's fault, and
+its partner was killed. `validate_spec` now digests what each entry makes
+of its source and refuses a second entry making the same mutant, in its
+own words. The three are folded: C34, IG2 and X62 come out, and each one's
+rationale is kept, word for word, in its partner's. H20 in
+`mutation_harness` takes the refusal away. The test of the refusal fails
+against bd818f8's harness, which runs both entries, and the harness's own
+validation of every committed spec fails at bd818f8 for exactly the three
+specs. Across specs, 35 groups of identical mutants remain, 75 of the
+3,209 entries, none within one spec: each is one fault held against
+another spec's suites.
+
+**AUD-088 (P3), fixed.** The harness's own spec could not show a survivor.
+`tests/test_mutation_harness.py`, its one suite, held the static checks of
+every committed spec, and two of them read each spec's anchors in the
+files it names, the harness's own file among them. Each entry of
+`mutation_harness`, applied, takes its own anchor out of that file, so the
+anchor check and the no-op check failed under every entry, whatever the
+entry did, and the harness reports a run's first failure. This pass's run
+credited H17 and H18 to the anchor check, which comes before the test that
+observes them; with the two checks deselected, each was killed by that
+test. The null control appends a comment, which takes no anchor away, and
+could not see it. An entry HX that puts a trailing space in a message no
+test reads, held in a lane's copy of the spec and run alone, was reported
+KILLED at bd818f8, by
+`test_every_mutation_anchor_matches_exactly_once[mutation_harness.json]`,
+and SURVIVED on this pass's tree; it was never committed. The checks move
+to `tests/test_mutation_specs.py`, which no spec runs, and a test there
+holds that none does; they still run wherever the whole suite runs, and
+completion row R51 cites the new file.
+
+**Read in full.** `tests/test_agent_checkpoint.py`, all 1,811 lines at
+bd818f8, and this pass's additions. Its tables refuse each case by the
+rule the case is there for, each checked here by its message. Two refusals
+are asserted as `Exception` with a message. The concurrency test takes two
+checkpoints a turn, writes the first and lists the position of the second;
+what it holds, that every checkpoint written still describes the log, is
+unaffected. `tools/mutations/agent_checkpoint.json`, all 51 entries at
+bd818f8: AUD-087 was found there, and the prefixes E26 and E27 each begin
+two entries' names. Neither was changed. `tools/mutation_matrix.py`, all
+607 lines, and `tools/mutations/mutation_harness.json`, all 21 entries:
+AUD-087 and AUD-088 bear on them. A kill made by a collection error is
+reported without the test that made it. `tests/test_mutation_harness.py`,
+all 838 lines: two of its assertions named a heading the harness stopped
+printing with D-2026-43, so neither could fail, and each names the heading
+it prints now; the tests holding them were not vacuous, since each also
+asserts the run's exit status or the quarantine's absence.
+
+**Read and not changed.** The store `load_from` returns holds no anchor of
+its own, so its first write reads and hashes the whole log once, then
+holds one: counted here, one full verified read at the first write and an
+anchored advance at the second. That read is also what finds an altered
+prefix there. A checkpointed restart so saves the prefix's fold and not
+its read, which bears on AUD-010; a change to it is a change to the
+latency above. `loaded_prefix_verified` stays False once that read has
+verified the prefix, which errs the safe way.
+
+**What is not established.**
+
+- The histories hold claims, not scientific results, and no role registry:
+the admissions a restore re-derives, and the roles a snapshot carries, are
+not in them. - The memory projection and the other projections are not
+held to a differential here; Wave B goes on to them. - Which histories a
+search draws moves with its source. The counts above are for this source,
+measured under both interpreters. - Which tests reach the restore was
+found by tracing calls in each test's process and in subprocesses that
+keep its environment. The tracing run ended after its last test without
+pytest's summary line, every test before it having passed; what it traced
+was written as each call was made.

@@ -3821,18 +3821,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-088"
+   ],
    "kind": "evidence-or-data",
-   "method": "",
+   "method": "row R51 read at bd818f8 (blob ccc7778); its tests gaining tests/test_mutation_specs.py (AUD-088) written and reviewed as a diff, the matrix held self-consistent by tools/completion_matrix.py",
    "mode": "100644",
-   "new_blob": "ccc77787cee1499c722ebb04056a6a004cd75f67",
-   "note": "not yet examined",
+   "new_blob": "cd886811515509c58ba4d5c123ddf7a4d15906ec",
+   "note": "",
    "old_blob": null,
    "path": "docs/completion_matrix.json",
-   "reviewed_blob": null,
-   "sha256": "9005fcb4e4d47b7f6d1f925e8375c97cbb2fd005056f4786ad6b7d4b3a9031a3",
-   "size": 256121,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "cd886811515509c58ba4d5c123ddf7a4d15906ec",
+   "sha256": "9d40c1373ab0e70f0a055c1c73b6ebdd74a9994e8506add073feff764c0857d3",
+   "size": 256161,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -10170,16 +10172,16 @@
    "change": "ADDED",
    "findings": [],
    "kind": "test",
-   "method": "",
+   "method": "read in full at bd818f8 (blob 3b4d4b9), all 1811 lines, for the campaign's Wave B: the log helpers, verification from a checkpoint and the report that says it is incremental, anchors checked and never trusted, creating and storing a checkpoint, latest_usable and pruning, the store's checkpointed load and each refusal of it, the malformed-snapshot and malformed-checkpoint tables (each case checked to be refused by the rule it is there for), the D-2026-30 anchoring, D-2026-34's describes, the reducer identity of D-2026-71 and the audit against a log; this pass's differential (_replay, _held, _agrees and the history_clock fixture, four fixed paths, the latency test and the search) written and reviewed as a diff, with CD1 to CD15 killed by the fixed paths",
    "mode": "100644",
-   "new_blob": "3b4d4b9f0865e76a8c64db48a0c57038f41be693",
-   "note": "not yet examined",
+   "new_blob": "372d04c66ee55a0377ae84ac6dfbcc5b12620322",
+   "note": "the concurrency test takes two checkpoints a turn and lists the position of the one it does not write; two refusals are asserted as Exception with a message",
    "old_blob": null,
    "path": "tests/test_agent_checkpoint.py",
-   "reviewed_blob": null,
-   "sha256": "9e28b60f5bc8ca4f895a0bb4224a3b238ad8910aa8f08910ab74177c5c9f9a7e",
-   "size": 78148,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "372d04c66ee55a0377ae84ac6dfbcc5b12620322",
+   "sha256": "cae61b02f6f20e8ca90cef5e1d1722bc4bbded4a0657a3068b52d6c4361a0740",
+   "size": 96261,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -12394,18 +12396,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-087",
+    "AUD-088"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "read in full at bd818f8 (blob 2be334f), all 838 lines; two assertions found naming a heading the harness stopped printing with D-2026-43, so neither could fail, and corrected to the heading it prints; the two tests of AUD-087 written and reviewed as a diff, the regression test failing against bd818f8's harness and the control passing at both; the seven checks of committed specs moved out to tests/test_mutation_specs.py (AUD-088), so that the harness spec's one suite tests the harness's behaviour alone",
    "mode": "100644",
-   "new_blob": "2be334f2633d17013bfdf1d42e1c363a01a0ff38",
-   "note": "not yet examined",
+   "new_blob": "2f13295199f750221f606832eef6f12155cf0568",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_mutation_harness.py",
-   "reviewed_blob": null,
-   "sha256": "397e4aa5628709b33cc189b990691bad046f644674152c8d87229fce0202e489",
-   "size": 34606,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "2f13295199f750221f606832eef6f12155cf0568",
+   "sha256": "7ccb4e2f6dcfbec113f159c58fc4cc27060387a6bfefc3ddb21b39c41559a562",
+   "size": 31767,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -12422,6 +12427,25 @@
    "sha256": "ad18090df9174c8d27a4657262a2f1edeb3d949312b4929ea9ff70ee225f1caa",
    "size": 9189,
    "status": "REVIEWED_IN_FULL"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [
+    "AUD-087",
+    "AUD-088"
+   ],
+   "kind": "test",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "not independently reviewed",
+   "old_blob": null,
+   "path": "tests/test_mutation_specs.py",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,
@@ -14751,33 +14775,35 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-087"
+   ],
    "kind": "tool",
-   "method": "",
+   "method": "read in full at bd818f8 (blob 266144c), all 607 lines: the recovery sidecar and the quarantine, run_suite and its private bytecode cache, validate_spec, the baseline and its re-run, the null control, the mutation loop and its check for collateral damage, the verified restoration and the post-run baseline; AUD-087 found there; its correction (_mutant, and validate_spec's refusal of a second entry making the same mutant) written and reviewed as a diff, with H20 killed",
    "mode": "100644",
-   "new_blob": "266144c5e4731c0516a66c3bf59634a748ac413f",
-   "note": "not yet examined",
+   "new_blob": "b463c0aad6b9e39cb5453e387a373e85fc903dbc",
+   "note": "a kill made by a collection error is reported without the test that made it",
    "old_blob": null,
    "path": "tools/mutation_matrix.py",
-   "reviewed_blob": null,
-   "sha256": "cbb93d58ac3669444cf654cb40677157404b9d700f6076cf6efbb98b7c076f27",
-   "size": 29601,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "b463c0aad6b9e39cb5453e387a373e85fc903dbc",
+   "sha256": "3e5d70c9cfcd76b1cad8dfad453c6eaf5a71903800b9be587750cd4049038fea",
+   "size": 31200,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
    "change": "ADDED",
    "findings": [],
    "kind": "tool",
-   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff; the comment on specs that gained mutations after the weights were measured, which said twelve where thirty had, restated with the count measured at ce93e58, written by the audit and reviewed as a diff; the comment on specs added after the weights were measured names unknown_actions (AUD-054), written and reviewed as a diff; the comment on specs added after the weights were measured names evidence_objects (AUD-055), written and reviewed as a diff; the comment on specs added after the weights were measured names resolution_bound (AUD-056), written and reviewed as a diff; the comment on specs added after the weights were measured names egress_perimeter (AUD-057 to AUD-059), written and reviewed as a diff; the comment on specs added after the weights were measured names agent_directory_records (AUD-060 and AUD-061), written and reviewed as a diff, its six names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names second_reader_rules (AUD-062 to AUD-067), written and reviewed as a diff, its seven names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names scheduler_replay_rules (AUD-068 to AUD-071), written and reviewed as a diff, its eight names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then named task_projection_records (AUD-072 to AUD-074) too, written and reviewed as a diff, its nine names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then counted thirty-one measured specs grown since the measured run, ro_crate_conformance the latest (AUD-076 to AUD-078), written and reviewed as a diff, the count checked by script against a5cf136; the comment then counted thirty-two, inference_gateway the latest (AUD-080 to AUD-082), written and reviewed as a diff, the count checked by script against a5cf136; the comment's latest specs then named agent_memory_context, inference_gateway and proposal_ingress (AUD-083 to AUD-086), written and reviewed as a diff, the count of thirty-two checked by script against a5cf136",
+   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff; the comment on specs that gained mutations after the weights were measured, which said twelve where thirty had, restated with the count measured at ce93e58, written by the audit and reviewed as a diff; the comment on specs added after the weights were measured names unknown_actions (AUD-054), written and reviewed as a diff; the comment on specs added after the weights were measured names evidence_objects (AUD-055), written and reviewed as a diff; the comment on specs added after the weights were measured names resolution_bound (AUD-056), written and reviewed as a diff; the comment on specs added after the weights were measured names egress_perimeter (AUD-057 to AUD-059), written and reviewed as a diff; the comment on specs added after the weights were measured names agent_directory_records (AUD-060 and AUD-061), written and reviewed as a diff, its six names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names second_reader_rules (AUD-062 to AUD-067), written and reviewed as a diff, its seven names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names scheduler_replay_rules (AUD-068 to AUD-071), written and reviewed as a diff, its eight names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then named task_projection_records (AUD-072 to AUD-074) too, written and reviewed as a diff, its nine names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then counted thirty-one measured specs grown since the measured run, ro_crate_conformance the latest (AUD-076 to AUD-078), written and reviewed as a diff, the count checked by script against a5cf136; the comment then counted thirty-two, inference_gateway the latest (AUD-080 to AUD-082), written and reviewed as a diff, the count checked by script against a5cf136; the comment's latest specs then named agent_memory_context, inference_gateway and proposal_ingress (AUD-083 to AUD-086), written and reviewed as a diff, the count of thirty-two checked by script against a5cf136; the comment's count of specs weighed at an earlier form's time made thirty-four, the latest agent_checkpoint and mutation_harness, written and reviewed as a diff, the count checked by script against a5cf136",
    "mode": "100644",
-   "new_blob": "cec496216af57fce09a7689fc01714ec986d68fc",
+   "new_blob": "8556358d8029ff1479116c529aa150fd46d91550",
    "note": "",
    "old_blob": null,
    "path": "tools/mutation_shards.py",
-   "reviewed_blob": "cec496216af57fce09a7689fc01714ec986d68fc",
-   "sha256": "310e35bca83c53fcd074d5958e87e7789437dfe3b44bef224d8ba9639efc08cc",
-   "size": 14976,
+   "reviewed_blob": "8556358d8029ff1479116c529aa150fd46d91550",
+   "sha256": "b6442f7913a94f3ba33aeff61d0427b4ac50b7c9867f46b255f4ef11c68c2ed3",
+   "size": 14973,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -14879,18 +14905,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-087"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "all 51 entries read at bd818f8 (blob 62d4447), each against its target; AUD-087 found there, C1 and C34 making the same mutant; CD1 to CD15 written and reviewed as a diff, and C34 folded into C1, the spec run whole on this pass's tree",
    "mode": "100644",
-   "new_blob": "62d4447cd278e6c54eabd5cd5b87f57ec13df0aa",
-   "note": "not yet examined",
+   "new_blob": "c05bf1b42d429767b466baad39f715e89f1e3e98",
+   "note": "the prefixes E26 and E27 each begin two entries' names",
    "old_blob": null,
    "path": "tools/mutations/agent_checkpoint.json",
-   "reviewed_blob": null,
-   "sha256": "238bd1e931dc8fbae08c5ae16d169b978af1e2ba52e1a4d209f911b9a1cfd058",
-   "size": 22160,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "c05bf1b42d429767b466baad39f715e89f1e3e98",
+   "sha256": "b261af095c5c8bdb7244fe18efac27aabe4301ec7ea854dd5183a6426f83c674",
+   "size": 27799,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,
@@ -14977,18 +15005,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-087"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "the entries X11 and X62 read at bd818f8 (blob 1420cc7) and found to make the same mutant (AUD-087); the second folded into the first, its rationale kept, written and reviewed as a diff, the spec run whole on this pass's tree",
    "mode": "100644",
-   "new_blob": "1420cc7aec7af6a56c9fbf5beeb1c346ea39e58a",
-   "note": "not yet examined",
+   "new_blob": "edc6a5d1e59697645c092fe7885fb3e7f0586527",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/agent_execution.json",
-   "reviewed_blob": null,
-   "sha256": "656468f6b821b5402454262018d0d039be19ad118c60eca051f9dfc221888c69",
-   "size": 23390,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "edc6a5d1e59697645c092fe7885fb3e7f0586527",
+   "sha256": "2117bbb89fc0d0e818ef245ef63a4f44a3ea1372974768b11781a2b2d92df35f",
+   "size": 23159,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -16077,18 +16107,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-087"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "the entries IG1 and IG2 read at bd818f8 (blob 5984433) and found to make the same mutant (AUD-087); the second folded into the first, its rationale kept, written and reviewed as a diff, the spec run whole on this pass's tree",
    "mode": "100644",
-   "new_blob": "59844338ca2a5163c60feaf0f301bc2fe4184e1e",
-   "note": "not yet examined",
+   "new_blob": "2e1e0c70f804a058bc5f449a7c11615a82ac7fa7",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/inference_gateway.json",
-   "reviewed_blob": null,
-   "sha256": "31c0277d19ea6a4992d9b74d6ebfd7744b95a3eccb0d71bec4a532b90e8715e0",
-   "size": 26431,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "2e1e0c70f804a058bc5f449a7c11615a82ac7fa7",
+   "sha256": "dc740f35d18861db3446745f38490e4100fd4c9110706f3097128b4566e4b8fd",
+   "size": 26186,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -16191,18 +16223,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-087",
+    "AUD-088"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "all 21 entries read at bd818f8 (blob f7c1b3a) against tools/mutation_matrix.py, each matching once and each taking away a check of its own; H20 written and reviewed as a diff, and killed; AUD-088 found in what its suite held",
    "mode": "100644",
-   "new_blob": "f7c1b3aebf547b6dd3eb9df38eea7bef89af99c5",
-   "note": "not yet examined",
+   "new_blob": "51ab6149892963407f8203fa1487fefcfbc937a9",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/mutation_harness.json",
-   "reviewed_blob": null,
-   "sha256": "d72d5272c2088aa8a98fe486f5249a1031d49c4cc72e793b0efbe5cd86f06589",
-   "size": 9003,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "51ab6149892963407f8203fa1487fefcfbc937a9",
+   "sha256": "fd491e1e4eda398ad477018e5c98b22381a1b6c6b2376dfc614f8a3c97caac97",
+   "size": 9360,
+   "status": "REVIEWED_IN_FULL"
   },
   {
    "binary": false,

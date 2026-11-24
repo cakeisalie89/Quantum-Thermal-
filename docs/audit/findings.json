@@ -2853,6 +2853,77 @@
    "residual_risk": "The restatement holds the rules as they stand. A change to the manifest's form must be made in both readers; the table test is the check that they agree.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-087",
+   "title": "Three mutation specs each counted one mutant twice, and the harness refused a duplicated name but not a duplicated mutant",
+   "severity": "P3",
+   "subsystem": "the mutation harness: what a spec may hold",
+   "files": [
+    {
+     "path": "tools/mutation_matrix.py",
+     "lines": "validate_spec"
+    },
+    {
+     "path": "tools/mutations/agent_checkpoint.json",
+     "lines": "C1 and C34"
+    },
+    {
+     "path": "tools/mutations/inference_gateway.json",
+     "lines": "IG1 and IG2"
+    },
+    {
+     "path": "tools/mutations/agent_execution.json",
+     "lines": "X11 and X62"
+    }
+   ],
+   "behavior": "Two entries of one spec whose anchors or names differ can make the same mutated source, and the harness ran both and counted two kills. Three committed specs held such a pair. C34 was added with D-2026-51 on the line C1 was re-anchored to, with the same replacement, and the ledger recorded it as a second mutation for the new condition. IG2 was re-anchored onto the one budget rule left when the writer's and the replay's were merged, with IG1's find and replacement. X62 had X11's. Each pair was one fault counted twice, and a second fault reported covered that was the first.",
+   "invariant": "A spec's count of kills is a count of distinct faults: no two of its entries make the same mutant.",
+   "mechanism": "validate_spec refused a duplicated name, a missing field and a replacement equal to its find, and never compared what two entries make. Re-anchoring an entry onto a merged rule makes such a pair without changing either name.",
+   "reproduction": "At bd818f8, each mutation of each committed spec applied to its source and the results compared: in agent_checkpoint, C1 and C34 make the same file; in inference_gateway, IG1 and IG2; in agent_execution, X11 and X62. Under the check this pass adds, those three specs fail the harness's own validation at bd818f8, and the test of the check fails against bd818f8's harness, which runs both entries.",
+   "observed": "Found reviewing agent_checkpoint's 51 mutations for Wave B, and then across every spec.",
+   "expected": "The spec is refused before anything is written: '(two) makes the same mutant as 'one''.",
+   "correction": "validate_spec digests what each entry makes of its source and refuses a second entry making the same mutant, in its own words. The three pairs are folded: C34, IG2 and X62 come out, and each one's rationale is kept, word for word, in the entry that makes its mutant.",
+   "regression_tests": [
+    "tests/test_mutation_harness.py::test_two_mutations_making_the_same_mutant_are_refused",
+    "tests/test_mutation_specs.py::test_every_committed_spec_passes_the_harness_own_validation"
+   ],
+   "residual_risk": "No fault went untested: each folded entry's fault is its partner's, and the partner was killed. Across specs, 35 groups of identical mutants remain, 75 of 3,209 entries, none within one spec: each is one fault held against another spec's suites, as CD11 of this pass is history_time's HT10. That is deliberate, and a spec's own count is of distinct faults.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-088",
+   "title": "The harness's own spec could not show a survivor: two checks in its suite failed under every one of its entries, whatever the entry did",
+   "severity": "P3",
+   "subsystem": "the mutation harness: what its own matrix measures",
+   "files": [
+    {
+     "path": "tests/test_mutation_harness.py",
+     "lines": "the checks of every committed spec, before this pass"
+    },
+    {
+     "path": "tests/test_mutation_specs.py",
+     "lines": "the same checks, and test_no_spec_runs_these_checks"
+    },
+    {
+     "path": "tools/mutations/mutation_harness.json",
+     "lines": "its one suite"
+    }
+   ],
+   "behavior": "tests/test_mutation_harness.py, the one suite of mutation_harness.json, held the static checks of every committed spec. Two of them read each spec's anchors in the files it names, tools/mutation_matrix.py among them, and each entry of mutation_harness.json, applied, takes its own anchor out of that file. So the anchor check and the no-op check failed under every entry, whatever the entry did, and the harness reports a run's first failure. H17 and H18 were reported killed by the anchor check, which comes before the test that observes them, and an entry no test of the harness's behaviour observes would have been reported killed as well. The null control appends a comment, which takes no anchor away, and could not see it.",
+   "invariant": "A kill in a spec's matrix is made by a test of what the mutated code does, not by a check that the mutated text is still there.",
+   "mechanism": "Checks of the committed specs' anchors ran in the suite of the spec whose target file they read.",
+   "reproduction": "At bd818f8, an entry HX that puts a trailing space in a message no test reads, placed in the lane's mutation_harness.json and run alone, was reported KILLED by test_every_mutation_anchor_matches_exactly_once[mutation_harness.json]. On this pass's tree, before the move, H17 and H18 were each killed by test_a_mutation_killed_only_by_a_timeout_is_not_counted_as_coverage once the anchor and no-op checks were deselected.",
+   "observed": "Found reading the kill sites of the harness spec in this pass's run of it.",
+   "expected": "HX survives, and H17 and H18 are killed by the test of the rule they take away.",
+   "correction": "The checks of the committed specs move to tests/test_mutation_specs.py, which no spec runs, and a test there holds that none does. They still run wherever the whole suite runs. Completion row R51 cites the new file.",
+   "regression_tests": [
+    "tests/test_mutation_specs.py::test_no_spec_runs_these_checks"
+   ],
+   "residual_risk": "A test in another spec's suites that asserts on source text would kill a mutation of that text the same way. This pass read the kill sites of the harness spec, and of agent_checkpoint, and of no other spec.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

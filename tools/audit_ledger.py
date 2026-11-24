@@ -206,7 +206,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/scheduler_replay_rules.json",
                # The task projection's records (AUD-072 to AUD-074).
                "tests/test_task_projection_records.py",
-               "tools/mutations/task_projection_records.json")
+               "tools/mutations/task_projection_records.json",
+               # The static checks of every committed mutation spec,
+               # moved out of the harness spec's one suite (AUD-088).
+               "tests/test_mutation_specs.py")
 
 #: (glob, kind). First match wins.
 KINDS = (

@@ -1809,3 +1809,400 @@ def test_the_audit_agrees_with_latest_usable(tmp_path, layout):
     nothing = audit.verdict in (cp_mod.AUDIT_EMPTY, cp_mod.AUDIT_NONE_USABLE)
     assert (store.latest_usable(log) is None) == nothing, audit
 
+
+# --- Wave B: the cheap load against the full one, whatever the history -----
+_ACTOR = {Role.PROPOSER: "p", Role.VERIFIER: "v", Role.PROMOTER: "pm",
+          Role.SYSTEM: "system"}
+#: the clock the histories start on; each sets it forward and back
+_EPOCH = 1_700_000_000.0
+
+
+class _Clock:
+    """``time`` with a wall clock a history sets. Everything else is the
+    real module: the log's lock waits on the monotonic clock, not this."""
+
+    def __init__(self):
+        import time
+        self._time, self.now = time, _EPOCH
+
+    def time(self):
+        return self.now
+
+    def __getattr__(self, name):
+        return getattr(self._time, name)
+
+
+def _history():
+    """Programs of ops, each kind drawn as often as its share of
+    ``weights``: a move about as often as everything else together, so
+    that records travel to the model's far edges."""
+    from hypothesis import strategies as st
+    rid, pol = st.integers(0, 2), st.sampled_from(("pol-1", "pol-2"))
+    args = {
+        "walk": st.tuples(rid, st.integers(1, 4)),
+        "edge": st.tuples(rid, st.integers(0, 3)),
+        "create": st.tuples(rid),
+        "attempt": st.tuples(
+            rid, st.sampled_from(sorted(State, key=lambda s: s.value)),
+            st.sampled_from(sorted(Role, key=lambda r: r.value))),
+        "depend": st.tuples(rid, rid),
+        "cascade": st.tuples(rid),
+        "publish": st.tuples(pol, st.sampled_from((None, 5.0, 60.0))),
+        "withdraw": st.tuples(pol),
+        "bind": st.tuples(st.sampled_from(("owner", "other"))),
+        "clock": st.tuples(st.sampled_from((-60.0, 10.0, 100.0))),
+        "checkpoint": st.tuples(),
+        "reopen": st.tuples(st.booleans()),
+    }
+    weights = (("walk",) * 4 + ("edge",) * 3
+               + ("create", "attempt", "depend", "depend", "cascade",
+                  "publish", "publish", "withdraw", "bind", "clock",
+                  "clock", "checkpoint", "checkpoint", "reopen"))
+    op = st.sampled_from(weights).flatmap(
+        lambda kind: args[kind].map(lambda a: (kind,) + a))
+    return st.lists(op, min_size=8, max_size=30)
+
+
+def _move(s, rid, dst, role, keys, blobs, n):
+    """Ask the store for one move, with each evidence key it names given a
+    blob of its own: a fresh one, so a re-verification has a new report."""
+    from agent_substrate.authority import TransitionError
+    # r1's promotions name pol-2, every other record's pol-1
+    pol = "pol-2" if rid == "r1" else "pol-1"
+    evidence = {key: (pol if key == "policy_id" else
+                      blobs.put(f'{{"{key}":{n}}}'.encode()))
+                for key in sorted(keys)} or None
+    kw = {"policy_id": pol} if dst is State.PROMOTED else {}
+    if dst is State.STALE:
+        kw["stale_reason"] = f"moved at op {n}"
+    try:
+        s.transition(record_id=rid, dst=dst, actor=_ACTOR[role], role=role,
+                     evidence=evidence, **kw)
+    except (TransitionError, StoreError):
+        pass
+
+
+def _replay(d, ops, clock):
+    """Write ``ops`` through the stores, as one process or several."""
+    from agent_substrate.authority import EDGES, TransitionError
+    from agent_substrate.invalidation import apply_invalidation
+    from agent_substrate.policy import (
+        ANY, Effect, PolicyDocument, PolicyError, PolicyStore, Rule,
+    )
+    log = EventLog(d / "l.jsonl")
+    blobs = EvidenceStore(d / "blobs")
+    cps = CheckpointStore(d / "cp")
+    s = AuthorityStore(log, evidence=blobs).load()
+    # r0 and r1 exist from the start, so that the ops between them have
+    # something to act on; r2 exists once an op creates it
+    for rid in ("r0", "r1"):
+        s.create(record_id=rid, kind="claim", proposer="p",
+                 idempotency_key=f"create-{rid}")
+    published = {}
+    for n, op in enumerate(ops):
+        if op[0] == "create":
+            try:
+                s.create(record_id=f"r{op[1]}", kind="claim", proposer="p",
+                         idempotency_key=f"create-r{op[1]}")
+            except StoreError:
+                pass
+        elif op[0] == "walk":
+            # along each state's first edge, up to op[2] steps
+            for _ in range(op[2]):
+                try:
+                    rec = s.get(f"r{op[1]}")
+                except StoreError:
+                    break
+                out = [e for e in EDGES if e.src is rec.state]
+                if not out:
+                    break
+                e = out[0]
+                _move(s, f"r{op[1]}", e.dst,
+                      min(e.roles, key=lambda r: r.value),
+                      (e.requires_evidence - set(rec.evidence or {}))
+                      | e.requires_fresh, blobs, n)
+        elif op[0] in ("edge", "attempt"):
+            try:
+                rec = s.get(f"r{op[1]}")
+            except StoreError:
+                continue
+            state, held = rec.state, set(rec.evidence or {})
+            if op[0] == "attempt":
+                keys = {"verification_report", "policy_id"} \
+                    if op[2] is State.PROMOTED else set()
+                _move(s, f"r{op[1]}", op[2], op[3], keys, blobs, n)
+                continue
+            out = [e for e in EDGES if e.src is state]
+            if out:
+                # past the edges a state has, its first: the path most
+                # programs take, so that some reach its far end
+                e = out[op[2]] if op[2] < len(out) else out[0]
+                role = min(e.roles, key=lambda r: r.value)
+                # what the record already carries satisfies the edge, as
+                # the model merges it, unless the edge asks for it afresh
+                keys = (e.requires_evidence - held) | e.requires_fresh
+                _move(s, f"r{op[1]}", e.dst, role, keys, blobs, n)
+        elif op[0] == "depend":
+            try:
+                s.add_dependency(record_id=f"r{op[1]}",
+                                 depends_on=(f"r{op[2]}",))
+            except StoreError:
+                pass
+        elif op[0] == "cascade":
+            # what rests on the record goes STALE, each with its reason
+            try:
+                apply_invalidation(s, f"r{op[1]}", reason=f"op {n}")
+            except (KeyError, TransitionError, StoreError):
+                pass
+        elif op[0] == "publish":
+            doc = PolicyDocument(
+                policy_id=op[1], version=published.get(op[1], 0) + 1,
+                rules=(Rule(rule_id="any", effect=Effect.ALLOW,
+                            actions=(ANY,), subjects=(ANY,), roles=(ANY,),
+                            resources=(ANY,), reason="any"),),
+                not_after=None if op[2] is None else clock.now + op[2])
+            try:
+                PolicyStore(log).load().publish(doc, actor="owner")
+                published[op[1]] = doc.version
+            except PolicyError:
+                pass
+        elif op[0] == "withdraw":
+            try:
+                PolicyStore(log).load().withdraw(
+                    op[1], actor="owner", reason=f"op {n}")
+            except PolicyError:
+                pass
+        elif op[0] == "bind":
+            try:
+                s.bind_policies(actor="owner", publishers=[op[1]])
+            except StoreError:
+                pass
+        elif op[0] == "clock":
+            clock.now += op[1]
+        elif op[0] == "checkpoint":
+            try:
+                s.checkpoint(cps)
+            except (CheckpointError, StoreError):
+                pass
+        elif op[1]:
+            # a restart from this writer's own newest checkpoint, or from
+            # genesis when it has none
+            s = AuthorityStore.load_from(log, cps, blobs=blobs,
+                                         evidence=blobs)
+        else:
+            s = AuthorityStore(log, evidence=blobs).load()
+    return log, blobs
+
+
+def _held(s):
+    """What a store holds, read past ``snapshot()``, which both sides of
+    a snapshot comparison pass through: a field it dropped would be
+    missing from both."""
+    return ({rid: r.to_record() for rid, r in s._records.items()},
+            dict(s._applied_keys), s._policy_view, s._binding,
+            s._latest_wall, s._loaded_through, sorted(s.canonical()))
+
+
+@pytest.fixture
+def history_clock(monkeypatch):
+    clock = _Clock()
+    from agent_substrate import events, policy, store
+    for module in (events, policy, store, cp_mod):
+        monkeypatch.setattr(module, "time", clock)
+    return clock
+
+
+def _agrees(d, ops, clock):
+    """Run ``ops`` from the epoch, then load from each checkpoint they
+    took, alone in its own store, and hold the load to a full one."""
+    import shutil
+    clock.now = _EPOCH
+    log, blobs = _replay(d, ops, clock)
+    whole = AuthorityStore(log, evidence=blobs).load()
+    full, held = whole.snapshot(), _held(whole)
+    taken = sorted((d / "cp").glob("*.checkpoint.json"))
+    for i, cp_file in enumerate(taken):
+        one = d / f"one-{i}"
+        one.mkdir()
+        shutil.copy(cp_file, one / cp_file.name)
+        cheap = AuthorityStore.load_from(
+            log, CheckpointStore(one), blobs=blobs, evidence=blobs,
+            require_checkpoint=True)
+        assert cheap.loaded_prefix_verified is False
+        assert cheap.snapshot() == full, (cp_file.name, ops)
+        assert _held(cheap) == held, (cp_file.name, ops)
+    return log, blobs, whole, full, taken
+
+
+# Four fixed paths through the search below, and the latency test after
+# them, collected before it: each path is a case the search draws only a few
+# times in 200 histories, or not at all, and which histories a search draws
+# moves with its source and can move with the interpreter (D-2026-196).
+def test_a_writer_restarted_from_a_checkpoint_keeps_a_withdrawal(
+        tmp_path, history_clock):
+    """A policy published, bound and withdrawn before a checkpoint, and a
+    writer restarted from it asked to promote on that policy. It refuses,
+    as a writer that read the whole history does."""
+    ops = [("publish", "pol-1", None), ("bind", "owner"), ("walk", 0, 2),
+           ("withdraw", "pol-1"), ("checkpoint",), ("reopen", True),
+           ("walk", 0, 1), ("checkpoint",)]
+    _, _, whole, full, taken = _agrees(tmp_path, ops, history_clock)
+    assert len(taken) == 2
+    assert full["policies"]["pol-1"]["withdrawn_seq"] is not None
+    assert whole.get("r0").state is State.VERIFIED
+
+
+def test_a_writer_restarted_from_a_checkpoint_keeps_the_time_reached(
+        tmp_path, history_clock):
+    """A version that expires 60 s after it is published; the clock moved
+    100 s on and a record written then; the clock set back 60 s and a
+    checkpoint taken. The history has reached the expiry, and the clock
+    has not. A writer restarted from the checkpoint judges a promotion at
+    the time the history reached, and refuses it."""
+    ops = [("publish", "pol-1", 60.0), ("bind", "owner"), ("clock", 100.0),
+           ("walk", 0, 2), ("clock", -60.0), ("checkpoint",),
+           ("reopen", True), ("walk", 0, 1)]
+    _, _, whole, full, taken = _agrees(tmp_path, ops, history_clock)
+    assert len(taken) == 1
+    assert full["latest_wall"] == _EPOCH + 100.0
+    assert whole.get("r0").state is State.VERIFIED
+
+
+def test_a_checkpoint_keeps_what_a_record_rests_on(tmp_path, history_clock):
+    """r0 made to rest on r1 and promoted; a cascade through r1, so that r0
+    is STALE for a stated reason; a checkpoint; r1 moves on. The record
+    restored rests on what it rested on, for the reason it was given."""
+    ops = [("depend", 0, 1), ("walk", 0, 3), ("cascade", 1),
+           ("checkpoint",), ("walk", 1, 1)]
+    _, _, whole, _, taken = _agrees(tmp_path, ops, history_clock)
+    assert len(taken) == 1
+    r0 = whole.get("r0")
+    assert r0.state is State.STALE and r0.depends_on == ("r1",)
+    assert r0.stale_reason.startswith("op 2: ")
+
+
+def test_a_checkpoint_after_every_edge_agrees_with_a_full_load(
+        tmp_path, history_clock):
+    """Every edge the authority model has, taken at least once, by seven
+    records, with a checkpoint after each record's moves: the search below
+    draws some edges rarely, and one of the fourteen not at all."""
+    from agent_substrate.authority import EDGES
+
+    def edges(rid, *ks):
+        return [("edge", rid, k) for k in ks]
+    ops = (edges(0, 0, 0, 0, 0, 0, 0, 1, 1, 0) + [("checkpoint",)]
+           + edges(1, 1) + [("create", 2)] + edges(2, 0, 1)
+           + [("checkpoint",)]
+           + [("create", 3), ("walk", 3, 3)] + edges(3, 1)
+           + [("create", 4), ("walk", 4, 3)] + edges(4, 2)
+           + [("checkpoint",)]
+           + [("create", 5), ("walk", 5, 2)] + edges(5, 2)
+           + [("create", 6), ("walk", 6, 4)] + edges(6, 2)
+           + [("checkpoint",)])
+    log, _, whole, _, taken = _agrees(tmp_path, ops, history_clock)
+    assert len(taken) == 4
+    moved = {(e.payload["src"], e.payload["dst"]) for e in log.read()
+             if e.action == "record.transition"}
+    assert moved == {(e.src.value, e.dst.value) for e in EDGES}
+    assert [whole.get(f"r{i}").state.value for i in range(7)] == [
+        "REVOKED", "REJECTED", "REJECTED", "SUPERSEDED", "REVOKED",
+        "REVOKED", "REVOKED"]
+
+
+def test_how_long_an_altered_prefix_goes_unseen(tmp_path, history_clock):
+    """Wave B, the latency of finding a record altered before a checkpoint,
+    in place and at its width, while a writer holds an anchor past it.
+
+    - The writer's appends check what follows its anchor, so it extends
+      the altered history without seeing it: damage to the prefix in a
+      writer's lifetime is not caught by its appends, as the log's module
+      states. Set to read the whole chain at every append, its next
+      append does, and refuses.
+    - The cheap load restores the checkpoint without reading the prefix,
+      and says so. The store it returns holds no anchor, so its first
+      write reads the whole log, and refuses.
+    - A fresh handle's first append, a full load and the next checkpoint
+      each read the whole chain, and refuse."""
+    _, _, _, _, taken = _agrees(
+        tmp_path, [("walk", 0, 2), ("checkpoint",), ("walk", 1, 1)],
+        history_clock)
+    assert len(taken) == 1
+    log = EventLog(tmp_path / "l.jsonl")
+    blobs = EvidenceStore(tmp_path / "blobs")
+    writer = AuthorityStore(log, evidence=blobs).load()
+    writer.create(record_id="r2", kind="claim", proposer="p")
+    lines = log.path.read_bytes().split(b"\n")
+    assert json.loads(lines[0])["seq"] < int(taken[0].name.split(".")[0])
+    lines[0] = lines[0].replace(b'"proposer":"p"', b'"proposer":"q"', 1)
+    log.path.write_bytes(b"\n".join(lines))
+    cheap = AuthorityStore.load_from(
+        log, CheckpointStore(tmp_path / "cp"), blobs=blobs, evidence=blobs,
+        require_checkpoint=True)
+    assert cheap.loaded_prefix_verified is False
+    assert cheap.get("r2").state is State.PROPOSED
+    writer.create(record_id="r3", kind="claim", proposer="p")
+    assert writer.get("r3").state is State.PROPOSED
+    with pytest.raises(ChainBroken, match="record was altered"):
+        cheap.create(record_id="r4", kind="claim", proposer="p")
+    with pytest.raises(ChainBroken, match="refusing to append"):
+        EventLog(log.path).append(
+            actor="p", action="record.create", target="r5",
+            payload={"record_id": "r5", "kind": "claim", "proposer": "p"})
+    log.full_verify_every = 1
+    with pytest.raises(ChainBroken, match="refusing to append"):
+        writer.create(record_id="r6", kind="claim", proposer="p")
+    assert not log.verify().ok
+    with pytest.raises(ChainBroken, match="record was altered"):
+        AuthorityStore(log, evidence=blobs).load()
+    with pytest.raises(ChainBroken, match="refusing to checkpoint"):
+        cp_mod.create(log)
+
+
+def test_a_load_from_any_checkpoint_agrees_with_a_full_load(
+        tmp_path_factory, history_clock):
+    """Wave B. The cheap load restores a snapshot and replays the suffix;
+    from each checkpoint a history took, it holds what a replay from
+    genesis holds, field by field, and so do the writers that restarted
+    from one. The histories are short programs over three records: moves
+    along the authority model's edges, refused moves, idempotent
+    re-creations, dependencies and the cascades through them, policy
+    versions published, expiring and withdrawn, a binding to their
+    publisher, a wall clock set forward and back, checkpoints, and
+    processes reopened from a full read or from a checkpoint."""
+    from hypothesis import HealthCheck, given, settings
+
+    @settings(max_examples=200, deadline=None, derandomize=True,
+              database=None, suppress_health_check=[HealthCheck.too_slow])
+    @given(ops=_history())
+    def run(ops):
+        d = tmp_path_factory.mktemp("cpdiff")
+        log, blobs, _, full, taken = _agrees(d, ops, history_clock)
+        if not taken:
+            return
+        newest = int(taken[-1].name.split(".")[0])
+        lines = log.path.read_bytes().split(b"\n")
+        before = [i for i, line in enumerate(lines)
+                  if line and json.loads(line)["seq"] < newest
+                  and b'"proposer":"p"' in line]
+        if not before:
+            return
+        # A record before the newest checkpoint's position, altered in place
+        # and at its width. The cheap load does not read it, and says so;
+        # the full load and the next checkpoint each refuse the history. It
+        # is found at the next full read, and no later; the test above says
+        # which reads those are.
+        lines[before[0]] = lines[before[0]].replace(
+            b'"proposer":"p"', b'"proposer":"q"', 1)
+        log.path.write_bytes(b"\n".join(lines))
+        cheap = AuthorityStore.load_from(
+            log, CheckpointStore(d / f"one-{len(taken) - 1}"), blobs=blobs,
+            evidence=blobs, require_checkpoint=True)
+        assert cheap.loaded_prefix_verified is False
+        assert cheap.snapshot() == full
+        assert not log.verify().ok
+        with pytest.raises(ChainBroken, match="record was altered"):
+            AuthorityStore(log, evidence=blobs).load()
+        with pytest.raises(ChainBroken, match="refusing to checkpoint"):
+            cp_mod.create(log)
+
+    run()

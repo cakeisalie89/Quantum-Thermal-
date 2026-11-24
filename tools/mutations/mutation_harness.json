@@ -151,6 +151,13 @@
       "find": "            previous[sig] = signal.signal(sig, _restore_and_die)\n",
       "replace": "            previous[sig] = signal.getsignal(sig)\n",
       "rationale": "D-2026-82: a SIGTERM during the null control or a mutation leaves the edited target in place"
+    },
+    {
+      "name": "H20_the_same_mutant_counted_twice",
+      "path": "tools/mutation_matrix.py",
+      "find": "            if mutant in made:\n",
+      "replace": "            if False:\n",
+      "rationale": "AUD-087: two entries making one mutant are both run, and the matrix counts one fault twice and a second fault covered that is the first"
     }
   ]
 }
