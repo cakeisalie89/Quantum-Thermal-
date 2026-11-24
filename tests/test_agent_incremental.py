@@ -157,6 +157,10 @@ def test_catching_up_onto_a_damaged_tail_refuses(tmp_path):
     fresh = EventLog(path)
     with pytest.raises(ChainBroken):
         fresh.advance(fresh.anchor_at(0))
+    # The projection the test is named for: its own anchored catch-up, and
+    # the full read it falls back to, each refuse the damaged tail.
+    with pytest.raises(ChainBroken):
+        sched.catch_up(force=True)
 
 
 def test_an_anchor_into_rewritten_bytes_falls_back_rather_than_trusting(

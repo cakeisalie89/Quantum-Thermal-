@@ -332,6 +332,14 @@ class MemoryStore:
                 self.apply(ev)
         self._anchor = report.verified_anchor
 
+    def catch_up(self) -> "MemoryStore":
+        """Fold what other writers appended since this store last read, and
+        return the store. A reader that shows memory as current reads it as
+        the log holds it now (AUD-092), as a write decides against it
+        (AUD-091)."""
+        self._fold_new()
+        return self
+
     def _append_decided(self, decide):
         """Re-read, re-check and write under the writer lock (D-2026-147).
 
@@ -397,12 +405,17 @@ class MemoryStore:
             self._entries[entry.memory_id] = entry
             for src in entry.derived_from:
                 self._by_source.setdefault(src, set()).add(entry.memory_id)
-            # An entry derived from an already-invalidated source is born
-            # stale rather than being briefly treated as current.
-            if any(s in self._invalidated for s in entry.derived_from):
+            # An entry resting on an already-invalidated source is born
+            # stale rather than being briefly treated as current: one
+            # derived from it, and one resting on it through the entries it
+            # summarizes or derives from (AUD-089), which is what the
+            # cascade reaches and what a STALE move's premise asks for.
+            # Written after the cascade, the second was born ACTIVE, and
+            # nothing later moved it.
+            if self._rests_on_invalidated(entry):
                 self._entries[entry.memory_id] = replace(
                     entry, status=MemoryStatus.STALE,
-                    status_reason="derived from an already-invalidated source",
+                    status_reason="rests on an already-invalidated source",
                     updated_seq=ev.seq)
         elif ev.action == ACT_MEMORY_STATUS:
             # Refused, not raised: a raw KeyError or ValueError here names no
@@ -695,6 +708,17 @@ class MemoryStore:
                     "payload": {"entry": entry.to_record()}}
 
         self._append_decided(decide)
+        born = self.get(memory_id)
+        if born.status is MemoryStatus.STALE:
+            # AUD-089. Born stale, it moves what already rests on it: an
+            # entry that named it before it was written, which the cascade
+            # over its source, run before it existed, could not reach.
+            self._cascade(
+                [e.memory_id for e in self._entries.values()
+                 if memory_id in e.summarizes or memory_id in e.derived_from],
+                actor=author,
+                reason=f"rests on {memory_id!r}, which was born stale on an "
+                       "invalidated source")
         return self.get(memory_id)
 
     def summarize(self, *, memory_id: str, text: str, author: str,
@@ -757,6 +781,11 @@ class MemoryStore:
     def retract(self, memory_id: str, *, actor: str,
                 reason: str) -> MemoryEntry:
         """Withdraw an entry. The text stays in the log; the status changes."""
+        # AUD-091. Read the log before deciding, as every write of the
+        # authority store does: this projection's copy of it is only current
+        # until another process writes, and an entry another process wrote
+        # was refused here as unknown.
+        self._fold_new()
         entry = self.get(memory_id)
         if entry.author != actor:
             raise MemoryError_(
@@ -775,6 +804,7 @@ class MemoryStore:
         entry from ``current()`` and names its replacement, so every later
         reader is pointed at whatever the superseder chose.
         """
+        self._fold_new()                 # AUD-091, as retract() says
         self.get(new_id)
         entry = self.get(old_id)
         if entry.author != actor:
@@ -817,25 +847,37 @@ class MemoryStore:
             self._append_decided(decide)
         except _AlreadyInvalidated:
             pass
+        frontier = list(self.derived_from(source))
+        return self._cascade(
+            frontier, actor=actor,
+            reason=f"derived from {source[:12]}, which was invalidated: "
+                   f"{reason}")
+
+    def _cascade(self, frontier: list, *, actor: str, reason: str) -> tuple:
+        """Move to STALE each current entry of ``frontier``, and what rests
+        on each, through the entries that summarize or derive from it: the
+        cascade of an invalidation, and of a stale birth (AUD-089)."""
         moved: list = []
         seen: set = set()
-        frontier = list(self.derived_from(source))
         while frontier:
             mid = frontier.pop()
             if mid in seen:
                 continue
             seen.add(mid)
             entry = self._entries.get(mid)
-            if entry is None or entry.status in NOT_CURRENT:
+            if entry is None:
                 continue
-            try:
-                moved.append(self._set_status(
-                    mid, MemoryStatus.STALE, actor=actor,
-                    reason=(f"derived from {source[:12]}, which was "
-                            f"invalidated: {reason}"),
-                    only_if_current=True))
-            except _NoLongerCurrent:
-                continue
+            # AUD-089. An entry no longer current is not moved, and what
+            # rests on the source through it is followed all the same. The
+            # cascade stopped here, and a summary of a retracted note on the
+            # source stayed current.
+            if entry.status not in NOT_CURRENT:
+                try:
+                    moved.append(self._set_status(
+                        mid, MemoryStatus.STALE, actor=actor, reason=reason,
+                        only_if_current=True))
+                except _NoLongerCurrent:
+                    pass
             frontier.extend(
                 e.memory_id for e in self._entries.values()
                 if mid in e.summarizes or mid in e.derived_from)

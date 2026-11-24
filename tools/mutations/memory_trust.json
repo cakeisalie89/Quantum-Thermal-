@@ -176,8 +176,8 @@
     {
       "name": "MT25_born_stale_is_not_restated_for_the_second_reader",
       "path": "agent_substrate/reconstruct.py",
-      "find": "    status = \"STALE\" if any(\n",
-      "replace": "    status = status if any(\n",
+      "find": "    if _memory_rests_on_invalidated(out, new):\n",
+      "replace": "    if False:\n",
       "rationale": "AUD-044: an entry written after its source was invalidated is ACTIVE for the second reader, STALE for the store"
     },
     {

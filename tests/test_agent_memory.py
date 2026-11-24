@@ -69,16 +69,15 @@ def test_the_authority_path_cannot_import_memory():
     """Enforced by layering, asserted here so the reason is written down."""
     import ast
 
+    # AUD-090: by any form, absolute ones too; the relative form alone was
+    # read, and the layering test that enforces this read no more.
+    from test_agent_substrate_isolation import package_imports
     for module in ("authority", "store", "tasks", "scheduler", "capability"):
         src = (ROOT / "agent_substrate" / f"{module}.py").read_text(encoding="utf-8")
-        tree = ast.parse(src)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.level == 1:
-                names = ({node.module.split(".")[0]} if node.module
-                         else {a.name.split(".")[0] for a in node.names})
-                assert "memory" not in names, (
-                    f"{module}.py imports memory; an authority decision that "
-                    "can read memory can be argued into a conclusion")
+        names = package_imports(ast.parse(src))
+        assert "memory" not in names, (
+            f"{module}.py imports memory; an authority decision that "
+            "can read memory can be argued into a conclusion")
 
 
 def test_refusing_as_evidence_names_what_went_wrong(mem):
@@ -986,3 +985,446 @@ def test_an_action_no_module_writes_is_refused(mem):
                    payload={"memory_id": "m1", "text": "changed"})
     with pytest.raises(MemoryError_, match="unknown action 'memory.rewrite'"):
         MemoryStore(mem.log, evidence=mem.evidence).load()
+
+
+# ==========================================================================
+# WHAT RESTS ON AN INVALIDATED SOURCE THROUGH ANOTHER ENTRY (AUD-089)
+#
+# An entry derived from an invalidated source is born STALE, and invalidating
+# a source moves to STALE what rests on it, through the entries that
+# summarize or derive from it. Two ways led past that. An entry resting on
+# the source THROUGH another entry, written after the cascade, was born
+# ACTIVE, since its birth asked only for its own sources. And the cascade
+# stopped at an entry no longer current, so nothing resting on the source
+# through a retracted or superseded note was reached. Each left a current
+# note on a withdrawn premise, in both readers, and nothing later moved it.
+# ==========================================================================
+def _second(mem) -> dict:
+    """The second reader's view of the memory: status by id, no anomaly."""
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    sub = reconstruct_subsystems(EventLog(mem.log.path))
+    assert sub.anomalies == [], sub.anomalies
+    return {mid: e["status"] for mid, e in sub.memory.items()}
+
+
+def _stale_detail(mem):
+    dg = mem.evidence.put(b"a measurement later withdrawn")
+    _remember(mem, "detail", author="alice", derived_from=(dg,))
+    mem.invalidate_source(dg, actor="system", reason="rerun differed")
+    assert mem.get("detail").status is MemoryStatus.STALE
+    return dg
+
+
+def test_a_summary_written_after_its_detail_went_stale_is_born_stale(mem):
+    """AUD-089, as reproduced: it was born ACTIVE, and was in current() and
+    in recall, in a fresh load and in the second reader."""
+    _stale_detail(mem)
+    s = mem.summarize(memory_id="summary", text="in short: negligible",
+                      author="carol", summarizes=("detail",))
+    assert s.status is MemoryStatus.STALE
+    assert mem.current() == ()
+    assert mem.recall("negligible") == ()
+    fresh = MemoryStore(EventLog(mem.log.path), evidence=mem.evidence).load()
+    assert fresh.get("summary").status is MemoryStatus.STALE
+    assert _second(mem)["summary"] == "STALE"
+
+
+def test_an_entry_derived_from_a_stale_entry_is_born_stale(mem):
+    """AUD-089: the same through derived_from, which names entries too."""
+    _stale_detail(mem)
+    e = _remember(mem, "note", author="bob", text="building on the detail",
+                  derived_from=("detail",))
+    assert e.status is MemoryStatus.STALE
+    assert _second(mem)["note"] == "STALE"
+
+
+def test_an_entry_that_named_a_memory_before_it_was_written_goes_stale(mem):
+    """AUD-089, as reproduced: derived_from may name a memory before it is
+    written, since it names authority records too. When that memory was
+    then born STALE on an invalidated source, the entry naming it stayed
+    current: the cascade over the source ran before it existed."""
+    dg = mem.evidence.put(b"a measurement later withdrawn")
+    mem.invalidate_source(dg, actor="system", reason="rerun differed")
+    _remember(mem, "early", author="bob", text="building on a later note",
+              derived_from=("later",))
+    born = _remember(mem, "later", author="alice", derived_from=(dg,))
+    assert born.status is MemoryStatus.STALE
+    assert mem.get("early").status is MemoryStatus.STALE
+    fresh = MemoryStore(EventLog(mem.log.path), evidence=mem.evidence).load()
+    assert fresh.get("early").status is MemoryStatus.STALE
+    assert _second(mem)["early"] == "STALE"
+
+
+def test_a_summary_of_a_withdrawn_note_on_no_invalidated_source_is_active(
+        mem):
+    """The control: a summary is born STALE for an invalidated premise, not
+    for summarizing an entry that is no longer current."""
+    _remember(mem, "detail", author="alice")
+    mem.retract("detail", actor="alice", reason="withdrawn")
+    s = mem.summarize(memory_id="summary", text="in short", author="carol",
+                      summarizes=("detail",))
+    assert s.status is MemoryStatus.ACTIVE
+    assert _second(mem)["summary"] == "ACTIVE"
+
+
+@pytest.mark.parametrize("withdraw", ["retract", "supersede"])
+def test_the_cascade_reaches_past_an_entry_no_longer_current(mem, withdraw):
+    """AUD-089, as reproduced: a summary of a retracted or superseded note
+    stayed current when the note's source was invalidated. The note itself
+    is not moved; what rests on the source through it is."""
+    dg = mem.evidence.put(b"a measurement later withdrawn")
+    _remember(mem, "detail", author="alice", derived_from=(dg,))
+    mem.summarize(memory_id="summary", text="in short", author="carol",
+                  summarizes=("detail",))
+    if withdraw == "retract":
+        mem.retract("detail", actor="alice", reason="withdrawn")
+        kept = MemoryStatus.RETRACTED
+    else:
+        _remember(mem, "restated", author="alice", text="restated")
+        mem.supersede(old_id="detail", new_id="restated", actor="alice",
+                      reason="restated")
+        kept = MemoryStatus.SUPERSEDED
+    moved = mem.invalidate_source(dg, actor="system", reason="rerun differed")
+    assert [e.memory_id for e in moved] == ["summary"]
+    assert mem.get("detail").status is kept
+    fresh = MemoryStore(EventLog(mem.log.path), evidence=mem.evidence).load()
+    assert fresh.get("summary").status is MemoryStatus.STALE
+    assert _second(mem)["summary"] == "STALE"
+
+
+# ---- every edge of the lifecycle, and every edge it does not have --------
+from agent_substrate.memory import STATUS_EDGES  # noqa: E402
+
+_EDGES = sorted((a.value, b.value) for a, dsts in STATUS_EDGES.items()
+                for b in dsts)
+
+
+def _to(mem, mid, status, dg):
+    """Move ``mid``, written by alice from ``dg``, to ``status`` by the write
+    path: the move each status is reached by."""
+    if status == "STALE":
+        mem.invalidate_source(dg, actor="system", reason="rerun differed")
+    elif status == "SUPERSEDED":
+        _remember(mem, f"{mid}-new", author="alice", text="a later note")
+        mem.supersede(old_id=mid, new_id=f"{mid}-new", actor="alice",
+                      reason="restated")
+    elif status == "RETRACTED":
+        mem.retract(mid, actor="alice", reason="withdrawn")
+
+
+@pytest.mark.parametrize("edge", _EDGES, ids="->".join)
+def test_each_edge_is_taken_and_replayed_by_both_readers(tmp_path, edge):
+    """Each of the six edges, taken on the write path by a writer that did
+    not write the entry and had not read it, and replayed by a fresh load
+    and by the second reader."""
+    src, dst = edge
+    ev = EvidenceStore(tmp_path / "evidence")
+    path = tmp_path / "log.jsonl"
+    a = MemoryStore(EventLog(path), evidence=ev).load()
+    b = MemoryStore(EventLog(path), evidence=ev).load()
+    dg = ev.put(b"its source")
+    _remember(a, "m", author="alice", derived_from=(dg,))
+    _to(a, "m", src, dg)
+    _to(b, "m", dst, dg)
+    assert b.get("m").status.value == dst
+    fresh = MemoryStore(EventLog(path), evidence=ev).load()
+    assert fresh.get("m").status.value == dst
+    assert _second(fresh)["m"] == dst
+
+
+def test_a_writer_that_has_not_caught_up_withdraws_what_another_wrote(
+        tmp_path):
+    """AUD-091, as reproduced: a second store of alice's, loaded before her
+    notes were written, refused her retraction and her supersession with
+    "no memory", though the log held both. A write reads the log before it
+    decides, as the authority store's do."""
+    ev = EvidenceStore(tmp_path / "evidence")
+    path = tmp_path / "log.jsonl"
+    a = MemoryStore(EventLog(path), evidence=ev).load()
+    b = MemoryStore(EventLog(path), evidence=ev).load()
+    _remember(a, "m1", author="alice")
+    _remember(a, "m2", author="alice", text="a later note")
+    _remember(a, "m3", author="alice", text="a third note")
+    b.supersede(old_id="m1", new_id="m2", actor="alice", reason="restated")
+    c = MemoryStore(EventLog(path), evidence=ev).load()
+    _remember(a, "m4", author="alice", text="a fourth note")
+    c.retract("m4", actor="alice", reason="withdrawn")
+    fresh = MemoryStore(EventLog(path), evidence=ev).load()
+    assert fresh.get("m1").status is MemoryStatus.SUPERSEDED
+    assert fresh.get("m4").status is MemoryStatus.RETRACTED
+    with pytest.raises(MemoryError_, match="may not retract"):
+        c.retract("m3", actor="bob", reason="not his")
+
+
+_ABSENT = sorted((a.value, b.value)
+                 for a in MemoryStatus for b in MemoryStatus
+                 if a is not b and (a.value, b.value) not in _EDGES)
+
+
+@pytest.mark.parametrize("edge", _ABSENT, ids="->".join)
+def test_each_edge_the_lifecycle_does_not_have_is_refused_by_both(tmp_path,
+                                                                   edge):
+    """Each move between two statuses that STATUS_EDGES does not hold,
+    written by the author, naming a replacement the store holds, and to
+    STALE on a premise that holds, so that the edge alone refuses it: on
+    the write path, where it costs the log nothing, and on replay by both
+    readers."""
+    src, dst = edge
+    ev = EvidenceStore(tmp_path / "evidence")
+    path = tmp_path / "log.jsonl"
+    m = MemoryStore(EventLog(path), evidence=ev).load()
+    dg = ev.put(b"its source")
+    _remember(m, "m", author="alice", derived_from=(dg,))
+    _to(m, "m", src, dg)
+    if dst == "STALE" and src != "STALE":
+        m.invalidate_source(dg, actor="system", reason="the move's premise")
+    _remember(m, "other", author="alice", text="a later note")
+    before = path.read_bytes()
+    with pytest.raises(MemoryError_, match="may not move"):
+        m._set_status("m", MemoryStatus(dst), actor="alice", reason="r",
+                      superseded_by="other" if dst == "SUPERSEDED" else None)
+    assert path.read_bytes() == before
+    payload = {"memory_id": "m", "status": dst, "reason": "r"}
+    if dst == "SUPERSEDED":
+        payload["superseded_by"] = "other"
+    m.log.append(actor="alice", action=ACT_MEMORY_STATUS, target="m",
+                 payload=payload)
+    with pytest.raises(MemoryError_, match="may not move"):
+        MemoryStore(EventLog(path), evidence=ev).load()
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    sub = reconstruct_subsystems(EventLog(path))
+    assert any("'m'" in a and dst in a for a in sub.anomalies), sub.anomalies
+
+
+# ==========================================================================
+# THE LIFECYCLE FROM SEVERAL WRITERS (Wave B)
+#
+# Three writers, each a store of its own on one log, write a history
+# between them, each catching up from its anchor when it writes and when it
+# is asked, along the anchored route or the full read, and reopening. After
+# every operation, every writer holds what a load of the history up to its
+# own position holds, read past its public view; a fresh load of the whole
+# history agrees with the second reader; and no current entry rests on an
+# invalidated source.
+# ==========================================================================
+_W_IDS = ("m0", "m1", "m2", "m3", "m4")
+_W_ACTORS = ("alice", "bob")
+
+
+def _w_history():
+    from hypothesis import strategies as st
+    w, mid, who = (st.integers(0, 2), st.sampled_from(_W_IDS),
+                   st.sampled_from(_W_ACTORS))
+    # An entry a move names is an index into the entries the log holds when
+    # the move is made, and its actor is often that entry's author, so that
+    # moves are made and not only refused (see _w_resolve).
+    held = st.integers(0, 4)
+    mover = st.sampled_from(_W_ACTORS + ("the author", "the author"))
+    # Plain lists, made distinct where they are used: Hypothesis 6.158.1
+    # asserted inside its own unique-list draw while shrinking this search.
+    refs = st.lists(st.sampled_from(_W_IDS), max_size=2)
+    srcs = st.lists(st.integers(0, 2), max_size=2)
+    kinds = st.sampled_from(["remember"] * 3 + ["summarize"] * 2
+                            + ["retract"] * 2 + ["supersede"] * 2
+                            + ["invalidate"] * 2 + ["catch_up"] * 2
+                            + ["reopen"])
+    args = {
+        "remember": st.tuples(st.just("remember"), w, mid, who, srcs, refs),
+        "summarize": st.tuples(st.just("summarize"), w, mid, who,
+                               st.lists(held, min_size=1, max_size=2)),
+        "retract": st.tuples(st.just("retract"), w, held, mover),
+        "supersede": st.tuples(st.just("supersede"), w, held, held, mover),
+        "invalidate": st.tuples(st.just("invalidate"), w, st.integers(0, 2)),
+        "catch_up": st.tuples(st.just("catch_up"), w,
+                              st.sampled_from(["anchored", "full"])),
+        "reopen": st.tuples(st.just("reopen"), w),
+    }
+    return st.lists(kinds.flatmap(args.__getitem__), min_size=6, max_size=24)
+
+
+def _w_held(m) -> dict:
+    return {"entries": {k: e.to_record() for k, e in sorted(m._entries.items())},
+            "by_source": {s: sorted(v)
+                          for s, v in sorted(m._by_source.items())},
+            "invalidated": sorted(m._invalidated),
+            "position": (m._folded_through, m._folded_hash)}
+
+
+def _w_load_through(path, seq, ev, cache):
+    """What a load of the history up to ``seq`` alone holds: the log's first
+    records, with a witness naming the last of them."""
+    if seq in cache:
+        return cache[seq]
+    import json
+
+    from agent_substrate.events import ChainState
+    cut = path.parent / f"through-{seq}" / "log.jsonl"
+    cut.parent.mkdir()
+    lines = path.read_bytes().split(b"\n")[:seq + 1] if seq >= 0 else []
+    cut.write_bytes(b"".join(line + b"\n" for line in lines))
+    log = EventLog(cut)
+    if seq >= 0:
+        head = json.loads(lines[-1])
+        log._write_head(ChainState(seq, head["hash"]))
+    cache[seq] = _w_held(MemoryStore(log, evidence=ev).load())
+    return cache[seq]
+
+
+def _w_rests_on(store, entry) -> bool:
+    """This test's own reading of what an entry rests on: its sources and
+    the entries it names, followed through the entries the store holds."""
+    seen, frontier = set(), [entry]
+    while frontier:
+        e = frontier.pop()
+        if e.memory_id in seen:
+            continue
+        seen.add(e.memory_id)
+        for ref in tuple(e.derived_from) + tuple(e.summarizes):
+            if ref in store._invalidated:
+                return True
+            if ref in store._entries:
+                frontier.append(store._entries[ref])
+    return False
+
+
+def _w_records(path, start) -> list:
+    """What the log holds from line ``start`` on, as written: who, what,
+    on what, with what."""
+    import json
+    lines = path.read_bytes().splitlines() if path.exists() else []
+    return [(r["actor"], r["action"], r["target"], r["payload"])
+            for r in map(json.loads, lines[start:])]
+
+
+def _w_fresh_copy(path, ev, scratch):
+    """A store just loaded from a copy of the log, to decide beside it."""
+    import shutil
+    scratch.mkdir()
+    for f in (path, path.with_suffix(path.suffix + ".head")):
+        if f.exists():
+            shutil.copy(f, scratch / f.name)
+    return MemoryStore(EventLog(scratch / path.name), evidence=ev).load()
+
+
+def _w_resolve(op, held):
+    """``op`` with what it names resolved against the entries the log holds
+    now: an index picks one of them, and "the author" is the author of the
+    entry the move names. A remembered entry's references stay as drawn, so
+    that one may name a memory not yet written."""
+    ids = sorted(held)
+
+    def pick(i):
+        return ids[i % len(ids)] if ids else _W_IDS[i % len(_W_IDS)]
+
+    def actor(who, mid):
+        if who != "the author":
+            return who
+        return held[mid].author if mid in held else _W_ACTORS[0]
+
+    kind = op[0]
+    if kind == "summarize":
+        return op[:4] + ([pick(i) for i in op[4]],)
+    if kind == "retract":
+        return (kind, op[1], pick(op[2]), actor(op[3], pick(op[2])))
+    if kind == "supersede":
+        return (kind, op[1], pick(op[2]), pick(op[3]),
+                actor(op[4], pick(op[2])))
+    return op
+
+
+def _w_run(m, op, ev, sources, writers=None, path=None):
+    """Run ``op`` on ``m``; True when it was refused."""
+    kind = op[0]
+    try:
+        if kind == "remember":
+            _, _, mid, who, srcs, refs = op
+            m.remember(memory_id=mid, text=f"{mid} by {who}", author=who,
+                       derived_from=tuple(dict.fromkeys(
+                           [sources[i] for i in srcs] + list(refs))))
+        elif kind == "summarize":
+            _, _, mid, who, refs = op
+            m.summarize(memory_id=mid, text=f"summary {mid} by {who}",
+                        author=who, summarizes=tuple(dict.fromkeys(refs)))
+        elif kind == "retract":
+            _, _, mid, who = op
+            m.retract(mid, actor=who, reason="withdrawn")
+        elif kind == "supersede":
+            _, _, old, new, who = op
+            m.supersede(old_id=old, new_id=new, actor=who, reason="restated")
+        elif kind == "invalidate":
+            m.invalidate_source(sources[op[2]], actor="system",
+                                reason="rerun differed")
+        elif kind == "catch_up":
+            if op[2] == "full":
+                m._anchor = None
+            m._fold_new()
+        elif kind == "reopen":
+            writers[op[1]] = MemoryStore(EventLog(path), evidence=ev).load()
+    except MemoryError_:
+        return True
+    return False
+
+
+def _w_apply(writers, op, path, ev, sources, scratch) -> bool:
+    """Run one operation by its writer, and a write by a store just loaded
+    too, on a copy of the log: the two decide alike and write alike, and a
+    refusal costs the log nothing. True when it was refused."""
+    m = writers[op[1]]
+    start = len(path.read_bytes().splitlines()) if path.exists() else 0
+    beside = None
+    if op[0] not in ("catch_up", "reopen"):
+        f = _w_fresh_copy(path, ev, scratch)
+        op = _w_resolve(op, f._entries)
+        beside = (_w_run(f, op, ev, sources),
+                  _w_records(f.log.path, start))
+    refused = _w_run(m, op, ev, sources, writers, path)
+    wrote = _w_records(path, start)
+    if refused:
+        assert wrote == [], op
+    if beside is not None:
+        assert (refused, wrote) == beside, op
+    return refused
+
+
+def _w_agrees(d, ops):
+    """Run ``ops``; check after each one. Returns the final load."""
+    ev = EvidenceStore(d / "evidence")
+    path = d / "log.jsonl"
+    sources = [ev.put(f"source {i}".encode()) for i in range(3)]
+    writers = [MemoryStore(EventLog(path), evidence=ev).load()
+               for _ in range(3)]
+    cache: dict = {}
+    fresh, read = MemoryStore(EventLog(path), evidence=ev).load(), b""
+    for i, op in enumerate(ops):
+        _w_apply(writers, op, path, ev, sources, d / f"beside-{i}")
+        for m in writers:
+            assert _w_held(m) == _w_load_through(
+                path, m._folded_through, ev, cache), op
+        now = path.read_bytes() if path.exists() else b""
+        if now == read:
+            continue                      # nothing written: nothing to read
+        fresh, read = MemoryStore(EventLog(path), evidence=ev).load(), now
+        assert _second(fresh) == {e.memory_id: e.status.value
+                                  for e in fresh.all_entries()}
+        assert not [e.memory_id for e in fresh.current()
+                    if _w_rests_on(fresh, e)], op
+    for m in writers:
+        m._fold_new()
+        assert _w_held(m) == _w_held(fresh)
+    return fresh
+
+
+def test_a_lifecycle_written_by_several_writers_agrees_everywhere(
+        tmp_path_factory):
+    """Wave B. Every writer holds what a load of the history up to its own
+    position holds, after every operation; the second reader agrees with a
+    fresh load; and nothing current rests on an invalidated source."""
+    from hypothesis import HealthCheck, given, settings
+
+    @settings(max_examples=200, deadline=None, derandomize=True,
+              database=None, suppress_health_check=[HealthCheck.too_slow])
+    @given(ops=_w_history())
+    def run(ops):
+        _w_agrees(tmp_path_factory.mktemp("lifecycle"), ops)
+
+    run()

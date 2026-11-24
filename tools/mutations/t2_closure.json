@@ -294,6 +294,13 @@
       "find": "    if esc is None or esc.get(\"state\") != \"ANSWERED\" or \\\n            esc.get(\"answer\") != \"COMPENSATE\" or \\",
       "replace": "    if esc is None or esc.get(\"state\") != \"ANSWERED\" or \\\n            False or \\",
       "rationale": "the independent reader accepts an authorization citing an answer that was not COMPENSATE"
+    },
+    {
+      "name": "MQ6_a_run_is_shown_memory_as_last_read",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "        for entry in self.memory.catch_up().current()[-3:]:\n",
+      "replace": "        for entry in self.memory.current()[-3:]:\n",
+      "rationale": "AUD-092: a note retracted by another process is put in front of a run as current memory, and the run's context record names it"
     }
   ]
 }

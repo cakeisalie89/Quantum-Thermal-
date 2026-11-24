@@ -2484,7 +2484,10 @@ class GovernedTasks:
         builder.add(item_id="inputs", tier=Tier.TASK_EVIDENCE,
                     source=digest(inputs),
                     text=json.dumps(inputs, sort_keys=True))
-        for entry in self.memory.current()[-3:]:
+        # AUD-092. Memory as the log holds it now: this view was loaded
+        # once and folded only when this runner wrote, so a note its author
+        # retracted in another process was shown to the run as current.
+        for entry in self.memory.catch_up().current()[-3:]:
             builder.add(item_id=f"memory-{entry.memory_id}",
                         tier=Tier.MEMORY, source=f"memory:{entry.memory_id}",
                         text=entry.text)

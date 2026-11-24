@@ -5312,12 +5312,259 @@ verified the prefix, which errs the safe way.
 **What is not established.**
 
 - The histories hold claims, not scientific results, and no role registry:
-the admissions a restore re-derives, and the roles a snapshot carries, are
-not in them. - The memory projection and the other projections are not
-held to a differential here; Wave B goes on to them. - Which histories a
-search draws moves with its source. The counts above are for this source,
-measured under both interpreters. - Which tests reach the restore was
-found by tracing calls in each test's process and in subprocesses that
-keep its environment. The tracing run ended after its last test without
-pytest's summary line, every test before it having passed; what it traced
-was written as each call was made.
+  the admissions a restore re-derives, and the roles a snapshot carries,
+  are not in them.
+- The memory projection and the other projections are not held to a
+  differential here; Wave B goes on to them.
+- Which histories a search draws moves with its source. The counts above
+  are for this source, measured under both interpreters.
+- Which tests reach the restore was found by tracing calls in each test's
+  process and in subprocesses that keep its environment. The tracing run
+  ended after its last test without pytest's summary line, every test
+  before it having passed; what it traced was written as each call was
+  made.
+
+### Stage 5, twentieth pass: the memory lifecycle from several writers (Wave B, part 2; AUD-089 to AUD-092)
+
+Wave B of the campaign is memory and replay. This pass takes the memory
+lifecycle: an entry remembered, summarized, derived from another, made
+stale by an invalidated source, superseded and retracted, by several
+writers on one log, each a store of its own holding an anchor. The memory
+store was read in full again, with three of its test files, the governed
+runtime's two-supervisor tests and the substrate's isolation test. Four
+defects were found, each reproduced at bd1a43a and fixed (AUD-089 to
+AUD-092).
+
+**Hosted CI at bd1a43a.** Read from the API: all 44 check runs completed
+and passed, in eight workflow runs, the 16 mutation shards and both
+mutation-matrices aggregates among them. Gate I is met at bd1a43a. The
+runs are 45364400321, 45364400416, 45364400393, 45364400341 and
+45364400386 (push), and 45364422478, 45364422544 and 45364422488 (pull
+request). The mutation shard holding `agent_checkpoint` took 100 of its
+150 minutes in the push run and 65 in the pull request's; the one holding
+`agent_memory_context` took 94 and 97.
+
+**The search.** `tests/test_agent_memory.py` gains
+`test_a_lifecycle_written_by_several_writers_agrees_everywhere`. Three
+writers, each a `MemoryStore` on its own handle of one log, write a
+history between them: entries remembered on three evidence sources and on
+one another, among them a name of a memory not yet written; summaries;
+retractions and supersessions, by the author and by others; sources
+invalidated; catch-ups along the anchored route and along the full read;
+and writers reopened. A move names an entry the log holds when it is made,
+and its actor is often that entry's author, so that moves are made and not
+only refused. After every operation, four things are held. Each writer
+holds what a load of the history up to its own position holds, read past
+its public view: each entry as a record, the index from source to entry,
+the invalidated sources, and its position and that record's hash. Each
+write is also made by a store just loaded from a copy of the log, beside
+it, and the two decide alike and write alike, a refusal costing the log
+nothing. A fresh load agrees with the second reader on every entry's
+status, with no anomaly. And no current entry rests on an invalidated
+source, by the test's own walk of what each entry names.
+
+Measured on the 200 histories the search draws, counted under CPython
+3.12.3 and again under 3.12.13, with the same counts under each: 2,298
+operations; 1,825 writes, each made beside a fresh store, 663 of them by a
+writer behind the log and 773 refused; 285 catch-ups, 162 along the
+anchored route and 123 along the full read, 97 of them by a writer behind
+the log; 188 reopenings; 69 entries born STALE on a source they name and
+44 through another entry; 26 moves to STALE, 23 by an invalidation's
+cascade and 3 by a stale birth's, 10 of them past a retracted or
+superseded entry; and all six edges of the lifecycle, ACTIVE to RETRACTED
+77 times, to STALE 26, to SUPERSEDED 61, STALE to RETRACTED 14 and to
+SUPERSEDED 35, and SUPERSEDED to RETRACTED 9, with 33 retractions and 18
+supersessions of an entry already so, which the rules allow. At bd1a43a
+the search fails with two distinct failures, each shrunk: an entry derived
+from a stale entry, current (AUD-089), and a writer behind the log
+refusing a retraction the store beside it accepted (AUD-091). Alone, it
+took 8.6 to 11.2 seconds in four runs here, two under each interpreter.
+
+**Every edge, and every edge it does not have.** Each of the six edges of
+`STATUS_EDGES` is taken on the write path by a writer that did not write
+the entry and had not read it, and replayed by a fresh load and by the
+second reader; at bd1a43a the three into RETRACTED fail (AUD-091). Each of
+the six moves between two statuses the table does not join is refused on
+the write path, where it costs the log nothing, and on replay by both
+readers, made by the author, naming a replacement the store holds, and to
+STALE on a premise that holds, so that the edge alone refuses it.
+`tests/test_memory_trust.py`'s table of moves holds three of the six.
+
+**AUD-089 (P3), fixed.** A memory resting on an invalidated source through
+another entry stayed current, by three paths. An entry derived from an
+invalidated source is born STALE, and invalidating a source moves to STALE
+what rests on it through the entries that summarize or derive from it. But
+a summary of an entry whose source was already invalidated, or an entry
+derived from such an entry, was born ACTIVE: birth asked only whether the
+entry's own sources were invalidated, while `_rests_on_invalidated`, the
+premise a STALE move is held to and documented as the cascade's reach,
+follows summaries and derivations, and the second reader restated the
+direct rule. The cascade stopped at an entry no longer current, so a
+summary of a retracted or superseded note on the source was never reached.
+And an entry that named a memory before it was written, as `derived_from`
+may, since it names authority records too, stayed current when that memory
+was born STALE: the cascade over its source had run before it existed.
+Each left a current note on a withdrawn premise, in `current()` and in
+recall, in a fresh load and in the second reader, and a second
+invalidation of the source moved nothing. One rule now decides birth in
+both readers: an entry is born STALE when it rests on an invalidated
+source, directly or through the entries it summarizes or derives from. One
+cascade serves an invalidation and a stale birth, and follows what rests
+on an entry it does not move, so that a writer whose entry is born STALE
+moves what already names it. The cascade is the write path's, as it was:
+replay holds each STALE move to its premise and supplies no move nobody
+wrote, so a history appended around the write path can still hold a
+current entry on a withdrawn premise. The born-stale reason reads "rests
+on an already-invalidated source" for both births; nothing outside the
+store reads it, and an entry's digest does not cover it.
+
+**AUD-090 (P3), fixed.** `test_the_authority_path_cannot_import_memory`
+and the layering test read an import of a sibling module only in its
+relative form, and the stdlib-only test lets the package's own name
+through, as it must. At bd1a43a each of `from agent_substrate.memory
+import MemoryStore`, `import agent_substrate.memory` and `from
+agent_substrate import memory`, written into a function of `authority.py`,
+passed all three; the control, `from .memory import MemoryStore`, failed
+the first two. MQ5, the first form as a mutation, run alone against
+`agent_memory_context`'s suites from a lane's copy of a spec that was
+never committed, SURVIVED at bd1a43a; in the spec on this pass's tree it
+is killed. The memory module's docstring says the layering test makes such
+an import impossible even by mistake, and `_scientific_imports`, in the
+same test file, already read the absolute forms. One reading of a module's
+imports, `package_imports`, now serves the layering, the memory guard and
+the reconstruct-independence check: relative imports, absolute imports of
+the package's modules in each form, and a module named by a constant to
+`importlib.import_module`. A control holds that it sees each form, lazily
+inside a body, and an import of another package not. With it, each of the
+four forms fails the memory guard and the layering test. A module named by
+a computed string is not seen; nothing in the package imports one.
+
+**AUD-091 (P3), fixed.** `retract()` and `supersede()` looked the entry up
+in the store's own projection before deciding, and a projection is only
+current until another process writes. At bd1a43a, a second store of
+alice's, loaded before her notes m1 and m2 were written, refused her
+retraction of m1 ("no memory 'm1'") and her supersession of m1 by m2 ("no
+memory 'm2'"), and the log grew by nothing; a store loaded afresh
+retracted m1. `remember()`, `summarize()` and `invalidate_source()` decide
+under the writer lock after folding what others appended, as every write
+of the authority store reads the log first; the two withdrawals now fold
+what was appended before they decide.
+
+**AUD-092 (P3), fixed.** The governed runner loads its memory store once,
+when it is constructed, and folds it only when it writes. A run's context
+took the last three current notes from that view. At bd1a43a, a governed
+run filed its note, written by its verifier; a second supervisor on the
+same log was constructed; the note's author retracted it through the first
+supervisor, and a fresh load held it RETRACTED; and the second
+supervisor's next run recorded a context naming it, as current memory. A
+run catches up its idempotency ledger and its scheduler before it decides
+(D-2026-117), and did not catch up its memory; the memory trust assessment
+reports such a view as disagreeing with the log, and nothing asked it.
+`MemoryStore.catch_up()` now folds what other writers appended, and the
+runner calls it before it reads current memory for a run. A note retracted
+between the catch-up and the context's record is still shown, as any read
+can be overtaken.
+
+**Mutations.** Y7, Y22 and Y33 in `agent_memory_context`, and MT25 in
+`memory_trust`, are re-anchored on the lines the corrections moved, each
+keeping its fault: Y7 on the one rule of birth, its rationale extended;
+Y22 on the cascade's move of a current entry; Y33 on the line after the
+invalidation's record; MT25 on the second reader's rule of birth. Added to
+`agent_memory_context`: MQ1, the cascade stopping at an entry no longer
+current; MQ2 and MQ3, a retraction and a supersession decided on a
+projection not caught up; MQ4, the second reader restating birth on direct
+sources only; MQ5, an absolute import of memory into `authority.check`;
+and MQ7, a stale birth that moves nothing that named it. MQ6, in
+`t2_closure`, shows a run memory as last read. Two entries drafted for
+this pass were dropped before any run, each the fault of an entry already
+in the spec: a cascade moving nothing past its first entry is Y6's, and a
+birth ignoring entries named is Y7's once birth is one rule.
+
+**Whole runs.** On this pass's tree: `agent_memory_context`, 96 of 96,
+under CPython 3.12.3 and again under 3.12.13, each mutation killed by the
+same test under both, MR8 by an error collecting
+`tests/test_agent_memory.py`, which the harness reports without a test
+(see below); `memory_trust`, 28 of 28; `t2_closure`, 42 of 42;
+`agent_incremental`, 27 of 27; `agent_toctou`, 9 of 9; and
+`mutation_shards`, 12 of 12. Every source was restored byte-identical and
+no post-run baseline was red. A restart of this session's worker stopped
+the first run of `agent_memory_context` under each interpreter, at 85 and
+87 entries with none surviving; the harness's own recovery restored both
+lanes and both runs were made again whole. The new entries were killed
+thus: MQ1 by the cascade past a retracted note, MQ2 by the edge ACTIVE to
+RETRACTED taken by a writer that had not read the entry, MQ3 by the test
+of a writer that had not caught up, MQ4 by a summary written after its
+detail went stale, MQ5 by the memory guard, MQ6 by the governed run's
+test, and MQ7 by an entry that named a memory before it was written; Y7 by
+an entry written after an invalidation, Y22 by confidence held to be
+commentary, Y33 by an invalidation that nothing rests on yet, and MT25 by
+both readers holding an entry written after its source went stale. The 14
+mutations anchored within three lines of a line this pass changes are all
+in the first three specs. The nine specs whose suites hold
+`tests/test_agent_substrate_isolation.py` were not run again: the scan
+this pass widens can only refuse more, and none of their 343 mutations
+adds an import. The search adds about eight seconds to a run of
+`tests/test_agent_memory.py` here, 2.4 seconds at bd1a43a and 10.3 on this
+pass's tree, and each of the 45 entries of `agent_memory_context` on the
+context module is killed in the suite run after it, so each pays it.
+
+**Read in full.** At bd1a43a: `agent_substrate/memory.py`, all 917 lines,
+again; `tests/test_agent_memory.py`, all 988;
+`tests/test_agent_incremental.py`, all 611; `tests/test_memory_trust.py`,
+all 469; `tests/test_t2_governed.py`, all 391; and
+`tests/test_agent_substrate_isolation.py`, all 1,194. AUD-089 and AUD-091
+were found in the store, AUD-090 in the two import scans, and AUD-092
+following AUD-091 to the store's readers. Each of this pass's changes was
+written and reviewed as a diff. The damaged-tail test in
+`tests/test_agent_incremental.py` held a fresh log's advance and not the
+projection it is named for; it now holds the projection's catch-up too.
+The nineteenth pass's last list, its statements of what is not
+established, was merged into one item by its wrapping; it is split again,
+its words unchanged, and the file's final newline, which that pass
+dropped, is restored.
+
+**Observations, not changed.**
+
+- A move to the status an entry already has passes the edge rule in both
+  readers. For ACTIVE it is accepted from anyone and sets the entry's
+  reason and its updated position, which nothing outside the store reads;
+  for a withdrawal it is the author's, and an author may supersede a note
+  with itself, or two notes with each other, leaving no current version.
+  Nothing follows `superseded_by` in a loop.
+- The read guard of the isolation test sees `open()`, `read_text()` and
+  `read_bytes()`, not `os.open` or `Path.open`. Outside the I/O layer,
+  `archive.restore` writes through `os.open` and `_ns_init` opens path
+  handles and a confinement probe; neither is an ungoverned read.
+- In `tests/test_agent_memory.py`, the reviewer-approval test asserts a
+  `TransitionError` with no message, so the separation-of-duties rule
+  could be what refuses; the hit's label test asserts `Exception`; several
+  malformed-record tables assert `MemoryError_` with no message. In
+  `tests/test_agent_incremental.py`, the fresh-load test asserts
+  `Exception`, the grown-log control asserts that both routes do not raise
+  rather than that they agree with a load, and the two-route tests write
+  `record.create` alone, which most projections skip.
+- MR8 is killed before any test runs. It writes the hit's evidence label
+  as a field with a default ahead of fields without one, which the
+  dataclass decorator refuses when the module is imported (`TypeError:
+  non-default argument 'memory_id' follows default argument`, seen on a
+  copy of this pass's tree), so it would be killed with no test of the
+  label at all. `test_the_evidence_label_on_a_hit_cannot_be_set` holds
+  that the label is not a field, and MR8 never reaches it. The harness
+  counts the kill as it counts any other.
+
+**What is not established.**
+
+- The search holds the memory store alone. The policy store, the
+  scheduler, the agent directory and the other projections that catch up
+  from an anchor are not held to a load of their history up to their
+  position here; Wave B goes on to them.
+- Which histories the search draws moves with its source; the counts above
+  are for this source, measured under both interpreters. Hypothesis
+  6.158.1 asserted inside its own unique-list draw while shrinking an
+  earlier form of the search, so the search draws plain lists and makes
+  them distinct where they are used.
+- The cascade is the write path's. A history appended around it, by a
+  writer that does not run it, can hold a current entry on a withdrawn
+  premise, and both readers project it so.
+- Whether other entries in the specs are killed by an error before any
+  test runs, as MR8 is, was not looked for in this pass.

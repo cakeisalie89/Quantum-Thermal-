@@ -3818,12 +3818,14 @@ def _sub_memory_write(ev, p: dict, out) -> None:
         return
     rests_on = list(entry.get("derived_from") or ()) + list(
         entry.get("summarizes") or ())
-    status = "STALE" if any(
-        s in out.memory_invalidated for s in entry.get("derived_from") or ()
-    ) else status
-    out.memory[mid] = {"memory_id": mid, "author": ev.actor,
-                       "status": status, "written_seq": ev.seq,
-                       "rests_on": rests_on}
+    new = {"memory_id": mid, "author": ev.actor, "status": status,
+           "written_seq": ev.seq, "rests_on": rests_on}
+    # Born STALE when it rests on an invalidated source, directly or through
+    # the entries it summarizes or derives from (AUD-089), restated from the
+    # memory store's rule.
+    if _memory_rests_on_invalidated(out, new):
+        new["status"] = "STALE"
+    out.memory[mid] = new
 
 
 def _memory_field_types(entry: dict) -> str:

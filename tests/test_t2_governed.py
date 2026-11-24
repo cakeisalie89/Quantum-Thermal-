@@ -389,3 +389,37 @@ def test_control_a_read_nobody_revoked_is_recorded_allowed(gov):
     reads = _actions(gov, "file.read")
     assert reads and all(r.payload["allowed"] for r in reads)
     assert not rc.reconstruct_subsystems(gov.log).anomalies
+
+
+# ---- what a run is shown of memory (AUD-092) --------------------------------
+
+def _memory_shown(gov) -> list:
+    """The memory items the latest run's context record names."""
+    ctx = _actions(gov, "context.build")[-1]
+    return [i["item_id"] for i in ctx.payload["manifest"]["items"]
+            if i["item_id"].startswith("memory-")]
+
+
+def test_a_note_retracted_elsewhere_is_not_shown_to_a_run_as_current(gov):
+    """AUD-092, as reproduced: a second supervisor's view of memory was
+    loaded once and folded only when it wrote, so a note its author
+    retracted in another process was put in front of the second
+    supervisor's next run as current memory, and that run's context record
+    named it."""
+    first = gov.run(tool_id="stage10.emit_artifact", inputs=C._inputs(gov))
+    other = _second(gov)
+    note = gov.memory.get(first.memory_id)
+    gov.memory.retract(note.memory_id, actor=note.author, reason="withdrawn")
+    assert other.memory.get(note.memory_id).is_current, (
+        "premise: the second supervisor's view still holds the note current")
+    other.run(tool_id="stage10.emit_artifact",
+              inputs=C._inputs(gov, name="second.json"))
+    assert f"memory-{note.memory_id}" not in _memory_shown(gov)
+
+
+def test_control_a_note_still_current_is_shown_to_the_next_run(gov):
+    first = gov.run(tool_id="stage10.emit_artifact", inputs=C._inputs(gov))
+    other = _second(gov)
+    other.run(tool_id="stage10.emit_artifact",
+              inputs=C._inputs(gov, name="second.json"))
+    assert f"memory-{first.memory_id}" in _memory_shown(gov)

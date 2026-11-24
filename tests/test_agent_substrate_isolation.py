@@ -495,21 +495,68 @@ def _modules():
 
 
 def _internal_imports(path: Path) -> set:
-    """Relative imports of sibling modules, including lazy ones inside bodies.
+    """Imports of sibling modules, including lazy ones inside bodies.
 
     ``ast.walk`` rather than a scan of module-level statements: several call
     sites import lazily to avoid an import cycle, and a lazy dependency is
     still a dependency.
+
+    AUD-090. Relative imports were all this read, so ``from
+    agent_substrate.memory import X``, ``import agent_substrate.memory`` and
+    ``from agent_substrate import memory`` reached a sibling unseen, past the
+    layering below and the memory guard alike. Each is a sibling here, and
+    so is a module named by a constant to importlib.import_module.
     """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return package_imports(ast.parse(path.read_text(encoding="utf-8")))
+
+
+def package_imports(tree) -> set:
+    """The package's modules ``tree`` imports, by any of the forms above."""
     deps = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.level == 1:
-            if node.module:
-                deps.add(node.module.split(".")[0])
+        if isinstance(node, ast.ImportFrom):
+            if node.level == 1:
+                names = ([node.module] if node.module
+                         else [a.name for a in node.names])
+            elif node.level == 0 and node.module and (
+                    node.module.split(".")[0] == "agent_substrate"):
+                rest = node.module.split(".")[1:]
+                names = rest[:1] or [a.name for a in node.names]
             else:
-                deps.update(a.name.split(".")[0] for a in node.names)
+                continue
+            deps.update(n.split(".")[0] for n in names)
+        elif isinstance(node, ast.Import):
+            for a in node.names:
+                parts = a.name.split(".")
+                if parts[0] == "agent_substrate" and len(parts) > 1:
+                    deps.add(parts[1])
+        elif (isinstance(node, ast.Call)
+              and isinstance(node.func, ast.Attribute)
+              and node.func.attr == "import_module" and node.args
+              and isinstance(node.args[0], ast.Constant)
+              and isinstance(node.args[0].value, str)):
+            parts = node.args[0].value.split(".")
+            if parts[0] == "agent_substrate" and len(parts) > 1:
+                deps.add(parts[1])
+            elif parts[0] == "" and len(parts) > 1:
+                deps.add(parts[1])
     return deps
+
+
+@pytest.mark.parametrize("form", [
+    "from .memory import MemoryStore",
+    "from . import memory",
+    "from agent_substrate.memory import MemoryStore",
+    "import agent_substrate.memory",
+    "from agent_substrate import memory",
+    "importlib.import_module('agent_substrate.memory')",
+])
+def test_the_import_scan_sees_each_form_of_a_sibling_import(form):
+    """AUD-090, the control: each form, written lazily inside a body, is an
+    import of memory to the scan, and an import of another package is
+    not."""
+    src = f"def f():\n    {form}\n    import json\n    import scipy.linalg\n"
+    assert package_imports(ast.parse(src)) == {"memory"}
 
 
 def _all_imported_names(path: Path) -> set:

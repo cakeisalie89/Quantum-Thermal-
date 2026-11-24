@@ -2924,6 +2924,130 @@
    "residual_risk": "A test in another spec's suites that asserts on source text would kill a mutation of that text the same way. This pass read the kill sites of the harness spec, and of agent_checkpoint, and of no other spec.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-089",
+   "title": "A memory resting on an invalidated source through another entry stays current: born ACTIVE after the cascade, or never reached by it",
+   "severity": "P3",
+   "subsystem": "memory: what an invalidated source makes stale",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "MemoryStore.apply (memory.write), invalidate_source"
+    },
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "the second reader's memory.write"
+    }
+   ],
+   "behavior": "An entry derived from an invalidated source is born STALE, and invalidating a source moves to STALE what rests on it through the entries that summarize or derive from it. Two ways led past that. A summary of an entry whose source was already invalidated, or an entry derived from such an entry, was born ACTIVE, since birth asked only whether the entry's own sources were invalidated. The cascade stopped at an entry no longer current, so a summary of a retracted or superseded note on the source was never reached. And an entry that named a memory before it was written, as derived_from may, since it names authority records too, stayed current when that memory was born STALE: the cascade over its source had run before it existed. Each left a current note on a withdrawn premise, in current() and in recall, in a fresh load and in the second reader, and a second invalidation of the source moved nothing.",
+   "invariant": "No current entry rests on an invalidated source, directly or through the entries it summarizes or derives from, in whatever order the history was written.",
+   "mechanism": "The reducer's birth rule read derived_from against the invalidated set directly, while _rests_on_invalidated, the premise a STALE move is held to and documented as the cascade's reach, follows summaries and derivations; the second reader restated the direct rule. invalidate_source skipped an entry in NOT_CURRENT before extending its frontier from it, and a stale birth moved nothing.",
+   "reproduction": "At bd1a43a. (a) A detail derived from a source, the source invalidated, and a summary of the detail written: the summary was born ACTIVE, the one current entry, recalled, in a fresh load and in the second reader; an entry derived from the detail likewise; invalidating the source again moved nothing. A summary written before the invalidation went STALE. (b) A detail on a source, summarized by another author, then retracted or superseded by its own, and the source invalidated: the cascade moved nothing, and the summary stayed current. (c) An entry naming 'later' before 'later' was written, and 'later' written on an invalidated source: 'later' was born STALE and the entry stayed ACTIVE, though the store's own _rests_on_invalidated said it rested on the source. Each regression test fails at bd1a43a, and so does the search, by the rule that nothing current rests on an invalidated source.",
+   "observed": "Found reading the memory store's reducer for Wave B's memory lifecycle.",
+   "expected": "Both births STALE, in both readers; the cascade moves the summary, and not the note it rests on through.",
+   "correction": "One rule decides birth in both readers: an entry is born STALE when it rests on an invalidated source, directly or through the entries it summarizes or derives from. One cascade serves an invalidation and a stale birth, and follows what rests on an entry it does not move: a writer whose entry is born STALE moves what already names it.",
+   "regression_tests": [
+    "tests/test_agent_memory.py::test_a_summary_written_after_its_detail_went_stale_is_born_stale",
+    "tests/test_agent_memory.py::test_an_entry_derived_from_a_stale_entry_is_born_stale",
+    "tests/test_agent_memory.py::test_the_cascade_reaches_past_an_entry_no_longer_current",
+    "tests/test_agent_memory.py::test_an_entry_that_named_a_memory_before_it_was_written_goes_stale",
+    "tests/test_agent_memory.py::test_a_lifecycle_written_by_several_writers_agrees_everywhere"
+   ],
+   "residual_risk": "A summary of a note retracted or superseded for any other reason stays current, as before, and a test holds it: what makes an entry stale is an invalidated premise. The born-stale reason now reads 'rests on an already-invalidated source' for both births; nothing outside the store reads it, and an entry's digest does not cover it. The cascade is the write path's, as it was: replay holds each STALE move to its premise, and does not supply a move nobody wrote, so a history appended around the write path, an invalidation with no cascade after it, still holds a current entry on a withdrawn premise.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-090",
+   "title": "The guards on what the substrate's modules import read relative imports alone, so an absolute import of memory into the authority path passed all three",
+   "severity": "P3",
+   "subsystem": "the substrate's layering: what a module may import",
+   "files": [
+    {
+     "path": "tests/test_agent_substrate_isolation.py",
+     "lines": "_internal_imports, test_a_module_imports_only_strictly_earlier_layers"
+    },
+    {
+     "path": "tests/test_agent_memory.py",
+     "lines": "test_the_authority_path_cannot_import_memory"
+    },
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "the module docstring"
+    }
+   ],
+   "behavior": "test_the_authority_path_cannot_import_memory and the layering test read an import of a sibling module only in its relative form, and the stdlib-only test lets the package's own name through. An import of memory into the authority path written absolutely, by any of three forms, passed all three, as did any absolute import of a later layer; the reconstruct-independence check reads imports through the same helper. The memory module's docstring says the layering test makes such an import impossible even by mistake.",
+   "invariant": "A module of the substrate imports only strictly earlier layers, and the authority path never imports memory, by whatever form the import is written in.",
+   "mechanism": "Both scans took an ImportFrom of level 1 and nothing else; the stdlib-only test lets the package's own name through, as it must. No module of the package imports a sibling absolutely today, so each guard held of the code and could not have held of a change written the other way.",
+   "reproduction": "At bd1a43a, each of `from agent_substrate.memory import MemoryStore`, `import agent_substrate.memory` and `from agent_substrate import memory`, written into a function of authority.py, passed the memory guard, the layering test and the stdlib-only test; the control, `from .memory import MemoryStore`, failed the first two. MQ5, the first form as a mutation, held in a lane's copy of a spec and run alone, SURVIVED the suites of agent_memory_context at bd1a43a. With the guards widened, each of the four forms fails the first two.",
+   "observed": "Found reading tests/test_agent_memory.py in full for Wave B: the memory guard's comment says the layering enforces it, and the layering reads imports the same way.",
+   "expected": "Each absolute form refused by the layering and the guard.",
+   "correction": "One reading of a module's imports, package_imports, serves both: relative imports, absolute imports of the package's modules in each form, and a module named by a constant to importlib.import_module. A control holds that it sees each form.",
+   "regression_tests": [
+    "tests/test_agent_substrate_isolation.py::test_the_import_scan_sees_each_form_of_a_sibling_import",
+    "tests/test_agent_memory.py::test_the_authority_path_cannot_import_memory"
+   ],
+   "residual_risk": "A module named by a computed string, or reached through another object's attribute, is not seen; nothing in the package does either, and the stdlib-only test does not look for it.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-091",
+   "title": "A memory store that has not caught up refuses its author's retraction or supersession of a note another process wrote, as of an unknown memory",
+   "severity": "P3",
+   "subsystem": "memory: the write path's view of the log",
+   "files": [
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "MemoryStore.retract, MemoryStore.supersede"
+    }
+   ],
+   "behavior": "retract() and supersede() looked the entry up in the store's own projection before deciding, and a projection is only current until another process writes. A second store of alice's, loaded before her notes were written, refused her retraction with \"no memory 'm1'\" and her supersession with \"no memory 'm2'\", though the log held both. The refusal cost the log nothing, and a store loaded afresh accepted both.",
+   "invariant": "A write decides against the log as it stands: a store that has not caught up decides each write as one just loaded would.",
+   "mechanism": "remember(), summarize() and invalidate_source() decide under the writer lock after folding what others appended, as every write of the authority store reads the log first; retract() and supersede() checked existence and authorship on the unfolded projection, and only the decision inside _set_status folded.",
+   "reproduction": "At bd1a43a, a second store of alice's, loaded before her notes m1 and m2 were written, refused her retraction of m1 (\"no memory 'm1'\") and her supersession of m1 by m2 (\"no memory 'm2'\"), and the log grew by nothing; a store loaded afresh retracted m1. The regression test fails at bd1a43a, as do the three edges into RETRACTED taken by a writer that had not read the entry, and the search, whose writer behind the log refused a retraction that a store just loaded, beside it, accepted.",
+   "observed": "Found writing the lifecycle's fixed paths, each edge taken by a writer that had not read the entry.",
+   "expected": "Both withdrawals accepted, by the author, from either store.",
+   "correction": "retract() and supersede() fold what was appended before they decide.",
+   "regression_tests": [
+    "tests/test_agent_memory.py::test_a_writer_that_has_not_caught_up_withdraws_what_another_wrote",
+    "tests/test_agent_memory.py::test_each_edge_is_taken_and_replayed_by_both_readers",
+    "tests/test_agent_memory.py::test_a_lifecycle_written_by_several_writers_agrees_everywhere"
+   ],
+   "residual_risk": "Reads (get, current, recall) answer from the projection as folded, as the authority store's reads do: a store that has not caught up recalls what it last read. A caller that shows memory as current catches up first (AUD-092 is the one that did not), and the search holds every writer to a load of the history up to its own position.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-092",
+   "title": "A governed run is shown, as current memory, a note its author retracted in another process, and its context record names it",
+   "severity": "P3",
+   "subsystem": "the governed runtime: what a run is shown of memory",
+   "files": [
+    {
+     "path": "agent_substrate/governed_tasks.py",
+     "lines": "GovernedTasks._build_context"
+    },
+    {
+     "path": "agent_substrate/memory.py",
+     "lines": "MemoryStore.catch_up"
+    }
+   ],
+   "behavior": "The governed runner loads its memory store once, when it is constructed, and folds it only when it writes. A run's context took the last three current notes from that view, so a second supervisor on the same log put in front of its next run a note whose author had retracted it through the first, as current memory, and recorded a context naming it.",
+   "invariant": "What a run is shown of memory is memory as the log holds it when the run is assembled; a note withdrawn by its author is not shown as current.",
+   "mechanism": "The runner loads its memory store once, when it is constructed, and folds it only when it writes; _build_context read current() from that view. A run catches up its idempotency ledger and its scheduler before it decides (D-2026-117), and not its memory. The memory store's own trust assessment reports such a view as disagreeing with the log, and nothing asked it.",
+   "reproduction": "At bd1a43a: a governed run filed its note, written by stage10-verifier; a second supervisor on the same log was constructed; the note's author retracted it through the first supervisor, and a fresh load held it RETRACTED; the second supervisor's next run recorded a context naming it. The regression test fails at bd1a43a, and its control passes.",
+   "observed": "Found following AUD-091 to the store's readers: the governed runtime is the one that shows memory to a run.",
+   "expected": "The retracted note is not in the second run's context.",
+   "correction": "MemoryStore.catch_up() folds what other writers appended; the runner calls it before it reads current memory for a run.",
+   "regression_tests": [
+    "tests/test_t2_governed.py::test_a_note_retracted_elsewhere_is_not_shown_to_a_run_as_current",
+    "tests/test_t2_governed.py::test_control_a_note_still_current_is_shown_to_the_next_run"
+   ],
+   "residual_risk": "A note retracted between the catch-up and the context's record is shown, as any read can be overtaken; the record names what was current at the position the runner read. Other readers of a held store (recall, current, get) answer from the view as folded, as the authority store's reads do: a caller that shows memory to a model catches up first.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

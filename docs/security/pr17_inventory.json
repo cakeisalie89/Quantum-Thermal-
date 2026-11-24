@@ -871,6 +871,7 @@
     "findings": [],
     "mutation_specs": [
      "tools/mutations/agent_evidence.json",
+     "tools/mutations/agent_memory_context.json",
      "tools/mutations/agent_substrate.json",
      "tools/mutations/enforcement_asserts.json",
      "tools/mutations/formal.json",
@@ -1772,6 +1773,7 @@
      "tests/test_agent_memory.py",
      "tests/test_agent_second_reader.py",
      "tests/test_agent_snapshot_coherence.py",
+     "tests/test_agent_substrate_isolation.py",
      "tests/test_agent_toctou.py",
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
@@ -2103,6 +2105,7 @@
      "tools/mutations/agent_delegation.json",
      "tools/mutations/agent_idempotency.json",
      "tools/mutations/agent_lease_renewal.json",
+     "tools/mutations/agent_memory_context.json",
      "tools/mutations/agent_second_reader.json",
      "tools/mutations/agent_separate_verify.json",
      "tools/mutations/agent_service_authority.json",
@@ -2146,6 +2149,7 @@
      "tests/test_agent_hostile_campaign.py",
      "tests/test_agent_idempotency.py",
      "tests/test_agent_long_horizon.py",
+     "tests/test_agent_memory.py",
      "tests/test_agent_performance.py",
      "tests/test_agent_readers_never_raise.py",
      "tests/test_agent_second_reader.py",
@@ -6571,6 +6575,7 @@
    "path": "tests/test_agent_memory.py",
    "risk": "LOW",
    "runtime_dependencies": [
+    "hypothesis",
     "pytest"
    ],
    "subsystem": "tests",
