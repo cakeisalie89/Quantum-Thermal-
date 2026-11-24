@@ -106,8 +106,8 @@
       "name": "G3_replay_does_not_reauthorize",
       "path": "agent_substrate/governed_tasks.py",
       "find": "                edge = check(req, task)",
-      "replace": "                edge = find_edge(req.src, req.dst) or _ANY_EDGE",
-      "rationale": "a forged log entry becomes state simply by being present"
+      "replace": "                edge = __import__(\"agent_substrate.tasks\", fromlist=[\"find_edge\"]).find_edge(req.src, req.dst) or check(req, task)",
+      "rationale": "a forged log entry becomes state simply by being present (AUD-093: the edge the machine has is taken with no question of role, lease or actor, and a move it lacks is still refused. The line once called find_edge, which this module never imported, and named _ANY_EDGE, which nothing defines, so it raised NameError where the fault was to act, and was counted as killed from the day it was written)"
     },
     {
       "name": "G4_inputs_not_validated_before_scheduling",

@@ -523,7 +523,8 @@
       "path": "agent_substrate/reconstruct.py",
       "find": "def _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,",
       "replace": "def _delegate(req):\n    return check(req)\n\n\ndef _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,",
-      "rationale": "a call back into the gate, with no import to give it away: the call-graph guard is what has to notice"
+      "rationale": "a call back into the gate, with no import to give it away: the call-graph guard is what has to notice",
+      "reads_undefined": "nothing calls _delegate: the mutant is a call for the call-graph guard to find, with no import to give it away, so check is never looked up"
     },
     {
       "name": "R75_a_claim_may_be_attributed_to_anyone",
@@ -745,9 +746,9 @@
     {
       "name": "R106_the_second_reader_shares_the_result_rules_it_restates",
       "path": "agent_substrate/reconstruct.py",
-      "find": "from . import actions\nfrom .events import EventLog",
-      "replace": "from . import actions\nfrom .events import EventLog\nfrom .result_rules import record_problems  # noqa: F401",
-      "rationale": "D-2026-126: a first reader the deny-list never named. result_rules is restated in the reader so a weakened rule is not reproduced there; an import of it passes a list that names ten layers out of some thirty-five, and only the allow-list refuses it"
+      "find": "from . import actions\nfrom .events import EventLog, judged_at\n",
+      "replace": "from . import actions\nfrom .events import EventLog, judged_at\nfrom .result_rules import record_problems  # noqa: F401\n",
+      "rationale": "D-2026-126: a first reader the deny-list never named. result_rules is restated in the reader so a weakened rule is not reproduced there; an import of it passes a list that names ten layers out of some thirty-five, and only the allow-list refuses it (AUD-093: the anchor ended inside the events import, which has since gained judged_at, so the mutant also put that name in a comment and the second reader crashed on it; anchored on the whole line, the mutant adds the import and nothing else)"
     },
     {
       "name": "R107_the_reader_lets_a_record_be_born_in_any_state",

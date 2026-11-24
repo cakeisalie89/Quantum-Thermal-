@@ -386,6 +386,30 @@ def test_a_forged_record_cannot_pick_its_own_starting_state(gov):
         gov.projection()
 
 
+def test_a_forged_move_the_record_s_role_may_not_make_is_not_applied(gov):
+    """Replay asks who made a move, not only whether the move is an edge.
+
+    The two tests above forge pairs that are not an edge from where the task
+    stands, which the edge table refuses before any question of role, lease
+    or actor. VERIFIED -> INVALIDATED is an edge, and only SYSTEM may take
+    it: a record claiming WORKER for it is refused on replay, so a worker
+    cannot withdraw verified work by writing a line. G3 in agent_tasks takes
+    every edge the machine has and asks nothing of who took it, and while
+    its line raised NameError nothing held this (AUD-094).
+    """
+    run = _run(gov)
+    assert gov.projection().tasks[run.task_id].state is TaskState.VERIFIED
+
+    gov.log.append(
+        actor="attacker", action=ACT_TASK_TRANSITION, target=run.task_id,
+        payload={"task_id": run.task_id, "src": TaskState.VERIFIED.value,
+                 "dst": TaskState.INVALIDATED.value, "role": "WORKER"})
+    with pytest.raises(TaskTransitionError,
+                       match="role WORKER may not perform VERIFIED -> "
+                             "INVALIDATED"):
+        gov.projection()
+
+
 def test_a_worker_cannot_name_a_fictitious_executor_and_verify_its_own_work(
         gov):
     """THE SEPARATION-OF-DUTIES BYPASS, found by differential comparison.

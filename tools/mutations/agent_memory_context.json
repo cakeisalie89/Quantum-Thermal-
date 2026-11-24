@@ -261,9 +261,9 @@
     {
       "name": "MR8_the_evidence_label_becomes_a_settable_field",
       "path": "agent_substrate/memory.py",
-      "find": "    evidence_status = \"REMEMBERED_TEXT_NOT_EVIDENCE\"",
-      "replace": "    evidence_status: str = \"REMEMBERED_TEXT_NOT_EVIDENCE\"",
-      "rationale": "a status a caller can choose is a label rather than a property; a construction path could then mint a hit that claims to be evidence"
+      "find": "    #: How many distinct query terms this entry matched.\n    score: int\n",
+      "replace": "    #: How many distinct query terms this entry matched.\n    score: int\n    evidence_status: str = \"REMEMBERED_TEXT_NOT_EVIDENCE\"\n",
+      "rationale": "a status a caller can choose is a label rather than a property; a construction path could then mint a hit that claims to be evidence (AUD-093: written as a field after the last one, so that the class is made. Written in the attribute's place, ahead of fields with no default, the dataclass decorator refused the class, the module did not load, and the kill was the suite's failure to collect)"
     },
     {
       "name": "M38_anyone_may_supersede_anyone_elses_entry",

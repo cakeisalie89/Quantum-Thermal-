@@ -240,18 +240,21 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-093",
+    "AUD-094"
+   ],
    "kind": "documentation",
-   "method": "",
+   "method": "at 36767d3 (blob 306e35e): the section on the harness's own blind spots read and extended with the third (AUD-093, AUD-094), written and reviewed as a diff; its reference to the static checks, which moved to tests/test_mutation_specs.py (AUD-088), corrected",
    "mode": "100644",
-   "new_blob": "306e35e03ddc31771d214ddf248e9b0bc3c92287",
-   "note": "not yet examined",
+   "new_blob": "ae2c83598d9530ecacd79d18075b2b5db573194f",
+   "note": "",
    "old_blob": null,
    "path": "AGENT_SUBSTRATE.md",
-   "reviewed_blob": null,
-   "sha256": "bb201795c79fc2d58a6323eab62b30be50bc292b6dcb9ab6c2a39384ee2aaa46",
-   "size": 77117,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "ae2c83598d9530ecacd79d18075b2b5db573194f",
+   "sha256": "29595b2698e1b4ef2f107bdab2fe419aa0488678350ac666eb579876e65279b4",
+   "size": 78567,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -10423,18 +10426,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-094"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "at 36767d3 (blob 590cbd7): lines 42 to 100, the fixture and its helpers, and 340 to 390, the forged-transition tests, read; G3's test, a forged move of an edge the record's role may not make (AUD-094), written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "590cbd7fcee3999183884b4ef67457a0b8704f49",
-   "note": "not yet examined",
+   "new_blob": "6c8a10dad227dbb7f42a8017f00b88f5f9cac676",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_agent_governed_tasks.py",
-   "reviewed_blob": null,
-   "sha256": "d66949d4c1505502f19d47cc732d43a8e8f0f45feb0a1ec5d04f56217a1953ac",
-   "size": 80881,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "6c8a10dad227dbb7f42a8017f00b88f5f9cac676",
+   "sha256": "51318810771b0f7c2568fa067ec43d33dc6560df66007b18f27d4f094a668ea5",
+   "size": 82075,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -10685,18 +10690,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-094"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "at 36767d3 (blob df733fb): lines 1155 to 1200 read, the end of the deny-list test of the second reader's imports and the allow-list test, which is what kills R106 once its mutant no longer crashes",
    "mode": "100644",
    "new_blob": "df733fbebbd024886f9c979ac1d9f2c1f03ecc9a",
-   "note": "not yet examined",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_agent_second_reader.py",
-   "reviewed_blob": null,
+   "reviewed_blob": "df733fbebbd024886f9c979ac1d9f2c1f03ecc9a",
    "sha256": "90158ba3f6bde0ae3b6d1433069bd3360a3b753a4778185393914f6dfbbf4c0b",
    "size": 80747,
-   "status": "NOT_REVIEWED"
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -11980,18 +11987,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-053"
+    "AUD-053",
+    "AUD-093"
    ],
    "kind": "test",
-   "method": "every line read at ce93e58; the AUD-053 tests (the kept file, and a program in the child's place) written by the audit and reviewed as a diff",
+   "method": "every line read at ce93e58; the AUD-053 tests (the kept file, and a program in the child's place) written by the audit and reviewed as a diff; unchanged from that read to 36767d3 (blob e093e5a), where its imports and lines 190 to 224, the file that killed the reader and its test, were read again; test_the_reader_survives_the_file_that_killed_it, H9's test (AUD-093), written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "e093e5adbf9e46bfee64e077d82bb4ffbcbb5355",
+   "new_blob": "0ec1f2475799d1ef65b62f4cdd02544a3b80b448",
    "note": "",
    "old_blob": null,
    "path": "tests/test_hdf5_bundle.py",
-   "reviewed_blob": "e093e5adbf9e46bfee64e077d82bb4ffbcbb5355",
-   "sha256": "201b458e0200834c1cd82fda97c9f961f5f43c46796233a81386ddd66ed0a0fa",
-   "size": 16097,
+   "reviewed_blob": "0ec1f2475799d1ef65b62f4cdd02544a3b80b448",
+   "sha256": "b06a52e1ddf5921f69d96babf4767e783526e94444ccdc53310d1a8e554e07e9",
+   "size": 17456,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -12409,18 +12417,20 @@
    "change": "ADDED",
    "findings": [
     "AUD-087",
-    "AUD-088"
+    "AUD-088",
+    "AUD-093",
+    "AUD-094"
    ],
    "kind": "test",
-   "method": "read in full at bd818f8 (blob 2be334f), all 838 lines; two assertions found naming a heading the harness stopped printing with D-2026-43, so neither could fail, and corrected to the heading it prints; the two tests of AUD-087 written and reviewed as a diff, the regression test failing against bd818f8's harness and the control passing at both; the seven checks of committed specs moved out to tests/test_mutation_specs.py (AUD-088), so that the harness spec's one suite tests the harness's behaviour alone",
+   "method": "read in full at bd818f8 (blob 2be334f), all 838 lines; two assertions found naming a heading the harness stopped printing with D-2026-43, so neither could fail, and corrected to the heading it prints; the two tests of AUD-087 written and reviewed as a diff, the regression test failing against bd818f8's harness and the control passing at both; the seven checks of committed specs moved out to tests/test_mutation_specs.py (AUD-088), so that the harness spec's one suite tests the harness's behaviour alone; unchanged from that read to 36767d3 (blob 2f13295), where its fixtures, the cache test and the timeout test were read again; this pass's ten tests of what a kill is (AUD-093, AUD-094) written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "2f13295199f750221f606832eef6f12155cf0568",
+   "new_blob": "7a62c9cc69e81ae4415242256cb2af3382a9783e",
    "note": "",
    "old_blob": null,
    "path": "tests/test_mutation_harness.py",
-   "reviewed_blob": "2f13295199f750221f606832eef6f12155cf0568",
-   "sha256": "7ccb4e2f6dcfbec113f159c58fc4cc27060387a6bfefc3ddb21b39c41559a562",
-   "size": 31767,
+   "reviewed_blob": "7a62c9cc69e81ae4415242256cb2af3382a9783e",
+   "sha256": "89bfc557391488cf5c564d9db5247183a1315397ebc1124abb470f8cdfae55f9",
+   "size": 42457,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -14789,18 +14799,20 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-087"
+    "AUD-087",
+    "AUD-093",
+    "AUD-094"
    ],
    "kind": "tool",
-   "method": "read in full at bd818f8 (blob 266144c), all 607 lines: the recovery sidecar and the quarantine, run_suite and its private bytecode cache, validate_spec, the baseline and its re-run, the null control, the mutation loop and its check for collateral damage, the verified restoration and the post-run baseline; AUD-087 found there; its correction (_mutant, and validate_spec's refusal of a second entry making the same mutant) written and reviewed as a diff, with H20 killed",
+   "method": "read in full at bd818f8 (blob 266144c), all 607 lines: the recovery sidecar and the quarantine, run_suite and its private bytecode cache, validate_spec, the baseline and its re-run, the null control, the mutation loop and its check for collateral damage, the verified restoration and the post-run baseline; AUD-087 found there; its correction (_mutant, and validate_spec's refusal of a second entry making the same mutant) written and reviewed as a diff, with H20 killed; read in full again at 36767d3 (blob b463c0a), all 644 lines, for what the harness counts as a kill: AUD-093 found in run_suite and the verdict, AUD-094 in what validate_spec does not ask; the corrections (SuiteRun and pytest's ERROR lines, load_problem, the STILLBORN, signal and no-verdict verdicts, names_nothing_defines and reads_undefined in validate_spec) written and reviewed as a diff, and the spec run whole",
    "mode": "100644",
-   "new_blob": "b463c0aad6b9e39cb5453e387a373e85fc903dbc",
+   "new_blob": "4748a1083610a9764cef9b9f984b270448bb85df",
    "note": "a kill made by a collection error is reported without the test that made it",
    "old_blob": null,
    "path": "tools/mutation_matrix.py",
-   "reviewed_blob": "b463c0aad6b9e39cb5453e387a373e85fc903dbc",
-   "sha256": "3e5d70c9cfcd76b1cad8dfad453c6eaf5a71903800b9be587750cd4049038fea",
-   "size": 31200,
+   "reviewed_blob": "4748a1083610a9764cef9b9f984b270448bb85df",
+   "sha256": "20c729866f7ab6d0cf2ad6c21073b72ed6fa83a0f773adb69accca65672eaea3",
+   "size": 43915,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -15121,18 +15133,19 @@
    "findings": [
     "AUD-089",
     "AUD-090",
-    "AUD-091"
+    "AUD-091",
+    "AUD-093"
    ],
    "kind": "mutation-spec",
-   "method": "at bd1a43a (blob a4e3ea3): the 45 entries on memory.py read against their lines, Y6, Y7, Y22 and Y33 in full; Y7, Y22 and Y33 re-anchored on the lines the corrections moved, each keeping its fault; MQ1 to MQ5 and MQ7 written and reviewed as a diff; the spec run whole on this pass's tree",
+   "method": "at bd1a43a (blob a4e3ea3): the 45 entries on memory.py read against their lines, Y6, Y7, Y22 and Y33 in full; Y7, Y22 and Y33 re-anchored on the lines the corrections moved, each keeping its fault; MQ1 to MQ5 and MQ7 written and reviewed as a diff; the spec run whole on this pass's tree; at 36767d3 (blob b792c8e) MR8 read against its line, and re-anchored after the last field so that the class is made, keeping its fault (AUD-093), reviewed as a diff; the spec run whole",
    "mode": "100644",
-   "new_blob": "b792c8e6cc007bede2a484b9ed610fd3ad10dfa2",
+   "new_blob": "bc13847357f8dcc9fdacdc2d17db61cff65edff2",
    "note": "",
    "old_blob": null,
    "path": "tools/mutations/agent_memory_context.json",
-   "reviewed_blob": "b792c8e6cc007bede2a484b9ed610fd3ad10dfa2",
-   "sha256": "b67621131b6544c8e7afc58fd97096e2f6b6d976f80cd065b18932f0028129cb",
-   "size": 39817,
+   "reviewed_blob": "bc13847357f8dcc9fdacdc2d17db61cff65edff2",
+   "sha256": "4d0817e6f27973c0e9354ab3eb39db383fefb2f65d2e93f934fddf656f0bda71",
+   "size": 40173,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -15218,18 +15231,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-094"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "at 36767d3 (blob 0520c24): R74 and R106 read against their lines: R106 re-anchored on the whole import line it outgrew, R74 given its reads_undefined reason (AUD-094), reviewed as a diff; the spec run whole",
    "mode": "100644",
-   "new_blob": "0520c2408a5cf248f38b7ab605bcda2ccc170287",
-   "note": "not yet examined",
+   "new_blob": "9939ed701d582d2d7a602c03422d452360a7e34b",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/agent_second_reader.json",
-   "reviewed_blob": null,
-   "sha256": "54c4a85e125a53da3d550e46b797c82dfe0e7c5f782ecae34eef5cedc9248b24",
-   "size": 63401,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "9939ed701d582d2d7a602c03422d452360a7e34b",
+   "sha256": "e7f9d2bf4e24fddc9d04a4a7546249c60993193b23d8ee7ac508d0f822c7bdfc",
+   "size": 63838,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -15334,18 +15349,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-094"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "at 36767d3 (blob 7eb5382): G3 read against its line, and rewritten so that its mutant takes the edge without reauthorizing it, as its rationale says (AUD-094), reviewed as a diff; the spec run whole",
    "mode": "100644",
-   "new_blob": "7eb5382d51e46ca42587366ec91fe74877982b01",
-   "note": "not yet examined",
+   "new_blob": "b4676b80f151797d96b749449203c521904728c9",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/agent_tasks.json",
-   "reviewed_blob": null,
-   "sha256": "2bb213df132c2431e0769ed987e69c458cb43203e603140de2d9a78e42e67050",
-   "size": 13712,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "b4676b80f151797d96b749449203c521904728c9",
+   "sha256": "e3754e0f48313547cf48e37b5190238a66959f4903407f844f5430a23867f3f7",
+   "size": 14123,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -15434,18 +15451,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-094"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "at 36767d3 (blob 46afb43): RR8 read against its line; its replacement binds the name its unreachable return reads (AUD-094), reviewed as a diff; the spec run whole",
    "mode": "100644",
-   "new_blob": "46afb430a855b4fd5fd4518cfcb7bcdc3c4b8c1c",
-   "note": "not yet examined",
+   "new_blob": "e538f9cc1a24eaddcc41b1fc12d5701f547af3ab",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/authority_result_rules.json",
-   "reviewed_blob": null,
-   "sha256": "5b8e88262183ae08c7968cdb3693205ecf9e73ab5e72295bc401504ed64743c6",
-   "size": 14151,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "e538f9cc1a24eaddcc41b1fc12d5701f547af3ab",
+   "sha256": "8e6d5dd64ba5715108e7ed911ad8e39d0b20d4ca6751325675edfa70ee023d63",
+   "size": 14184,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -15898,18 +15917,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-094"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "at 36767d3 (blob bf349d6): G14 read against its method, and rewritten so that its mutant borrows the worker's grant, as its rationale says (AUD-094), reviewed as a diff; the spec run whole",
    "mode": "100644",
-   "new_blob": "bf349d615310265db39feae06950fc3ec7407f6f",
-   "note": "not yet examined",
+   "new_blob": "323393cb64ab071ce586d7763f0abecd7aa3f0d9",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/governed_breadth.json",
-   "reviewed_blob": null,
-   "sha256": "a7b1d158b4da722dbd33902fb0e2a61071d9db92203b59c75458bb79be9fad60",
-   "size": 10564,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "323393cb64ab071ce586d7763f0abecd7aa3f0d9",
+   "sha256": "31911639d294501778920f5d8b68c5f099f76251683f4372245be5508980adcd",
+   "size": 11014,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -16075,18 +16096,20 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-053"
+    "AUD-053",
+    "AUD-093",
+    "AUD-094"
    ],
    "kind": "mutation-spec",
-   "method": "every line read at ce93e58 (the title, the note, H1 to H8); H9 to H31 written by the audit and reviewed as a diff, each killed",
+   "method": "every line read at ce93e58 (the title, the note, H1 to H8); H9 to H31 written by the audit and reviewed as a diff, each killed; at 36767d3 (blob 5caaacb), unchanged from that read: H9's replacement made to bind the name its unreachable tail reads (AUD-094), reviewed as a diff; the spec run whole",
    "mode": "100644",
-   "new_blob": "5caaacbd3272bc6caaac31a167636fc6c035ae68",
+   "new_blob": "fadccf190e1447a42bf5d4dd3a39e293f8d1d9bd",
    "note": "",
    "old_blob": null,
    "path": "tools/mutations/hdf5_bundle.json",
-   "reviewed_blob": "5caaacbd3272bc6caaac31a167636fc6c035ae68",
-   "sha256": "e78e4dc3ea2bd8dc92ba006eb7e16f5943a9225bec17645dc60a1ee67f26fa6d",
-   "size": 11393,
+   "reviewed_blob": "fadccf190e1447a42bf5d4dd3a39e293f8d1d9bd",
+   "sha256": "6cf314e89caa6eabd79f3a1a61f89f821564129697e33d73e276016a5ebfcbaf",
+   "size": 11462,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -16244,18 +16267,20 @@
    "change": "ADDED",
    "findings": [
     "AUD-087",
-    "AUD-088"
+    "AUD-088",
+    "AUD-093",
+    "AUD-094"
    ],
    "kind": "mutation-spec",
-   "method": "all 21 entries read at bd818f8 (blob f7c1b3a) against tools/mutation_matrix.py, each matching once and each taking away a check of its own; H20 written and reviewed as a diff, and killed; AUD-088 found in what its suite held",
+   "method": "all 21 entries read at bd818f8 (blob f7c1b3a) against tools/mutation_matrix.py, each matching once and each taking away a check of its own; H20 written and reviewed as a diff, and killed; AUD-088 found in what its suite held; at 36767d3 (blob 51ab614), unchanged from that read: H1, H2, H12, H13, H14, H18 and H19 re-anchored on the lines this pass's rewrite of the harness moved, each keeping its fault, H4 and H5 kept by writing the load check's own cache so as not to match them, and H21 to H35 written and reviewed as a diff; the spec run whole",
    "mode": "100644",
-   "new_blob": "51ab6149892963407f8203fa1487fefcfbc937a9",
+   "new_blob": "2f8d63740a1826a8f0721459fbeb643740fd39d9",
    "note": "",
    "old_blob": null,
    "path": "tools/mutations/mutation_harness.json",
-   "reviewed_blob": "51ab6149892963407f8203fa1487fefcfbc937a9",
-   "sha256": "fd491e1e4eda398ad477018e5c98b22381a1b6c6b2376dfc614f8a3c97caac97",
-   "size": 9360,
+   "reviewed_blob": "2f8d63740a1826a8f0721459fbeb643740fd39d9",
+   "sha256": "74f09069e17378cba91be119bf9b87f60c4e7057206d33a4323681512ee21152",
+   "size": 15163,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -16698,18 +16723,19 @@
    "findings": [
     "AUD-076",
     "AUD-077",
-    "AUD-078"
+    "AUD-078",
+    "AUD-094"
    ],
    "kind": "mutation-spec",
-   "method": "every mutation read at 9a918a1, RC1 to RC9, each anchored once with its rationale; RC10 to RC25 written and reviewed, all 25 killed on the sixteenth pass's tree",
+   "method": "every mutation read at 9a918a1, RC1 to RC9, each anchored once with its rationale; RC10 to RC25 written and reviewed, all 25 killed on the sixteenth pass's tree; at 36767d3 (blob 9d80b17), unchanged from that read: RC15 and RC16 made to bind exc in the handler that never runs (AUD-094), reviewed as a diff; the spec run whole",
    "mode": "100644",
-   "new_blob": "9d80b17c8f2d0b45fe641f0ff0de778ca1a1588d",
+   "new_blob": "cbc418387e59e6c9cc926eeae0583bc672b7661b",
    "note": "its measured weight (24 s) predates RC10 to RC25; tools/mutation_shards.py weighs a grown spec at its earlier measure",
    "old_blob": null,
    "path": "tools/mutations/ro_crate_conformance.json",
-   "reviewed_blob": "9d80b17c8f2d0b45fe641f0ff0de778ca1a1588d",
-   "sha256": "b1b9e29bde1927da918d04e9acb621e67d2eb8e6f0d6f4c70b7178e9685d6094",
-   "size": 9666,
+   "reviewed_blob": "cbc418387e59e6c9cc926eeae0583bc672b7661b",
+   "sha256": "a2624323f640cb0ab412b2c330fdb4e5c9b26da37ece2c953ad76f3abbc251bb",
+   "size": 9680,
    "status": "REVIEWED_IN_FULL"
   },
   {

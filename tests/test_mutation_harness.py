@@ -17,6 +17,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import marshal
+import os
 import shutil
 import subprocess
 import sys
@@ -761,3 +762,271 @@ def test_guard_a():
     assert out.returncode != 0, (
         "the run passed with a mutation nothing bounds; the harness reports "
         "the condition and has to fail on it")
+
+
+# ---- a kill is a test's (AUD-093) --------------------------------------------
+#
+# Each case below was counted as a kill. The harness read pytest's FAILED lines
+# and its exit status and nothing else, so a mutant no test ran against, a
+# suite a signal ended and a fixture that refused the fault all read alike:
+# KILLED, with no test named.
+
+#: The first of the two default mutations, alone.
+GUARD_A = {"name": "M1_guard_a_removed", "path": "pkg/mod.py",
+           "find": "    if x < 0:", "replace": "    if 0:",
+           "rationale": "guard a stops guarding"}
+
+
+def _line(out: str, name: str) -> str:
+    """The report's line for one mutation, or the empty string."""
+    return next((line for line in out.splitlines()
+                 if line.startswith(name + " ")), "")
+
+
+def test_a_mutant_the_suites_cannot_be_collected_under_is_stillborn(
+        tmp_path):
+    """The module loads, but the suite imports a name the mutant took away,
+    so pytest collects nothing and no test runs."""
+    suite = SUITE_SRC.replace("from pkg import mod\n",
+                              "from pkg import mod\n"
+                              "from pkg.mod import check_b  # noqa: F401\n")
+    spec = _project(tmp_path, suite_src=suite, mutations=[
+        {"name": "S1_check_b_renamed", "path": "pkg/mod.py",
+         "find": "def check_b(x):", "replace": "def check_c(x):",
+         "rationale": "the name the suite imports is gone"}])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "S1_check_b_renamed")
+    assert "STILLBORN" in line and "could not be collected" in line, \
+        out.stdout
+    assert "killed:   0/1" in out.stdout, out.stdout
+    assert out.returncode != 0, out.stdout
+
+
+#: A class attribute that a mutation makes a dataclass field.
+LABEL_SRC = '''from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Hit:
+    label = "TEXT"
+
+    text: str
+
+
+def check_a(x):
+    if x < 0:
+        raise ValueError("a")
+    return x
+'''
+
+#: A suite that imports the module inside its tests.
+LATE_SUITE_SRC = '''import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import pytest
+
+
+def test_the_label_is_not_a_field():
+    from dataclasses import fields
+
+    from pkg import mod
+    assert "label" not in {f.name for f in fields(mod.Hit)}
+
+
+def test_guard_a_rejects():
+    from pkg import mod
+    with pytest.raises(ValueError):
+        mod.check_a(-1)
+'''
+
+
+def test_a_mutant_that_does_not_load_is_stillborn_whoever_imports_it(
+        tmp_path):
+    """MR8 in agent_memory_context, in small. The attribute made a field
+    with a default, ahead of a field without one: the decorator refuses the
+    class, and the module does not load. A suite that imports the module in
+    its tests fails in a test, which names itself, so the kill read as that
+    test's, and it never saw the fault."""
+    spec = _project(tmp_path, module_src=LABEL_SRC,
+                    suite_src=LATE_SUITE_SRC, mutations=[
+                        {"name": "S2_the_label_becomes_a_field",
+                         "path": "pkg/mod.py",
+                         "find": '    label = "TEXT"',
+                         "replace": '    label: str = "TEXT"',
+                         "rationale": "a label a caller can set is not a "
+                                      "property"}])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "S2_the_label_becomes_a_field")
+    assert "STILLBORN" in line and "does not load" in line, out.stdout
+    assert "non-default argument" in line, line
+    assert "killed:   0/1" in out.stdout, out.stdout
+    assert out.returncode != 0, out.stdout
+
+
+def test_the_same_fault_written_so_that_it_loads_is_killed_by_its_test(
+        tmp_path):
+    """The control: the field added after the last one, so the class is
+    made, and the test of the label kills it."""
+    spec = _project(tmp_path, module_src=LABEL_SRC,
+                    suite_src=LATE_SUITE_SRC, mutations=[
+                        {"name": "S3_the_label_becomes_a_field_that_loads",
+                         "path": "pkg/mod.py",
+                         "find": "    text: str\n",
+                         "replace": '    text: str\n    label: str = "TEXT"\n',
+                         "rationale": "a label a caller can set is not a "
+                                      "property"}])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "S3_the_label_becomes_a_field_that_loads")
+    assert "KILLED" in line and "by test_the_label_is_not_a_field" in line, \
+        out.stdout
+    assert out.returncode == 0, out.stdout
+
+
+def test_a_kill_made_in_a_fixture_names_its_test(tmp_path):
+    """A refusal checked in a fixture is a kill by the test it sets up.
+    pytest reports it as an ERROR and not a FAILED, and the report named no
+    test, the same line a mutant nothing ran against got: nine kills in the
+    committed specs read that way."""
+    suite = SUITE_SRC.replace(
+        "def test_guard_a_rejects():\n"
+        "    with pytest.raises(ValueError):\n"
+        "        mod.check_a(-1)\n",
+        "@pytest.fixture\n"
+        "def refused():\n"
+        "    with pytest.raises(ValueError):\n"
+        "        mod.check_a(-1)\n"
+        "    return True\n"
+        "\n\n"
+        "def test_a_negative_is_refused(refused):\n"
+        "    assert refused\n")
+    assert "def refused" in suite
+    spec = _project(tmp_path, suite_src=suite, mutations=[GUARD_A])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "M1_guard_a_removed")
+    assert "by test_a_negative_is_refused (an error, not a failure)" in line, \
+        out.stdout
+    assert "killed:   1/1" in out.stdout, out.stdout
+    assert out.returncode == 0, out.stdout
+
+
+#: A test that ends its own process when the guard is gone, one way or
+#: another.
+ENDING_SUITE_SRC = '''import os
+import signal
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from pkg import mod
+
+
+def test_guard_a():
+    try:
+        mod.check_a(-1)
+    except ValueError:
+        return
+    END
+'''
+
+
+def test_a_suite_a_signal_ends_has_not_killed_anything(tmp_path):
+    """H9 in hdf5_bundle: the library, made to read in the suite's own
+    process, faulted on the file found by fuzzing and ended the run, and no
+    test said which check was lost."""
+    spec = _project(tmp_path, suite_src=ENDING_SUITE_SRC.replace(
+        "END", "os.kill(os.getpid(), signal.SIGKILL)"), mutations=[GUARD_A])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "M1_guard_a_removed")
+    assert "KILLED BY A SIGNAL (SIGKILL)" in line, out.stdout
+    assert "KILLED ONLY BY A SIGNAL" in out.stdout, out.stdout
+    assert "killed:   0/1" in out.stdout, out.stdout
+    assert out.returncode != 0, out.stdout
+
+
+def test_a_suite_that_fails_naming_no_test_has_no_verdict(tmp_path):
+    """A suite that exits non-zero naming no test said nothing about the
+    mutant."""
+    spec = _project(tmp_path, suite_src=ENDING_SUITE_SRC.replace(
+        "END", "os._exit(3)"), mutations=[GUARD_A])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "M1_guard_a_removed")
+    assert "NO VERDICT" in line and "pytest exited 3" in line, out.stdout
+    assert "killed:   0/1" in out.stdout, out.stdout
+    assert out.returncode != 0, out.stdout
+
+
+def test_a_mutant_that_reads_a_name_nothing_defines_is_refused(tmp_path):
+    """G3 in agent_tasks: replay was to stop reauthorizing, and the line
+    written for it called a function its module never imported, with a
+    constant nothing ever defined. It raised NameError where the fault was
+    to act, and was counted as killed from the day it was written."""
+    spec = _project(tmp_path, mutations=[
+        {"name": "U1_the_guard_asks_what_is_not_there",
+         "path": "pkg/mod.py", "find": "    if x < 0:",
+         "replace": "    if is_negative(x):",
+         "rationale": "the guard asks a helper nothing defines"}])
+    out = _run(tmp_path, spec)
+    assert out.returncode == 2, out.stdout
+    assert "refusing to run" in out.stdout, out.stdout
+    assert "['is_negative']" in out.stdout and "NameError" in out.stdout, \
+        out.stdout
+
+
+def test_a_mutant_whose_unbound_name_never_runs_says_so_and_runs(tmp_path):
+    """The control, as R74 in agent_second_reader: a call no code makes, for
+    a static guard to find. Saying why lets it run."""
+    spec = _project(tmp_path, mutations=[
+        {"name": "U2_a_call_nothing_makes", "path": "pkg/mod.py",
+         "find": "def check_b(x):",
+         "replace": "def _never_called():\n    return is_negative(1)\n\n\n"
+                    "def check_b(x):",
+         "rationale": "a call into a helper nothing defines, made by nothing",
+         "reads_undefined": "nothing calls the function it adds"}])
+    out = _run(tmp_path, spec)
+    assert "refusing to run" not in out.stdout, out.stdout
+    assert "SURVIVED" in _line(out.stdout, "U2_a_call_nothing_makes"), \
+        out.stdout
+
+
+def test_a_reason_to_read_an_undefined_name_is_held_to_the_mutant(tmp_path):
+    """A reason given for a mutant that reads no such name is refused, so
+    the field cannot be left on an entry it no longer describes."""
+    spec = _project(tmp_path, mutations=[
+        dict(GUARD_A, reads_undefined="nothing calls it")])
+    out = _run(tmp_path, spec)
+    assert out.returncode == 2, out.stdout
+    assert "it reads none" in out.stdout, out.stdout
+
+
+def test_each_load_check_gets_a_private_bytecode_cache_that_is_cleaned_up():
+    """The load check's own prefix, for the reason ``run_suite`` has one: a
+    cached module of the same size, written in the same second, would
+    answer for the mutant."""
+    spec = importlib.util.spec_from_file_location("mm_load_probe", HARNESS)
+    mm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mm)
+
+    seen = []
+    real_run = mm.subprocess.run
+
+    def capture(cmd, **kw):
+        seen.append((kw.get("env") or {}).get("PYTHONPYCACHEPREFIX"))
+        return real_run([sys.executable, "-c", "print('LOADED')"],
+                        **{**kw, "env": None})
+
+    mm.subprocess.run = capture
+    try:
+        assert mm.load_problem("pkg/mod.py", sys.executable) is None
+        assert mm.load_problem("pkg/mod.py", sys.executable) is None
+    finally:
+        mm.subprocess.run = real_run
+
+    assert all(seen), "every load check must set PYTHONPYCACHEPREFIX"
+    outer = os.environ.get("PYTHONPYCACHEPREFIX")
+    assert outer not in seen, "the load check reused its caller's prefix"
+    assert len(set(seen)) == 2, "a shared prefix reintroduces the defect"
+    for prefix in seen:
+        assert not Path(prefix).exists(), "the private cache must be removed"

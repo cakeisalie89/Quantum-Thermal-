@@ -59,7 +59,7 @@
       "name": "RR8_unreadable_evidence_passes",
       "path": "agent_substrate/result_rules.py",
       "find": "        if isinstance(docs[key], Exception):\n            sha = evidence[key]\n            return [f\"{key} {sha[:12]} cannot be read as JSON \"\n",
-      "replace": "        if isinstance(docs[key], Exception):\n            return []\n            return [f\"{key} {sha[:12]} cannot be read as JSON \"\n",
+      "replace": "        if isinstance(docs[key], Exception):\n            sha = evidence[key]\n            return []\n            return [f\"{key} {sha[:12]} cannot be read as JSON \"\n",
       "rationale": "evidence nobody could read is taken as support"
     },
     {

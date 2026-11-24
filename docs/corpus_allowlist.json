@@ -2,11 +2,11 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "85f8b7d9e640f17b414875448cce28cf7e04f13964c86d891546aeae2a4b3bd7",
+  "entries_digest": "fa639f92403feeadde04f04dc940cf76f83deb28517b900e4f442390b685c011",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "bb201795c79fc2d58a6323eab62b30be50bc292b6dcb9ab6c2a39384ee2aaa46"
+      "sha256": "29595b2698e1b4ef2f107bdab2fe419aa0488678350ac666eb579876e65279b4"
     },
     {
       "path": "ARCHITECTURE.md",
@@ -98,11 +98,11 @@
     },
     {
       "path": "docs/audit/AUDIT_PROGRESS.md",
-      "sha256": "f8748ceba749bd36b82a76579a2212132a526b973cabc7fc1e346ff00edea80c"
+      "sha256": "a0a98e283053a3203ffbfc58323a0c4fb6815c07dfe8083ddbf049fd3e2ca443"
     },
     {
       "path": "docs/audit/AUDIT_REPORT.md",
-      "sha256": "d859c41dd3c203df2e0b0f22bb08c37265dd2e0f3fe731917be79bedcfd9871c"
+      "sha256": "3cf91d911b58e744bfbbacd6059ce60a738be635c9eded1d43d8216165accf33"
     },
     {
       "path": "docs/formal/README.md",

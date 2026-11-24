@@ -3048,6 +3048,91 @@
    "residual_risk": "A note retracted between the catch-up and the context's record is shown, as any read can be overtaken; the record names what was current at the position the runner read. Other readers of a held store (recall, current, get) answer from the view as folded, as the authority store's reads do: a caller that shows memory to a model catches up first.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-093",
+   "title": "The mutation harness counted kills no test made: a mutant that did not load, a suite a signal ended, and a failure that named no test",
+   "severity": "P3",
+   "subsystem": "the mutation harness: what it counts as a kill",
+   "files": [
+    {
+     "path": "tools/mutation_matrix.py",
+     "lines": "run_suite, load_problem, the loop over mutations and the verdict"
+    },
+    {
+     "path": "tools/mutations/agent_memory_context.json",
+     "lines": "MR8"
+    },
+    {
+     "path": "tools/mutations/hdf5_bundle.json",
+     "lines": "H9"
+    },
+    {
+     "path": "tests/test_hdf5_bundle.py",
+     "lines": "test_the_reader_survives_the_file_that_killed_it"
+    }
+   ],
+   "behavior": "The harness read pytest's FAILED lines and its exit status, and counted any exit but 0 as a kill. A mutant whose module did not load (MR8 in agent_memory_context) and a suite whose process a signal ended (H9 in hdf5_bundle) were each counted as killed, with no test named. Nine kills that a test made in its setup were reported the same way, since pytest writes those as ERROR lines.",
+   "invariant": "A kill is a test's: the report names the test that failed or errored under the mutant, and a mutant no test ran against, or a run that ended with no test's verdict, is not counted and fails the run.",
+   "mechanism": "run_suite returned pytest's exit status and the names on its FAILED lines. ERROR lines, which pytest writes for a test that raised in its setup or teardown and for a file it could not collect, were not read, and a negative status, a signal's, was one more status that was not 0. MR8 made the memory hit's evidence label a dataclass field with a default, ahead of fields with none: the decorator refused the class, tests/test_agent_memory.py could not be collected, and nothing named a test. H9 made the HDF5 library read in the reader's own process, and the file the fuzzer found makes the library fault: the pytest process ended (SIGSEGV) in the test that reads it. A suite that imports a module inside its tests would instead have failed in a test, named, under a mutant that does not load, and the harness had nothing to tell the two apart.",
+   "reproduction": "At 36767d3, run with the harness's own flags on a copy of the tree: MR8's suites end in 'ERROR tests/test_agent_memory.py - TypeError: non-default argument 'memory_id' follows default argument'; H9's end with exit -11; AC2, G3, G16, G26, GR18, GR5, SA6, SA13 and WT22 each end in an ERROR at the setup of a named test. Each of the 3,201 entries on a Python file in the specs at 36767d3 was loaded in a fresh interpreter: MR8's is the only mutant that does not load. Against the harness at 36767d3, eight of the new tests of tests/test_mutation_harness.py fail and their two controls pass.",
+   "observed": "Found reading MR8's line in agent_memory_context's report, the one kill there with no test, and then every such line in this session's logs: eleven entries in 37 logs.",
+   "expected": "MR8 reported STILLBORN and H9 KILLED BY A SIGNAL, neither counted; the nine kills made in a setup named.",
+   "correction": "run_suite reads pytest's ERROR lines: an error in a test is a kill by that test, named as an error, and a file pytest could not collect is no test at all. Each mutant of a Python file is loaded in a fresh interpreter, with a private bytecode prefix, before its suites run; a file that does not load unmutated is not load-checked, and the run says so. A mutant that does not load, or under which the suites cannot be collected, is STILLBORN; a suite a signal ended is KILLED BY A SIGNAL; one that failed and named no test has NO VERDICT. None of these is counted, and each fails the run. MR8 adds the field after the last one, so the class is made, and the test of the label kills it; a new test asks a child interpreter to read the file that killed the reader, so H9 fails it by name.",
+   "regression_tests": [
+    "tests/test_mutation_harness.py::test_a_mutant_the_suites_cannot_be_collected_under_is_stillborn",
+    "tests/test_mutation_harness.py::test_a_mutant_that_does_not_load_is_stillborn_whoever_imports_it",
+    "tests/test_mutation_harness.py::test_the_same_fault_written_so_that_it_loads_is_killed_by_its_test",
+    "tests/test_mutation_harness.py::test_a_kill_made_in_a_fixture_names_its_test",
+    "tests/test_mutation_harness.py::test_a_suite_a_signal_ends_has_not_killed_anything",
+    "tests/test_mutation_harness.py::test_a_suite_that_fails_naming_no_test_has_no_verdict",
+    "tests/test_mutation_harness.py::test_each_load_check_gets_a_private_bytecode_cache_that_is_cleaned_up",
+    "tests/test_hdf5_bundle.py::test_the_reader_survives_the_file_that_killed_it"
+   ],
+   "residual_risk": "A mutant that loads and crashes where its fault was to act in some other way than reading a name nothing defines (an attribute nothing sets, a call with the wrong arguments) is still killed by the test that meets the crash. A kill by a signal is not counted even where the signal is the fault's own consequence; a test that runs the code in a process of its own names it, as H9's now does. The load check costs a fresh interpreter for each mutant of a Python file.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-094",
+   "title": "Two mutation entries raised NameError where their fault was to act, so each kill was the crash, and a third had outgrown its anchor: G3 since it was written, G14, and R106",
+   "severity": "P3",
+   "subsystem": "the mutation specs, and the harness's validation of them",
+   "files": [
+    {
+     "path": "tools/mutations/agent_tasks.json",
+     "lines": "G3"
+    },
+    {
+     "path": "tools/mutations/governed_breadth.json",
+     "lines": "G14"
+    },
+    {
+     "path": "tools/mutations/agent_second_reader.json",
+     "lines": "R106, R74"
+    },
+    {
+     "path": "tools/mutation_matrix.py",
+     "lines": "validate_spec, names_nothing_defines"
+    }
+   ],
+   "behavior": "G3 was to make the task projection stop reauthorizing a transition on replay; its line called find_edge, which governed_tasks.py never imported, and named _ANY_EDGE, which nothing defines. G14 was to make the verifier re-run a tool under the worker's grant; its line read capability_id, which nothing in the method defines. R106 was to add an import of result_rules to the second reader; its anchor ended inside the events import, which later gained judged_at, so the mutant also moved that name into a comment. G3 and G14 raised NameError on the path they were written to change, and each was counted as killed by a test that met the crash, so no test saw either fault. R106's kill was its own fault's, the separate verifier refusing the import, but its mutant was more than its rationale describes, and it would have crashed in any reader that reached judged_at first.",
+   "invariant": "A mutant reads no name its module does not define, unless its entry says why its code never runs.",
+   "mechanism": "The specs were held to an anchor that matches once, a replacement that changes something and a mutant that parses (tests/test_mutation_specs.py, and validate_spec at run time); none of these sees a name the mutant reads and nothing binds. G3 was written so in 0a47b67. R106's anchor matched a prefix of its line, and went on matching when the line grew.",
+   "reproduction": "At 36767d3, each of the 3,201 entries on a Python file compared with its original by the symbol table: eight mutants read a global name the original does not and nothing defines, G3, G14, R106, R74, RR8, H9, RC15 and RC16. G3's suites under its mutant end in 'ERROR tests/test_agent_atomicity.py::test_the_run_produced_enough_boundaries_to_be_worth_sweeping - NameError: name 'find_edge' is not defined'; G14's, test_the_second_tool_reaches_VERIFIED_over_real_workspace_files, fails under its mutant with 'NameError: name 'capability_id' is not defined'. R106's, test_both_readers_agree_on_a_governed_run, fails under its old mutant as under its new one: the run ends REJECTED, the separate verifier having refused the second reader's import of result_rules (tools/independent_verify.py). R74 is a call no code makes, for the call-graph guard to find; RR8, H9, RC15 and RC16 read their names only in code their own change makes unreachable. The harness's new validation, over the specs at 36767d3, refuses six of them.",
+   "observed": "Found by a pass over every entry for the names its mutant reads, after G3's kill turned out to be a NameError in a fixture.",
+   "expected": "Each of the three mutants does what its rationale says and no more, and a test of that kills it or nothing does.",
+   "correction": "validate_spec refuses a mutant that reads a name nothing defines, unless the entry's reads_undefined says why its code never runs it, and refuses the reason where the mutant reads no such name. G3 now takes the edge the machine has with no question of role, lease or actor, and a move the machine lacks is still refused; G14 borrows the worker's EXECUTE_TOOL grant for the task; R106 is anchored on the whole import line and adds the import alone; R74 says why it reads check; RR8, H9, RC15 and RC16 bind the names their unreachable code reads, with no change in what they do. G3, so written, survived: no test held that replay asks who made a move the machine has, the forged moves the tests make being pairs that are no edge from where the task stands. A test now forges VERIFIED -> INVALIDATED claiming WORKER, an edge only SYSTEM may take, and holds that replay refuses it; it passes on the code and fails under G3.",
+   "regression_tests": [
+    "tests/test_mutation_harness.py::test_a_mutant_that_reads_a_name_nothing_defines_is_refused",
+    "tests/test_mutation_harness.py::test_a_mutant_whose_unbound_name_never_runs_says_so_and_runs",
+    "tests/test_mutation_harness.py::test_a_reason_to_read_an_undefined_name_is_held_to_the_mutant",
+    "tests/test_mutation_specs.py::test_every_committed_spec_passes_the_harness_own_validation",
+    "tests/test_agent_governed_tasks.py::test_a_forged_move_the_record_s_role_may_not_make_is_not_applied"
+   ],
+   "residual_risk": "The rule reads global names. A mutant that reads an attribute nothing sets, or calls a function with arguments it does not take, crashes as G3 did and is not refused. A name read only in code the mutant never reaches is refused all the same, and the entry binds it.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED"
   }
  ]
 }

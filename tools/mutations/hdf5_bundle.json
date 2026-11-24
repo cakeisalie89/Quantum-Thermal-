@@ -65,7 +65,7 @@
    "name": "H9_the_library_reads_in_the_readers_own_process",
    "path": "scientific/hdf5_bundle.py",
    "find": "    answer = _ask(Path(path).absolute())\n",
-   "replace": "    try:\n        return _read(path)[1:]\n    except Hdf5Refused:\n        raise\n    except _LIBRARY_ERRORS as exc:\n        raise Hdf5Refused(f\"not a readable representation: \"\n                          f\"{type(exc).__name__}: {exc}\") from None\n",
+   "replace": "    try:\n        return _read(path)[1:]\n    except Hdf5Refused:\n        raise\n    except _LIBRARY_ERRORS as exc:\n        raise Hdf5Refused(f\"not a readable representation: \"\n                          f\"{type(exc).__name__}: {exc}\") from None\n    answer = None  # not reached: each path above returns or raises\n",
    "rationale": "the reader as it was: the library reads in the reader's own process, its errors named as before, and a file that makes it fault kills the reader, and one that makes it loop holds it (AUD-053)"
   },
   {

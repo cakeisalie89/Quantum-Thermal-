@@ -441,7 +441,7 @@ kernel decision rather than a per-component walk, and this Python exposes
 neither it nor `os.RESOLVE_BENEATH` — an unavailable platform primitive, and
 the module says so rather than implying a guarantee it cannot make.
 
-### The instrument's own blind spots, found twice
+### The instrument's own blind spots
 
 Two failure modes of the harness itself came out of a red hosted run, and
 neither was a wrong answer -- both were the harness reporting a kill that had
@@ -453,10 +453,12 @@ not happened:
   matrix has spent its minutes, and only for the spec that was run. Four
   mutations were silently broken across the committed specs at once -- two
   matching nothing, one that no longer parsed, one a no-op. Every committed
-  spec is now checked STATICALLY in `tests/test_mutation_harness.py`: each
-  anchor must match exactly once, each replacement must change something, and
-  each mutated source must still parse. It takes about a second over all of
-  them.
+  spec is now checked STATICALLY in `tests/test_mutation_specs.py`, a file no
+  spec runs (AUD-088): each anchor must match exactly once, each replacement
+  must change something, and each mutated source must still parse. Over all
+  149 specs here, the first two take a tenth of a second and the third, which
+  parses every mutated source, 39 seconds; the harness's own validation of
+  every spec, which reads each mutant's symbol table (AUD-094), 34.
 
 - **A mutation "killed by timeout" is a badly written test.** Two mutations
   -- an unbounded lock wait and a leaked lock descriptor -- were killed only
@@ -467,6 +469,26 @@ not happened:
   now provides one deadline for the whole suite (a second copy is where two
   deadlines drift), and the two mutations fail in 6 and 31 seconds with a
   named error instead of 300 with none.
+
+A third came out of reading the kills the harness reported with no test
+(AUD-093, AUD-094):
+
+- **A kill is a test's.** The harness read pytest's FAILED lines and its
+  exit status, so every way a run can fail without a test failing read as a
+  kill. A mutant whose module did not load, a class attribute made a
+  dataclass field ahead of fields with no default, was counted; so was a
+  suite the HDF5 library ended by faulting in its own process; and two
+  entries raised NameError on the path they were written to change, calling
+  or reading what their module never defined, so that each kill was the
+  crash, while a third had outgrown its anchor and did more than it said. The
+  harness now loads each mutant of a Python file in a fresh interpreter
+  before its suites run, reads pytest's ERROR lines as well as its FAILED
+  ones, and counts none of these: a mutant that does not load or cannot be
+  collected under is STILLBORN, a suite a signal ended is KILLED BY A SIGNAL,
+  one that failed naming no test has NO VERDICT, and each fails the run. A
+  mutant that reads a name nothing defines is refused before the run,
+  unless its entry says in `reads_undefined` why its code never runs. A
+  kill a fixture's setup made now names its test.
 
 ### What a hostile campaign found that isolated tests could not
 

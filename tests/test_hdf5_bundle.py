@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import json
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -207,6 +208,34 @@ def _stand_in(monkeypatch, program: str) -> None:
 #: process; under another build it may be refused for another reason.
 CRASHED = (Path(__file__).resolve().parent / "fuzz_corpus"
            / "hdf5_bundle-crashed-43230537.json")
+
+
+def test_the_reader_survives_the_file_that_killed_it(tmp_path):
+    """AUD-053, asked of a process of its own. ``read`` is called in a child
+    interpreter, so a reader that does not survive the file fails this test
+    by name. The test below can say so only by not being reached: the run it
+    is in ends (AUD-093)."""
+    case = json.loads(CRASHED.read_text(encoding="utf-8"))
+    bad = tmp_path / "crashed.h5"
+    bad.write_bytes(base64.b64decode(case["input_b64"]))
+    program = (
+        "import resource, sys\n"
+        "resource.setrlimit(resource.RLIMIT_CORE, (0, 0))\n"
+        "sys.path.insert(0, sys.argv[1])\n"
+        "from scientific import hdf5_bundle as H\n"
+        "try:\n"
+        "    H.read(sys.argv[2])\n"
+        "except H.Hdf5Refused as exc:\n"
+        "    print('REFUSED', exc)\n")
+    root = str(Path(__file__).resolve().parent.parent)
+    proc = subprocess.run([sys.executable, "-c", program, root, str(bad)],
+                          cwd=str(tmp_path), capture_output=True, text=True,
+                          timeout=300)
+    assert proc.returncode == 0, (
+        f"the reader's process did not survive the file: exit "
+        f"{proc.returncode}\n{proc.stderr[-2000:]}")
+    assert proc.stdout.startswith("REFUSED"), proc.stdout
+    assert "not a readable representation" in proc.stdout, proc.stdout
 
 
 def test_the_file_that_killed_the_reader_is_refused(tmp_path):

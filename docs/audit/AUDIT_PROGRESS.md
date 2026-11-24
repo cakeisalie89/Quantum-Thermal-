@@ -5568,3 +5568,199 @@ dropped, is restored.
   premise, and both readers project it so.
 - Whether other entries in the specs are killed by an error before any
   test runs, as MR8 is, was not looked for in this pass.
+
+### Stage 5, twenty-first pass: what a kill is (AUD-093, AUD-094)
+
+The mutation matrices are this campaign's measure of whether a check is
+tested: an entry removes or weakens one check, and a kill says that a test
+noticed. This pass asks of each kill whether a test made it. In the
+twentieth pass, MR8's line in `agent_memory_context`'s report named no
+test; reading every such line in this session's logs, and then every entry
+for what its mutant does before any test runs, found two defects, each
+reproduced at 36767d3 and fixed (AUD-093, AUD-094).
+
+**Hosted CI at 36767d3.** Read from the API: all 44 check runs completed
+and passed, in eight workflow runs, the 16 mutation shards and both
+mutation-matrices aggregates among them. Gate I is met at 36767d3. The
+runs are 45423795852, 45423796051, 45423795924, 45423795950 and
+45423795794 (push), and 45423817515, 45423817271 and 45423817298 (pull
+request). The longest shard took 104 of its 150 minutes, in the push run;
+the one holding `mutation_harness` took 71 in the push run and 93 in the
+pull request's.
+
+**Kills no test made.** Eleven entries were reported killed with no test
+named, in 37 of this session's logs. Each was run again at 36767d3, with
+the harness's own flags, on a copy of the tree. MR8's suites end in an
+error collecting `tests/test_agent_memory.py`: the mutant makes the memory
+hit's evidence label a dataclass field with a default, ahead of fields
+with none, and the decorator refuses the class. H9's end with exit -11:
+the mutant makes the HDF5 library read in the reader's own process, and
+the file the fuzzer found faults it there. The other nine, AC2, G3, G16,
+G26, GR18, GR5, SA6, SA13 and WT22, each end in an error at the setup of a
+named test, a fixture that ran the scenario and met the fault; pytest
+writes those as ERROR lines, which the harness did not read. In eight of
+the nine the scenario meets the fault, refused by the code or caught by
+the fixture's own assertion on the outcome. G3's is `NameError: name
+'find_edge' is not defined`.
+
+**What each mutant loads, and what it reads.** Each of the 3,201 entries
+on a Python file at 36767d3 was loaded in a fresh interpreter, a package
+module by its name and any other file run under a name that is not
+`__main__`: MR8's mutant is the only one that does not load, and R106's
+loads without a name its original binds. Each was also compared with its
+original by the symbol table, for a global name the mutant reads that
+nothing defines: eight do. Two of them raise NameError on the path they
+were written to change, G3 and G14, and R106's mutant takes `judged_at`
+from the second reader's imports. R74 is a call no code makes, written for
+the call-graph guard to find. RR8, H9, RC15 and RC16 read their names only
+in code their own change makes unreachable.
+
+**AUD-093 (P3), fixed.** The harness read pytest's FAILED lines and its
+exit status, and counted any exit but 0 as a kill. A mutant whose module
+did not load, and a suite a signal ended, were counted, with no test
+named; and the nine kills made in a fixture's setup were reported with no
+test either. A suite that imports a module inside its tests would have
+failed in a test, named, under a mutant that does not load, and nothing
+told the two apart. `run_suite` now reads pytest's ERROR lines: an error
+in a test is a kill by that test, and the report names it as an error; a
+file pytest could not collect is no test at all. Each mutant of a Python
+file is loaded in a fresh interpreter, with a bytecode prefix of its own,
+before its suites run. A mutant that does not load, or under which the
+suites cannot be collected, is STILLBORN; a suite a signal ended is KILLED
+BY A SIGNAL; one that failed and named no test has NO VERDICT. None of
+these is counted, and each fails the run, as a kill only a timeout made
+already did. MR8 now adds the field after the last one, so that the class
+is made; H9's test reads the file in a child interpreter,
+`tests/test_hdf5_bundle.py`'s new
+`test_the_reader_survives_the_file_that_killed_it`, so that a reader that
+does not survive it fails the test by name. Against the harness at
+36767d3, eight of the ten new tests in `tests/test_mutation_harness.py`
+fail, and the two controls pass: the same fault written so that the class
+loads is killed by its test, and an entry that says why its unbound name
+never runs runs.
+
+**AUD-094 (P3), fixed.** G3 was to make replay stop reauthorizing a
+transition: its line called `find_edge`, which `governed_tasks.py` never
+imported, and named `_ANY_EDGE`, which nothing defines, from the commit
+that wrote it (0a47b67). G14 was to make the verifier re-run a tool under
+the worker's grant: its line read `capability_id`, which nothing in the
+method defines. R106 was to add an import of `result_rules` to the second
+reader: its anchor ended inside the events import, which later gained
+`judged_at`, so the mutant also moved that name into a comment. G3 and G14
+were counted as killed by a test that met the crash: G3's in a fixture's
+setup, and G14's,
+`test_the_second_tool_reaches_VERIFIED_over_real_workspace_files`, with
+`NameError: name 'capability_id' is not defined`. No test saw either
+fault. R106's kill was its own: under its old mutant as under its new one,
+`test_both_readers_agree_on_a_governed_run` sees its run end REJECTED, the
+separate verifier having refused the second reader's import of
+`result_rules`; but the mutant was more than its rationale, and would have
+crashed in any reader that reached `judged_at` first. `validate_spec` now
+refuses a mutant that reads a name nothing defines, unless the entry's
+`reads_undefined` says why its code never runs it, and refuses the reason
+where the mutant reads no such name. R74 says why. RR8, H9, RC15 and RC16
+bind the names their unreachable code reads, with no change in what they
+do. G3 now takes the edge the machine has with no question of role, lease
+or actor, and a move the machine lacks is still refused; G14 borrows the
+worker's grant for the task; R106 is anchored on the whole import line and
+adds the import alone. Over the specs at 36767d3, the new validation
+refuses six.
+
+**G3, written so, survived.** Run under this pass's harness, `agent_tasks`
+killed 31 of its 32 entries, and G3 survived: no test in its suites held
+that replay asks who made a move the machine has. The tests that forge a
+transition into the log forge pairs that are no edge from where the task
+stands, which the edge table refuses before any question of role, lease or
+actor. `tests/test_agent_governed_tasks.py` gains
+`test_a_forged_move_the_record_s_role_may_not_make_is_not_applied`: after
+an honest run, a record claiming WORKER for VERIFIED to INVALIDATED, an
+edge only SYSTEM may take, is refused on replay. It passes on the code and
+fails under G3 ('DID NOT RAISE TaskTransitionError'), and with it
+`agent_tasks` kills 32 of 32, G3 by that test. The code was right; nothing
+held it.
+
+**Mutations.** Added to `mutation_harness`: H21 to H35, one or more for
+each new rule, each killed by the test written for it. H1, H2, H12, H13,
+H14, H18 and H19 are re-anchored on the lines this pass's rewrite of the
+harness moved, each keeping its fault; H4 and H5 are kept as they were,
+the load check's own cache being written so as not to match them.
+
+**Whole runs.** Under this pass's harness, every entry of 54 specs: the 48
+whose entries had not all been run in this session, and the 8 this pass
+changes, `agent_tasks` and `governed_breadth` among both. 999 entries, in
+58 parts on four lanes, on a tree holding this pass's code, tests and
+specs before G3's test and before its records. 998 were killed, each by a
+test the report names, and one survived, G3. None was stillborn, none was
+ended by a signal, none had no verdict and none was killed by a timeout;
+no load check was skipped, and every source was restored byte-identical.
+Four of the kills were made by an error in a test, and the report names
+it: AC2, G16 and G26, and NU1 in a spec not run before in this session.
+MR8 is now killed by `test_the_evidence_label_on_a_hit_cannot_be_set`; H9
+by `test_the_reader_survives_the_file_that_killed_it`; G14 by
+`test_the_second_tool_reaches_VERIFIED_over_real_workspace_files`, whose
+run is now refused, the grant "was granted to 'stage10-worker', not
+'stage10-verifier'"; R106 by `test_both_readers_agree_on_a_governed_run`;
+R74 by `test_the_second_reader_calls_no_function_named_check`; RR8 by
+`test_evidence_that_is_not_json_is_a_problem_not_a_pass`; RC15 and RC16 by
+the test of a crate the checks cannot read; and H21 to H35 each by the
+test written for it. Then, on the tree with G3's test, `agent_tasks`
+again, 32 of 32; and on the tree with the harness as committed, its test
+for a star import made a line pattern and its new code given the types the
+type check asks for after those runs, `mutation_harness` again: 37 of 37,
+H21 to H35 each by the same test as before. The other eight specs whose
+suites hold `tests/test_agent_governed_tasks.py` were not run again after
+G3's test was added; a test that passes unmutated can add a kill and takes
+none away. Every entry of each of the other 95 specs has a verdict in this
+session's logs, from earlier trees and under the harness before this pass:
+in them a kill named no test only for the eleven entries above, and the
+only signal among those was H9's. Here, the harness spec took 70 minutes
+run whole beside three other lanes, and 66 alone; its hosted weight is
+1,132 seconds, for its 22 entries before this pass. The load check costs
+about 0.36 seconds a mutant here.
+
+**Read in full.** At 36767d3: `tools/mutation_matrix.py`, all 644 lines,
+again, where AUD-093 and AUD-094 were found. Read in part: the fixtures
+and the cache and timeout tests of `tests/test_mutation_harness.py`,
+unchanged since the nineteenth pass read it in full; lines 190 to 224 of
+`tests/test_hdf5_bundle.py`; lines 1155 to 1200 of
+`tests/test_agent_second_reader.py`; lines 42 to 100 and 340 to 390 of
+`tests/test_agent_governed_tasks.py`; the replay of a task transition,
+`check` and `apply_transition`; `_reexecute_and_compare` and the
+capability ledger's issued set; the independent verifier's list of the
+first readers it refuses; and the section of `AGENT_SUBSTRATE.md` on the
+harness's own blind spots, which now has a third, and whose reference to
+the static checks, moved to `tests/test_mutation_specs.py` in the
+nineteenth pass, is corrected. Each of this pass's changes was written and
+reviewed as a diff.
+
+**Observations, not changed.**
+
+- A kill made by an error in a test is the test's, whatever the error was.
+  G3's kill was a NameError in a fixture; the harness now refuses such a
+  mutant before the run, but a crash of another kind, an attribute nothing
+  sets or a call with arguments its callee does not take, still reads as a
+  kill by the test that met it.
+- The harness runs each suite with `-x`, so a kill names the first test
+  that failed and the report says nothing of the tests after it. R106's
+  old mutant was killed by the separate verifier refusing its import,
+  before anything reached the name it had taken away.
+- The substrate guide said the three static checks of the specs take about
+  a second over all of them; the parse check took 39 seconds here, at
+  bd1a43a as at this pass's tree, and the guide now gives the measured
+  times.
+
+**What is not established.**
+
+- A crash other than a name nothing defines, where a mutant's fault was to
+  act, is not told from a test of the fault.
+- The 95 specs not run under this pass's harness were last run under the
+  one before it, at earlier trees of this session. Hosted CI runs all 149
+  under this pass's harness at its head.
+- The load check's cost on a hosted runner is not measured; here it was
+  about 0.36 seconds a mutant, about 20 minutes over the 3,216 mutants of
+  Python files.
+- A file that does not load on its own, unmutated, is not load-checked. At
+  this tree every mutated Python file loads.
+- The undefined-name rule takes a line that begins with a star import as
+  one, so a docstring line that reads like one would make it pass that
+  file by; no mutated file holds such a line.

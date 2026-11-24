@@ -107,14 +107,14 @@
    "name": "RC15_unreadable_json_raises",
    "path": "ro_crate_tools.py",
    "find": "    except (OSError, ValueError, RecursionError) as exc:\n",
-   "replace": "    except ():\n",
+   "replace": "    except () as exc:\n",
    "rationale": "metadata that is not JSON raises the parser's error out of the validator (AUD-078)"
   },
   {
    "name": "RC16_an_unreadable_file_raises",
    "path": "ro_crate_tools.py",
    "find": "    except OSError as exc:\n        return [f\"data entity {rid} cannot be read: {exc}\"]\n",
-   "replace": "    except ():\n        return [f\"data entity {rid} cannot be read: {exc}\"]\n",
+   "replace": "    except () as exc:\n        return [f\"data entity {rid} cannot be read: {exc}\"]\n",
    "rationale": "a data entity naming a directory, or a name too long for the system, raises out of the validator (AUD-078)"
   },
   {

@@ -101,8 +101,8 @@
       "name": "G14_the_verifier_borrows_the_workers_capability",
       "path": "agent_substrate/governed_tasks.py",
       "find": "            verify_cap = self._reverification_capability(\n                task_id, verifier, tool_id)",
-      "replace": "            verify_cap = capability_id",
-      "rationale": "may-do-the-work and may-check-the-work become one authority, so a component tricked into either holds both; the ledger refuses a grant used by anybody but its subject, which is how this was found the first time"
+      "replace": "            verify_cap = next(\n                c.capability_id for c in\n                self.capabilities.in_force(self._head_seq()).issued.values()\n                if c.task_id == task_id and c.subject != verifier\n                and c.action is Action.EXECUTE_TOOL)",
+      "rationale": "may-do-the-work and may-check-the-work become one authority, so a component tricked into either holds both; the ledger refuses a grant used by anybody but its subject, which is how this was found the first time (AUD-093: the grant borrowed is the worker's, for this task. The line once read capability_id, which nothing in the method defines, and raised NameError, so the run failed on the crash and the ledger was never asked)"
     },
     {
       "name": "G15_the_re_verification_grant_never_expires",

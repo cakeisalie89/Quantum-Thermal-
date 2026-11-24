@@ -22,34 +22,47 @@ A mutation matrix run against a RED baseline proves nothing: all N mutations
 as a perfect score. The baseline is therefore checked first and the run
 refuses to start otherwise.
 
-Two lesser versions of the same trap are also closed:
+Lesser versions of the same trap are also closed:
 
   * An anchor that no longer matches its source is an ERROR, not a skip. A
     silently skipped mutation is a mutation that tested nothing while
     appearing in the report.
   * Sources are restored in a ``finally`` and then re-hashed. "Restored
     byte-identical" is verified rather than asserted.
+  * A kill is a test's (AUD-093). A mutant that does not load, or under
+    which the suites cannot be collected, is STILLBORN: no test ran against
+    it. A mutant that reads a name nothing defines is refused before the
+    run, since the code it changes would raise NameError where its fault
+    was to act. A suite a signal ended, or one that failed and named no
+    test, said nothing about which check was lost. None of these is
+    counted, and each fails the run. A test that errors, in its setup or
+    its body, makes a kill, and is named.
 
 USAGE
 
     python3 tools/mutation_matrix.py tools/mutations/agent_substrate.json
 
 Exit status is 0 only when the baseline was green, every anchor matched, every
-mutation was killed, and every source was restored byte-identical.
+mutation was killed by a test the report names, and every source was restored
+byte-identical.
 """
 from __future__ import annotations
 
 import argparse
+import builtins
 import hashlib
 import json
 import pathlib
 import os
+import re
 import shutil
 import signal
 import subprocess
+import symtable
 import sys
 import time
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -144,8 +157,56 @@ def _restore(paths: list) -> None:
                     *paths], capture_output=True, text=True)
 
 
-def run_suite(suites: list, python: str, *, only: list | None = None) -> tuple:
-    """Return (returncode, [failed test names]). ``-x`` stops at the first.
+class SuiteRun(NamedTuple):
+    """How one run of the suites ended (AUD-093).
+
+    ``failed`` and ``errored`` are tests, by name: a test whose body failed,
+    and one that raised in its setup, its body or its teardown. ``errored``
+    used to be dropped, so a kill made in a fixture's setup was reported as a
+    kill with no test, the same line a mutant no test ever ran under got.
+    ``uncollected`` is files pytest could not collect: no test in them ran.
+    """
+
+    rc: int
+    failed: list
+    errored: list
+    uncollected: list
+
+    @property
+    def named(self) -> list:
+        return self.failed + self.errored
+
+    def said(self) -> list:
+        """What the run said, for a report: the tests, the files it could
+        not collect, or failing that its exit status."""
+        return (self.named + [f"{f} (not collected)" for f in self.uncollected]
+                or [f"pytest exit {self.rc}, no test named"])
+
+
+def _summary(stdout: str) -> tuple:
+    """``(failed, errored, uncollected)`` from pytest's short summary:
+    ``FAILED path::test``, ``ERROR path::test`` and, for a file it could not
+    collect, ``ERROR path`` with no test in it."""
+    failed: list[str] = []
+    errored: list[str] = []
+    uncollected: list[str] = []
+    for line in stdout.splitlines():
+        word = line.split(" ", 1)[0]
+        if word not in ("FAILED", "ERROR"):
+            continue
+        node = line[len(word):].strip().split(" ")[0]
+        if "::" in node:
+            (failed if word == "FAILED" else errored).append(
+                node.split("::")[-1])
+        elif word == "ERROR" and node:
+            uncollected.append(node)
+    return failed, errored, uncollected
+
+
+def run_suite(suites: list, python: str, *,
+              only: list | None = None) -> SuiteRun:
+    """Run the suites once, and say how they ended. ``-x`` stops at the first
+    test that does not pass.
 
     ``only`` narrows the run to named tests (``-k``), for re-asking a
     question about a specific failure rather than re-running everything.
@@ -193,16 +254,137 @@ def run_suite(suites: list, python: str, *, only: list | None = None) -> tuple:
             timeout=SUITE_TIMEOUT_S, start_new_session=True, env=env)
     finally:
         shutil.rmtree(cache, ignore_errors=True)
-    failed = [line.split("::")[-1].split(" ")[0]
-              for line in proc.stdout.splitlines()
-              if line.startswith("FAILED")]
-    return proc.returncode, failed
+    return SuiteRun(proc.returncode, *_summary(proc.stdout))
+
+
+#: What a fresh interpreter runs to say whether a file loads at all. A
+#: package module is imported by its dotted name; any other file is run under
+#: a name that is not ``__main__``, so a script's main block does not run.
+_LOADER = r"""
+import importlib, runpy, sys
+root, rel, dotted = sys.argv[1:4]
+sys.path.insert(0, root)
+try:
+    if dotted:
+        importlib.import_module(dotted)
+    else:
+        runpy.run_path(root + "/" + rel, run_name="__mutation_load_check__")
+except BaseException as exc:
+    text = (type(exc).__name__ + ": " + str(exc)).replace("\n", " ")
+    print("LOAD-FAILED " + text[:300])
+    raise SystemExit(1)
+print("LOADED")
+"""
+
+#: Backstop for the load check, as SUITE_TIMEOUT_S is for a suite.
+LOAD_TIMEOUT_S = 120
+
+
+def _dotted(rel: str) -> str:
+    """``rel``'s module name, as the suites import it, when the directory it
+    is in is a package; else the empty string, for a file run on its own. A
+    directory above that package with no ``__init__.py`` is a namespace
+    package, which is how the suites import ``tools/grounding_bench``."""
+    path = Path(rel)
+    if not (ROOT / path.parent / "__init__.py").is_file():
+        return ""
+    parts = path.with_suffix("").parts
+    if parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def load_problem(rel: str, python: str) -> str | None:
+    """None if the file at ``rel`` loads in a fresh ``python``, else what
+    loading it raised (AUD-093).
+
+    A SUITE THAT IMPORTS A MODULE INSIDE ITS TESTS CANNOT SAY THIS. A mutant
+    whose module fails at import -- a dataclass field with a default made to
+    precede one without, say -- fails every test that reaches the import, and
+    each failure names a test. The kill reads as that test's, and the test
+    never saw the fault. With a private bytecode prefix, for the reason
+    ``run_suite`` gives.
+    """
+    import tempfile
+
+    cache = tempfile.mkdtemp(prefix="mutation-load-pycache-")
+    env = dict(os.environ, PYTHONPYCACHEPREFIX=cache)
+    try:
+        proc = subprocess.run(
+            [python, "-c", _LOADER, str(ROOT), rel, _dotted(rel)],
+            cwd=str(ROOT), capture_output=True, text=True,
+            timeout=LOAD_TIMEOUT_S, start_new_session=True, env=env)
+    except subprocess.TimeoutExpired:
+        return f"loading it did not finish in {LOAD_TIMEOUT_S}s"
+    finally:
+        shutil.rmtree(cache, ignore_errors=True)
+    if proc.returncode == 0 and proc.stdout.rstrip().endswith("LOADED"):
+        return None
+    for line in proc.stdout.splitlines():
+        if line.startswith("LOAD-FAILED "):
+            return line[len("LOAD-FAILED "):]
+    return f"the interpreter loading it exited {proc.returncode}"
+
+
+#: A star import binds names no symbol table lists, so a source holding one
+#: cannot be told. It can only stand at module level, so a line that begins
+#: with one is enough; a docstring line that reads like one makes the rule
+#: pass that source by, and no mutated file holds such a line.
+_STAR_IMPORT = re.compile(r"(?m)^[ \t]*from[ \t]+[\w.]+[ \t]+import[ \t]+\*")
+
+#: Names every module has without binding them.
+_MODULE_NAMES = frozenset({
+    "__name__", "__file__", "__doc__", "__spec__", "__loader__",
+    "__package__", "__builtins__", "__path__", "__cached__",
+    "__annotations__", "__dict__", "__debug__"})
+
+
+def names_nothing_defines(source: str) -> frozenset | None:
+    """The global names ``source``'s code reads that it never binds and that
+    builtins do not supply, or None where that cannot be told: a source
+    this interpreter does not parse, or a star import.
+
+    Only ever compared (AUD-093). A name read in code that never runs is in
+    it all the same, so what matters is a name a mutant ADDS: read by the
+    mutated code, defined nowhere.
+    """
+    if _STAR_IMPORT.search(source):
+        return None
+    try:
+        top = symtable.symtable(source, "<mutant>", "exec")
+    except (SyntaxError, ValueError):
+        return None
+    bound, read = set(), set()
+
+    def walk(table, module: bool) -> None:
+        for s in table.get_symbols():
+            binds = s.is_assigned() or s.is_imported() or s.is_namespace()
+            if module:
+                if binds:
+                    bound.add(s.get_name())
+                elif s.is_referenced():
+                    read.add(s.get_name())
+            else:
+                if s.is_declared_global() and binds:
+                    bound.add(s.get_name())
+                if s.is_global() and s.is_referenced():
+                    read.add(s.get_name())
+        for child in table.get_children():
+            walk(child, False)
+
+    walk(top, True)
+    return frozenset(read - bound - set(dir(builtins)) - _MODULE_NAMES)
 
 
 #: Every field a mutation must carry. ``rationale`` is required because a
 #: SURVIVED line prints it, and a survivor whose report cannot say what was
 #: lost is a finding nobody can act on.
 _MUTATION_FIELDS = ("name", "path", "find", "replace", "rationale")
+
+#: The one field a mutation may add: why its mutant may read a name nothing
+#: defines. For a mutant whose code never runs -- a call a static guard has
+#: to find -- and for nothing else (AUD-093).
+_READS_UNDEFINED = "reads_undefined"
 
 
 def validate_spec(spec) -> list:
@@ -229,6 +411,7 @@ def validate_spec(spec) -> list:
     seen: set = set()
     made: dict = {}
     sources: dict = {}
+    undefined: dict = {}
     for i, m in enumerate(mutations):
         where = f"mutation {i}"
         if not isinstance(m, dict):
@@ -267,7 +450,47 @@ def validate_spec(spec) -> list:
                     "rationale into the other")
             else:
                 made[mutant] = name
+        # A MUTANT THAT CRASHES WHERE ITS FAULT WAS TO ACT (AUD-093). An
+        # entry that calls a function its module never imported, or that
+        # takes away the import of a name the module still uses, raises
+        # NameError on the path it was written to change. Every test that
+        # reaches the path fails, so it is counted as killed, and no test saw
+        # the fault: one such entry was killed by its NameError from the day
+        # it was written. A crash the runner catches is worse still: the test
+        # fails on what the crash did, and names itself.
+        why = m.get(_READS_UNDEFINED)
+        if why is not None and not (isinstance(why, str) and why.strip()):
+            problems.append(f"{where} ({name}): {_READS_UNDEFINED!r} must "
+                            "say why, as a non-empty string")
+            why = None
+        if mutant is not None and str(path).endswith(".py"):
+            added = _names_added(path, m["find"], m["replace"], sources,
+                                 undefined)
+            if added and why is None:
+                problems.append(
+                    f"{where} ({name}): the mutant reads {sorted(added)}, "
+                    f"which nothing in {path} defines, so the code it changes "
+                    "raises NameError where its fault was to act, and a kill "
+                    "would be that crash; bind the name, or say in "
+                    f"{_READS_UNDEFINED!r} why the mutant never runs it")
+            elif added is not None and not added and why is not None:
+                problems.append(
+                    f"{where} ({name}) says in {_READS_UNDEFINED!r} that its "
+                    "mutant reads a name nothing defines, and it reads none")
     return problems
+
+
+def _names_added(path, find, replace, sources: dict, undefined: dict):
+    """The names the mutant of ``path`` reads that nothing defines and its
+    original does not read, or None where that cannot be told."""
+    if path not in undefined:
+        src = sources.get(path)
+        undefined[path] = None if src is None else names_nothing_defines(src)
+    before = undefined[path]
+    if before is None:
+        return None
+    after = names_nothing_defines(sources[path].replace(find, replace))
+    return None if after is None else after - before
 
 
 def _mutant(path, find, replace, sources: dict):
@@ -350,8 +573,8 @@ def main() -> int:
     print(f"{len(mutations)} mutations over {len(suites)} suite(s)\n")
 
     # --- 1. the baseline must be green, and STABLY so ---------------------
-    rc, failed = run_suite(suites, args.python)
-    if rc != 0:
+    base = run_suite(suites, args.python)
+    if base.rc != 0:
         # A red baseline is refused; a FLAKY one is refused separately and
         # loudly. The distinction matters because a baseline that can flake
         # red can also flake green, and a matrix run on a green flake reports
@@ -360,24 +583,37 @@ def main() -> int:
         # every one of the next several runs, and an unexplained transient in
         # the one check that makes every other result meaningful is not
         # something to run past.
-        rc2, failed2 = run_suite(suites, args.python)
-        if rc2 == 0:
+        again = run_suite(suites, args.python)
+        if again.rc == 0:
             print("BASELINE NON-DETERMINISTIC -- refusing.")
-            print(f"The first run failed ({failed}) and an immediate re-run "
-                  "passed.")
+            print(f"The first run failed ({base.said()}) and an immediate "
+                  "re-run passed.")
             print("A baseline that can flake red can flake green, and a "
                   "matrix run on a green flake reports kills for mutations "
                   "that nothing tested. Fix the flake first.")
             return 4
         print("BASELINE RED -- mutation results would be meaningless.")
         print("Every mutation would 'fail the suite' for this pre-existing")
-        print(f"reason and the report would read as a perfect score: {failed}")
+        print("reason and the report would read as a perfect score: "
+              f"{base.said()}")
         return 2
     print("baseline green")
 
     paths = sorted({m["path"] for m in mutations})
     original = {p: (ROOT / p).read_text(encoding="utf-8") for p in paths}
     before = {p: _sha(ROOT / p) for p in paths}
+
+    # Which files the load check can speak for: those that load unmutated.
+    loadable = set()
+    for rel in paths:
+        if not rel.endswith(".py"):
+            continue
+        problem = load_problem(rel, args.python)
+        if problem is None:
+            loadable.add(rel)
+        else:
+            print(f"load check SKIPPED for {rel}: unmutated, it does not load "
+                  f"in a fresh interpreter on its own ({problem})")
 
     if RECOVERY.exists():
         print(f"REFUSING TO START: {RECOVERY.name} exists, so a previous run "
@@ -453,17 +689,17 @@ def main() -> int:
                 "changes the bytes of this file and nothing it does\n",
                 encoding="utf-8")
             try:
-                rc_null, failed_null = run_suite(suites, args.python)
+                null = run_suite(suites, args.python)
             except subprocess.TimeoutExpired:
-                rc_null, failed_null = 1, ["(timeout)"]
+                null = SuiteRun(1, ["(timeout)"], [], [])
             finally:
                 (ROOT / rel).write_text(original[rel], encoding="utf-8")
-            if rc_null != 0:
+            if null.rc != 0:
                 print("NULL CONTROL RED -- mutation results would be "
                       "meaningless.")
                 print(f"Appending a comment to {rel} -- a change with no "
                       "effect on what it does -- turned this specification's "
-                      f"suites red: {failed_null}")
+                      f"suites red: {null.said()}")
                 print("Every mutation here would then be 'killed' by having "
                       "edited the file, and the report would read as a "
                       "perfect score. Take the byte-sensitive test out of the "
@@ -498,8 +734,12 @@ def main() -> int:
 
             (ROOT / path).write_text(src.replace(m["find"], m["replace"]),
                                      encoding="utf-8")
+            problem = run = None
             try:
-                rc, failed = run_suite(suites, args.python)
+                if path in loadable:
+                    problem = load_problem(path, args.python)
+                if problem is None:
+                    run = run_suite(suites, args.python)
             except subprocess.TimeoutExpired:
                 # Counted as killed -- the suite did not go green -- but
                 # flagged, because a test that bounds its own blocking calls
@@ -516,10 +756,42 @@ def main() -> int:
                     collateral[name] = damaged
                     _restore(damaged)
 
-            if rc != 0:
-                by = f"  by {failed[0]}" if failed else ""
-                print(f"{name:{name_w}s}  KILLED      {by}")
+            if problem is not None:
+                print(f"{name:{name_w}s}  STILLBORN   <-- the mutant does not "
+                      f"load ({problem}), so no test ran against it")
+                results[name] = "STILLBORN"
+            elif run is None:
+                # Not reached: a mutant that loads is run, and a run that
+                # timed out has already gone on to the next mutant.
+                raise RuntimeError(f"{name}: its suites were not run")
+            elif run.rc < 0:
+                # A SIGNAL IS NOT A KILL EITHER. The suite's process ended
+                # without a verdict from any test: a native library that
+                # faulted in it, or a process group signalled from inside.
+                # A test that ran the same thing in a process of its own
+                # would have said which check was lost.
+                try:
+                    how = signal.Signals(-run.rc).name
+                except ValueError:
+                    how = f"signal {-run.rc}"
+                print(f"{name:{name_w}s}  KILLED BY A SIGNAL ({how}) <-- no "
+                      "test named the check that was lost")
+                results[name] = "KILLED_BY_SIGNAL"
+            elif run.named:
+                by = run.named[0] + ("" if run.failed
+                                     else " (an error, not a failure)")
+                print(f"{name:{name_w}s}  KILLED        by {by}")
                 results[name] = "KILLED"
+            elif run.uncollected:
+                files = ", ".join(run.uncollected)
+                print(f"{name:{name_w}s}  STILLBORN   <-- the suites could "
+                      f"not be collected under it ({files}), so no test ran "
+                      "against it")
+                results[name] = "STILLBORN"
+            elif run.rc != 0:
+                print(f"{name:{name_w}s}  NO VERDICT  <-- pytest exited "
+                      f"{run.rc} and named no test")
+                results[name] = "NO_VERDICT"
             else:
                 # "NOTHING DETECTS THIS" IS NOT WHAT WAS MEASURED.
                 #
@@ -551,6 +823,9 @@ def main() -> int:
     survived = [k for k, v in results.items() if v == "SURVIVED"]
     anchors = [k for k, v in results.items() if v == "ANCHOR_DRIFT"]
     timeouts = [k for k, v in results.items() if v == "KILLED_BY_TIMEOUT"]
+    stillborn = [k for k, v in results.items() if v == "STILLBORN"]
+    signalled = [k for k, v in results.items() if v == "KILLED_BY_SIGNAL"]
+    unnamed = [k for k, v in results.items() if v == "NO_VERDICT"]
     # A TIMEOUT IS NOT A KILL, AND THE COUNT SAYS SO.
     #
     # It used to be counted as one and reported as a note, so a mutation
@@ -566,6 +841,17 @@ def main() -> int:
     if timeouts:
         print(f"KILLED ONLY BY TIMEOUT (not counted as coverage; write a "
               f"bounded test): {timeouts}")
+    if stillborn:
+        print("STILLBORN (the mutant does not load, or the suites cannot be "
+              "collected under it; it tested nothing and is not counted): "
+              f"{stillborn}")
+    if signalled:
+        print("KILLED ONLY BY A SIGNAL (not counted as coverage; a test that "
+              "runs it in a process of its own would name the check): "
+              f"{signalled}")
+    if unnamed:
+        print(f"NO VERDICT (pytest failed and named no test; not counted): "
+              f"{unnamed}")
     if survived:
         print(f"SURVIVED: {survived}")
         print(f"  (not detected by: {suites}. Before recording an "
@@ -606,10 +892,10 @@ def main() -> int:
     # wrote, a cache, a directory that now exists. Re-running the baseline
     # asks the only question that matters, which is whether the tree the
     # harness hands back still behaves like the one it was given.
-    post_rc, post_failed = run_suite(suites, args.python)
-    if post_rc != 0:
+    post = run_suite(suites, args.python)
+    if post.rc != 0:
         print("POST-RUN BASELINE RED -- the matrix left this tree in a state "
-              f"the suite rejects: {post_failed}")
+              f"the suite rejects: {post.said()}")
         # WHICH OF THREE EXPLANATIONS, rather than asserting one.
         #
         # This block used to print "something outside the mutated sources
@@ -624,8 +910,8 @@ def main() -> int:
         # the named test still fail on the tree as restored? Re-running it
         # alone cannot distinguish nondeterminism from suite-order coupling,
         # and the message says so instead of picking one.
-        recheck_rc, _ = run_suite(suites, args.python, only=post_failed)
-        if recheck_rc == 0:
+        recheck = run_suite(suites, args.python, only=post.named)
+        if recheck.rc == 0:
             print("...but re-running those tests alone on the SAME restored "
                   "tree passes. The tree is not simply broken: either the "
                   "test is nondeterministic or it depends on state the rest "
@@ -636,8 +922,9 @@ def main() -> int:
                   "Restoration was byte-identical but not complete; look for "
                   "state outside the mutated sources -- a data file a test "
                   "wrote, a cache, a directory that now exists.")
-    return 0 if not (survived or anchors or timeouts or drifted or collateral
-                     or still_dirty or post_rc) else 1
+    return 0 if not (survived or anchors or timeouts or stillborn or signalled
+                     or unnamed or drifted or collateral or still_dirty
+                     or post.rc) else 1
 
 
 if __name__ == "__main__":
