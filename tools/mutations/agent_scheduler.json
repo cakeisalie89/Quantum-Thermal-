@@ -353,7 +353,7 @@
     {
       "name": "N50_replay_does_not_re_run_the_priority_gate",
       "path": "agent_substrate/scheduler.py",
-      "find": "            self._reauthorize_priority(cur, new, ev)",
+      "find": "            self._reauthorize_priority(cur, new, ev, at)",
       "replace": "            pass",
       "rationale": "a job is lifted to the front of the queue by appending the record set_priority refused; starvation is not a state-machine violation so nothing else notices"
     },
@@ -374,8 +374,8 @@
     {
       "name": "N53_the_priority_gate_uses_todays_policy",
       "path": "agent_substrate/scheduler.py",
-      "find": "                          resource=job.job_id,\n                          task_id=job.task_id or \"\"),\n            at_seq=ev.seq)",
-      "replace": "                          resource=job.job_id,\n                          task_id=job.task_id or \"\"))",
+      "find": "                          resource=job.job_id,\n                          task_id=job.task_id or \"\"),\n            at_seq=ev.seq, at_time=at)",
+      "replace": "                          resource=job.job_id,\n                          task_id=job.task_id or \"\"),\n            at_time=at)",
       "rationale": "a later policy edition re-judges a change made under the rules of its own day"
     },
     {
@@ -388,7 +388,7 @@
     {
       "name": "N55_an_enqueue_record_is_not_reauthorized",
       "path": "agent_substrate/scheduler.py",
-      "find": "            self._reauthorize_enqueue(job, ev)",
+      "find": "            self._reauthorize_enqueue(job, ev, at)",
       "replace": "            pass",
       "rationale": "a forged enqueue names any field of a job: born SUCCEEDED, or born DISPATCHED holding a lease that then satisfies the ownership check on the outcome edges"
     },
@@ -454,6 +454,111 @@
       "find": "                       and dst in {JobState.READY, JobState.FAILED}\n                       and not job.lease_is_live(at)",
       "replace": "                       and dst in {JobState.READY}\n                       and not job.lease_is_live(at)",
       "rationale": "restores the defect exactly: DISPATCHED -> FAILED after a lapse is judged an outcome report, so the reducer demands it come from the worker that died. reconcile's tolerant move() swallows the refusal and the job stays DISPATCHED under a lease nobody holds, forever -- the budget's enforcement branch becomes unreachable code"
+    },
+    {
+      "name": "S65_the_gate_asks_a_store_behind_the_log",
+      "path": "agent_substrate/scheduler.py",
+      "find": "        decision = self.policy.at_head().evaluate(self.policy_id, req)\n",
+      "replace": "        decision = self.policy.evaluate(self.policy_id, req)\n",
+      "rationale": "AUD-096. The scheduler's gate asks its store as it last read, so a scheduler behind its policy lets through, unrecorded, what the version in force refuses, and writes an enqueue every load then refuses"
+    },
+    {
+      "name": "S66_enqueue_decides_on_the_queue_it_last_read",
+      "path": "agent_substrate/scheduler.py",
+      "find": "        catches up first, and asks the key again under the writer lock.\n        \"\"\"\n        self.catch_up()\n",
+      "replace": "        catches up first, and asks the key again under the writer lock.\n        \"\"\"\n",
+      "rationale": "AUD-097. enqueue() answers the key, the job id and the dependencies from the queue as it last folded, and refuses work on a job another writer enqueued since"
+    },
+    {
+      "name": "S67_a_key_bound_before_the_lock_is_not_asked_under_it",
+      "path": "agent_substrate/scheduler.py",
+      "find": "            if idempotency_key and idempotency_key in self._keys:\n                raise _KeyBound()\n",
+      "replace": "            if idempotency_key and False:\n                raise _KeyBound()\n",
+      "rationale": "AUD-097. The key is not asked again under the writer lock, so a request another writer enqueued between the check and the lock is enqueued a second time, which replay accepts for the same work"
+    },
+    {
+      "name": "S68_set_priority_decides_on_the_queue_it_last_read",
+      "path": "agent_substrate/scheduler.py",
+      "find": "        Against the log as it is, as enqueue() is (AUD-097).\"\"\"\n        self.catch_up()\n",
+      "replace": "        Against the log as it is, as enqueue() is (AUD-097).\"\"\"\n",
+      "rationale": "AUD-097. set_priority() reads the job from the projection as it last folded, and refuses a job another writer enqueued since as unknown"
+    },
+    {
+      "name": "S69_cancel_decides_on_the_queue_it_last_read",
+      "path": "agent_substrate/scheduler.py",
+      "find": "        the log as it is, as enqueue() is (AUD-097).\n        \"\"\"\n        self.catch_up()\n",
+      "replace": "        the log as it is, as enqueue() is (AUD-097).\n        \"\"\"\n",
+      "rationale": "AUD-097. cancel() reads the job from the projection as it last folded, and refuses a job another writer enqueued since as unknown"
+    },
+    {
+      "name": "S70_invalidate_decides_on_the_queue_it_last_read",
+      "path": "agent_substrate/scheduler.py",
+      "find": "        enqueue() is (AUD-097).\n        \"\"\"\n        self.catch_up()\n",
+      "replace": "        enqueue() is (AUD-097).\n        \"\"\"\n",
+      "rationale": "AUD-097. invalidate() reads the job from the projection as it last folded, and refuses a job another writer saw succeed since"
+    },
+    {
+      "name": "S71_an_enqueue_is_judged_at_no_time",
+      "path": "agent_substrate/scheduler.py",
+      "find": "                          task_id=job.task_id or \"\"),\n            at_seq=ev.seq, at_time=at)\n        if not decision.allowed:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {decision.identity} refuses to enqueue \"",
+      "replace": "                          task_id=job.task_id or \"\"),\n            at_seq=ev.seq)\n        if not decision.allowed:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {decision.identity} refuses to enqueue \"",
+      "rationale": "AUD-099. Replay asks the policy in force at an enqueue's position and judges no expiry, so an enqueue appended under an expired policy becomes queue state"
+    },
+    {
+      "name": "S72_a_priority_raise_is_judged_at_no_time",
+      "path": "agent_substrate/scheduler.py",
+      "find": "            at_seq=ev.seq, at_time=at)\n        if not decision.allowed:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {job.job_id!r} was raised from \"",
+      "replace": "            at_seq=ev.seq)\n        if not decision.allowed:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {job.job_id!r} was raised from \"",
+      "rationale": "AUD-099. Replay judges no expiry for a priority raise, so one appended under an expired policy is folded"
+    },
+    {
+      "name": "S73_the_history_keeps_no_latest_time",
+      "path": "agent_substrate/scheduler.py",
+      "find": "            self._seen_hash = getattr(ev, \"hash\", None)\n            self._latest_wall = judged_at(self._latest_wall, ev.wall_time)\n",
+      "replace": "            self._seen_hash = getattr(ev, \"hash\", None)\n",
+      "rationale": "AUD-099 with D-2026-168's rule. Each record is judged at its own time alone, so a clock set back revives an expired scheduling policy"
+    },
+    {
+      "name": "S74_an_enqueue_carries_the_log_s_time",
+      "path": "agent_substrate/scheduler.py",
+      "find": "            return dict(actor=submitter, action=ACT_ENQUEUE, target=job_id,\n                        payload=payload, wall_time=now)",
+      "replace": "            return dict(actor=submitter, action=ACT_ENQUEUE, target=job_id,\n                        payload=payload)",
+      "rationale": "AUD-099. The enqueue carries the log's append time, not the reading its gate was judged at, so an expiry between the two makes the history refuse a record its gate permitted"
+    },
+    {
+      "name": "S75_a_dispatch_is_not_reauthorized",
+      "path": "agent_substrate/scheduler.py",
+      "find": "            reauthorize_job_edge(cur, dst, p, actor=ev.actor, seq=ev.seq)\n            if dst is JobState.DISPATCHED:\n                self._reauthorize_dispatch(cur, ev, at)\n",
+      "replace": "            reauthorize_job_edge(cur, dst, p, actor=ev.actor, seq=ev.seq)\n",
+      "rationale": "AUD-100. Nothing asks the dispatch policy on replay or under the writer lock, so a dispatch written past a suspension is history"
+    },
+    {
+      "name": "S76_dispatch_asks_the_store_as_it_last_read",
+      "path": "agent_substrate/scheduler.py",
+      "find": "        # before it (AUD-100).\n        self.policy.at_head()\n        job = self.get(job_id)",
+      "replace": "        # before it (AUD-100).\n        job = self.get(job_id)",
+      "rationale": "AUD-100. dispatch() decides readiness on the policy store as it last read, so a scheduler behind a version suspending dispatch is refused only by the dry run, in the reducer's words rather than readiness's"
+    },
+    {
+      "name": "S77_reconcile_asks_the_store_as_it_last_read",
+      "path": "agent_substrate/scheduler.py",
+      "find": "        # lets run (AUD-100).\n        self.policy.at_head()\n        moves: list = []",
+      "replace": "        # lets run (AUD-100).\n        moves: list = []",
+      "rationale": "AUD-100. reconcile() decides each block on the policy store as it last read, so a scheduler behind a version lifting a suspension blocks, for good, work that version lets run"
+    },
+    {
+      "name": "S78_the_dry_run_forgets_the_history_s_time",
+      "path": "agent_substrate/scheduler.py",
+      "find": "        probe._seen_hash = self._seen_hash\n        probe._latest_wall = self._latest_wall\n",
+      "replace": "        probe._seen_hash = self._seen_hash\n",
+      "rationale": "AUD-099. The dry run judges a write as if the history had no time, so a record stamped past an expiry landing before the lock lets the write through, and every load then refuses the log"
+    },
+    {
+      "name": "S79_a_block_is_not_asked_again_under_the_lock",
+      "path": "agent_substrate/scheduler.py",
+      "find": "                             reason=r.reason, blocked_by=list(r.blocked_by),\n                             holds=still_fatal)\n",
+      "replace": "                             reason=r.reason, blocked_by=list(r.blocked_by))\n",
+      "rationale": "AUD-100. reconcile writes a block decided on its scan, so a version lifting a suspension published between the scan and the write blocks the job, and BLOCKED is terminal"
     }
   ]
 }

@@ -936,6 +936,14 @@ class CapabilityLedger(DecidedWriter):
                     f"capability {cap.capability_id!r} already exists; "
                     "reusing an id would make two grants indistinguishable "
                     "in the log")
+            # A delegation's source, asked again here (AUD-095): a
+            # revocation landing between delegate()'s check and this lock
+            # is refused, with nothing written. Replay does not ask it, and
+            # the child would be written dead on arrival.
+            if cap.parent_id and cap.parent_id in self._revoked:
+                raise CapabilityRevoked(
+                    f"capability {cap.parent_id!r} was revoked; a revoked "
+                    "grant cannot be the source of a new one")
             c = replace(cap, issued_seq=head_seq + 1)
             if lifetime_seqs is not None:
                 c = replace(c, expires_after_seq=c.issued_seq
@@ -976,6 +984,10 @@ class CapabilityLedger(DecidedWriter):
         """
         if not isinstance(cap, Capability):
             raise CapabilityError(f"expected a Capability, got {cap!r}")
+        # Against the log as it is (AUD-095): a ledger behind it refused to
+        # delegate from a grant another writer had issued since, and
+        # delegated from one another writer had revoked since.
+        self._fold_new()
         parent = self._issued.get(parent_id)
         if parent is None:
             raise BadDelegation(
@@ -999,8 +1011,10 @@ class CapabilityLedger(DecidedWriter):
                 f"delegating {parent_id!r} would make a chain {depth} deep, "
                 f"past the {MAX_DELEGATION_DEPTH} bound. The bound exists so "
                 "one delegate cannot make every check expensive for everyone")
+        # The position just folded to, not a read and verification of the
+        # whole log: issue() stamps the grant again, under the lock.
         cap = replace(cap, parent_id=parent_id,
-                      issued_seq=self.log.verify().head_seq + 1)
+                      issued_seq=self._folded_through + 1)
         why = cap.attenuation_of(parent)
         if why:
             raise BadDelegation(why)

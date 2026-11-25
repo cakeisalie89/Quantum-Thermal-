@@ -12369,3 +12369,54 @@ SM10 to SM14 in the research file.
   depend on where the search happens to go.
 - Not a claim that hosted CI is green. That is for this commit's own runs
   to show.
+
+## D-2026-197 — mutation_harness outgrew its weight, and one shard took 124 of its 150 minutes
+
+**FOUND BY HOSTED CI.** At fe3f9c3 all 44 check runs passed, the 16
+mutation shards among them. The plan put every shard at 82 minutes. In
+the push run 45492796714 they took 54 to 96, and in the pull-request run
+45492807118 they took 50 to 124, against a limit of 150. The longest was
+shard 6 both times. It holds `mutation_harness.json`, weighed at 1,132
+seconds, the time measured at a5cf136 for the 21 mutations it had then.
+AUD-087 added one mutation and the twenty-first pass of the audit added
+fifteen, and that pass made every mutant of a Python file load in a fresh
+interpreter before its suites run. With 37 mutations it took 2,482
+seconds in the push run. Other weights had drifted too:
+
+- `agent_memory_context.json` was weighed at 143 seconds and took 640;
+- `hdf5_bundle.json` was weighed at 37 and took 281;
+- `simulation.json` was weighed at 1,555 and took 705.
+
+Nine specs added since a5cf136 were still weighed by their mutation
+counts. Nothing failed. The pull request's shard 6 had 26 minutes left.
+
+**MEASURED.** Each spec's time in the push run, read from its shard's
+log. The measure runs from the last line of the previous spec's report to
+the last line of its own, since a report is written as its spec exits.
+D-2026-191 measured from one spec's header to the next, and a header can
+be stamped late. At fe3f9c3 `external_models`' header was stamped 20
+seconds after the blank line printed with it, when its report was, so
+its 20 seconds went to `dimensions`. No other spec's time differs by more
+than 5 seconds between the two readings, and each shard's total agrees
+under both. Every spec was killed in full there.
+
+**THE REPAIR.** `WEIGHTS` now holds the seconds each of the 149 specs
+took in that run. Four gained mutations after it, twenty-two in all, in
+the audit's twenty-second pass: `agent_delegation`, `agent_policy`,
+`agent_scheduler` and `agent_substrate`. Each is weighed at the time
+measured for its earlier form. The plan now puts every shard at 70 or 71
+minutes. At each changed spec's own measured rate per mutation, the
+heaviest shard comes to 72. The workflow's matrix is the one `--emit`
+generates from the new plan, and `--check` holds it there.
+`tests/test_mutation_shards.py` passes unchanged, and the planner's
+mutation spec kills 12 of 12.
+
+**WHAT THIS IS NOT.**
+
+- A weight decides where a spec runs, never whether it runs. Every spec
+  still runs in exactly one shard on every cycle.
+- Not a change to any spec, to the harness, or to the shard limit.
+- The pull request's run was slower than the push run's on the same tree,
+  shard 6 by 30 percent. At that rate the heaviest planned shard comes to
+  about 93 minutes. This commit's own runs will show what each shard
+  takes.

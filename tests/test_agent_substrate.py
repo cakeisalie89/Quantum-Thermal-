@@ -1598,3 +1598,62 @@ def test_running_the_cascade_leaves_the_same_answer(tmp_path):
     apply_invalidation(s, "param", reason="dependency revoked")
     assert s.get("result").state is State.STALE
     assert sorted(s.canonical()) == before == []
+
+
+# ---- a retry racing the request it repeats (AUD-098) ----------------------
+#
+# create() and transition() answer an idempotency key before the writer
+# lock; a request under the same key completing between that answer and the
+# lock left its retry refused, as a record that existed or as a move from a
+# state the record had left: the failure the key is there to prevent.
+
+def _after(s, first):
+    """``s``'s next write takes the writer lock only once ``first`` -- the
+    request it repeats, made by another process -- has completed."""
+    real = s.log.append_decided
+
+    def then_the_write(decide, **kw):
+        first()
+        return real(decide, **kw)
+
+    s.log.append_decided = then_the_write
+
+
+def test_a_create_retry_racing_its_request_is_answered_with_the_record(
+        tmp_path):
+    s = _store(tmp_path)
+    other = AuthorityStore(EventLog(s.log.path)).load()
+    _after(s, lambda: other.create(record_id="r1", kind="result",
+                                   proposer="alice", policy_id="p1",
+                                   idempotency_key="make-r1"))
+    rec = s.create(record_id="r1", kind="result", proposer="alice",
+                   policy_id="p1", idempotency_key="make-r1")
+    del s.log.append_decided
+    assert rec.record_id == "r1"
+    log = EventLog(s.log.path)
+    assert [ev.action for ev in log.read()].count("record.create") == 1
+    assert AuthorityStore(log).load().get("r1") == rec
+
+
+def test_a_transition_retry_racing_its_request_is_answered_with_the_record(
+        tmp_path):
+    s = _store(tmp_path)
+    _promote(s, "r1")
+    other = AuthorityStore(EventLog(s.log.path)).load()
+
+    def revoke(store):
+        return store.transition(record_id="r1", dst=State.REVOKED,
+                                actor="carol", role=Role.PROMOTER,
+                                evidence={"revocation_reason": DIG},
+                                idempotency_key="revoke-once")
+
+    _after(s, lambda: revoke(other))
+    rec = revoke(s)
+    del s.log.append_decided
+    assert rec.state is State.REVOKED
+    log = EventLog(s.log.path)
+    revocations = [ev for ev in log.read()
+                   if ev.action == "record.transition"
+                   and ev.payload.get("dst") == State.REVOKED.value]
+    assert len(revocations) == 1
+    assert AuthorityStore(log).load().get("r1") == rec

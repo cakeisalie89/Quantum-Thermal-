@@ -478,6 +478,20 @@
       "find": "    if len(raw) > MAX_EVENT_BYTES:\n        raise MalformedEvent(\n",
       "replace": "    if False:\n        raise MalformedEvent(\n",
       "rationale": "AUD-051. The reader's bound on a line's size, which no test held: a line past it verifies"
+    },
+    {
+      "name": "M75_a_create_retry_racing_its_request_is_not_asked_under_the_lock",
+      "path": "agent_substrate/store.py",
+      "find": "            # answered with its record, not refused as one that exists.\n            if idempotency_key and idempotency_key in self._applied_keys:\n                raise _KeyApplied()\n",
+      "replace": "            # answered with its record, not refused as one that exists.\n",
+      "rationale": "AUD-098. create() does not ask the key under the writer lock: a retry racing the request it repeats is refused as a record that exists"
+    },
+    {
+      "name": "M76_a_transition_retry_racing_its_request_is_not_asked_under_the_lock",
+      "path": "agent_substrate/store.py",
+      "find": "            # from a state the record has left.\n            if idempotency_key and idempotency_key in self._applied_keys:\n                raise _KeyApplied()\n",
+      "replace": "            # from a state the record has left.\n",
+      "rationale": "AUD-098. transition() does not ask the key under the writer lock: a retry racing the request it repeats is refused as a move from a state the record has left"
     }
   ]
 }

@@ -1,13 +1,13 @@
 {
  "counts": {
   "by_change": {
-   "ADDED": 666,
+   "ADDED": 667,
    "MODIFIED": 32
   },
   "by_risk": {
    "CRITICAL": 25,
    "HIGH": 61,
-   "LOW": 238,
+   "LOW": 239,
    "MEDIUM": 374
   },
   "by_subsystem": {
@@ -31,13 +31,13 @@
    "scientific-core": 33,
    "scientific-verification": 7,
    "supply-chain": 5,
-   "tests": 213,
+   "tests": 214,
    "tooling": 56,
    "workflow": 1
   },
   "deleted_classified_in_repository_inventory": 384,
   "deleted_from_default_branch": 384,
-  "files": 698
+  "files": 699
  },
  "critical_or_high_python_no_test_names": [
   "agent_substrate/_index_tool.py",
@@ -565,6 +565,7 @@
      "tests/test_agent_substrate_isolation.py",
      "tests/test_agent_substrate_properties.py",
      "tests/test_agent_toctou.py",
+     "tests/test_agent_writers.py",
      "tests/test_archive.py",
      "tests/test_assurance_graph.py",
      "tests/test_assurance_package.py",
@@ -776,6 +777,7 @@
      "tests/test_agent_second_reader.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_toctou.py",
+     "tests/test_agent_writers.py",
      "tests/test_authenticated_history.py",
      "tests/test_gate_b_acceptance.py",
      "tests/test_hostile_composition.py",
@@ -975,6 +977,7 @@
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_isolation.py",
      "tests/test_agent_substrate_properties.py",
+     "tests/test_agent_writers.py",
      "tests/test_archive.py",
      "tests/test_authenticated_history.py",
      "tests/test_composed_campaigns.py",
@@ -1033,6 +1036,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_substrate.py",
+     "tests/test_agent_writers.py",
      "tests/test_authenticated_history.py",
      "tests/test_decided_appends.py",
      "tests/test_decided_under_lock.py",
@@ -1239,6 +1243,7 @@
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
      "tests/test_agent_toctou.py",
+     "tests/test_agent_writers.py",
      "tests/test_archive.py",
      "tests/test_audit_ledger.py",
      "tests/test_authenticated_history.py",
@@ -1900,6 +1905,7 @@
      "tests/test_agent_second_reader.py",
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
+     "tests/test_agent_writers.py",
      "tests/test_authenticated_history.py",
      "tests/test_composed_campaigns.py",
      "tests/test_decided_appends.py",
@@ -2152,11 +2158,13 @@
      "tests/test_agent_memory.py",
      "tests/test_agent_performance.py",
      "tests/test_agent_readers_never_raise.py",
+     "tests/test_agent_scheduler.py",
      "tests/test_agent_second_reader.py",
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_substrate.py",
      "tests/test_agent_substrate_properties.py",
+     "tests/test_agent_writers.py",
      "tests/test_assurance_graph.py",
      "tests/test_authenticated_history.py",
      "tests/test_completion_matrix.py",
@@ -2393,6 +2401,7 @@
      "tests/test_agent_separate_verify.py",
      "tests/test_agent_snapshot_coherence.py",
      "tests/test_agent_substrate_isolation.py",
+     "tests/test_agent_writers.py",
      "tests/test_authenticated_history.py",
      "tests/test_completion_matrix.py",
      "tests/test_generated_mutations.py",
@@ -6584,7 +6593,8 @@
     "findings": [],
     "mutation_specs": [],
     "tests": [
-     "tests/test_agent_substrate_isolation.py"
+     "tests/test_agent_substrate_isolation.py",
+     "tests/test_agent_writers.py"
     ]
    }
   },
@@ -6898,6 +6908,23 @@
    "risk": "LOW",
    "runtime_dependencies": [
     "pytest"
+   ],
+   "subsystem": "tests",
+   "trust_boundary": "verification only",
+   "verification": {
+    "findings": [],
+    "mutation_specs": [],
+    "tests": [
+     "tests/test_agent_substrate_isolation.py"
+    ]
+   }
+  },
+  {
+   "change": "ADDED",
+   "path": "tests/test_agent_writers.py",
+   "risk": "LOW",
+   "runtime_dependencies": [
+    "hypothesis"
    ],
    "subsystem": "tests",
    "trust_boundary": "verification only",

@@ -302,6 +302,10 @@ ALLOWED_IMPORTERS = {
     # result and trains nothing. tools/neural.py, which does both, runs it
     # as a separate process and is deliberately NOT in this set.
     "tools/neural_ledger.py",
+    # Wave B (AUD-095 to AUD-097): the projections that catch up from an
+    # anchor, written by several writers on one log and held to a load of
+    # the history up to each writer's position.
+    "tests/test_agent_writers.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".

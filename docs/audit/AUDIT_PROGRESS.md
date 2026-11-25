@@ -5764,3 +5764,350 @@ reviewed as a diff.
 - The undefined-name rule takes a line that begins with a star import as
   one, so a docstring line that reads like one would make it pass that
   file by; no mutated file holds such a line.
+
+### Stage 5, twenty-second pass: the other writers held to a full load (Wave B, part 3; AUD-095 to AUD-100)
+
+Wave B of the campaign is memory and replay. The twentieth pass held the
+memory store, written by several writers on one log, to a load of the
+history up to each writer's position. This pass holds four more of the
+projections that catch up from an anchor the same way: the capability
+ledger, the policy store, the agent directory and the scheduler.
+Searching them, and reading them and the authority store beside them,
+found six defects, each reproduced at fe3f9c3 and fixed (AUD-095 to
+AUD-100). The hosted runs at fe3f9c3 also showed the shard plan's
+weights out of date, and they are measured again (D-2026-197).
+
+**How this pass was made.** It was first built, and run, as two passes.
+Both builds, and the runs made on them, were lost with the session's
+container before either was committed. What this section reports was
+written again from the session's record of the design, and run again on
+this commit's tree, on fe3f9c3, and on a tree holding only the
+corrections of AUD-095 to AUD-098. The searches were written again too,
+and they draw other histories than the first build's did.
+
+**Hosted CI at fe3f9c3.** Read from the API: all 44 check runs completed
+and passed, in eight workflow runs, the 16 mutation shards and both
+mutation-matrices aggregates among them. Gate I is met at fe3f9c3. The
+runs are 45492796714, 45492796690, 45492796703, 45492796604 and
+45492796579 (push), and 45492807118, 45492807411 and 45492807031 (pull
+request). The longest shard took 124 of its 150 minutes, in the pull
+request's run, and 96 in the push run's: shard 6, which holds
+`mutation_harness`, weighed at its time for the 21 mutations it had at
+a5cf136 and run with 37. The plan is re-weighted on the push run's
+times (D-2026-197): every shard is now placed at 70 or 71 minutes, where
+the old plan placed each at 82 and they took 54 to 96 in that run.
+
+**The searches.** `tests/test_agent_writers.py` is new. For each of the
+four, a search draws 200 histories of writes by three writers, each a
+projection of its own on one log and holding its own anchor, with
+catch-ups along the anchored route and the full read, and writers
+reopened. After every operation every writer holds what a load of the
+history up to its own position holds, read past its public view. Each
+write is made beside a projection just loaded from a copy of the log,
+and the two decide alike and write alike. A refusal writes nothing but
+the record of a policy's denial, where the scheduler keeps one. And a
+fresh load of the whole history agrees with the second reader. Each
+scheduler holds a policy store of its own, as a second process does, and
+versions of the scheduling policy that open enqueueing, close it and
+suspend dispatch are published through any writer's store. On the
+tests' own seeds:
+
+- the capability ledger's search makes 2,112 operations: 1,645 writes,
+  985 of them refused and 516 made by a writer behind the log, 315
+  catch-ups and 152 reopens. Written: 427 issues, 111 delegations and
+  122 revocations.
+- the policy store's, 2,251: 1,648 writes (570 refused, 722 by a writer
+  behind), 465 catch-ups and 138 reopens. Written: 746 publications, 258
+  decisions and 74 withdrawals.
+- the agent directory's, 1,948: 1,654 writes (886 refused, 588 by a
+  writer behind), 209 catch-ups and 85 reopens. Written: 293
+  registrations, 176 messages, 132 escalations, 61 retirements, 54
+  claims, 26 answers and 26 withdrawals.
+- the scheduler's, 2,236: 1,999 writes (740 refused, 1,000 by a writer
+  behind), 147 catch-ups and 90 reopens. Written: 415 publications of
+  the scheduling policy, 367 enqueues, 200 jobs made ready, 92
+  dispatches, 59 priority changes, 52 reports, 47 cancellations, 17
+  invalidations and 10 lease renewals.
+
+The four take 47 seconds here, from 8 to 18 each.
+
+**What each search found.** At fe3f9c3 the capability ledger's fails on
+its first delegation by a writer behind the log, from a grant another
+writer had issued since. The scheduler's fails two ways there. A writer
+whose policy store had read a version closing enqueueing, and not the
+one opening it again, refused on catch-up a job enqueued under that one.
+And a writer whose store held the closing version denied an enqueue at
+its gate; recording the denial read the log, found the enqueue
+permitted, and wrote the permitted decision beside the enqueue, a record
+a scheduler just loaded does not write. On the tree with the corrections
+of AUD-095 to AUD-098 alone, the scheduler's search fails on a dispatch:
+a writer whose store held a version suspending dispatch, and not the one
+lifting it, refused a dispatch a scheduler just loaded makes. The policy
+store's and the agent directory's searches pass at fe3f9c3, and are kept
+as they are: neither found a defect.
+
+**AUD-095 (P3), fixed.** `delegate()` read the source grant from the
+ledger's projection as it was when the ledger last folded, before the
+writer lock. `issue()`, deciding under the lock, did not ask whether the
+source was revoked, and nor does the replay. A ledger behind the log
+refused to delegate from a grant another writer had issued since, as
+from no grant. It also delegated from a grant another writer had
+revoked since: the record was written, and a ledger just loaded holds
+the child, dead on arrival through the chain check. And it read and
+verified the whole log once per delegation, for a stamp `issue()` makes
+again under the lock. `delegate()` now folds before it decides and
+stamps the position it folded to, and `issue()` refuses, under the
+lock, a delegation whose source is revoked.
+
+**AUD-096 (P1), fixed.** The scheduler re-authorizes an enqueue and a
+priority raise by asking its policy store which version was in force at
+the record's position. `PolicyStore.in_force_at` answered from what the
+store had read when it last folded, which the scheduler's catch-up does
+not move. A scheduler whose store had loaded before the scheduling
+policy was published refused every history holding a job enqueued under
+it, on catch-up and on load alike. One whose store held an earlier
+version folded an enqueue, appended around the write path, that the
+version in force refuses and a fresh load refuses. And the same
+scheduler's `enqueue()`, whose gate asked the same store, wrote an
+enqueue the version in force refuses, after which every load of the log
+refused the whole history. In a governed run,
+`tests/test_agent_governed_tasks.py`'s new test publishes a version
+closing enqueueing, through another process's policy store, between the
+runner's decision and its enqueue. At fe3f9c3 the task reached VERIFIED
+with its enqueue written, and a fresh scheduler and a fresh runner each
+refused the log: "seq 8: stage10.governed@2 refuses to enqueue ...
+closed for maintenance". `in_force_at` now reads a position it has not
+read before it answers, as the capability ledger does (D-2026-156), and
+a store whose fold refused a later record answers for no position. The
+scheduler's gate asks the store at the head, so a denial is refused and
+recorded as a scheduler just loaded refuses and records it. In the
+governed run the enqueue is now refused, with nothing enqueued, and the
+log opens.
+
+**AUD-097 (P2), fixed.** `enqueue()` answered the idempotency key, the
+job id and the dependencies from the scheduler's projection as it was
+when it last folded. The dry run under the lock asks the replay's rules,
+which accept a second job under one key when the work is the same. A
+scheduler behind the log enqueued a second job for a request another
+writer had enqueued under the same key, where a scheduler just loaded
+answers the retry with the first, and both would run. It refused work
+depending on a job enqueued since; and `set_priority`, `cancel` and
+`invalidate` refused a job another writer had enqueued or moved since.
+The four now catch up before they decide, as `dispatch` and `report`
+did, and `enqueue()` asks under the lock whether the key was bound in
+between, answering such a retry with the job that holds it. The
+governed runner enqueues without a key, after catching up.
+
+**AUD-098 (P3), fixed.** Found by reading: the authority store is not
+among the searches. `AuthorityStore.create` and `transition` catch up,
+look the idempotency key up in the projection, and answer a retry with
+its record; `build()` then decides under the writer lock, and asked
+nothing more of the key. A retry whose request completed between the
+look-up and the lock was refused: `create()` with "record 'r1' already
+exists", `transition()` with the edge from the state the record had
+left, "REVOKED is terminal". A store just loaded answers the same retry
+with the record, and the store's own comment on the order of its checks
+says that retry is what the key is for. `build()` now asks, under the
+lock, whether a request under the key completed, and the write answers
+such a retry as a retry is answered, with the record.
+
+**AUD-099 (P3), fixed.** The write path's gate judges a policy's expiry,
+at the latest time the history has reached or the clock. The replay's
+re-authorization asked the store about the record's position and passed
+no time, so it judged none. An enqueue appended around the write path
+under an expired scheduling policy was folded by a fresh load, where the
+write path refuses it, "expired at 1.0". Judging the expiry on replay
+needs the time the record was decided at: the write path decides before
+the append, and the record carried the append's time, so judging at it
+would refuse, on every load, a record decided before an expiry and
+written after it. A policy decision carries the time it was judged at
+for this reason (D-2026-168). Now the scheduler's fold keeps the latest
+time the history has reached, and re-authorizes an enqueue and a
+priority raise at that or the record's own time, whichever is later.
+Every decided write takes one clock reading, dry-runs at it and writes
+it as the record's time, so the gate, the dry run and every replay judge
+the record at the same time. And the dry run's probe holds the
+history's latest time, so a record stamped later, landing before the
+lock, is judged there as replay will judge it. The second reader still
+folds such an enqueue: it restates no scheduling gate (AUD-070's
+residual). No committed history holds a policy with an expiry.
+
+**AUD-100 (P2), fixed.** Found by reading, after the searches, which
+then published no version suspending dispatch. `readiness()` asks
+whether the policy in force permits a dispatch, of the store with no
+position, so it was answered from what the store had last read; and
+nothing under the writer lock or on replay asked the dispatch policy
+again. A scheduler whose store had not read a version suspending
+dispatch dispatched the job, where a scheduler just loaded refuses, and
+every load of the log holds it dispatched. One whose store held the
+suspension, and had not read the version lifting it, moved a READY job
+to BLOCKED, where a scheduler just loaded moves nothing; BLOCKED is
+terminal. Now `dispatch()` and `reconcile()` ask the store at the head
+before readiness decides. Replay re-authorizes a move to DISPATCHED
+under the dispatch policy in force at its position and time, with the
+request readiness makes, and the dry run under the writer lock runs
+replay's rules, so a version published between readiness and the write
+refuses the dispatch there, with nothing written. `reconcile()` scans
+and then writes, and a block is now asked again under the lock: a
+version lifting a suspension, published mid-scan, does not block the
+job. The scheduler's search now publishes versions that suspend
+dispatch, and fails on the tree with AUD-095 to AUD-098 corrected.
+
+**Tests.** The four searches, and 27 regression tests:
+
+- for AUD-095, four in `tests/test_agent_delegation.py`;
+- for AUD-096, three in `tests/test_agent_scheduler.py`, two in
+  `tests/test_agent_policy.py`, and the governed run in
+  `tests/test_agent_governed_tasks.py`;
+- for AUD-097, four in `tests/test_agent_scheduler.py`;
+- for AUD-098, two in `tests/test_agent_substrate.py`;
+- for AUD-099, five in `tests/test_agent_scheduler.py`;
+- for AUD-100, six in `tests/test_agent_scheduler.py`.
+
+Two controls pass before the corrections and after them: a scheduler
+that has read every version enqueues under the one in force
+(`test_a_current_scheduler_enqueues_under_the_version_in_force`), and a
+record decided before an expiry is read after it
+(`test_a_record_decided_before_an_expiry_is_read_after_it`). The eight
+test files this pass changed hold 621 tests. Run together on fe3f9c3's
+code, 28 fail: 26 of the regression tests, and the capability ledger's
+and the scheduler's searches. The other 593 pass, the two controls among
+them, and so does
+`test_the_record_carries_the_reading_its_gate_was_judged_at`: it holds a
+record to the reading its gate judged it at, which only a replay that
+judges a policy's expiry depends on, and S74 is killed by it. On the
+tree with AUD-095 to AUD-098 corrected, 11 fail: the ten tests of
+AUD-099 and AUD-100 that fail at fe3f9c3, and the scheduler's search. On
+this pass's code all 621 pass, none skipped.
+`tests/test_refused_fold.py` gains a scheduler case decided by a move,
+`scheduler_move`. Its scheduler case was decided by an enqueue, and
+enqueue now catches up first, which holds the refusal that case reached.
+The isolation guard names the new search file among the substrate's
+legitimate importers.
+
+**Mutations.** Added:
+
+- G29 to G31 to `agent_delegation`, for AUD-095;
+- P32 and P33 to `agent_policy`, and S65 to `agent_scheduler`, for
+  AUD-096;
+- S66 to S70 to `agent_scheduler`, for AUD-097;
+- M75 and M76 to `agent_substrate`, for AUD-098;
+- S71 to S74 and S78 to `agent_scheduler`, for AUD-099;
+- S75 to S77 and S79 to `agent_scheduler`, for AUD-100.
+
+The corrections of AUD-099 and AUD-100 moved four anchored lines, and
+each entry was repaired to the line as it now stands, keeping its fault:
+X4 in `agent_cross_process`, and N50, N53 and N55 in `agent_scheduler`.
+Each new entry and each repaired one is killed by a test the report
+names; each new entry by the test written for it.
+
+**Whole runs.** Two, on this pass's tree as it stood before its records,
+in parts of up to 24 entries over four lanes, each lane a copy of the
+tree.
+
+*First*, every entry on the four source files this pass changed, in
+every spec that holds one: 361 entries of 30 specs, in 37 parts. 360
+were killed, each by a test the report names, one of them, SA6, by an
+error in its test. None was stillborn, none was ended by a signal, none
+had no verdict and none was killed by a timeout, and every source was
+restored byte-identical. S77 survived. It drops the head read that opens
+`reconcile()`, and no test asked what a scheduler behind its store does
+when the version it has not read suspends dispatch: the block a scan
+writes is asked again under the lock, at the head, and that check holds
+a stale scan's block, so the block a stale scan does not attempt was all
+S77 left to find.
+`test_a_scheduler_behind_its_store_blocks_what_the_version_in_force_suspends`
+asks it. It fails at fe3f9c3 and on the tree with AUD-095 to AUD-098
+corrected, passes here, and kills S77; S76 and S79, run again beside it,
+were killed as before.
+
+*Second*, every other entry of the 22 specs whose suites hold a test
+file this pass changed: 414 entries in 26 parts. All were killed, each
+by a test the report names, three of them, AC2, G16 and G26, by an error
+in their tests. One part's baseline was red in its lane:
+`repo_contract`'s, whose suites hold the workflow's contract test, in a
+lane copied before D-2026-197's re-weighting. There the new entries
+moved the planner's median rate per mutation, by which it weighed the
+nine specs no hosted run had measured, and with it the plan the
+committed matrix is held to; with every spec measured, the plan no
+longer turns on mutation counts. Run again on a copy holding the
+re-weighting, its 18 were killed, 18 of 18. None was stillborn, none was
+ended by a signal, none had no verdict and none was killed by a timeout,
+and every source was restored byte-identical.
+
+Every spec whose suites hold a test file this pass changed was run
+whole, and every entry on the four source files it changed was run. The
+runs were not repeated after S77's test was added, nor after the
+records and the re-weighting: a test that passes unmutated can add a
+kill and takes none away, and of the files those changed only
+`tools/mutation_shards.py` is mutated by a spec. That spec,
+`mutation_shards`, ran whole after D-2026-197's re-weighting: 12 of 12.
+
+**Read in part.** At fe3f9c3, each of the four files corrected here,
+read in full in an earlier pass; each file's ledger row says what this
+one read again:
+
+- lines 576 to 1037 of `agent_substrate/capability.py`: the projection,
+  `in_force`, `anoint`, `issue`, `delegate` and `revoke`, with
+  `CapabilitySet.check`;
+- lines 630 to 1054 of `agent_substrate/policy.py`: the load, the fold,
+  `apply` and its two re-checks, the reads and the writes, with the rule
+  evaluation and the decision record;
+- of `agent_substrate/scheduler.py`: the load, `catch_up` and the fold,
+  `apply`, the enqueue and priority re-authorizations, the probe and the
+  dry run, the gate, `readiness`, `enqueue`, `set_priority`,
+  `transition`, `dispatch`, `cancel`, `reconcile` and `invalidate`;
+- of `agent_substrate/store.py`: `catch_up`, the fold, the load,
+  `create` and `transition`.
+
+Also read: `ResearchLedger.observe`; `SecretStore.provision` and
+`issue`, whose reads before the lock are of the process's own values or
+of no log; the policy decision and the enqueue in `GovernedTasks`; the
+second reader's fold of the scheduler's records; the planner's weights
+and their comment in `tools/mutation_shards.py`; and, of the tests and
+specs changed, the parts their ledger rows name. Each of this pass's
+changes was written and reviewed as a diff.
+
+**Observations, not changed.**
+
+- `ResearchLedger.observe` derives an observation's values from the
+  ledger's view before the lock. Under the lock it derives them again
+  and refuses a mismatch, so a ledger behind the log refuses an
+  observation a fresh one makes, with a message about values its bundle
+  does not hold. The research loop folds the ledger just before it
+  observes.
+- The scheduler's and the authority store's `catch_up()`, unforced,
+  trusts the witness. The witness can lag the log after a crash between
+  an append and its update, and there a check made before the lock
+  answers from before it. Each says so, and under the lock only the key
+  is asked again.
+- The idempotency ledger and the proposal ingress rebuild from the log
+  as it is on the full-read route, where the others refuse a rewritten
+  history (AUD-006, as recorded there).
+- Measured once, the pull request's runs were slower than the push
+  run's on the same tree, shard 6 by 30 percent, 124 minutes to 96.
+
+**What is not established.**
+
+- The searches hold four projections. The authority store, the egress
+  authority, the secret store, the idempotency ledger, the proposal
+  ingress, the research ledger and the inference gateway's ledger are
+  not held to a load of their history up to their position here.
+  AUD-098 was found by reading.
+- The policy store is searched without a role registry, so the role
+  view it folds is not in its searches. Nor are the scheduler's
+  capacity, or its evidence and capability preconditions.
+- No mutation spec runs the searches. Each new entry is killed by a
+  regression test, and a fault only a search would find is not measured
+  by the matrices.
+- Which histories a search draws moves with its source; the counts above
+  are for this source.
+- A history written before these corrections may hold, as written, an
+  enqueue the version in force refuses, two jobs under one key, a child
+  delegated from a revoked grant, or a dispatch the version in force
+  suspended. A record written before them carries its append time, a
+  moment after its gate; an expiry falling in between makes replay
+  refuse it.
+- The re-weighted plan rests on one push run's times. At the pull
+  request's slower rate it puts the heaviest shard near 93 of its 150
+  minutes, and hosted CI at this pass's commit will show what it takes.

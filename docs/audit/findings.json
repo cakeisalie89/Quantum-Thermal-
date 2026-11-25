@@ -3133,6 +3133,206 @@
    "residual_risk": "The rule reads global names. A mutant that reads an attribute nothing sets, or calls a function with arguments it does not take, crashes as G3 did and is not refused. A name read only in code the mutant never reaches is refused all the same, and the entry binds it.",
    "verification": "REPRODUCED",
    "resolution": "FIXED"
+  },
+  {
+   "id": "AUD-095",
+   "title": "A capability ledger behind the log decided a delegation on its own view: it refused to delegate from a grant another writer had issued since, and delegated from one another writer had revoked since",
+   "severity": "P3",
+   "subsystem": "capability ledger (delegation)",
+   "files": [
+    {
+     "path": "agent_substrate/capability.py",
+     "lines": "CapabilityLedger.delegate, CapabilityLedger.issue"
+    }
+   ],
+   "behavior": "delegate() read the source grant from the ledger's projection as it was when the ledger last folded, before the writer lock, and issue(), deciding under the lock, did not ask whether the source was revoked; nor does the replay's _authorize_mint. A ledger that had not caught up refused to delegate from a grant another writer had issued since, as from no grant, and delegated from a grant another writer had revoked since: the record was written, and a ledger just loaded holds the child, dead on arrival, since the chain check refuses every use under a revoked ancestor. delegate() also read and verified the whole log once per call, for a stamp issue() makes again under the lock.",
+   "invariant": "A writer decides as a ledger just loaded from the log decides.",
+   "mechanism": "A decision taken on the projection outside the lock, with no fold before it: AUD-091's class, in the capability ledger.",
+   "reproduction": "scratchpad repro_u.py, at fe3f9c3 and at this pass's tree; and tests/test_agent_writers.py, whose search of the capability ledger fails at fe3f9c3 on its first delegation by a writer behind the log, ('delegate', 1, 'c1', 'c0', 'root', 'root', ...)",
+   "observed": "A grant revoked by another writer: a ledger just loaded on a copy of the log refuses (CapabilityRevoked: capability 'c1' was revoked; a revoked grant cannot be the source of a new one); the ledger behind delegated c2, one record written, and a fresh load holds c1 and c2 with c1 revoked. A grant issued by another writer: a ledger just loaded delegates c2; the ledger behind refused (BadDelegation: no capability 'c1' to delegate from).",
+   "expected": "Both ledgers decide alike: from the revoked grant nothing is delegated, and from the issued one the delegation is made.",
+   "correction": "delegate() folds what was appended before it decides, and stamps the position it folded to; issue(), under the writer lock, refuses a delegation whose source is revoked, so a revocation landing between the two is refused there with nothing written.",
+   "regression_tests": [
+    "tests/test_agent_delegation.py::test_a_ledger_behind_the_log_delegates_from_a_grant_issued_since",
+    "tests/test_agent_delegation.py::test_a_ledger_behind_the_log_does_not_delegate_from_a_grant_revoked_since",
+    "tests/test_agent_delegation.py::test_a_revocation_landing_before_the_lock_is_seen_under_it",
+    "tests/test_agent_delegation.py::test_a_delegation_does_not_read_the_whole_log",
+    "tests/test_agent_writers.py::test_grants_written_by_several_writers_agree_everywhere"
+   ],
+   "residual_risk": "Neither reader refuses, on replay, a delegation from a grant revoked before it; such a child authorizes nothing, through the chain check, so a history holding one, written before this fix, stays readable.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_delegation.json: G29, G30, G31"
+   ]
+  },
+  {
+   "id": "AUD-096",
+   "title": "A scheduler re-authorized each record under the policy its policy store had last read: one behind a published version refused valid histories, accepted records the version in force refuses, and wrote enqueues that left the log unreadable",
+   "severity": "P1",
+   "subsystem": "scheduler and policy store (re-authorization)",
+   "files": [
+    {
+     "path": "agent_substrate/policy.py",
+     "lines": "PolicyStore.in_force_at"
+    },
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "Scheduler._gate"
+    }
+   ],
+   "behavior": "The scheduler re-authorizes an enqueue and a priority raise by asking its policy store which version was in force at the record's position, and PolicyStore.in_force_at answered from the store's projection as it was when the store last folded, which a scheduler's own catch-up does not move. A scheduler whose store had loaded before the scheduling policy was published refused every history holding a job enqueued under it, on catch-up and on load() alike, with UnknownPolicy out of the fold. One whose store held an earlier version folded an enqueue, appended around the write path, that the version in force at its position refuses, and a fresh load refuses. And the same scheduler's enqueue(), whose gate asked the same store, wrote an enqueue the version in force refuses: every load of the log refused the whole history from then on.",
+   "invariant": "A projection is disposable: what a live projection holds, and decides against, is what a fresh replay of the same log yields (AUD-006); a question about a position is answered from the log read through it.",
+   "mechanism": "A positional question answered from a projection behind the position. The capability ledger reads a position it has not read before it answers (D-2026-156), and the inference gateway asks the policy store at the head; the scheduler did neither. GovernedTasks shares one policy store between its own decisions and its scheduler, and folds it when it records a decision, just before it enqueues: a version another process publishes between the two is not read by the scheduler's catch-up, and a governed run left a log no runner could open.",
+   "reproduction": "scratchpad repro_u.py, on the scheduler, and repro_governed_u.py, in a governed run with the version published by another policy store as the runner's scheduler enqueues, each at fe3f9c3 and at this pass's tree; and the search of the scheduler in tests/test_agent_writers.py, which fails at fe3f9c3",
+   "observed": "A store loaded before the policy: catch_up and load() each raise UnknownPolicy (no policy 'scheduler.default' has been published) where a fresh load holds j1. A store holding version 1: the live scheduler folds j9, which a fresh load refuses (seq 2: scheduler.default@2 refuses to enqueue 'j9' for 'owner': closed for maintenance). The write path: the live scheduler enqueued j4, one record written, and a fresh load then refused the history (seq 2: scheduler.default@2 refuses to enqueue 'j4' for 'owner': closed for maintenance). The governed run: the task reached VERIFIED with its enqueue written, and a fresh scheduler and a fresh runner each refused the log (seq 8: stage10.governed@2 refuses to enqueue 'job-...' for 'stage10-submitter': closed for maintenance).",
+   "expected": "The live scheduler holds and decides what a fresh load holds and decides: j1 folded, j9 refused, j4 refused with nothing written but the policy's record of the denial.",
+   "correction": "PolicyStore.in_force_at reads a position it has not read before it answers, and a store whose fold refused a later record answers for no position; the scheduler's gate asks the store at the head, so a denial is refused and recorded as a scheduler just loaded refuses and records it. In the governed run the enqueue is refused (PolicyDenied), nothing is enqueued, and the log opens.",
+   "regression_tests": [
+    "tests/test_agent_scheduler.py::test_a_scheduler_whose_store_had_not_read_the_policy_folds_work_under_it",
+    "tests/test_agent_scheduler.py::test_a_scheduler_whose_store_holds_an_earlier_version_refuses_what_the_version_in_force_refuses",
+    "tests/test_agent_scheduler.py::test_a_scheduler_behind_its_policy_does_not_write_what_the_policy_in_force_refuses",
+    "tests/test_agent_scheduler.py::test_a_current_scheduler_enqueues_under_the_version_in_force (control)",
+    "tests/test_agent_governed_tasks.py::test_a_version_published_before_the_enqueue_is_the_one_it_answers_to",
+    "tests/test_agent_policy.py::test_a_store_asked_about_a_position_it_has_not_read_reads_it_first",
+    "tests/test_agent_policy.py::test_a_store_that_refused_a_later_record_answers_for_no_position",
+    "tests/test_agent_writers.py::test_the_queue_written_by_several_writers_agrees_everywhere"
+   ],
+   "residual_risk": "A history written before this fix may hold an enqueue the version in force refuses, and every load refuses it, as it did. The dispatch's own gate, readiness, asked the store as it last read, and no reader asked the dispatch policy again: AUD-100, fixed in the same pass.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_policy.json: P32, P33",
+    "tools/mutations/agent_scheduler.json: S65"
+   ]
+  },
+  {
+   "id": "AUD-097",
+   "title": "A scheduler behind the log decided enqueue, priority, cancel and invalidate on its own view: it enqueued a second job for a request another writer had enqueued under the same key, and refused work another writer had just made",
+   "severity": "P2",
+   "subsystem": "scheduler (write path)",
+   "files": [
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "Scheduler.enqueue, set_priority, cancel, invalidate"
+    }
+   ],
+   "behavior": "enqueue() answered the idempotency key, the job id and the dependencies from the projection as it was when the scheduler last folded, and the dry run under the lock asks the replay's rules, which accept a second job under one key when the work is the same. A scheduler that had not caught up enqueued j2 for a request another writer had enqueued as j1 under the same key, and both would run, where a scheduler just loaded answers the retry with j1. It refused work depending on a job another writer had enqueued since (dependency 'j1' does not exist); and set_priority, cancel and invalidate refused a job another writer had enqueued or moved since, as unknown or as in the wrong state.",
+   "invariant": "A writer decides as a scheduler just loaded decides.",
+   "mechanism": "Checks on the projection before the lock, with no catch-up: dispatch and report catch up first, and these four did not. GovernedTasks enqueues without a key and catches up before it does, so the key's failure is the scheduler's own API's.",
+   "reproduction": "scratchpad repro_u.py; and the search of the scheduler in tests/test_agent_writers.py, which fails at fe3f9c3",
+   "observed": "A scheduler just loaded: j1, and the log holds j1. The scheduler behind: j2, and the log holds j1 and j2. Work on a job another writer enqueued since: the scheduler behind refused, dependency 'j1' does not exist.",
+   "expected": "The retry answered with j1 and nothing written; work on a job enqueued since enqueued; a job enqueued or moved since reprioritised, cancelled or invalidated.",
+   "correction": "enqueue, set_priority, cancel and invalidate catch up before they decide, and enqueue asks under the writer lock whether the key was bound in between, answering such a retry with the job that holds it.",
+   "regression_tests": [
+    "tests/test_agent_scheduler.py::test_a_scheduler_behind_the_log_answers_a_retry_another_writer_enqueued",
+    "tests/test_agent_scheduler.py::test_a_key_bound_between_the_check_and_the_lock_is_answered_as_a_retry",
+    "tests/test_agent_scheduler.py::test_a_scheduler_behind_the_log_enqueues_work_on_a_job_enqueued_since",
+    "tests/test_agent_scheduler.py::test_a_scheduler_behind_the_log_moves_a_job_another_writer_made",
+    "tests/test_agent_writers.py::test_the_queue_written_by_several_writers_agrees_everywhere"
+   ],
+   "residual_risk": "Replay accepts two jobs under one key for the same work, so a history written before this fix holds them as written. catch_up() without force trusts the witness, which can lag the log after a crash between an append and its update: there a check before the lock can still answer from before, and only the key is asked again under it.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_scheduler.json: S66 to S70"
+   ]
+  },
+  {
+   "id": "AUD-098",
+   "title": "The authority store answered an idempotency key before the writer lock: a retry racing the request it repeats was refused, as a record that existed or a move from a state the record had left",
+   "severity": "P3",
+   "subsystem": "authority store (idempotent writes)",
+   "files": [
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "AuthorityStore.create, AuthorityStore.transition"
+    }
+   ],
+   "behavior": "create() and transition() catch up, look the idempotency key up in the projection, and answer a retry with the record; then build() decides under the writer lock, and asked about the key nothing more. A request under the same key completing between the look-up and the lock left its retry refused: create() with 'record already exists', transition() with the edge from the state the record had left. The failure the key is there to prevent, as the store's own comment on the order of its checks says, was refused rather than written.",
+   "invariant": "A retry is answered with the record its request made, whenever that request completed.",
+   "mechanism": "AUD-097's, in the authority store: the key decided outside the lock, with nothing asking it again under the lock.",
+   "reproduction": "scratchpad repro_u.py, and the regression tests at fe3f9c3: the retry's write, with the first request completing just before its lock is taken",
+   "observed": "The racing retry: refused, record 'r1' already exists; a store just loaded answers the same retry with r1. A transition retry: refused, I2: REVOKED is terminal.",
+   "expected": "Each retry answered with r1, and nothing more written.",
+   "correction": "build() asks, under the lock, whether a request under the key completed, and the write answers such a retry as a retry is answered, with the record.",
+   "regression_tests": [
+    "tests/test_agent_substrate.py::test_a_create_retry_racing_its_request_is_answered_with_the_record",
+    "tests/test_agent_substrate.py::test_a_transition_retry_racing_its_request_is_answered_with_the_record"
+   ],
+   "residual_risk": "catch_up() without force trusts the witness, which can lag the log after a crash between an append and its update; the key is asked again under the lock, the other checks before it are as they were.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_substrate.json: M75, M76"
+   ]
+  },
+  {
+   "id": "AUD-099",
+   "title": "The scheduler's replay re-ran its policy gate without the policy's expiry: an enqueue appended around the write path under an expired scheduling policy became queue state",
+   "severity": "P3",
+   "subsystem": "scheduler (replay)",
+   "files": [
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "Scheduler.apply, _reauthorize_enqueue, _reauthorize_priority, _dry_run, and the decided writes"
+    }
+   ],
+   "behavior": "The write path's gate judges a policy's expiry, at the latest time the history has reached or the clock; the replay's re-authorization asked the policy store about the record's position and passed no time, so in_force_at judged no expiry there. An enqueue appended around the write path under an expired scheduling policy was folded by a fresh load, where the write path refuses the same enqueue. The second reader folds it too, as it folds an enqueue the policy denies outright: it restates no scheduling gate, the log not naming the policy the scheduler asks (AUD-070's residual).",
+   "invariant": "Replay restates every rule the write path holds a record to.",
+   "mechanism": "Judging the expiry on replay needs the time the record was decided at: the write path decides before the append, and the record carried the append's time, so a replay judging at the record's time would refuse a record decided before an expiry and written after it, on every load. A policy decision carries the time it was judged at for this reason (D-2026-168); an enqueue did not.",
+   "reproduction": "scratchpad repro_u.py, at fe3f9c3, at the tree with AUD-095 to AUD-098 corrected, and at this pass's tree",
+   "observed": "The write path: PolicyNotInForce, scheduler.default@1 expired at 1.0. A fresh load holds j9; the second reader holds j9, with no anomaly, as it holds an enqueue a denying policy refuses.",
+   "expected": "A fresh load refuses the appended enqueue, as the write path refuses it.",
+   "correction": "The scheduler's fold keeps the latest wall time the history has reached, and re-authorizes an enqueue and a priority raise at events.judged_at of it and the record's own time, as the policy store judges a decision (D-2026-168). Every decided write -- the reducer-authorized ones, enqueue's and transition()'s -- takes one clock reading, dry-runs at it and writes it as the record's wall time, so the gate, the dry run and every replay judge the record at the same time; and the dry run's probe holds the history's latest time, so a record stamped later landing before the lock is judged as replay will judge it.",
+   "regression_tests": [
+    "tests/test_agent_scheduler.py::test_replay_refuses_an_enqueue_appended_under_an_expired_policy",
+    "tests/test_agent_scheduler.py::test_replay_refuses_a_priority_raise_appended_under_an_expired_policy",
+    "tests/test_agent_scheduler.py::test_a_clock_set_back_does_not_revive_an_expired_scheduling_policy",
+    "tests/test_agent_scheduler.py::test_a_later_record_landing_before_the_lock_moves_the_time_a_write_is_judged_at",
+    "tests/test_agent_scheduler.py::test_the_record_carries_the_reading_its_gate_was_judged_at",
+    "tests/test_agent_scheduler.py::test_a_record_decided_before_an_expiry_is_read_after_it (control)"
+   ],
+   "residual_risk": "The second reader still restates no scheduling gate, the log not naming the policy the scheduler asks (AUD-070). A record written before this correction carries its append time, a moment after its gate; an expiry falling in between makes replay refuse it. No committed history holds a policy with an expiry.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_scheduler.json: S71, S72, S73, S74, S78"
+   ]
+  },
+  {
+   "id": "AUD-100",
+   "title": "The scheduler's readiness asked its policy store as it last read, and no reader asked the dispatch policy again: a scheduler behind a version suspending dispatch handed the work out, and one behind a version lifting it blocked the job for good",
+   "severity": "P2",
+   "subsystem": "scheduler (dispatch gate)",
+   "files": [
+    {
+     "path": "agent_substrate/scheduler.py",
+     "lines": "Scheduler.readiness, dispatch, reconcile, apply, transition"
+    }
+   ],
+   "behavior": "readiness() asks whether the policy in force permits a dispatch, and it asks the policy store with no position, so PolicyStore.in_force answered from what the store had read when it last folded, which the scheduler's catch-up does not move. dispatch() and reconcile() decided on it outside the writer lock, and nothing under the lock or on replay asked the dispatch policy again. A scheduler whose store had not read a version suspending dispatch dispatched the job, where a scheduler just loaded refuses, and every load of the log holds it dispatched. One whose store held the suspension, and had not read the version lifting it, moved a READY job to BLOCKED, where a scheduler just loaded moves nothing; BLOCKED is terminal, and no later reconcile moves it back.",
+   "invariant": "A writer decides as a scheduler just loaded decides, and replay restates every rule the write path holds a record to.",
+   "mechanism": "AUD-096's, at the dispatch's own gate. The enqueue's and the priority raise's gate asks the store at the head, and replay asks it about each record's position; readiness did neither, and replay had no rule for the dispatch policy, so a dispatch written past the policy was history. Found by reading, after the searches: the scheduler's search published versions that open and close enqueueing, and none that suspended dispatch. With such versions added, the search fails on the tree with AUD-095 to AUD-098 corrected, ('dispatch', 1, 'j0', 'wa', 6).",
+   "reproduction": "scratchpad repro_u.py, at fe3f9c3, at the tree with AUD-095 to AUD-098 corrected, and at this pass's tree; and the search of the scheduler in tests/test_agent_writers.py, which fails on the second",
+   "observed": "A version suspending dispatch, unread: the scheduler behind its store dispatched j1, a scheduler just loaded on a copy refused (refusing to dispatch 'j1': policy scheduler.default@2: dispatch suspended), and a fresh load holds j1 DISPATCHED. A version lifting it, unread: the scheduler behind its store reconciled j1 to BLOCKED, a scheduler just loaded on a copy moved nothing, and a reconcile by a current scheduler then leaves j1 BLOCKED.",
+   "expected": "Both decide under the version in force: j1 not dispatched in the first, and left READY in the second; and a fresh load refuses a dispatch the version in force at its position refuses.",
+   "correction": "dispatch() and reconcile() ask the policy store at the head before readiness decides. Replay re-authorizes a move to DISPATCHED under the dispatch policy in force at its position and time, with the request readiness makes; transition()'s dry run under the writer lock runs replay's rules, so a version published between readiness and the write refuses the dispatch there, with nothing written. And reconcile's block is asked again under the lock (transition()'s new holds check), so a version lifting a suspension published mid-scan does not block the job.",
+   "regression_tests": [
+    "tests/test_agent_scheduler.py::test_a_scheduler_behind_its_store_does_not_dispatch_what_the_version_in_force_suspends",
+    "tests/test_agent_scheduler.py::test_a_scheduler_behind_its_store_does_not_block_what_the_version_in_force_lets_run",
+    "tests/test_agent_scheduler.py::test_a_scheduler_behind_its_store_blocks_what_the_version_in_force_suspends",
+    "tests/test_agent_scheduler.py::test_a_dispatch_written_past_a_suspension_is_refused_on_replay",
+    "tests/test_agent_scheduler.py::test_a_version_published_between_readiness_and_the_write_refuses_it",
+    "tests/test_agent_scheduler.py::test_a_version_lifting_a_suspension_mid_scan_does_not_block_the_job",
+    "tests/test_agent_writers.py::test_the_queue_written_by_several_writers_agrees_everywhere"
+   ],
+   "residual_risk": "The second reader restates no dispatch rule (AUD-070). Readiness's other questions -- evidence resolved, capabilities live -- are the caller's to answer, and a block they cause is asked again under the lock with the same answers.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_scheduler.json: S75, S76, S77, S79"
+   ]
   }
  ]
 }

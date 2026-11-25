@@ -78,6 +78,11 @@ class UnknownRecord(StoreError):
     """No such record in the projection."""
 
 
+class _KeyApplied(Exception):
+    """Under the writer lock: a request under this idempotency key completed
+    since the write checked it (AUD-098). Answered as a retry is."""
+
+
 @dataclass(frozen=True)
 class Record:
     """One authority-bearing claim."""
@@ -1334,6 +1339,11 @@ class AuthorityStore:
         self._require_evidence_exists(evidence)
 
         def build():
+            # A request under this key that completed between the check
+            # above and this lock is the retry the key is for (AUD-098):
+            # answered with its record, not refused as one that exists.
+            if idempotency_key and idempotency_key in self._applied_keys:
+                raise _KeyApplied()
             # Re-checked on every attempt, against the log as it stands.
             # "This id is free" and "these dependencies exist" are both
             # facts about a moment, and another process creating the same id
@@ -1362,7 +1372,13 @@ class AuthorityStore:
                          "policy_id": policy_id,
                          "idempotency_key": idempotency_key})
 
-        self._append_decided(build)
+        try:
+            self._append_decided(build)
+        except _KeyApplied:
+            return self.create(
+                record_id=record_id, kind=kind, proposer=proposer,
+                evidence=evidence, depends_on=depends_on,
+                policy_id=policy_id, idempotency_key=idempotency_key)
         return self.get(record_id)
 
     def transition(self, *, record_id: str, dst: State, actor: str,
@@ -1385,6 +1401,11 @@ class AuthorityStore:
         evidence = dict(evidence or {})
 
         def build():
+            # The retry the key is for, completed since the check above
+            # (AUD-098): answered with the record, not refused as a move
+            # from a state the record has left.
+            if idempotency_key and idempotency_key in self._applied_keys:
+                raise _KeyApplied()
             # EVERY decision here is re-made against the log at the instant
             # of the write: the source state, the revision, the edge and the
             # evidence. A transition recorded from a src the replay has
@@ -1448,7 +1469,14 @@ class AuthorityStore:
             return dict(actor=actor, action=ACT_TRANSITION,
                         target=record_id, payload=payload, wall_time=now)
 
-        self._append_decided(build)
+        try:
+            self._append_decided(build)
+        except _KeyApplied:
+            return self.transition(
+                record_id=record_id, dst=dst, actor=actor, role=role,
+                evidence=evidence, policy_id=policy_id,
+                expected_revision=expected_revision,
+                stale_reason=stale_reason, idempotency_key=idempotency_key)
         return self.get(record_id)
 
     # ---- the policy binding (D-2026-148) --------------------------------

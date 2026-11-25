@@ -49,6 +49,7 @@ retrying a failed verification is how a flaky pass is eventually obtained.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any, FrozenSet
@@ -56,7 +57,8 @@ from typing import Any, FrozenSet
 from . import actions
 from .canonical import digest, is_digest
 from .events import (
-    EventLogError, projection_fold, projection_load, require_extends,
+    EventLogError, judged_at, projection_fold, projection_load,
+    require_extends,
 )
 from .policy import (Decision, Effect, PolicyDocument, PolicyRequest,
                      document, rule)
@@ -434,6 +436,15 @@ class _ProbeEvent:
     action: str
     target: str
     payload: dict
+    #: The clock reading the record will carry, and its gate is judged at
+    #: (AUD-099): a dry run judges a policy's expiry as the replay of the
+    #: written record will.
+    wall_time: float
+
+
+class _KeyBound(Exception):
+    """Under the writer lock: the key an enqueue carries was bound since the
+    enqueue checked it (AUD-097)."""
 
 
 class Scheduler:
@@ -465,6 +476,11 @@ class Scheduler:
         #: than O(history). None means "no cheap position": the next
         #: catch-up does a full verified read and establishes one.
         self._anchor = None
+        #: The latest wall time the history folded so far has reached. A
+        #: policy's expiry is judged at a record's own time or this, whichever
+        #: is later (events.judged_at, D-2026-168), so a clock set back
+        #: revives nothing (AUD-099).
+        self._latest_wall: float | None = None
 
     # ---- projection ----------------------------------------------------
     @projection_load
@@ -478,6 +494,7 @@ class Scheduler:
         self._seen_through = -1
         self._seen_hash = None
         self._anchor = None
+        self._latest_wall = None
         for ev in events:
             self.apply(ev)
         self._reanchor(report)
@@ -563,6 +580,9 @@ class Scheduler:
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a scheduler event."""
         p = ev.payload
+        # The time a policy's expiry is judged at for this record: its own
+        # reading, or the latest the history had reached before it.
+        at = judged_at(self._latest_wall, ev.wall_time)
         if ev.action == ACT_ENQUEUE:
             try:
                 job = job_from_record(p.get("job"))
@@ -574,7 +594,7 @@ class Scheduler:
                     f"seq {ev.seq}: job {job.job_id!r} enqueued twice; a "
                     "second enqueue would silently replace the first one's "
                     "attempts and lease")
-            self._reauthorize_enqueue(job, ev)
+            self._reauthorize_enqueue(job, ev, at)
             job = replace(job, enqueued_seq=ev.seq, updated_seq=ev.seq,
                           revision=1)
             self._jobs[job.job_id] = job
@@ -594,6 +614,8 @@ class Scheduler:
             # appearing in the file.
             edge = check_edge(src, dst, cur.job_id)
             reauthorize_job_edge(cur, dst, p, actor=ev.actor, seq=ev.seq)
+            if dst is JobState.DISPATCHED:
+                self._reauthorize_dispatch(cur, ev, at)
             self._jobs[cur.job_id] = _apply_edge(cur, edge, p, seq=ev.seq)
         elif ev.action == ACT_LEASE_RENEW:
             self._apply_renewal(ev, p)
@@ -605,7 +627,7 @@ class Scheduler:
             # of the fold (AUD-070).
             new = p.get("priority")
             _require_priority(new)
-            self._reauthorize_priority(cur, new, ev)
+            self._reauthorize_priority(cur, new, ev, at)
             self._jobs[cur.job_id] = replace(
                 cur, priority=new, revision=cur.revision + 1,
                 updated_seq=ev.seq,
@@ -630,6 +652,7 @@ class Scheduler:
         if ev.seq > self._seen_through:
             self._seen_through = ev.seq
             self._seen_hash = getattr(ev, "hash", None)
+            self._latest_wall = judged_at(self._latest_wall, ev.wall_time)
 
     def _named_job(self, ev, p: dict) -> Job:
         """The job a record names, or the refusal that it names none.
@@ -731,7 +754,7 @@ class Scheduler:
             revision=cur.revision + 1, updated_seq=ev.seq,
             reason=f"lease extended to seq {new_end}")
 
-    def _reauthorize_enqueue(self, job: Job, ev) -> None:
+    def _reauthorize_enqueue(self, job: Job, ev, at: float) -> None:
         """An enqueue record introduces WORK. It does not assert a lifecycle.
 
         job_from_record validates the shape of a job and nothing else, so a
@@ -865,13 +888,14 @@ class Scheduler:
             PolicyRequest(action="scheduler.enqueue", subject=ev.actor,
                           role="SUBMITTER", resource=job.job_id,
                           task_id=job.task_id or ""),
-            at_seq=ev.seq)
+            at_seq=ev.seq, at_time=at)
         if not decision.allowed:
             raise SchedulerError(
                 f"seq {ev.seq}: {decision.identity} refuses to enqueue "
                 f"{job.job_id!r} for {ev.actor!r}: {decision.reason}")
 
-    def _reauthorize_priority(self, job: Job, new: int, ev) -> None:
+    def _reauthorize_priority(self, job: Job, new: int, ev,
+                              at: float) -> None:
         """Re-run the policy gate a RAISE went through. Or raise.
 
         set_priority refuses a raise the policy denies -- "raising it is a
@@ -904,7 +928,7 @@ class Scheduler:
                           role=str(ev.payload.get("role", "")),
                           resource=job.job_id,
                           task_id=job.task_id or ""),
-            at_seq=ev.seq)
+            at_seq=ev.seq, at_time=at)
         if not decision.allowed:
             raise SchedulerError(
                 f"seq {ev.seq}: {job.job_id!r} was raised from "
@@ -929,10 +953,35 @@ class Scheduler:
         probe._loaded_through = self._loaded_through
         probe._seen_through = self._seen_through
         probe._seen_hash = self._seen_hash
+        probe._latest_wall = self._latest_wall
         return probe
 
+    def _reauthorize_dispatch(self, job: Job, ev, at: float) -> None:
+        """A dispatch hands work out; the policy in force at its position
+        must permit it, as readiness asks before it is written (AUD-100).
+
+        readiness() asks whether the policy in force permits this dispatch,
+        and nothing asked it again under the lock or on replay: a scheduler
+        whose policy store had not read a version suspending dispatch
+        handed the job out, and every load of the log held it dispatched.
+        The request is readiness's own, so a dispatch the write path makes
+        is one replay accepts; and the dry run under the writer lock runs
+        this too, so a version published between readiness and the write
+        refuses it there, with nothing written.
+        """
+        decision = self.policy.evaluate(
+            self.policy_id,
+            PolicyRequest(action="scheduler.dispatch", subject=job.submitter,
+                          role="SCHEDULER", resource=job.job_id,
+                          task_id=job.task_id or ""),
+            at_seq=ev.seq, at_time=at)
+        if not decision.allowed:
+            raise SchedulerError(
+                f"seq {ev.seq}: {decision.identity} refuses to dispatch "
+                f"{job.job_id!r}: {decision.reason}")
+
     def _dry_run(self, *, actor: str, action: str, target: str,
-                 payload: dict) -> None:
+                 payload: dict, wall_time: float) -> None:
         """Would the reducer accept this record, from where we stand now?
 
         THE ORDERING THIS FIXES. The reducer-authorized writes -- lease
@@ -951,7 +1000,8 @@ class Scheduler:
         """
         self._probe_copy().apply(
             _ProbeEvent(seq=self._seen_through + 1, actor=actor,
-                        action=action, target=target, payload=payload))
+                        action=action, target=target, payload=payload,
+                        wall_time=wall_time))
 
     def _append_decided(self, decide):
         """Re-read, decide and write, all under the log's writer lock.
@@ -986,8 +1036,13 @@ class Scheduler:
         goes through decide_and_record, which is the one place a decision
         becomes an event, and duplicating that here would be a second
         recording discipline to keep in step with the first.
+
+        Asked of the store at the head (AUD-096): a store that had not read
+        a version published since answered with the one before it, so a
+        scheduler behind its policy let through, unrecorded, what the policy
+        in force refuses, and only the dry run under the lock stopped it.
         """
-        decision = self.policy.evaluate(self.policy_id, req)
+        decision = self.policy.at_head().evaluate(self.policy_id, req)
         if not decision.allowed:
             decision = self.policy.decide_and_record(
                 self.policy_id, req, actor=actor, target=req.resource)
@@ -1003,10 +1058,14 @@ class Scheduler:
         happens inside the lock, against the log as it stands.
         """
         def decide():
+            # Judged at the reading the record will carry, so its replay
+            # judges it at the same one (AUD-099, as D-2026-168 for a policy
+            # decision).
+            now = time.time()
             self._dry_run(actor=actor, action=action, target=target,
-                          payload=payload)
+                          payload=payload, wall_time=now)
             return dict(actor=actor, action=action, target=target,
-                        payload=payload)
+                        payload=payload, wall_time=now)
 
         return self._append_decided(decide)
 
@@ -1207,7 +1266,16 @@ class Scheduler:
                 max_attempts: int = DEFAULT_MAX_ATTEMPTS,
                 idempotency_key: str | None = None,
                 task_id: str | None = None) -> Job:
-        """Add a job. Idempotent under a key; refuses impossible work."""
+        """Add a job. Idempotent under a key; refuses impossible work.
+
+        Against the log as it is (AUD-097). A scheduler behind it answered
+        the key, the job id and the dependencies from its projection as it
+        last folded: it enqueued a second job for a request another writer
+        had enqueued under the same key, which replay accepts when the work
+        is the same, and refused work depending on a job enqueued since. It
+        catches up first, and asks the key again under the writer lock.
+        """
+        self.catch_up()
         if idempotency_key is not None and not isinstance(idempotency_key,
                                                           str):
             raise SchedulerError("idempotency_key must be a str")
@@ -1292,14 +1360,38 @@ class Scheduler:
                   requires_capability=requires_capability,
                   resources=resources, max_attempts=max_attempts,
                   idempotency_key=idempotency_key, task_id=task_id)
-        self._append_reducer_authorized(
-            actor=submitter, action=ACT_ENQUEUE, target=job_id,
-            payload={"job": job.to_record()})
+        payload = {"job": job.to_record()}
+
+        def decide():
+            # A writer that landed between the check above and this lock may
+            # have enqueued this request under its key (AUD-097).
+            if idempotency_key and idempotency_key in self._keys:
+                raise _KeyBound()
+            now = time.time()
+            self._dry_run(actor=submitter, action=ACT_ENQUEUE,
+                          target=job_id, payload=payload, wall_time=now)
+            return dict(actor=submitter, action=ACT_ENQUEUE, target=job_id,
+                        payload=payload, wall_time=now)
+
+        try:
+            self._append_decided(decide)
+        except _KeyBound:
+            # Somebody else enqueued it first: answered as a retry is.
+            return self.enqueue(
+                job_id=job_id, work_digest=work_digest, submitter=submitter,
+                priority=priority, depends_on=depends_on,
+                requires_evidence=requires_evidence,
+                requires_capability=requires_capability, resources=resources,
+                max_attempts=max_attempts, idempotency_key=idempotency_key,
+                task_id=task_id)
         return self.get(job_id)
 
     def set_priority(self, *, job_id: str, priority: int, actor: str,
                      role: str, reason: str) -> Job:
-        """Change urgency. Raising it is a policy decision, not a setter."""
+        """Change urgency. Raising it is a policy decision, not a setter.
+
+        Against the log as it is, as enqueue() is (AUD-097)."""
+        self.catch_up()
         job = self.get(job_id)
         _require_priority(priority)
         if not reason:
@@ -1321,7 +1413,7 @@ class Scheduler:
 
     def transition(self, *, job_id: str, dst: JobState, actor: str,
                    reason: str = "", expected_revision: int | None = None,
-                   **fields) -> Job:
+                   holds=None, **fields) -> Job:
         """Authorize and commit one queue transition.
 
         Every decision here is made against the log as it stands at the
@@ -1337,6 +1429,10 @@ class Scheduler:
                 raise SchedulerError(
                     f"{job_id}: expected revision {expected_revision}, found "
                     f"{job.revision}; the job changed since it was read")
+            if holds is not None:
+                # The caller's reason for the move, asked again of the job
+                # as the log now holds it (AUD-100: reconcile's block).
+                holds(job)
             edge = check_edge(job.state, dst, job_id)
             payload = {"job_id": job_id, "src": job.state.value,
                        "dst": dst.value, "reason": reason or edge.reason}
@@ -1351,10 +1447,11 @@ class Scheduler:
             # leaves a log nobody can replay -- which is what reconcile did
             # the moment another process re-leased a job between the scan
             # and the write.
+            now = time.time()
             self._dry_run(actor=actor, action=ACT_JOB_TRANSITION,
-                          target=job_id, payload=payload)
+                          target=job_id, payload=payload, wall_time=now)
             return dict(actor=actor, action=ACT_JOB_TRANSITION,
-                        target=job_id, payload=payload)
+                        target=job_id, payload=payload, wall_time=now)
 
         self._append_decided(decide)
         return self.get(job_id)
@@ -1380,6 +1477,10 @@ class Scheduler:
         of by the sentence that says what actually happened.
         """
         self.catch_up()
+        # readiness asks whether the policy in force permits this dispatch;
+        # a store behind a version published since answered with the one
+        # before it (AUD-100).
+        self.policy.at_head()
         job = self.get(job_id)
         at = self.at_seq()
         if job.state is not JobState.READY:
@@ -1550,8 +1651,10 @@ class Scheduler:
         Cascading is the default because the alternative is a dependent that
         waits on work nobody will ever do. Cancelled dependents are recorded
         as CANCELLED rather than BLOCKED: the cause was a decision, not a
-        failure, and an operator responds to the two differently.
+        failure, and an operator responds to the two differently. Against
+        the log as it is, as enqueue() is (AUD-097).
         """
+        self.catch_up()
         job = self.get(job_id)
         if job.state in TERMINAL:
             raise JobTransitionError(
@@ -1585,7 +1688,23 @@ class Scheduler:
         preconditions now hold. Every move it makes is an event, so an
         operator can see what the scheduler decided while nobody was looking.
         """
+        # readiness decides each block on the policy in force; a store behind
+        # a version lifting a suspension blocked, for good, work that version
+        # lets run (AUD-100).
+        self.policy.at_head()
         moves: list = []
+
+        def still_fatal(job):
+            """Under the writer lock: is the block still what readiness
+            answers? BLOCKED is terminal, so a block decided on a scan the
+            world has moved past -- a version lifting a suspension published
+            since -- is not written (AUD-100)."""
+            self.policy.at_head()
+            now = self.readiness(job, at_seq=self.at_seq(), resolve=resolve,
+                                 capabilities=capabilities)
+            if not now.fatal:
+                raise JobTransitionError(
+                    f"{job.job_id!r} is no longer blocked: {now.reason}")
 
         def move(**kw):
             """One convergence step, tolerant of the world moving under it.
@@ -1700,7 +1819,8 @@ class Scheduler:
                                capabilities=capabilities)
             if r.fatal and job.state is not JobState.BLOCKED:
                 moved = move(job_id=job_id, dst=JobState.BLOCKED, actor=actor,
-                             reason=r.reason, blocked_by=list(r.blocked_by))
+                             reason=r.reason, blocked_by=list(r.blocked_by),
+                             holds=still_fatal)
             elif r.ready and job.state is not JobState.READY:
                 moved = move(job_id=job_id, dst=JobState.READY, actor=actor,
                              reason=r.reason)
@@ -1720,8 +1840,10 @@ class Scheduler:
         Downstream jobs that already succeeded are INVALIDATED; ones still
         pending become BLOCKED, because their premise is gone. Neither is
         rewritten: the history keeps saying they succeeded, and a new lineage
-        is what re-doing the work produces.
+        is what re-doing the work produces. Against the log as it is, as
+        enqueue() is (AUD-097).
         """
+        self.catch_up()
         job = self.get(job_id)
         if job.state is not JobState.SUCCEEDED:
             raise JobTransitionError(

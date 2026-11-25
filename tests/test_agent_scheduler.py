@@ -26,7 +26,7 @@ from agent_substrate.policy import (  # noqa: E402
     Effect, PolicyDenied, PolicyStore, document, rule,
 )
 from agent_substrate.scheduler import (  # noqa: E402
-    AGING_INTERVAL, BACKOFF_BASE_SEQS, CapacityError, DuplicateJob,
+    ACT_ENQUEUE, AGING_INTERVAL, BACKOFF_BASE_SEQS, CapacityError, DuplicateJob,
     FailureClass, Job, JobState, JobTransitionError, MAX_PRIORITY, RETRYABLE,
     MAX_LEASE_RENEWALS, Scheduler, SchedulerError, TERMINAL, UnknownJob,
     backoff_for, default_policy, job_from_record,
@@ -2036,3 +2036,462 @@ def test_a_late_report_after_a_lapse_cannot_spend_or_refund_the_budget(
         with pytest.raises(JobTransitionError):
             s.report(job_id="j1", worker="w1", failure=failure)
         assert _attempts_charged(s) == before
+
+
+# ---- a scheduler, and its policy store, behind the log (AUD-096, AUD-097) --
+#
+# Each scheduler here has a policy store of its own, as a second process
+# has. The store answered "which version was in force at seq N" from what it
+# had read when it last folded (AUD-096); and enqueue, set_priority, cancel
+# and invalidate checked the job against the scheduler's projection as it
+# was when it last folded (AUD-097).
+
+def _on(path):
+    log = EventLog(path)
+    return Scheduler(log, policy=PolicyStore(log).load(),
+                     policy_id="scheduler.default").load()
+
+
+def _closed(version):
+    """A version of the scheduling policy that refuses every enqueue."""
+    return document(policy_id="scheduler.default", version=version, rules=(
+        rule(rule_id="closed", effect=Effect.DENY,
+             actions=("scheduler.enqueue",), subjects=("*",), roles=("*",),
+             resources=("*",), reason="closed for maintenance"),
+        rule(rule_id="the-rest", effect=Effect.ALLOW,
+             actions=("scheduler.dispatch", "scheduler.cancel",
+                      "scheduler.raise_priority"),
+             subjects=("*",), roles=("*",), resources=("*",))))
+
+
+def _published(path, *docs):
+    store = PolicyStore(EventLog(path)).load()
+    for doc in docs:
+        store.publish(doc, actor="owner")
+
+
+def test_a_scheduler_whose_store_had_not_read_the_policy_folds_work_under_it(
+        tmp_path):
+    path = tmp_path / "log.jsonl"
+    live = _on(path)                         # its store has no policy
+    _published(path, default_policy())
+    _enqueue(_on(path))
+    assert sorted(live.catch_up(force=True).all_jobs()) == ["j1"]
+    assert sorted(live.load().all_jobs()) == ["j1"]
+
+
+def test_a_scheduler_whose_store_holds_an_earlier_version_refuses_what_the_version_in_force_refuses(  # noqa: E501
+        tmp_path):
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    live = _on(path)                         # its store holds version 1
+    _published(path, _closed(2))
+    job = Job(job_id="j9", work_digest=WORK, submitter="owner")
+    EventLog(path).append(actor="owner", action=ACT_ENQUEUE, target="j9",
+                          payload={"job": job.to_record()})
+    with pytest.raises(SchedulerError, match="refuses to enqueue 'j9'"):
+        _on(path)
+    with pytest.raises(SchedulerError, match="refuses to enqueue 'j9'"):
+        live.catch_up(force=True)
+
+
+def test_a_scheduler_behind_its_policy_does_not_write_what_the_policy_in_force_refuses(  # noqa: E501
+        tmp_path):
+    """The gate asked the store as it last read: a scheduler whose store
+    held version 1 wrote an enqueue version 2 refuses, and every load of
+    the log refused the history from then on. It is refused, and the
+    denial recorded, as a scheduler just loaded refuses and records it."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    live = _on(path)                         # its store holds version 1
+    _published(path, _closed(2))             # by another process
+    with pytest.raises(PolicyDenied, match="closed for maintenance"):
+        _enqueue(live, job_id="j4")
+    actions = [ev.action for ev in EventLog(path).read()]
+    assert ACT_ENQUEUE not in actions
+    assert actions[-1] == "policy.decision"
+    assert _on(path).all_jobs() == {}
+
+
+def test_a_current_scheduler_enqueues_under_the_version_in_force(tmp_path):
+    """Control: a scheduler that has read every version decides under the
+    one in force, before the correction as after it."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy(), _closed(2))
+    with pytest.raises(PolicyDenied, match="closed for maintenance"):
+        _enqueue(_on(path))
+    _published(path, document(policy_id="scheduler.default", version=3,
+                              rules=default_policy().rules))
+    _enqueue(_on(path))
+    assert sorted(_on(path).all_jobs()) == ["j1"]
+
+
+def test_a_scheduler_behind_the_log_answers_a_retry_another_writer_enqueued(
+        tmp_path):
+    """AUD-097. The key was answered from the projection as it last
+    folded, and the replay accepts a second job under one key when the work
+    is the same: a scheduler behind the log enqueued j2 for a request
+    another writer had enqueued as j1, and both ran. A scheduler just
+    loaded answers the retry with j1."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    live = _on(path)
+    _enqueue(_on(path), job_id="j1", idempotency_key="k")
+    assert _enqueue(live, job_id="j2", idempotency_key="k").job_id == "j1"
+    assert sorted(_on(path).all_jobs()) == ["j1"]
+
+
+def test_a_key_bound_between_the_check_and_the_lock_is_answered_as_a_retry(
+        tmp_path):
+    """AUD-097. A writer landing between enqueue's check and the writer
+    lock may enqueue the same request under its key: the key is asked again
+    under the lock, and the retry answered with that writer's job."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    live, other = _on(path), _on(path)
+    real = live.log.append_decided
+
+    def after_another_writer(decide, **kw):
+        _enqueue(other, job_id="j1", idempotency_key="k")
+        return real(decide, **kw)
+
+    live.log.append_decided = after_another_writer
+    assert _enqueue(live, job_id="j2", idempotency_key="k").job_id == "j1"
+    del live.log.append_decided
+    assert sorted(_on(path).all_jobs()) == ["j1"]
+
+
+def test_a_scheduler_behind_the_log_enqueues_work_on_a_job_enqueued_since(
+        tmp_path):
+    """AUD-097. The dependencies were checked against the projection as it
+    last folded: work on a job another writer had just enqueued was refused
+    as work on nothing ('dependency 'j1' does not exist')."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    live = _on(path)
+    _enqueue(_on(path), job_id="j1")
+    assert _enqueue(live, job_id="j2", depends_on=("j1",)).depends_on == (
+        "j1",)
+    assert sorted(_on(path).all_jobs()) == ["j1", "j2"]
+
+
+def test_a_scheduler_behind_the_log_moves_a_job_another_writer_made(
+        tmp_path):
+    """AUD-097. set_priority, cancel and invalidate read the job from the
+    projection as it last folded, and refused a job another writer had
+    enqueued, or moved, since: as unknown, or as in the wrong state. Each
+    move here is made on a job made after this scheduler last read."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    live, other = _on(path), _on(path)
+    _enqueue(other, job_id="j1")
+    assert live.set_priority(job_id="j1", priority=0, actor="scheduler",
+                             role="SCHEDULER", reason="urgent").priority == 0
+    _enqueue(other, job_id="j2")
+    _enqueue(other, job_id="j3")
+    live.cancel(job_id="j2", actor="owner", reason="no longer wanted")
+    other.catch_up()
+    other.reconcile()
+    _dispatch(other, "j3", worker="w1")
+    other.report(job_id="j3", worker="w1")   # j3 succeeds, unseen by live
+    live.invalidate(job_id="j3", actor="system", reason="source changed")
+    fresh = _on(path)
+    assert fresh.get("j1").priority == 0
+    assert fresh.get("j2").state is JobState.CANCELLED
+    assert fresh.get("j3").state is JobState.INVALIDATED
+
+
+def _suspended(version):
+    """A version of the scheduling policy that refuses every dispatch."""
+    return document(policy_id="scheduler.default", version=version, rules=(
+        rule(rule_id="suspended", effect=Effect.DENY,
+             actions=("scheduler.dispatch",), subjects=("*",), roles=("*",),
+             resources=("*",), reason="dispatch suspended"),
+        rule(rule_id="the-rest", effect=Effect.ALLOW,
+             actions=("scheduler.enqueue", "scheduler.cancel",
+                      "scheduler.raise_priority"),
+             subjects=("*",), roles=("*",), resources=("*",))))
+
+
+# ---- the scheduler's policy questions: what time, and the dispatch -------
+#
+# Replay judged no policy expiry (AUD-099), and no reader asked the dispatch
+# policy again; readiness asked the store as it last read (AUD-100).
+
+def _expiring(version, not_after):
+    return document(policy_id="scheduler.default", version=version,
+                    not_after=not_after, rules=default_policy().rules)
+
+
+def _at(monkeypatch, t):
+    """The clock, for every module that reads it through time.time."""
+    import time as _time
+    monkeypatch.setattr(_time, "time", lambda: t)
+
+
+def test_replay_refuses_an_enqueue_appended_under_an_expired_policy(
+        tmp_path):
+    """AUD-099. The write path refuses an enqueue under an expired policy;
+    an enqueue appended around it is refused on replay too, judged at the
+    time it carries. The second reader still folds it: it restates no
+    scheduling gate (AUD-070)."""
+    from agent_substrate.policy import PolicyNotInForce
+    from agent_substrate.reconstruct import reconstruct_subsystems
+    path = tmp_path / "log.jsonl"
+    _published(path, _expiring(1, 1.0))
+    with pytest.raises(PolicyNotInForce, match="expired"):
+        _enqueue(_on(path))
+    job = Job(job_id="j9", work_digest=WORK, submitter="owner")
+    EventLog(path).append(actor="owner", action=ACT_ENQUEUE, target="j9",
+                          payload={"job": job.to_record()})
+    with pytest.raises(PolicyNotInForce, match="expired"):
+        _on(path)
+    sub = reconstruct_subsystems(EventLog(path))
+    assert sorted(sub.jobs) == ["j9"]
+
+
+def test_a_record_decided_before_an_expiry_is_read_after_it(tmp_path,
+                                                            monkeypatch):
+    """Control. A history written while the policy was in force is read,
+    at any later clock: each record is judged at the reading it carries,
+    not at the reader's."""
+    path = tmp_path / "log.jsonl"
+    _at(monkeypatch, 1000.0)
+    _published(path, _expiring(1, 2000.0))
+    s = _on(path)
+    _enqueue(s)
+    s.mark_ready("j1")
+    _dispatch(s)
+    monkeypatch.undo()
+    assert _on(path).get("j1").state is JobState.DISPATCHED
+
+
+def test_replay_refuses_a_priority_raise_appended_under_an_expired_policy(
+        tmp_path, monkeypatch):
+    path = tmp_path / "log.jsonl"
+    _at(monkeypatch, 1000.0)
+    _published(path, _expiring(1, 2000.0))
+    _enqueue(_on(path))
+    monkeypatch.undo()
+    EventLog(path).append(
+        actor="scheduler", action="scheduler.priority", target="j1",
+        payload={"job_id": "j1", "priority": 5, "role": "SCHEDULER",
+                 "reason": "urgent"}, wall_time=3000.0)
+    with pytest.raises(Exception, match="expired"):
+        _on(path)
+
+
+def test_a_clock_set_back_does_not_revive_an_expired_scheduling_policy(
+        tmp_path, monkeypatch):
+    """D-2026-168's rule, held by the scheduler's replay: a record carrying
+    a reading before the latest the history has reached is judged at the
+    latest."""
+    from agent_substrate.policy import PolicyNotInForce
+    path = tmp_path / "log.jsonl"
+    _at(monkeypatch, 1000.0)
+    _published(path, _expiring(1, 2000.0))
+    _at(monkeypatch, 3000.0)                 # the history reaches 3000
+    _published(path, document(policy_id="another.policy", version=1,
+                              rules=default_policy().rules))
+    monkeypatch.undo()
+    job = Job(job_id="j9", work_digest=WORK, submitter="owner")
+    EventLog(path).append(actor="owner", action=ACT_ENQUEUE, target="j9",
+                          payload={"job": job.to_record()}, wall_time=1500.0)
+    with pytest.raises(PolicyNotInForce, match="expired"):
+        _on(path)
+
+
+def test_a_scheduler_behind_its_store_does_not_dispatch_what_the_version_in_force_suspends(  # noqa: E501
+        tmp_path):
+    """AUD-100. readiness asked the store as it last read: a scheduler
+    whose store had not read a version suspending dispatch handed the job
+    out, and every load held it dispatched."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    live = _on(path)                         # its store holds version 1
+    _enqueue(live)
+    live.mark_ready("j1")
+    _published(path, _suspended(2))          # by another process
+    with pytest.raises(JobTransitionError, match="dispatch suspended"):
+        _dispatch(live)
+    assert _on(path).get("j1").state is JobState.READY
+
+
+def test_a_scheduler_behind_its_store_does_not_block_what_the_version_in_force_lets_run(  # noqa: E501
+        tmp_path):
+    """AUD-100. One whose store held a suspension, and had not read the
+    version lifting it, blocked the job; BLOCKED is terminal."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    _enqueue(_on(path))
+    _on(path).mark_ready("j1")
+    _published(path, _suspended(2))
+    live = _on(path)                         # its store holds the suspension
+    _published(path, document(policy_id="scheduler.default", version=3,
+                              rules=default_policy().rules))
+    assert live.reconcile() == ()
+    assert _on(path).get("j1").state is JobState.READY
+
+
+def test_a_scheduler_behind_its_store_blocks_what_the_version_in_force_suspends(  # noqa: E501
+        tmp_path):
+    """AUD-100, the other way. reconcile asked readiness of the store as it
+    last read: one whose store had not read a version suspending dispatch
+    left the job READY, where a scheduler just loaded blocks it."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    _enqueue(_on(path))
+    _on(path).mark_ready("j1")
+    live = _on(path)                         # its store holds version 1
+    _published(path, _suspended(2))          # by another process
+    copy = tmp_path / "copy.jsonl"
+    copy.write_bytes(path.read_bytes())
+    fresh = [job.state for job in _on(copy).reconcile()]
+    assert fresh == [JobState.BLOCKED]
+    assert [job.state for job in live.reconcile()] == fresh
+    assert _on(path).get("j1").state is JobState.BLOCKED
+
+
+def test_a_dispatch_written_past_a_suspension_is_refused_on_replay(
+        tmp_path):
+    """AUD-100. No reader asked the dispatch policy again: a dispatch
+    written past the policy in force at its position was history."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    _enqueue(_on(path))
+    _on(path).mark_ready("j1")
+    _published(path, _suspended(2))
+
+    class _Permits:
+        """A store that permits anything: a writer past the policy."""
+
+        def __init__(self, real):
+            self.real = real
+
+        def at_head(self):
+            return self
+
+        def evaluate(self, policy_id, req, **kw):
+            d = self.real.evaluate(policy_id, req, **kw)
+            return type(d)(**{**d.__dict__, "allowed": True})
+
+        def __getattr__(self, name):
+            return getattr(self.real, name)
+
+    log = EventLog(path)
+    Scheduler(log, policy=_Permits(PolicyStore(log).load()),
+              policy_id="scheduler.default").load().dispatch(
+        job_id="j1", worker="w1", lease_id="L1", lease_seqs=10)
+    with pytest.raises(SchedulerError, match="refuses to dispatch 'j1'"):
+        _on(path)
+
+
+def test_a_version_published_between_readiness_and_the_write_refuses_it(
+        tmp_path):
+    """AUD-100. The dry run under the writer lock asks the dispatch policy
+    at the head, so a version suspending dispatch published after readiness
+    answered refuses the dispatch there, with nothing written."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    s = _on(path)
+    _enqueue(s)
+    s.mark_ready("j1")
+    ready = s.readiness
+
+    def then_suspended(job, **kw):
+        r = ready(job, **kw)
+        _published(path, _suspended(2))
+        return r
+
+    s.readiness = then_suspended
+    with pytest.raises(SchedulerError, match="refuses to dispatch 'j1'"):
+        _dispatch(s)
+    assert _on(path).get("j1").state is JobState.READY
+
+
+def test_the_record_carries_the_reading_its_gate_was_judged_at(tmp_path,
+                                                               monkeypatch):
+    """AUD-099. A scheduler record carries the clock reading its gate judged
+    it at, as a policy decision does (D-2026-168), so an expiry falling
+    between the decision and the append does not make the history refuse
+    it. Here the gate decides while the policy is in force, and the log's
+    own clock, which stamped the record before, is past the expiry."""
+    import time as _time
+    import types
+    import agent_substrate.policy as policy_mod
+    import agent_substrate.scheduler as sched_mod
+    real = _time.time()
+    path = tmp_path / "log.jsonl"
+    _at(monkeypatch, real - 7200)            # published two hours ago
+    _published(path, _expiring(1, real - 3600))   # expired an hour ago
+    monkeypatch.undo()
+    decided = types.SimpleNamespace(time=lambda: real - 5400)
+    monkeypatch.setattr(sched_mod, "time", decided, raising=False)
+    monkeypatch.setattr(policy_mod, "time", decided)
+    _enqueue(_on(path))                      # the log's clock is the real one
+    monkeypatch.undo()
+    assert sorted(_on(path).all_jobs()) == ["j1"]
+
+
+def test_a_later_record_landing_before_the_lock_moves_the_time_a_write_is_judged_at(  # noqa: E501
+        tmp_path, monkeypatch):
+    """AUD-099. The dry run under the writer lock judges a policy's expiry
+    at the latest time the history has reached, as the replay of the
+    written record will. A record stamped past the expiry, landing between
+    the gate and the lock, makes the enqueue refused there, with nothing
+    written; a dry run that forgot the history's time wrote it, and every
+    load refused the log."""
+    import types
+    import agent_substrate.policy as policy_mod
+    import agent_substrate.scheduler as sched_mod
+    from agent_substrate.policy import PolicyNotInForce
+    path = tmp_path / "log.jsonl"
+    _at(monkeypatch, 1000.0)
+    _published(path, _expiring(1, 2000.0))
+    monkeypatch.undo()
+    decided = types.SimpleNamespace(time=lambda: 1500.0)
+    monkeypatch.setattr(sched_mod, "time", decided, raising=False)
+    monkeypatch.setattr(policy_mod, "time", decided)
+    s = _on(path)
+    gate = s._gate
+
+    def then_a_later_record(req, **kw):
+        d = gate(req, **kw)
+        EventLog(path).append(actor="registrar", action="agent.register",
+                              target="a1", payload={}, wall_time=2500.0)
+        return d
+
+    s._gate = then_a_later_record
+    with pytest.raises(PolicyNotInForce, match="expired"):
+        _enqueue(s)
+    monkeypatch.undo()
+    assert not _on(path).all_jobs()
+
+
+def test_a_version_lifting_a_suspension_mid_scan_does_not_block_the_job(
+        tmp_path):
+    """AUD-100. reconcile scans, then writes, and BLOCKED is terminal. A
+    version lifting a suspension, published after the scan's readiness
+    answered, does not block the job: the block is asked again under the
+    writer lock, with the policy store at the head."""
+    path = tmp_path / "log.jsonl"
+    _published(path, default_policy())
+    _enqueue(_on(path))
+    _on(path).mark_ready("j1")
+    _published(path, _suspended(2))
+    s = _on(path)                            # its store holds the suspension
+    ready = s.readiness
+    lifted = []
+
+    def then_lifted(job, **kw):
+        r = ready(job, **kw)
+        if not lifted:
+            lifted.append(True)
+            _published(path, document(policy_id="scheduler.default",
+                                      version=3,
+                                      rules=default_policy().rules))
+        return r
+
+    s.readiness = then_lifted
+    assert s.reconcile() == ()
+    assert _on(path).get("j1").state is JobState.READY

@@ -623,3 +623,87 @@ def test_replay_refuses_a_revocation_by_the_SUBJECT(tmp_path):
                payload={"capability_id": "c1", "reason": "I am done with it"})
     with pytest.raises(NotTheIssuer, match="revokes 'c1'"):
         CapabilityLedger(log).load()
+
+
+# --------------------------------------------------------------------------
+# A delegation by a ledger behind the log (AUD-095)
+#
+# delegate() read its source from the ledger as it was when the ledger last
+# folded, before the writer lock, and issue(), deciding under the lock, did
+# not ask whether the source was revoked. Each ledger here is a second
+# process's: it loaded before another writer moved the log on.
+# --------------------------------------------------------------------------
+
+def test_a_ledger_behind_the_log_delegates_from_a_grant_issued_since(
+        tmp_path):
+    """A ledger behind the log refused to delegate from a grant another
+    writer had issued since, as from no grant at all."""
+    log, led = _ledger(tmp_path)
+    CapabilityLedger(EventLog(log.path)).load().issue(
+        _cap(), actor="control-plane")        # by another writer
+    child = led.delegate(_cap(cap_id="c2", subject="helper"),
+                         parent_id="c1", actor="agent-1")
+    assert child.parent_id == "c1"
+    fresh = CapabilityLedger(EventLog(log.path)).load()
+    assert fresh.issued_ids() == ("c1", "c2")
+
+
+def test_a_ledger_behind_the_log_does_not_delegate_from_a_grant_revoked_since(  # noqa: E501
+        tmp_path):
+    """A ledger behind the log delegated from a grant another writer had
+    revoked since: the record was written, and a ledger just loaded holds
+    the child, dead on arrival under its revoked source. It is refused, as
+    a ledger just loaded refuses it, and nothing is written."""
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(), actor="control-plane")
+    CapabilityLedger(EventLog(log.path)).load().revoke(
+        "c1", actor="control-plane", reason="withdrawn elsewhere")
+    before = log.path.read_bytes()
+    with pytest.raises(CapabilityRevoked, match="'c1' was revoked"):
+        led.delegate(_cap(cap_id="c2", subject="helper"),
+                     parent_id="c1", actor="agent-1")
+    assert log.path.read_bytes() == before
+
+
+def test_a_revocation_landing_before_the_lock_is_seen_under_it(tmp_path):
+    """A revocation landing between delegate()'s check and the writer lock:
+    issue() asks the source again under the lock, and refuses, with nothing
+    written. Replay does not ask it, and would hold the child."""
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(), actor="control-plane")
+    real = log.append_decided
+
+    def after_a_revocation(decide, **kw):
+        CapabilityLedger(EventLog(log.path)).load().revoke(
+            "c1", actor="control-plane", reason="withdrawn elsewhere")
+        return real(decide, **kw)
+
+    log.append_decided = after_a_revocation
+    with pytest.raises(CapabilityRevoked, match="'c1' was revoked"):
+        led.delegate(_cap(cap_id="c2", subject="helper"),
+                     parent_id="c1", actor="agent-1")
+    del log.append_decided
+    fresh = CapabilityLedger(EventLog(log.path)).load()
+    assert fresh.issued_ids() == ("c1",)
+    assert fresh.revoked_ids() == ("c1",)
+
+
+def test_a_delegation_does_not_read_the_whole_log(tmp_path):
+    """delegate() read and verified the whole log once per call, for a
+    stamp issue() makes again under the lock. It folds from its anchor, as
+    every other decision of the ledger does."""
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(), actor="control-plane")
+    whole, reads = log.read_verified, []
+
+    def counted(*args, **kwargs):
+        reads.append(1)
+        return whole(*args, **kwargs)
+
+    log.read_verified = counted
+    led.delegate(_cap(cap_id="c2", subject="helper"),
+                 parent_id="c1", actor="agent-1")
+    del log.read_verified
+    assert reads == []
+    assert CapabilityLedger(EventLog(log.path)).load().issued_ids() == (
+        "c1", "c2")

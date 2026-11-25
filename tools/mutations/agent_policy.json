@@ -215,6 +215,20 @@
       "find": "            or not _finite(not_after)):\n",
       "replace": "            or False):\n",
       "rationale": "AUD-039: a policy record whose not_after is an integer no float holds raises OverflowError where it should be refused with PolicyError, and NaN or infinity is taken as an expiry that never comes"
+    },
+    {
+      "name": "P32_a_position_not_read_is_answered_from_what_was",
+      "path": "agent_substrate/policy.py",
+      "find": "        check_projection(self)\n        if at_seq > self._folded_through:\n            self._fold_new()\n        history = self._published.get(policy_id)\n",
+      "replace": "        check_projection(self)\n        history = self._published.get(policy_id)\n",
+      "rationale": "AUD-096. in_force_at answers a position the store has not read from what it had read: a scheduler behind its store refuses valid histories, and writes enqueues the version in force refuses"
+    },
+    {
+      "name": "P33_a_refused_store_answers_for_an_earlier_position",
+      "path": "agent_substrate/policy.py",
+      "find": "        check_projection(self)\n        if at_seq > self._folded_through:\n",
+      "replace": "        if at_seq > self._folded_through:\n",
+      "rationale": "AUD-096. A store whose fold refused a later record answers for a position it read before it, a history it can no longer vouch for"
     }
   ]
 }

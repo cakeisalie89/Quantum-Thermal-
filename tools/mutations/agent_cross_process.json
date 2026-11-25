@@ -29,7 +29,7 @@
     {
       "name": "X4_a_record_the_reducer_will_reject_is_written_anyway",
       "path": "agent_substrate/scheduler.py",
-      "find": "            self._dry_run(actor=actor, action=ACT_JOB_TRANSITION,\n                          target=job_id, payload=payload)",
+      "find": "            self._dry_run(actor=actor, action=ACT_JOB_TRANSITION,\n                          target=job_id, payload=payload, wall_time=now)",
       "replace": "            pass",
       "rationale": "check_edge asks whether the state machine permits the edge; the reducer asks more -- whether a requeue is reclaiming a lease that is still live -- and a record that satisfies the first and not the second is durable and unreplayable"
     },

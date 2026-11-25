@@ -738,3 +738,40 @@ def test_an_unconditional_allow_still_yields_an_empty_receipt():
     """Obligations are opt-in. A rule that attaches none is not broken."""
     d = _oblig_doc(obligations=())
     assert d.evaluate(_owork()).completion_receipt() == {}
+
+
+# ---- a position the store has not read (AUD-096) --------------------------
+
+def test_a_store_asked_about_a_position_it_has_not_read_reads_it_first(
+        tmp_path):
+    """in_force_at answered from what the store had read when it last
+    folded. A store that loaded before a policy was published said there
+    was none; one holding version 1 answered with it for a position where
+    version 2 was in force. It reads the position first, as the capability
+    ledger reads one (D-2026-156)."""
+    path = tmp_path / "log.jsonl"
+    store = PolicyStore(EventLog(path)).load()
+    other = PolicyStore(EventLog(path)).load()
+    other.publish(_doc(1), actor="owner")
+    assert store.in_force_at("p", 0).version == 1
+    other.publish(_doc(2), actor="owner")
+    assert store.in_force_at("p", 1).version == 2
+    assert store.in_force_at("p", 0).version == 1
+
+
+def test_a_store_that_refused_a_later_record_answers_for_no_position(
+        tmp_path):
+    """A store whose fold refused a later record does not answer for a
+    position it read before it: a history it can no longer read past is not
+    one it can still vouch for (check_projection, D-2026-156)."""
+    path = tmp_path / "log.jsonl"
+    store = PolicyStore(EventLog(path)).load()
+    store.publish(_doc(1), actor="owner")
+    gap = _doc(3)
+    EventLog(path).append(actor="owner", action=ACT_POLICY_PUBLISH,
+                          target="p", payload={"document": gap.body(),
+                                               "policy_digest": gap.digest()})
+    with pytest.raises(PolicyVersionError):
+        store.at_head()
+    with pytest.raises(PolicyVersionError):
+        store.in_force_at("p", 0)

@@ -103,8 +103,8 @@ from . import actions
 from .canonical import digest
 from .roles import ACTIONS as ROLE_ACTIONS
 from .roles import POLICY_OWNER, RoleError, RoleRefused, RoleView, enforced
-from .events import (EventLogError, judged_at, projection_fold,
-                     projection_load, require_extends)
+from .events import (EventLogError, check_projection, judged_at,
+                     projection_fold, projection_load, require_extends)
 
 #: Explicit wildcard. Must be written out; a blank field is refused.
 ANY = "*"
@@ -918,9 +918,24 @@ class PolicyStore:
         This is what makes a historical decision re-checkable: an auditor
         asking why seq 40 was permitted gets the rules that were in force at
         seq 40, not the ones written afterwards.
+
+        A POSITION THIS STORE HAS NOT READ IS READ FIRST (AUD-096), as the
+        capability ledger reads one (D-2026-156). The scheduler asks this of
+        the store it was handed, about every record it folds and about the
+        record it is about to write, and the store answered from what it
+        had read when it last folded. A scheduler whose store had not read
+        the policy refused every history holding a job enqueued under it,
+        on catch-up and on load alike; one whose store held an earlier
+        version accepted, and wrote, an enqueue the version in force at its
+        position refuses, and every load of the log refused the history
+        from then on. And a store that refused a later record answers for
+        no position.
         """
         if not isinstance(at_seq, int) or isinstance(at_seq, bool):
             raise PolicyError(f"at_seq must be an int, got {at_seq!r}")
+        check_projection(self)
+        if at_seq > self._folded_through:
+            self._fold_new()
         history = self._published.get(policy_id)
         if not history:
             raise UnknownPolicy(f"no policy {policy_id!r} has been published")

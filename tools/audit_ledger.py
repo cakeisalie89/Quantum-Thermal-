@@ -209,7 +209,10 @@ AUDIT_PATHS = ("docs/audit/*", "tools/audit_ledger.py",
                "tools/mutations/task_projection_records.json",
                # The static checks of every committed mutation spec,
                # moved out of the harness spec's one suite (AUD-088).
-               "tests/test_mutation_specs.py")
+               "tests/test_mutation_specs.py",
+               # The anchored projections from several writers (Wave B;
+               # AUD-095 to AUD-097, AUD-100).
+               "tests/test_agent_writers.py")
 
 #: (glob, kind). First match wins.
 KINDS = (

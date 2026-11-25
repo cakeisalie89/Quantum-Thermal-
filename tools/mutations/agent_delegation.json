@@ -200,6 +200,27 @@
       "find": "            self._authorize_mint(_Draft(c.issued_seq, actor), c)\n",
       "replace": "            pass\n",
       "rationale": "AUD-014. The write path leaves the mint rule to the fold after the append: a non-root mint is durable before it is refused, and every later load of the log refuses the whole history"
+    },
+    {
+      "name": "G29_a_delegation_decides_on_the_ledger_it_last_read",
+      "path": "agent_substrate/capability.py",
+      "find": "        # delegated from one another writer had revoked since.\n        self._fold_new()\n        parent = self._issued.get(parent_id)\n",
+      "replace": "        # delegated from one another writer had revoked since.\n        parent = self._issued.get(parent_id)\n",
+      "rationale": "AUD-095. delegate() reads its source from the ledger as it last folded: a ledger behind the log refuses to delegate from a grant another writer issued since, and delegates from one another writer revoked since"
+    },
+    {
+      "name": "G30_a_source_revoked_before_the_lock_is_not_asked_under_it",
+      "path": "agent_substrate/capability.py",
+      "find": "            if cap.parent_id and cap.parent_id in self._revoked:\n",
+      "replace": "            if False and cap.parent_id in self._revoked:\n",
+      "rationale": "AUD-095. issue() does not ask, under the writer lock, whether a delegation's source was revoked: a revocation landing before the lock leaves the child written, dead on arrival, and replay holds it"
+    },
+    {
+      "name": "G31_a_delegation_reads_the_whole_log",
+      "path": "agent_substrate/capability.py",
+      "find": "                      issued_seq=self._folded_through + 1)",
+      "replace": "                      issued_seq=self.log.verify().head_seq + 1)",
+      "rationale": "AUD-095. delegate() reads and verifies the whole log once per call, for a stamp issue() makes again under the lock"
     }
   ]
 }

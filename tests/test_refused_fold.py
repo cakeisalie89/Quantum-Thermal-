@@ -219,6 +219,22 @@ def _scheduler_decide(s, i):
                      submitter="owner")
 
 
+def _scheduler_with_work(p: Path) -> Scheduler:
+    """A scheduler with jobs to move. enqueue catches up before it decides
+    (AUD-097), so the case above is refused by that catch-up; a move
+    decides under the writer lock, after the fold there, with no catch-up
+    before it."""
+    s = _scheduler(p)
+    for i in range(2):
+        s.enqueue(job_id=f"j-work-{i}", work_digest=digest({"work": i}),
+                  submitter="owner")
+    return s
+
+
+def _scheduler_move(s, i):
+    return s.mark_ready(f"j-work-{i}")
+
+
 def _store(p: Path) -> AuthorityStore:
     s = AuthorityStore(EventLog(p)).load()
     s.create(record_id="r0", kind="k", proposer="alice")
@@ -301,6 +317,8 @@ CASES = (
          lambda p: PolicyStore(EventLog(p)).load(), PolicyError),
     Case("scheduler", _scheduler, _forge_finished_job, _scheduler_decide,
          lambda p: _scheduler_on(p).load(), SchedulerError),
+    Case("scheduler_move", _scheduler_with_work, _forge_finished_job,
+         _scheduler_move, lambda p: _scheduler_on(p).load(), SchedulerError),
     Case("store", _store, _forge_unknown_action,
          lambda s, i: s.create(record_id=f"r-new-{i}", kind="k",
                                proposer="alice"),

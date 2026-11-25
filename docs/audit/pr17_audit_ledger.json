@@ -94,14 +94,14 @@
     "AUD-074"
    ],
    "kind": "workflow",
-   "method": "read at 0afa231, every line but the generated shard matrix's spec lists, which tools/mutation_shards.py --check holds to --emit: the triggers, default-deny, the NF-1T requirement, the namespace probe and its sysctl, the lint over git's file list and its count, the type check, every committed verifier and recorded-result check, the agent suites, the identity inventory, the model check, the TLA+ step with its pinned jar, the collection check, the corpus allowlist, the long horizon, the fuzz floors, the governed rules and their auditor, and the tree checks after every step that runs code; the shards' timeout, run and git-checked tree; the aggregate, red unless every shard succeeded; the full suite with history; the dispatch-sensitivity job with its own check that the dispatch changed; the second interpreter with the unpinned packages its comment declares. The fuzz step and the shard weights are this audit's own edits (D-2026-191, D-2026-192), reviewed as diffs, not independently; the identity-inventory step's coverage label, 55 of 55 to 56 of 56 (AUD-044), written and reviewed as a diff; the generated shard matrix regenerated for 141 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-050 adds json_nesting); the generated shard matrix regenerated for 142 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-054 adds unknown_actions); the generated shard matrix regenerated for 143 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-055 adds evidence_objects); the generated shard matrix regenerated for 144 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-056 adds resolution_bound); the generated shard matrix regenerated for 145 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-057 to AUD-059 add egress_perimeter); the generated shard matrix regenerated for 146 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-060 and AUD-061 add agent_directory_records); the generated shard matrix regenerated for 147 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-062 to AUD-067 add second_reader_rules); the generated shard matrix regenerated for 148 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-068 to AUD-071 add scheduler_replay_rules); the generated shard matrix regenerated for 149 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-072 to AUD-074 add task_projection_records)",
+   "method": "read at 0afa231, every line but the generated shard matrix's spec lists, which tools/mutation_shards.py --check holds to --emit: the triggers, default-deny, the NF-1T requirement, the namespace probe and its sysctl, the lint over git's file list and its count, the type check, every committed verifier and recorded-result check, the agent suites, the identity inventory, the model check, the TLA+ step with its pinned jar, the collection check, the corpus allowlist, the long horizon, the fuzz floors, the governed rules and their auditor, and the tree checks after every step that runs code; the shards' timeout, run and git-checked tree; the aggregate, red unless every shard succeeded; the full suite with history; the dispatch-sensitivity job with its own check that the dispatch changed; the second interpreter with the unpinned packages its comment declares. The fuzz step and the shard weights are this audit's own edits (D-2026-191, D-2026-192), reviewed as diffs, not independently; the identity-inventory step's coverage label, 55 of 55 to 56 of 56 (AUD-044), written and reviewed as a diff; the generated shard matrix regenerated for 141 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-050 adds json_nesting); the generated shard matrix regenerated for 142 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-054 adds unknown_actions); the generated shard matrix regenerated for 143 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-055 adds evidence_objects); the generated shard matrix regenerated for 144 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-056 adds resolution_bound); the generated shard matrix regenerated for 145 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-057 to AUD-059 add egress_perimeter); the generated shard matrix regenerated for 146 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-060 and AUD-061 add agent_directory_records); the generated shard matrix regenerated for 147 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-062 to AUD-067 add second_reader_rules); the generated shard matrix regenerated for 148 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-068 to AUD-071 add scheduler_replay_rules); the generated shard matrix regenerated for 149 specs by tools/mutation_shards.py --emit, which its --check holds it to (AUD-072 to AUD-074 add task_projection_records); at fe3f9c3 (blob 00af66f) the generated shard block replaced by the one tools/mutation_shards.py --emit makes from the re-measured weights (D-2026-197), held there by --check",
    "mode": "100644",
-   "new_blob": "00af66ff08796ea80cef6d451c3d4b262a651138",
+   "new_blob": "cb746966482f0a241f0d2c72904077d89f753757",
    "note": "",
    "old_blob": null,
    "path": ".github/workflows/agent-substrate.yml",
-   "reviewed_blob": "00af66ff08796ea80cef6d451c3d4b262a651138",
-   "sha256": "95cc61d15536892c15d85445049e2a147306aff512dba9bcccdd0d94023d0220",
+   "reviewed_blob": "cb746966482f0a241f0d2c72904077d89f753757",
+   "sha256": "d0bf32d8f19b4597647b3098ad14a4374b1c272bfa2a7cb726dfe8a4ce342644",
    "size": 42721,
    "status": "REVIEWED_IN_PART"
   },
@@ -1378,18 +1378,19 @@
    "findings": [
     "AUD-014",
     "AUD-039",
-    "AUD-054"
+    "AUD-054",
+    "AUD-095"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at 0afa231: in this pass the module docstring, the errors and actions, _normalise_scope, Capability (body, digest, covers_path, attenuation_of), Request, CapabilitySet.check and _check_chain, issue, capability_from_record and digest_is_consistent; earlier, at the same blob, CapabilityLedger in full -- load, apply, _authorize_mint, _authorize_revoke, root_issuer, in_force, issuer_of, anoint, issue, delegate and revoke; the audit's AUD-014 change written and reviewed as a diff. AUD-039 found there: issue() converted a record's issued_wall_time with float(), and raised on an integer no float holds or a string. Its correction written and reviewed as a diff, with X64 and X65 killed; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA2 killed",
+   "method": "every line read at 0afa231: in this pass the module docstring, the errors and actions, _normalise_scope, Capability (body, digest, covers_path, attenuation_of), Request, CapabilitySet.check and _check_chain, issue, capability_from_record and digest_is_consistent; earlier, at the same blob, CapabilityLedger in full -- load, apply, _authorize_mint, _authorize_revoke, root_issuer, in_force, issuer_of, anoint, issue, delegate and revoke; the audit's AUD-014 change written and reviewed as a diff. AUD-039 found there: issue() converted a record's issued_wall_time with float(), and raised on an integer no float holds or a string. Its correction written and reviewed as a diff, with X64 and X65 killed; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA2 killed; at fe3f9c3 (blob dd4c6b2) the capability ledger read again, lines 576 to 1037 (the projection, in_force, anoint, issue, delegate and revoke), and CapabilitySet.check, for what a writer behind the log decides: AUD-095 found in delegate(); its correction written and reviewed as a diff, and every mutation entry on the module run",
    "mode": "100644",
-   "new_blob": "dd4c6b2e58ac75c00fc3d4c7b396140a5dd7d09e",
+   "new_blob": "b85e32d0cc7439dee645c5a319258d37d43edc1f",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/capability.py",
-   "reviewed_blob": "dd4c6b2e58ac75c00fc3d4c7b396140a5dd7d09e",
-   "sha256": "7c5d79471ec2e3ee9f4e057ac4a486d048e4ef51be12a32c2c142565ad104a02",
-   "size": 49377,
+   "reviewed_blob": "b85e32d0cc7439dee645c5a319258d37d43edc1f",
+   "sha256": "d76ecd8c67cbced399afaa9272da05c50dc631c490d33ebad4c393706b57bb15",
+   "size": 50267,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -1799,18 +1800,19 @@
     "AUD-015",
     "AUD-020",
     "AUD-039",
-    "AUD-054"
+    "AUD-054",
+    "AUD-096"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at 0afa231: in this pass the module docstring, the rule language (_match_field, PolicyRequest, Rule and its matching, _hit, _obligations, rule), PolicyDocument and its deny-overrides evaluation, document and document_from_record, Decision with its discharge, digest and receipt, the store's constructor, the rest of _recheck_decision, the in-force lookups, evaluate and decide_and_record; earlier, at the same blob, load, every catch-up path, apply in full, _recheck_withdrawal, the head of _recheck_decision, publish and withdraw, with the audit's AUD-015, AUD-011 and AUD-020 changes reviewed as diffs. AUD-039 found there: document() converted a record's not_after with float(), and raised on an integer no float holds. Its correction written and reviewed as a diff, with P31 killed; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA4 killed",
+   "method": "every line read at 0afa231: in this pass the module docstring, the rule language (_match_field, PolicyRequest, Rule and its matching, _hit, _obligations, rule), PolicyDocument and its deny-overrides evaluation, document and document_from_record, Decision with its discharge, digest and receipt, the store's constructor, the rest of _recheck_decision, the in-force lookups, evaluate and decide_and_record; earlier, at the same blob, load, every catch-up path, apply in full, _recheck_withdrawal, the head of _recheck_decision, publish and withdraw, with the audit's AUD-015, AUD-011 and AUD-020 changes reviewed as diffs. AUD-039 found there: document() converted a record's not_after with float(), and raised on an integer no float holds. Its correction written and reviewed as a diff, with P31 killed; the AUD-054 change (the fold asks actions.unknown_refusal where it skipped an action) written and reviewed as a diff, with UA4 killed; at fe3f9c3 (blob 528cca4) the policy store read again, lines 630 to 1054 (load, the fold, apply and its two re-checks, the reads and the writes), with the rule evaluation and the decision record, for what a writer behind the log decides and what a position not yet read is answered with: AUD-096 found in in_force_at; its correction written and reviewed as a diff, and agent_policy run whole",
    "mode": "100644",
-   "new_blob": "528cca4f97a9f5d7b5371226404542a7ce0254bc",
+   "new_blob": "882ef2c0f177e50f0d07c9f5f36ad6ef83fd6d64",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/policy.py",
-   "reviewed_blob": "528cca4f97a9f5d7b5371226404542a7ce0254bc",
-   "sha256": "645a32d7a1df8f4603e178693cf54ac5a0a9e8668215eeab01cdd236cdc1fcc4",
-   "size": 48320,
+   "reviewed_blob": "882ef2c0f177e50f0d07c9f5f36ad6ef83fd6d64",
+   "sha256": "0a5147eb867a4a90f45c54f0861ec70e78264b03b0bae11e8d130416e79a5cc4",
+   "size": 49204,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -2072,18 +2074,22 @@
     "AUD-068",
     "AUD-069",
     "AUD-070",
-    "AUD-071"
+    "AUD-071",
+    "AUD-096",
+    "AUD-097",
+    "AUD-099",
+    "AUD-100"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at c82541e (blob 0504a08), beside the second reader's scheduler rules: the module docstring and constants, the errors, JobState and its derived sets, FailureClass and RETRYABLE, the edge table, SEALED and CAN_STILL_SUCCEED, Job and its record, lease liveness and aging, Readiness, backoff_for, default_policy and _ProbeEvent; the scheduler's constructor, load, catch_up, _fold_new, apply and its four record rules, _saw, _apply_renewal, _reauthorize_enqueue, _reauthorize_priority, _probe_copy, _dry_run, _append_decided, _gate, _append_reducer_authorized, the reads, readiness, ready_queue, in_flight_resources, expired_leases, enqueue, set_priority, transition, mark_ready, dispatch, renew_lease, report, _block_dependents_of, cancel, reconcile, invalidate and the snapshot; check_edge, reauthorize_job_edge, _apply_edge, p_reason, _require_priority, _exceeds and job_from_record. Earlier, the catch-up paths and the position bookkeeping, and the AUD-054 change reviewed as a diff, with UA6 killed. AUD-068 to AUD-071 found there; their corrections written and reviewed as a diff, with SK1 to SK18 and SK27 to SK30 killed",
+   "method": "every line read at c82541e (blob 0504a08), beside the second reader's scheduler rules: the module docstring and constants, the errors, JobState and its derived sets, FailureClass and RETRYABLE, the edge table, SEALED and CAN_STILL_SUCCEED, Job and its record, lease liveness and aging, Readiness, backoff_for, default_policy and _ProbeEvent; the scheduler's constructor, load, catch_up, _fold_new, apply and its four record rules, _saw, _apply_renewal, _reauthorize_enqueue, _reauthorize_priority, _probe_copy, _dry_run, _append_decided, _gate, _append_reducer_authorized, the reads, readiness, ready_queue, in_flight_resources, expired_leases, enqueue, set_priority, transition, mark_ready, dispatch, renew_lease, report, _block_dependents_of, cancel, reconcile, invalidate and the snapshot; check_edge, reauthorize_job_edge, _apply_edge, p_reason, _require_priority, _exceeds and job_from_record. Earlier, the catch-up paths and the position bookkeeping, and the AUD-054 change reviewed as a diff, with UA6 killed. AUD-068 to AUD-071 found there; their corrections written and reviewed as a diff, with SK1 to SK18 and SK27 to SK30 killed; at fe3f9c3 (blob 472d0f8) read again: load, catch_up and the fold, apply, the enqueue and priority re-authorizations, the probe and the dry run, the gate, readiness, enqueue, set_priority, transition, dispatch, cancel, reconcile and invalidate, for what a writer behind the log, or behind its policy store, decides, and at what time: AUD-096 in the store's answers to the re-authorizations and in the gate, AUD-097 in enqueue, set_priority, cancel and invalidate, AUD-099 in the re-authorizations' missing time, AUD-100 in readiness's question to the store and in the dispatch rule replay lacked; the corrections written and reviewed as a diff, and agent_scheduler run whole",
    "mode": "100644",
-   "new_blob": "472d0f8652a933603341011a2af377547b07e224",
+   "new_blob": "751463a856744ad391837fe4fe0f63549adad3f0",
    "note": "who dispatches and who cancels is asked on the write path alone, and under both shipped policies every principal may do either; the dependency half of readiness is not re-derived on replay (the progress record, fourteenth pass)",
    "old_blob": null,
    "path": "agent_substrate/scheduler.py",
-   "reviewed_blob": "472d0f8652a933603341011a2af377547b07e224",
-   "sha256": "53368285c3ce23b5c3911f8cee8ca50356dfe8203cb23f98bb5e82d2dab1648e",
-   "size": 100069,
+   "reviewed_blob": "751463a856744ad391837fe4fe0f63549adad3f0",
+   "sha256": "e872009cbb4212b84d2ae24a7c2974d6dcae411aa283fa42e6aae952530280c0",
+   "size": 106320,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -2154,18 +2160,19 @@
     "AUD-011",
     "AUD-015",
     "AUD-020",
-    "AUD-050"
+    "AUD-050",
+    "AUD-098"
    ],
    "kind": "source:agent_substrate",
-   "method": "every line read at the baseline blob in session 1; the audit's changes (AUD-003, AUD-004, AUD-006, AUD-007, AUD-015, and in session 4 the AUD-011 role checks on create, on each transition, on the policy fold and on the snapshot) reviewed as diffs with regression tests and killed mutations; the binding to its log's role registry (roles.enforced, AUD-020) reviewed as a diff, with GH7 and GH8 killed; the AUD-050 change (the snapshot's handler) written and reviewed as a diff, with JN16 killed",
+   "method": "every line read at the baseline blob in session 1; the audit's changes (AUD-003, AUD-004, AUD-006, AUD-007, AUD-015, and in session 4 the AUD-011 role checks on create, on each transition, on the policy fold and on the snapshot) reviewed as diffs with regression tests and killed mutations; the binding to its log's role registry (roles.enforced, AUD-020) reviewed as a diff, with GH7 and GH8 killed; the AUD-050 change (the snapshot's handler) written and reviewed as a diff, with JN16 killed; at fe3f9c3 (blob b7979c5) catch_up, the fold, load, create and transition read again, for what a writer behind the log decides: AUD-098 found in create and transition; the correction written and reviewed as a diff, and every entry on the store in every spec run",
    "mode": "100644",
-   "new_blob": "b7979c59c731500c090d4567f05312a03503f8ea",
+   "new_blob": "40ebe5bc4bca32aaa1f571c03f22cb8581ecef08",
    "note": "",
    "old_blob": null,
    "path": "agent_substrate/store.py",
-   "reviewed_blob": "b7979c59c731500c090d4567f05312a03503f8ea",
-   "sha256": "421ac028478b33809ac4b24ec6da65d8249d07aa35c699618705ed3b950c6a5e",
-   "size": 82566,
+   "reviewed_blob": "40ebe5bc4bca32aaa1f571c03f22cb8581ecef08",
+   "sha256": "33992c780b46911ebd91cf07a25cc854d72aaf4272ac12d85b27f0a35efae56d",
+   "size": 83982,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -3354,13 +3361,13 @@
    "kind": "documentation",
    "method": "",
    "mode": "100644",
-   "new_blob": "2b473cf22a3cc26e2dfc41ab35efc0c0f2e8154c",
+   "new_blob": "3b87389787cae7add17f62e2a57bf69b67f5676d",
    "note": "not yet examined",
    "old_blob": null,
    "path": "docs/DEFECT_LEDGER.md",
    "reviewed_blob": null,
-   "sha256": "1dfec50521159207d303b0015e7f582b8d9792559cea8c2d47858ac06f5eff6e",
-   "size": 670148,
+   "sha256": "5a58b109134634523cb41a55dd0e227a8686de879f1177b81b0ee2c708c8fc8d",
+   "size": 672974,
    "status": "NOT_REVIEWED"
   },
   {
@@ -10297,18 +10304,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-014"
+    "AUD-014",
+    "AUD-095"
    ],
    "kind": "test",
-   "method": "read: the module docstring, the helpers and the root-issuer tests; the AUD-014 test written by the audit; not read: the delegation, expiry and revocation tests in detail",
+   "method": "read: the module docstring, the helpers and the root-issuer tests; the AUD-014 test written by the audit; not read: the delegation, expiry and revocation tests in detail; at fe3f9c3 (blob d23ec49) the last revocation tests read; the AUD-095 tests appended by the audit, written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "d23ec49d79358f467bab88119180368a296158f9",
+   "new_blob": "4f545b273cb1f17116efde2fbf9d53f77dec8455",
    "note": "",
    "old_blob": null,
    "path": "tests/test_agent_delegation.py",
-   "reviewed_blob": "d23ec49d79358f467bab88119180368a296158f9",
-   "sha256": "71dc6ac7902420af3a260877bf2bf0600c071650a93f4ade09b9d5cb6f4f4cf8",
-   "size": 27118,
+   "reviewed_blob": "4f545b273cb1f17116efde2fbf9d53f77dec8455",
+   "sha256": "a116740bb7dcdebec659c107b78598aa00301b7b46f968beb1e7a2e2af7d1b11",
+   "size": 30858,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -10427,18 +10435,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-094"
+    "AUD-094",
+    "AUD-096"
    ],
    "kind": "test",
-   "method": "at 36767d3 (blob 590cbd7): lines 42 to 100, the fixture and its helpers, and 340 to 390, the forged-transition tests, read; G3's test, a forged move of an edge the record's role may not make (AUD-094), written and reviewed as a diff",
+   "method": "at 36767d3 (blob 590cbd7): lines 42 to 100, the fixture and its helpers, and 340 to 390, the forged-transition tests, read; G3's test, a forged move of an edge the record's role may not make (AUD-094), written and reviewed as a diff; at fe3f9c3 (blob 6c8a10d) the fixture and _run read again; the AUD-096 test appended by the audit, written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "6c8a10dad227dbb7f42a8017f00b88f5f9cac676",
+   "new_blob": "5ac2d0f4e883dc8f45be61ca99e8d5878db0816e",
    "note": "",
    "old_blob": null,
    "path": "tests/test_agent_governed_tasks.py",
-   "reviewed_blob": "6c8a10dad227dbb7f42a8017f00b88f5f9cac676",
-   "sha256": "51318810771b0f7c2568fa067ec43d33dc6560df66007b18f27d4f094a668ea5",
-   "size": 82075,
+   "reviewed_blob": "5ac2d0f4e883dc8f45be61ca99e8d5878db0816e",
+   "sha256": "1091848fb9fa021a81d44f7571a392a00dc2626803e2f0d56e44f4625bea9966",
+   "size": 83766,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -10578,18 +10587,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-096"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "read at fe3f9c3 (blob 58c38e4): the imports, the helpers and the store fixture, lines 1 to 50; the AUD-096 tests appended by the audit, written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "58c38e4704b3e976a79d97bb5ebb4193588a486c",
-   "note": "not yet examined",
+   "new_blob": "68447ed61a1e934e60215979b73cab2313977df2",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_agent_policy.py",
-   "reviewed_blob": null,
-   "sha256": "5a1573458fcf6491a678d8fa57f69e2bd78f1f5ac80da23325efa6ab494b4f3e",
-   "size": 31764,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "68447ed61a1e934e60215979b73cab2313977df2",
+   "sha256": "88a3f9a192354a1da919a49f4ce59da5cbcd367e6006c9af0fb19849fea99ff4",
+   "size": 33437,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -10674,18 +10685,23 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-096",
+    "AUD-097",
+    "AUD-099",
+    "AUD-100"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "read at fe3f9c3 (blob f1747c6): the imports, the fixture and the helpers, lines 1 to 66; the AUD-096 and AUD-097 tests, and the AUD-099 and AUD-100 tests, appended by the audit, written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "f1747c6810785163200bfc742aaad103ac5259f0",
-   "note": "not yet examined",
+   "new_blob": "154dedec0dbcd4d7df88f6f68b7f5f12835b88fe",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_agent_scheduler.py",
-   "reviewed_blob": null,
-   "sha256": "c32dd89a59f3edc5f99d0001d84348dd82faddbe3a3f3cf737f7ed1cf81420ca",
-   "size": 87134,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "154dedec0dbcd4d7df88f6f68b7f5f12835b88fe",
+   "sha256": "5676318805b4b780e2534b545ad00e7f5da186899f44731221dde3ec20f44c81",
+   "size": 106652,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -10775,18 +10791,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-051"
+    "AUD-051",
+    "AUD-098"
    ],
    "kind": "test",
-   "method": "read: the imports, and the tests of the writer and the torn tail around the event append returns (AUD-008's test to the backwards wall clock); written by the audit and reviewed as a diff: the three AUD-051 tests; not read: the rest",
+   "method": "read: the imports, and the tests of the writer and the torn tail around the event append returns (AUD-008's test to the backwards wall clock); written by the audit and reviewed as a diff: the three AUD-051 tests; not read: the rest; at fe3f9c3 (blob a985daa) the store's helpers and its idempotency test read; the AUD-098 tests appended by the audit, written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "a985daa264ef4d8702341d52054913b3ff1fe3d0",
+   "new_blob": "c3c27742a866416260684fb1cc76b691f645ec04",
    "note": "",
    "old_blob": null,
    "path": "tests/test_agent_substrate.py",
-   "reviewed_blob": "a985daa264ef4d8702341d52054913b3ff1fe3d0",
-   "sha256": "1fcde05039075fb7a46e63b1b62862f794e02731b8b413fbbdde00435f7d7cee",
-   "size": 69633,
+   "reviewed_blob": "c3c27742a866416260684fb1cc76b691f645ec04",
+   "sha256": "fe609bdb0205cbd6168f730945ed3337450ad5da7b5afa15f7148dcd02f12cea",
+   "size": 71963,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -10811,18 +10828,21 @@
     "AUD-073",
     "AUD-074",
     "AUD-075",
-    "AUD-090"
+    "AUD-090",
+    "AUD-095",
+    "AUD-096",
+    "AUD-097"
    ],
    "kind": "test",
-   "method": "read in full at bd1a43a (blob bb96f08), all 1,194 lines: the importer allowlist and its scope, the layering, the bridges and the scientific scans, the reconstruct-independence check, the registry and narrative tests, the I/O-layer read guard, and the shadow sweep and its controls; AUD-090 found in _internal_imports; its correction (package_imports, and its control) written and reviewed as a diff",
+   "method": "read in full at bd1a43a (blob bb96f08), all 1,194 lines: the importer allowlist and its scope, the layering, the bridges and the scientific scans, the reconstruct-independence check, the registry and narrative tests, the I/O-layer read guard, and the shadow sweep and its controls; AUD-090 found in _internal_imports; its correction (package_imports, and its control) written and reviewed as a diff; at fe3f9c3 (blob a1c5dcc) the importer allowlist read again, and tests/test_agent_writers.py named in it by the audit, as a diff",
    "mode": "100644",
-   "new_blob": "a1c5dcc814a83d7a76a9bc7cd3de5b3df72b3744",
+   "new_blob": "d6c556cdb950b4645de3ca3f252849af6f2f99d0",
    "note": "the read guard sees open(), read_text() and read_bytes(), not os.open or Path.open; outside the I/O layer, archive.restore writes through os.open and _ns_init opens path handles and a confinement probe, neither an ungoverned read",
    "old_blob": null,
    "path": "tests/test_agent_substrate_isolation.py",
-   "reviewed_blob": "a1c5dcc814a83d7a76a9bc7cd3de5b3df72b3744",
-   "sha256": "c9bf158ebf8998998f38ca1b522c21a6f07ab08a70731a1bb7c31244273e8530",
-   "size": 59779,
+   "reviewed_blob": "d6c556cdb950b4645de3ca3f252849af6f2f99d0",
+   "sha256": "4098c4c7cf1948b02791c59ee3e2e2e8bdb0b04e6328e11855fedaf6eb294e6b",
+   "size": 60009,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -10858,6 +10878,27 @@
    "sha256": "cba005e6e6fb455546873676dc8ab897b78796b87be6988f1230ef2a08563b31",
    "size": 11072,
    "status": "NOT_REVIEWED"
+  },
+  {
+   "binary": false,
+   "change": "ADDED",
+   "findings": [
+    "AUD-095",
+    "AUD-096",
+    "AUD-097",
+    "AUD-100"
+   ],
+   "kind": "test",
+   "method": "written by the auditor",
+   "mode": "100644",
+   "new_blob": null,
+   "note": "not independently reviewed",
+   "old_blob": null,
+   "path": "tests/test_agent_writers.py",
+   "reviewed_blob": null,
+   "sha256": null,
+   "size": null,
+   "status": "AUDIT_ARTIFACT"
   },
   {
    "binary": false,
@@ -12987,18 +13028,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-097"
+   ],
    "kind": "test",
-   "method": "",
+   "method": "read at fe3f9c3 (blob 40b19be): the case table, the scheduler's case and its helpers, and the tests the cases parametrize; the scheduler_move case added by the audit, since enqueue's catch-up holds the refusal the scheduler case reached (AUD-097), written and reviewed as a diff",
    "mode": "100644",
-   "new_blob": "40b19be30e229cebac3084b69000167a178c5c67",
-   "note": "not yet examined",
+   "new_blob": "50a194faac011f024da0acd1e614cd994ae26dd0",
+   "note": "",
    "old_blob": null,
    "path": "tests/test_refused_fold.py",
-   "reviewed_blob": null,
-   "sha256": "9e387ae4ef050abe321c049d436d26400c2ec8169f570aabfd0a33684244ec9b",
-   "size": 15781,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "50a194faac011f024da0acd1e614cd994ae26dd0",
+   "sha256": "d1fd4e6321f894c254c99ce318066b2bb5e88793e7e229c74d6fefdde3b65c8a",
+   "size": 16451,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -14820,15 +14863,15 @@
    "change": "ADDED",
    "findings": [],
    "kind": "tool",
-   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff; the comment on specs that gained mutations after the weights were measured, which said twelve where thirty had, restated with the count measured at ce93e58, written by the audit and reviewed as a diff; the comment on specs added after the weights were measured names unknown_actions (AUD-054), written and reviewed as a diff; the comment on specs added after the weights were measured names evidence_objects (AUD-055), written and reviewed as a diff; the comment on specs added after the weights were measured names resolution_bound (AUD-056), written and reviewed as a diff; the comment on specs added after the weights were measured names egress_perimeter (AUD-057 to AUD-059), written and reviewed as a diff; the comment on specs added after the weights were measured names agent_directory_records (AUD-060 and AUD-061), written and reviewed as a diff, its six names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names second_reader_rules (AUD-062 to AUD-067), written and reviewed as a diff, its seven names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names scheduler_replay_rules (AUD-068 to AUD-071), written and reviewed as a diff, its eight names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then named task_projection_records (AUD-072 to AUD-074) too, written and reviewed as a diff, its nine names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then counted thirty-one measured specs grown since the measured run, ro_crate_conformance the latest (AUD-076 to AUD-078), written and reviewed as a diff, the count checked by script against a5cf136; the comment then counted thirty-two, inference_gateway the latest (AUD-080 to AUD-082), written and reviewed as a diff, the count checked by script against a5cf136; the comment's latest specs then named agent_memory_context, inference_gateway and proposal_ingress (AUD-083 to AUD-086), written and reviewed as a diff, the count of thirty-two checked by script against a5cf136; the comment's count of specs weighed at an earlier form's time made thirty-four, the latest agent_checkpoint and mutation_harness, written and reviewed as a diff, the count checked by script against a5cf136",
+   "method": "every line read at a5cf136 against its docstring: specs (the direct children of tools/mutations), _mutations, weights (a measured spec at its seconds, an unmeasured one at its mutation count times the median measured rate over the names given), plan (longest first, ties by name, each to the least-loaded shard, ties by index), emit, _job, check_workflow (the block equal to emit, fail-fast off, the run line, and the aggregate's needs, always() and success test), _tracked_state (the working tree, the index and the untracked files), run (an empty or stale list refused, every spec run after a failure, the tree compared after) and main; the weights re-measured in hosted run 41795363221 (D-2026-191) written and reviewed as a diff, the dict checked equal to the measurement by script, with MS1 to MS12 killed; the comment on which specs the weights measured, made true for the spec AUD-050 adds (json_nesting, weighed by its mutation count), written and reviewed as a diff; the comment on specs that gained mutations after the weights were measured, which said twelve where thirty had, restated with the count measured at ce93e58, written by the audit and reviewed as a diff; the comment on specs added after the weights were measured names unknown_actions (AUD-054), written and reviewed as a diff; the comment on specs added after the weights were measured names evidence_objects (AUD-055), written and reviewed as a diff; the comment on specs added after the weights were measured names resolution_bound (AUD-056), written and reviewed as a diff; the comment on specs added after the weights were measured names egress_perimeter (AUD-057 to AUD-059), written and reviewed as a diff; the comment on specs added after the weights were measured names agent_directory_records (AUD-060 and AUD-061), written and reviewed as a diff, its six names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names second_reader_rules (AUD-062 to AUD-067), written and reviewed as a diff, its seven names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment on specs added after the weights were measured names scheduler_replay_rules (AUD-068 to AUD-071), written and reviewed as a diff, its eight names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then named task_projection_records (AUD-072 to AUD-074) too, written and reviewed as a diff, its nine names checked by script equal to the specs on disk that WEIGHTS does not hold; the comment then counted thirty-one measured specs grown since the measured run, ro_crate_conformance the latest (AUD-076 to AUD-078), written and reviewed as a diff, the count checked by script against a5cf136; the comment then counted thirty-two, inference_gateway the latest (AUD-080 to AUD-082), written and reviewed as a diff, the count checked by script against a5cf136; the comment's latest specs then named agent_memory_context, inference_gateway and proposal_ingress (AUD-083 to AUD-086), written and reviewed as a diff, the count of thirty-two checked by script against a5cf136; the comment's count of specs weighed at an earlier form's time made thirty-four, the latest agent_checkpoint and mutation_harness, written and reviewed as a diff, the count checked by script against a5cf136; at fe3f9c3 (blob 8556358) the weights and their comment read again, and replaced by the audit with the seconds each spec took in hosted run 45492796714, read exit to exit (D-2026-197), written and reviewed as a diff; tests/test_mutation_shards.py passes unchanged, and mutation_shards kills 12 of 12",
    "mode": "100644",
-   "new_blob": "8556358d8029ff1479116c529aa150fd46d91550",
+   "new_blob": "04f5d0cb264efb77f3143717494de30b545925e3",
    "note": "",
    "old_blob": null,
    "path": "tools/mutation_shards.py",
-   "reviewed_blob": "8556358d8029ff1479116c529aa150fd46d91550",
-   "sha256": "b6442f7913a94f3ba33aeff61d0427b4ac50b7c9867f46b255f4ef11c68c2ed3",
-   "size": 14973,
+   "reviewed_blob": "04f5d0cb264efb77f3143717494de30b545925e3",
+   "sha256": "8862ea053e9ab1a615ad51168763f8ed647fd315bccc5d5b147a7b0176f680aa",
+   "size": 15420,
    "status": "REVIEWED_IN_FULL"
   },
   {
@@ -14964,35 +15007,38 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-099"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "read at fe3f9c3 (blob ff986de): the title, the note's opening, the suites and every entry's name; X4 re-anchored by the audit to the line AUD-099's correction moved, keeping its fault, written and reviewed as a diff, and killed",
    "mode": "100644",
-   "new_blob": "ff986de309716418a08824b14dc7839d4428148e",
-   "note": "not yet examined",
+   "new_blob": "0b676dab23744e73d31e6fd95c69f09d9130462e",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/agent_cross_process.json",
-   "reviewed_blob": null,
-   "sha256": "df17bbc762f7a0b1044413fa5eb94b383d6b80667b95cd25dd67e02042f0ec63",
-   "size": 7363,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "0b676dab23744e73d31e6fd95c69f09d9130462e",
+   "sha256": "5547b501df5f052b08e2c69d87e8270cb0fea75fffe0103fdf97437da51b25a7",
+   "size": 7378,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-014"
+    "AUD-014",
+    "AUD-095"
    ],
    "kind": "mutation-spec",
-   "method": "read: the title, note, suites and every mutation name; G28 added by the audit and killed with D1 and D2; not read: the anchors and rationales of the others",
+   "method": "read: the title, note, suites and every mutation name; G28 added by the audit and killed with D1 and D2; not read: the anchors and rationales of the others; G29 to G31 added by the audit for AUD-095, each killed by the test written for it, and the spec run whole",
    "mode": "100644",
-   "new_blob": "721a0a848d6a3737c3879219fac396d47cb4e670",
+   "new_blob": "8e5cd6e20d11b7fd08899eecf8d0026b990bae2b",
    "note": "",
    "old_blob": null,
    "path": "tools/mutations/agent_delegation.json",
-   "reviewed_blob": "721a0a848d6a3737c3879219fac396d47cb4e670",
-   "sha256": "3ce4e840a7fa4caa7710ae801a0f5d1a55fe9eee2904873a0e16e9cb3e3dae02",
-   "size": 13801,
+   "reviewed_blob": "8e5cd6e20d11b7fd08899eecf8d0026b990bae2b",
+   "sha256": "ed00e9ba486b17635d3d1a76a659509e8b934bf180e45bb839d7b2058dd732e1",
+   "size": 15374,
    "status": "REVIEWED_IN_PART"
   },
   {
@@ -15167,18 +15213,20 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-096"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "read at fe3f9c3 (blob c66121c): the title, the note, the suites and every entry's name and rationale; P32 and P33 added by the audit for AUD-096, each killed by the test written for it, and the spec run whole",
    "mode": "100644",
-   "new_blob": "c66121cc214974d2a9fb5831a9b2d8957ad89cd8",
-   "note": "not yet examined",
+   "new_blob": "31d29471a725b728975365336f3300d91ec3b21e",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/agent_policy.json",
-   "reviewed_blob": null,
-   "sha256": "6e3a1e09ec36569004fd68015ded6bc357404ec08d186c64d779029cb20264dc",
-   "size": 14571,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "31d29471a725b728975365336f3300d91ec3b21e",
+   "sha256": "a312eea2b4e6ab360db5b0099211eb30bd6adc3c7648aa3379f30b68c62ae69e",
+   "size": 15613,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -15215,18 +15263,23 @@
   {
    "binary": false,
    "change": "ADDED",
-   "findings": [],
+   "findings": [
+    "AUD-096",
+    "AUD-097",
+    "AUD-099",
+    "AUD-100"
+   ],
    "kind": "mutation-spec",
-   "method": "",
+   "method": "read at fe3f9c3 (blob 079ad16): the title, the note, the suites and every entry's name and rationale; S65 to S70 added by the audit for AUD-096 and AUD-097, S71 to S79 for AUD-099 and AUD-100, and N50, N53 and N55 re-anchored to the lines AUD-099's correction moved, keeping their faults; each new entry killed by the test written for it, and the spec run whole",
    "mode": "100644",
-   "new_blob": "079ad161b025874d28778a6faa38b07719824a9f",
-   "note": "not yet examined",
+   "new_blob": "252a7bf80dd07a6ae18e177d8db23878b1e7d309",
+   "note": "",
    "old_blob": null,
    "path": "tools/mutations/agent_scheduler.json",
-   "reviewed_blob": null,
-   "sha256": "75a32e92a5d31b847a9e6122fa35f6515dbb76d424554564b17b8c50d9186950",
-   "size": 28074,
-   "status": "NOT_REVIEWED"
+   "reviewed_blob": "252a7bf80dd07a6ae18e177d8db23878b1e7d309",
+   "sha256": "0f89cf8dfd743c9aeff64bd7b8ffe77402f8ea7ca48aa8b7c3e67b797a7a531c",
+   "size": 36293,
+   "status": "REVIEWED_IN_PART"
   },
   {
    "binary": false,
@@ -15332,18 +15385,19 @@
    "binary": false,
    "change": "ADDED",
    "findings": [
-    "AUD-051"
+    "AUD-051",
+    "AUD-098"
    ],
    "kind": "mutation-spec",
-   "method": "read: the suites, the note's end, the names of M60 to M71 and M71 in full; M72 to M74 added by the audit and killed; not read: M1 to M59 beyond their names in earlier runs' logs",
+   "method": "read: the suites, the note's end, the names of M60 to M71 and M71 in full; M72 to M74 added by the audit and killed; not read: M1 to M59 beyond their names in earlier runs' logs; M75 and M76 added by the audit for AUD-098, each killed by the test written for it, and the spec run whole",
    "mode": "100644",
-   "new_blob": "09a6779cd1247b3d5e224c7e28e8710329dcf0a6",
+   "new_blob": "7f5038f2ff3a89e2af4b577c2c430850dc499236",
    "note": "",
    "old_blob": null,
    "path": "tools/mutations/agent_substrate.json",
-   "reviewed_blob": "09a6779cd1247b3d5e224c7e28e8710329dcf0a6",
-   "sha256": "78764855606e9f30fae9257890a4b8be99ad46576f62257b1b2cda604f1829fb",
-   "size": 31736,
+   "reviewed_blob": "7f5038f2ff3a89e2af4b577c2c430850dc499236",
+   "sha256": "91feb6a4b5e36bb018ecfca194d7ef8147875b6c8994cd71afc4bbf6c9f52b76",
+   "size": 32897,
    "status": "REVIEWED_IN_PART"
   },
   {

@@ -1936,3 +1936,36 @@ def test_the_projection_reads_the_log_once(gov):
         f"projection() made {n['c']} passes over the log; it verified one "
         "read and folded another until D-2026-41, and the second pass is "
         "both the window and the cost")
+
+
+# ---- a policy version published between the decision and the enqueue -----
+def test_a_version_published_before_the_enqueue_is_the_one_it_answers_to(
+        gov):
+    """AUD-096 in the governed runtime. The runner folds its policy store
+    when it records its decision and enqueues a moment later, through a
+    scheduler that asks the same store. A version closing enqueueing,
+    published by another process between the two, was not read: the run
+    wrote an enqueue that version refuses, and no runner could open the
+    log after it. The enqueue is refused under the version in force, with
+    nothing written, and the log opens."""
+    from agent_substrate.governed_tasks import POLICY_ID, governed_policy
+    from agent_substrate.policy import (
+        Effect, PolicyDenied, PolicyStore, document, rule)
+    closed = document(policy_id=POLICY_ID, version=2, rules=(
+        rule(rule_id="closed", effect=Effect.DENY,
+             actions=("scheduler.enqueue",), subjects=("*",), roles=("*",),
+             resources=("*",), reason="closed for maintenance"),
+        *governed_policy(2).rules))
+    enqueue_now = gov.scheduler.enqueue
+
+    def after_another_process(**kw):
+        PolicyStore(EventLog(gov.log.path)).load().publish(closed,
+                                                           actor="owner")
+        return enqueue_now(**kw)
+
+    gov.scheduler.enqueue = after_another_process
+    with pytest.raises(PolicyDenied, match="closed for maintenance"):
+        _run(gov)
+    assert not [ev for ev in EventLog(gov.log.path).read()
+                if ev.action == "scheduler.enqueue"]
+    GovernedTasks(root=ROOT, log=EventLog(gov.log.path), evidence=gov.evidence)
