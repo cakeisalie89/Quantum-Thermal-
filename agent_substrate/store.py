@@ -58,8 +58,10 @@ PROJECTION_KIND = "authority_store"
 #: snapshot cannot say which reducer made it, so it is replayed, not trusted.
 #: 3 added each record's scientific admission and its basis. 4 added the
 #: latest wall time folded: without it, a load from a checkpoint would judge
-#: a policy's expiry from the tail's times alone (D-2026-168).
-SNAPSHOT_VERSION = 4
+#: a policy's expiry from the tail's times alone (D-2026-168). 5 added the
+#: request each idempotency key completed: without it, a load from a
+#: checkpoint could not tell a key's retry from another request (AUD-102).
+SNAPSHOT_VERSION = 5
 #: Bump when ``_apply``'s semantics change ON PURPOSE. The source digest
 #: already changes with the code; this is the declaration for what it cannot
 #: see -- a behaviour change arriving through a dependency outside the package.
@@ -162,6 +164,20 @@ OWNED = frozenset({ACT_CREATE, ACT_TRANSITION, ACT_DEPEND,
 
 
 
+def _request(action: str, actor: str, p: dict) -> dict:
+    """What a request under an idempotency key asked of its record, as the
+    record that completed it states it (AUD-102): the fields a retry of the
+    same request carries again, and none the store derived -- a move's
+    source state and edge are the record's, not the request's."""
+    fields = (("kind", "evidence", "depends_on", "policy_id")
+              if action == ACT_CREATE else
+              ("dst", "role", "evidence", "policy_id", "stale_reason")
+              if action == ACT_TRANSITION else ("depends_on",))
+    return {"action": action, "actor": actor,
+            "record_id": p.get("record_id"),
+            **{f: p.get(f) for f in fields}}
+
+
 def _binding_publishers(p, seq) -> list:
     """The policy authorities a binding names: a non-empty list of ids."""
     named = p.get("publishers") if isinstance(p, dict) else None
@@ -220,6 +236,12 @@ class AuthorityStore:
         #: key replayed against a DIFFERENT record must be an error rather
         #: than a silent success returning someone else's record.
         self._applied_keys: dict = {}
+        #: idempotency key -> the request it completed (see ``_request``).
+        #: The record alone answered 'for what' too coarsely: another
+        #: request for the SAME record under a spent key -- a revocation
+        #: under the key its promotion spent -- was answered as the retry,
+        #: and nothing was done (AUD-102).
+        self._key_requests: dict = {}
         self._loaded_through: int = -1
         #: The hash of the record at ``_loaded_through``: what a catch-up
         #: holds the log to (events.require_extends).
@@ -299,6 +321,7 @@ class AuthorityStore:
         report.raise_if_bad()
         self._records = {}
         self._applied_keys = {}
+        self._key_requests = {}
         self._loaded_through = -1
         self._loaded_hash = None
         self._loaded_prefix_verified = True
@@ -502,6 +525,7 @@ class AuthorityStore:
         key = p.get("idempotency_key")
         if key:
             self._applied_keys[key] = p.get("record_id", ev.target)
+            self._key_requests[key] = _request(ev.action, ev.actor, p)
         if ev.action == ACT_CREATE:
             rid = p["record_id"]
             # A CREATE INTRODUCES A CLAIM. IT DOES NOT ASSERT A VERDICT.
@@ -700,7 +724,10 @@ class AuthorityStore:
         state: a snapshot that dropped it would let a replayed request with a
         previously-used key apply a second time, which is precisely the thing
         idempotency keys exist to stop. Sorted, because a set has no order and
-        a digest over an unordered thing is not a digest over anything.
+        a digest over an unordered thing is not a digest over anything. What
+        each key completed is included for the same reason: without it a
+        load from the snapshot could not tell a key's retry from another
+        request for the same record under it (AUD-102).
 
         ``projection`` names the reducer that produced it (see
         :mod:`agent_substrate.projection`). It is inside the snapshot, so the
@@ -715,6 +742,7 @@ class AuthorityStore:
             "records": {rid: r.to_record()
                         for rid, r in sorted(self._records.items())},
             "applied_keys": dict(sorted(self._applied_keys.items())),
+            "applied_requests": dict(sorted(self._key_requests.items())),
             "policy_binding": self.policy_binding,
             "policies": {pid: {"publisher": v["publisher"],
                                "published": [list(x) for x in v["published"]],
@@ -738,7 +766,8 @@ class AuthorityStore:
         return digest(self.snapshot())
 
     def state_digest(self) -> str:
-        """Digest of the STATE alone: records and idempotency keys.
+        """Digest of the STATE alone: records and idempotency keys, with the
+        request each key completed.
 
         Position-independent, so two projections built by different routes --
         a full replay, a checkpointed load, a live store mid-run -- can be
@@ -746,7 +775,8 @@ class AuthorityStore:
         """
         snap = self.snapshot()
         return digest({"records": snap["records"],
-                       "applied_keys": snap["applied_keys"]})
+                       "applied_keys": snap["applied_keys"],
+                       "applied_requests": snap["applied_requests"]})
 
     def _restore(self, snap: dict) -> None:
         """Rebuild the projection from a snapshot. Validates, never assumes.
@@ -815,6 +845,15 @@ class AuthorityStore:
             raise StoreError(
                 "snapshot applied_keys must map key -> record_id")
         self._applied_keys = dict(keys)
+        requests = snap.get("applied_requests")
+        if (not isinstance(requests, dict) or set(requests) != set(keys)
+                or not all(isinstance(v, dict)
+                           and isinstance(v.get("action"), str)
+                           for v in requests.values())):
+            raise StoreError(
+                "snapshot applied_requests must name, for every key, the "
+                "request it completed (AUD-102)")
+        self._key_requests = {k: dict(v) for k, v in requests.items()}
         self._loaded_through = through
         # The snapshot names its position, not the record there; the
         # caller binds it to the checkpoint's hash once that is checked.
@@ -1329,6 +1368,11 @@ class AuthorityStore:
                         f"idempotency key {idempotency_key!r} already "
                         f"completed a request for {done_for!r}; reusing it "
                         f"for {record_id!r} would return the wrong record")
+                self._require_retry(idempotency_key, record_id, {
+                    "action": ACT_CREATE, "actor": proposer,
+                    "record_id": record_id, "kind": kind,
+                    "evidence": dict(evidence or {}),
+                    "depends_on": list(depends_on), "policy_id": policy_id})
                 return self.get(record_id)
         evidence = dict(evidence or {})
         for k, v in evidence.items():
@@ -1397,6 +1441,13 @@ class AuthorityStore:
                         f"idempotency key {idempotency_key!r} already "
                         f"completed a request for {done_for!r}; reusing it "
                         f"for {record_id!r} would return the wrong record")
+                self._require_retry(idempotency_key, record_id, {
+                    "action": ACT_TRANSITION, "actor": actor,
+                    "record_id": record_id,
+                    "dst": getattr(dst, "value", dst),
+                    "role": getattr(role, "value", role),
+                    "evidence": dict(evidence or {}), "policy_id": policy_id,
+                    "stale_reason": stale_reason})
                 return self.get(record_id)
         evidence = dict(evidence or {})
 
@@ -1478,6 +1529,35 @@ class AuthorityStore:
                 expected_revision=expected_revision,
                 stale_reason=stale_reason, idempotency_key=idempotency_key)
         return self.get(record_id)
+
+    def _require_retry(self, key: str, record_id: str, asked: dict) -> None:
+        """Refuse ``asked`` under ``key`` unless it is the request the key
+        completed for ``record_id``: its retry (AUD-102).
+
+        Answered as the retry, another request under a spent key returned
+        the record as it stood and wrote nothing -- a revocation under the
+        key its promotion spent left the record PROMOTED and canonical, and
+        the caller was told nothing had failed. The scheduler refuses the
+        same reuse for different work (test_13 of the hostile campaign).
+
+        A move that names no policy asks for the record's own, which is
+        what its first attempt recorded however it named it; so a retry
+        that names none is the retry of either.
+        """
+        done = self._key_requests.get(key)
+        same = done is not None and all(
+            done.get(f) == v or (f == "policy_id" and v is None
+                                 and asked["action"] == ACT_TRANSITION)
+            for f, v in asked.items())
+        if not same:
+            what = "nothing this store can name" if done is None else (
+                f"{done.get('action')} by {done.get('actor')!r}"
+                + (f" to {done['dst']}" if done.get("dst") else ""))
+            raise StoreError(
+                f"idempotency key {key!r} already completed a different "
+                f"request for {record_id!r} ({what}); answered as its "
+                "retry, this one would be done by nothing and reported "
+                "done")
 
     # ---- the policy binding (D-2026-148) --------------------------------
     @property

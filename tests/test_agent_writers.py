@@ -3,7 +3,8 @@
 The memory store's search (tests/test_agent_memory.py, the lifecycle from
 several writers) held one projection to a full load after every operation.
 These hold the others that decide against the history they write onto: the
-capability ledger, the policy store, the agent directory and the scheduler.
+capability ledger, the policy store, the agent directory, the scheduler and
+the authority store.
 
 Three writers, each a projection of its own on one log, write a history
 between them; each catches up from its anchor when it writes and when it is
@@ -37,6 +38,9 @@ if str(ROOT) not in sys.path:
 from agent_substrate.agents import (  # noqa: E402
     BOOTSTRAP, AgentDirectory, AgentError, AgentRole, PrincipalKind, identity,
 )
+from agent_substrate.authority import (  # noqa: E402
+    Role, State, TransitionError, allowed_targets, find_edge,
+)
 from agent_substrate.canonical import digest  # noqa: E402
 from agent_substrate.capability import (  # noqa: E402
     Action, CapabilityError, CapabilityLedger, issue,
@@ -45,10 +49,13 @@ from agent_substrate.events import ChainState, EventLog  # noqa: E402
 from agent_substrate.policy import (  # noqa: E402
     ANY, Effect, PolicyError, PolicyRequest, PolicyStore, document, rule,
 )
-from agent_substrate.reconstruct import reconstruct_subsystems  # noqa: E402
+from agent_substrate.reconstruct import (  # noqa: E402
+    compare, reconstruct, reconstruct_subsystems,
+)
 from agent_substrate.scheduler import (  # noqa: E402
     FailureClass, JobState, Scheduler, SchedulerError,
 )
+from agent_substrate.store import AuthorityStore, StoreError  # noqa: E402
 
 _WRITERS = 3
 
@@ -118,7 +125,7 @@ def _house_ops(st) -> dict:
 
 class _Search:
     """One projection's search. A subclass says how to build, read, write
-    and catch one up; :meth:`run` is the same for all four."""
+    and catch one up; :meth:`run` is the same for all five."""
 
     #: What a refusal raises.
     refusal: tuple = ()
@@ -155,6 +162,10 @@ class _Search:
 
     def load(self, path):
         return self.make(EventLog(path)).load()
+
+    def second(self, path):
+        """The second reader's reconstruction of the history at ``path``."""
+        return reconstruct_subsystems(EventLog(path))
 
     def refused(self, p, op) -> bool:
         try:
@@ -206,18 +217,23 @@ class _Search:
             if now == read:
                 continue                  # nothing written: nothing to read
             fresh, read = self.load(path), now
-            self.agree(fresh, reconstruct_subsystems(EventLog(path)), path)
+            self.agree(fresh, self.second(path), path)
         for p in writers:
             self.catch_up(p, "anchored")
             assert self.held(p) == self.held(fresh)
         return n
 
 
-def _search(tmp_path_factory, search, history) -> collections.Counter:
-    """Run ``search`` over the derandomized ``history``; the totals of what
-    its histories did."""
+def _search(tmp_path_factory, search, history,
+            fixed=()) -> collections.Counter:
+    """Run ``search`` over the histories in ``fixed``, then over the
+    derandomized ``history``; the totals of what its histories did."""
     from hypothesis import HealthCheck, given, settings
     totals: collections.Counter = collections.Counter()
+    for ops in fixed:
+        for k, v in search.run(tmp_path_factory.mktemp("writers"),
+                               ops).items():
+            totals[k] += v
 
     @settings(max_examples=200, deadline=None, derandomize=True,
               database=None, suppress_health_check=[HealthCheck.too_slow])
@@ -846,4 +862,249 @@ def test_the_queue_written_by_several_writers_agrees_everywhere(
     after every operation; each write decides as a scheduler just loaded
     decides; and the second reader agrees with a fresh load."""
     totals = _search(tmp_path_factory, _Schedulers(), _s_history())
+    assert totals["writes"] and totals["behind"], totals
+
+
+# ==========================================================================
+# THE AUTHORITY STORE
+#
+# Records proposed, again under an id taken and under a key spent, on
+# dependencies recorded and not; walked along the state machine -- picked
+# up, verified, promoted, made stale with a reason, re-verified, superseded,
+# revoked, rejected -- and moved off it, by their proposers and by others,
+# in the roles the edges name and in others, with the evidence an edge asks
+# for, without it and with what the record already carries, at the
+# revision read and at one passed since; made to depend on records created
+# since a writer last read, and on themselves; promoted under a binding
+# declared since, on policies published, withdrawn and expired since, by
+# the authorities the binding names and by others.
+# ==========================================================================
+_R_IDS = ("r0", "r1", "r2")
+_R_WHO = ("ann", "bob", "cat")
+_R_STALE = "a dependency moved"
+#: The walk a record takes when nothing refuses it: picked up, verified,
+#: promoted, made stale, picked up again.
+_R_ON = {State.PROPOSED: State.UNDER_REVIEW,
+         State.UNDER_REVIEW: State.VERIFIED,
+         State.VERIFIED: State.PROMOTED,
+         State.PROMOTED: State.STALE,
+         State.STALE: State.UNDER_REVIEW}
+
+
+def _r_history():
+    from hypothesis import strategies as st
+    w, i = st.integers(0, _WRITERS - 1), st.integers(0, 11)
+    key = st.sampled_from((None,) * 4 + ("k0", "k1"))
+    policy = st.sampled_from(("p0", "p0", "p1", None))
+    kinds = {
+        "create": st.tuples(st.just("create"), w,
+                            st.sampled_from(("new",) * 4 + ("taken",)), i,
+                            st.sampled_from(_R_WHO),
+                            st.sampled_from((None, None, "recorded",
+                                             "unrecorded")), policy, key),
+        "transition": st.tuples(
+            st.just("transition"), w, i, i,
+            st.sampled_from(("on",) * 8 + ("an edge",) * 2 + ("anywhere",)),
+            st.sampled_from(("another",) * 9 + ("the proposer",)),
+            st.sampled_from(("the edge's",) * 9 + ("any",)),
+            st.sampled_from(("the edge's",) * 8 + ("carried", "none")),
+            policy,
+            st.sampled_from((None,) * 6 + ("read", "passed")), key),
+        "depend": st.tuples(st.just("depend"), w, i, i,
+                            st.sampled_from(("recorded",) * 3 + (
+                                "itself", "unrecorded"))),
+        "bind": st.tuples(st.just("bind"), w,
+                          st.sampled_from((("ops",), ("ops", "eve"),
+                                           ("ops", "eve")))),
+        "publish": st.tuples(st.just("publish"), w,
+                             st.sampled_from(_P_IDS),
+                             st.sampled_from(_P_WHO),
+                             st.sampled_from((False,) * 4 + (True,))),
+        "withdraw": st.tuples(st.just("withdraw"), w,
+                              st.sampled_from(_P_IDS),
+                              st.sampled_from(_P_WHO)),
+        **_house_ops(st),
+    }
+    weights = {"create": 3, "transition": 15, "depend": 1, "bind": 1,
+               "publish": 3, "withdraw": 1, "catch_up": 2, "reopen": 1}
+    pool = st.sampled_from([k for k, n in weights.items()
+                            for _ in range(n)])
+    # A binding and the policies it names, often in place before the first
+    # promotion: drawn among the rest alone, no history promoted under one.
+    opening = st.lists(st.sampled_from(("bind", "publish", "publish"))
+                       .flatmap(kinds.__getitem__), max_size=3)
+    rest = st.lists(pool.flatmap(kinds.__getitem__), min_size=5,
+                    max_size=40)
+    return st.tuples(kinds["create"], opening, rest).map(
+        lambda t: [t[0], *t[1], *t[2]])
+
+
+def _r_fixed() -> list:
+    """A promotion under a binding, by a writer behind the log, for each
+    answer the binding gives: permitted; refused for a policy withdrawn,
+    expired, published by no authority the binding names, and never
+    published. The random histories draw some of these and not others."""
+    def made(w=0):
+        return ("transition", w, 0, 0, "on", "another", "the edge's",
+                "the edge's", "p0", None, None)
+    opening = [("create", 0, "new", 0, "ann", None, "p0", None),
+               ("bind", 0, ("ops",))]
+    walk = [made(), made(), ("catch_up", 1, "anchored")]
+    by_ops = [("publish", 0, "p0", "ops", False)]
+    return [opening + by_ops + walk + [made(2)],
+            opening + by_ops + walk + [("withdraw", 1, "p0", "ops"),
+                                       made(2)],
+            opening + by_ops + walk + [("publish", 1, "p0", "ops", True),
+                                       made(2)],
+            opening + [("publish", 0, "p0", "eve", False)] + walk
+            + [made(2)],
+            opening + walk + [made(2)]]
+
+
+class _Authority(_Search):
+    refusal = (StoreError, TransitionError, PolicyError)
+
+    def make(self, log):
+        return AuthorityStore(log)
+
+    def held(self, p) -> dict:
+        return {"records": {k: v.to_record()
+                            for k, v in sorted(p._records.items())},
+                "keys": dict(sorted(p._applied_keys.items())),
+                # what each key completed (AUD-102); absent before it
+                "requests": json.loads(json.dumps(
+                    getattr(p, "_key_requests", None), sort_keys=True)),
+                "binding": p._binding,
+                "policies": json.loads(json.dumps(p._policy_view)),
+                "latest_wall": p._latest_wall,
+                "position": (p._loaded_through, p._loaded_hash)}
+
+    def position(self, p) -> int:
+        return p._loaded_through
+
+    def resolve(self, op, fresh):
+        ids = sorted(fresh._records)
+
+        def pick(i):
+            return ids[i % len(ids)] if ids else _R_IDS[i % len(_R_IDS)]
+
+        kind = op[0]
+        if kind == "create":
+            _, w, which, i, proposer, dep, policy, key = op
+            free = [x for x in _R_IDS if x not in fresh._records]
+            rid = free[0] if which == "new" and free else pick(i)
+            deps = (() if dep is None or (dep == "recorded" and not ids)
+                    else ("r9",) if dep == "unrecorded" else (pick(i),))
+            return (kind, w, rid, proposer, deps, policy, key)
+        if kind == "transition":
+            (_, w, i, j, dst, actor, role, evidence, policy, revision,
+             key) = op
+            rid = pick(i)
+            cur = fresh._records.get(rid)
+            state = State.PROPOSED if cur is None else cur.state
+            carried = {} if cur is None else cur.evidence
+            at = 1 if cur is None else cur.revision
+            targets = sorted(allowed_targets(state), key=lambda s: s.value)
+            dst = (_R_ON.get(state, State.PROMOTED) if dst == "on" else
+                   targets[j % len(targets)] if dst == "an edge" and targets
+                   else list(State)[j % len(State)])
+            edge = find_edge(state, dst)
+            proposer = _R_WHO[0] if cur is None else cur.proposer
+            others = [x for x in _R_WHO if x != proposer]
+            actor = (others[j % len(others)] if actor == "another"
+                     else proposer)
+            role = (list(Role)[j % len(Role)] if role == "any" or edge is None
+                    else min(edge.roles, key=lambda r: r.value))
+            cited = {}
+            if evidence != "none" and edge is not None:
+                # what the edge asks for, made at this revision -- a report
+                # supplied now -- or, "carried", what the record already
+                # carries where it carries it (I3)
+                cited = {k: (policy or "p0") if k == "policy_id"
+                         else carried[k] if evidence == "carried"
+                         and k in carried
+                         else digest({"record": rid, "key": k, "at": at})
+                         for k in sorted(edge.requires_evidence)}
+            revision = {None: None, "read": at, "passed": at - 1}[revision]
+            return (kind, w, rid, dst, actor, role, cited, policy, revision,
+                    key)
+        if kind == "depend":
+            _, w, i, j, dep = op
+            rid = pick(i)
+            deps = ((rid,) if dep == "itself" else
+                    ("r9",) if dep == "unrecorded" else (pick(j),))
+            return (kind, w, rid, deps)
+        if kind == "publish":
+            _, w, pid, owner, expired = op
+            version = len(PolicyStore(fresh.log).load().versions(pid)) + 1
+            return (kind, w, pid, version, owner, expired)
+        return op
+
+    def write(self, p, op) -> None:
+        kind = op[0]
+        if kind == "create":
+            _, _, rid, proposer, deps, policy, key = op
+            p.create(record_id=rid, kind="claim", proposer=proposer,
+                     depends_on=deps, policy_id=policy,
+                     idempotency_key=key)
+        elif kind == "transition":
+            _, _, rid, dst, actor, role, cited, policy, revision, key = op
+            p.transition(record_id=rid, dst=dst, actor=actor, role=role,
+                         evidence=cited, policy_id=policy,
+                         expected_revision=revision,
+                         stale_reason=(_R_STALE if dst is State.STALE
+                                       else None),
+                         idempotency_key=key)
+        elif kind == "depend":
+            _, _, rid, deps = op
+            p.add_dependency(record_id=rid, depends_on=deps, actor="ann")
+        elif kind == "bind":
+            _, _, publishers = op
+            p.bind_policies(actor="ops", publishers=publishers)
+        elif kind == "publish":
+            # another subsystem's writer on the same log: what a promotion
+            # under the binding is judged on
+            _, _, pid, version, owner, expired = op
+            PolicyStore(p.log).load().publish(
+                _p_doc(pid, version, Effect.ALLOW, expired), actor=owner)
+        elif kind == "withdraw":
+            _, _, pid, owner = op
+            PolicyStore(p.log).load().withdraw(pid, actor=owner,
+                                               reason="retired")
+
+    def catch_up(self, p, route) -> None:
+        if route == "full":
+            p._anchor = None
+            p.catch_up(force=True)
+        else:
+            p.catch_up()
+
+    def second(self, path):
+        return reconstruct(EventLog(path))
+
+    def agree(self, fresh, rec, path) -> None:
+        assert not rec.unauthorized, rec.unauthorized
+        assert not rec.anomalies, rec.anomalies
+        assert compare(fresh, rec) == ()
+        # every field the two readers both hold, not only those compare()
+        # diffs
+        fields = ("record_id", "kind", "proposer", "state", "revision",
+                  "evidence", "depends_on", "policy_id", "created_seq",
+                  "updated_seq", "stale_reason", "admission")
+        assert {k: {f: v[f] for f in fields}
+                for k, v in sorted(rec.records.items())} == {
+            k: {f: r.to_record()[f] for f in fields}
+            for k, r in sorted(fresh._records.items())}
+        assert sorted(rec.canonical_ids()) == sorted(fresh.canonical())
+
+
+def test_records_written_by_several_writers_agree_everywhere(
+        tmp_path_factory):
+    """Wave B. Every writer of the authority store holds what a load of
+    the history up to its own position holds, after every operation; each
+    write decides as a store just loaded decides, with another subsystem's
+    writer publishing and withdrawing the policies its promotions stand
+    on; and the second reader agrees with a fresh load, field by field."""
+    totals = _search(tmp_path_factory, _Authority(), _r_history(),
+                     fixed=_r_fixed())
     assert totals["writes"] and totals["behind"], totals

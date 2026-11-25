@@ -1551,9 +1551,17 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
             cur["evidence"].update(p.get("evidence", {}))
             cur["updated_seq"] = ev.seq
             cur["admission"] = admission
-            if p.get("stale_reason") is not None:
+            # A move's policy and stale reason are what its payload says,
+            # where the payload says anything: the store's rule (AUD-101).
+            # This kept the record's own unless the payload named one, so a
+            # record picked up again after STALE read here as stale for a
+            # reason the store had cleared, and, past the gate, a move that
+            # stated no policy left this reader the record's -- and with it
+            # a promotion the store refuses for naming none (I5), PROMOTED
+            # and canonical here with nothing reported.
+            if "stale_reason" in p:
                 cur["stale_reason"] = p["stale_reason"]
-            if p.get("policy_id") is not None:
+            if "policy_id" in p:
                 cur["policy_id"] = p["policy_id"]
             cur["history"].append((ev.seq, p["dst"]))
 
@@ -5312,6 +5320,11 @@ def compare(store, recon: Reconstruction) -> tuple:
             ("evidence", dict(lv.evidence), rc["evidence"]),
             ("depends_on", list(lv.depends_on), rc["depends_on"]),
             ("policy_id", lv.policy_id, rc["policy_id"]),
+            # Every field the two readers both hold (AUD-101): the stale
+            # reason went undiffed here while the readers parted on it.
+            ("stale_reason", lv.stale_reason, rc["stale_reason"]),
+            ("created_seq", lv.created_seq, rc["created_seq"]),
+            ("updated_seq", lv.updated_seq, rc["updated_seq"]),
             # Decided by two implementations from the same bytes: the store
             # through result_rules and its origin view, this reader through
             # its own restatement. A weakened rule on either side is a

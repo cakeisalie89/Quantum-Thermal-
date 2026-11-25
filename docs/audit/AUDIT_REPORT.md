@@ -58,7 +58,7 @@ git.
 
 ## 2. Findings register
 
-One hundred findings. Severity follows the register's scale: P0 is an
+One hundred and two findings. Severity follows the register's scale: P0 is an
 authority bypass or integrity failure, P3 is information for the owner.
 
 | ID | Sev | Established | Resolution | In brief |
@@ -163,6 +163,8 @@ authority bypass or integrity failure, P3 is information for the owner.
 | AUD-098 | P3 | REPRODUCED | FIXED | the authority store refused a retry racing the request it repeats, as a record that existed or a move from a state the record had left |
 | AUD-099 | P3 | REPRODUCED | FIXED | the scheduler's replay judged no policy expiry: an enqueue appended under an expired scheduling policy became queue state |
 | AUD-100 | P2 | REPRODUCED | FIXED | a scheduler decided readiness under the policy version its store had last read: it dispatched work a published version suspends, and blocked work one lifting the suspension lets run |
+| AUD-101 | P2 | REPRODUCED | FIXED | the second reader kept a record's policy and stale reason unless a move named one: a record picked up again after STALE read as stale there alone, and a promotion the store refuses for naming no policy stood there |
+| AUD-102 | P2 | REPRODUCED | FIXED | another request for a record under a spent idempotency key was answered as the key's retry: a revocation under the key its promotion spent wrote nothing and was reported done |
 
 **How far each is established.** REPRODUCED means shown failing by a
 test or a script; CONFIRMED means established by reading, not executed.
@@ -531,12 +533,14 @@ The audit restored none of it.
 | AUD-098 | A retry is answered with the record its request made, whenever that request completed | `AuthorityStore.create`, `AuthorityStore.transition` |
 | AUD-099 | A gated record is judged at the reading its gate judged it at, never earlier than the history has reached | `Scheduler.apply`; the scheduler's decided writes and `_dry_run` |
 | AUD-100 | A dispatch is gated by the policy in force: at the head, under the writer lock and on replay; a block is asked again under the lock | `Scheduler.dispatch`, `reconcile`, `apply`, `transition` |
+| AUD-101 | The second reader restates the store's fold of a move, and compare() diffs every field the two readers both hold | `reconstruct` (record.transition), `compare` |
+| AUD-102 | A spent key answers its own request's retry and refuses any other; what each key completed is in the snapshot | `AuthorityStore.create`, `transition`, `snapshot`, `_restore` |
 
 ## 7. Owner decisions
 
 **Fixable here, and fixed.** AUD-002 to AUD-009, AUD-011 to
 AUD-018, AUD-020 to AUD-034, AUD-036 to AUD-039, and AUD-041 to
-AUD-074, AUD-076 to AUD-078, and AUD-080 to AUD-100. For AUD-011 and AUD-017 the mechanism is what was
+AUD-074, AUD-076 to AUD-078, and AUD-080 to AUD-102. For AUD-011 and AUD-017 the mechanism is what was
 fixed, and it holds where a reader is given a registry. Provisioning the
 production registry is the owner action below.
 

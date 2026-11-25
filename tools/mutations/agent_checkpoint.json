@@ -152,22 +152,22 @@
     {
       "name": "S26_create_checks_existence_before_idempotency",
       "path": "agent_substrate/store.py",
-      "find": "        if idempotency_key:\n            done_for = self._applied_keys.get(idempotency_key)\n            if done_for is not None:\n                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
+      "find": "        if idempotency_key:\n            done_for = self._applied_keys.get(idempotency_key)\n            if done_for is not None:\n                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                self._require_retry(idempotency_key, record_id, {\n                    \"action\": ACT_CREATE, \"actor\": proposer,\n                    \"record_id\": record_id, \"kind\": kind,\n                    \"evidence\": dict(evidence or {}),\n                    \"depends_on\": list(depends_on), \"policy_id\": policy_id})\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
       "replace": "        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")\n        if idempotency_key:\n            done_for = self._applied_keys.get(idempotency_key)\n            if done_for is not None:\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
       "rationale": "the original defect: existence-first makes the idempotent branch unreachable, so a retried create raises instead of returning"
     },
     {
       "name": "S25a_key_reuse_guard_on_create",
       "path": "agent_substrate/store.py",
-      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
-      "replace": "                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
+      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                self._require_retry(idempotency_key, record_id, {\n                    \"action\": ACT_CREATE, \"actor\": proposer,\n                    \"record_id\": record_id, \"kind\": kind,\n                    \"evidence\": dict(evidence or {}),\n                    \"depends_on\": list(depends_on), \"policy_id\": policy_id})\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
+      "replace": "                self._require_retry(idempotency_key, record_id, {\n                    \"action\": ACT_CREATE, \"actor\": proposer,\n                    \"record_id\": record_id, \"kind\": kind,\n                    \"evidence\": dict(evidence or {}),\n                    \"depends_on\": list(depends_on), \"policy_id\": policy_id})\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
       "rationale": "a key that completed a request for one record would return a different record from create -- a wrong answer delivered as a success"
     },
     {
       "name": "S25b_key_reuse_guard_on_transition",
       "path": "agent_substrate/store.py",
-      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n\n        def build():",
-      "replace": "                return self.get(record_id)\n        evidence = dict(evidence or {})\n\n        def build():",
+      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                self._require_retry(idempotency_key, record_id, {\n                    \"action\": ACT_TRANSITION, \"actor\": actor,\n                    \"record_id\": record_id,\n                    \"dst\": getattr(dst, \"value\", dst),\n                    \"role\": getattr(role, \"value\", role),\n                    \"evidence\": dict(evidence or {}), \"policy_id\": policy_id,\n                    \"stale_reason\": stale_reason})\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n\n        def build():",
+      "replace": "                self._require_retry(idempotency_key, record_id, {\n                    \"action\": ACT_TRANSITION, \"actor\": actor,\n                    \"record_id\": record_id,\n                    \"dst\": getattr(dst, \"value\", dst),\n                    \"role\": getattr(role, \"value\", role),\n                    \"evidence\": dict(evidence or {}), \"policy_id\": policy_id,\n                    \"stale_reason\": stale_reason})\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n\n        def build():",
       "rationale": "the same reuse at the transition call site"
     },
     {
@@ -463,6 +463,153 @@
       "find": "                    anchored = True\n            store._apply(ev)\n",
       "replace": "                    anchored = True\n            if ev.action != ACT_CHECKPOINT_STATE:\n                store._apply(ev)\n",
       "rationale": "the cheap load would stop short of the records it read, at a position and time the full load passes"
+    },
+    {
+      "name": "CD16_a_retried_create_is_not_asked_what_it_asks",
+      "path": "agent_substrate/store.py",
+      "find": "                self._require_retry(idempotency_key, record_id, {\n                    \"action\": ACT_CREATE, \"actor\": proposer,\n                    \"record_id\": record_id, \"kind\": kind,\n                    \"evidence\": dict(evidence or {}),\n                    \"depends_on\": list(depends_on), \"policy_id\": policy_id})\n                return self.get(record_id)\n",
+      "replace": "                return self.get(record_id)\n",
+      "rationale": "another create for the record under a spent key is answered as the key's retry: nothing is created, and nothing is refused"
+    },
+    {
+      "name": "CD17_a_retried_move_is_not_asked_what_it_asks",
+      "path": "agent_substrate/store.py",
+      "find": "                self._require_retry(idempotency_key, record_id, {\n                    \"action\": ACT_TRANSITION, \"actor\": actor,\n                    \"record_id\": record_id,\n                    \"dst\": getattr(dst, \"value\", dst),\n                    \"role\": getattr(role, \"value\", role),\n                    \"evidence\": dict(evidence or {}), \"policy_id\": policy_id,\n                    \"stale_reason\": stale_reason})\n                return self.get(record_id)\n",
+      "replace": "                return self.get(record_id)\n",
+      "rationale": "a revocation under the key its promotion spent is answered as the promotion's retry: the record stays PROMOTED and canonical, and its caller is told nothing failed"
+    },
+    {
+      "name": "CD18_the_fold_forgets_what_a_key_completed",
+      "path": "agent_substrate/store.py",
+      "find": "            self._applied_keys[key] = p.get(\"record_id\", ev.target)\n            self._key_requests[key] = _request(ev.action, ev.actor, p)\n",
+      "replace": "            self._applied_keys[key] = p.get(\"record_id\", ev.target)\n",
+      "rationale": "every retry under a key is refused as another request, its own unknown: the half of idempotency that must still work is lost"
+    },
+    {
+      "name": "CD19_a_snapshot_leaves_out_what_each_key_completed",
+      "path": "agent_substrate/store.py",
+      "find": "            \"applied_requests\": dict(sorted(self._key_requests.items())),\n",
+      "replace": "            \"applied_requests\": {},\n",
+      "rationale": "a snapshot names no request for the keys it holds, so a load from it cannot tell a retry from another request under the key"
+    },
+    {
+      "name": "CD20_restore_forgets_what_each_key_completed",
+      "path": "agent_substrate/store.py",
+      "find": "        self._key_requests = {k: dict(v) for k, v in requests.items()}\n",
+      "replace": "        self._key_requests = {}\n",
+      "rationale": "a load from a checkpoint refuses every retry of a request before it, and parts from the full load"
+    },
+    {
+      "name": "CD21_restore_takes_any_requests",
+      "path": "agent_substrate/store.py",
+      "find": "        if (not isinstance(requests, dict) or set(requests) != set(keys)\n                or not all(isinstance(v, dict)\n                           and isinstance(v.get(\"action\"), str)\n                           for v in requests.values())):\n",
+      "replace": "        if not isinstance(requests, dict):\n",
+      "rationale": "a snapshot naming no request for a key, or one for a key it does not hold, or a request that is none, is restored"
+    },
+    {
+      "name": "CD22_a_retry_naming_no_policy_is_another_request",
+      "path": "agent_substrate/store.py",
+      "find": "            done.get(f) == v or (f == \"policy_id\" and v is None\n                                 and asked[\"action\"] == ACT_TRANSITION)\n",
+      "replace": "            done.get(f) == v\n",
+      "rationale": "a promotion's retry that names no policy -- asking for the record's own, which its first attempt recorded -- is refused as another request"
+    },
+    {
+      "name": "CD23_a_create_naming_no_policy_is_the_retry",
+      "path": "agent_substrate/store.py",
+      "find": "            done.get(f) == v or (f == \"policy_id\" and v is None\n                                 and asked[\"action\"] == ACT_TRANSITION)\n",
+      "replace": "            done.get(f) == v or (f == \"policy_id\" and v is None)\n",
+      "rationale": "a create under a spent key naming no policy, where the create named one, is answered as its retry"
+    },
+    {
+      "name": "CD24_a_retried_move_is_not_asked_where_it_goes",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"record_id\": record_id,\n                    \"dst\": getattr(dst, \"value\", dst),\n",
+      "replace": "                    \"record_id\": record_id,\n",
+      "rationale": "a move under a spent key to another state is answered as its retry"
+    },
+    {
+      "name": "CD25_a_retried_move_is_not_asked_its_role",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"dst\": getattr(dst, \"value\", dst),\n                    \"role\": getattr(role, \"value\", role),\n",
+      "replace": "                    \"dst\": getattr(dst, \"value\", dst),\n",
+      "rationale": "a move under a spent key in another role is answered as its retry"
+    },
+    {
+      "name": "CD26_a_retried_move_is_not_asked_who_makes_it",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"action\": ACT_TRANSITION, \"actor\": actor,\n",
+      "replace": "                    \"action\": ACT_TRANSITION,\n",
+      "rationale": "a move under a spent key by another actor is answered as its retry"
+    },
+    {
+      "name": "CD27_a_retried_move_is_not_asked_its_evidence",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"evidence\": dict(evidence or {}), \"policy_id\": policy_id,\n                    \"stale_reason\": stale_reason})\n",
+      "replace": "                    \"policy_id\": policy_id,\n                    \"stale_reason\": stale_reason})\n",
+      "rationale": "a move under a spent key citing other evidence is answered as its retry"
+    },
+    {
+      "name": "CD28_a_retried_move_is_not_asked_its_stale_reason",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"evidence\": dict(evidence or {}), \"policy_id\": policy_id,\n                    \"stale_reason\": stale_reason})\n",
+      "replace": "                    \"evidence\": dict(evidence or {}), \"policy_id\": policy_id})\n",
+      "rationale": "a move under a spent key stating another stale reason is answered as its retry"
+    },
+    {
+      "name": "CD29_a_retried_move_is_not_asked_its_policy",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"evidence\": dict(evidence or {}), \"policy_id\": policy_id,\n                    \"stale_reason\": stale_reason})\n",
+      "replace": "                    \"evidence\": dict(evidence or {}),\n                    \"stale_reason\": stale_reason})\n",
+      "rationale": "a move under a spent key naming another policy is answered as its retry"
+    },
+    {
+      "name": "CD30_a_retried_create_is_not_asked_its_kind",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"record_id\": record_id, \"kind\": kind,\n",
+      "replace": "                    \"record_id\": record_id,\n",
+      "rationale": "a create under a spent key of another kind is answered as its retry"
+    },
+    {
+      "name": "CD31_a_retried_create_is_not_asked_who_proposes",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"action\": ACT_CREATE, \"actor\": proposer,\n",
+      "replace": "                    \"action\": ACT_CREATE,\n",
+      "rationale": "a create under a spent key by another proposer is answered as its retry"
+    },
+    {
+      "name": "CD32_a_retried_create_is_not_asked_its_evidence",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"evidence\": dict(evidence or {}),\n                    \"depends_on\": list(depends_on), \"policy_id\": policy_id})\n",
+      "replace": "                    \"depends_on\": list(depends_on), \"policy_id\": policy_id})\n",
+      "rationale": "a create under a spent key citing other evidence is answered as its retry"
+    },
+    {
+      "name": "CD33_a_retried_create_is_not_asked_what_it_rests_on",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"evidence\": dict(evidence or {}),\n                    \"depends_on\": list(depends_on), \"policy_id\": policy_id})\n",
+      "replace": "                    \"evidence\": dict(evidence or {}),\n                    \"policy_id\": policy_id})\n",
+      "rationale": "a create under a spent key resting on other records is answered as its retry"
+    },
+    {
+      "name": "CD34_a_retried_create_is_not_asked_its_policy",
+      "path": "agent_substrate/store.py",
+      "find": "                    \"evidence\": dict(evidence or {}),\n                    \"depends_on\": list(depends_on), \"policy_id\": policy_id})\n",
+      "replace": "                    \"evidence\": dict(evidence or {}),\n                    \"depends_on\": list(depends_on)})\n",
+      "rationale": "a create under a spent key naming another policy is answered as its retry"
+    },
+    {
+      "name": "CD35_a_move_is_recorded_without_where_it_went",
+      "path": "agent_substrate/store.py",
+      "find": "              (\"dst\", \"role\", \"evidence\", \"policy_id\", \"stale_reason\")\n",
+      "replace": "              (\"role\", \"evidence\", \"policy_id\", \"stale_reason\")\n",
+      "rationale": "the request a key completed no longer names the move's destination, so the move's own retry is refused"
+    },
+    {
+      "name": "CD36_a_request_is_recorded_without_its_record",
+      "path": "agent_substrate/store.py",
+      "find": "            \"record_id\": p.get(\"record_id\"),\n            **{f: p.get(f) for f in fields}}",
+      "replace": "            **{f: p.get(f) for f in fields}}",
+      "rationale": "the request a key completed no longer names its record, so its own retry is refused"
     }
   ]
 }

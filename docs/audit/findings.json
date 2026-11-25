@@ -3333,6 +3333,76 @@
    "mutations": [
     "tools/mutations/agent_scheduler.json: S75, S76, S77, S79"
    ]
+  },
+  {
+   "id": "AUD-101",
+   "title": "The second reader kept a record's policy and stale reason unless a move's payload named one, where the store takes the payload's: a record picked up again after STALE read as stale there alone, and past the gate a promotion the store refuses for naming no policy stood there, PROMOTED and canonical",
+   "severity": "P2",
+   "subsystem": "second reader (authority records)",
+   "files": [
+    {
+     "path": "agent_substrate/reconstruct.py",
+     "lines": "reconstruct (record.transition), compare"
+    }
+   ],
+   "behavior": "The store folds a move's policy and stale reason as the payload states them wherever the payload has the key (p.get(key, the record's own)); every move the store writes carries both keys, and one that states no stale reason clears it. reconstruct() kept the record's own unless the payload named a value. Through the store alone: a record made stale with a reason and picked up again, verified and promoted read as stale for that reason in the second reader and as carrying none in the store, and compare(), the diff of the two, did not hold the field (nor where a record was created or last moved). Past the gate: a move whose payload states no policy clears the record's in the store, and a later promotion that names none is refused there (I5), and with it the history; the second reader judged I5 on the policy it had kept, and held the record PROMOTED and canonical with nothing reported -- the only reader of a history the store will not load.",
+   "invariant": "The second reader restates the store's rules, and the two agree on every field they both hold.",
+   "mechanism": "A restatement of the store's fold that read 'the payload's value, where it has the key' as 'the payload's value, where it names one'. The two differ only for a move stating none, which is every move but the one into STALE for the stale reason; for the policy, only past the gate, since the store's writer always states the record's. Found by the authority store's Wave B search (tests/test_agent_writers.py), which holds the second reader to a fresh load field by field: on 82ebae2 it fails on the stale reason.",
+   "reproduction": "scratchpad repro_v1.py (through the store) and repro_v2.py (past the gate), at 82ebae2 and on this pass's tree; and the authority store's search in tests/test_agent_writers.py, which fails at 82ebae2",
+   "observed": "At 82ebae2: picked up again after STALE, the store holds stale_reason None and the second reader 'a dependency moved', and compare() reports no divergence. Past the gate: after a move stating no policy the store holds policy None and the second reader 'p0' (compare: Divergence policy_id); after a promotion naming none the store refuses the history (seq 7: 'r0' VERIFIED -> PROMOTED would be refused today: I5: promotion requires an explicit policy identity in force) and the second reader holds r0 PROMOTED, policy 'p0', canonical ['r0'], 0 unauthorized.",
+   "expected": "Both readers hold the stale reason and the policy the store's rule gives; the second reader refuses the promotion the store refuses, and compare() diffs every field both hold.",
+   "correction": "reconstruct() takes a move's stale reason and policy from its payload wherever the payload has the key, as the store does. compare() diffs the stale reason and where a record was created and last moved. On this pass's tree both readers clear the stale reason; past the gate the second reader holds r0 VERIFIED, policy None, not canonical, with the promotion reported unauthorized under I5.",
+   "regression_tests": [
+    "tests/test_second_reader_rules.py::test_a_record_picked_up_again_after_stale_reads_as_the_store_reads_it",
+    "tests/test_second_reader_rules.py::test_the_stale_reason_stands_while_the_record_is_stale",
+    "tests/test_second_reader_rules.py::test_compare_diffs_every_field_both_readers_hold",
+    "tests/test_second_reader_rules.py::test_a_move_that_states_no_policy_clears_it_for_both",
+    "tests/test_second_reader_rules.py::test_a_promotion_naming_no_policy_after_one_is_refused_by_both",
+    "tests/test_second_reader_rules.py::test_a_promotion_naming_its_policy_after_one_stands_for_both",
+    "tests/test_second_reader_rules.py::test_a_move_whose_payload_states_neither_keeps_both_for_both",
+    "tests/test_agent_writers.py::test_records_written_by_several_writers_agree_everywhere"
+   ],
+   "residual_risk": "compare() still does not diff a record's admission basis or the second reader's history, which only one reader holds. The store's rule for a payload without the key (the record's own) is restated, and held by a test; no writer in the package writes such a payload.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/second_reader_rules.json: SR21 to SR28"
+   ]
+  },
+  {
+   "id": "AUD-102",
+   "title": "An idempotency key named only the record it completed a request for, so another request for the same record under a spent key was answered as its retry: a revocation under the key a promotion spent wrote nothing and returned the record still PROMOTED, and its caller was told nothing had failed",
+   "severity": "P2",
+   "subsystem": "authority store (idempotency)",
+   "files": [
+    {
+     "path": "agent_substrate/store.py",
+     "lines": "AuthorityStore._fold_one, create, transition, snapshot, _restore, _require_retry, _request"
+    }
+   ],
+   "behavior": "The store mapped an idempotency key to the record it completed a request for, and refused the key for another record (S25); for the same record it answered any request under the key as the key's retry, returning the record as it stood. A create under a key a pick-up spent, a pick-up under the key the create spent, a move to another state, in another role, by another actor, citing other evidence or naming another policy -- each returned normally and wrote nothing. A revocation under the key its promotion spent left the record PROMOTED and canonical, and the caller had no refusal to tell it so.",
+   "invariant": "A key's retry is the request the key completed, answered with its record; another request under the key is refused, never answered as done (the store's S25, and the scheduler's rule for a key reused for other work).",
+   "mechanism": "The key recorded WHAT it completed at the grain of the record, not of the request. S25 closed the wrong record answered as a success; the wrong request for the right record was the same failure one level down. Found from the authority store's Wave B search, whose counts showed requests answered with nothing written on moves no earlier request had made (21 on PROMOTED to STALE); both writers answer alike, so the search itself passes.",
+   "reproduction": "scratchpad repro_v3.py, at 82ebae2 and on this pass's tree",
+   "observed": "At 82ebae2: a pick-up of r1 under the create's key returned r1 PROPOSED with nothing written; the promotion's retry returned r1 PROMOTED with nothing written; a revocation under the promotion's key returned r1 PROMOTED, nothing written, canonical ['r1']; under a fresh key it returned r1 REVOKED, one record written.",
+   "expected": "The pick-up and the revocation under a spent key refused, nothing written; the promotion's retry answered as before.",
+   "correction": "The fold records, for each key, the request its record states (action, actor, record and the fields a retry carries again; none the store derived, such as the source state), and create() and transition() answer a spent key only for that request, refusing any other ('a different request'). A move naming no policy asks for the record's own, which its first attempt recorded however it named it, so its retry naming none is answered; a create's policy is held exactly. The snapshot (version 5) carries the requests and the restore requires one for every key. On this pass's tree the pick-up and the revocation are refused with nothing written, the retry is answered, and the revocation under a fresh key is made.",
+   "regression_tests": [
+    "tests/test_agent_checkpoint.py::test_a_revocation_under_the_key_its_promotion_spent_is_refused",
+    "tests/test_agent_checkpoint.py::test_a_pick_up_under_the_key_the_create_spent_is_refused",
+    "tests/test_agent_checkpoint.py::test_a_move_under_a_spent_key_that_differs_in_one_field_is_refused",
+    "tests/test_agent_checkpoint.py::test_a_create_under_a_spent_key_that_differs_in_one_field_is_refused",
+    "tests/test_agent_checkpoint.py::test_a_retry_naming_no_policy_is_the_retry_of_a_move_that_named_one",
+    "tests/test_agent_checkpoint.py::test_what_a_key_completed_survives_a_checkpointed_load",
+    "tests/test_agent_checkpoint.py::test_a_malformed_snapshot_is_refused_rather_than_guessed_at",
+    "tests/test_agent_checkpoint.py::test_the_valid_base_snapshot_is_accepted"
+   ],
+   "residual_risk": "A history written past the gate may carry a second record under a spent key; the fold takes the later request as the key's, as it took the later record, and refuses neither. The key decides only how a retry is answered: each record is re-authorized on its own terms. A snapshot of version 4 is foreign to this reducer: a load from one replays the history, or refuses where a checkpoint is required, as one of any earlier reducer already did.",
+   "verification": "REPRODUCED",
+   "resolution": "FIXED",
+   "mutations": [
+    "tools/mutations/agent_checkpoint.json: CD16 to CD36; S25a, S25b and S26 re-anchored"
+   ]
   }
  ]
 }

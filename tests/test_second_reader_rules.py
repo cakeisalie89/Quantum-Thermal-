@@ -27,6 +27,13 @@ was never published.
 AUD-067. An allowed read under a delegated capability whose ancestor was
 revoked is one the read path refuses; the second reader asked only of the
 capability the read cited.
+
+AUD-101. The store takes a move's policy and stale reason from its payload
+wherever the payload has the key; the second reader kept the record's own
+unless the payload named one. A record picked up again after STALE read as
+stale here, and compare() did not diff the field; past the gate, a
+promotion the store refuses for naming no policy (I5) was PROMOTED and
+canonical here, with nothing reported.
 """
 from __future__ import annotations
 
@@ -743,3 +750,161 @@ def test_a_check_whose_history_holds_anothers_capture_is_refused():
     finally:
         if base.exists():
             shutil.rmtree(base)
+
+
+# ------------------- AUD-101: a move's policy and stale reason, restated
+#
+# The store takes a move's policy and stale reason from its payload,
+# wherever the payload has the key. This reader kept the record's own
+# unless the payload named one.
+
+def _walked(log, *, reason="a dependency moved"):
+    """r1 proposed under p0, picked up, verified, promoted, made stale with
+    ``reason`` and picked up again, every move through the store."""
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="claim", proposer="alice", policy_id="p0")
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+    s.transition(record_id="r1", dst=State.VERIFIED, actor="bob",
+                 role=Role.VERIFIER,
+                 evidence={"verification_report": DIG})
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="carol",
+                 role=Role.PROMOTER, evidence={"policy_id": "p0"})
+    s.transition(record_id="r1", dst=State.STALE, actor="sys",
+                 role=Role.SYSTEM, evidence={"invalidated_by": "e" * 64},
+                 stale_reason=reason)
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+    return s
+
+
+def test_a_record_picked_up_again_after_stale_reads_as_the_store_reads_it(
+        tmp_path):
+    """Through the store alone: the move out of STALE states no reason,
+    and the store clears it; so does this reader."""
+    s = _walked(EventLog(tmp_path / "log.jsonl"))
+    assert s.get("r1").stale_reason is None
+    r = rc.reconstruct(EventLog(s.log.path))
+    assert r.records["r1"]["stale_reason"] is None
+    assert rc.compare(s, r) == ()
+
+
+def test_the_stale_reason_stands_while_the_record_is_stale(tmp_path):
+    """Control: the reason a move into STALE states is held by both, until
+    a move out of STALE states none."""
+    log = EventLog(tmp_path / "log.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="claim", proposer="alice")
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+    s.transition(record_id="r1", dst=State.VERIFIED, actor="bob",
+                 role=Role.VERIFIER, evidence={"verification_report": DIG})
+    s.transition(record_id="r1", dst=State.STALE, actor="sys",
+                 role=Role.SYSTEM, evidence={"invalidated_by": "e" * 64},
+                 stale_reason="a dependency moved")
+    r = rc.reconstruct(EventLog(log.path))
+    assert s.get("r1").stale_reason == "a dependency moved"
+    assert r.records["r1"]["stale_reason"] == "a dependency moved"
+    assert rc.compare(s, r) == ()
+
+
+@pytest.mark.parametrize("field, value", [
+    ("stale_reason", "read past the store"), ("created_seq", 99),
+    ("updated_seq", 99),
+])
+def test_compare_diffs_every_field_both_readers_hold(tmp_path, field,
+                                                     value):
+    """compare() is the detector of the two readers parting: a field
+    both hold and it does not diff is one they can part on unseen, as the
+    stale reason did."""
+    s = _walked(EventLog(tmp_path / "log.jsonl"))
+    r = rc.reconstruct(EventLog(s.log.path))
+    r.records["r1"][field] = value
+    assert [(d.record_id, d.field_name) for d in rc.compare(s, r)] == [
+        ("r1", field)]
+
+
+def _cleared(tmp_path):
+    """r1 promoted under p0, then -- past the gate -- made stale by a move
+    whose payload states no policy, and walked back to VERIFIED by moves
+    that state none either."""
+    log = EventLog(tmp_path / "log.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="claim", proposer="alice", policy_id="p0")
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+    s.transition(record_id="r1", dst=State.VERIFIED, actor="bob",
+                 role=Role.VERIFIER, evidence={"verification_report": DIG})
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="carol",
+                 role=Role.PROMOTER, evidence={"policy_id": "p0"})
+    _forged_move(log, "r1", "PROMOTED", "STALE", "sys", "SYSTEM",
+                 {"invalidated_by": "e" * 64})
+    _forged_move(log, "r1", "STALE", "UNDER_REVIEW", "bob", "VERIFIER", {})
+    _forged_move(log, "r1", "UNDER_REVIEW", "VERIFIED", "bob", "VERIFIER",
+                 {"verification_report": "f" * 64})
+    return log
+
+
+def test_a_move_that_states_no_policy_clears_it_for_both(tmp_path):
+    log = _cleared(tmp_path)
+    s = AuthorityStore(EventLog(log.path)).load()
+    assert s.get("r1").policy_id is None
+    r = rc.reconstruct(EventLog(log.path))
+    assert r.records["r1"]["policy_id"] is None
+    assert rc.compare(s, r) == ()
+
+
+def test_a_promotion_naming_no_policy_after_one_is_refused_by_both(tmp_path):
+    """The store refuses the promotion for naming no policy (I5), and so
+    the history; this reader, keeping the record's p0, took it PROMOTED and
+    canonical and reported nothing -- the only reader of a history the
+    store will not load."""
+    log = _cleared(tmp_path)
+    _forged_move(log, "r1", "VERIFIED", "PROMOTED", "carol", "PROMOTER",
+                 {"policy_id": "p0"})
+    with pytest.raises(StoreError, match="I5"):
+        AuthorityStore(EventLog(log.path)).load()
+    r = rc.reconstruct(EventLog(log.path))
+    assert r.records["r1"]["state"] == "VERIFIED"
+    assert "r1" not in r.canonical_ids()
+    assert any("I5" in u for u in r.unauthorized), r.unauthorized
+
+
+def test_a_promotion_naming_its_policy_after_one_stands_for_both(tmp_path):
+    """Control: the same walk, the promotion naming p0, stands in both."""
+    log = _cleared(tmp_path)
+    _forged_move(log, "r1", "VERIFIED", "PROMOTED", "carol", "PROMOTER",
+                 {"policy_id": "p0"}, policy_id="p0")
+    s = AuthorityStore(EventLog(log.path)).load()
+    assert s.get("r1").state is State.PROMOTED and "r1" in s.canonical()
+    r = rc.reconstruct(EventLog(log.path))
+    assert r.records["r1"]["state"] == "PROMOTED"
+    assert "r1" in r.canonical_ids()
+    assert rc.compare(s, r) == ()
+
+
+def test_a_move_whose_payload_states_neither_keeps_both_for_both(tmp_path):
+    """The other half of the store's rule: a payload without the key
+    leaves the record's own policy and stale reason, in both readers."""
+    log = EventLog(tmp_path / "log.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="claim", proposer="alice", policy_id="p0")
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+    s.transition(record_id="r1", dst=State.VERIFIED, actor="bob",
+                 role=Role.VERIFIER, evidence={"verification_report": DIG})
+    s.transition(record_id="r1", dst=State.STALE, actor="sys",
+                 role=Role.SYSTEM, evidence={"invalidated_by": "e" * 64},
+                 stale_reason="a dependency moved")
+    log.append(actor="bob", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": "STALE",
+                        "dst": "UNDER_REVIEW", "role": "VERIFIER",
+                        "evidence": {}, "edge_reason": "forged",
+                        "idempotency_key": None})
+    held = AuthorityStore(EventLog(log.path)).load()
+    assert (held.get("r1").policy_id, held.get("r1").stale_reason) == (
+        "p0", "a dependency moved")
+    r = rc.reconstruct(EventLog(log.path))
+    assert (r.records["r1"]["policy_id"],
+            r.records["r1"]["stale_reason"]) == ("p0", "a dependency moved")
+    assert rc.compare(held, r) == ()

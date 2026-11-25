@@ -6111,3 +6111,229 @@ changes was written and reviewed as a diff.
 - The re-weighted plan rests on one push run's times. At the pull
   request's slower rate it puts the heaviest shard near 93 of its 150
   minutes, and hosted CI at this pass's commit will show what it takes.
+
+### Stage 5, twenty-third pass: the authority store held to a full load (Wave B, part 4; AUD-101 and AUD-102)
+
+Wave B of the campaign is memory and replay. The twenty-second pass held
+four projections, written by several writers on one log, to a load of the
+history up to each writer's position, and named seven it did not hold.
+This pass holds the first of them, the authority store, with another
+subsystem's writer publishing and withdrawing on the same log the
+policies its promotions stand on. Its search, and reading the store and
+the second reader beside it, found two defects, each reproduced at
+82ebae2 and fixed (AUD-101 and AUD-102).
+
+**Hosted CI at 82ebae2.** Read from the API at 17:41 UTC, before this
+commit, in eight workflow runs: 45652517646, 45652517670, 45652517662,
+45652517617 and 45652519345 (push), and 45652527609, 45652527347 and
+45652527334 (pull request). Of the 44 check runs the commit's runs make,
+34 had completed, and every one passed. The other ten had not completed:
+eight mutation shards, still running, and the two mutation-matrices
+aggregates, which wait on them. Gate I at 82ebae2 is not claimed here.
+The eight shards that had finished took 66 to 76 minutes from the start
+of their job to its end, against a plan of 70 or 71 minutes of specs.
+Two of the push run's shards were still running at 83 minutes, and the
+pull request's shard 3 had started 37 minutes after its run began.
+
+**The search.** `tests/test_agent_writers.py` gains a fifth search,
+`_Authority`, on the same harness. Three writers, each an authority store
+of its own on one log and holding its own anchor, create records, move
+them, make them depend on others and declare the policy binding; a policy
+store loaded for each write publishes and withdraws two policies, by their
+owners and by others. Creates take a new id or one taken, with
+dependencies recorded and not, policies and idempotency keys. Moves
+mostly walk the record on, the way nothing refuses: picked up, verified,
+promoted, made stale with a reason, picked up again. Others take another
+edge, or any state. Each is made by another actor than the proposer or
+by the proposer, in the role the edge names or in any role, with the
+evidence the edge asks for, with what the record already carries or with
+none, and at no revision, the revision read or one passed. Catch-ups go
+along the anchored route and the full read, and writers reopen. After
+every operation every writer holds what a load of the history up to its
+own position holds: its records, its keys and what each key completed,
+the binding, its view of the policies, the latest time it has read and
+its position. Each write decides and writes as a store just loaded from a
+copy of the log decides and writes beside it. And the second reader,
+`reconstruct()`, agrees with a fresh load of the whole history: nothing
+unauthorized, no anomaly, `compare()` empty, every field the two readers
+both hold equal, and the same canonical set.
+
+Each history starts with a create and up to three bindings and
+publications, so that a binding and the policies it names often stand
+before the first promotion. Five fixed histories come first. In each, a
+writer behind the log promotes under a binding, and the binding answers
+in one of five ways: permitted, or refused for a policy withdrawn,
+expired, published by no authority the binding names, or never
+published. On the test's own seeds the search makes 2,087 writes: 912
+refused and 1,029 made by a writer behind the log, with 178 catch-ups and
+65 reopens. Written: 305 creates, 359 publications, 75 bindings, 27
+withdrawals, 7 dependencies, and 427 moves along 10 of the model's 14
+edges: 163 records picked up, 108 verified, 40 promoted (8 under a
+binding), 26 made stale with a reason and 20 picked up again, 35
+rejected, 7 revoked and 3 superseded. Promotions under a binding were
+refused 7 times for a policy withdrawn, 4 for one never published, and
+once each for one expired and one published by no authority the binding
+names. It takes 15 seconds here; the five searches together take 72.
+
+**How the search was shaped.** Its first form drew from four ids, one
+index choosing both the record a move takes and its destination. It
+passed at 82ebae2, and its counts showed why: no history reached a
+promotion, and none moved a record out of STALE. Drawn from three ids,
+with the walk and separate indices, it fails at 82ebae2 (AUD-101 below).
+A second count then showed no promotion written under a binding in any of
+the 200 histories, the binding falling late among the rest. That is why
+the histories now open with bindings and publications, and why the five
+fixed histories come first.
+
+**AUD-101 (P2), fixed.** The store folds a move's policy and stale
+reason from its payload wherever the payload has the key
+(`p.get(key, the record's own)`). Every move it writes carries both keys,
+and one that states no stale reason clears it. `reconstruct()` kept the
+record's own unless the payload named a value. Through the store alone,
+this matters for a record made stale with a reason and then picked up,
+verified and promoted again. The second reader holds that record stale
+for the reason; the store holds no reason. `compare()`, the diff of the
+two readers, did not hold the field, nor where a record was created or
+last moved. Past the gate, the policy matters too. A move whose payload
+states no policy clears the record's in the store. A later promotion that
+names none is then refused there (I5), and with it the history. The
+second reader judged I5 on the policy it had kept, and held the record
+PROMOTED and canonical with nothing reported. It is the only reader of a
+history the store will not load. At 82ebae2 (scratchpad `repro_v1.py`,
+`repro_v2.py`), picked up again after STALE, the store holds
+`stale_reason` None and the second reader `'a dependency moved'`, and
+`compare()` reports nothing. Past the gate, after the promotion naming
+no policy, the store refuses the history (`seq 7: 'r0' VERIFIED ->
+PROMOTED would be refused today: I5: promotion requires an explicit
+policy identity in force`). The second reader holds r0 PROMOTED under
+`'p0'`, canonical, with 0 unauthorized. The second reader now takes both
+fields from the payload wherever it has the key, as the store does, and
+`compare()` diffs the stale reason and where a record was created and
+last moved. The search found it, on its first history that moved a
+record out of STALE.
+
+**AUD-102 (P2), fixed.** The store mapped an idempotency key to the
+record it completed a request for, and refused the key for another
+record (S25). For the same record it answered any request under the key
+as the key's retry: it returned the record as it stood, wrote nothing
+and refused nothing. At 82ebae2 (scratchpad `repro_v3.py`), a pick-up of
+r1 under the key its create spent returned r1 PROPOSED. A revocation
+under the key its promotion spent returned r1 PROMOTED, still canonical,
+with nothing written, and its caller had no refusal to tell it so. The
+fold now records, for each key, the request its record states: the
+action, the actor, the record and the fields a retry carries again, and
+none the store derived, such as the source state. `create()` and
+`transition()` answer a spent key only for that request, and refuse any
+other as "a different request". A move that names no policy asks for the
+record's own, which its first attempt recorded however it named it, so
+its retry naming none is answered. A create's policy is held exactly.
+The snapshot, now version 5, carries the requests, and the restore
+requires one for every key. A version-4 snapshot is foreign to this
+reducer: a load from one replays the history, or refuses where a
+checkpoint is required. The search showed it, in its counts and not in
+its verdict: requests were answered with nothing written on moves no
+earlier request had made, 21 times on PROMOTED to STALE. Both writers
+answered alike, so the search passed. No package caller passes the store
+a key; the reach is the store's contract with its callers.
+
+**Tests.** The search, and 25 regression tests:
+
+- for AUD-101, nine in `tests/test_second_reader_rules.py`;
+- for AUD-102, 16 in `tests/test_agent_checkpoint.py`, with four
+  malformed snapshots added to the table of refusals and the valid base
+  snapshot made a version-5 one.
+
+Four of them are controls, passing before the corrections and after: a
+stale reason is held while the record is stale; a promotion naming its
+policy after a move cleared the record's stands in both readers; a
+payload stating neither field leaves the record's own in both; and a
+retry naming no policy is the retry of a move that named one. The three
+test files this pass changed hold 183 tests. Run on 82ebae2's code, 26
+fail: the search, six of AUD-101's tests, 15 of AUD-102's and the four
+new malformed snapshots. Each fails with its defect's symptom: 19 `DID
+NOT RAISE StoreError`; the second reader's `'a dependency moved'` and
+`'p0'` where the store holds None; `compare()` returning nothing for each
+of the three fields; and r0 PROMOTED where the store refuses its
+promotion. The search fails on its field-by-field agreement, its
+falsifying history a record verified, made stale with a reason and
+picked up again. The other 157 pass, the four controls among them. On
+this pass's code all 183 pass, none skipped.
+
+**Mutations.** Added:
+
+- SR21 to SR28 to `second_reader_rules`, for AUD-101;
+- CD16 to CD36 to `agent_checkpoint`, for AUD-102.
+
+The correction of AUD-102 moved three anchored blocks, and S25a, S25b and
+S26 were repaired to the blocks as they now stand, keeping their faults.
+Every anchor in all 149 specs matches its source exactly once on this
+pass's tree. Neither spec's weight changes: by the planner's rule, a spec
+that gained mutations is weighed at the time measured for its earlier
+form. The plan stays at 70 or 71 minutes a shard, and the planner's
+comment names the two.
+
+**Mutation runs.** On this pass's tree:
+
+- `second_reader_rules`, run whole: 28 of 28 killed, each of SR21 to SR28
+  by a test written for it.
+- `agent_checkpoint`, run whole: 86 of 86 killed by a named test, the new
+  entries and the repaired ones among them. CD18, CD19 and CD20 are
+  killed first by `test_a_checkpointed_load_agrees_with_a_full_load`,
+  which runs before the test written for them. CD35 and CD36 are killed
+  first by the store's earlier retry tests. Run by hand against
+  AUD-102's tests alone, each of the five is killed by them too.
+- every entry on `agent_substrate/store.py` and
+  `agent_substrate/reconstruct.py` in the 44 other specs that hold one:
+  444 entries in 52 parts, all killed by a named test, one of them (SA6)
+  by an error, not a failure.
+
+In all, 558 entries ran and all were killed. After every run the sources
+were restored byte-identical, verified by re-hashing, and no lane's tree
+was left changed. Each lane ran on a tree built from the pass's scripts
+alone, or on one held, file by file, to the final tree in every file its
+specs mutate or run.
+
+**Read.** At 82ebae2, of `agent_substrate/store.py`: the projection's
+fields, `load`, `catch_up`, `_fold_new`, `_append_decided`, the fold,
+`snapshot`, `_restore`, `load_from`, `canonical`, `create`, `transition`,
+the policy binding and `add_dependency`. Of `agent_substrate/reconstruct.py`:
+the replay of the authority records beside the store's fold
+(`_create_refusal`, `_auth_refusal`, `_bound_promotion_refusal`, and the
+binding, policy and record branches of `reconstruct`), with `compare()`.
+Also read: the state machine and its check in `authority.py`, the policy
+store's publish and withdraw, the scheduler's key rule, the readers of
+record moves elsewhere (the research ledger's and the assurance graph's
+folds, which hold neither field), and the in-package callers of the
+store's keys, of which there are none. Each of this pass's changes was
+written and reviewed as a diff.
+
+**Observations, not changed.**
+
+- `add_dependency()` refuses a record depending on itself. The store's
+  fold and the second reader both accept one written past the gate, and
+  agree on it. `canonical()` reads the cycle as not canonical in both,
+  which fails closed.
+- A history written past the gate may carry a second record under a
+  spent key. The fold takes the later request as the key's, as it took
+  the later record, and refuses neither. The key decides only how a retry
+  is answered; each record is re-authorized on its own terms.
+- The store's `bind_policies()` does not catch up before deciding. It
+  decides under the writer lock, after the fold there, so a writer
+  behind the log decides as a fresh one; the search holds it so.
+
+**What is not established.**
+
+- The search runs without a role registry, an authenticator, an evidence
+  store or a view of governed execution, and on one kind of record. Role
+  checks, authentication, evidence resolution, scientific admission and
+  learned kinds are not in it.
+- Four of the model's 14 edges are not taken on these seeds: PROMOTED to
+  REVOKED, STALE to SUPERSEDED, STALE to REVOKED and SUPERSEDED to
+  REVOKED.
+- The egress authority, the secret store, the idempotency ledger, the
+  proposal ingress, the research ledger and the inference gateway's
+  ledger are not held to a load of their history up to their position.
+- No mutation spec runs the searches, as before. Each new entry is killed
+  by a regression test.
+- Which histories a search draws moves with its source; the counts above
+  are for this source.

@@ -556,7 +556,8 @@ def _snap(**over):
     """
     base = {"snapshot_version": SNAPSHOT_VERSION,
             "projection": AuthorityStore.reducer_identity().to_record(),
-            "records": {}, "applied_keys": {}, "loaded_through": 0}
+            "records": {}, "applied_keys": {}, "applied_requests": {},
+            "loaded_through": 0}
     base.update(over)
     return {k: v for k, v in base.items() if v is not _DROP}
 
@@ -586,6 +587,15 @@ def test_the_valid_base_snapshot_is_accepted(tmp_path):
     _snap(applied_keys=[]),
     # ...whose values name a record
     _snap(applied_keys={"k": 7}),
+    # what each key completed is a mapping too (AUD-102)...
+    _snap(applied_requests=[]),
+    # ...naming a request for every key, so a retry can be told from
+    # another request under the key
+    _snap(applied_keys={"k": "r1"}),
+    # ...and no request for a key it does not hold
+    _snap(applied_requests={"k": {"action": "record.create"}}),
+    # ...each one a request
+    _snap(applied_keys={"k": "r1"}, applied_requests={"k": "create"}),
     # a bool is an int in Python and is not a seq
     _snap(loaded_through=True),
     # a record whose body is not an object
@@ -2206,3 +2216,134 @@ def test_a_load_from_any_checkpoint_agrees_with_a_full_load(
             cp_mod.create(log)
 
     run()
+
+
+# --- AUD-102: what a key completed is the request, not only its record ------
+#
+# The key mapped to the record it completed a request for, so another
+# request for the SAME record under a spent key was answered as the key's
+# retry: the record returned as it stood, nothing written, nothing refused.
+# A revocation under the key its promotion spent left the record PROMOTED
+# and canonical, and its caller was told nothing had failed.
+
+def _keyed_promotion(tmp_path):
+    """r1 promoted under the key ``k-promote``, its create under
+    ``create-r1``."""
+    log, blobs, s, report = _promoted_store(tmp_path)
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"policy_id": "pol-1"},
+                 idempotency_key="k-promote")
+    return log, blobs, s
+
+
+def _revoke(s, blobs, key):
+    reason = blobs.put(b'{"why":"withdrawn"}')
+    return s.transition(record_id="r1", dst=State.REVOKED, actor="pm",
+                        role=Role.PROMOTER, idempotency_key=key,
+                        evidence={"revocation_reason": reason})
+
+
+def test_a_revocation_under_the_key_its_promotion_spent_is_refused(
+        tmp_path):
+    log, blobs, s = _keyed_promotion(tmp_path)
+    count = log.verify().count
+    with pytest.raises(StoreError, match="a different request for 'r1'"):
+        _revoke(s, blobs, "k-promote")
+    assert s.get("r1").state is State.PROMOTED
+    assert log.verify().count == count
+    # refused, it can still be made, under a key of its own
+    assert _revoke(s, blobs, "k-revoke").state is State.REVOKED
+    assert "r1" not in s.canonical()
+
+
+def test_a_pick_up_under_the_key_the_create_spent_is_refused(tmp_path):
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="k", proposer="p", idempotency_key="k1")
+    with pytest.raises(StoreError, match="a different request for 'r1'"):
+        s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="v",
+                     role=Role.VERIFIER, idempotency_key="k1")
+    assert s.get("r1").state is State.PROPOSED
+
+
+@pytest.mark.parametrize("field, value", [
+    ("dst", State.REJECTED), ("role", Role.PROMOTER), ("actor", "w"),
+    ("evidence", {"rejection_reason": "e" * 64}),
+    ("stale_reason", "a dependency moved"), ("policy_id", "pol-2"),
+])
+def test_a_move_under_a_spent_key_that_differs_in_one_field_is_refused(
+        tmp_path, field, value):
+    """Each field a retry carries again is the request's: one changed is
+    another request, refused, and the record does not move."""
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="k", proposer="p")
+    asked = dict(record_id="r1", dst=State.UNDER_REVIEW, actor="v",
+                 role=Role.VERIFIER, evidence={}, policy_id="pol-1",
+                 stale_reason=None, idempotency_key="t1")
+    s.transition(**asked)
+    count = log.verify().count
+    with pytest.raises(StoreError, match="a different request"):
+        s.transition(**{**asked, field: value})
+    assert s.get("r1").state is State.UNDER_REVIEW
+    assert log.verify().count == count
+    # the request itself is still answered as its retry
+    assert s.transition(**asked).state is State.UNDER_REVIEW
+    assert log.verify().count == count
+
+
+@pytest.mark.parametrize("field, value", [
+    ("kind", "other"), ("proposer", "q"),
+    ("evidence", {"e": "e" * 64}), ("depends_on", ("r0",)),
+    ("policy_id", "pol-2"), ("policy_id", None),
+])
+def test_a_create_under_a_spent_key_that_differs_in_one_field_is_refused(
+        tmp_path, field, value):
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r0", kind="k", proposer="p")
+    asked = dict(record_id="r1", kind="k", proposer="p", evidence={},
+                 depends_on=(), policy_id="pol-1", idempotency_key="c1")
+    s.create(**asked)
+    count = log.verify().count
+    with pytest.raises(StoreError, match="a different request"):
+        s.create(**{**asked, field: value})
+    assert log.verify().count == count
+    assert s.create(**asked).revision == 1
+    assert log.verify().count == count
+
+
+def test_a_retry_naming_no_policy_is_the_retry_of_a_move_that_named_one(
+        tmp_path):
+    """A move that names no policy asks for the record's own, which the
+    first attempt recorded however it named it: its retry, answered."""
+    log, _, s = _keyed_promotion(tmp_path)
+    count = log.verify().count
+    again = s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                         role=Role.PROMOTER, evidence={"policy_id": "pol-1"},
+                         idempotency_key="k-promote")
+    assert again.state is State.PROMOTED
+    assert log.verify().count == count
+
+
+def test_what_a_key_completed_survives_a_checkpointed_load(tmp_path):
+    """The snapshot carries the request each key completed: a load from
+    it refuses the revocation under the promotion's key, as the full load
+    does, and still answers the promotion's retry."""
+    log, blobs, s = _keyed_promotion(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    s.checkpoint(cps)
+    cheap = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    assert cheap.checkpoint_refusal is None
+    assert cheap.loaded_prefix_verified is False
+    assert cheap.snapshot() == AuthorityStore(log, evidence=blobs).load(
+        ).snapshot()
+    count = log.verify().count
+    with pytest.raises(StoreError, match="a different request for 'r1'"):
+        _revoke(cheap, blobs, "k-promote")
+    assert cheap.transition(
+        record_id="r1", dst=State.PROMOTED, actor="pm", role=Role.PROMOTER,
+        policy_id="pol-1", evidence={"policy_id": "pol-1"},
+        idempotency_key="k-promote").state is State.PROMOTED
+    assert log.verify().count == count
