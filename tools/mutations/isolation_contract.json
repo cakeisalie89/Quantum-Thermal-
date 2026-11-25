@@ -1,0 +1,100 @@
+{
+ "title": "The isolation contract: each dimension holds as stated, and each probe can see it fail",
+ "note": "Assurance I (D-2026-176). Four mutations remove a mechanism the executor relies on (namespaces, a clean environment, the CPU and address-space rlimits); five make a probe pass what it did not observe; one makes the contract claim a syscall filter; three undo the tree probe's cleanup of the grandchild it lets escape in the control (AUD-016): no stop file, no bound of its own, and a bound shorter than the reading, which would let a broken boundary look whole. tests/test_isolation_contract.py holds each, on a host with unprivileged namespaces.",
+ "suites": [
+  "tests/test_isolation_contract.py"
+ ],
+ "mutations": [
+  {
+   "name": "IS1_namespaces_are_never_entered",
+   "path": "agent_substrate/execution.py",
+   "find": "            if ok:\n                prefix = cand",
+   "replace": "            if False:\n                prefix = cand",
+   "rationale": "I: no user, pid or net namespace; high_assurance must then refuse every tool"
+  },
+  {
+   "name": "IS2_the_environment_is_inherited",
+   "path": "agent_substrate/execution.py",
+   "find": "    run_env = dict(env or {})",
+   "replace": "    run_env = {**os.environ, **(env or {})}",
+   "rationale": "I: a tool inherits the caller's credentials and tokens"
+  },
+  {
+   "name": "IS3_no_cpu_limit",
+   "path": "agent_substrate/execution.py",
+   "find": "        resource.setrlimit(resource.RLIMIT_CPU,\n                           (limits.cpu_seconds, limits.cpu_seconds))",
+   "replace": "        pass",
+   "rationale": "I: a CPU-bound tool runs to the wall bound"
+  },
+  {
+   "name": "IS4_no_address_space_limit",
+   "path": "agent_substrate/execution.py",
+   "find": "        resource.setrlimit(resource.RLIMIT_AS,\n                           (limits.address_space_bytes,\n                            limits.address_space_bytes))",
+   "replace": "        pass",
+   "rationale": "I: a tool allocates past its address-space bound"
+  },
+  {
+   "name": "IS5_the_network_probe_passes_anything",
+   "path": "tools/isolation_contract.py",
+   "find": "            \"holds\": r.outcome is Outcome.COMPLETED and seen != \"CONNECTED\"}",
+   "replace": "            \"holds\": True}",
+   "rationale": "I: the probe reports a network boundary it did not observe"
+  },
+  {
+   "name": "IS6_the_namespace_probe_passes_anything",
+   "path": "tools/isolation_contract.py",
+   "find": "            \"holds\": own == [\"net\", \"pid\", \"user\"]}",
+   "replace": "            \"holds\": True}",
+   "rationale": "I: the probe reports namespaces it did not observe"
+  },
+  {
+   "name": "IS7_the_tree_probe_ignores_the_grandchild",
+   "path": "tools/isolation_contract.py",
+   "find": "            \"holds\": r.outcome is Outcome.TIMED_OUT and first is not None\n            and after == first}",
+   "replace": "            \"holds\": r.outcome is Outcome.TIMED_OUT and first is not None}",
+   "rationale": "I: a grandchild that outlives the tool goes unnoticed"
+  },
+  {
+   "name": "IS8_the_quota_probe_ignores_the_cpu_run",
+   "path": "tools/isolation_contract.py",
+   "find": "    holds = (cpu.outcome is Outcome.FAILED and cpu_ended_after < 10.0\n             and mem.get",
+   "replace": "    holds = (True\n             and mem.get",
+   "rationale": "I: a CPU bound that never fired is reported as holding"
+  },
+  {
+   "name": "IS9_the_credential_probe_ignores_the_file",
+   "path": "tools/isolation_contract.py",
+   "find": "            \"holds\": \"QT_ISOLATION_PROBE_TOKEN\" not in env\n            and seen.get(\"secret_file\") == \"DENIED\"}",
+   "replace": "            \"holds\": \"QT_ISOLATION_PROBE_TOKEN\" not in env}",
+   "rationale": "I: a credential file the tool could read is not reported"
+  },
+  {
+   "name": "IS10_the_contract_claims_a_syscall_filter",
+   "path": "docs/security/isolation_contract.json",
+   "find": "\"id\": \"syscalls\",\n   \"enforcement\": \"NOT_PROVIDED\"",
+   "replace": "\"id\": \"syscalls\",\n   \"enforcement\": \"KERNEL\"",
+   "rationale": "I: the contract says the kernel filters system calls; nothing does"
+  },
+  {
+   "name": "IS11_the_probe_never_stops_the_grandchild",
+   "path": "tools/isolation_contract.py",
+   "find": "        (work / \"out\" / \"stop\").write_text(\"\")",
+   "replace": "        pass",
+   "rationale": "AUD-016: the grandchild the control lets escape beats on after the probe"
+  },
+  {
+   "name": "IS12_the_escaped_grandchild_has_no_bound",
+   "path": "tools/isolation_contract.py",
+   "find": "\"while not stop.exists() and time.monotonic() < end:\\\\n\"",
+   "replace": "\"while not stop.exists():\\\\n\"",
+   "rationale": "AUD-016: a probe stopped before writing out/stop leaves the grandchild running for good"
+  },
+  {
+   "name": "IS13_the_grandchild_bound_ends_before_the_reading",
+   "path": "tools/isolation_contract.py",
+   "find": "ESCAPEE_SECONDS = 30.0",
+   "replace": "ESCAPEE_SECONDS = 0.2",
+   "rationale": "AUD-016: the grandchild ends on its own before the probe reads, and a tree the boundary failed to take down is reported as holding"
+  }
+ ]
+}

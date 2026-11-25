@@ -6,8 +6,8 @@ is listed in `final_manifest.json` but absent from the image, so it reports as
 "missing file".
 
 Hosted run 32618887858 failed exactly this way -- 18 mismatches, every one of
-them under `attic/delivery_artifacts/`, which `.dockerignore` excluded while
-the manifest governed all 18.
+them under a directory `.dockerignore` excluded while the manifest governed
+all 18.
 
 There are two ways to make that green and only one of them is honest. Dropping
 the files from the manifest would silence the check by shrinking what is
@@ -63,22 +63,25 @@ def test_dockerignore_hides_no_manifest_governed_file():
                     for p, v in offenders.items()))
 
 
-def test_the_delivery_artifacts_are_still_governed():
-    """Guard the other half: the fix must not have been to ungovern them."""
-    governed = _governed()
-    delivery = [f for f in governed
-                if f.startswith("attic/delivery_artifacts/")]
-    assert len(delivery) == 18, (
-        f"expected 18 governed delivery artifacts, found {len(delivery)}; "
-        "if these were dropped from the manifest, the container check was "
-        "made to pass by shrinking what is governed")
+def test_the_committed_learned_model_evidence_is_still_governed():
+    """Guard the other half: a fix must not be to ungovern what the image
+    would otherwise miss. The NF-1T evidence -- the dataset, the checkpoint
+    bytes and their manifests -- is the largest governed tree, and the one a
+    size-motivated exclusion would reach for first."""
+    governed = set(_governed())
+    for rel in ("docs/neural/dev/dataset.jsonl",
+                "docs/neural/dev/dataset_manifest.json",
+                "docs/neural/dev/checkpoint_final.safetensors",
+                "docs/neural/dev/checkpoint_manifest.json"):
+        assert rel in governed, (
+            f"{rel} is not governed by the manifest; if it was dropped, the "
+            "container check was made to pass by shrinking what is governed")
 
 
 def test_the_check_would_notice_a_reintroduced_exclusion():
     """The matcher must actually match; a broken matcher passes everything."""
     governed = _governed()
-    sample = next(f for f in governed
-                  if f.startswith("attic/delivery_artifacts/"))
-    assert _excluded_by("attic/delivery_artifacts/", sample)
+    sample = next(f for f in governed if f.startswith("docs/neural/dev/"))
+    assert _excluded_by("docs/neural/dev/", sample)
     assert _excluded_by("*.json", "final_manifest.json")
     assert not _excluded_by("verification/", sample)

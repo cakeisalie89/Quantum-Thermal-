@@ -1,0 +1,23 @@
+{
+ "title": "The slab model refuses grids on which its stated estimate does not hold (D-2026-131)",
+ "note": "SG1-SG2: the grid rule is the only thing standing between a caller and a stated resolution up to sixteen times too small; each weakening is killed by the every-grid sweep against the exact series.",
+ "suites": [
+  "tests/test_harness_integrations.py"
+ ],
+ "mutations": [
+  {
+   "name": "SG1_rule_removed",
+   "path": "scientific/models/slab_transient.py",
+   "find": "        if p[\"n_cells\"] % SAMPLE_GRID_MULTIPLE:\n",
+   "replace": "        if False:\n",
+   "rationale": "back to the pre-repair rule (even only): n_cells = 12, 20, 82 ... are accepted and their stated estimate fails the series check"
+  },
+  {
+   "name": "SG2_multiple_four",
+   "path": "scientific/models/slab_transient.py",
+   "find": "SAMPLE_GRID_MULTIPLE = 8\n",
+   "replace": "SAMPLE_GRID_MULTIPLE = 4\n",
+   "rationale": "faces of the run's grid only, not of the half-resolution grid: n_cells = 12, 20, 44, 84, 100 are accepted and fail"
+  }
+ ]
+}

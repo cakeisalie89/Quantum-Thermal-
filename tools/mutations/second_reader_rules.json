@@ -1,0 +1,205 @@
+{
+ "title": "What a capture is, who the second reader asks about each record, and rules it had stated more widely than the primaries",
+ "note": "AUD-062 to AUD-067. A capture is the runner's, made while its task executes, in the origin view, the duplicate's answer, the second reader's task replay and the decision proof (SR1 to SR8); an authenticator given to the second reader reaches the task and subsystem replays it consults (SR9 to SR13); a HUMAN is admitted by the bootstrap or an active human (SR14, SR15); a move from a state the replay does not have is refused (SR16, SR17); a policy version is an integer (SR18); an allowed read asks of every ancestor (SR19, SR20). tests/test_second_reader_rules.py holds each.",
+ "suites": [
+  "tests/test_second_reader_rules.py"
+ ],
+ "mutations": [
+  {
+   "name": "SR1_a_capture_is_anyones_at_any_time",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if reauthorize and (cur[\"state\"] != _TASK_EXECUTING\n                                or ev.actor != _CAPTURER):\n",
+   "replace": "            if False:\n",
+   "rationale": "the second reader takes any record naming a task as its capture, and an admission stands on a report no check produced"
+  },
+  {
+   "name": "SR2_a_capture_is_anyones_while_it_runs",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if reauthorize and (cur[\"state\"] != _TASK_EXECUTING\n                                or ev.actor != _CAPTURER):\n",
+   "replace": "            if reauthorize and (cur[\"state\"] != _TASK_EXECUTING):\n",
+   "rationale": "another principal's record made while the task executes reads as the runner's capture"
+  },
+  {
+   "name": "SR3_the_runners_capture_at_any_time",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if reauthorize and (cur[\"state\"] != _TASK_EXECUTING\n                                or ev.actor != _CAPTURER):\n",
+   "replace": "            if reauthorize and (ev.actor != _CAPTURER):\n",
+   "rationale": "a record in the runner's name after the run reads as a capture of it"
+  },
+  {
+   "name": "SR4_the_store_takes_any_capture",
+   "path": "agent_substrate/governed_model.py",
+   "find": "                if ev.actor != CAPTURER or \\\n                        state.get(tid) != TaskState.EXECUTING.value:\n                    continue\n",
+   "replace": "                if False:\n                    continue\n",
+   "rationale": "the origin view takes any record naming a task as its capture, and the store admits a result on a report no check produced"
+  },
+  {
+   "name": "SR5_the_store_takes_anyones_capture_while_it_runs",
+   "path": "agent_substrate/governed_model.py",
+   "find": "                if ev.actor != CAPTURER or \\\n                        state.get(tid) != TaskState.EXECUTING.value:\n                    continue\n",
+   "replace": "                if state.get(tid) != TaskState.EXECUTING.value:\n                    continue\n",
+   "rationale": "the origin view takes another principal's record made while the task executes"
+  },
+  {
+   "name": "SR6_the_store_takes_the_runners_record_at_any_time",
+   "path": "agent_substrate/governed_model.py",
+   "find": "                if ev.actor != CAPTURER or \\\n                        state.get(tid) != TaskState.EXECUTING.value:\n                    continue\n",
+   "replace": "                if ev.actor != CAPTURER:\n                    continue\n",
+   "rationale": "the origin view takes a record in the runner's name made after the run"
+  },
+  {
+   "name": "SR7_a_duplicate_is_answered_with_anyones_record",
+   "path": "agent_substrate/governed_tasks.py",
+   "find": "            elif ev.action == ACT_EVIDENCE and ev.actor == CAPTURER and \\\n                    state == TaskState.EXECUTING.value:\n",
+   "replace": "            elif ev.action == ACT_EVIDENCE:\n",
+   "rationale": "a duplicate submission is answered with the artefacts of the last record naming the task, whoever wrote it"
+  },
+  {
+   "name": "SR8_a_proof_names_whoever_named_the_bundle",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if e.action == \"task.evidence\" and e.actor == _CAPTURER and \\\n                state.get(e.payload.get(\"task_id\")) == _TASK_EXECUTING \\\n                and bundle in (e.payload.get(\"artifacts\") or {}).values():\n",
+   "replace": "        if e.action == \"task.evidence\" and \\\n                bundle in (e.payload.get(\"artifacts\") or {}).values():\n",
+   "rationale": "the decision proof names as the bundle's producer the task of the last record naming it, by anyone"
+  },
+  {
+   "name": "SR9_admission_reads_tasks_unauthenticated",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            held.append(reconstruct_tasks(log, roles=roles,\n                                          authenticator=authenticator).tasks)\n",
+   "replace": "            held.append(reconstruct_tasks(log, roles=roles,\n                                          authenticator=None).tasks)\n",
+   "rationale": "an admission stands on a verification task whose verdict the reader itself names unauthenticated"
+  },
+  {
+   "name": "SR10_the_task_reader_folds_what_it_cannot_attest",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        action = ev.action\n        if ev.seq in unsigned:\n            continue\n",
+   "replace": "        action = ev.action\n        if False:\n            continue\n",
+   "rationale": "the task reader given an authenticator folds a record whose writer it does not attest"
+  },
+  {
+   "name": "SR11_the_subsystem_reader_folds_what_it_cannot_attest",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if ev.seq in unsigned:\n            prev = (ev.seq, ev.hash)        # in the chain, attested or not\n",
+   "replace": "        if False:\n            prev = (ev.seq, ev.hash)        # in the chain, attested or not\n",
+   "rationale": "the subsystem reader given an authenticator folds a record whose writer it does not attest"
+  },
+  {
+   "name": "SR12_an_authenticators_verdict_refuses_nothing",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    findings.extend(f\"unauthenticated: {line}\" for line in auth.lines())\n    return events, set(auth.refused)\n",
+   "replace": "    findings.extend(f\"unauthenticated: {line}\" for line in auth.lines())\n    return events, set()\n",
+   "rationale": "the task and subsystem readers note what is unauthenticated and fold it anyway"
+  },
+  {
+   "name": "SR13_a_research_proof_reads_its_subsystems_unauthenticated",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    sub = reconstruct_subsystems(_at(report, events, ev.seq),\n                                 roles=roots[\"roles\"],\n                                 authenticator=roots[\"authenticator\"])\n",
+   "replace": "    sub = reconstruct_subsystems(_at(report, events, ev.seq),\n                                 roles=roots[\"roles\"],\n                                 authenticator=None)\n",
+   "rationale": "a research proof's subsystem replay reads the history unauthenticated"
+  },
+  {
+   "name": "SR14_a_human_admitted_by_a_stranger_or_a_retired_human",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if registrar is None or registrar.get(\"retired_seq\") is not None:\n",
+   "replace": "        if False:\n",
+   "rationale": "the second reader takes a HUMAN admitted by a name the log never admitted, or by a retired human, and that human's answer"
+  },
+  {
+   "name": "SR15_a_human_admitted_by_a_retired_human",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        if registrar is None or registrar.get(\"retired_seq\") is not None:\n",
+   "replace": "        if registrar is None:\n",
+   "rationale": "the second reader takes a HUMAN admitted by a human who has left"
+  },
+  {
+   "name": "SR16_a_record_moves_from_where_it_is_not",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "                if reauthorize and src_claimed is not None:\n",
+   "replace": "                if False:\n",
+   "rationale": "a record transition naming a starting state the replay does not have is judged from the state it had and applied"
+  },
+  {
+   "name": "SR17_a_task_moves_from_where_it_is_not",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if reauthorize:\n                # The task projection refuses it, and one that names no\n",
+   "replace": "            if False:\n                # The task projection refuses it, and one that names no\n",
+   "rationale": "a task transition naming a starting state the replay does not have, or none, is applied"
+  },
+  {
+   "name": "SR18_any_version_is_published",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "                    and not isinstance(doc.get(\"version\"), int)):\n",
+   "replace": "                    and False):\n",
+   "rationale": "a policy version that is not an integer counts as published, and a bound promotion stands on it"
+  },
+  {
+   "name": "SR19_a_read_asks_only_of_the_capability_it_cites",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "    why = _sub_grant_live(cap, ev.seq) or _sub_chain_problem(out, cap,\n                                                              ev.seq)\n",
+   "replace": "    why = _sub_grant_live(cap, ev.seq)\n",
+   "rationale": "an allowed read under a child of a revoked grant reads as covered"
+  },
+  {
+   "name": "SR20_an_ancestor_in_force_is_not_asked",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "        why = _sub_grant_live(parent, at_seq)\n",
+   "replace": "        why = \"\"\n",
+   "rationale": "the chain is walked and no ancestor's revocation counts"
+  },
+  {
+   "name": "SR21_a_move_keeps_the_stale_reason_it_does_not_state",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if \"stale_reason\" in p:\n                cur[\"stale_reason\"] = p[\"stale_reason\"]\n",
+   "replace": "            if p.get(\"stale_reason\") is not None:\n                cur[\"stale_reason\"] = p[\"stale_reason\"]\n",
+   "rationale": "a record picked up again after STALE reads here as stale for the reason the store cleared"
+  },
+  {
+   "name": "SR22_a_move_keeps_the_policy_it_does_not_state",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if \"policy_id\" in p:\n                cur[\"policy_id\"] = p[\"policy_id\"]\n",
+   "replace": "            if p.get(\"policy_id\") is not None:\n                cur[\"policy_id\"] = p[\"policy_id\"]\n",
+   "rationale": "a promotion the store refuses for naming no policy (I5) stands here on the policy a move cleared, PROMOTED and canonical"
+  },
+  {
+   "name": "SR23_a_move_always_clears_the_stale_reason",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if \"stale_reason\" in p:\n                cur[\"stale_reason\"] = p[\"stale_reason\"]\n",
+   "replace": "            cur[\"stale_reason\"] = None\n",
+   "rationale": "the reason a move into STALE states is dropped here and held by the store"
+  },
+  {
+   "name": "SR24_a_move_stating_no_stale_reason_clears_it",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if \"stale_reason\" in p:\n                cur[\"stale_reason\"] = p[\"stale_reason\"]\n",
+   "replace": "            cur[\"stale_reason\"] = p.get(\"stale_reason\")\n",
+   "rationale": "a payload without the key clears the stale reason here; the store keeps the record's"
+  },
+  {
+   "name": "SR25_a_move_stating_no_policy_clears_it",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            if \"policy_id\" in p:\n                cur[\"policy_id\"] = p[\"policy_id\"]\n",
+   "replace": "            cur[\"policy_id\"] = p.get(\"policy_id\")\n",
+   "rationale": "a payload without the key clears the policy here; the store keeps the record's"
+  },
+  {
+   "name": "SR26_compare_does_not_diff_the_stale_reason",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            (\"stale_reason\", lv.stale_reason, rc[\"stale_reason\"]),\n            (\"created_seq\", lv.created_seq, rc[\"created_seq\"]),\n",
+   "replace": "            (\"created_seq\", lv.created_seq, rc[\"created_seq\"]),\n",
+   "rationale": "the two readers part on the stale reason unseen"
+  },
+  {
+   "name": "SR27_compare_does_not_diff_where_a_record_was_created",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            (\"created_seq\", lv.created_seq, rc[\"created_seq\"]),\n            (\"updated_seq\", lv.updated_seq, rc[\"updated_seq\"]),\n",
+   "replace": "            (\"updated_seq\", lv.updated_seq, rc[\"updated_seq\"]),\n",
+   "rationale": "the two readers part on where a record was created unseen"
+  },
+  {
+   "name": "SR28_compare_does_not_diff_where_a_record_last_moved",
+   "path": "agent_substrate/reconstruct.py",
+   "find": "            (\"updated_seq\", lv.updated_seq, rc[\"updated_seq\"]),\n            # Decided by two implementations",
+   "replace": "            # Decided by two implementations",
+   "rationale": "the two readers part on where a record last moved unseen"
+  }
+ ]
+}

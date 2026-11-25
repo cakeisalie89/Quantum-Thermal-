@@ -1,0 +1,30 @@
+{
+ "title": "A trust root's quorum is a majority, and what it tolerates is stated exactly",
+ "note": "Phase E, AUD-018. Each mutation weakens the trust root of agent_substrate/witness.py: a quorum that is not a majority, half counted as a majority, or a fault budget one too generous. tests/test_witness_quorum.py holds each, with the split view a minority quorum allowed among honest witnesses, reproduced with real witnesses, and the budget docs/formal/WitnessQuorum.tla checks.",
+ "suites": [
+  "tests/test_witness_quorum.py"
+ ],
+ "mutations": [
+  {
+   "name": "WQ1_minority_quorum",
+   "path": "agent_substrate/witness.py",
+   "find": "        if 2 * self.quorum <= len(self.witnesses):",
+   "replace": "        if False:",
+   "rationale": "a quorum of half the witnesses or fewer is accepted, and two disjoint groups of honest witnesses can each witness one fork"
+  },
+  {
+   "name": "WQ2_half_is_a_majority",
+   "path": "agent_substrate/witness.py",
+   "find": "        if 2 * self.quorum <= len(self.witnesses):",
+   "replace": "        if 2 * self.quorum < len(self.witnesses):",
+   "rationale": "exactly half the witnesses counts as a majority"
+  },
+  {
+   "name": "WQ3_tolerates_one_more",
+   "path": "agent_substrate/witness.py",
+   "find": "        return 2 * self.quorum - len(self.witnesses) - 1",
+   "replace": "        return 2 * self.quorum - len(self.witnesses)",
+   "rationale": "the quorum is said to tolerate one faulty witness more than it does"
+  }
+ ]
+}

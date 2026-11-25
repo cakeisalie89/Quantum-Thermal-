@@ -1,0 +1,1032 @@
+"""The mutation harness, tested as the instrument it is.
+
+Every claim in `authorities.json` about enforcement being load-bearing is a
+claim produced by `tools/mutation_matrix.py`. If the harness reports a kill
+that did not happen, the effect is not a wrong number in a table: it is an
+unprotected security check certified as protected. So the harness gets the
+same treatment it gives everything else -- its own failure modes, provoked
+deliberately, with the outcome asserted.
+
+Each test builds a throwaway project tree and runs the harness against it as a
+subprocess. The harness derives its root from its own location, so copying it
+into ``tmp_path/tools/`` is enough to point it at the synthetic tree; nothing
+here touches the real repository.
+"""
+from __future__ import annotations
+
+import importlib.util
+import json
+import marshal
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+HARNESS = ROOT / "tools" / "mutation_matrix.py"
+
+#: Two guards of identical length. Mutating either to ``if 0:`` removes the
+#: same number of bytes, so both mutated files have the SAME size -- which is
+#: half of CPython's default bytecode-invalidation key.
+MODULE_SRC = '''"""A tiny module with two guards."""
+
+
+def check_a(x):
+    if x < 0:
+        raise ValueError("a")
+    return x
+
+
+def check_b(x):
+    if x > 9:
+        raise ValueError("b")
+    return x
+'''
+
+SUITE_SRC = '''import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import pytest
+
+from pkg import mod
+
+
+def test_guard_a_rejects():
+    with pytest.raises(ValueError):
+        mod.check_a(-1)
+
+
+def test_both_accept_valid():
+    assert mod.check_a(1) == 1
+    assert mod.check_b(1) == 1
+'''
+
+
+def _project(tmp_path: Path, *, module_src: str = MODULE_SRC,
+             suite_src: str = SUITE_SRC, mutations=None) -> Path:
+    """A minimal tree the harness can be pointed at."""
+    (tmp_path / "tools" / "mutations").mkdir(parents=True)
+    shutil.copy2(HARNESS, tmp_path / "tools" / "mutation_matrix.py")
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "pkg" / "mod.py").write_text(module_src, encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_suite.py").write_text(suite_src,
+                                                      encoding="utf-8")
+    spec = {
+        "title": "synthetic",
+        "note": "built by tests/test_mutation_harness.py",
+        "suites": ["tests/test_suite.py"],
+        "mutations": mutations if mutations is not None else [
+            {"name": "M1_guard_a_removed", "path": "pkg/mod.py",
+             "find": "    if x < 0:", "replace": "    if 0:",
+             "rationale": "guard a stops guarding"},
+            {"name": "M2_guard_b_removed", "path": "pkg/mod.py",
+             "find": "    if x > 9:", "replace": "    if 0:",
+             "rationale": "guard b stops guarding"},
+        ],
+    }
+    path = tmp_path / "tools" / "mutations" / "spec.json"
+    path.write_text(json.dumps(spec, indent=2), encoding="utf-8")
+    return path
+
+
+def _run(tmp_path: Path, spec: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(tmp_path / "tools" / "mutation_matrix.py"),
+         str(spec)],
+        cwd=str(tmp_path), capture_output=True, text=True, timeout=600)
+
+
+def _verdicts(out: str) -> dict:
+    verdicts = {}
+    for line in out.splitlines():
+        for word in ("KILLED", "SURVIVED", "ANCHOR DRIFT"):
+            if f"  {word}" in line:
+                verdicts[line.split()[0]] = word
+                break
+    return verdicts
+
+
+# ---- the two guards it is built to give ---------------------------------
+def test_an_uncovered_mutation_is_reported_as_surviving(tmp_path):
+    """The primary signal. If this cannot fail, nothing else here matters."""
+    spec = _project(tmp_path)
+    proc = _run(tmp_path, spec)
+    v = _verdicts(proc.stdout)
+    assert v == {"M1_guard_a_removed": "KILLED",
+                 "M2_guard_b_removed": "SURVIVED"}, proc.stdout
+    assert proc.returncode != 0, "a surviving mutation must fail the run"
+
+
+def test_sources_are_restored_byte_identical(tmp_path):
+    spec = _project(tmp_path)
+    before = (tmp_path / "pkg" / "mod.py").read_bytes()
+    _run(tmp_path, spec)
+    assert (tmp_path / "pkg" / "mod.py").read_bytes() == before
+
+
+# ---- the stale-bytecode trap -------------------------------------------
+def _poison_cache(tmp_path: Path, source: str) -> Path:
+    """Plant an UNCHECKED hash-based ``.pyc`` holding ``source``'s code.
+
+    PEP 552's unchecked hash-based pyc is validated against nothing at all, so
+    it stands in deterministically for the real defect: a cached module that
+    Python executes in place of the source the harness just wrote. The real
+    version was subtler -- a timestamp pyc whose recorded (mtime, size) still
+    matched, because two mutations changed the file by the same number of
+    bytes within one second -- but the consequence is identical, and this
+    form does not depend on the clock.
+    """
+    modpath = tmp_path / "pkg" / "mod.py"
+    cache = Path(importlib.util.cache_from_source(str(modpath)))
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    raw = source.encode("utf-8")
+    code = compile(raw, str(modpath), "exec")
+    cache.write_bytes(
+        importlib.util.MAGIC_NUMBER
+        + (0b01).to_bytes(4, "little")          # hash-based, UNCHECKED
+        + importlib.util.source_hash(raw)
+        + marshal.dumps(code))
+    return cache
+
+
+def test_a_stale_cache_cannot_make_a_mutation_look_killed(tmp_path):
+    """The defect this test exists for, reproduced and then refused.
+
+    A cached module holding the ORIGINAL code makes every mutation invisible:
+    the suite passes because the guard is still there, and the harness reports
+    the mutation as surviving -- or, when the cache holds a DIFFERENT
+    mutation's code, reports a kill that belongs to that other mutation.
+
+    Either way the verdict describes code the harness did not write. Running
+    each suite under a private ``PYTHONPYCACHEPREFIX`` is what makes the
+    verdict describe the mutation it is labelled with.
+    """
+    spec = _project(tmp_path)
+    poisoned = _poison_cache(tmp_path, MODULE_SRC)
+    assert poisoned.exists()
+
+    proc = _run(tmp_path, spec)
+    v = _verdicts(proc.stdout)
+    assert v.get("M1_guard_a_removed") == "KILLED", (
+        "the harness executed a cached module instead of the mutated source, "
+        "so its verdict is about code it did not write:\n" + proc.stdout)
+    assert v.get("M2_guard_b_removed") == "SURVIVED", proc.stdout
+
+
+def test_each_run_gets_a_private_bytecode_cache_that_is_cleaned_up():
+    """Structural companion to the test above.
+
+    The end-to-end test proves the outcome; this proves the mechanism, so a
+    change that keeps the outcome by accident is still visible.
+    """
+    spec = importlib.util.spec_from_file_location("mm_probe", HARNESS)
+    mm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mm)
+
+    seen = {}
+    real_run = mm.subprocess.run
+
+    def capture(cmd, **kw):
+        env = kw.get("env") or {}
+        seen.setdefault("prefixes", []).append(env.get("PYTHONPYCACHEPREFIX"))
+        return real_run([sys.executable, "-c", "pass"], **{
+            **kw, "env": env or None})
+
+    mm.subprocess.run = capture
+    try:
+        mm.run_suite(["tests/test_suite.py"], sys.executable)
+        mm.run_suite(["tests/test_suite.py"], sys.executable)
+    finally:
+        mm.subprocess.run = real_run
+
+    prefixes = seen["prefixes"]
+    assert all(prefixes), "every run must set PYTHONPYCACHEPREFIX"
+    assert len(set(prefixes)) == 2, "a shared prefix reintroduces the defect"
+    for p in prefixes:
+        assert not Path(p).exists(), "the private cache must be removed"
+
+
+# ---- the traps it already closed, kept closed ---------------------------
+def test_a_red_baseline_refuses_to_start(tmp_path):
+    """N mutations "killed" for a pre-existing reason reads as a perfect
+    score."""
+    broken = SUITE_SRC + "\n\ndef test_already_failing():\n    assert False\n"
+    spec = _project(tmp_path, suite_src=broken)
+    proc = _run(tmp_path, spec)
+    assert proc.returncode != 0
+    assert "baseline" in proc.stdout.lower() + proc.stderr.lower()
+    assert "KILLED" not in proc.stdout
+
+
+def test_anchor_drift_is_an_error_not_a_skip(tmp_path):
+    """A silently skipped mutation tested nothing while appearing in the
+    report."""
+    spec = _project(tmp_path, mutations=[
+        {"name": "D1_anchor_gone", "path": "pkg/mod.py",
+         "find": "    if x < 999:", "replace": "    if 0:",
+         "rationale": "anchor no longer present"},
+    ])
+    proc = _run(tmp_path, spec)
+    assert _verdicts(proc.stdout).get("D1_anchor_gone") == "ANCHOR DRIFT"
+    assert proc.returncode != 0
+
+
+def test_an_ambiguous_anchor_is_an_error(tmp_path):
+    """Matching twice would mutate two places and test neither."""
+    spec = _project(tmp_path, mutations=[
+        {"name": "D2_anchor_ambiguous", "path": "pkg/mod.py",
+         "find": "        raise ValueError(", "replace": "        pass  # (",
+         "rationale": "matches both guards"},
+    ])
+    proc = _run(tmp_path, spec)
+    assert _verdicts(proc.stdout).get("D2_anchor_ambiguous") == "ANCHOR DRIFT"
+
+
+def test_an_interrupted_run_leaves_a_recovery_sidecar(tmp_path):
+    """A killed run must not let a disabled guard reach a commit."""
+    spec = _project(tmp_path)
+    sidecar = tmp_path / ".mutation-recovery.json"
+    sidecar.write_text(json.dumps({"pkg/mod.py": MODULE_SRC}),
+                       encoding="utf-8")
+    proc = _run(tmp_path, spec)
+    assert proc.returncode != 0
+    assert "--recover" in proc.stdout
+    assert "KILLED" not in proc.stdout, (
+        "a run that starts on a possibly-mutated tree reports nothing "
+        "trustworthy")
+
+
+def test_a_run_stopped_during_the_null_control_restores_the_source(
+        tmp_path):
+    """D-2026-82. The null control edits every target before any mutation
+    runs, and it used to do so before the recovery sidecar existed and
+    before the SIGTERM handler was installed. A run stopped then left the
+    control's comment in the source, wrote no sidecar, and --recover said
+    "nothing to recover". The suite here stops the harness exactly there."""
+    suite = SUITE_SRC + '''
+
+def test_stop_the_harness_during_the_null_control():
+    import os, signal, time
+    src = (Path(__file__).resolve().parent.parent / "pkg" /
+           "mod.py").read_text(encoding="utf-8")
+    if "mutation-harness null control" in src:
+        root = Path(__file__).resolve().parent.parent
+        # What a SIGKILL here would leave to recover from, which no
+        # handler can help with: the sidecar must already exist.
+        (root / "sidecar_at_stop").write_text(
+            str((root / ".mutation-recovery.json").exists()))
+        os.kill(os.getppid(), signal.SIGTERM)
+        time.sleep(20)
+'''
+    spec = _project(tmp_path, suite_src=suite)
+    proc = _run(tmp_path, spec)
+    assert proc.returncode != 0
+    assert (tmp_path / "sidecar_at_stop").read_text() == "True", (
+        "the null control edited a target before the recovery sidecar "
+        "existed")
+    assert (tmp_path / "pkg" / "mod.py").read_text(encoding="utf-8") == \
+        MODULE_SRC, "the null control's edit survived the stop"
+    assert not (tmp_path / ".mutation-recovery.json").exists()
+    assert "sources restored" in proc.stdout, proc.stdout
+    assert "KILLED" not in proc.stdout and "SURVIVED" not in proc.stdout
+
+
+def test_recover_restores_and_clears_the_sidecar(tmp_path):
+    _project(tmp_path)
+    modpath = tmp_path / "pkg" / "mod.py"
+    sidecar = tmp_path / ".mutation-recovery.json"
+    sidecar.write_text(json.dumps({"pkg/mod.py": MODULE_SRC}),
+                       encoding="utf-8")
+    modpath.write_text(MODULE_SRC.replace("if x < 0:", "if 0:"),
+                       encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(tmp_path / "tools" / "mutation_matrix.py"),
+         "--recover"], cwd=str(tmp_path), capture_output=True, text=True,
+        timeout=120)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert modpath.read_text(encoding="utf-8") == MODULE_SRC
+    assert not sidecar.exists()
+
+
+@pytest.mark.parametrize("field", ["find", "replace", "path", "name",
+                                  "rationale"])
+def test_a_malformed_specification_is_refused_before_anything_is_written(
+        tmp_path, field):
+    """Refused, not merely crashed on.
+
+    Both fail closed, but a specification checked up front cannot reach the
+    point where a source file has been written to -- and it says which field
+    is wrong instead of raising a KeyError from inside the mutation loop.
+    """
+    mutation = {"name": "X", "path": "pkg/mod.py", "find": "    if x < 0:",
+                "replace": "    if 0:", "rationale": "r"}
+    del mutation[field]
+    spec = _project(tmp_path, mutations=[mutation])
+    before = (tmp_path / "pkg" / "mod.py").read_bytes()
+    proc = _run(tmp_path, spec)
+    assert proc.returncode != 0
+    assert "Traceback" not in proc.stderr, proc.stderr
+    assert field in proc.stdout, proc.stdout
+    assert "KILLED" not in proc.stdout
+    assert not (tmp_path / ".mutation-recovery.json").exists()
+    assert (tmp_path / "pkg" / "mod.py").read_bytes() == before
+
+
+def test_a_no_op_mutation_is_refused(tmp_path):
+    """find == replace changes nothing and is 'killed' by nothing.
+
+    The assertion names the whole sentence on purpose. Matching the bare word
+    "identical" passed against the unrelated line "all sources restored
+    byte-identical", so the test went green with the check deleted -- an
+    assertion anchored on text that another line also contains is a test that
+    defends nothing.
+    """
+    spec = _project(tmp_path, mutations=[
+        {"name": "N1", "path": "pkg/mod.py", "find": "    if x < 0:",
+         "replace": "    if x < 0:", "rationale": "r"}])
+    proc = _run(tmp_path, spec)
+    assert proc.returncode != 0
+    assert "'find' and 'replace' are identical" in proc.stdout, proc.stdout
+    assert "KILLED" not in proc.stdout
+
+
+def test_a_missing_suite_is_refused(tmp_path):
+    spec_path = _project(tmp_path)
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec["suites"] = ["tests/test_does_not_exist.py"]
+    spec_path.write_text(json.dumps(spec), encoding="utf-8")
+    proc = _run(tmp_path, spec_path)
+    assert proc.returncode != 0
+    assert "does not exist" in proc.stdout
+
+
+def test_duplicate_mutation_names_are_refused(tmp_path):
+    spec = _project(tmp_path, mutations=[
+        {"name": "same", "path": "pkg/mod.py", "find": "    if x < 0:",
+         "replace": "    if 0:", "rationale": "r"},
+        {"name": "same", "path": "pkg/mod.py", "find": "    if x > 9:",
+         "replace": "    if 0:", "rationale": "r"}])
+    proc = _run(tmp_path, spec)
+    assert proc.returncode != 0
+    assert "duplicate mutation name" in proc.stdout
+
+
+def test_two_mutations_making_the_same_mutant_are_refused(tmp_path):
+    """AUD-087. Two entries whose anchors differ and whose mutated sources
+    do not: a run would count one fault twice, as three committed specs did
+    (C1 and C34, IG1 and IG2, X11 and X62). Refused before anything is
+    written, in its own words."""
+    spec = _project(tmp_path, mutations=[
+        {"name": "one", "path": "pkg/mod.py", "find": "    if x < 0:",
+         "replace": "    if 0:", "rationale": "r"},
+        {"name": "two", "path": "pkg/mod.py",
+         "find": "    if x < 0:\n        raise",
+         "replace": "    if 0:\n        raise", "rationale": "r"}])
+    before = (tmp_path / "pkg" / "mod.py").read_bytes()
+    proc = _run(tmp_path, spec)
+    assert proc.returncode != 0
+    assert "(two) makes the same mutant as 'one'" in proc.stdout, proc.stdout
+    assert "KILLED" not in proc.stdout
+    assert (tmp_path / "pkg" / "mod.py").read_bytes() == before
+
+
+def test_two_mutations_of_one_line_that_differ_are_both_run(tmp_path):
+    """The control: one anchor, two replacements, two mutants, each run
+    and each killed (check_a(-1) must raise under either)."""
+    spec = _project(tmp_path, mutations=[
+        {"name": "one", "path": "pkg/mod.py", "find": "    if x < 0:",
+         "replace": "    if 0:", "rationale": "r"},
+        {"name": "two", "path": "pkg/mod.py", "find": "    if x < 0:",
+         "replace": "    if x < -1:", "rationale": "r"}])
+    proc = _run(tmp_path, spec)
+    assert "makes the same mutant" not in proc.stdout, proc.stdout
+    assert _verdicts(proc.stdout) == {"one": "KILLED", "two": "KILLED"}
+
+
+# ---- the baseline must be green, and stably so -------------------------
+def test_a_flaky_baseline_is_refused_as_loudly_as_a_red_one(tmp_path):
+    """A baseline that can flake red can flake green.
+
+    A green flake is the dangerous direction: the matrix then reports kills
+    for mutations nothing tested, which is the exact false negative the
+    harness exists to prevent. So a first-run failure followed by a passing
+    re-run is refused on its own terms rather than being run past.
+    """
+    flaky = SUITE_SRC + '''
+
+def test_fails_only_the_first_time(tmp_path_factory):
+    marker = Path(__file__).resolve().parent / ".seen"
+    if not marker.exists():
+        marker.write_text("x")
+        assert False, "first run only"
+'''
+    spec = _project(tmp_path, suite_src=flaky)
+    proc = _run(tmp_path, spec)
+    assert proc.returncode == 4, proc.stdout
+    assert "NON-DETERMINISTIC" in proc.stdout
+    assert "KILLED" not in proc.stdout
+
+
+def test_state_a_mutation_leaves_behind_is_caught_after_the_run(tmp_path):
+    """Byte-identical restoration is necessary and not sufficient.
+
+    A mutation can let the suite write a file the source hash cannot see, and
+    the harness would report a clean restoration over a tree that no longer
+    behaves like the one it was given. The post-run baseline asks the only
+    question that matters.
+    """
+    module = MODULE_SRC + "\n\nLEAK = False\n"
+    suite = SUITE_SRC + (
+        "\n\ndef test_no_leftover_state():\n"
+        "    assert not (Path(__file__).resolve().parent / '.leaked').exists()\n")
+    leak = ("LEAK = bool(open(str(Path(__file__).resolve().parent.parent"
+            " / 'tests' / '.leaked'), 'w').write('x'))"
+            " if True else False\nfrom pathlib import Path")
+    spec = _project(
+        tmp_path, module_src=module, suite_src=suite,
+        mutations=[{"name": "L1_leaks_state", "path": "pkg/mod.py",
+                    "find": "LEAK = False",
+                    "replace": "from pathlib import Path\n" + leak.split(
+                        "\nfrom pathlib")[0],
+                    "rationale": "writes a file the source hash cannot see"}])
+    proc = _run(tmp_path, spec)
+    assert "ANCHOR DRIFT" not in proc.stdout, proc.stdout
+    assert "POST-RUN BASELINE RED" in proc.stdout, proc.stdout
+    # AND THE DIAGNOSIS MUST BE THE RESIDUE ONE. The file is still there, so
+    # the re-check fails again, and only then may the harness say that
+    # something survived the run.
+    assert "fails again on the restored tree" in proc.stdout, proc.stdout
+    assert "look for state outside the mutated sources" in proc.stdout
+    assert proc.returncode != 0
+
+
+#: A suite whose FIRST test fails on its THIRD invocation and on no other.
+#: The harness runs the baseline once (1), the single mutation (2), then the
+#: post-run baseline (3) -- a baseline re-run happens only when the first one
+#: is red, which is the NON-DETERMINISTIC path and not this one. First in the
+#: file deliberately: `-x` stops at the first failure, so a counter sitting
+#: after the killed test would not be reached on the mutation run and the
+#: count would not line up.
+COUNTING_SRC = '''import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import pytest
+
+from pkg import mod
+
+
+#: WHICH SUITE RUN THE HARNESS IS ON WHEN IT TAKES THE POST-RUN BASELINE.
+#:
+#: For a specification with one mutated file and one mutation, the harness
+#: invokes the suite in this order:
+#:
+#:   1  baseline            -- must be green before anything is touched
+#:   2  null control        -- the file edited inertly; must stay green
+#:   3  the mutation itself
+#:   4  post-run baseline   -- THIS ONE, which the fixture makes red
+#:   5  re-check of the failing tests alone, which passes
+#:
+#: It was 3 until the null control was added, and this test failed loudly
+#: rather than quietly targeting the wrong run -- which is the behaviour you
+#: want from a fixture that encodes a sequence. Anyone changing the number of
+#: suite invocations has to come here and re-derive it.
+POST_RUN_BASELINE_RUN = 4
+
+
+def test_fails_on_the_post_run_baseline_only():
+    counter = Path(__file__).resolve().parent / ".runs"
+    n = int(counter.read_text()) + 1 if counter.exists() else 1
+    counter.write_text(str(n))
+    assert n != POST_RUN_BASELINE_RUN, f"run {n}"
+
+
+def test_guard_a_rejects():
+    with pytest.raises(ValueError):
+        mod.check_a(-1)
+'''
+
+
+def test_a_post_run_failure_that_does_not_reproduce_is_not_called_residue(
+        tmp_path):
+    """THE PAIR for the message above, and the reason it was rewritten.
+
+    Green before, red after, sources byte-identical, nothing left behind --
+    that signature was printed as "something outside the mutated sources
+    survived the run", which is a conclusion the evidence does not support. A
+    NONDETERMINISTIC test produces it exactly, and did, on four hosted runs
+    of the checkpoint spec (D-2026-34), sending the reader after a stray file
+    that never existed.
+
+    Here the harness sees red on a tree it restored byte-identical, and the
+    re-check passes. The message must then say what it actually knows, and
+    must NOT name residue.
+    """
+    spec = _project(
+        tmp_path, suite_src=COUNTING_SRC,
+        mutations=[{"name": "M1_guard_a_removed", "path": "pkg/mod.py",
+                    "find": "    if x < 0:", "replace": "    if 0:",
+                    "rationale": "guard a stops guarding"}])
+    proc = _run(tmp_path, spec)
+
+    assert "POST-RUN BASELINE RED" in proc.stdout, proc.stdout
+    assert "re-running those tests alone" in proc.stdout, proc.stdout
+    assert "Do not conclude that something survived" in proc.stdout
+    assert "look for state outside the mutated sources" not in proc.stdout, (
+        "the harness named residue for a failure that did not reproduce")
+    assert proc.returncode != 0, "a red post-run baseline is still a failure"
+
+
+# ---- restoration between mutations, not only at the end -----------------
+TWO_FILE_A = '''def guard(x):
+    if x < 0:
+        raise ValueError("a")
+    return x
+'''
+
+TWO_FILE_B = '''def guard(x):
+    if x > 9:
+        raise ValueError("b")
+    return x
+'''
+
+TWO_FILE_SUITE = '''import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import pytest
+
+from pkg import mod_a, mod_b
+
+
+def test_a():
+    with pytest.raises(ValueError):
+        mod_a.guard(-1)
+
+
+def test_b():
+    with pytest.raises(ValueError):
+        mod_b.guard(10)
+'''
+
+
+def test_each_mutation_is_restored_before_the_next_one_runs(tmp_path):
+    """Restoring only at the end is not the same as restoring each time.
+
+    While file A is still mutated, the collateral-damage detector sees it as
+    a tracked file the harness did not touch on THIS mutation -- and its
+    response is ``git checkout HEAD -- A``, which discards whatever
+    uncommitted work was in that file. A per-mutation restore is what keeps
+    the detector's view of "damaged" true.
+    """
+    (tmp_path / "tools" / "mutations").mkdir(parents=True)
+    shutil.copy2(HARNESS, tmp_path / "tools" / "mutation_matrix.py")
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "pkg" / "mod_a.py").write_text(TWO_FILE_A, encoding="utf-8")
+    (tmp_path / "pkg" / "mod_b.py").write_text(TWO_FILE_B, encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_suite.py").write_text(TWO_FILE_SUITE,
+                                                      encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "add", "-A"], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                    "commit", "-qm", "base"], cwd=str(tmp_path), check=True)
+
+    spec_path = tmp_path / "tools" / "mutations" / "spec.json"
+    spec_path.write_text(json.dumps({
+        "title": "two files", "note": "n", "suites": ["tests/test_suite.py"],
+        "mutations": [
+            {"name": "A1", "path": "pkg/mod_a.py", "find": "    if x < 0:",
+             "replace": "    if 0:", "rationale": "guard a"},
+            {"name": "B1", "path": "pkg/mod_b.py", "find": "    if x > 9:",
+             "replace": "    if 0:", "rationale": "guard b"},
+        ]}), encoding="utf-8")
+
+    proc = _run(tmp_path, spec_path)
+    assert "TRACKED FILES CHANGED DURING A MUTATION" not in proc.stdout, (
+        "a source left mutated from the previous step is reported as "
+        "collateral damage and git-checked-out, which discards real work:\n"
+        + proc.stdout)
+    assert _verdicts(proc.stdout) == {"A1": "KILLED", "B1": "KILLED"}, \
+        proc.stdout
+    assert proc.returncode == 0, proc.stdout
+
+
+# ---- collateral damage is restored, and what it discards is kept ----------
+
+def _git(tmp_path: Path, *args) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(tmp_path), *args],
+                          capture_output=True, text=True, check=True)
+
+
+def _git_project(tmp_path: Path, **kw) -> Path:
+    """A synthetic tree that is a real repository.
+
+    The collateral-damage path is driven entirely by ``git status``, so it is
+    inert in the non-git trees the other tests use. It has to be exercised
+    against a repository or it is not exercised at all.
+    """
+    spec = _project(tmp_path, **kw)
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "config", "user.email", "t@example.invalid")
+    _git(tmp_path, "config", "user.name", "t")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "base")
+    return spec
+
+
+def test_a_file_a_mutated_build_damaged_is_restored_and_kept(tmp_path):
+    """REGRESSION, and the reason the copy exists.
+
+    The restore is right: leaving a suite-damaged file in place means every
+    later mutation runs against corrupted inputs. But ``git checkout HEAD --``
+    cannot tell damage from an uncommitted edit, and it destroyed real work
+    twice in one session -- a rewritten completion matrix, then the previous
+    version of this very fix, both reverted because they were made while a
+    matrix was running in another window.
+
+    So the harness must still restore, and must no longer be able to lose the
+    bytes it discards.
+    """
+    victim = "pkg/victim.txt"
+    module = MODULE_SRC + "\n\nDAMAGE = False\n"
+    damage = (
+        "from pathlib import Path as _P\n"
+        "DAMAGE = bool((_P(__file__).resolve().parent.parent / 'pkg' /"
+        " 'victim.txt').write_text('clobbered by the suite'))\n")
+    spec = _git_project(
+        tmp_path, module_src=module,
+        mutations=[{"name": "D1_damages_a_tracked_file", "path": "pkg/mod.py",
+                    "find": "DAMAGE = False", "replace": damage.strip(),
+                    "rationale": "the mutated build overwrites a tracked file"}])
+    (tmp_path / victim).write_text("the original contents\n", encoding="utf-8")
+    _git(tmp_path, "add", victim)
+    _git(tmp_path, "commit", "-q", "-m", "victim")
+
+    proc = _run(tmp_path, spec)
+
+    assert "TRACKED FILES CHANGED DURING A MUTATION" in proc.stdout, \
+        proc.stdout
+    assert victim in proc.stdout, proc.stdout
+    # AND IT MUST NOT NAME A CULPRIT IT CANNOT SEE. The heading said "TESTS
+    # DAMAGED TRACKED FILES ... the test is unsafe", which is an inference
+    # reported as a finding: an editor or a script touching the tree during
+    # the run produces the identical observation, and that misreading cost
+    # real time once (D-2026-43). Here the suite REALLY is the culprit, and
+    # the wording still has to leave the other possibility open.
+    assert "nothing here can tell them apart" in proc.stdout, proc.stdout
+    # Restored: the next mutation does not run against corrupted inputs.
+    assert (tmp_path / victim).read_text(encoding="utf-8") == \
+        "the original contents\n"
+    # And the discarded bytes survive somewhere a person can find them.
+    kept = sorted((tmp_path / ".mutation-quarantine").rglob(victim))
+    assert kept, (
+        "the harness discarded a tracked file's contents with no copy; a "
+        "false positive then costs the work rather than a copy")
+    assert kept[0].read_text(encoding="utf-8") == "clobbered by the suite"
+    assert ".mutation-quarantine" in proc.stdout
+
+
+def test_the_quarantine_is_not_written_when_nothing_is_damaged(tmp_path):
+    """It must be evidence of an event, not a directory that always appears."""
+    spec = _git_project(tmp_path)
+    proc = _run(tmp_path, spec)
+    assert "TRACKED FILES CHANGED DURING A MUTATION" not in proc.stdout, \
+        proc.stdout
+    assert not (tmp_path / ".mutation-quarantine").exists()
+
+
+# ---- a timeout is not a kill --------------------------------------------
+def test_a_mutation_killed_only_by_a_timeout_is_not_counted_as_coverage(
+        tmp_path):
+    """It was counted as one, and reported as a note.
+
+    So a mutation nothing bounded appeared in the score as coverage, while
+    costing the whole suite timeout per run and saying nothing about which
+    check was lost. Two were in that state and were bounded by hand; what
+    was missing was anything to stop a third. This is that.
+
+    The harness's own timeout is lowered for the test rather than waited
+    out: the property is how a timeout is CLASSIFIED, and waiting five
+    minutes to observe a classification would make this test the slowest
+    thing in the suite for no additional information.
+    """
+    module = '''
+def check_a(x):
+    if x < 0:
+        raise ValueError("negative")
+    return x
+'''
+    suite = '''
+import sys, time
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from pkg import mod
+
+
+def test_guard_a():
+    # With the guard present this returns immediately. With it removed
+    # nothing raises and the test hangs -- which is the badly written test
+    # the harness has to refuse to count as coverage.
+    try:
+        mod.check_a(-1)
+    except ValueError:
+        return
+    time.sleep(600)
+'''
+    spec = _project(tmp_path, module_src=module, suite_src=suite,
+                    mutations=[{"name": "T1_guard_a_removed",
+                                "path": "pkg/mod.py",
+                                "find": "    if x < 0:",
+                                "replace": "    if 0:",
+                                "rationale": "nothing bounds this"}])
+    harness = tmp_path / "tools" / "mutation_matrix.py"
+    src = harness.read_text(encoding="utf-8")
+    harness.write_text(src.replace("SUITE_TIMEOUT_S = 300",
+                                   "SUITE_TIMEOUT_S = 8"), encoding="utf-8")
+
+    out = _run(tmp_path, spec)
+    assert "KILLED ONLY BY TIMEOUT" in out.stdout, out.stdout
+    assert "killed:   0/1" in out.stdout, (
+        "a timeout was counted as coverage:\n" + out.stdout)
+    assert out.returncode != 0, (
+        "the run passed with a mutation nothing bounds; the harness reports "
+        "the condition and has to fail on it")
+
+
+# ---- a kill is a test's (AUD-093) --------------------------------------------
+#
+# Each case below was counted as a kill. The harness read pytest's FAILED lines
+# and its exit status and nothing else, so a mutant no test ran against, a
+# suite a signal ended and a fixture that refused the fault all read alike:
+# KILLED, with no test named.
+
+#: The first of the two default mutations, alone.
+GUARD_A = {"name": "M1_guard_a_removed", "path": "pkg/mod.py",
+           "find": "    if x < 0:", "replace": "    if 0:",
+           "rationale": "guard a stops guarding"}
+
+
+def _line(out: str, name: str) -> str:
+    """The report's line for one mutation, or the empty string."""
+    return next((line for line in out.splitlines()
+                 if line.startswith(name + " ")), "")
+
+
+def test_a_mutant_the_suites_cannot_be_collected_under_is_stillborn(
+        tmp_path):
+    """The module loads, but the suite imports a name the mutant took away,
+    so pytest collects nothing and no test runs."""
+    suite = SUITE_SRC.replace("from pkg import mod\n",
+                              "from pkg import mod\n"
+                              "from pkg.mod import check_b  # noqa: F401\n")
+    spec = _project(tmp_path, suite_src=suite, mutations=[
+        {"name": "S1_check_b_renamed", "path": "pkg/mod.py",
+         "find": "def check_b(x):", "replace": "def check_c(x):",
+         "rationale": "the name the suite imports is gone"}])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "S1_check_b_renamed")
+    assert "STILLBORN" in line and "could not be collected" in line, \
+        out.stdout
+    assert "killed:   0/1" in out.stdout, out.stdout
+    assert out.returncode != 0, out.stdout
+
+
+#: A class attribute that a mutation makes a dataclass field.
+LABEL_SRC = '''from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Hit:
+    label = "TEXT"
+
+    text: str
+
+
+def check_a(x):
+    if x < 0:
+        raise ValueError("a")
+    return x
+'''
+
+#: A suite that imports the module inside its tests.
+LATE_SUITE_SRC = '''import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import pytest
+
+
+def test_the_label_is_not_a_field():
+    from dataclasses import fields
+
+    from pkg import mod
+    assert "label" not in {f.name for f in fields(mod.Hit)}
+
+
+def test_guard_a_rejects():
+    from pkg import mod
+    with pytest.raises(ValueError):
+        mod.check_a(-1)
+'''
+
+
+def test_a_mutant_that_does_not_load_is_stillborn_whoever_imports_it(
+        tmp_path):
+    """MR8 in agent_memory_context, in small. The attribute made a field
+    with a default, ahead of a field without one: the decorator refuses the
+    class, and the module does not load. A suite that imports the module in
+    its tests fails in a test, which names itself, so the kill read as that
+    test's, and it never saw the fault."""
+    spec = _project(tmp_path, module_src=LABEL_SRC,
+                    suite_src=LATE_SUITE_SRC, mutations=[
+                        {"name": "S2_the_label_becomes_a_field",
+                         "path": "pkg/mod.py",
+                         "find": '    label = "TEXT"',
+                         "replace": '    label: str = "TEXT"',
+                         "rationale": "a label a caller can set is not a "
+                                      "property"}])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "S2_the_label_becomes_a_field")
+    assert "STILLBORN" in line and "does not load" in line, out.stdout
+    assert "non-default argument" in line, line
+    assert "killed:   0/1" in out.stdout, out.stdout
+    assert out.returncode != 0, out.stdout
+
+
+def test_the_same_fault_written_so_that_it_loads_is_killed_by_its_test(
+        tmp_path):
+    """The control: the field added after the last one, so the class is
+    made, and the test of the label kills it."""
+    spec = _project(tmp_path, module_src=LABEL_SRC,
+                    suite_src=LATE_SUITE_SRC, mutations=[
+                        {"name": "S3_the_label_becomes_a_field_that_loads",
+                         "path": "pkg/mod.py",
+                         "find": "    text: str\n",
+                         "replace": '    text: str\n    label: str = "TEXT"\n',
+                         "rationale": "a label a caller can set is not a "
+                                      "property"}])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "S3_the_label_becomes_a_field_that_loads")
+    assert "KILLED" in line and "by test_the_label_is_not_a_field" in line, \
+        out.stdout
+    assert out.returncode == 0, out.stdout
+
+
+def test_a_kill_made_in_a_fixture_names_its_test(tmp_path):
+    """A refusal checked in a fixture is a kill by the test it sets up.
+    pytest reports it as an ERROR and not a FAILED, and the report named no
+    test, the same line a mutant nothing ran against got: nine kills in the
+    committed specs read that way."""
+    suite = SUITE_SRC.replace(
+        "def test_guard_a_rejects():\n"
+        "    with pytest.raises(ValueError):\n"
+        "        mod.check_a(-1)\n",
+        "@pytest.fixture\n"
+        "def refused():\n"
+        "    with pytest.raises(ValueError):\n"
+        "        mod.check_a(-1)\n"
+        "    return True\n"
+        "\n\n"
+        "def test_a_negative_is_refused(refused):\n"
+        "    assert refused\n")
+    assert "def refused" in suite
+    spec = _project(tmp_path, suite_src=suite, mutations=[GUARD_A])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "M1_guard_a_removed")
+    assert "by test_a_negative_is_refused (an error, not a failure)" in line, \
+        out.stdout
+    assert "killed:   1/1" in out.stdout, out.stdout
+    assert out.returncode == 0, out.stdout
+
+
+#: A test that ends its own process when the guard is gone, one way or
+#: another.
+ENDING_SUITE_SRC = '''import os
+import signal
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from pkg import mod
+
+
+def test_guard_a():
+    try:
+        mod.check_a(-1)
+    except ValueError:
+        return
+    END
+'''
+
+
+def test_a_suite_a_signal_ends_has_not_killed_anything(tmp_path):
+    """H9 in hdf5_bundle: the library, made to read in the suite's own
+    process, faulted on the file found by fuzzing and ended the run, and no
+    test said which check was lost."""
+    spec = _project(tmp_path, suite_src=ENDING_SUITE_SRC.replace(
+        "END", "os.kill(os.getpid(), signal.SIGKILL)"), mutations=[GUARD_A])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "M1_guard_a_removed")
+    assert "KILLED BY A SIGNAL (SIGKILL)" in line, out.stdout
+    assert "KILLED ONLY BY A SIGNAL" in out.stdout, out.stdout
+    assert "killed:   0/1" in out.stdout, out.stdout
+    assert out.returncode != 0, out.stdout
+
+
+def test_a_suite_that_fails_naming_no_test_has_no_verdict(tmp_path):
+    """A suite that exits non-zero naming no test said nothing about the
+    mutant."""
+    spec = _project(tmp_path, suite_src=ENDING_SUITE_SRC.replace(
+        "END", "os._exit(3)"), mutations=[GUARD_A])
+    out = _run(tmp_path, spec)
+    line = _line(out.stdout, "M1_guard_a_removed")
+    assert "NO VERDICT" in line and "pytest exited 3" in line, out.stdout
+    assert "killed:   0/1" in out.stdout, out.stdout
+    assert out.returncode != 0, out.stdout
+
+
+def test_a_mutant_that_reads_a_name_nothing_defines_is_refused(tmp_path):
+    """G3 in agent_tasks: replay was to stop reauthorizing, and the line
+    written for it called a function its module never imported, with a
+    constant nothing ever defined. It raised NameError where the fault was
+    to act, and was counted as killed from the day it was written."""
+    spec = _project(tmp_path, mutations=[
+        {"name": "U1_the_guard_asks_what_is_not_there",
+         "path": "pkg/mod.py", "find": "    if x < 0:",
+         "replace": "    if is_negative(x):",
+         "rationale": "the guard asks a helper nothing defines"}])
+    out = _run(tmp_path, spec)
+    assert out.returncode == 2, out.stdout
+    assert "refusing to run" in out.stdout, out.stdout
+    assert "['is_negative']" in out.stdout and "NameError" in out.stdout, \
+        out.stdout
+
+
+def test_a_mutant_whose_unbound_name_never_runs_says_so_and_runs(tmp_path):
+    """The control, as R74 in agent_second_reader: a call no code makes, for
+    a static guard to find. Saying why lets it run."""
+    spec = _project(tmp_path, mutations=[
+        {"name": "U2_a_call_nothing_makes", "path": "pkg/mod.py",
+         "find": "def check_b(x):",
+         "replace": "def _never_called():\n    return is_negative(1)\n\n\n"
+                    "def check_b(x):",
+         "rationale": "a call into a helper nothing defines, made by nothing",
+         "reads_undefined": "nothing calls the function it adds"}])
+    out = _run(tmp_path, spec)
+    assert "refusing to run" not in out.stdout, out.stdout
+    assert "SURVIVED" in _line(out.stdout, "U2_a_call_nothing_makes"), \
+        out.stdout
+
+
+def test_a_reason_to_read_an_undefined_name_is_held_to_the_mutant(tmp_path):
+    """A reason given for a mutant that reads no such name is refused, so
+    the field cannot be left on an entry it no longer describes."""
+    spec = _project(tmp_path, mutations=[
+        dict(GUARD_A, reads_undefined="nothing calls it")])
+    out = _run(tmp_path, spec)
+    assert out.returncode == 2, out.stdout
+    assert "it reads none" in out.stdout, out.stdout
+
+
+def test_each_load_check_gets_a_private_bytecode_cache_that_is_cleaned_up():
+    """The load check's own prefix, for the reason ``run_suite`` has one: a
+    cached module of the same size, written in the same second, would
+    answer for the mutant."""
+    spec = importlib.util.spec_from_file_location("mm_load_probe", HARNESS)
+    mm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mm)
+
+    seen = []
+    real_run = mm.subprocess.run
+
+    def capture(cmd, **kw):
+        seen.append((kw.get("env") or {}).get("PYTHONPYCACHEPREFIX"))
+        return real_run([sys.executable, "-c", "print('LOADED')"],
+                        **{**kw, "env": None})
+
+    mm.subprocess.run = capture
+    try:
+        assert mm.load_problem("pkg/mod.py", sys.executable) is None
+        assert mm.load_problem("pkg/mod.py", sys.executable) is None
+    finally:
+        mm.subprocess.run = real_run
+
+    assert all(seen), "every load check must set PYTHONPYCACHEPREFIX"
+    outer = os.environ.get("PYTHONPYCACHEPREFIX")
+    assert outer not in seen, "the load check reused its caller's prefix"
+    assert len(set(seen)) == 2, "a shared prefix reintroduces the defect"
+    for prefix in seen:
+        assert not Path(prefix).exists(), "the private cache must be removed"

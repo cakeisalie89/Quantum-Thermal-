@@ -1,0 +1,80 @@
+{
+ "title": "The reproducible container: the declared image, its user, its pin, and what it verifies",
+ "note": "CV1-CV7: the image running as root, its base pinned by tag, the in-image verification losing its fail-closed shell options or its content audit or its suite, the workflow no longer asserting the user, and the .dockerignore hiding governed evidence from the image. CV8-CV10: the step record a job log's tail must carry -- the EXIT trap, the completed-step list, and the name of the step that failed.",
+ "suites": [
+  "tests/test_container_workflow_contract.py",
+  "tests/test_container_manifest_coverage.py"
+ ],
+ "mutations": [
+  {
+   "name": "CV1_the_image_runs_as_root",
+   "path": "Dockerfile",
+   "find": "USER harness\n",
+   "replace": "USER root\n",
+   "rationale": "the governed verification runs with every privilege the image has"
+  },
+  {
+   "name": "CV2_the_base_is_pinned_by_tag",
+   "path": "Dockerfile",
+   "find": "FROM python:3.12.11-slim-bookworm@sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7\n",
+   "replace": "FROM python:3.12.11-slim-bookworm\n",
+   "rationale": "a moved tag silently changes the environment every run certifies"
+  },
+  {
+   "name": "CV3_a_failing_step_is_ignored",
+   "path": "container_verify.sh",
+   "find": "set -euo pipefail\n",
+   "replace": "set -uo pipefail\n",
+   "rationale": "a failing check in the image no longer stops the verification, which still reports complete"
+  },
+  {
+   "name": "CV4_the_content_audit_is_not_run_in_the_image",
+   "path": "container_verify.sh",
+   "find": "python tools/repo_content_audit.py --check\n",
+   "replace": "true\n",
+   "rationale": "the image verifies a tree it never checked for retired content"
+  },
+  {
+   "name": "CV5_the_suite_is_not_run_in_the_image",
+   "path": "container_verify.sh",
+   "find": "HARNESS_NEURAL_REQUIRED=1 python -m pytest tests/ -q\n",
+   "replace": "true\n",
+   "rationale": "the container reports success without running the tests"
+  },
+  {
+   "name": "CV6_the_workflow_accepts_any_user",
+   "path": ".github/workflows/container-verify.yml",
+   "find": "          [ \"$U\" = \"harness\" ] || { echo \"EXPECTED USER harness, GOT $U\"; exit 1; }\n",
+   "replace": "          echo \"user $U\"\n",
+   "rationale": "an image that runs as root passes the hosted check"
+  },
+  {
+   "name": "CV7_governed_evidence_is_hidden_from_the_image",
+   "path": ".dockerignore",
+   "find": "verification/\n",
+   "replace": "verification/\ndocs/neural/dev/\n",
+   "rationale": "the image lacks governed files, and the in-image manifest check can only fail or be weakened"
+  },
+  {
+   "name": "CV8_the_container_forgets_how_far_it_got",
+   "path": "container_verify.sh",
+   "find": "trap _harness_summary EXIT",
+   "replace": "true",
+   "rationale": "without the EXIT trap the step record is only readable by scrolling to a part of the log the API does not serve, and nothing at all is printed on failure"
+  },
+  {
+   "name": "CV9_a_completed_step_is_not_recorded",
+   "path": "container_verify.sh",
+   "find": "  HARNESS_STEPS_OK=\"${HARNESS_STEPS_OK}${HARNESS_STEPS_OK:+,}$1\"",
+   "replace": "  :",
+   "rationale": "the summary would say no step completed, so a run's progress is an inference again"
+  },
+  {
+   "name": "CV10_the_failing_step_is_not_named",
+   "path": "container_verify.sh",
+   "find": "    echo \"::HARNESS-STEP-FAILED:: ${HARNESS_STEP_CURRENT}\"",
+   "replace": "    :",
+   "rationale": "a failure would report how far the script got but not where it stopped"
+  }
+ ]
+}

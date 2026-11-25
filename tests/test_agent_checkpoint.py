@@ -1,0 +1,2349 @@
+"""Checkpoints: caching a verification result without caching trust.
+
+The tests that matter most here are the ones asserting what a checkpoint
+*cannot* do. A cache whose limits are only described in a docstring becomes a
+cache whose limits nobody knows, and this one caches the answer to "has this
+log been tampered with".
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = str(Path(__file__).resolve().parent.parent)
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+from agent_substrate import checkpoint as cp_mod  # noqa: E402
+from agent_substrate.authority import Role, State  # noqa: E402
+from agent_substrate.canonical import (  # noqa: E402
+    canonical_bytes, digest, is_digest,
+)
+from dataclasses import replace  # noqa: E402
+from agent_substrate.checkpoint import (  # noqa: E402
+    Checkpoint, CheckpointAheadOfLog, CheckpointCorrupt, CheckpointError,
+    CheckpointMismatch, CheckpointStore, check_against, create,
+)
+from agent_substrate.events import ChainBroken, EventLog  # noqa: E402
+from agent_substrate.evidence import EvidenceStore  # noqa: E402
+from agent_substrate.store import (  # noqa: E402
+    SNAPSHOT_VERSION, AuthorityStore, StoreError,
+)
+
+
+def _log(tmp_path, n=5, name="ev.jsonl"):
+    log = EventLog(tmp_path / name)
+    for i in range(n):
+        log.append(actor="a", action="record.create", target=f"r{i}",
+                   payload={"record_id": f"r{i}", "kind": "k",
+                            "proposer": "a", "i": i})
+    return log
+
+
+# --- what a checkpoint buys -------------------------------------------------
+
+def test_verifying_from_a_checkpoint_skips_the_prefix(tmp_path):
+    log = _log(tmp_path, n=5)
+    cp = cp_mod.create(log)
+    for i in range(5, 8):
+        log.append(actor="a", action="record.create", target=f"r{i}",
+                   payload={"record_id": f"r{i}", "kind": "k",
+                            "proposer": "a", "i": i})
+
+    rep = cp_mod.verify_with(log, cp)
+    assert rep.ok
+    assert rep.count == 3, "only the records after the checkpoint were read"
+    assert rep.head_seq == 7
+
+
+def test_an_incremental_report_says_it_is_incremental(tmp_path):
+    """The field exists so the two results cannot be confused for each other."""
+    log = _log(tmp_path, n=4)
+    cp = cp_mod.create(log)
+
+    weak = cp_mod.verify_with(log, cp)
+    assert weak.ok and weak.prefix_verified is False
+    assert weak.unverified_through == cp.seq
+
+    strong = log.verify()
+    assert strong.ok and strong.prefix_verified is True
+    assert strong.unverified_through == -1
+
+
+def _tamper_in_place(log, index, new_value):
+    """Alter a record's payload WITHOUT changing the line's byte length.
+
+    Length matters: the anchor carries byte offsets, so an edit that changes
+    the prefix's length shifts everything after it and the anchor stops
+    lining up. That incidental detection is real but it is not the property
+    under test here, and relying on it would be relying on an attacker
+    choosing an inconvenient edit.
+    """
+    lines = log.path.read_text().splitlines()
+    before = len(lines[index])
+    rec = json.loads(lines[index])
+    rec["payload"]["i"] = new_value
+    lines[index] = json.dumps(rec, sort_keys=True, separators=(",", ":"))
+    assert len(lines[index]) == before, (
+        "the substitution changed the line length; pick an equal-length value")
+    log.path.write_text("\n".join(lines) + "\n")
+
+
+def test_tampering_before_the_anchor_is_invisible_incrementally(tmp_path):
+    """THE property to understand before relying on a checkpoint.
+
+    A record inside the checkpointed prefix is altered, keeping its byte
+    length so the offsets still line up. The incremental check reports ``ok``
+    -- correctly, because it never claimed to have looked -- and the full
+    check finds it. Both halves are asserted together so the limit cannot be
+    read as a bug in one or a guarantee in the other.
+    """
+    log = _log(tmp_path, n=6)
+    cp = cp_mod.create(log)
+    _tamper_in_place(log, 1, 9)          # "i": 1 -> "i": 9, same width
+
+    weak = cp_mod.verify_with(log, cp)
+    assert weak.ok, "the incremental check does not read the prefix at all"
+    assert weak.prefix_verified is False, (
+        "...and it must say so, or this result is a lie by omission")
+
+    strong = log.verify()
+    assert not strong.ok
+    assert any("was altered" in p for p in strong.problems), strong.problems
+
+
+def test_a_length_changing_prefix_edit_is_caught_by_the_offsets(tmp_path):
+    """Incidental, and worth pinning so it is not mistaken for the guarantee.
+
+    Byte offsets exist to make the tail reachable without reading the prefix.
+    A prefix edit that changes its length therefore breaks them -- so this
+    class of tampering IS caught incrementally. It is a side effect of the
+    seek, not a security property: an attacker who preserves the length gets
+    past it, as the test above shows.
+    """
+    log = _log(tmp_path, n=6)
+    cp = cp_mod.create(log)
+    lines = log.path.read_text().splitlines()
+    rec = json.loads(lines[1])
+    rec["payload"]["i"] = 999999        # wider than "1"
+    lines[1] = json.dumps(rec, sort_keys=True, separators=(",", ":"))
+    log.path.write_text("\n".join(lines) + "\n")
+
+    with pytest.raises(ChainBroken):
+        cp_mod.verify_with(log, cp)
+
+
+def test_appending_incrementally_produces_a_fully_verifiable_log(tmp_path):
+    """The cheap writer must not produce a log the strict reader rejects."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    log.append(actor="a", action="record.create", target="r0",
+               payload={"record_id": "r0", "kind": "k", "proposer": "a"})
+    anchor = log.anchor_at(0)
+    for i in range(1, 25):
+        _, anchor = log.append_verified(
+            anchor, actor="a", action="record.create", target=f"r{i}",
+            payload={"record_id": f"r{i}", "kind": "k", "proposer": "a"})
+
+    rep = log.verify()
+    assert rep.ok, rep.problems
+    assert rep.count == 25 and rep.prefix_verified is True
+
+
+def test_append_verified_refuses_a_broken_tail(tmp_path):
+    log = _log(tmp_path, n=4)
+    anchor = log.anchor_at(1)
+    lines = log.path.read_text().splitlines()
+    rec = json.loads(lines[3])
+    rec["payload"]["i"] = 999
+    lines[3] = json.dumps(rec, sort_keys=True, separators=(",", ":"))
+    log.path.write_text("\n".join(lines) + "\n")
+
+    with pytest.raises(ChainBroken, match="broken chain"):
+        log.append_verified(anchor, actor="a", action="record.create",
+                            target="rX", payload={})
+
+
+def test_an_older_anchor_costs_more_and_is_still_correct(tmp_path):
+    """Rollback to an old checkpoint is safe, only slower."""
+    log = _log(tmp_path, n=10)
+    early = log.anchor_at(2)
+    rep = log.verify_from(early)
+    assert rep.ok and rep.count == 7 and rep.head_seq == 9
+    assert rep.unverified_through == 2
+
+
+# --- an anchor is checked, never trusted ------------------------------------
+
+def test_an_anchor_pointing_at_the_wrong_record_is_refused(tmp_path):
+    log = _log(tmp_path, n=5)
+    good = log.anchor_at(3)
+    forged = type(good)(good.seq, "b" * 64, good.record_offset,
+                        good.next_offset)
+    with pytest.raises(ChainBroken, match="anchor expects hash"):
+        log.verify_from(forged)
+
+
+def test_an_anchor_whose_offsets_no_longer_line_up_is_refused(tmp_path):
+    """A rewritten log moves the bytes, so the seek lands mid-record."""
+    log = _log(tmp_path, n=5)
+    anchor = log.anchor_at(3)
+    log.path.write_text("x" + log.path.read_text())   # shift everything by 1
+    with pytest.raises(ChainBroken, match="does not describe the bytes"):
+        log.verify_from(anchor)
+
+
+def test_an_anchor_past_the_end_of_the_log_is_reported_as_truncation(tmp_path):
+    log = _log(tmp_path, n=5)
+    anchor = log.anchor_at(4)
+    lines = log.path.read_text().splitlines()
+    log.path.write_text("\n".join(lines[:3]) + "\n")
+    with pytest.raises(ChainBroken, match="TRUNCATED"):
+        log.verify_from(anchor)
+
+
+def test_anchoring_at_a_seq_the_log_does_not_have_fails(tmp_path):
+    log = _log(tmp_path, n=3)
+    with pytest.raises(Exception, match="no record at seq 9"):
+        log.anchor_at(9)
+
+
+def test_anchoring_on_an_altered_record_is_refused(tmp_path):
+    """An anchor is only worth making from a record that hashes correctly."""
+    log = _log(tmp_path, n=4)
+    lines = log.path.read_text().splitlines()
+    rec = json.loads(lines[2])
+    rec["payload"]["i"] = 999
+    lines[2] = json.dumps(rec, sort_keys=True, separators=(",", ":"))
+    log.path.write_text("\n".join(lines) + "\n")
+    with pytest.raises(ChainBroken, match="does not hash to its own"):
+        log.anchor_at(2)
+
+
+# --- creating a checkpoint --------------------------------------------------
+
+def test_a_broken_log_cannot_be_checkpointed(tmp_path):
+    """A checkpoint past a break would make the break permanently invisible."""
+    log = _log(tmp_path, n=5)
+    lines = log.path.read_text().splitlines()
+    del lines[2]
+    log.path.write_text("\n".join(lines) + "\n")
+    with pytest.raises(ChainBroken, match="refusing to checkpoint"):
+        cp_mod.create(log)
+
+
+def test_an_empty_log_cannot_be_checkpointed(tmp_path):
+    log = EventLog(tmp_path / "empty.jsonl")
+    log.path.write_text("")
+    with pytest.raises(CheckpointError, match="empty log"):
+        cp_mod.create(log)
+
+
+def test_a_checkpoint_records_whether_it_was_fully_verified(tmp_path):
+    """Weaker provenance travels with the checkpoint instead of being lost."""
+    log = _log(tmp_path, n=3)
+    assert cp_mod.create(log).full_verification is True
+    weak = cp_mod.create(log, require_full_verification=False)
+    assert weak.full_verification is False
+    assert weak.hash != "" and weak.recompute_hash() == weak.hash
+
+
+def test_a_non_digest_state_digest_is_refused(tmp_path):
+    log = _log(tmp_path, n=3)
+    with pytest.raises(CheckpointError, match="sha256 digest or None"):
+        cp_mod.create(log, state_digest="not-a-digest")
+
+
+# --- the checkpoint file ----------------------------------------------------
+
+def test_a_checkpoint_round_trips_byte_for_byte(tmp_path):
+    log = _log(tmp_path, n=4)
+    store = CheckpointStore(tmp_path / "cp")
+    cp = cp_mod.create(log)
+    store.write(cp)
+    assert store.read(cp.seq) == cp
+
+
+def test_an_altered_checkpoint_file_is_detected(tmp_path):
+    log = _log(tmp_path, n=4)
+    store = CheckpointStore(tmp_path / "cp")
+    cp = cp_mod.create(log)
+    path = store.write(cp)
+    rec = json.loads(path.read_text())
+    rec["seq"] = 1                       # hash left stale
+    path.write_text(json.dumps(rec))
+    with pytest.raises(CheckpointCorrupt, match="was altered"):
+        store.read(cp.seq)
+
+
+def test_the_checkpoint_hash_does_not_authenticate_it(tmp_path):
+    """Recorded as a LIMIT, not a passing property.
+
+    Anyone who can rewrite the checkpoint file can also recompute its hash.
+    The self-hash catches a truncated write or a bad disk; it catches nothing
+    an adversary does. This test exists so that a reader who assumes
+    otherwise is contradicted by the suite rather than by an incident.
+
+    The defence against a hostile filesystem is ``EventLog.verify``, which
+    needs no checkpoint and trusts nothing -- asserted here alongside.
+    """
+    log = _log(tmp_path, n=5)
+    store = CheckpointStore(tmp_path / "cp")
+    cp = cp_mod.create(log)
+    path = store.write(cp)
+
+    rec = json.loads(path.read_text())
+    rec["state_digest"] = "f" * 64                  # a lie
+    body = {k: rec[k] for k in rec if k != "hash"}
+    rec["hash"] = digest(body)                      # ...consistently told
+    path.write_text(json.dumps(rec))
+
+    forged = store.read(cp.seq)                     # accepted: it self-hashes
+    assert forged.state_digest == "f" * 64
+
+    # And the thing that does not care what the checkpoint says:
+    assert log.verify().ok
+
+
+def test_an_unhashed_extra_field_in_a_checkpoint_is_refused(tmp_path):
+    """The same rule the event log applies: unhashed content is not content."""
+    log = _log(tmp_path, n=3)
+    store = CheckpointStore(tmp_path / "cp")
+    cp = cp_mod.create(log)
+    path = store.write(cp)
+    rec = json.loads(path.read_text())
+    rec["trust_me"] = True
+    path.write_text(json.dumps(rec))
+    with pytest.raises(CheckpointCorrupt, match="unhashed extra fields"):
+        store.read(cp.seq)
+
+
+@pytest.mark.parametrize("field_, value", [
+    ("seq", -1), ("seq", "3"), ("seq", True),
+    ("head_hash", "F" * 64), ("head_hash", "zz"),
+    ("record_offset", -5), ("next_offset", 0),
+    ("state_digest", "nope"), ("canonical_form_version", "1"),
+    ("full_verification", 1),
+])
+def test_a_structurally_invalid_checkpoint_is_refused(tmp_path, field_, value):
+    log = _log(tmp_path, n=3)
+    store = CheckpointStore(tmp_path / "cp")
+    cp = cp_mod.create(log)
+    path = store.write(cp)
+    rec = json.loads(path.read_text())
+    rec[field_] = value
+    body = {k: rec[k] for k in rec if k != "hash"}
+    rec["hash"] = digest(body)          # valid hash over invalid content
+    path.write_text(json.dumps(rec))
+    with pytest.raises(CheckpointCorrupt):
+        store.read(cp.seq)
+
+
+def test_an_unparseable_checkpoint_is_reported_not_ignored(tmp_path):
+    store = CheckpointStore(tmp_path / "cp")
+    store.root.mkdir(parents=True)
+    store._path(3).write_text("{not json")
+    with pytest.raises(CheckpointCorrupt, match="unparseable"):
+        store.read(3)
+    assert store.seqs() == [3], "a corrupt checkpoint is still present"
+    audit = store.audit()
+    assert not audit.ok and audit.count == 0 and len(audit.problems) == 1
+
+
+def test_latest_walks_back_past_a_corrupt_checkpoint(tmp_path):
+    """An older valid checkpoint beats none; the corrupt one is still audited."""
+    log = _log(tmp_path, n=3)
+    store = CheckpointStore(tmp_path / "cp")
+    good = cp_mod.create(log)
+    store.write(good)
+    store._path(99).write_text("{not json")
+
+    assert store.seqs() == [good.seq, 99]
+    assert store.latest() == good
+    assert not store.audit().ok
+
+
+def test_a_checkpoint_ahead_of_the_log_is_refused(tmp_path):
+    """Records the checkpoint covered have been removed."""
+    log = _log(tmp_path, n=6)
+    cp = cp_mod.create(log)
+    lines = log.path.read_text().splitlines()
+    log.path.write_text("\n".join(lines[:3]) + "\n")
+    with pytest.raises(CheckpointAheadOfLog, match="missing"):
+        cp_mod.check_against(log, cp)
+
+
+def test_a_checkpoint_for_a_SHORTER_different_log_is_refused_by_size(tmp_path):
+    """And ONLY by size -- which is the whole of what `check_against` knows.
+
+    The name this test used to carry said "for a different log", which is
+    more than it shows: `log_b` is refused for being two records long, not
+    for being a different log. A different log of ADEQUATE length passes
+    here, and that gap was D-2026-34. The pair that shows it is
+    `test_could_describe_and_does_describe_are_different_questions`.
+    """
+    log_a = _log(tmp_path, n=8, name="a.jsonl")
+    log_b = _log(tmp_path, n=2, name="b.jsonl")
+    cp = cp_mod.create(log_a)
+    with pytest.raises(CheckpointAheadOfLog) as exc:
+        cp_mod.check_against(log_b, cp)
+    assert "byte(s) are missing" in str(exc.value), (
+        "refused for some reason other than the log being too short, so "
+        "this test is not about what it says it is about")
+
+
+def test_a_checkpoint_from_another_canonical_form_is_refused(tmp_path):
+    log = _log(tmp_path, n=3)
+    cp = cp_mod.create(log)
+    other = Checkpoint(
+        cp.seq, cp.head_hash, cp.record_offset, cp.next_offset,
+        cp.state_digest, cp.created, cp.canonical_form_version + 1,
+        cp.full_verification)
+    with pytest.raises(CheckpointMismatch, match="canonical form"):
+        cp_mod.check_against(log, other)
+
+
+def test_latest_usable_skips_a_checkpoint_that_does_not_fit_the_log(tmp_path):
+    log = _log(tmp_path, n=8)
+    store = CheckpointStore(tmp_path / "cp")
+    early = cp_mod.create(log)
+    store.write(early)
+
+    for i in range(8, 12):
+        log.append(actor="a", action="record.create", target=f"r{i}",
+                   payload={"record_id": f"r{i}", "kind": "k",
+                            "proposer": "a"})
+    late = cp_mod.create(log)
+    store.write(late)
+
+    lines = log.path.read_text().splitlines()
+    log.path.write_text("\n".join(lines[:9]) + "\n")   # drop back below `late`
+
+    assert store.latest().seq == late.seq, "newest by name is still the newest"
+    usable = store.latest_usable(log)
+    assert usable is not None and usable.seq == early.seq, (
+        "the newest checkpoint no longer describes this log")
+
+
+# --- the store ---------------------------------------------------------------
+
+def _promoted_store(tmp_path):
+    log = EventLog(tmp_path / "l.jsonl")
+    blobs = EvidenceStore(tmp_path / "blobs")
+    report = blobs.put(b'{"result":"verified","gates":83,"pass":0}')
+    s = AuthorityStore(log, evidence=blobs).load()
+    s.create(record_id="r1", kind="claim", proposer="p",
+             idempotency_key="create-r1")
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="v",
+                 role=Role.VERIFIER)
+    s.transition(record_id="r1", dst=State.VERIFIED, actor="v",
+                 role=Role.VERIFIER, evidence={"verification_report": report})
+    return log, blobs, s, report
+
+
+def test_a_checkpointed_load_agrees_with_a_full_load(tmp_path):
+    log, blobs, s, report = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    s.checkpoint(cps)
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"verification_report": report,
+                           "policy_id": "pol-1"})
+
+    cheap = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    full = AuthorityStore(log, evidence=blobs).load()
+    assert cheap.snapshot() == full.snapshot()
+    assert cheap.get("r1").state is State.PROMOTED
+
+
+def test_a_checkpointed_load_reports_that_it_skipped_the_prefix(tmp_path):
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    s.checkpoint(cps)
+    cheap = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    assert cheap.loaded_prefix_verified is False
+    assert AuthorityStore(log, evidence=blobs).load().loaded_prefix_verified
+
+
+def test_idempotency_keys_survive_a_checkpointed_load(tmp_path):
+    """The subtle half of the snapshot: idempotency IS part of the state.
+
+    A snapshot that dropped the applied keys would let a replayed request
+    apply a second time -- the exact failure idempotency keys exist to
+    prevent, reintroduced by the optimisation meant to be invisible.
+    """
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    s.checkpoint(cps)
+
+    cheap = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    before = cheap.get("r1").revision
+    again = cheap.create(record_id="r1", kind="claim", proposer="p",
+                         idempotency_key="create-r1")    # already applied
+    assert again.revision == before, (
+        "a retried create must return the existing record, not raise")
+    assert cheap.get("r1").revision == before
+    assert cheap.log.verify().count == log.verify().count, (
+        "a replayed idempotent request appended a second event")
+
+
+def test_load_from_falls_back_to_a_full_load_when_no_checkpoint(tmp_path):
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    loaded = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    assert loaded.get("r1").state is State.VERIFIED
+    assert loaded.loaded_prefix_verified is True, (
+        "the fallback is a real full load, and says so")
+
+
+def test_require_checkpoint_turns_a_silent_fallback_into_an_error(tmp_path):
+    log, blobs, _, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    with pytest.raises(StoreError, match="no usable checkpoint"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs,
+                                 require_checkpoint=True)
+
+
+def test_a_tampered_snapshot_blob_is_refused_by_the_evidence_store(tmp_path):
+    """The snapshot is evidence, and is stored the one way evidence is."""
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    cp = s.checkpoint(cps)
+    blobs._blob_path(cp.state_digest).write_bytes(b'{"records":{}}')
+    with pytest.raises(Exception, match="hash to"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+
+
+def test_a_snapshot_that_covers_a_different_seq_is_refused(tmp_path):
+    """The checkpoint and the snapshot it pins must describe the same moment."""
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    snap = s.snapshot()
+    snap["loaded_through"] = 0                      # claims an earlier moment
+    from agent_substrate.canonical import canonical_bytes
+    dg = blobs.put(canonical_bytes(snap), media_type="application/json")
+    cp = cp_mod.create(log, state_digest=dg)
+    cps.write(cp)
+    with pytest.raises(StoreError, match="does not describe"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+
+
+def test_a_checkpoint_pinning_no_snapshot_cannot_restore_a_projection(tmp_path):
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    cps.write(cp_mod.create(log))                   # state_digest is None
+    with pytest.raises(StoreError, match="pins no snapshot"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+
+
+def test_checkpointing_without_a_blob_store_is_refused(tmp_path):
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="k", proposer="p")
+    with pytest.raises(StoreError, match="needs a blob store"):
+        s.checkpoint(CheckpointStore(tmp_path / "cp"))
+
+
+def _snap(**over):
+    """A structurally VALID current snapshot, then ``over`` applied.
+
+    Each case below must fail for its own reason. Written against an older
+    schema version, every one of them was refused by the version check
+    before its malformation was ever looked at -- a table of eight tests
+    measuring one line (found when v2 added the reducer identity).
+    """
+    base = {"snapshot_version": SNAPSHOT_VERSION,
+            "projection": AuthorityStore.reducer_identity().to_record(),
+            "records": {}, "applied_keys": {}, "applied_requests": {},
+            "loaded_through": 0}
+    base.update(over)
+    return {k: v for k, v in base.items() if v is not _DROP}
+
+
+_DROP = object()
+
+
+def test_the_valid_base_snapshot_is_accepted(tmp_path):
+    """Control: without it, every refusal below could be the base's fault."""
+    AuthorityStore(EventLog(tmp_path / "l.jsonl"))._restore(_snap())
+
+
+@pytest.mark.parametrize("bad", [
+    # wrong version -- refuse rather than guess at an unknown shape
+    _snap(snapshot_version=SNAPSHOT_VERSION + 1),
+    # the pre-identity schema: it cannot say which reducer produced it
+    _snap(snapshot_version=1, projection=_DROP),
+    # no version at all
+    _snap(snapshot_version=_DROP),
+    # no reducer identity at all
+    _snap(projection=_DROP),
+    # a reducer identity that is not one
+    _snap(projection={"projection_kind": "authority_store"}),
+    # records must be a mapping
+    _snap(records=[]),
+    # applied_keys is a mapping now that a key records its target
+    _snap(applied_keys=[]),
+    # ...whose values name a record
+    _snap(applied_keys={"k": 7}),
+    # what each key completed is a mapping too (AUD-102)...
+    _snap(applied_requests=[]),
+    # ...naming a request for every key, so a retry can be told from
+    # another request under the key
+    _snap(applied_keys={"k": "r1"}),
+    # ...and no request for a key it does not hold
+    _snap(applied_requests={"k": {"action": "record.create"}}),
+    # ...each one a request
+    _snap(applied_keys={"k": "r1"}, applied_requests={"k": "create"}),
+    # a bool is an int in Python and is not a seq
+    _snap(loaded_through=True),
+    # a record whose body is not an object
+    _snap(records={"r1": "not an object"}),
+    # a record missing a required field
+    _snap(records={"r1": {"record_id": "r1"}}),
+])
+def test_a_malformed_snapshot_is_refused_rather_than_guessed_at(tmp_path, bad):
+    s = AuthorityStore(EventLog(tmp_path / "l.jsonl"))
+    with pytest.raises(StoreError):
+        s._restore(bad)
+
+
+def test_a_snapshot_key_that_disagrees_with_its_record_is_refused(tmp_path):
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    snap = s.snapshot()
+    snap["records"]["r2"] = snap["records"].pop("r1")   # key says r2, body r1
+    with pytest.raises(StoreError, match="disagrees with the record"):
+        AuthorityStore(log)._restore(snap)
+
+
+# ---------------------------------------------------------------------------
+# Mutation-isolating tests.
+#
+# Four mutations survived the first run of tools/mutations/agent_checkpoint.json.
+# All four were masked by an adjacent check firing on the same fixture, which is
+# the recurring failure in this suite's history: the tests proved that SOMETHING
+# rejected the input, not that the specific rule did.
+# ---------------------------------------------------------------------------
+
+def test_a_rolled_back_head_witness_invalidates_a_checkpoint(tmp_path):
+    """C5: the witness check, isolated from the byte-length check.
+
+    Truncating the log shrinks the file, so the offset check catches it first
+    and the witness comparison never runs. Here the log is left completely
+    intact and only the separately-held witness is rolled back -- which is what
+    an attacker who wants the system to forget recent records would do, since
+    the witness is the thing that would otherwise notice.
+    """
+    log = _log(tmp_path, n=8)
+    cp = cp_mod.create(log)
+    assert cp.seq == 7
+
+    early = log.anchor_at(3)
+    log.head_path.write_text(
+        json.dumps({"seq": early.seq, "head_hash": early.head_hash}),
+        encoding="utf-8")
+
+    with pytest.raises(CheckpointAheadOfLog, match="head witness records"):
+        cp_mod.check_against(log, cp)
+    # Isolation: the checkpoint ends exactly at EOF, so the byte-length check
+    # cannot be what refused it. Only the witness disagrees.
+    assert log.path.stat().st_size == cp.next_offset
+
+
+def test_a_witness_one_behind_after_a_crash_does_not_void_a_checkpoint(
+        tmp_path):
+    """AUD-009. The witness is written after the append it describes, so a
+    crash between the two leaves it one record behind the log, which
+    verify() calls a note. A checkpoint taken then names the head the
+    witness had not reached; check_against called that intact log
+    truncated. C5 above is the other side: a witness further behind."""
+    log = _log(tmp_path, n=8)
+    behind = log.anchor_at(6)
+    log.head_path.write_text(
+        json.dumps({"seq": behind.seq, "head_hash": behind.head_hash}),
+        encoding="utf-8")
+    assert log.verify().ok
+    cp = cp_mod.create(log)
+    assert cp.seq == 7
+    cp_mod.check_against(log, cp)
+    cp_mod.describes(log, cp)
+
+
+def test_a_witness_one_behind_does_not_vouch_for_a_record_that_is_gone(
+        tmp_path):
+    """The control: one behind is the crash signature only while the log
+    still holds the checkpoint's record."""
+    log = _log(tmp_path, n=8)
+    cp = cp_mod.create(log)
+    behind = log.anchor_at(6)
+    lines = log.path.read_bytes().split(b"\n")
+    rec = json.loads(lines[7])
+    rec["actor"] = "b"                          # same length, another record
+    lines[7] = canonical_bytes(rec)
+    log.path.write_bytes(b"\n".join(lines))
+    log.head_path.write_text(
+        json.dumps({"seq": behind.seq, "head_hash": behind.head_hash}),
+        encoding="utf-8")
+    assert log.path.stat().st_size == cp.next_offset
+    with pytest.raises(CheckpointAheadOfLog, match="head witness records"):
+        cp_mod.check_against(log, cp)
+
+
+def test_check_anchor_binds_an_anchor_to_a_log_and_verifies_nothing_else(
+        tmp_path):
+    """The primitive underneath `describes`, and the limit of it.
+
+    It answers one question -- is the record this anchor names the record at
+    that offset in THIS log -- and it must answer it without reading the
+    prefix or the tail. A damaged record on either side of the anchor is
+    therefore invisible to it, and `verify` is what finds those. Asserting
+    that here keeps the cheap check from being mistaken for the strong one:
+    the two live one method apart.
+    """
+    log = _log(tmp_path, n=8)
+    anchor = log.anchor_at(3)
+
+    assert log.check_anchor(anchor).seq == 3
+
+    lines = log.path.read_text().splitlines()
+    rec = json.loads(lines[6])
+    rec["actor"] = "somebody-else"                  # AFTER the anchor
+    lines[6] = json.dumps(rec, separators=(",", ":"), sort_keys=True)
+    rec0 = json.loads(lines[0])
+    rec0["actor"] = "somebody-else"                 # and BEFORE it
+    lines[0] = json.dumps(rec0, separators=(",", ":"), sort_keys=True)
+    log.path.write_text("\n".join(lines) + "\n")
+
+    assert not log.verify().ok, (
+        "the fixture does not set up the case: nothing is damaged, so "
+        "check_anchor passing below says nothing about its scope")
+    # Unchanged bytes at the anchor, so it still binds -- by design.
+    assert log.check_anchor(log.anchor_at(3)).seq == 3
+
+
+def test_an_anchor_claiming_the_wrong_seq_is_refused(tmp_path):
+    """E22: seq, with the hash deliberately correct.
+
+    A wrong seq normally comes with a wrong hash, so the hash check fires
+    first and the seq check is never reached. Here the anchor names the real
+    record's real hash at the real offsets and lies only about which position
+    that record occupies -- which would shift every following record's
+    expected seq by the same amount.
+    """
+    log = _log(tmp_path, n=6)
+    good = log.anchor_at(3)
+    lying = type(good)(1, good.head_hash, good.record_offset, good.next_offset)
+    with pytest.raises(ChainBroken, match=r"anchor claims seq 1 but the record"):
+        log.verify_from(lying)
+
+
+def test_the_anchored_record_is_rehashed_not_taken_on_faith(tmp_path):
+    """E23: the record the entire tail chains from must hash to its own hash.
+
+    ``anchor_at`` refuses to build an anchor on an altered record, which is
+    why this survived -- every anchor in the other tests comes from there. But
+    an anchor is a plain value a caller can also construct, or restore from a
+    checkpoint file that nothing authenticates. So the record is re-hashed at
+    the point of use, not only at the point of manufacture.
+
+    The fixture keeps the stale stored hash and points the anchor at it, so
+    seq matches, the hash matches, the offsets match, and only the recompute
+    disagrees.
+    """
+    log = _log(tmp_path, n=6)
+    anchor = log.anchor_at(3)
+    _tamper_in_place(log, 3, 8)          # payload changes; stored hash does not
+
+    stale = type(anchor)(anchor.seq, anchor.head_hash, anchor.record_offset,
+                         anchor.next_offset)
+    with pytest.raises(ChainBroken,
+                       match="the anchored record does not hash to its own"):
+        log.verify_from(stale)
+
+
+def test_an_anchor_whose_end_offset_is_wrong_is_named_as_such(tmp_path):
+    """E24: assert WHICH rule refuses.
+
+    A wrong end offset is caught either way -- the tail is then read from a
+    position that does not start a record, and parsing or sequence contiguity
+    fails. So this cannot be killed by outcome, only by diagnosis, and the
+    diagnosis is the point: "the log was rewritten" sends an operator to look
+    at the log, while "unparseable record after the anchor" sends them to look
+    at a record that is perfectly fine.
+    """
+    log = _log(tmp_path, n=6)
+    anchor = log.anchor_at(2)
+    off_by_one = type(anchor)(anchor.seq, anchor.head_hash,
+                              anchor.record_offset, anchor.next_offset + 1)
+    with pytest.raises(ChainBroken, match="the log was rewritten"):
+        log.verify_from(off_by_one)
+
+
+def test_an_idempotency_key_cannot_be_reused_for_another_record(tmp_path):
+    """S25, on create: the key records WHAT it completed, not merely that.
+
+    With a set of used keys, a replay carrying a key that completed a
+    different request would return whichever record the caller happened to
+    name -- a wrong answer delivered as a success. The mapping makes it an
+    error.
+    """
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="k", proposer="p", idempotency_key="k1")
+    with pytest.raises(StoreError, match="already completed a request for"):
+        s.create(record_id="r2", kind="k", proposer="p", idempotency_key="k1")
+    assert "r2" not in s.all_records()
+
+
+def test_an_idempotency_key_cannot_be_reused_across_transitions(tmp_path):
+    """S25, on transition: the same rule at the other call site."""
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="k", proposer="p")
+    s.create(record_id="r2", kind="k", proposer="p")
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="v",
+                 role=Role.VERIFIER, idempotency_key="t1")
+    with pytest.raises(StoreError, match="already completed a request for"):
+        s.transition(record_id="r2", dst=State.UNDER_REVIEW, actor="v",
+                     role=Role.VERIFIER, idempotency_key="t1")
+    assert s.get("r2").state is State.PROPOSED
+
+
+def test_a_replayed_transition_returns_rather_than_repeating(tmp_path):
+    """The half of idempotency that must still work after the reuse guard."""
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="k", proposer="p")
+    first = s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="v",
+                         role=Role.VERIFIER, idempotency_key="t1")
+    count = log.verify().count
+    again = s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="v",
+                         role=Role.VERIFIER, idempotency_key="t1")
+    assert again == first
+    assert log.verify().count == count, "the replay appended a second event"
+
+
+def test_a_checkpoint_describes_the_position_it_pins(tmp_path):
+    """The projection may lag the log when other subsystems share it.
+
+    ``AuthorityStore.checkpoint`` snapshotted whatever the projection had
+    applied and pinned the log's CURRENT head. While the store was the only
+    writer those were always the same position. On a shared log they are not,
+    and the resulting checkpoint describes neither: ``load_from`` refuses it,
+    correctly and long after the fact.
+    """
+    import sys
+    from pathlib import Path as _Path
+
+    root = _Path(__file__).resolve().parent.parent
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    from agent_substrate.checkpoint import CheckpointStore
+    from agent_substrate.events import EventLog
+    from agent_substrate.evidence import EvidenceStore
+    from agent_substrate.store import AuthorityStore
+
+    log = EventLog(tmp_path / "log.jsonl")
+    evidence = EvidenceStore(tmp_path / "evidence")
+    checkpoints = CheckpointStore(tmp_path / "checkpoints")
+    store = AuthorityStore(log, evidence=evidence).load()
+    store.create(record_id="r1", kind="claim", proposer="alice")
+
+    # Another subsystem writes to the same log; the store does not see it.
+    log.append(actor="scheduler", action="scheduler.enqueue", target="j1",
+               payload={"job": {"job_id": "j1", "work_digest": "0" * 64,
+                                "submitter": "alice"}})
+    assert store._loaded_through < log.verify().head_seq
+
+    cp = store.checkpoint(checkpoints)
+    # THE POSITION THE SNAPSHOT DESCRIBES, WHICH IS NO LONGER THE HEAD.
+    #
+    # This read `cp.seq == log.verify().head_seq` until D-2026-30, and the
+    # intent has not changed: the checkpoint must pin the position its
+    # snapshot actually covers, not a stale one. What moved is the head --
+    # checkpoint() now appends a checkpoint.state record anchoring the claim
+    # in the log, and that record lands one past the position it describes,
+    # because a snapshot cannot contain the record announcing it.
+    head = log.verify().head_seq
+    assert cp.seq == head - 1
+    (anchor,) = [e for e in log.read() if e.action == "checkpoint.state"]
+    assert anchor.seq == head and anchor.payload["through_seq"] == cp.seq
+    restored = AuthorityStore.load_from(
+        EventLog(tmp_path / "log.jsonl"), checkpoints, blobs=evidence,
+        evidence=evidence, require_checkpoint=True)
+    assert restored.get("r1").state is store.get("r1").state
+
+
+# ==========================================================================
+# RETENTION, and appending while a checkpoint is being taken
+#
+# THE GAPS THESE CLOSE, stated as they were found:
+#
+#     "no cleanup or retention policy for old checkpoints"
+#     "concurrent checkpoint-while-appending is untested"
+#
+# Retention is the interesting half. "Keep the newest N" is the obvious
+# policy and it is unsafe here: the newest checkpoint is not necessarily a
+# usable one, so counting backwards can delete the only point recovery could
+# start from while carefully preserving several that are useless.
+# ==========================================================================
+
+def _many(tmp_path, n=12):
+    """A log with ``n`` checkpoints taken along the way."""
+    log = EventLog(tmp_path / "log.jsonl")
+    store = CheckpointStore(tmp_path / "cp")
+    for i in range(n):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+        store.write(create(log))
+    return log, store
+
+
+def _foreign(tmp_path, n, name="other.jsonl", pad=""):
+    """A log sharing no content with `_many`'s, of a deliberately UNHELPFUL
+    length: `pad` makes its records LONGER, so every size comparison passes
+    and only content can tell the two logs apart."""
+    other = EventLog(tmp_path / name)
+    for i in range(n):
+        other.append(actor="a", action="record.create", target=f"z{pad}{i}",
+                     payload={"record_id": f"z{pad}{i}", "state": "DRAFT",
+                              "title": f"x{pad}", "kind": "note"})
+    return other
+
+
+def test_pruning_keeps_the_newest_and_removes_the_rest(tmp_path):
+    log, store = _many(tmp_path, n=12)
+    before = store.seqs()
+    assert len(before) == 12
+
+    removed = store.prune(log, keep=4)
+
+    assert sorted(removed) == before[:-4]
+    assert store.seqs() == before[-4:]
+    assert store.latest_usable(log) is not None
+
+
+def test_pruning_below_the_keep_count_removes_nothing(tmp_path):
+    log, store = _many(tmp_path, n=3)
+    assert store.prune(log, keep=8) == ()
+    assert len(store.seqs()) == 3
+
+
+def test_a_keep_of_zero_is_refused(tmp_path):
+    """A retention policy that can empty the store is deletion with a
+    schedule."""
+    log, store = _many(tmp_path, n=3)
+    for bad in (0, -1, True, 1.5, None):
+        with pytest.raises(CheckpointError) as exc:
+            store.prune(log, keep=bad)
+        assert "deletion with a schedule" in str(exc.value)
+    assert len(store.seqs()) == 3
+
+
+def test_pruning_protects_the_newest_USABLE_checkpoint(tmp_path):
+    """THE defect a count-based policy would have.
+
+    Several newer checkpoints describe a log this store no longer has. Under
+    "keep the newest N" they survive and the one recovery could actually
+    start from is deleted -- the store looks healthy and is empty of
+    anything useful.
+    """
+    log, store = _many(tmp_path, n=6)
+    good = store.latest().seq
+
+    # Six more checkpoints for a DIFFERENT log, written into the same store.
+    # They parse; they do not describe this log.
+    other = EventLog(tmp_path / "other.jsonl")
+    for i in range(6):
+        other.append(actor="a", action="record.create", target=f"o{i}",
+                     payload={"record_id": f"o{i}", "state": "DRAFT",
+                              "title": "x", "kind": "note"})
+        cp = create(other)
+        store.write(replace(cp, seq=good + 10 + i,
+                            hash=replace(cp, seq=good + 10 + i
+                                         ).recompute_hash()))
+
+    assert store.latest().seq > good, "the unusable ones are newer"
+    assert store.latest_usable(log).seq == good
+
+    store.prune(log, keep=3)
+
+    assert store.latest_usable(log) is not None, (
+        "pruning deleted the only checkpoint recovery could start from, "
+        "while keeping newer ones that describe a different log")
+    assert store.latest_usable(log).seq == good
+
+
+def test_pruning_refuses_when_nothing_verifies_against_the_log(tmp_path):
+    """Deleting on that basis acts on a conclusion the store cannot support:
+    the LOG may be the thing that is wrong."""
+    log, store = _many(tmp_path, n=10)
+    # LONGER than _many's records, not shorter. This test used to set the
+    # case up by making the foreign record short enough for the size
+    # comparison to reject it -- a two-byte margin including a float
+    # timestamp, which one hosted run lost, and the test failed with DID NOT
+    # RAISE. Nothing here depends on length now (D-2026-34): these are
+    # different logs because their CONTENT differs, and `describes` reads it.
+    foreign = _foreign(tmp_path, n=1, name="foreign.jsonl", pad="zzzzzzz")
+    assert store.latest_usable(foreign) is None, (
+        "the fixture does not set up the case: something here describes the "
+        "foreign log, so this would pass without the refusal under test")
+
+    with pytest.raises(CheckpointError) as exc:
+        store.prune(foreign, keep=2)
+    assert "in doubt" in str(exc.value)
+    assert len(store.seqs()) == 10, "it deleted while refusing"
+
+
+def test_a_store_with_nothing_to_prune_does_not_ask_the_harder_question(
+        tmp_path):
+    """Below the keep count there is no pruning decision, so there is no
+    refusal either.
+
+    The two behaviours look independent and are not. `prune` REFUSES when no
+    checkpoint verifies against the log, because deleting on that basis acts
+    on a conclusion the store cannot support. That refusal is right when
+    there is something to delete -- and wrong when there is not: a store
+    holding fewer checkpoints than the retention count has no decision to
+    make, and turning a no-op into an exception would fail every caller that
+    prunes routinely on a young store.
+
+    The early return is what separates them, and it survived a mutation
+    because in the ordinary case it is a pure optimisation: with fewer
+    entries than `keep`, everything is protected and the loop deletes
+    nothing either way. The one case where it is load-bearing is this one,
+    and nothing exercised it.
+    """
+    log, store = _many(tmp_path, n=2)
+    # WHY THIS IS THE LONG FOREIGN LOG AND NOT A SHORT ONE.
+    #
+    # "Not usable against this log" used to be decided by byte offsets
+    # alone: a checkpoint was refused when it ended past the end of the log
+    # it was held against. So this fixture set the case up by being SHORT,
+    # by a two-byte margin that included a float timestamp -- and its
+    # sibling above lost that margin on a hosted run. Widening the margin
+    # here closed the example; D-2026-34 closed the class, in production,
+    # where "describes this log" now reads the record rather than the size.
+    #
+    # Being longer is the stronger fixture under that rule: the size
+    # comparison passes, and the refusal comes from content or not at all.
+    # The assertion stays anyway -- it is the thing that caught this.
+    other = _foreign(tmp_path, n=1, pad="zzzzzzz")
+
+    assert store.latest_usable(other) is None, (
+        "the fixture does not set up the case: something here describes the "
+        "other log, so this would pass without the branch under test")
+
+    removed = store.prune(other, keep=3)
+
+    assert removed == (), removed
+    assert len(store.seqs()) == 2, "it deleted from a store below the floor"
+
+    # AND THE OTHER SIDE, so this cannot pass by prune never refusing at all:
+    # one more checkpoint takes the store above the keep count, and the same
+    # call now refuses rather than guessing.
+    for i in (9, 10):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+        store.write(create(log))
+    assert len(store.seqs()) > 3, store.seqs()
+    with pytest.raises(CheckpointError, match="in doubt"):
+        store.prune(other, keep=3)
+
+
+def _live_log(tmp_path, n=5):
+    log = EventLog(tmp_path / "log.jsonl")
+    for i in range(n):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+    return log
+
+
+def test_a_checkpoint_can_be_taken_while_an_append_is_in_flight(tmp_path):
+    """D-2026-51. A live log is torn constantly -- any reader can catch an
+    appender mid-write -- and refusing on that made checkpointing a
+    concurrent log fail at random.
+
+    The checkpoint names the last COMPLETE record, so it sits strictly
+    before the torn bytes and cannot conceal them. That is the whole reason
+    this is safe, and it is why the position is asserted rather than only
+    the absence of an exception.
+    """
+    log = _live_log(tmp_path, 5)
+    log.path.write_bytes(log.path.read_bytes() + b'{"seq": 5, "actor": "a')
+
+    report = log.verify()
+    assert not report.ok and report.torn_tail_only()
+
+    cp = create(log)
+    assert cp.seq == 4, (
+        "the checkpoint must name the last COMPLETE record, not the torn one")
+
+
+def test_a_real_break_under_a_torn_tail_still_refuses_the_checkpoint(tmp_path):
+    """THE ONE THAT KEEPS THE TOLERANCE NARROW.
+
+    Damage plus a torn tail is still damage: a second problem is enough for
+    torn_tail_only() to go False, and the refusal stands.
+    """
+    log = _live_log(tmp_path, 5)
+    lines = log.path.read_bytes().split(b"\n")
+    broken = b"\n".join(lines[:2] + lines[3:])          # a record removed
+    log.path.write_bytes(broken + b'{"seq": 9, "actor": "a')
+    report = log.verify()
+    assert not report.torn_tail_only(), report.problems[:3]
+    with pytest.raises(ChainBroken):
+        create(log)
+
+
+def test_a_witness_that_outruns_the_log_still_refuses_the_checkpoint(tmp_path):
+    """The truncation case specifically: records LOST under a torn tail must
+    not become checkpointable just because the tail is torn."""
+    log = _live_log(tmp_path, 5)
+    lines = log.path.read_bytes().split(b"\n")
+    log.path.write_bytes(b"\n".join(lines[:3]) + b'\n{"seq": 3, "act')
+    report = log.verify()
+    assert any(x.startswith("TRUNCATED") for x in report.problems), (
+        report.problems[:3])
+    assert not report.torn_tail_only()
+    with pytest.raises(ChainBroken):
+        create(log)
+
+
+def test_a_clean_log_does_not_report_a_torn_tail(tmp_path):
+    """The control. Without it torn_tail_only() could return True always and
+    the three tests above would still pass."""
+    log = _live_log(tmp_path, 5)
+    report = log.verify()
+    assert report.ok
+    assert not report.torn_tail_only()
+    assert create(log).seq == 4
+
+
+def test_appending_while_a_checkpoint_is_taken_leaves_both_consistent(
+        tmp_path):
+    """A checkpoint names a position; the log keeps moving past it.
+
+    The property is not that the checkpoint is current -- it cannot be -- but
+    that it is never WRONG: whatever position it names, the log's prefix
+    through that position must still verify against it afterwards.
+    """
+    import threading
+
+    log = EventLog(tmp_path / "log.jsonl")
+    store = CheckpointStore(tmp_path / "cp")
+    log.append(actor="a", action="record.create", target="t0",
+               payload={"record_id": "t0", "state": "DRAFT", "title": "x",
+                        "kind": "note"})
+
+    stop = threading.Event()
+    errors: list = []
+
+    def appender():
+        i = 0
+        while not stop.is_set():
+            try:
+                log.append(actor="a", action="record.create",
+                           target=f"w{i}",
+                           payload={"record_id": f"w{i}", "state": "DRAFT",
+                                    "title": "x", "kind": "note"})
+            except Exception as exc:                    # pragma: no cover
+                errors.append(f"append: {exc!r}")
+                return
+            i += 1
+
+    t = threading.Thread(target=appender, daemon=True)
+    t.start()
+    try:
+        taken = []
+        for _ in range(40):
+            try:
+                taken.append(store.write(create(log)) and create(log).seq)
+            except Exception as exc:                    # pragma: no cover
+                errors.append(f"checkpoint: {exc!r}")
+                break
+    finally:
+        stop.set()
+        t.join(timeout=10)
+
+    assert not errors, errors
+    assert taken, "no checkpoint was taken at all"
+
+    # EVERY checkpoint the store holds must still describe this log. A
+    # checkpoint taken against a moving log that later fails to verify is
+    # the failure this test exists to find.
+    audit = store.audit()
+    assert audit.ok, audit.problems
+    for seq in store.seqs():
+        check_against(log, store.read(seq))
+
+
+def test_a_store_below_the_keep_count_is_not_verified_at_all(tmp_path):
+    """Nothing to delete means nothing to decide.
+
+    Isolated from the refusal test above deliberately. Both involve a log
+    nothing verifies against, and they must answer differently: with more
+    checkpoints than the policy keeps, prune has to choose which to delete
+    and cannot, so it refuses. Below the keep count there is no choice to
+    make, and verifying the log to reach that conclusion would turn a
+    no-op into a failure for a store in perfectly good order.
+    """
+    log, store = _many(tmp_path, n=3)
+    empty = EventLog(tmp_path / "empty.jsonl")
+    empty.append(actor="a", action="record.create", target="z",
+                 payload={"record_id": "z", "state": "DRAFT",
+                          "title": "x", "kind": "note"})
+
+    assert store.prune(empty, keep=8) == ()
+    assert len(store.seqs()) == 3
+
+
+# ---------------------------------------------------------------------------
+# D-2026-30 (P1): a checkpoint pinned a snapshot and nothing anchored it.
+#
+# checkpoint.py says, in its own docstring:
+#
+#     WHAT AUTHENTICATES A CHECKPOINT
+#     Nothing in this module. Read that sentence again before relying on one.
+#
+# and then, two paragraphs earlier:
+#
+#     a false statement about the log is still just a false statement -- it
+#     cannot make a forged record authoritative, because anyone can re-run
+#     the full verification and find the disagreement.
+#
+# The second sentence is true of the LOG and was false of the SNAPSHOT.
+# Re-running the full verification confirms the log and finds no
+# disagreement, because a forged snapshot is not in the log. The claim "the
+# state at seq K is blob D" lived only in a file whose self-hash is
+# recomputable by whoever can write the file.
+#
+# It is now also a record, under the hash chain.
+# ---------------------------------------------------------------------------
+
+def _forged_checkpoint(cp, state_digest):
+    """The same checkpoint, pointing at a different snapshot, hash repaired.
+
+    Exactly what somebody with write access to the checkpoint directory can
+    produce, which is the threat the module's own docstring describes.
+    """
+    forged = replace(cp, state_digest=state_digest, hash="")
+    return replace(forged, hash=forged.recompute_hash())
+
+
+def test_a_checkpoint_is_anchored_by_a_record_in_the_log(tmp_path):
+    """Anti-vacuity for everything below: the honest path writes the anchor."""
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    cp = s.checkpoint(cps)
+
+    anchors = [ev for ev in log.read() if ev.action == "checkpoint.state"]
+    assert len(anchors) == 1, [e.action for e in log.read()]
+    (a,) = anchors
+    assert a.payload["through_seq"] == cp.seq
+    assert a.payload["state_digest"] == cp.state_digest
+    assert a.payload["head_hash"] == cp.head_hash
+    # ...and it lands AFTER the position it describes, because a snapshot
+    # cannot contain the record announcing it.
+    assert a.seq == cp.seq + 1
+
+
+def test_a_forged_snapshot_is_refused_even_though_the_log_verifies(tmp_path):
+    """The reproducer. Before D-2026-30 this loaded and read PROMOTED.
+
+    Nothing is done to the log. It verifies, fully, at the end -- which is
+    the whole point: the forgery was never in it.
+    """
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    cp = s.checkpoint(cps)
+
+    honest = json.loads(blobs.get(cp.state_digest).decode("utf-8"))
+    honest["records"]["r1"]["state"] = State.PROMOTED.value
+    honest["records"]["r1"]["policy_id"] = "pol-forged"
+    forged_digest = blobs.put(canonical_bytes(honest),
+                              media_type="application/json")
+    cps.write(_forged_checkpoint(cp, forged_digest))
+
+    assert log.verify().ok, "the log is untouched and still verifies"
+    with pytest.raises(StoreError, match="the log records"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+
+
+def test_the_forged_snapshot_would_otherwise_have_been_authoritative(tmp_path):
+    """What the refusal above is worth, stated rather than implied.
+
+    The forged snapshot promotes a record through an edge the gate refuses:
+    PROPOSED -> PROMOTED is not in the table at all, and VERIFIED ->
+    PROMOTED needs a distinct actor and an explicit policy. So the state it
+    carries is not merely wrong, it is unreachable -- and a load that
+    accepted it would have handed back a canonical record no history could
+    produce.
+    """
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    cp = s.checkpoint(cps)
+    honest = json.loads(blobs.get(cp.state_digest).decode("utf-8"))
+    assert honest["records"]["r1"]["state"] == State.VERIFIED.value
+    honest["records"]["r1"]["state"] = State.PROMOTED.value
+    forged = AuthorityStore(log, evidence=blobs)
+    forged._restore(honest)
+    assert sorted(forged.canonical()) == ["r1"], (
+        "the snapshot this test forges really does make r1 canonical; "
+        "without that the refusal above would be about nothing")
+
+
+def test_a_checkpoint_with_no_anchor_in_the_log_is_refused(tmp_path):
+    """A checkpoint file for a log that never recorded one.
+
+    This is the shape a checkpoint written by an older build has, and the
+    shape an attacker produces by writing a file into the directory. Both
+    are refused, and for the same reason: a snapshot nothing in the hash
+    chain vouches for is a file.
+    """
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    payload = canonical_bytes(s.snapshot())
+    dg = blobs.put(payload, media_type="application/json")
+    cps.write(cp_mod.create(log, state_digest=dg))      # no record appended
+    with pytest.raises(StoreError, match="not anchored in the log"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+
+
+def test_an_anchor_for_a_different_position_does_not_vouch(tmp_path):
+    """One position, one projection.
+
+    An anchor exists in this log -- for an EARLIER checkpoint. A file naming
+    a later position is not vouched for by it, and a check that only asked
+    "is there an anchor anywhere" would pass this.
+    """
+    log, blobs, s, report = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    s.checkpoint(cps)                                    # anchored, at seq K
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"verification_report": report, "policy_id": "pol-1"})
+
+    later = canonical_bytes(s.snapshot())
+    dg = blobs.put(later, media_type="application/json")
+    cps.write(cp_mod.create(log, state_digest=dg))        # unanchored, later
+    with pytest.raises(StoreError, match="not anchored in the log"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+
+
+def test_the_honest_checkpointed_load_still_works_after_all_that(tmp_path):
+    """Anti-vacuity: a check that refused everything would pass every test
+    above and break the feature entirely."""
+    log, blobs, s, report = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    s.checkpoint(cps)
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"verification_report": report, "policy_id": "pol-1"})
+
+    cheap = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    full = AuthorityStore(log, evidence=blobs).load()
+    assert cheap.snapshot() == full.snapshot()
+    assert cheap.get("r1").state is State.PROMOTED
+
+
+def test_a_later_anchor_in_the_tail_does_not_speak_for_this_checkpoint(
+        tmp_path):
+    """The position match, exercised where it is actually load-bearing.
+
+    A checkpointed load reads the tail from its own anchor forward, and that
+    tail contains every LATER checkpoint's anchor too. Without the match on
+    ``through_seq`` the first one encountered would be compared against this
+    checkpoint's snapshot, disagree, and refuse a load that is perfectly
+    sound.
+
+    An anchor for an EARLIER position can never appear in a later
+    checkpoint's tail, which is why the obvious version of this test proves
+    nothing: it sets up a case the reader cannot reach. This one is the
+    reachable direction.
+    """
+    log, blobs, s, report = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    first = s.checkpoint(cps)
+
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"verification_report": report, "policy_id": "pol-1"})
+    later = s.checkpoint(cps)
+    assert later.seq > first.seq
+    assert later.state_digest != first.state_digest, (
+        "both checkpoints pin the same snapshot, so a mismatch could not be "
+        "observed and this test would prove nothing")
+    # Leave only the older checkpoint, so the load starts from it and reads
+    # the later anchor on its way forward.
+    (tmp_path / "cp" / f"{later.seq:012d}.checkpoint.json").unlink()
+    assert cps.latest_usable(log).seq == first.seq
+
+    restored = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    assert restored.get("r1").state is State.PROMOTED
+
+
+# ==========================================================================
+# D-2026-34: "USABLE" WAS DECIDED BY THE LOG'S SIZE, NOT BY THE LOG
+#
+# `latest_usable` documented itself as "the newest checkpoint that both
+# parses and DESCRIBES `log`" and tested that with `check_against`, which
+# documents itself as answering whether a checkpoint COULD describe a log:
+# it compares the checkpoint's end offset against `stat().st_size` and its
+# seq against the head witness. Both are properties of the log's SHAPE.
+#
+# Two different logs of similar length have the same shape. So a checkpoint
+# of one passed against the other, its offsets seeking into the middle of an
+# unrelated record, and the two consumers of that answer acted on it:
+#
+#   * `prune` protects everything from the newest usable checkpoint upward
+#     and REFUSES outright when nothing is usable, because deleting on that
+#     basis acts on a conclusion the store cannot support. Against a foreign
+#     log of ten longer records it did not refuse -- it found seq 9 "usable"
+#     and deleted eight checkpoints while the log was exactly as in doubt as
+#     the refusal describes.
+#
+#   * `load_from` walks backwards so that an older valid checkpoint is still
+#     reachable when the newest is not. A foreign checkpoint that merely fit
+#     stopped the walk at the top, and the load failed on it rather than
+#     continuing to the one that could have restored the projection.
+#
+# The fix is that "describes" now means what the word means: `describes()`
+# reads the one record at the checkpoint's offset and requires it to BE the
+# record the checkpoint names. It is O(1) -- a seek and a line -- and still
+# verifies nothing, which is why `check_against` keeps existing for
+# `verify_with`, where a full verification follows immediately anyway.
+#
+# THE TEST DEFECT THIS ALSO CLOSES. Two tests below set up "no checkpoint
+# describes this log" by making the foreign log's records SHORTER, so that
+# the size comparison rejected them. That precondition held by a two-byte
+# margin including a float timestamp whose JSON repr varies by a byte or
+# three; one hosted run lost it and `test_pruning_refuses...` failed with
+# DID NOT RAISE. The first fix widened the margin -- which closed the
+# example, in a file where the same fixture shape appears twice. Now no
+# margin is load-bearing at all: the records differ in CONTENT, which is
+# what "a different log" actually means, and no timestamp can close that.
+# ==========================================================================
+
+def test_could_describe_and_does_describe_are_different_questions(tmp_path):
+    """The paired test for the rule: `describes` must name a real condition.
+
+    If `check_against` refused this pair too, the stronger check would be
+    decoration and every test below would pass without it.
+    """
+    log, store = _many(tmp_path, n=10)
+    other = _foreign(tmp_path, n=10, pad="zzzzzzz")
+    cp = store.read(9)
+
+    check_against(other, cp)            # accepts: the shape fits
+
+    with pytest.raises(CheckpointMismatch) as exc:
+        cp_mod.describes(other, cp)
+    assert "does not describe this log" in str(exc.value)
+
+
+def test_pruning_refuses_when_the_log_only_LOOKS_big_enough(tmp_path):
+    """THE defect. Every checkpoint fits inside the foreign log by size, so
+    the weak test called the newest usable and pruning proceeded -- deleting
+    evidence in exactly the situation its refusal exists for."""
+    log, store = _many(tmp_path, n=10)
+    other = _foreign(tmp_path, n=10, pad="zzzzzzz")
+    assert other.path.stat().st_size > log.path.stat().st_size, (
+        "the fixture does not set up the case: the foreign log is smaller, "
+        "so the size comparison alone would reject these checkpoints")
+    for seq in store.seqs():
+        check_against(other, store.read(seq))    # every one of them fits
+
+    assert store.latest_usable(other) is None
+
+    with pytest.raises(CheckpointError, match="in doubt"):
+        store.prune(other, keep=2)
+    assert len(store.seqs()) == 10, "it deleted while the log was in doubt"
+
+
+def test_the_backwards_walk_passes_over_a_checkpoint_that_merely_fits(
+        tmp_path):
+    """Walking backwards is the whole design: an older valid checkpoint is
+    strictly better than none. A foreign checkpoint at a HIGHER seq that fit
+    by size stopped the walk at the top, so the older one that actually
+    described the log was never reached."""
+    log = EventLog(tmp_path / "log.jsonl")
+    store = CheckpointStore(tmp_path / "cp")
+    for i in range(6):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+        store.write(create(log))
+    mine = store.latest().seq
+    for i in range(6, 12):               # the log keeps moving; no new cps
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+
+    other = _foreign(tmp_path, n=8)
+    foreign = create(other)
+    store.write(foreign)
+
+    assert foreign.seq > mine, "the foreign checkpoint must be the newer one"
+    check_against(log, foreign)          # and it fits this log by size
+    assert foreign.head_hash != log.anchor_at(foreign.seq).head_hash, (
+        "the two logs agree at that seq, so there is nothing to tell apart")
+
+    assert store.latest_usable(log).seq == mine, (
+        "the walk stopped at a checkpoint that does not describe this log, "
+        "leaving the one that does unexamined below it")
+
+
+def test_a_checkpointed_load_falls_back_to_one_it_can_actually_use(tmp_path):
+    """The consumer harm, end to end: recovery failed on a checkpoint that
+    only fit, while the checkpoint it needed was sitting underneath."""
+    log, blobs, s, report = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    real = s.checkpoint(cps)
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"verification_report": report,
+                           "policy_id": "pol-1"})
+
+    # A checkpoint of a DIFFERENT log, newer by seq, small enough to fit
+    # inside this one, pinning no snapshot -- so nothing could load from it.
+    other = EventLog(tmp_path / "other.jsonl")
+    for i in range(real.seq + 2):
+        other.append(actor="a", action="record.create", target=f"z{i}",
+                     payload={})
+    foreign = create(other)
+    cps.write(foreign)
+
+    assert foreign.seq > real.seq
+    assert foreign.state_digest is None
+    check_against(log, foreign)          # the weak test accepts it
+
+    restored = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    assert restored.get("r1").state is State.PROMOTED
+
+
+# ---------------------------------------------------------------------------
+# D-2026-71: a checkpoint of one reducer restored into another.
+#
+# A snapshot is what the reducer of its day made of 0..K. Restoring it and
+# folding K+1..N with a DIFFERENT reducer builds a state neither version of
+# the code computes from the log. Same event log + changed reducer semantics
+# does NOT imply an old projection remains valid, so the snapshot names its
+# reducer and a load that finds a stranger replays from genesis.
+# ---------------------------------------------------------------------------
+
+class _DropsLegacy(AuthorityStore):
+    """A reducer whose semantics differ observably: it ignores 'legacy'.
+
+    Defined here, in a different module from the base, which is exactly how
+    a real reducer change arrives -- as different source.
+    """
+
+    def _apply(self, ev):
+        if (ev.action == "record.create"
+                and ev.payload.get("kind") == "legacy"):
+            self._loaded_through = ev.seq
+            return
+        super()._apply(ev)
+
+
+def _mixed_history(tmp_path):
+    """A log whose prefix a changed reducer reads differently from the old."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    blobs = EvidenceStore(tmp_path / "blobs")
+    cps = CheckpointStore(tmp_path / "cp")
+    s = AuthorityStore(log, evidence=blobs).load()
+    s.create(record_id="old-legacy", kind="legacy", proposer="a")
+    s.create(record_id="old-plain", kind="k", proposer="a")
+    return log, blobs, cps, s
+
+
+def test_a_snapshot_names_the_reducer_that_produced_it(tmp_path):
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    ident = s.snapshot()["projection"]
+    assert ident == AuthorityStore.reducer_identity().to_record()
+    assert ident["reducer_id"].endswith("AuthorityStore._apply")
+    assert is_digest(ident["reducer_digest"]), (
+        "no source digest: every checkpoint would be refused, and the cheap "
+        "load would silently never happen")
+
+
+def test_a_changed_reducer_replays_instead_of_restoring(tmp_path):
+    """THE invariant, observed as state.
+
+    The base reducer's snapshot holds 'old-legacy'. The changed reducer
+    would never have produced it. Restoring the snapshot and folding the
+    tail would hand back a record no replay under the current code yields.
+    """
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    s.create(record_id="new-plain", kind="k", proposer="a")
+
+    loaded = _DropsLegacy.load_from(log, cps, blobs=blobs)
+    fresh = _DropsLegacy(log).load()
+
+    assert "old-legacy" not in loaded.all_records(), (
+        "a record only the OLD reducer produces was restored into the new "
+        "one's projection")
+    assert loaded.state_digest() == fresh.state_digest()
+    assert loaded.checkpoint_refusal is not None
+    assert "reducer" in loaded.checkpoint_refusal
+    assert loaded.loaded_prefix_verified is True, (
+        "the replay was a full verified load, and must say so")
+
+
+def test_the_same_reducer_still_uses_its_checkpoint(tmp_path):
+    """Control: the refusal must not fire on the reducer that wrote it."""
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    s.create(record_id="new-plain", kind="k", proposer="a")
+    loaded = AuthorityStore.load_from(log, cps, blobs=blobs,
+                                      require_checkpoint=True)
+    assert loaded.checkpoint_refusal is None
+    assert loaded.loaded_prefix_verified is False
+    assert loaded.state_digest() == AuthorityStore(log).load().state_digest()
+
+
+def test_a_snapshot_written_by_the_changed_reducer_is_foreign_to_the_old(
+        tmp_path):
+    """The reverse direction, which catches a snapshot claiming the base."""
+    log, blobs, cps, _ = _mixed_history(tmp_path)
+    changed = _DropsLegacy(log, evidence=blobs).load()
+    assert changed.snapshot()["projection"]["reducer_id"].endswith(
+        "_DropsLegacy._apply")
+    changed.checkpoint(cps)
+    loaded = AuthorityStore.load_from(log, cps, blobs=blobs)
+    assert "old-legacy" in loaded.all_records()
+    assert loaded.checkpoint_refusal is not None
+
+
+def test_a_required_checkpoint_from_another_reducer_is_refused(tmp_path):
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    with pytest.raises(StoreError, match="did not produce"):
+        _DropsLegacy.load_from(log, cps, blobs=blobs,
+                               require_checkpoint=True)
+
+
+def test_a_declared_version_bump_alone_invalidates(tmp_path, monkeypatch):
+    """The digest cannot see a behaviour change arriving from outside the
+    package; ``REDUCER_VERSION`` is how a person says so, and it must work
+    on its own."""
+    import agent_substrate.store as store_mod
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    monkeypatch.setattr(store_mod, "REDUCER_VERSION",
+                        store_mod.REDUCER_VERSION + 1)
+    loaded = AuthorityStore.load_from(log, cps, blobs=blobs)
+    assert loaded.checkpoint_refusal is not None
+    assert "reducer_version" in loaded.checkpoint_refusal
+
+
+def test_an_unreadable_source_matches_nothing(tmp_path, monkeypatch):
+    """'Cannot tell' is not 'same': no digest on either side is a refusal."""
+    import agent_substrate.projection as proj
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    monkeypatch.setattr(proj, "_closure_digest_once", lambda mods: None)
+    loaded = AuthorityStore.load_from(log, cps, blobs=blobs)
+    assert loaded.checkpoint_refusal is not None
+    assert "could not be digested" in loaded.checkpoint_refusal
+
+
+def test_an_older_snapshot_schema_is_foreign():
+    assert AuthorityStore._foreign_reducer(
+        {"snapshot_version": 1, "records": {}, "applied_keys": {},
+         "loaded_through": 0}) is not None
+
+
+def test_the_digest_covers_what_the_reducer_imports_lazily():
+    """store.py imports checkpoint INSIDE functions. A closure built from
+    top-level imports only would miss it, and a change there would not
+    invalidate anything."""
+    from agent_substrate.projection import mro_modules, source_closure
+    covered = source_closure(mro_modules(AuthorityStore))
+    assert covered is not None
+    for mod in ("agent_substrate.store", "agent_substrate.authority",
+                "agent_substrate.events", "agent_substrate.checkpoint",
+                "agent_substrate.projection"):
+        assert mod in covered, f"{mod} is not covered by the reducer digest"
+
+
+def test_an_inheriting_subclass_is_identified_by_the_code_that_runs():
+    from agent_substrate.projection import mro_modules
+    mods = mro_modules(_DropsLegacy)
+    assert "agent_substrate.store" in mods, (
+        "the base reducer the subclass delegates to is not covered")
+    assert _DropsLegacy.__module__ in mods
+
+
+class _Inherits(AuthorityStore):
+    """Folds events with the base reducer, unchanged, from another module."""
+
+
+def test_editing_the_inherited_reducer_changes_the_subclass_identity(
+        tmp_path, monkeypatch):
+    """The USE of the MRO, not the function that lists it.
+
+    The test above asks mro_modules() and passed against a mutant in which
+    identity_of() stopped calling it (RI4): the helper was covered and its
+    use was not -- the K1 lesson, arriving in the repair. So this edits the
+    base reducer's source as the digest sees it and requires the identity
+    of a subclass that merely inherits it to change.
+    """
+    import agent_substrate.projection as proj
+    before = _Inherits.reducer_identity().reducer_digest
+    real = proj._locate
+    edited = tmp_path / "store.py"
+    edited.write_bytes(real("agent_substrate.store").read_bytes() + b"\n# edit\n")
+    monkeypatch.setattr(
+        proj, "_locate",
+        lambda name: edited if name == "agent_substrate.store" else real(name))
+    proj._closure_digest_once.cache_clear()
+    try:
+        after = _Inherits.reducer_identity().reducer_digest
+    finally:
+        proj._closure_digest_once.cache_clear()
+    assert before is not None and after is not None
+    assert before != after, (
+        "the base reducer changed and a subclass that folds with it kept its "
+        "identity, so its old checkpoints would be restored into new code")
+
+
+# --- audit(log=...): does anything here describe THIS log? (R41) ------------
+
+def _other_log(tmp_path, n=5, name="other.jsonl"):
+    """A log of the same shape as :func:`_log`, with different records. Made
+    SHORTER than the log it is compared against, its checkpoints fit inside
+    that log's file and name records that are not there -- the D-2026-34
+    shape. Shorter, not equal: ``wall_time`` is a float whose digit count
+    varies, so two logs of equal record count differ by a few bytes either
+    way, and an equal-length precondition held about five runs in six."""
+    log = EventLog(tmp_path / name)
+    for i in range(n):
+        log.append(actor="b", action="record.create", target=f"x{i}",
+                   payload={"record_id": f"x{i}", "kind": "k",
+                            "proposer": "b", "i": i + 5})
+    return log
+
+
+def test_a_store_of_foreign_checkpoints_audits_not_ok_against_the_log(
+        tmp_path):
+    """The R41 gap, closed: every checkpoint parses, so the parse audit is
+    ok, and not one describes the log the store is supposed to serve."""
+    log = _log(tmp_path, n=6)
+    other = _other_log(tmp_path, n=5)
+    store = CheckpointStore(tmp_path / "cp")
+    store.write(cp_mod.create(other))
+    foreign = store.read(store.seqs()[0])
+    cp_mod.check_against(log, foreign)   # the weaker test is satisfied
+    assert store.audit().ok, "precondition: every checkpoint parses"
+    audit = store.audit(log=log)
+    assert not audit.ok
+    assert audit.verdict == cp_mod.AUDIT_NONE_USABLE
+    assert audit.describing == () and len(audit.not_describing) == 1
+    assert store.latest_usable(log) is None
+
+
+def test_a_foreign_checkpoint_beside_a_usable_one_is_reported_not_failed(
+        tmp_path):
+    """The newest describing a log nobody has is what older ones are kept
+    for; the audit lists it and stays ok while something is usable."""
+    log = _log(tmp_path, n=5)
+    other = _other_log(tmp_path, n=8)
+    store = CheckpointStore(tmp_path / "cp")
+    good = cp_mod.create(log)
+    store.write(good)
+    store.write(cp_mod.create(other))
+    audit = store.audit(log=log)
+    assert audit.ok and audit.verdict == cp_mod.AUDIT_USABLE
+    assert audit.describing == (good.seq,)
+    assert len(audit.not_describing) == 1
+    assert store.latest_usable(log) == good
+
+
+def test_an_empty_store_is_empty_not_healthy_by_omission(tmp_path):
+    audit = CheckpointStore(tmp_path / "cp").audit(log=_log(tmp_path))
+    assert audit.ok and audit.verdict == cp_mod.AUDIT_EMPTY
+    assert audit.count == 0 and audit.describing == ()
+
+
+def test_a_store_of_only_corrupt_checkpoints_has_nothing_usable(tmp_path):
+    store = CheckpointStore(tmp_path / "cp")
+    store.root.mkdir(parents=True)
+    store._path(3).write_text("{not json")
+    audit = store.audit(log=_log(tmp_path))
+    assert not audit.ok and audit.verdict == cp_mod.AUDIT_NONE_USABLE
+    assert len(audit.problems) == 1
+
+
+def test_a_corrupt_checkpoint_beside_a_usable_one_is_not_ok(tmp_path):
+    log = _log(tmp_path, n=3)
+    store = CheckpointStore(tmp_path / "cp")
+    good = cp_mod.create(log)
+    store.write(good)
+    store._path(99).write_text("{not json")
+    audit = store.audit(log=log)
+    assert not audit.ok and audit.verdict == cp_mod.AUDIT_UNPARSEABLE
+    assert audit.describing == (good.seq,)
+
+
+def test_without_a_log_the_audit_is_the_parse_audit_it_always_was(tmp_path):
+    log = _log(tmp_path, n=5)
+    store = CheckpointStore(tmp_path / "cp")
+    store.write(cp_mod.create(_other_log(tmp_path)))
+    audit = store.audit()
+    assert audit.ok and audit.verdict == "" and audit.describing == ()
+    assert not store.audit(log=log).ok
+
+
+@pytest.mark.parametrize("layout", ["empty", "foreign", "mixed", "own",
+                                    "corrupt-only", "corrupt-and-own"])
+def test_the_audit_agrees_with_latest_usable(tmp_path, layout):
+    """Two readers of the same question: latest_usable returns None exactly
+    when the audit says there is nothing usable."""
+    log = _log(tmp_path, n=5)
+    store = CheckpointStore(tmp_path / "cp")
+    store.root.mkdir(parents=True)
+    if layout in ("foreign", "mixed"):
+        store.write(cp_mod.create(_other_log(tmp_path, n=9)))
+    if layout in ("mixed", "own", "corrupt-and-own"):
+        store.write(cp_mod.create(log))
+    if layout in ("corrupt-only", "corrupt-and-own"):
+        store._path(77).write_text("{not json")
+    audit = store.audit(log=log)
+    nothing = audit.verdict in (cp_mod.AUDIT_EMPTY, cp_mod.AUDIT_NONE_USABLE)
+    assert (store.latest_usable(log) is None) == nothing, audit
+
+
+# --- Wave B: the cheap load against the full one, whatever the history -----
+_ACTOR = {Role.PROPOSER: "p", Role.VERIFIER: "v", Role.PROMOTER: "pm",
+          Role.SYSTEM: "system"}
+#: the clock the histories start on; each sets it forward and back
+_EPOCH = 1_700_000_000.0
+
+
+class _Clock:
+    """``time`` with a wall clock a history sets. Everything else is the
+    real module: the log's lock waits on the monotonic clock, not this."""
+
+    def __init__(self):
+        import time
+        self._time, self.now = time, _EPOCH
+
+    def time(self):
+        return self.now
+
+    def __getattr__(self, name):
+        return getattr(self._time, name)
+
+
+def _history():
+    """Programs of ops, each kind drawn as often as its share of
+    ``weights``: a move about as often as everything else together, so
+    that records travel to the model's far edges."""
+    from hypothesis import strategies as st
+    rid, pol = st.integers(0, 2), st.sampled_from(("pol-1", "pol-2"))
+    args = {
+        "walk": st.tuples(rid, st.integers(1, 4)),
+        "edge": st.tuples(rid, st.integers(0, 3)),
+        "create": st.tuples(rid),
+        "attempt": st.tuples(
+            rid, st.sampled_from(sorted(State, key=lambda s: s.value)),
+            st.sampled_from(sorted(Role, key=lambda r: r.value))),
+        "depend": st.tuples(rid, rid),
+        "cascade": st.tuples(rid),
+        "publish": st.tuples(pol, st.sampled_from((None, 5.0, 60.0))),
+        "withdraw": st.tuples(pol),
+        "bind": st.tuples(st.sampled_from(("owner", "other"))),
+        "clock": st.tuples(st.sampled_from((-60.0, 10.0, 100.0))),
+        "checkpoint": st.tuples(),
+        "reopen": st.tuples(st.booleans()),
+    }
+    weights = (("walk",) * 4 + ("edge",) * 3
+               + ("create", "attempt", "depend", "depend", "cascade",
+                  "publish", "publish", "withdraw", "bind", "clock",
+                  "clock", "checkpoint", "checkpoint", "reopen"))
+    op = st.sampled_from(weights).flatmap(
+        lambda kind: args[kind].map(lambda a: (kind,) + a))
+    return st.lists(op, min_size=8, max_size=30)
+
+
+def _move(s, rid, dst, role, keys, blobs, n):
+    """Ask the store for one move, with each evidence key it names given a
+    blob of its own: a fresh one, so a re-verification has a new report."""
+    from agent_substrate.authority import TransitionError
+    # r1's promotions name pol-2, every other record's pol-1
+    pol = "pol-2" if rid == "r1" else "pol-1"
+    evidence = {key: (pol if key == "policy_id" else
+                      blobs.put(f'{{"{key}":{n}}}'.encode()))
+                for key in sorted(keys)} or None
+    kw = {"policy_id": pol} if dst is State.PROMOTED else {}
+    if dst is State.STALE:
+        kw["stale_reason"] = f"moved at op {n}"
+    try:
+        s.transition(record_id=rid, dst=dst, actor=_ACTOR[role], role=role,
+                     evidence=evidence, **kw)
+    except (TransitionError, StoreError):
+        pass
+
+
+def _replay(d, ops, clock):
+    """Write ``ops`` through the stores, as one process or several."""
+    from agent_substrate.authority import EDGES, TransitionError
+    from agent_substrate.invalidation import apply_invalidation
+    from agent_substrate.policy import (
+        ANY, Effect, PolicyDocument, PolicyError, PolicyStore, Rule,
+    )
+    log = EventLog(d / "l.jsonl")
+    blobs = EvidenceStore(d / "blobs")
+    cps = CheckpointStore(d / "cp")
+    s = AuthorityStore(log, evidence=blobs).load()
+    # r0 and r1 exist from the start, so that the ops between them have
+    # something to act on; r2 exists once an op creates it
+    for rid in ("r0", "r1"):
+        s.create(record_id=rid, kind="claim", proposer="p",
+                 idempotency_key=f"create-{rid}")
+    published = {}
+    for n, op in enumerate(ops):
+        if op[0] == "create":
+            try:
+                s.create(record_id=f"r{op[1]}", kind="claim", proposer="p",
+                         idempotency_key=f"create-r{op[1]}")
+            except StoreError:
+                pass
+        elif op[0] == "walk":
+            # along each state's first edge, up to op[2] steps
+            for _ in range(op[2]):
+                try:
+                    rec = s.get(f"r{op[1]}")
+                except StoreError:
+                    break
+                out = [e for e in EDGES if e.src is rec.state]
+                if not out:
+                    break
+                e = out[0]
+                _move(s, f"r{op[1]}", e.dst,
+                      min(e.roles, key=lambda r: r.value),
+                      (e.requires_evidence - set(rec.evidence or {}))
+                      | e.requires_fresh, blobs, n)
+        elif op[0] in ("edge", "attempt"):
+            try:
+                rec = s.get(f"r{op[1]}")
+            except StoreError:
+                continue
+            state, held = rec.state, set(rec.evidence or {})
+            if op[0] == "attempt":
+                keys = {"verification_report", "policy_id"} \
+                    if op[2] is State.PROMOTED else set()
+                _move(s, f"r{op[1]}", op[2], op[3], keys, blobs, n)
+                continue
+            out = [e for e in EDGES if e.src is state]
+            if out:
+                # past the edges a state has, its first: the path most
+                # programs take, so that some reach its far end
+                e = out[op[2]] if op[2] < len(out) else out[0]
+                role = min(e.roles, key=lambda r: r.value)
+                # what the record already carries satisfies the edge, as
+                # the model merges it, unless the edge asks for it afresh
+                keys = (e.requires_evidence - held) | e.requires_fresh
+                _move(s, f"r{op[1]}", e.dst, role, keys, blobs, n)
+        elif op[0] == "depend":
+            try:
+                s.add_dependency(record_id=f"r{op[1]}",
+                                 depends_on=(f"r{op[2]}",))
+            except StoreError:
+                pass
+        elif op[0] == "cascade":
+            # what rests on the record goes STALE, each with its reason
+            try:
+                apply_invalidation(s, f"r{op[1]}", reason=f"op {n}")
+            except (KeyError, TransitionError, StoreError):
+                pass
+        elif op[0] == "publish":
+            doc = PolicyDocument(
+                policy_id=op[1], version=published.get(op[1], 0) + 1,
+                rules=(Rule(rule_id="any", effect=Effect.ALLOW,
+                            actions=(ANY,), subjects=(ANY,), roles=(ANY,),
+                            resources=(ANY,), reason="any"),),
+                not_after=None if op[2] is None else clock.now + op[2])
+            try:
+                PolicyStore(log).load().publish(doc, actor="owner")
+                published[op[1]] = doc.version
+            except PolicyError:
+                pass
+        elif op[0] == "withdraw":
+            try:
+                PolicyStore(log).load().withdraw(
+                    op[1], actor="owner", reason=f"op {n}")
+            except PolicyError:
+                pass
+        elif op[0] == "bind":
+            try:
+                s.bind_policies(actor="owner", publishers=[op[1]])
+            except StoreError:
+                pass
+        elif op[0] == "clock":
+            clock.now += op[1]
+        elif op[0] == "checkpoint":
+            try:
+                s.checkpoint(cps)
+            except (CheckpointError, StoreError):
+                pass
+        elif op[1]:
+            # a restart from this writer's own newest checkpoint, or from
+            # genesis when it has none
+            s = AuthorityStore.load_from(log, cps, blobs=blobs,
+                                         evidence=blobs)
+        else:
+            s = AuthorityStore(log, evidence=blobs).load()
+    return log, blobs
+
+
+def _held(s):
+    """What a store holds, read past ``snapshot()``, which both sides of
+    a snapshot comparison pass through: a field it dropped would be
+    missing from both."""
+    return ({rid: r.to_record() for rid, r in s._records.items()},
+            dict(s._applied_keys), s._policy_view, s._binding,
+            s._latest_wall, s._loaded_through, sorted(s.canonical()))
+
+
+@pytest.fixture
+def history_clock(monkeypatch):
+    clock = _Clock()
+    from agent_substrate import events, policy, store
+    for module in (events, policy, store, cp_mod):
+        monkeypatch.setattr(module, "time", clock)
+    return clock
+
+
+def _agrees(d, ops, clock):
+    """Run ``ops`` from the epoch, then load from each checkpoint they
+    took, alone in its own store, and hold the load to a full one."""
+    import shutil
+    clock.now = _EPOCH
+    log, blobs = _replay(d, ops, clock)
+    whole = AuthorityStore(log, evidence=blobs).load()
+    full, held = whole.snapshot(), _held(whole)
+    taken = sorted((d / "cp").glob("*.checkpoint.json"))
+    for i, cp_file in enumerate(taken):
+        one = d / f"one-{i}"
+        one.mkdir()
+        shutil.copy(cp_file, one / cp_file.name)
+        cheap = AuthorityStore.load_from(
+            log, CheckpointStore(one), blobs=blobs, evidence=blobs,
+            require_checkpoint=True)
+        assert cheap.loaded_prefix_verified is False
+        assert cheap.snapshot() == full, (cp_file.name, ops)
+        assert _held(cheap) == held, (cp_file.name, ops)
+    return log, blobs, whole, full, taken
+
+
+# Four fixed paths through the search below, and the latency test after
+# them, collected before it: each path is a case the search draws only a few
+# times in 200 histories, or not at all, and which histories a search draws
+# moves with its source and can move with the interpreter (D-2026-196).
+def test_a_writer_restarted_from_a_checkpoint_keeps_a_withdrawal(
+        tmp_path, history_clock):
+    """A policy published, bound and withdrawn before a checkpoint, and a
+    writer restarted from it asked to promote on that policy. It refuses,
+    as a writer that read the whole history does."""
+    ops = [("publish", "pol-1", None), ("bind", "owner"), ("walk", 0, 2),
+           ("withdraw", "pol-1"), ("checkpoint",), ("reopen", True),
+           ("walk", 0, 1), ("checkpoint",)]
+    _, _, whole, full, taken = _agrees(tmp_path, ops, history_clock)
+    assert len(taken) == 2
+    assert full["policies"]["pol-1"]["withdrawn_seq"] is not None
+    assert whole.get("r0").state is State.VERIFIED
+
+
+def test_a_writer_restarted_from_a_checkpoint_keeps_the_time_reached(
+        tmp_path, history_clock):
+    """A version that expires 60 s after it is published; the clock moved
+    100 s on and a record written then; the clock set back 60 s and a
+    checkpoint taken. The history has reached the expiry, and the clock
+    has not. A writer restarted from the checkpoint judges a promotion at
+    the time the history reached, and refuses it."""
+    ops = [("publish", "pol-1", 60.0), ("bind", "owner"), ("clock", 100.0),
+           ("walk", 0, 2), ("clock", -60.0), ("checkpoint",),
+           ("reopen", True), ("walk", 0, 1)]
+    _, _, whole, full, taken = _agrees(tmp_path, ops, history_clock)
+    assert len(taken) == 1
+    assert full["latest_wall"] == _EPOCH + 100.0
+    assert whole.get("r0").state is State.VERIFIED
+
+
+def test_a_checkpoint_keeps_what_a_record_rests_on(tmp_path, history_clock):
+    """r0 made to rest on r1 and promoted; a cascade through r1, so that r0
+    is STALE for a stated reason; a checkpoint; r1 moves on. The record
+    restored rests on what it rested on, for the reason it was given."""
+    ops = [("depend", 0, 1), ("walk", 0, 3), ("cascade", 1),
+           ("checkpoint",), ("walk", 1, 1)]
+    _, _, whole, _, taken = _agrees(tmp_path, ops, history_clock)
+    assert len(taken) == 1
+    r0 = whole.get("r0")
+    assert r0.state is State.STALE and r0.depends_on == ("r1",)
+    assert r0.stale_reason.startswith("op 2: ")
+
+
+def test_a_checkpoint_after_every_edge_agrees_with_a_full_load(
+        tmp_path, history_clock):
+    """Every edge the authority model has, taken at least once, by seven
+    records, with a checkpoint after each record's moves: the search below
+    draws some edges rarely, and one of the fourteen not at all."""
+    from agent_substrate.authority import EDGES
+
+    def edges(rid, *ks):
+        return [("edge", rid, k) for k in ks]
+    ops = (edges(0, 0, 0, 0, 0, 0, 0, 1, 1, 0) + [("checkpoint",)]
+           + edges(1, 1) + [("create", 2)] + edges(2, 0, 1)
+           + [("checkpoint",)]
+           + [("create", 3), ("walk", 3, 3)] + edges(3, 1)
+           + [("create", 4), ("walk", 4, 3)] + edges(4, 2)
+           + [("checkpoint",)]
+           + [("create", 5), ("walk", 5, 2)] + edges(5, 2)
+           + [("create", 6), ("walk", 6, 4)] + edges(6, 2)
+           + [("checkpoint",)])
+    log, _, whole, _, taken = _agrees(tmp_path, ops, history_clock)
+    assert len(taken) == 4
+    moved = {(e.payload["src"], e.payload["dst"]) for e in log.read()
+             if e.action == "record.transition"}
+    assert moved == {(e.src.value, e.dst.value) for e in EDGES}
+    assert [whole.get(f"r{i}").state.value for i in range(7)] == [
+        "REVOKED", "REJECTED", "REJECTED", "SUPERSEDED", "REVOKED",
+        "REVOKED", "REVOKED"]
+
+
+def test_how_long_an_altered_prefix_goes_unseen(tmp_path, history_clock):
+    """Wave B, the latency of finding a record altered before a checkpoint,
+    in place and at its width, while a writer holds an anchor past it.
+
+    - The writer's appends check what follows its anchor, so it extends
+      the altered history without seeing it: damage to the prefix in a
+      writer's lifetime is not caught by its appends, as the log's module
+      states. Set to read the whole chain at every append, its next
+      append does, and refuses.
+    - The cheap load restores the checkpoint without reading the prefix,
+      and says so. The store it returns holds no anchor, so its first
+      write reads the whole log, and refuses.
+    - A fresh handle's first append, a full load and the next checkpoint
+      each read the whole chain, and refuse."""
+    _, _, _, _, taken = _agrees(
+        tmp_path, [("walk", 0, 2), ("checkpoint",), ("walk", 1, 1)],
+        history_clock)
+    assert len(taken) == 1
+    log = EventLog(tmp_path / "l.jsonl")
+    blobs = EvidenceStore(tmp_path / "blobs")
+    writer = AuthorityStore(log, evidence=blobs).load()
+    writer.create(record_id="r2", kind="claim", proposer="p")
+    lines = log.path.read_bytes().split(b"\n")
+    assert json.loads(lines[0])["seq"] < int(taken[0].name.split(".")[0])
+    lines[0] = lines[0].replace(b'"proposer":"p"', b'"proposer":"q"', 1)
+    log.path.write_bytes(b"\n".join(lines))
+    cheap = AuthorityStore.load_from(
+        log, CheckpointStore(tmp_path / "cp"), blobs=blobs, evidence=blobs,
+        require_checkpoint=True)
+    assert cheap.loaded_prefix_verified is False
+    assert cheap.get("r2").state is State.PROPOSED
+    writer.create(record_id="r3", kind="claim", proposer="p")
+    assert writer.get("r3").state is State.PROPOSED
+    with pytest.raises(ChainBroken, match="record was altered"):
+        cheap.create(record_id="r4", kind="claim", proposer="p")
+    with pytest.raises(ChainBroken, match="refusing to append"):
+        EventLog(log.path).append(
+            actor="p", action="record.create", target="r5",
+            payload={"record_id": "r5", "kind": "claim", "proposer": "p"})
+    log.full_verify_every = 1
+    with pytest.raises(ChainBroken, match="refusing to append"):
+        writer.create(record_id="r6", kind="claim", proposer="p")
+    assert not log.verify().ok
+    with pytest.raises(ChainBroken, match="record was altered"):
+        AuthorityStore(log, evidence=blobs).load()
+    with pytest.raises(ChainBroken, match="refusing to checkpoint"):
+        cp_mod.create(log)
+
+
+def test_a_load_from_any_checkpoint_agrees_with_a_full_load(
+        tmp_path_factory, history_clock):
+    """Wave B. The cheap load restores a snapshot and replays the suffix;
+    from each checkpoint a history took, it holds what a replay from
+    genesis holds, field by field, and so do the writers that restarted
+    from one. The histories are short programs over three records: moves
+    along the authority model's edges, refused moves, idempotent
+    re-creations, dependencies and the cascades through them, policy
+    versions published, expiring and withdrawn, a binding to their
+    publisher, a wall clock set forward and back, checkpoints, and
+    processes reopened from a full read or from a checkpoint."""
+    from hypothesis import HealthCheck, given, settings
+
+    @settings(max_examples=200, deadline=None, derandomize=True,
+              database=None, suppress_health_check=[HealthCheck.too_slow])
+    @given(ops=_history())
+    def run(ops):
+        d = tmp_path_factory.mktemp("cpdiff")
+        log, blobs, _, full, taken = _agrees(d, ops, history_clock)
+        if not taken:
+            return
+        newest = int(taken[-1].name.split(".")[0])
+        lines = log.path.read_bytes().split(b"\n")
+        before = [i for i, line in enumerate(lines)
+                  if line and json.loads(line)["seq"] < newest
+                  and b'"proposer":"p"' in line]
+        if not before:
+            return
+        # A record before the newest checkpoint's position, altered in place
+        # and at its width. The cheap load does not read it, and says so;
+        # the full load and the next checkpoint each refuse the history. It
+        # is found at the next full read, and no later; the test above says
+        # which reads those are.
+        lines[before[0]] = lines[before[0]].replace(
+            b'"proposer":"p"', b'"proposer":"q"', 1)
+        log.path.write_bytes(b"\n".join(lines))
+        cheap = AuthorityStore.load_from(
+            log, CheckpointStore(d / f"one-{len(taken) - 1}"), blobs=blobs,
+            evidence=blobs, require_checkpoint=True)
+        assert cheap.loaded_prefix_verified is False
+        assert cheap.snapshot() == full
+        assert not log.verify().ok
+        with pytest.raises(ChainBroken, match="record was altered"):
+            AuthorityStore(log, evidence=blobs).load()
+        with pytest.raises(ChainBroken, match="refusing to checkpoint"):
+            cp_mod.create(log)
+
+    run()
+
+
+# --- AUD-102: what a key completed is the request, not only its record ------
+#
+# The key mapped to the record it completed a request for, so another
+# request for the SAME record under a spent key was answered as the key's
+# retry: the record returned as it stood, nothing written, nothing refused.
+# A revocation under the key its promotion spent left the record PROMOTED
+# and canonical, and its caller was told nothing had failed.
+
+def _keyed_promotion(tmp_path):
+    """r1 promoted under the key ``k-promote``, its create under
+    ``create-r1``."""
+    log, blobs, s, report = _promoted_store(tmp_path)
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"policy_id": "pol-1"},
+                 idempotency_key="k-promote")
+    return log, blobs, s
+
+
+def _revoke(s, blobs, key):
+    reason = blobs.put(b'{"why":"withdrawn"}')
+    return s.transition(record_id="r1", dst=State.REVOKED, actor="pm",
+                        role=Role.PROMOTER, idempotency_key=key,
+                        evidence={"revocation_reason": reason})
+
+
+def test_a_revocation_under_the_key_its_promotion_spent_is_refused(
+        tmp_path):
+    log, blobs, s = _keyed_promotion(tmp_path)
+    count = log.verify().count
+    with pytest.raises(StoreError, match="a different request for 'r1'"):
+        _revoke(s, blobs, "k-promote")
+    assert s.get("r1").state is State.PROMOTED
+    assert log.verify().count == count
+    # refused, it can still be made, under a key of its own
+    assert _revoke(s, blobs, "k-revoke").state is State.REVOKED
+    assert "r1" not in s.canonical()
+
+
+def test_a_pick_up_under_the_key_the_create_spent_is_refused(tmp_path):
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="k", proposer="p", idempotency_key="k1")
+    with pytest.raises(StoreError, match="a different request for 'r1'"):
+        s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="v",
+                     role=Role.VERIFIER, idempotency_key="k1")
+    assert s.get("r1").state is State.PROPOSED
+
+
+@pytest.mark.parametrize("field, value", [
+    ("dst", State.REJECTED), ("role", Role.PROMOTER), ("actor", "w"),
+    ("evidence", {"rejection_reason": "e" * 64}),
+    ("stale_reason", "a dependency moved"), ("policy_id", "pol-2"),
+])
+def test_a_move_under_a_spent_key_that_differs_in_one_field_is_refused(
+        tmp_path, field, value):
+    """Each field a retry carries again is the request's: one changed is
+    another request, refused, and the record does not move."""
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="k", proposer="p")
+    asked = dict(record_id="r1", dst=State.UNDER_REVIEW, actor="v",
+                 role=Role.VERIFIER, evidence={}, policy_id="pol-1",
+                 stale_reason=None, idempotency_key="t1")
+    s.transition(**asked)
+    count = log.verify().count
+    with pytest.raises(StoreError, match="a different request"):
+        s.transition(**{**asked, field: value})
+    assert s.get("r1").state is State.UNDER_REVIEW
+    assert log.verify().count == count
+    # the request itself is still answered as its retry
+    assert s.transition(**asked).state is State.UNDER_REVIEW
+    assert log.verify().count == count
+
+
+@pytest.mark.parametrize("field, value", [
+    ("kind", "other"), ("proposer", "q"),
+    ("evidence", {"e": "e" * 64}), ("depends_on", ("r0",)),
+    ("policy_id", "pol-2"), ("policy_id", None),
+])
+def test_a_create_under_a_spent_key_that_differs_in_one_field_is_refused(
+        tmp_path, field, value):
+    log = EventLog(tmp_path / "l.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r0", kind="k", proposer="p")
+    asked = dict(record_id="r1", kind="k", proposer="p", evidence={},
+                 depends_on=(), policy_id="pol-1", idempotency_key="c1")
+    s.create(**asked)
+    count = log.verify().count
+    with pytest.raises(StoreError, match="a different request"):
+        s.create(**{**asked, field: value})
+    assert log.verify().count == count
+    assert s.create(**asked).revision == 1
+    assert log.verify().count == count
+
+
+def test_a_retry_naming_no_policy_is_the_retry_of_a_move_that_named_one(
+        tmp_path):
+    """A move that names no policy asks for the record's own, which the
+    first attempt recorded however it named it: its retry, answered."""
+    log, _, s = _keyed_promotion(tmp_path)
+    count = log.verify().count
+    again = s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                         role=Role.PROMOTER, evidence={"policy_id": "pol-1"},
+                         idempotency_key="k-promote")
+    assert again.state is State.PROMOTED
+    assert log.verify().count == count
+
+
+def test_what_a_key_completed_survives_a_checkpointed_load(tmp_path):
+    """The snapshot carries the request each key completed: a load from
+    it refuses the revocation under the promotion's key, as the full load
+    does, and still answers the promotion's retry."""
+    log, blobs, s = _keyed_promotion(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    s.checkpoint(cps)
+    cheap = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    assert cheap.checkpoint_refusal is None
+    assert cheap.loaded_prefix_verified is False
+    assert cheap.snapshot() == AuthorityStore(log, evidence=blobs).load(
+        ).snapshot()
+    count = log.verify().count
+    with pytest.raises(StoreError, match="a different request for 'r1'"):
+        _revoke(cheap, blobs, "k-promote")
+    assert cheap.transition(
+        record_id="r1", dst=State.PROMOTED, actor="pm", role=Role.PROMOTER,
+        policy_id="pol-1", evidence={"policy_id": "pol-1"},
+        idempotency_key="k-promote").state is State.PROMOTED
+    assert log.verify().count == count

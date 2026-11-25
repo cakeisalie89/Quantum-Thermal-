@@ -1,0 +1,86 @@
+{
+ "title": "Dimensions, kinds and the equations' statements: refused when unsound, exact when not",
+ "note": "Assurance H (D-2026-177). Each mutation converts across a dimension, a kind or the Celsius scale it must not, loses a prefix, a power, a denominator or an offset, guesses at an unknown symbol, or lets a unit declared wrong pass the statement it enters. tests/test_dimensions.py holds each against the three models' declared units.",
+ "suites": [
+  "tests/test_dimensions.py"
+ ],
+ "mutations": [
+  {
+   "name": "DM1_celsius_converts_without_a_kind",
+   "path": "scientific/dimensions.py",
+   "find": "    if a.affine or b.affine:\n        if kind is None:",
+   "replace": "    if a.affine or b.affine:\n        if False:",
+   "rationale": "H: 40 degC becomes a number of kelvin without knowing a temperature from a difference"
+  },
+  {
+   "name": "DM2_dimensions_are_not_compared",
+   "path": "scientific/dimensions.py",
+   "find": "    if a.dims != b.dims:\n        raise DimensionError(f\"{frm!r} and {to!r} differ in dimension\")",
+   "replace": "    if False:\n        raise DimensionError(f\"{frm!r} and {to!r} differ in dimension\")",
+   "rationale": "H: a mass converts to a heat flux"
+  },
+  {
+   "name": "DM3_kinds_are_not_compared",
+   "path": "scientific/dimensions.py",
+   "find": "    if to_kind is not None and to_kind != kind:",
+   "replace": "    if False:",
+   "rationale": "H: a heat capacity converts to an entropy because their units agree"
+  },
+  {
+   "name": "DM4_an_absolute_temperature_loses_its_offset",
+   "path": "scientific/dimensions.py",
+   "find": "        if KINDS[kind].absolute:",
+   "replace": "        if False:",
+   "rationale": "H: 40 degC is converted as if it were a difference of 40 K"
+  },
+  {
+   "name": "DM5_a_prefix_scales_nothing",
+   "path": "scientific/dimensions.py",
+   "find": "        return Unit(base.dims, base.scale * PREFIXES[sym[0]])",
+   "replace": "        return Unit(base.dims, base.scale)",
+   "rationale": "H: 1.2 kW is read as 1.2 W"
+  },
+  {
+   "name": "DM6_an_unknown_symbol_is_dimensionless",
+   "path": "scientific/dimensions.py",
+   "find": "    raise DimensionError(f\"no unit {sym!r} is defined here\")",
+   "replace": "    return ONE",
+   "rationale": "H: a unit nothing defines is guessed at"
+  },
+  {
+   "name": "DM7_the_denominator_is_not_inverted",
+   "path": "scientific/dimensions.py",
+   "find": "        u = u * (_term(den) ** -1)",
+   "replace": "        u = u * _term(den)",
+   "rationale": "H: W/K reads as W K, a conductance as a power times a temperature"
+  },
+  {
+   "name": "DM8_a_power_is_ignored",
+   "path": "scientific/dimensions.py",
+   "find": "            u = u ** Fraction(m[2])",
+   "replace": "            pass",
+   "rationale": "H: m^-2 reads as m, an areal density as a length"
+  },
+  {
+   "name": "DM9_a_statement_ignores_its_powers",
+   "path": "scientific/dimensions.py",
+   "find": "        out = [o + d * Fraction(power) for o, d in zip(out, u.dims)]",
+   "replace": "        out = [o + d for o, d in zip(out, u.dims)]",
+   "rationale": "H: L^2 counts as L in an equation's dimensional statement"
+  },
+  {
+   "name": "DM10_a_broken_statement_is_not_reported",
+   "path": "scientific/dimensional_statements.py",
+   "find": "        if got != want:",
+   "replace": "        if False:",
+   "rationale": "H: a unit declared wrong breaks no statement"
+  },
+  {
+   "name": "DM11_shared_dimensions_name_no_other_kind",
+   "path": "scientific/dimensions.py",
+   "find": "    return sorted(k for k, v in KINDS.items()\n                  if k != kind and parse(v.unit).dims == d)",
+   "replace": "    return []",
+   "rationale": "H: what a dimension check cannot tell apart is not said"
+  }
+ ]
+}

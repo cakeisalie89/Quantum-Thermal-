@@ -1,0 +1,16 @@
+{
+ "title": "A timing measurement is the operation, not one interruption of it (D-2026-132)",
+ "note": "PM1: one batch, as before the repair -- the largest point of a curve is then a single call, and an interrupted call decides the fitted exponent.",
+ "suites": [
+  "tests/test_agent_performance.py"
+ ],
+ "mutations": [
+  {
+   "name": "PM1_single_batch",
+   "path": "tests/test_agent_performance.py",
+   "find": "BATCHES = 3\n",
+   "replace": "BATCHES = 1\n",
+   "rationale": "the pre-repair measurement: one batch, so one interrupted call at the largest size decides the shape"
+  }
+ ]
+}

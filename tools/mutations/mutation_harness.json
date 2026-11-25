@@ -1,0 +1,268 @@
+{
+  "title": "The instrument itself: every check the mutation harness makes",
+  "note": "Every claim that an enforcement point is load-bearing is produced by tools/mutation_matrix.py. If one of ITS checks stops working, the result is not a wrong number in a table -- it is an unprotected security check certified as protected. So the harness is mutated with its own machinery. The outer process has already imported the file, so mutating it on disk affects only the copy each test makes, which is exactly the subject under test. H4 is the sharpest: it reintroduces the stale-bytecode defect, under which a mutation's verdict describes code the harness did not write. H21 to H33 (AUD-093): a kill is a test's. An error in a test is a kill by that test; a mutant that does not load or cannot be collected under, a suite a signal ended and one that failed naming no test are not counted and fail the run; and a mutant reading a name nothing defines is refused unless it says why it never runs it.",
+  "suites": [
+    "tests/test_mutation_harness.py"
+  ],
+  "mutations": [
+    {
+      "name": "H1_red_baseline_ignored",
+      "path": "tools/mutation_matrix.py",
+      "find": "    base = run_suite(suites, args.python)\n    if base.rc != 0:",
+      "replace": "    base = run_suite(suites, args.python)\n    if False:",
+      "rationale": "a matrix run against an already-failing suite reports every mutation as killed, for the pre-existing reason"
+    },
+    {
+      "name": "H2_flaky_baseline_accepted",
+      "path": "tools/mutation_matrix.py",
+      "find": "        again = run_suite(suites, args.python)\n        if again.rc == 0:",
+      "replace": "        again = run_suite(suites, args.python)\n        if False:",
+      "rationale": "a baseline that can flake red can flake green, and a green flake reports kills nothing tested"
+    },
+    {
+      "name": "H3_anchor_drift_becomes_a_skip",
+      "path": "tools/mutation_matrix.py",
+      "find": "            if found != 1:",
+      "replace": "            if found == -1:",
+      "rationale": "a mutation whose anchor no longer matches is silently skipped while still appearing in the report"
+    },
+    {
+      "name": "H4_stale_bytecode_reused",
+      "path": "tools/mutation_matrix.py",
+      "find": "    env[\"PYTHONPYCACHEPREFIX\"] = cache",
+      "replace": "    env.pop(\"PYTHONPYCACHEPREFIX\", None)",
+      "rationale": "a mutation runs against a cached module, so its verdict describes code the harness did not write"
+    },
+    {
+      "name": "H5_bytecode_cache_shared_between_runs",
+      "path": "tools/mutation_matrix.py",
+      "find": "    cache = tempfile.mkdtemp(prefix=\"mutation-pycache-\")",
+      "replace": "    cache = os.path.join(tempfile.gettempdir(), \"mutation-pycache-shared\")\n    os.makedirs(cache, exist_ok=True)",
+      "rationale": "a shared cache reintroduces cross-mutation contamination one level up"
+    },
+    {
+      "name": "H6_specification_not_validated",
+      "path": "tools/mutation_matrix.py",
+      "find": "    problems = validate_spec(spec)\n    if problems:",
+      "replace": "    problems = validate_spec(spec)\n    if False:",
+      "rationale": "a typo in a specification reaches the point where a source file has already been written to"
+    },
+    {
+      "name": "H7_no_op_mutation_accepted",
+      "path": "tools/mutation_matrix.py",
+      "find": "        if m.get(\"find\") == m.get(\"replace\"):",
+      "replace": "        if False:",
+      "rationale": "a mutation that changes nothing is reported as killed by whatever else the suite covers"
+    },
+    {
+      "name": "H8_duplicate_names_accepted",
+      "path": "tools/mutation_matrix.py",
+      "find": "        if name in seen:",
+      "replace": "        if False:",
+      "rationale": "a report naming a mutation no longer says which mutation it describes"
+    },
+    {
+      "name": "H9_missing_mutation_fields_accepted",
+      "path": "tools/mutation_matrix.py",
+      "find": "            if not isinstance(m.get(field), str) or not m.get(field):",
+      "replace": "            if False:",
+      "rationale": "a specification missing 'find' crashes mid-loop on a tree already written to"
+    },
+    {
+      "name": "H10_recovery_sidecar_ignored",
+      "path": "tools/mutation_matrix.py",
+      "find": "    if RECOVERY.exists():",
+      "replace": "    if False:",
+      "rationale": "a run starts on a tree a previous interrupted run may have left mutated, and reports results about it"
+    },
+    {
+      "name": "H11_sources_not_restored",
+      "path": "tools/mutation_matrix.py",
+      "find": "                (ROOT / path).write_text(src, encoding=\"utf-8\")\n                damaged = [f for f in _dirty_tracked_files()",
+      "replace": "                damaged = [f for f in _dirty_tracked_files()",
+      "rationale": "a disabled safety guard is left on disk for whoever runs git add next"
+    },
+    {
+      "name": "H12_post_run_baseline_not_checked",
+      "path": "tools/mutation_matrix.py",
+      "find": "    post = run_suite(suites, args.python)",
+      "replace": "    post = SuiteRun(0, [], [], [])",
+      "rationale": "state a mutation left behind that the source hash cannot see is reported as a clean restoration"
+    },
+    {
+      "name": "H13_survivors_do_not_fail_the_run",
+      "path": "tools/mutation_matrix.py",
+      "find": "    return 0 if not (survived or anchors or timeouts or stillborn or signalled\n                     or unnamed or drifted or collateral or still_dirty\n                     or post.rc) else 1",
+      "replace": "    return 0",
+      "rationale": "an unprotected enforcement point exits green, so CI never sees it"
+    },
+    {
+      "name": "H14_survived_reported_as_killed",
+      "path": "tools/mutation_matrix.py",
+      "find": "            elif run.named:\n                by = run.named[0] + (",
+      "replace": "            elif True:\n                by = (run.named or [\"nothing\"])[0] + (",
+      "rationale": "every mutation is reported killed regardless of what the suite did"
+    },
+    {
+      "name": "H15_collateral_damage_discarded_without_a_copy",
+      "path": "tools/mutation_matrix.py",
+      "find": "            shutil.copy2(src, dest)\n            saved.append(dest)",
+      "replace": "            saved.append(dest)",
+      "rationale": "the harness reverts a tracked file with git checkout and keeps nothing; an uncommitted edit made while it runs is indistinguishable from damage and is lost"
+    },
+    {
+      "name": "H16_collateral_damage_not_restored",
+      "path": "tools/mutation_matrix.py",
+      "find": "    subprocess.run([\"git\", \"-C\", str(ROOT), \"checkout\", \"HEAD\", \"--\",\n                    *paths], capture_output=True, text=True)",
+      "replace": "    return",
+      "rationale": "a file a mutated build corrupted stays corrupted, so every later mutation runs against damaged inputs and the report says nothing"
+    },
+    {
+      "name": "H17_a_timeout_only_kill_is_counted_as_coverage",
+      "path": "tools/mutation_matrix.py",
+      "find": "    killed = sum(1 for v in results.values() if v == \"KILLED\")",
+      "replace": "    killed = sum(1 for v in results.values()\n                 if v in (\"KILLED\", \"KILLED_BY_TIMEOUT\"))",
+      "rationale": "restores what this counted before: a mutation nothing bounds appears in the score as coverage while saying nothing about which check was lost, and costs the whole suite timeout on every run"
+    },
+    {
+      "name": "H18_a_timeout_only_kill_does_not_fail_the_run",
+      "path": "tools/mutation_matrix.py",
+      "find": "anchors or timeouts or stillborn",
+      "replace": "anchors or stillborn",
+      "rationale": "the harness reports the condition and passes anyway, which is what let two timeout-only kills sit in the specs until somebody read the report closely"
+    },
+    {
+      "name": "H19_a_post_run_failure_is_always_called_residue",
+      "path": "tools/mutation_matrix.py",
+      "find": "        recheck = run_suite(suites, args.python, only=post.named)\n        if recheck.rc == 0:",
+      "replace": "        recheck = run_suite(suites, args.python, only=post.named)\n        if False:",
+      "rationale": "D-2026-34: a nondeterministic test produces the same signature as leftover state, and the harness names the one it cannot establish"
+    },
+    {
+      "name": "H_NC1_the_null_control_runs_without_a_sidecar",
+      "path": "tools/mutation_matrix.py",
+      "find": "    RECOVERY.write_text(json.dumps(original, indent=2), encoding=\"utf-8\")\n",
+      "replace": "    pass\n",
+      "rationale": "D-2026-82: a hard kill during the null control leaves an edited target and nothing for --recover to restore it from"
+    },
+    {
+      "name": "H_NC2_the_stop_handler_is_not_installed",
+      "path": "tools/mutation_matrix.py",
+      "find": "            previous[sig] = signal.signal(sig, _restore_and_die)\n",
+      "replace": "            previous[sig] = signal.getsignal(sig)\n",
+      "rationale": "D-2026-82: a SIGTERM during the null control or a mutation leaves the edited target in place"
+    },
+    {
+      "name": "H20_the_same_mutant_counted_twice",
+      "path": "tools/mutation_matrix.py",
+      "find": "            if mutant in made:\n",
+      "replace": "            if False:\n",
+      "rationale": "AUD-087: two entries making one mutant are both run, and the matrix counts one fault twice and a second fault covered that is the first"
+    },
+    {
+      "name": "H21_an_error_in_a_test_is_no_test",
+      "path": "tools/mutation_matrix.py",
+      "find": "            (failed if word == \"FAILED\" else errored).append(",
+      "replace": "            (failed if word == \"FAILED\" else []).append(",
+      "rationale": "a test that errors, in its setup or its body, is reported as no test at all, the line a mutant nothing ran against gets (AUD-093)"
+    },
+    {
+      "name": "H22_a_suite_not_collected_is_a_kill",
+      "path": "tools/mutation_matrix.py",
+      "find": "                      \"against it\")\n                results[name] = \"STILLBORN\"\n            elif run.rc != 0:",
+      "replace": "                      \"against it\")\n                results[name] = \"KILLED\"\n            elif run.rc != 0:",
+      "rationale": "a mutant the suites cannot be collected under is counted as killed, though no test ran (AUD-093)"
+    },
+    {
+      "name": "H23_the_load_check_is_not_asked",
+      "path": "tools/mutation_matrix.py",
+      "find": "                if path in loadable:\n                    problem = load_problem(path, args.python)",
+      "replace": "                if False:\n                    problem = load_problem(path, args.python)",
+      "rationale": "a module that does not load is killed by whichever test imports it first, and the kill names that test (AUD-093)"
+    },
+    {
+      "name": "H24_a_stillborn_mutant_is_counted",
+      "path": "tools/mutation_matrix.py",
+      "find": "    killed = sum(1 for v in results.values() if v == \"KILLED\")",
+      "replace": "    killed = sum(1 for v in results.values() if v in (\"KILLED\", \"STILLBORN\"))",
+      "rationale": "a mutant no test ran against is counted as coverage (AUD-093)"
+    },
+    {
+      "name": "H25_a_stillborn_mutant_does_not_fail_the_run",
+      "path": "tools/mutation_matrix.py",
+      "find": "timeouts or stillborn or signalled",
+      "replace": "timeouts or signalled",
+      "rationale": "the run passes with a mutant no test ran against (AUD-093)"
+    },
+    {
+      "name": "H26_a_signal_is_read_as_no_verdict",
+      "path": "tools/mutation_matrix.py",
+      "find": "            elif run.rc < 0:",
+      "replace": "            elif False:",
+      "rationale": "a suite a signal ended is reported as one that named no test, and the signal goes unsaid (AUD-093)"
+    },
+    {
+      "name": "H27_a_signal_kill_is_counted",
+      "path": "tools/mutation_matrix.py",
+      "find": "                results[name] = \"KILLED_BY_SIGNAL\"",
+      "replace": "                results[name] = \"KILLED\"",
+      "rationale": "a suite a signal ended is counted as a kill, though no test said which check was lost (AUD-093)"
+    },
+    {
+      "name": "H28_a_signal_kill_does_not_fail_the_run",
+      "path": "tools/mutation_matrix.py",
+      "find": "or stillborn or signalled\n                     or unnamed",
+      "replace": "or stillborn\n                     or unnamed",
+      "rationale": "the run passes with a mutant only a signal ended (AUD-093)"
+    },
+    {
+      "name": "H29_no_verdict_is_a_kill",
+      "path": "tools/mutation_matrix.py",
+      "find": "                results[name] = \"NO_VERDICT\"",
+      "replace": "                results[name] = \"KILLED\"",
+      "rationale": "a suite that failed naming no test is counted as a kill (AUD-093)"
+    },
+    {
+      "name": "H30_no_verdict_does_not_fail_the_run",
+      "path": "tools/mutation_matrix.py",
+      "find": "                     or unnamed or drifted",
+      "replace": "                     or drifted",
+      "rationale": "the run passes with a mutant nothing named a verdict on (AUD-093)"
+    },
+    {
+      "name": "H31_a_name_nothing_defines_is_run",
+      "path": "tools/mutation_matrix.py",
+      "find": "            if added and why is None:",
+      "replace": "            if False:",
+      "rationale": "a mutant that raises NameError where its fault was to act is run, and its crash is counted as a kill (AUD-093)"
+    },
+    {
+      "name": "H32_a_reason_for_an_unbound_name_is_believed",
+      "path": "tools/mutation_matrix.py",
+      "find": "            elif added is not None and not added and why is not None:",
+      "replace": "            elif False:",
+      "rationale": "an entry may say its mutant never runs a name it does not read, and the reason outlives the mutant it described (AUD-093)"
+    },
+    {
+      "name": "H33_a_name_read_in_a_function_is_not_seen",
+      "path": "tools/mutation_matrix.py",
+      "find": "                if s.is_global() and s.is_referenced():\n                    read.add(s.get_name())",
+      "replace": "                if False:\n                    read.add(s.get_name())",
+      "rationale": "a name nothing defines, read inside a function, is not seen, and that is where every such mutant reads it (AUD-093)"
+    },
+    {
+      "name": "H34_the_load_check_shares_bytecode",
+      "path": "tools/mutation_matrix.py",
+      "find": "    cache = tempfile.mkdtemp(prefix=\"mutation-load-pycache-\")",
+      "replace": "    cache = os.path.join(tempfile.gettempdir(), \"mutation-load-pycache-shared\")\n    os.makedirs(cache, exist_ok=True)",
+      "rationale": "the load check of one mutant reads the bytecode another left, and answers for code the harness did not write (AUD-093)"
+    },
+    {
+      "name": "H35_the_load_check_keeps_the_callers_bytecode_prefix",
+      "path": "tools/mutation_matrix.py",
+      "find": "    env = dict(os.environ, PYTHONPYCACHEPREFIX=cache)",
+      "replace": "    env = dict(os.environ)",
+      "rationale": "the load check compiles where its caller does, so a cached module of the same size and second answers for the mutant (AUD-093)"
+    }
+  ]
+}

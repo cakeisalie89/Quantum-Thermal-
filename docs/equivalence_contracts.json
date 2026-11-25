@@ -1,0 +1,132 @@
+{
+ "schema": "equivalence-contracts/1",
+ "label": "What 'the same scientific result' means, per model and per output. Rules only: every tolerance comes from the two quantities' own declared resolutions (r_a + r_b), with their classes and bases carried into the report. A number here is refused by the loader.",
+ "models": {
+  "thermal.conduction_1d": {
+   "outputs": {
+    "nv_layer_peak_T": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "nv_layer_final_T": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "hotspot_T": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "energy_relative_residual": {
+     "rule": "EXCLUDED",
+     "reason": "a relative residual measures the computation's own roundoff; its digits are noise by design, and each side's residual is held to its bound by that side's energy invariant, which the comparison does require to hold on both"
+    }
+   },
+   "provenance": "temperatures carry the solver's declared resolution class and basis (thermal_1d.py); the energy residual is excluded as noise and its invariant is required instead"
+  },
+  "thermal.conduction_2d_axisymmetric": {
+   "outputs": {
+    "nv_layer_peak_T": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "nv_layer_mean_T": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "max_T": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "energy_relative_residual": {
+     "rule": "EXCLUDED",
+     "reason": "a relative residual measures the computation's own roundoff; its digits are noise by design, and each side's residual is held to its bound by that side's energy invariant, which the comparison does require to hold on both"
+    }
+   },
+   "provenance": "temperatures carry the solver's declared resolution class and basis (thermal_2d.py); the energy residual is excluded as noise and its invariant is required instead"
+  },
+  "surface.langmuir_capture": {
+   "outputs": {
+    "impingement_flux": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "final_inventory": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "final_coverage": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "admitted_fluence": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    }
+   },
+   "provenance": "single-evaluation and accumulated forward-error bounds declared per output (surface_adsorption.py)"
+  },
+  "thermal.slab_transient": {
+   "outputs": {
+    "T_at_0": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "T_at_quarter": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "T_at_half": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "T_at_three_quarter": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "T_at_L": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "energy_in": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "energy_out": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "stored_energy_change": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "energy_relative_residual": {
+     "rule": "EXCLUDED",
+     "reason": "a relative residual measures the computation's own roundoff; its digits are noise by design, and each side's residual is held to its bound by that side's energy invariant, which the comparison does require to hold on both"
+    }
+   },
+   "provenance": "point temperatures carry a two-level Richardson discretization estimate, energies their accumulated bound (slab_transient.py); the energy residual is excluded as noise and its invariant is required instead"
+  },
+  "thermal.rc2_network": {
+   "outputs": {
+    "T1": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "T2": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "E_in": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "E_out": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "E_stored": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    }
+   },
+   "provenance": "closed-form evaluation; each output's single-evaluation bound is declared with its basis (thermal_rc2.py)"
+  },
+  "fmi.thermal_rc2": {
+   "outputs": {
+    "T1": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "T2": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "E_in": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "E_out": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    },
+    "E_stored": {
+     "rule": "AT_DECLARED_RESOLUTION"
+    }
+   },
+   "provenance": "the FMU's RK4 outputs carry a Richardson estimate from halving the substep (scientific/checks/fmu_rc2.py)"
+  }
+ }
+}

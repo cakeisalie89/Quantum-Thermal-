@@ -1,0 +1,121 @@
+{
+ "title": "The causal assurance graph: recorded edges only, currency along the right ones",
+ "note": "Section 6.1 (D-2026-171). Each mutation drops one recorded edge, lets currency travel along an edge that only exposes, changes how a second producer or a withdrawn one counts, or blanks one of the auditor's answers. tests/test_assurance_graph.py holds each, against the Gate C history and the governed path's own invalidation.",
+ "suites": [
+  "tests/test_assurance_graph.py"
+ ],
+ "mutations": [
+  {
+   "name": "AG1_a_record_s_evidence_supports_nothing",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "            for k, sha in sorted((p.get(\"evidence\") or {}).items()):\n                g.add(_b(sha), rid, _RECORD_EVIDENCE_EDGE.get(\n                    k, Edge.DIRECT_EVIDENCE), s, k)\n            for dep in",
+   "replace": "            for dep in",
+   "rationale": "6.1: a record cites bytes and the graph does not know it rests on them"
+  },
+  {
+   "name": "AG2_an_observation_is_not_read_from_its_record",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "            g.add(f\"record:{b.get('record_id')}\", oid, Edge.DIRECT_EVIDENCE,\n                  s)",
+   "replace": "            pass",
+   "rationale": "6.1: a record withdrawn directly reaches nothing read from it"
+  },
+  {
+   "name": "AG3_a_task_produced_nothing",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "                g.add(f\"task:{p.get('task_id')}\", _b(sha),\n                      Edge.HISTORICAL_DEPENDENCY, s, \"produced\")",
+   "replace": "                pass",
+   "rationale": "6.1: withdrawing a run reaches none of what its bytes supported"
+  },
+  {
+   "name": "AG4_one_surviving_producer_does_not_hold_the_bytes",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "                gone = bool(producers) and all(",
+   "replace": "                gone = bool(producers) and any(",
+   "rationale": "6.1: bytes another task still produced are reported stale"
+  },
+  {
+   "name": "AG5_a_withdrawn_producer_still_holds_them_up",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "                    x.src in lost or not standing(g, x.src)",
+   "replace": "                    x.src in lost",
+   "rationale": "6.1: a producer withdrawn earlier is counted as standing"
+  },
+  {
+   "name": "AG6_currency_travels_through_what_was_shown",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "CARRIES = frozenset({Edge.DIRECT_EVIDENCE, Edge.SCIENTIFIC_VERIFICATION,",
+   "replace": "CARRIES = frozenset({Edge.CONTEXT_INCLUSION, Edge.CLAIMED_SUPPORT,\n                     Edge.DIRECT_EVIDENCE, Edge.SCIENTIFIC_VERIFICATION,",
+   "rationale": "6.1: a context or a claim that mentioned stale content is reported stale itself"
+  },
+  {
+   "name": "AG7_a_verdict_does_not_rest_on_its_basis",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "                    g.add(_research_node(g, x), node,\n                          Edge.LOGICAL_DERIVATION, s, \"basis\")",
+   "replace": "                    pass",
+   "rationale": "6.1: a verdict and a conclusion are unreached by their premises' withdrawal"
+  },
+  {
+   "name": "AG8_a_memory_rests_on_nothing",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "            for sha in e.get(\"derived_from\") or ():\n                g.add(_b(sha), mid, Edge.SUMMARY_DERIVATION, s)",
+   "replace": "            for sha in e.get(\"derived_from\") or ():\n                pass",
+   "rationale": "6.1: notes derived from withdrawn bytes are not predicted stale"
+  },
+  {
+   "name": "AG9_a_summary_rests_on_nothing",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "            for m in e.get(\"summarizes\") or ():\n                g.add(f\"memory:{m}\", mid, Edge.SUMMARY_DERIVATION, s)",
+   "replace": "            for m in e.get(\"summarizes\") or ():\n                pass",
+   "rationale": "6.1: a summary of a stale note is not predicted stale"
+  },
+  {
+   "name": "AG10_nothing_is_exposed",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "    exposed = {x.dst for x in g.links\n               if x.kind in EXPOSES and x.src in lost} - lost",
+   "replace": "    exposed: set = set()",
+   "rationale": "6.1: what a model was shown on the strength of stale content is not reported"
+  },
+  {
+   "name": "AG11_verification_is_authorization",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "        \"verified_by\": by({Edge.SCIENTIFIC_VERIFICATION}),",
+   "replace": "        \"verified_by\": by({Edge.AUTHORIZATION}),",
+   "rationale": "6.1: the auditor is told an authorization was a verification"
+  },
+  {
+   "name": "AG12_the_model_saw_nothing",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "        \"model_was_shown\": shown,",
+   "replace": "        \"model_was_shown\": [],",
+   "rationale": "6.1: what the model was shown is not answered"
+  },
+  {
+   "name": "AG13_standing_ignores_state",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "    return g.state.get(node) not in NOT_STANDING.get(kind, ())",
+   "replace": "    return True",
+   "rationale": "6.1: the graph cannot say what no longer stands"
+  },
+  {
+   "name": "AG14_decisions_authorize_nothing",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "            if d.get(\"policy_id\") and d.get(\"allowed\"):\n                g.add(f\"policy:{d['policy_id']}\", f\"task:{ev.target}\",",
+   "replace": "            if False:\n                g.add(f\"policy:{d['policy_id']}\", f\"task:{ev.target}\",",
+   "rationale": "6.1: who authorized the work is not answered"
+  },
+  {
+   "name": "AG15_a_citation_is_support",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "                    g.add(_b(c.get(\"source_sha256\")), pid,\n                          Edge.CLAIMED_SUPPORT, s, c.get(\"path\", \"\"))",
+   "replace": "                    g.add(_b(c.get(\"source_sha256\")), pid,\n                          Edge.DIRECT_EVIDENCE, s, c.get(\"path\", \"\"))",
+   "rationale": "6.1: a proposal's citation is read as evidence the proposal rests on"
+  },
+  {
+   "name": "AG16_unread_actions_vanish",
+   "path": "agent_substrate/assurance_graph.py",
+   "find": "            g.unread[a] = g.unread.get(a, 0) + 1",
+   "replace": "            pass",
+   "rationale": "6.1: the graph hides how much of the history it does not read"
+  }
+ ]
+}

@@ -1,0 +1,86 @@
+{
+ "title": "PROV export: read-only, faithful for what it represents, honest about the rest",
+ "note": "Assurance J (D-2026-175). Each mutation lets a model's output read as a derivation, loses an agent, a time, a note, a state or an invalidation, hides what is not represented, exports a history that does not verify, or breaks the names. tests/test_prov_export.py holds each against the Gate C history.",
+ "suites": [
+  "tests/test_prov_export.py"
+ ],
+ "mutations": [
+  {
+   "name": "PX1_a_model_s_output_is_a_derivation",
+   "path": "agent_substrate/prov_export.py",
+   "find": "_DERIVED = AG.CARRIES\n",
+   "replace": "_DERIVED = AG.CARRIES | AG.EXPOSES\n",
+   "rationale": "J: a proposal reads as derived from the model's answer and what it cited"
+  },
+  {
+   "name": "PX2_verification_is_attributed_to_nobody",
+   "path": "agent_substrate/prov_export.py",
+   "find": "        if link.src.startswith(\"actor:\") and link.kind in _ATTRIBUTED:",
+   "replace": "        if False:",
+   "rationale": "J: who verified a record becomes something it was derived from"
+  },
+  {
+   "name": "PX3_an_event_has_no_agent",
+   "path": "agent_substrate/prov_export.py",
+   "find": "        doc[\"wasAssociatedWith\"][f\"_:assoc/{ev.seq}\"] = {\n            \"prov:activity\": _event(ev.seq), \"prov:agent\": agent(ev.actor)}",
+   "replace": "        pass",
+   "rationale": "J: an activity is recorded without who performed it"
+  },
+  {
+   "name": "PX4_an_edge_s_note_is_dropped",
+   "path": "agent_substrate/prov_export.py",
+   "find": "        if link.note:\n            common[\"qt:note\"] = link.note",
+   "replace": "        if False:\n            common[\"qt:note\"] = link.note",
+   "rationale": "J: which evidence key or context item a relation was recorded under is lost"
+  },
+  {
+   "name": "PX5_the_time_is_not_the_event_s",
+   "path": "agent_substrate/prov_export.py",
+   "find": "            \"prov:startTime\": _time(ev.wall_time),",
+   "replace": "            \"prov:startTime\": _time(0.0),",
+   "rationale": "J: an activity is placed at a time the history does not record"
+  },
+  {
+   "name": "PX6_a_supersession_invalidates_nothing",
+   "path": "agent_substrate/prov_export.py",
+   "find": "            if link.kind is AG.Edge.SUPERSESSION:",
+   "replace": "            if False:",
+   "rationale": "J: a superseded memory is never invalidated in the export"
+  },
+  {
+   "name": "PX7_unread_actions_are_not_disclosed",
+   "path": "agent_substrate/prov_export.py",
+   "find": "        \"unread_actions\": dict(sorted(g.unread.items()))}",
+   "replace": "        \"unread_actions\": {}}",
+   "rationale": "J: what the export leaves out is hidden"
+  },
+  {
+   "name": "PX8_an_unverified_history_is_exported",
+   "path": "agent_substrate/prov_export.py",
+   "find": "    if not report.ok:\n        raise ProvExportError(",
+   "replace": "    if False:\n        raise ProvExportError(",
+   "rationale": "J: a history that does not verify is rendered as an account of what happened"
+  },
+  {
+   "name": "PX9_a_dangling_relation_is_well_formed",
+   "path": "agent_substrate/prov_export.py",
+   "find": "                if r.get(f) not in declared[cls]:",
+   "replace": "                if False:",
+   "rationale": "J: a relation naming nothing declared passes the structural check"
+  },
+  {
+   "name": "PX10_an_entity_has_no_state",
+   "path": "agent_substrate/prov_export.py",
+   "find": "                attrs[\"qt:state\"] = g.state[node]",
+   "replace": "                pass",
+   "rationale": "J: what the history last recorded for a record or memory is not exported"
+  },
+  {
+   "name": "PX11_identifiers_are_not_encoded",
+   "path": "agent_substrate/prov_export.py",
+   "find": "    return f\"qt:{kind}/{quote(ident, safe='-._~')}\"",
+   "replace": "    return f\"qt:{kind}/{ident}\"",
+   "rationale": "J: an id holding '%', a space or non-ASCII maps to a name that reads back as another"
+  }
+ ]
+}

@@ -1,0 +1,6339 @@
+# PR #17 adversarial audit: progress record
+
+This is the audit's working record. It says what was examined, at which
+commit, by which commands, and what is left. Three files hold the state,
+and this one points at them:
+
+- `docs/audit/pr17_audit_ledger.json`: one entry per changed file. Each
+  entry's disposition is bound to the blob it was made against
+  (`tools/audit_ledger.py`).
+- `docs/audit/findings.json`: the findings register.
+- this file: the sessions, commands and next actions.
+
+A file is reviewed only if the ledger says so and names its blob. This
+record's prose never stands in for the ledger.
+
+## Session 1 (2026-10-27)
+
+**Baseline audit head.** `b0058f62503edaaccef26d8ed6a25df4602bf039`.
+
+**Merge base.** `096fb90fff089a62e4b20513de729a3e45a69f35`, which is
+`origin/main`. `main` has not moved, and nothing is in `main` that is not
+in the head.
+
+### Phase 0: repository state
+
+**How the clone was found.** It was shallow, and the local PR branch
+pointed at `main` (096fb90). It was unshallowed with
+`git fetch --unshallow origin`, and the local branch was set to
+`origin/claude/scientific-python-stack-7rsq3m` (b0058f6). The local branch
+had no commits of its own, so nothing was lost.
+
+**The change set, from git and from the GitHub API independently.**
+
+- `git -c diff.renameLimit=0 diff -M --name-status 096fb90 b0058f6` gives
+  989 files: 573 added, 384 deleted, 32 modified.
+- With rename and copy detection, and no limit, there are no renames. The
+  `qta_agent` package was created and renamed to `agent_substrate` inside
+  the PR, so against `main` both are additions. The deletions are `main`'s
+  retired hardware tree.
+- The totals are +294,166 / −89,247 over 265 commits, none of them merge
+  commits.
+- `gh api repos/cakeisalie89/Quantum-Thermal-/pulls/17` reports the same
+  figures: open, unmerged, head b0058f6, base 096fb90.
+- The API's file list (10 pages of 100) agrees with the ledger path by
+  path, status by status and blob by blob:
+  `python tools/audit_ledger.py crosscheck <saved API list>` reports 0
+  disagreements.
+
+**The tree at the head.**
+
+- 605 files.
+- No symlinks, no submodules, no untracked or unignored files.
+- Two executables: `container_verify.sh` and `tools/verify.sh`.
+
+**Binaries.** Twenty change: 19 deleted and 1 added. Each was inspected
+by format, and the methods are recorded on its ledger entry.
+
+- **Twelve git bundles.** Their heads were listed and each was cloned
+  into its own bare repository. Three are thin bundles, verified against
+  this repository. Every reachable blob was scanned for secrets: 0 hits.
+  Six heads exist nowhere else in the repository (AUD-001).
+- **Four tarballs and a zip.** None holds a symlink, hard link or
+  traversing path. Each was extracted into its own directory and scanned:
+  0 hits.
+- **The PDF and the HDF5 file.** The PDF's header and info dictionary
+  were read, and the HDF5 file was opened with h5py (562 objects).
+- **The added `checkpoint_final.safetensors`.** Its header was parsed
+  without a library: 37 contiguous F32 tensors, no pickle. Its sha256
+  equals the digest in `checkpoint_manifest.json`.
+
+**Duplicates among the deleted files.** `QTA_full_history-6.bundle.txt`,
+`attic/.../QTA_full_history-6.bundle.txt` and
+`attic/.../QTA_full_history.bundle` are one blob, a869c0e. The two
+`QTA_machine_fsm` bundles are one blob, 3b8bb65.
+
+**Secret scan of every changed blob, added and deleted.** There are two
+hits, and both are test fixtures:
+
+- a header-only `-----BEGIN RSA PRIVATE KEY` used to test credential
+  refusal (`tests/test_proposal_ingress.py:138`);
+- AWS's published documentation example key, in a deleted test.
+
+**Environment.** `uv sync --frozen --all-groups --extra neural`, as CI
+does, succeeded in a fresh container: Python 3.12, 4 cores, 15 GB RAM.
+
+### Ledger state at the end of this phase
+
+20 files are INSPECTED_BINARY and 969 are NOT_REVIEWED. The ledger is the
+authority for these counts; run `python tools/audit_ledger.py summary`.
+
+### Next actions
+
+1. Phase 1: rebuild the architecture and the authority-flow graph from
+   the code.
+2. Phase 2: review the event log, anchors, checkpoints and projections
+   line by line, with adversarial tests and work counting.
+
+## Session 2 (2026-10-27, resumed after a context reset)
+
+**Reviewed commit.** The audit's own Phase 0 commit, c11c628, on top of
+the baseline b0058f6.
+
+**The full suite at c11c628** (`HARNESS_HISTORY_REQUIRED=1 pytest tests/`,
+in a worktree, 34 minutes): 6,253 passed, 19 skipped, 1 failed. The
+failure was the audit's own: `tools/audit_ledger.py` held an `assert`,
+which `tests/test_no_enforcing_asserts.py` refuses in production code
+because `python -O` deletes it. It is now a refusal. c11c628 was never
+pushed alone.
+
+### Phase 2A: the event log, read in full
+
+`agent_substrate/events.py`, `checkpoint.py`, `store.py`,
+`authority.py`, `canonical.py` and `projection.py` were read in full.
+Their ledger dispositions are recorded after this cluster's commit,
+against the blobs it leaves.
+
+Four findings came out of the log itself (`docs/audit/findings.json`):
+
+| Finding | What was wrong | Status |
+|---|---|---|
+| AUD-002 (P1) | A final record that lost only its newline verified, and the next append fused two records into one line | FIXED |
+| AUD-003 (P2) | Anchors and checkpoints were built by a second, unverified read | FIXED |
+| AUD-005 (P2) | Any encoding of a record verified, and the readers framed records differently | FIXED |
+| AUD-004 (P1) | I3's "fresh evidence" after STALE is not enforced: the old report survives the evidence merge | OPEN |
+
+**Before and after.** `repro/event_log_framing.py` (scratchpad) was run
+against c11c628 and against the fix:
+
+| Case | c11c628 | Fixed |
+|---|---|---|
+| final record without its newline: full verify | ok=True, 3 records | ok=False, torn tail, 2 records |
+| ... then append | returns seq 3, the line is fused | refused, nothing written |
+| the same, from a running writer's anchor | returns seq 3 | refused (MalformedEvent) |
+| CR in place of a newline: full verify | ok=True | ok=False |
+| ... `anchor_at(1)` | bare JSONDecodeError | MalformedEvent |
+| CR in a record's whitespace: anchored / full | ok=True / ok=False | refused / refused |
+| key given twice | ok=True; fold sees "a", first-wins parser "mallory" | ok=False |
+| record re-encoded (spaces, key order) | ok=True | ok=False |
+| control: untouched log, full / anchored | ok / ok | ok / ok |
+
+**The fix** (one cluster):
+
+- `_parse_line` is the one rule for every reader: a record is its
+  canonical bytes and one newline, framed at the newline only.
+- An unterminated final line is a torn tail.
+- The write path refuses to write after unterminated bytes.
+- `VerifyReport.verified_anchor` is the anchor of the verified head,
+  taken from the same pass. The 13 projection sites and
+  `checkpoint.create()` use it.
+- `anchor_at(seq, head_hash=...)` refuses a record other than the one
+  named.
+
+**Validation, at this cluster's commit.**
+
+- **Pre-fix failure.** Each new test fails on c11c628, checked in a
+  worktree with the new test files copied in: 6 line-rule tests, 3
+  crash-recovery tests, the write-guard test and 3 anchor tests. Each
+  passes on the fix, and the two controls pass on both.
+- **Mutation.** Twelve targeted mutations, run through
+  `tools/mutation_matrix.py`, were all KILLED: R53, R60, R61, F2, F9,
+  F10, E26, SA1, N10, N11, M52 and M60. Each run had a green baseline
+  and a green null control, and every source was restored
+  byte-identical. Five of these existed already; their anchors were
+  moved to the new code without changing what they remove.
+- **Probe signatures.** Five test probes wrap `EventLog.read` with a
+  fixed signature. They now forward keyword arguments. Nothing they
+  assert changed.
+- **Cost, on a 20,000-record log (8.7 MB).**
+  - A full verified read went from 0.343 s to 0.463 s: the canonical
+    check is one more serialization per record. Peak memory fell from
+    35.2 to 27.5 MB, because the per-line copy list is gone.
+  - Loads no longer make the second `anchor_at` pass (0.112 s), so a
+    load costs about the same as before.
+- **Harness evidence.** The evidence-coverage pin moves 47 → 23. The 24
+  rows citing the changed code now predate their hosted evidence until
+  the next hosted run.
+
+### The full suite at f142a7e, and what it found
+
+`HARNESS_HISTORY_REQUIRED=1 pytest tests/` in a worktree at f142a7e, 34
+minutes: 6,259 passed, 19 skipped, 5 failed, 6 errors. None of these is a
+defect in the repair. Each is a place that wrote, or claimed, what the
+repair made untrue.
+
+- **Three test fixtures and one demonstration tool modelled a forger.**
+  They rewrote the log with `json.dumps(sort_keys=True)`, which is not the
+  canonical encoding, "a rewrite every local check accepts". The line rule
+  now refuses that encoding locally. A forger with the disk would write
+  canonical bytes, and every local check still accepts those. The helpers
+  now write canonical bytes, so they still show what they claim: only a
+  witness catches a re-chained history.
+  - `tests/test_composed_campaigns.py` (K4).
+  - `tests/test_witness.py`, two tests.
+  - `tools/integration_demo.py`'s altered-history step, which raised in
+    every one of the six `tests/test_integration_demo.py` tests that run
+    it.
+- **Readiness rows SUB-1 to SUB-4 (two failures).** These said
+  HOSTED_TESTED, bound to the code hosted CI ran at 927b69c, and that code
+  has changed. `tools/readiness.py` refused them, as it should. They
+  return to IMPLEMENTED until a hosted run covers the new code. The
+  927b69c evidence is kept on each row as `hosted_before`.
+
+### Cluster 2: AUD-006 and AUD-007, fixed
+
+- **AUD-006.** `events.require_extends()`: before a catch-up folds
+  anything, the log must still hold the record at the projection's
+  position, with the hash the projection folded there.
+  - Each projection keeps that hash beside its position, wherever the
+    position moves, its own appends included.
+  - Both catch-up routes call the check. The refusal is remembered until
+    `load()`.
+  - The proposal ingress and the idempotency ledger already rebuilt from
+    scratch on the full-read route. They now also refuse on the anchored
+    route.
+- **AUD-007.** `AuthorityStore._apply` now refuses an unreadable record as
+  a `StoreError` naming its seq and action. A transition of a record never
+  created is refused by name. The second reader reports a dependency
+  record that names no dependency as an anomaly, instead of applying it.
+
+**Validation.**
+
+- **AUD-006 tests.** There are 33, in `tests/test_agent_incremental.py`:
+  three refusal tests over eight projections each, the control over the
+  same eight, and a check that the modelled restore really diverges.
+  - On f142a7e, 22 of them fail with "DID NOT RAISE": every folding
+    projection on every route, and both rebuilding projections on the
+    anchored route.
+  - Two fail only because they read the new hash attribute: the rebuilding
+    projections' full-read route was already safe.
+- **AUD-007 tests.** All 7 fail on f142a7e with the bare errors.
+- **Mutation.** 22 targeted mutations were all KILLED, each run with a
+  green baseline, and every source was restored byte-identical:
+  - N12 to N27: the check's two refusals, and each of its 14 call sites;
+  - M61 to M63;
+  - three existing mutations whose anchors moved: V_store_fallback,
+    V_scheduler_fallback and TC2.
+- **A false failure, and its cause.** One subset run failed
+  `test_proposal_concurrency` with FULL_REPLAY_FOREIGN_REDUCER. I had
+  moved a function in `events.py` while that run's worker processes were
+  starting, and the reducer identity is a digest of the source files. Run
+  alone, it passes. No source has been edited during a test run since.
+
+### Still open
+
+- **AUD-004 (P1).** I3's "fresh evidence" after STALE is not enforced.
+
+### Found, then fixed in cluster 2
+
+- **AUD-006 (P1).** A live projection, after a restore of the log and
+  its witness from a backup, folded the new history's tail onto the old
+  history's state: r0, r1, r3 against a fresh replay's r0, r2, r3. It
+  then appended a transition on r1. Every load of that log now fails.
+  - Two routes reach this: the full-read fallback, and an anchor that
+    lags the projection's own appends.
+  - Planned fix: each projection remembers the hash of the last record
+    it folded and refuses to catch up from a log that no longer holds it.
+- **AUD-007 (P2).** Replaying a transition on a record never created
+  raises a bare `KeyError` in the primary store. The second reader
+  reports it as an anomaly.
+
+### Phase 2C: where the full reads are (measured, not yet reduced)
+
+A scratch profiler wraps the read paths from outside. Over a 60-decision
+campaign it counted 218 full verified reads, which parsed 67,697
+records:
+
+- `GovernedTasks.projection()`: 80 reads.
+- `GovernedTasks.__init__`: 49 reads. It loads seven stores, each with a
+  full read.
+- `governed_model._producers`: 20 reads.
+- The rest: `adversarial_eval` 22, `research_horizon` 19, `proposals` 5,
+  `_head_seq` 5, checkpointing 2.
+
+### Next actions at the end of session 2
+
+1. Run the full suite at the cluster 2 commit, then push it.
+2. AUD-004: test the scientific-admission rule through the governed path,
+   then fix the edge evidence rule in the store and in `reconstruct.py`.
+3. Record REVIEWED_IN_FULL dispositions for the six files above.
+4. Phase 2C: commit a work-count instrument, measure scaling curves, and
+   reduce `projection()` and `__init__`'s full reads without losing the
+   full-genesis path.
+
+### Pushed
+
+The full suite at a48ae7b passed: 6,310 passed, 19 skipped, 33 minutes.
+c11c628, f142a7e and a48ae7b were pushed together. Hosted CI started on
+both the push and the pull_request event.
+
+## Session 3 (2026-10-30)
+
+### Cluster 3: AUD-004, AUD-008, AUD-009 fixed; the work counter
+
+- **AUD-004 (I3's fresh evidence).** UNDER_REVIEW -> VERIFIED must now
+  cite a `verification_report` that the record did not already carry
+  (`Edge.requires_fresh`, `TransitionRequest.prior_evidence`). Both store
+  sites pass the record's prior evidence, and the second reader restates
+  the rule.
+  - "Fresh" means other bytes. A check is deterministic: the same checker
+    on the same bundle gave a byte-identical report under a new governed
+    task. So a re-run is the same verification, and is refused.
+  - Before and after, from `repro/fresh_evidence.py`:
+
+    | Case | f142a7e | Fixed |
+    |---|---|---|
+    | re-verified on the report it went stale with | VERIFIED | refused |
+    | ... citing that report again | VERIFIED | refused |
+    | control: a new report | VERIFIED | VERIFIED |
+    | written past the gate: store | loads | StoreError |
+    | written past the gate: second reader | VERIFIED, unauthorized=0 | UNDER_REVIEW, unauthorized=1 |
+
+- **AUD-008.** `append()` now hands back the record as its canonical bytes
+  parse. A tuple came back from the log as a list, and an int key as a
+  string, under the same hash.
+- **AUD-009.** `check_against` refused a checkpoint taken in the crash
+  window, where the witness is one behind, as "the log was truncated". It
+  now accepts that signature when the checkpoint's record is still there,
+  and refuses a deeper lag as before (test C5).
+- **Fixtures that met the new rules.** Four test fixtures (crash
+  recovery, governed-model reuse, scientific invalidation and the
+  work-count test) verified a record on a report it was created with, or
+  re-cited a stale one. They now follow the honest workflow. The
+  invalidation test now shows the origin rule on a record citing the
+  withdrawn run.
+
+**Validation.**
+
+- **Pre-fix failure.** Each new test fails on the commit before its fix
+  and passes after.
+- **Mutation.** All of these were KILLED, with sources restored
+  byte-identical:
+  - M64 to M71;
+  - M33 and FC1, whose anchors moved;
+  - E40 to E42.
+
+### Phase 2C: the work counter, and what it measured
+
+`tools/work_counts.py` wraps the event log's read paths from outside,
+counts them under the scripted campaign, and records the result in
+`docs/audit/work_counts.json`.
+
+| Decisions | Full reads | Records parsed | Baseline `anchor_at` calls (lines parsed) | Now |
+|---|---|---|---|---|
+| 15 | 78 | 11,195 | 33 (3,552) | 0 |
+| 30 | 114 | 23,720 | 48 (8,211) | 0 |
+| 60 | 198 | 67,591 | 89 (27,777) | 0 |
+
+- **Growth.** Each doubling multiplied the full-read records by 2.12, then
+  2.85: quadratic (AUD-010, open).
+- **Where.** At 60 decisions, `GovernedTasks.projection()` accounts for 42%
+  of those records.
+- **What AUD-003 saved.** It removed every `anchor_at` re-read, 29% of the
+  lines parsed at 60 decisions.
+- **Wall time.** It did not move outside noise: 20.5 s at the baseline and
+  21.6 s now. The subprocesses hide the work.
+
+### The full suite at d124a8f, and what it found
+
+The suite ran in a worktree at d124a8f, with `HARNESS_HISTORY_REQUIRED=1`:
+6,294 passed, 19 skipped and 34 errors, in 33 minutes. The 34 errors were every test in
+`tests/test_agent_long_horizon.py`, and nothing else failed.
+
+- **Why.** The module's fixture creates each claim already carrying a
+  `verification_report`. Its verifier then moved the claim to VERIFIED
+  citing that same digest. I3's fresh-evidence rule (AUD-004, in d124a8f)
+  refuses that, so the fixture stopped at its first cycle. This is a fifth
+  fixture of the kind cluster 3 met. The targeted runs before d124a8f did
+  not include this module, which is slow.
+- **The fix (55032de).** The verifier cites a report of its own, put in the
+  evidence store. The change is to the test only. The module passes at
+  the default 260 cycles and at the 1,200 cycles CI runs
+  (`HARNESS_HORIZON_CYCLES=1200`, 6 min 47 s).
+- **The scan.** An AST scan of every tracked `.py` file looked for a
+  record created with a `verification_report`. It found no other record
+  that is then verified on that report.
+
+### Phase 3: actor authentication
+
+`agent_substrate/principals.py` was read in full. These hold:
+
+- The key registry is supplied from outside the log and pinned by digest.
+- Key ids are derived from the keys.
+- A test key is refused by a registry not built for tests.
+- A key's lifecycle is judged by log position.
+- The attestation is made durable before the record.
+- The reference Ed25519 signs only test identities.
+- Production authentication refuses until a registry and a vetted
+  provider exist. That is EXTERNALLY_BLOCKED, for the owner.
+
+One gap was found and fixed: **AUD-012 (P1)**.
+
+- **The defect.** A REQUIRED history read as authenticated through an
+  authenticator scoped by `require` to some actors. `authenticate()`
+  passes every other actor's events without asking them.
+- **The reproduction** (`repro/scoped_authenticator.py`). A correctly
+  chained, unsigned record by an actor with no key was:
+  - read with `ok=True`, with the profile pinned or not;
+  - built on by a writer, which appended after it;
+  - folded by the second reader.
+
+  The same happened at the baseline b0058f6.
+- **The fix.** `_security_gate` refuses a scoped authenticator for a
+  REQUIRED history. `reconstruct()` restates the refusal in its own code.
+
+### Phase 4: who holds a role
+
+**AUD-011 (P2, OWNER).** Nothing binds an actor to the role it claims.
+
+- The authority store compares the claimed role with the edge.
+- The agent directory admits an AGENT with any roles from any registrar,
+  registered or not. Only a HUMAN's registrar is checked.
+- So one unregistered name took a claim through VERIFIED to PROMOTED, and
+  registered its own VERIFIER agent (`repro/self_asserted_roles.py`,
+  `repro/open_agent_registration.py`).
+
+AGENT_SUBSTRATE.md states the neighbouring limit: three colluding
+registered identities are indistinguishable from three independent ones.
+Which authority grants VERIFIER and PROMOTER is an owner decision.
+
+### Cluster 4: AUD-012 fixed, AUD-011 recorded
+
+- **Pre-fix failure.** The 8 new AUD-012 tests fail on d124a8f, and the
+  control passes there.
+- **Mutation.** EP10, EP11 and RC3 were KILLED, and so were EP1, AH23 and
+  RC1, whose surrounding code changed. Sources were restored
+  byte-identical, and every anchor in every spec still matches exactly
+  once.
+- **Ledger.** The dispositions were recorded:
+  - `principals.py`: REVIEWED_IN_FULL;
+  - `agents.py` and the two test modules: REVIEWED_IN_PART;
+  - `events.py` and `reconstruct.py`: re-bound after the AUD-012 diff.
+
+### Read, and found as documented
+
+- **Phase 5.** The inference gateway holds no credential and opens no
+  connection. The worker's live mode refuses until the owner chooses a
+  provider (OD-1).
+- **Phase 7.** NF-1T's flagship holds architecture claims only:
+  `large_model_trained: false`, `real_weights_allocated: false`, and its
+  sizes are marked ESTIMATE. Only the 2-layer development member is
+  trained, on one closed-form law.
+- **Phase 8.** `tools/model_check.py` calls the real `check()` with an
+  empty prior evidence. AUD-004's freshness rule is outside its bounded
+  state space. That is a coverage limit, not a defect.
+- **Phase 10.** On this branch every workflow is default-deny with
+  per-job grants, and actions are pinned by commit. The agent workflow is
+  gated by the commenter's own association. The ungated copy on `main` is
+  O-1, which only the owner can change.
+
+### Full-history work and the campaign's limit, set against the record
+
+`docs/tranche_h/FINAL_REPORT.md` ("Why the cost grows") states the growth
+behind AUD-010 as deliberate. Every governed fold re-verifies from
+genesis, because an anchored read "re-reads no prefix and trusts the
+anchor".
+
+- **What an anchored fold gives up.** `advance()` is a verified read of
+  the suffix. `require_extends` (AUD-006) refuses a re-chained prefix in
+  O(1). What an anchored fold loses is in-process detection of later,
+  unchained damage to the verified prefix, which the next full read still
+  finds. That is detection latency, not the correctness of decisions.
+- **AUD-010 is now OWNER.** The options and the measured costs are in the
+  register. In the recorded Gate G campaign (8f53500), a decision took
+  0.56 s at the 50 stage and 2.33 s at the 1,000 stage.
+- **AUD-013 (P2, CONFIRMED, DOCUMENTED).** The campaign cannot resume
+  after its process dies.
+  - `World()` deletes an existing workspace, and `main()` deletes it at
+    the end.
+  - The recorded run asked for 10,000 decisions and holds three stages,
+    with `complete=false`.
+  - The report states this as unresolved, and the audit keeps it so.
+- **The derived harness status.** It is INCOMPLETE (34 unsatisfied). At
+  the baseline it was COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT.
+  - **Why.** Each audit commit that changed code left the hosted
+    evidence of the matrix rows and stack entries covering that code older
+    than the code (PREDATES_CURRENT_IMPLEMENTATION).
+  - **The count.** 3 items at c11c628, 31 at f142a7e, 34 at a48ae7b.
+  - **What can restore it.** The status re-derives from evidence. Hosted
+    runs of the new head, attached through the repository's evidence
+    tools, can restore it, and nothing else should.
+
+### Pushed, and what the hosted runs said
+
+- **a48ae7b.** All 44 check runs completed successfully, across both
+  events:
+  - both full suites;
+  - all 16 mutation shards, and both mutation-matrix jobs;
+  - container-verify and supply chain;
+  - the integration jobs (FEniCSx, FMI, end to end, RO-Crate, performance
+    telemetry).
+- **d124a8f and 55032de.** Pushed together, once the d124a8f suite and
+  the fixture fix were validated:
+  - the long-horizon module at both scales;
+  - 981 contract tests at 55032de.
+
+### Cluster 5: two more authority defects; the cost instrument and the report
+
+Read on the trust surface after cluster 4: the capability ledger and the
+policy store. Two P1 defects were reproduced, and they were reproduced at
+the baseline as well.
+
+**AUD-014.** A refused capability mint was written before it was refused.
+
+- **Where the rule ran.** `CapabilityLedger.issue()` left "who may mint"
+  to `_authorize_mint()`, which runs in the fold after
+  `DecidedWriter._append_decided()` has written the record.
+- **What it did.** A mint by anyone but the root raised NotTheIssuer.
+  But the record was durable, so every later load of the ledger refused
+  the whole log. The live ledger meanwhile answered as if nothing had
+  happened (`repro/unauthorized_mint.py`).
+- **The fix.** `issue()`'s decision runs the same rule, under the writer
+  lock, before the record exists.
+- **Why the existing test passed.** It asserted the refusal and the
+  in-memory state, never the log.
+
+**AUD-015.** Anyone could publish the next version of an owner's policy.
+
+- **The gap in the policy store.** Withdrawal was the owner's act, and
+  version 2 was anyone's.
+- **The gap in the binding.** Under the promotion binding (D-2026-148),
+  the store and the second reader judged a promotion by the publisher of
+  the policy's FIRST version, while its expiry came from the latest.
+- **What it allowed.** An outsider's version 2 lifted the owner's expiry,
+  and a promotion was admitted on it (`repro/policy_version_hijack.py`).
+- **The fix.** Later versions are the owner's, live (before writing) and
+  on replay. Both readers judge a bound promotion by the publisher of the
+  version in force.
+- **Kept as they were.** Two existing tests that forge out-of-order
+  versions as "mallory" still see the version error: the owner check runs
+  after the version checks.
+
+**Validation.**
+
+- Each new test fails before its fix and passes after.
+- **G28 (agent_delegation).** Killed, with D1 and D2.
+- **PB25-PB29 (policy_binding).** Killed, with PB4, PB16, PB17 and PB21.
+- Sources were restored byte-identical, and every anchor in every spec
+  still matches exactly once.
+
+**Also here:**
+
+- **`tools/op_costs.py`.** The Phase 14 cost instrument: one operation per
+  fresh child process, with wall time, CPU, read bytes, disk and peak
+  allocation measured separately. Its record is `docs/audit/op_costs.json`.
+- **`docs/audit/AUDIT_REPORT.md`.** The interim Phase 14 report.
+
+**Limit.** The class behind AUD-014 is a fold that refuses a record its
+own writer wrote. It was looked for in the capability ledger and the
+policy store. A property over every DecidedWriter, that a refused write
+leaves the log unchanged, does not exist yet.
+
+**Also recorded:**
+
+- **AUD-016 (P3, OPEN).** The process-tree negative control leaves the
+  grandchild it shows escaping running after the test, reparented to
+  init. A stop file is proposed. A PID-based kill is not safe across a PID
+  namespace.
+- **AUD-017 (P3, OWNER).** Nothing says who may issue a secret grant or
+  an egress grant, on either path.
+  - Egress grants are decided on the governed path: `socket_guard`
+    mediates the runner's own sockets.
+  - No caller in the repository resolves a secret grant yet.
+
+**Generated, and derived.**
+
+- **The shard matrix.** The six new mutations moved specs between
+  shards, so the workflow's shard matrix was regenerated with
+  `tools/mutation_shards.py --emit`. `--check` holds.
+- **The harness status.** It is INCOMPLETE with 35 unsatisfied. Row R58
+  cites that workflow, so its hosted evidence now predates it. The
+  evidence-coverage pin moves 20 -> 19
+  (`tests/test_completion_matrix.py`).
+- **Found late.** The pin was found by the contract tests at ebd14a0,
+  and fixed in the commit after it.
+- **Found by the full suite at ebd14a0.**
+  `tests/test_agent_second_reader.py::test_a_policy_downgrade_is_reported`
+  forges a downgrade as an actor other than the owner. The second
+  reader's new owner note answered it first, where the test expects the
+  downgrade note. The owner note now follows the duplicate and downgrade
+  notes, as the policy store's owner check follows its version checks.
+  PB29 and PB22 were re-killed.
+- **Also found by that suite.** Two tests in
+  `tests/test_readiness_matrix.py` failed:
+  - **Why.** Readiness row CI-4 (HOSTED_TESTED) covers the workflows, and
+    the regenerated shard matrix changed `agent-substrate.yml`.
+  - **What changed.** CI-4 returns to IMPLEMENTED, as SUB-1 to SUB-4 did
+    in a48ae7b, until hosted runs of the new workflow are attached.
+  - **Why no earlier check caught it.** The contract tests at ebd14a0 do
+    not name the readiness matrix's file, so they did not include this
+    module.
+
+
+### Next actions at the end of session 3
+
+Superseded by the session 4 report below.
+
+1. Push d3cddc3 once its full suite passes, then the cluster 5 commit
+   once its own does. Attach hosted evidence through the repository's
+   tools when the runs finish.
+2. Phase 14 is in `docs/audit/AUDIT_REPORT.md`, interim. Keep it in step
+   with the ledger and the register.
+3. Look for AUD-014's class in every DecidedWriter: a property that a
+   refused write leaves the log unchanged.
+4. Phase 9: a resumable campaign (AUD-013). The stop file (AUD-016) was
+   made in session 4.
+5. The ledger: most changed files are still NOT_REVIEWED. Continue with
+   the trust surface: `governed_tasks.py`, `governed_model.py`,
+   `netauth.py`, the executor and `secrets.py`'s resolve path.
+
+
+## Session 4 (2026-10-30): the frontier directive
+
+The baseline at the start of the session: HEAD and origin were both
+29aedfb39a8b. The merge base with origin/main was 096fb90fff08, which is
+origin/main itself. The worktree was clean, with 1001 changed files.
+
+### AUD-016, fixed
+
+Two tests were written first, and each failed on 29aedfb.
+
+- `test_the_grandchild_the_control_lets_escape_is_stopped_once_read`
+  runs the probe with isolation off. Three seconds after the probe
+  returned, the grandchild was still running.
+- `test_a_grandchild_nothing_tells_to_stop_ends_on_its_own` runs the
+  tool as the probe does, but never writes the stop file. The
+  grandchild was still running after ten seconds.
+
+Each test finds a leftover through `/proc`, by its working directory. It
+kills what it finds, so the failing runs left no process behind.
+
+The fix has three parts:
+
+- The grandchild beats while `out/stop` is absent, and stops at its own
+  bound, `ESCAPEE_SECONDS` (30 s), whichever comes first.
+- The probe takes both readings first. Then it writes the stop file, in a
+  `finally`.
+- No PID is used anywhere.
+
+The verdict is unchanged: the control `[process_tree]` still sees the
+grandchild escape.
+
+Mutations were run on this host: IS11 (no stop file), IS12 (no bound) and
+IS13 (a bound shorter than the reading). Each was killed, and IS7 is still
+killed.
+
+### AUD-011 and AUD-017: a role registry outside the log
+
+`agent_substrate/roles.py` is the root. It is a registry supplied from
+outside the log and pinned by its digest, as the key registry is. Each grant
+names a principal, a role, a scope and the positions it holds for.
+
+Delegation happens in the log, once, and only from grants marked
+`may_delegate`. A delegation is narrower and no longer than its parent. It
+is never made to the delegator, and its delegator revokes it. A view folded
+past a position answers as one folded to it, so the governed runner can ask
+a view caught up to the head about earlier positions.
+
+Where a reader is given a registry, it holds these acts to it, before the
+write and again on replay:
+
+- in `AuthorityStore`: create, and each transition (SYSTEM needs VERIFIER or
+  PROMOTER);
+- the policy version a promotion would stand on;
+- `PolicyStore.publish`;
+- `SecretStore.issue` and `NetworkAuthority.issue`, the latter over every
+  host;
+- in `GovernedTasks`: submission, execution and each party's move, checked
+  where its record is written.
+
+The second reader restates all of it in `reconstruct`, `reconstruct_tasks`
+and `reconstruct_subsystems`. A checkpoint folded under other grants is not
+restored, and the history is replayed under the reader's own.
+
+`tests/test_role_authority.py` has 50 tests, each an attack beside its
+control:
+
+- mallory's forged walk to PROMOTED, refused by both readers with the same
+  kind;
+- an agent registered by anyone as VERIFIER;
+- an authenticated principal without a grant, refused as anyone else is;
+- the delegation rules;
+- revocation and expiry by position, the reach-back named;
+- recovery across registries;
+- each party's grant ending mid-run, refused where its record would have
+  been written, which leaves a history every reader loads.
+
+`tools/mutations/role_authority.json` holds 44 mutations. The first run
+killed 41. RA4 and RR3 (a forged create, both readers) and RR8 (the second
+reader's own policy fold) survived because no test replayed those cases.
+Two tests were added and all three are now killed.
+
+The structural registries now include the new module: the layering, the
+importer allowlist, the IO layer, READER_COVERAGE, the identity inventory
+(55 of 55 actions reconstructed) and the authority inventory. Task creation
+is now a decided write.
+
+Owner action: provision the production registry. `production_role_registry()`
+refuses until a registry is provisioned.
+
+Not done:
+
+- No history declaration obliges a reader to hold a registry.
+- HUMAN_APPROVER and RELEASE_AUTHORITY have no enforcement point.
+- The capability ledger's root is still trust on first use.
+
+### CI at 29aedfb
+
+Mutation shard 5 was cancelled at 59 minutes 49 seconds: "The runner has
+received a shutdown signal". The job limit is 150 minutes. Every matrix it
+finished killed all its mutations, and the other seven shards passed,
+running up to 68 minutes. The aggregate `mutation-matrices` check failed
+only because shard 5 did not finish. The run was lost to the runner, not
+failed by a test. Pushing 5900f3b superseded it. 5900f3b's local full suite
+passed: 6,349 passed, 19 skipped.
+
+
+### AUD-013: the campaign resumes after its process dies
+
+`tools/research_horizon.py` keeps its own state in `campaign_state.json`
+beside the world. The file is written atomically before each objective,
+after each stage and after each withdrawal, and is bound to the log
+position it describes. `--resume` opens the same world, which
+`World(resume=True)` no longer deletes or rebuilds. The log is the
+authority:
+
+- a log rolled back behind the recorded position is refused;
+- an objective the log registered after the last save is finished, or
+  counted once if the dead process had finished it;
+- a stage measured and not saved is measured again;
+- a withdrawal made and not recorded is settled, not repeated.
+
+One process holds a campaign at a time, through an flock.
+
+`tests/test_research_horizon_resume.py` has 18 tests. Each kills the
+campaign's process with `os._exit` in a subprocess, at one of twelve
+points, and resumes it in another:
+
+- before a step executes;
+- during a step (three points);
+- after the governed run's external effect;
+- after the check, before the decision;
+- after the decision, before the step that acknowledges it;
+- between an objective and its save;
+- after a stage's withdrawal;
+- inside a checkpoint, between its anchor and its file;
+- after a stage is measured;
+- three objectives into a stage.
+
+Against an uninterrupted run of the same campaign:
+
+- every counter taken from the log is equal;
+- the logs differ action by action only in two named kinds: a re-measured
+  checkpoint, and one context assembled for a model call the dead process
+  never made (found by the first run of the test, which compared raw event
+  counts);
+- nothing was executed, received or answered twice;
+- the second reader agrees and the checkpointed load is equal.
+
+The other tests: a second process is refused while a live one holds the
+lock and admitted once it is gone; a history restored from an earlier copy
+is refused; a lagging head witness still resumes; a torn temporary state
+file is never read; a missing state is refused.
+
+Mutations RHR1 to RHR11 (`tools/mutations/research_horizon_resume.json`)
+are each killed.
+
+Not established:
+
+- recovery across the loss of the machine, which needs durable storage;
+- a death between the two halves of a stage boundary's withdrawal;
+- the 5,000 and 10,000 stages.
+
+### Lean 4: obtainable, not run
+
+The pinned toolchain is obtainable. `lean-4.14.0-linux.zip` was retrieved
+from the official release URL, with sha256
+`54f3ae8b9ef7a472d27563633c084e1d38e00ee9ef1d226cb3b8b823b6c4cd74` on
+2026-10-31.
+
+Extracting and executing it was refused by this session's permission
+system, and the audit did not work around that. No Lean source is
+committed: a proof nobody kernel-checked would be a claim without a check.
+The model and theorems planned (the authority edge table generated from
+`authority.EDGES`, I1 to I3 and terminal retraction, with negative
+controls) wait on the owner's permission to run a third-party toolchain
+here, or on a CI job that installs it by digest.
+
+### Phase A report (session 4)
+
+Commits, in order:
+
+- 5900f3b: AUD-016;
+- 824a514: AUD-011 and AUD-017;
+- c7c0ce9: four mutation anchors that 824a514 moved, re-anchored;
+- 22dacc3: AUD-013;
+- this record.
+
+**Implemented.**
+
+- `tools/isolation_contract.py`: the escaped grandchild stops after the
+  reading, and at its own bound.
+- `agent_substrate/roles.py`: the role registry, its delegations and its
+  refusal kinds. It is enforced live and on replay by `AuthorityStore`,
+  `PolicyStore`, `SecretStore`, `NetworkAuthority` and `GovernedTasks`, and
+  restated in `reconstruct`, `reconstruct_tasks` and
+  `reconstruct_subsystems`. Task creation is a decided write.
+- `tools/research_horizon.py` and `tools/adversarial_eval.py`: the campaign's
+  state beside its world, its lock and its resume.
+- Tests: `tests/test_isolation_contract.py` (two added),
+  `tests/test_role_authority.py` (50) and
+  `tests/test_research_horizon_resume.py` (18).
+- Mutation specs: IS11-IS13, `role_authority.json` (44) and
+  `research_horizon_resume.json` (11).
+
+**Independently verified.**
+
+- No formal proof was run. The Lean toolchain was not allowed to execute
+  here; see above.
+- Mutation testing on this host:
+  - IS11-IS13 and IS7: 4 of 4 killed;
+  - RA1-RA36 and RR1-RR8: 44 of 44, after two tests were added for the
+    three that survived;
+  - RHR1-RHR11: 11 of 11;
+  - AA14, D17, HT2 and HT9, re-anchored: 4 of 4.
+- Full suites on this host:
+  - 5900f3b: 6,349 passed, 19 skipped;
+  - 824a514: 6,401 passed, 6 failed, all of them the four unmatched
+    anchors that c7c0ce9 fixes;
+  - 22dacc3: run before this record was pushed.
+- Hosted CI:
+  - 5900f3b: every job of run 41163919134 green, all eight mutation shards
+    and the aggregate included;
+  - 29aedfb: shard 5 lost to a runner shutdown at 59:49, with every matrix
+    it finished killed;
+  - 824a514 onward: not yet run.
+- Deployment evidence: none exists, and none is claimed.
+
+**Failed, and found.**
+
+- 824a514 broke four mutation anchors. Its full suite caught them, and
+  c7c0ce9 re-anchors them. The contract test batch did not include
+  `tests/test_mutation_harness.py`; it does now.
+- The role registry's first schema name carried the retired programme's
+  prefix. The content audit flagged it before the commit.
+- The first resume test compared raw event counts. It found a context
+  assembled for a call the dead process never made, which is now a named
+  allowance.
+
+**Measured.**
+
+- A 20-decision campaign takes 8 seconds on this host.
+- A resumed campaign reproduces the uninterrupted one's log-derived
+  counters exactly, at all twelve kill points.
+- The suite grew from 6,349 to 6,407 tests at 824a514, and 22dacc3 adds 18
+  more.
+
+**Not established.**
+
+- Role enforcement where no registry is given, and production provisioning.
+- HUMAN_APPROVER and RELEASE_AUTHORITY enforcement points.
+- Lean proofs.
+- Campaign recovery across the loss of the machine.
+- The 5,000 and 10,000 stages.
+- Phases B to F of the directive: the UQ demonstration, the assurance
+  package, Merkle transparency, agent evaluation, distributed protocols and
+  the reproduction guide.
+
+**Owner decisions.**
+
+- Provision the role registry: who holds which role, and its pinned digest.
+- Permit, or move to CI, a pinned Lean toolchain.
+- AUD-010, the anchored suffix read, and AUD-001, archiving the bundled
+  histories, are unchanged.
+- The existing OD-1 to OD-7 are unchanged.
+
+### Next actions at the end of session 4
+
+1. Once hosted runs of 22dacc3 finish, re-attach hosted evidence
+   (`tools/readiness.py attach`) for the rows the role registry returned to
+   IMPLEMENTED.
+2. A genesis declaration, as for `AUTHENTICATED_REQUIRED`, that obliges
+   every reader of a history to hold its role registry, by digest.
+   HUMAN_APPROVER at an escalation's answer.
+3. The Lean module, if permitted: generate
+   `formal/lean/Authority/Edges.lean` from `authority.EDGES`, and prove I1,
+   I2, I3, the role refusal and delegation lapse over it. Add negative
+   controls, `#print axioms`, and a CI step that installs the release by
+   the digest recorded above.
+4. Phase B on this host: an uncertainty budget for the slab model, and a
+   portable assurance package with a fail-closed verifier.
+5. The ledger: 935 files are still NOT_REVIEWED.
+
+### Phase B, first item: an error budget for one model (Part VI, item 20)
+
+`scientific/uncertainty.py` is a small layer.
+
+- **Bases.** Each contribution to an output's error states its basis:
+  MEASURED against an independent reference, ESTIMATED from the method's own
+  theory, ASSUMED from declared input distributions, or NOT_ESTABLISHED.
+  The last is listed and never summed.
+- **Combination.** A measurement replaces the estimate it checks in the
+  total, and the estimate is kept and held to it. Contributions are added
+  linearly: a systematic numerical error is not a standard deviation.
+- **Propagation.** Parameter uncertainty is propagated twice, in ways that
+  share no step: linearly through central differences, and by Monte Carlo
+  with a fixed seed. The two are compared at the Monte Carlo standard
+  error.
+
+`tools/slab_uq.py` applies it to the slab's T_at_half at the campaign's
+documented point, and records `docs/assurance/slab_uq.json`:
+
+- **Discretization.** It was measured against the closed-form series at
+  1.1158e-4 K. The model's Richardson estimate, 1.1158e-4 K, falls short of
+  that by a factor of 1.0000343, and the record says
+  ESTIMATE_DOES_NOT_COVER. Richardson's is an estimate, not a bound, and
+  the first draft of this budget had called it a bound.
+- **Parameters.** The declared spreads are illustrative and not measured.
+  The linear standard deviation is 2.293 K and the Monte Carlo one 2.234 K
+  over 1,000 samples, agreeing within three Monte Carlo standard errors. The
+  variance is carried by q (46%), rho c (39%) and T0 (14%).
+- **Statement.** T_at_half = 331.018 +/- 4.24 K. The parametric part is at
+  95% under the declared spreads. Model form and measurement are NOT
+  ESTABLISHED, because no real slab was observed.
+
+`tests/test_slab_uq.py` (15 tests) holds the record to the tool and the
+rules to the layer. CI re-derives the record with `tools/slab_uq.py
+--check`, which refuses a record edited by hand. Two negative controls stand beside them: a reference 2%
+off in conductivity leaves the estimate uncovered by a factor above 10, and
+exp(3x) over a wide spread makes the propagations DIFFER. Mutations SU1 to
+SU8 (`tools/mutations/slab_uq.json`) are each killed.
+
+Not established:
+
+- any physical validity;
+- input distributions that are measured rather than declared;
+- interval-arithmetic or certified bounds;
+- a Bayesian treatment;
+- model discrepancy.
+
+
+### Hosted CI at 2497d87
+
+Every workflow run at 2497d87 succeeded, on both push and pull_request:
+agent-substrate (the full suite, the eight mutation shards, the second
+interpreter and the dispatch-sensitivity job), stack-verify,
+harness-integrations, supply-chain and container-verify. It is the first
+hosted run to cover 824a514 (the role registry), c7c0ce9, 22dacc3 (the
+campaign's resumption), bbf58f2 and 2497d87 (the error budget).
+
+The readiness rows CI-4 and SUB-1 to SUB-4 stay IMPLEMENTED. `tools/
+readiness.py attach` re-fetches every run itself with `gh api` and digests
+the rows' files from the commit's tree, so that the party attaching cannot
+assert the evidence. The `gh` token in this session is invalid, so the tool
+cannot fetch, and the runs were not attached through another channel.
+CI-4's implementation also includes the workflow that the next commit
+changes, so CI-4 could be attached only from a run of that commit.
+
+### Phase B, second item: a portable assurance package (Part X, item 34; Part XI, items 35 and 36)
+
+**What is packaged.** One governed answer to the owner's question, "does
+T_at_half stay below 1000 K at the documented point?". It is the run that
+the adversarial evaluation already calls legitimate: the scripted agent's
+model run on the governed path, its independent method-of-lines check, the
+reviewer's VERIFIED decision and the research ledger's SUPPORTED verdict.
+Beside it are the slab's error budget and the second reader's proofs of
+both decisions (decision-proof/1).
+`docs/assurance/package/slab-mid-plane/` (152 KB) holds:
+
+- the record (`scientific-assurance-record/1`), which states the question,
+  the hypothesis, the equations, the assumptions, the model, the inputs
+  with their units, the results, the budget, the checks, the decisions,
+  the history's head, the trust roots and the gaps;
+- a guide (`README.md`) that follows the directive's seven reproduction
+  steps;
+- the run's 85-record event log;
+- seven evidence files, each named by its digest;
+- `SHA256SUMS`.
+
+`tools/assurance_package.py --write` builds it from a fresh run. It keeps
+the package only if the verifier accepts it in a process of its own.
+
+**The verifier.** `tools/verify_assurance.py` imports the standard library
+and nothing else. It refuses to run from inside a package. It holds a
+package at five levels, each needing the one before:
+
+- INTEGRITY: every file is exactly the one SHA256SUMS lists, nothing is
+  missing, added or linked, and evidence is named by its digest;
+- CONSISTENCY: the record and the evidence say the same things, and the
+  record claims nothing the package cannot carry and names every gap;
+- HISTORY: the log is one canonical hash chain, ending at the stated head;
+- DECISION: the question, the hypothesis, the proposal, the separate
+  verification, the observation and the verdict are in that history as
+  reported, cite exactly this package's evidence, and still stand at the
+  head. The producer's proofs are about these same records.
+- RECHECK: the verifier solves the slab equations itself, in closed form.
+  It integrates the eigenfunction coefficients exactly and finds the
+  eigenvalues by bracketed Newton iteration. The producer's series check
+  uses quadrature and bisection instead.
+
+At RECHECK, on the committed package:
+
+- **Exact solution.** T(L/2) = 331.0184097 K.
+- **The model against it.** It differs by 1.12e-4 K, within three times its
+  own estimate. Its whole 80-cell final profile is within 2.6e-5 K.
+- **The parametric spread.** It is re-derived from the same declared draws,
+  propagated through the exact solution instead of the model. The
+  half-width agrees with the recorded one to 1.3e-5 K, against a tolerance
+  of 3.35e-4 K (three times the measured discretization).
+- **The verdict.** The hypothesis is re-evaluated: SUPPORTED, with a margin
+  of 669 K.
+
+The claim's verdict therefore does not rest on the producer's model, but on
+the verifier's own solution of the stated equations. That is a statement
+about the equations, not about any real slab.
+
+**What it cannot establish.** It lists these on every run, and refuses a
+record that leaves one out. There are eleven:
+
+- PACKAGE_ORIGIN and HISTORY_ANCHORED, which an operator can supply with
+  `--expect-package-digest` and `--expect-head`;
+- PRODUCER_EXECUTION;
+- MODEL_IMPLEMENTATION;
+- ROLE_ENTITLEMENT;
+- FORMAL_PROOF;
+- PHYSICAL_VALIDITY;
+- INPUT_DISTRIBUTIONS;
+- PRODUCER_TOOLCHAIN;
+- WALL_TIMES;
+- HISTORY_SEMANTICS.
+
+**The controls.** `--check` runs these in CI.
+
+- **Currency.** The package is held to the code as it is: the model's and
+  the check's implementation digests, the committed budget, and a fresh
+  run of the model at the recorded inputs.
+- **Changed bytes.** One byte changed in any of the 11 files is refused at
+  INTEGRITY, and the refusal names the file.
+- **Consistent forgeries.** Each rewrites every digest, every hash and
+  SHA256SUMS.
+  - The temperature moved by 0.01 K is refused at RECHECK.
+  - The proposer verifying its own result is refused at DECISION.
+  - A forgery that changes nothing passes every level. It is refused only
+    against the honest package digest, obtained independently.
+- **What that shows.** Consistency is not origin, and the guide says so.
+
+CI runs the verifier a second way too: with the runner's own interpreter,
+`python3 -I`, outside the project's environment.
+
+**Tests.**
+
+- `tests/test_assurance_package.py` has 130 tests. Each corruption is
+  refused at the level and the check that should catch it and at no
+  earlier one, and every later level is NOT_REACHED.
+- `tests/test_assurance_package_build.py` builds a fresh package and holds
+  it to the committed one.
+- The mutations are VA1 to VA102 (`tools/mutations/verify_assurance.json`),
+  one per rule of the verifier. All 102 are killed, each by a test aimed at
+  that rule.
+
+**Defects found in this work, before commit.**
+
+- The verifier first read the JSON number `1e400` as infinity, because
+  `parse_constant` never sees it. Such numbers are now refused.
+- Two of the verifier's branches could never run: an empty manifest is
+  already refused for its missing newline, and an empty log for the same
+  reason. They were removed rather than kept as checks no test can reach.
+- The first test of an oversized propagation would have had a mutant
+  compute a million samples before failing. It now asks for 20,001.
+
+**Not established.**
+
+- Reproduction by anyone but the producer.
+- The package's origin. It is not signed: signing needs an identity that
+  only the owner can provision.
+- Whether the deciders were entitled to decide: the run had no role
+  registry.
+- The model re-run offline: that needs the source, and `--check` re-runs it
+  only with the repository.
+- What the history's other records mean.
+- Any physical validity.
+
+### Phase C, first item: Merkle transparency commitments, evaluated
+
+**The limit.** A witness (`agent_substrate/witness.py`) learns that a new
+head extends the last one it cosigned by being shown every record in
+between. For a hash chain those records are the consistency proof, so its
+length grows with the history added since. A reader who wants to know that
+one record belongs to a witnessed history must hold the history after it.
+
+**What was added.** `agent_substrate/transparency.py` is the RFC 9162
+Merkle tree over the log's event hashes, standard library only:
+
+- RFC 9162's Merkle Tree Hash, with the 0x00 and 0x01 domain separation;
+- inclusion proofs, and their verification;
+- consistency proofs, and their verification.
+
+The chain is unchanged. The tree is computed from a verified chain and adds
+a commitment, not an authority.
+
+**Held to an external reference.** The roots of RFC 6962's eight test
+leaves match the Certificate Transparency project's published values. Then
+every proof over every size up to 64 is checked both ways: each proof the
+module builds verifies, and each one offered for the wrong leaf, position or
+root, or for a fork, does not.
+
+**Measured on the assurance package's own 85-record log (69,748 bytes).**
+
+| Proof | Merkle | Hash chain |
+|---|---|---|
+| The verification decision at seq 74 is in the tree | 6 hashes, 192 B | the 10 records after it, 8,992 B, and only once seq 74 is witnessed |
+| Extend a witness from seq 12 to the head | 8 hashes, 256 B | 72 records, 61,491 B |
+| Extend a witness from seq 76 to the head | 7 hashes, 224 B | 8 records, 6,987 B |
+
+At 100,000 random entries, a prototype on this host measured:
+
+- the root in 208 ms;
+- an inclusion proof of 17 hashes (544 B), verified in 34 microseconds;
+- a consistency proof of 14 hashes.
+
+**A limit found and kept.** A root does not commit to its own size. RFC
+9162's verification takes the size as an input, so a proof for one size can
+verify against the same root at another size whose path has the same shape.
+Over the sizes up to 64 that happens for 1,824 proofs of each kind. A fork
+never verifies, at any size. So a checkpoint must state the size beside the
+root, and a cosignature must cover both. The module's tests demonstrate the
+limit rather than assume it away.
+
+**Mutations.** TR1 to TR14 (`tools/mutations/transparency.json`) are each
+killed, through the harness with every source restored byte-identical. One more was dropped rather than kept: removing the consistency
+check's bound on its sizes sends a loop spinning, and only a timeout would
+end it, which the harness rightly does not count. The loop is guarded now,
+and the bound stays.
+
+**Not done.**
+
+- The witness still cosigns head hashes and takes records as its proof. A
+  witness/2 that cosigns (size, root) and accepts a consistency proof is
+  the next step: a protocol change, with its own mutation specification.
+- The assurance package still carries the whole log.
+- No production witness exists.
+
+**A defect in the record, found and corrected.**
+
+- **What went wrong.** At 5a2bbf8 the report said 23 files were reviewed in
+  part and 935 not reviewed, but the ledger committed with it said 22 and
+  936.
+- **Why.** That commit's one-line change to
+  `tests/test_agent_substrate_isolation.py` (the builder's importer entry)
+  correctly sent the file's disposition back to NOT_REVIEWED, and the
+  report's table was not re-derived. No test compares the two.
+- **The fix.** The file's review is re-recorded, with the audit's own
+  additions to it reviewed as diffs, so the ledger and the report agree:
+  1,030 files, 23 reviewed in part, 935 not reviewed.
+
+### Phase C, second item: the witness protocol over the tree
+
+**What was added.** `agent_substrate/witness.py` gains tree checkpoints
+(`witness-cosignature/2`) beside the head protocol, which is unchanged:
+
+- **The checkpoint.** A `TreeCheckpoint` is a log's origin, how many records
+  its tree commits to, and the tree's root. The size is stated because a
+  root does not fix it.
+- **The witness.** A `TreeWitness` keeps the last tree it cosigned, in a
+  file of its own per origin. It accepts a larger tree only with a
+  consistency proof from that one, so the proof is O(log n) hashes
+  whatever was appended.
+- **The verifier.** `verify_tree_witnessed` holds a log to the trees a
+  quorum cosigned.
+
+The tree witness refuses everything the head witness refuses:
+
+- a rollback;
+- another root at the cosigned size;
+- a history rewritten beneath the cosigned tree, even with that rewritten
+  log's own valid proof;
+- a proof that is not one;
+- a witness that lost its state, which trusts nothing first;
+- provisioning anywhere but at the first record's leaf, or a second time.
+
+The verifier reports TRUNCATED and FORKED by root, counts junk for nothing
+(another witness, another log, a bad signature), states the quorum's reach,
+and is STALE past a bound. The two schemes are different strings, so a
+cosignature of one is never read as one of the other.
+
+**Written so that neither protocol's code repeats the other's.** The first
+draft repeated the head verifier's lines, and eight of the head protocol's
+existing mutation anchors then matched twice. The tree code was rewritten
+with its own screening helper and its own wording, and every existing
+anchor matches once.
+
+**Tests and mutations.**
+
+- `tests/test_witness_tree.py` has 20 tests.
+- TW1 to TW19 (`tools/mutations/witness_tree.json`) are each killed.
+- The head protocol's 23 mutations (`tools/mutations/witness.json`) are
+  each still killed with the tree code present.
+
+**Not established.**
+
+- No independent witness exists. Every witness is a fixture with a TEST key.
+- The assurance package still carries the whole log, not an inclusion
+  proof against a cosigned tree.
+- The REFERENCE_ONLY Ed25519 provider signs; no vetted provider is
+  configured.
+
+**The record, kept true.** The report still said 54 changed `agent_substrate`
+modules after the transparency module made it 55. It now says 55, of which
+19 have been read and two (`roles`, `transparency`) were written by the
+audit. Changing the isolation test again sent its disposition back to
+NOT_REVIEWED, and it was re-recorded before this commit rather than after.
+`witness.py` is recorded as read in part, to write the tree checkpoints
+beside it. The head protocol was not reviewed adversarially line by line.
+
+### Hosted CI at 5a2bbf8 and 0683097
+
+Every workflow run at both heads succeeded, on push and pull_request:
+agent-substrate, stack-verify, harness-integrations, supply-chain and
+container-verify. Within agent-substrate, that includes:
+
+- the full suite;
+- all eight mutation shards (130 specifications at 0683097) and their
+  aggregate;
+- the second interpreter;
+- the dispatch-sensitivity job.
+
+It also includes the two assurance steps. The standalone verifier ran under
+the runner's own `python3 -I`, outside the project's environment, and
+accepted the committed package. `tools/assurance_package.py --check` found
+the package current on the runner's machine: the model's outputs at the
+recorded inputs agree with the package's to 1e-9 relative. Every corrupted
+copy was refused where it should be.
+
+### Phase F, first item: an external reproduction guide
+
+`REPRODUCE.md` is written for someone who trusts none of the people, agents
+or CI runs behind this repository. It names what such a reader must still
+trust: the commit, the interpreter and the lock, and the tools pinned by
+digest. It then gives the steps:
+
+- the portable assurance package, checked with nothing but the standard
+  library and the package digest from the reader's own clone;
+- every re-derivation CI runs: the scientific results, the governed agent
+  path (scripted, with no language model), the formal model checks, the
+  repository's derived records, the tests and the mutation matrices;
+- what no step can reproduce: a language model's behaviour, a physical
+  experiment, the flagship model, Lean proofs, and a production
+  deployment.
+
+The guide is held by a test (`tests/test_reproduce_guide.py`):
+
+- every script it names exists;
+- every re-derivation it lists is a command the agent-substrate workflow
+  runs, character for character;
+- its standalone check is the one CI runs;
+- section 3 still names every gap.
+
+Two negative controls fail it: a guide listing `slab_uq.py --write`, which
+CI does not run, and one naming a script that does not exist. The commands
+that run quickly were also run here as written, and exited 0: the formal
+model check, the readiness and model-evidence registries, the harness
+status and the manifest.
+
+**Not established.** That a reader outside this project can follow the
+guide to the end: nobody outside it has tried.
+
+### Phase C, third item: archived history segments
+
+The log is one file, verified from its first record. A reader who holds
+part of an old history, and a checkpoint of a later tree, could not check
+that part alone. A hash chain's records link backwards, so a piece of it
+is only as good as every record after it, up to a head somebody vouched
+for. `agent_substrate/archive.py` seals the log in pieces that can each be
+checked alone.
+
+**The frontier.** `agent_substrate/transparency.py` gains the frontier of
+a prefix: the roots of the perfect subtrees covering its first `start`
+leaves, largest first, one for each bit set in `start`.
+
+- `extend` takes a frontier and the entries after it to the frontier of
+  the whole.
+- `frontier_root` folds a frontier from the right into RFC 9162's root.
+- `verify_segment` checks that entries are leaves start..end-1 of a tree
+  of `size` leaves. It needs the frontier of `start` and a consistency
+  proof from `end` to `size`.
+
+Held to the published roots of RFC 6962's test leaves:
+
+- every frontier of up to 64 leaves folds to `root`;
+- every extension equals the frontier of the whole;
+- every contiguous segment of every tree up to 32 leaves verifies;
+- none verifies with a wrong root, reordered, one entry short, one
+  altered, moved one place either way with that place's own frontier, or
+  with a frontier hash bent.
+
+**A segment** is the canonical lines of records start..end-1, sealed
+with:
+
+- its digest;
+- the frontier before it;
+- the root after it;
+- its first link and its last hash.
+
+**A manifest** lists an archive's segments. It is never trusted: every
+hash in it is recomputed from the segments' bytes, and only the last root
+needs a proof from outside.
+
+**What each check establishes.**
+
+- `verify_segment` checks one segment against a checkpoint's size and
+  root:
+  - each line is read as the log's own reader reads it, with
+    `_parse_line` and `_check_link` themselves rather than a copy;
+  - the records chain from the segment's first link;
+  - they are the checkpoint's leaves at their positions.
+
+  It costs O(log n) hashes beyond the segment's own bytes.
+- `verify_archive` checks every segment from genesis. It also checks
+  their positions, frontiers and links across each boundary, and the last
+  root against the checkpoint. It reports how far the archive reaches, and
+  an archive of a prefix verifies as a prefix, with `complete` false. It
+  reports the profile the history declares, by the log's own rule.
+- `restore` writes the verified records back as a log that must not
+  already exist.
+
+**Neither check authenticates anyone,** and neither hands back a record of
+a history that requires authentication. An archive carries no
+attestations, and the log's own reader hands no event of such a history to
+a reader without an authenticator. A first draft returned the records with
+the profile beside them. The full suite caught that `seal`, a new reader of
+the log, was missing from `READER_COVERAGE` in `principals.py`, and the
+archive was made to follow the log's rule instead of being listed around
+it:
+
+- `seal` is GATED. It refuses a REQUIRED history without an authenticator,
+  and reads it with one, as the coverage test's behaviour table now shows.
+- `verify_archive` and `verify_segment` check such a history in full and
+  return no records. A segment does not hold the first record, so it is
+  told the profile, as a deployment pins a log's. A first segment pinned
+  the wrong way is refused by its own first record.
+- Restored, the history gives no events to a reader without its
+  authenticator, and every event to one with it.
+
+**Attacks refused.** `tests/test_archive.py` has 31 tests. Each forgery a
+keeper of the archive could make is refused:
+
+- a byte changed;
+- records reordered;
+- a record dropped, with or without the end moved;
+- a blank line;
+- a line not canonical;
+- a torn final newline;
+- a record edited, re-hashed and its chain repaired;
+- the sealed root or last hash changed;
+- all of the above re-sealed, root included, which the checkpoint still
+  refuses;
+- a segment moved, or given a bent frontier or one of the wrong length;
+- a checkpoint too old to cover the segment;
+- a fork's checkpoint, with either log's proof;
+- manifests with a gap, an overlap, a reordering or no genesis;
+- a splice of two logs, caught by the frontier and, once that is made to
+  fit, by the first link;
+- missing bytes, a wrong schema, malformed records, checkpoints and
+  proofs.
+
+A segment from before a fork verifies against the fork's checkpoint, as it
+should, since it is in both histories. Sealing refuses a log that does not
+verify, and leaves the log byte-identical.
+
+**What the full suite found that the focused runs did not:**
+
+- `seal` was a reader of the log missing from `READER_COVERAGE`, which led
+  to the authentication rule above;
+- a `type: ignore` without the reason this repository's typing rule
+  requires.
+
+The suite's last run was on this tree before that reason, a one-line
+comment, was added: 6,705 passed, 19 skipped, and the typing test failed.
+After the comment, the typing test, the archive, authentication, manifest
+and ledger tests, and AR1 to AR26 were run again, and all pass.
+
+**Mutations.** Every mutation is killed:
+
+- AR1 to AR26 (`tools/mutations/archive.json`), AR23 to AR26 holding
+  the authentication rule;
+- TR16 to TR27, added to `tools/mutations/transparency.json`;
+- TR1 to TR14, still killed with the frontier code present.
+
+**Measured** with `python tools/archive_costs.py --sizes
+1000,10000,100000 --every 1000`, on this host. Bytes and hash counts are
+fixed; seconds vary between runs.
+
+| Records | Log | Full verified read | Seal | Whole archive | Manifest | One segment of 1,000 | Its frontier + proof |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1,000 | 317 KB | 0.023 s | 0.028 s | 0.023 s | 402 B | 0.022 to 0.024 s | 0 hashes |
+| 10,000 | 3.2 MB | 0.21 s | 0.28 s | 0.24 s | 7.4 KB | 0.023 to 0.025 s | at most 16 hashes |
+| 100,000 | 32 MB | 2.33 s | 3.62 s | 2.80 s | 82 KB | 0.022 to 0.027 s | at most 21 hashes |
+
+Checking one segment at 100,000 records costs what it costs at 10,000.
+The full verified read grows with the log. The frontier and proof never
+exceed 21 hashes (672 B) here. The manifest is about 820 B per segment.
+
+**Not established.**
+
+- **No independent witness.** No witness outside this project cosigned
+  any checkpoint. The checkpoint's trust is the reader's decision, and an
+  independent witness is an owner action.
+- **No authentication from the archive alone.** The archive does not carry
+  the attestations a REQUIRED history is authenticated by.
+- **No compaction.** Nothing truncates or compacts a log, and the live log
+  is unchanged. Hot and cold storage stay unseparated: the archive is a
+  checkable copy, not a replacement.
+- **Memory.** `verify_archive` holds the whole archive's records in
+  memory. `verify_segment` holds one segment.
+
+### Phase E, first item: witness quorums against a split view, model-checked
+
+Witnesses exist so that two readers who accept witnessed histories accept
+consistent ones. Nothing had checked when that holds across witnesses: a
+log operator can show each witness whatever history it likes. It wins if
+two forks of one log are each witnessed by a quorum, because two readers
+then accept two different pasts.
+
+**The model.** `docs/formal/WitnessQuorum.tla` is protocol 7. It has four
+witnesses, a quorum of three, at most one faulty witness, and histories of
+up to three records, each "a" or "b" after the first.
+
+- A witness cosigns a tree only when the tree it holds is a prefix of it.
+- It can lose its state, and the owner can provision it again at the
+  first record.
+- A faulty witness cosigns anything.
+- `witnessed` is every tree a quorum has ever vouched for.
+
+The claim, `NoSplitView`, is that every two witnessed trees are
+consistent. TLC explores 745,361 distinct states and finds no violation,
+and it refutes three broken variants:
+
+- `small_quorum`, a quorum of two, refuted in 4 steps;
+- `no_consistency`, where a witness accepts any tree no shorter than its
+  own, refuted in 6 steps;
+- `loss_uncounted`, where a witness provisioned again is counted honest,
+  refuted in 8 steps, after 1,343,333 states.
+
+**What it found in the code.**
+
+- **AUD-018 (P2, fixed).** `TrustRoot` accepted any quorum from one to n.
+  With a quorum of half the witnesses or fewer, two disjoint groups of
+  honest witnesses can each witness one fork. This was reproduced with
+  four real witnesses and a quorum of two: each reader verified its own
+  fork as witnessed, with no problem. `TrustRoot` now refuses a quorum
+  that is not a majority. `TrustRoot.tolerates` states how many faulty
+  witnesses a quorum survives, 2q - n - 1, which is the condition the
+  model is checked under. No trust root in the repository used a minority
+  quorum.
+- **AUD-019 (P3, owner).** A witness provisioned again after losing its
+  state has forgotten what it cosigned, and cosigns a fork of it. TLC's
+  counterexample, replayed with real witnesses, gives each fork a quorum
+  of three. It took two faulty witnesses, and a quorum of three of four
+  tolerates one. The code cannot see that a witness forgot, so
+  `witness.py` states the rule and the owner counts it.
+
+**Tied to the code** by `tests/test_witness_quorum.py`, which has 15
+tests:
+
+- for each of the 49 pairs of the model's trees, a real `TreeWitness`
+  cosigns exactly when the model's witness does, and holds afterwards
+  what the model's holds;
+- both counterexamples are replayed with real witnesses;
+- `tolerates` is checked for eight configurations;
+- every quorum of half or fewer is refused.
+
+On the unfixed module, 14 of the 15 fail. The one that passes holds
+behaviour that was already right. `tests/test_formal_conformance.py`
+names those tests for `NoSplitView`, as it does for protocols 2 and 4.
+
+**Checks.**
+
+- WQ1 to WQ3 (`tools/mutations/witness_quorum.json`) are each killed.
+- The head and tree witness specifications are still fully killed, 23
+  and 19, and so is the formal record's own specification, 10.
+- `formal_check.py run` reproduces the 29 earlier results unchanged and
+  adds four, 33 in all. It took 3 minutes on this host.
+
+**Not established.**
+
+- Anything outside the finite model: more witnesses, longer histories,
+  or a fault budget other than one.
+- Signatures and hashes, which are assumed: a cosignature is its
+  witness's alone, and equal roots are equal records.
+- How many faults a deployment should tolerate. That is the owner's to
+  choose when independent witnesses are deployed, and none is deployed.
+
+### Phase D, first item: counterfactual cases in the offline evaluation
+
+The offline adversarial evaluation (`tools/adversarial_eval.py`) judges
+its task against one answer, SUPPORTED. A loop that concluded SUPPORTED
+whatever its evidence said would pass that task, and so would an
+evaluation whose oracle could not be anything else.
+
+Four counterfactual cases ask the owner's question of other worlds:
+
+- CF1, below 320 K: REFUTED;
+- CF2, below 340 K: SUPPORTED;
+- CF3, below 1000 K with a hundred times the source: REFUTED;
+- CF4, below 1000 K with ten times the source: SUPPORTED.
+
+Each world's answer comes from the slab's closed-form solution in
+`tools/verify_assurance.py`. It is not computed by the model the loop
+runs, and no agent is shown it. At the documented point the closed form
+agrees with `docs/assurance/slab_uq.json`'s reference to 1e-9 K. A case
+within 1 K of its threshold is refused. Every case is concluded as its
+world answers.
+
+The default world is unchanged. The objective's statement is still
+written "1000 K", and every result already recorded, for the benign run
+and the sixteen scenarios under both conditions, is regenerated
+identically. The results only gain the counterfactual rows. The portable
+assurance package, built from the same world, is still current.
+
+**The positive control.** A research ledger whose verdict rule calls every
+decided hypothesis SUPPORTED passes the evaluation's task, and fails CF1
+and CF3, exactly where the answer is REFUTED.
+
+**Mutations.** CE1 to CE4 (`tools/mutations/counterfactual_eval.json`)
+are each killed. Three make the harness vacuous; CE4 is the rubber stamp
+in `agent_substrate/research.py`. Run against other suites, CE4 is killed:
+
+- by the research ledger's own test of a resolved REFUTED prediction;
+- not by the evaluation's own suites before these cases. At 97448ba,
+  `tests/test_adversarial_eval.py`, `test_adversarial_scenarios.py` and
+  `test_adversarial_controls.py` reproduce every recorded result of the
+  sixteen scenarios, and CE4 survived them all: none of those results
+  turns on a REFUTED verdict.
+
+**Not established.** Anything about a language model, since the agent is
+scripted. These are four worlds of one question, not a benchmark of
+judgment.
+
+### Continuation, Stage 0: the baseline, re-established
+
+Recorded at the start of the continuation directive, from the repository
+itself:
+
+- **The head.** df53837, equal to its remote. The merge base is 096fb90,
+  which is `origin/main`. The PR has 287 commits and changes 1,043 files.
+  The tree was clean, with no commit after df53837.
+- **Hosted CI.** All eight workflow runs at df53837 passed. So did every
+  run at 947d0ea, 97448ba, 6675782 and fd67b01.
+- **The ledger.** 11 files reviewed in full, 24 in part, 20 binaries
+  inspected, 54 written by the audit, and 934 not reviewed.
+
+**`HARNESS_STATUS.md`'s 35 unsatisfied items, classified.**
+
+- 30 are completion-matrix rows whose hosted evidence predates their
+  current implementation.
+- 5 are stack elements, and each is unsatisfied only because a row
+  backing it is one of those 30.
+
+None of the 35 is an implementation gap: all 49 rows are
+`COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT`, with no gaps listed.
+Re-attaching hosted evidence (`tools/readiness.py attach`) fetches the
+runs from the GitHub API with `gh`. `gh` holds no valid token in this
+session, so the rows stay stale rather than being stamped by another
+route.
+
+The status's research frontier is a separate list, and it stays as it is:
+
+- no physical experiment;
+- the flagship neither allocated nor trained;
+- the development model's science unestablished;
+- no distributed accelerators;
+- no byte identity across hosts;
+- no admission policy for learned outputs;
+- a signature is not truth;
+- one benchmark is not all models.
+
+### Stage 1: a history that requires its authorization roots (AUD-020)
+
+**The gap, reproduced at df53837.** AUD-011 rooted roles in a registry
+supplied from outside the log, enforced by every reader given one. Nothing
+in a history named the registry, and every reader's `roles` defaulted to
+None, under which a role was whatever a request said.
+
+In an authenticated history, mallory promoted r1 by a signed record.
+mallory is a principal the key registry holds, and the role registry
+grants her nothing. Four readers of that one history gave:
+
+| Reader | Without the role registry | With it |
+|---|---|---|
+| `AuthorityStore` | PROMOTED | refuses the history: NOT_GRANTED |
+| `reconstruct` | PROMOTED, with no complaint | VERIFIED |
+
+**The closure: the GOVERNED profile.** The smallest compatible change is
+a third security profile, declared like the others by the history's first
+event. It states `harness/history-security/v1` and the digests of the
+key registry and the role registry, each the sha256 of its canonical
+document.
+
+- **The verified-read primitives** (`events.py`) read a GOVERNED history
+  only through a log that holds both registries, with those digests. A
+  log without one, or with another, reads nothing, and its report names
+  the registry and the digest it wanted. Writers' head checks go through
+  the same gate, so a writer without the roots cannot extend the history.
+  The declaration's shape is checked on write and on read, and it is
+  written only signed.
+- **Every role-enforcing reader** (`AuthorityStore`, `PolicyStore`,
+  `SecretStore`, `NetworkAuthority`, `GovernedTasks`) takes its registry
+  through `roles.enforced`. That is the one it was given, or else the one
+  its log was opened with. A registry given that is not its log's is
+  refused.
+- **The independent reader** (`reconstruct`, `reconstruct_tasks`,
+  `reconstruct_subsystems`) restates the requirement in its own code. It
+  reads the declaration and compares the digests of the registries it was
+  given. With the primitive's GOVERNED gate removed, it still folds none
+  of the history read without its role registry.
+- **A deployment that pins GOVERNED** refuses a history declaring less, by
+  the profiles' order: LEGACY, then REQUIRED, then GOVERNED.
+- **The legacy profiles keep their behaviour.** UNAUTHENTICATED_LEGACY
+  and AUTHENTICATED_REQUIRED are the explicitly legacy profiles, and the
+  gap test above still holds of them, by design.
+
+**Attacks, each refused with real authenticated histories**
+(`tests/test_governed_history.py`, 27 tests):
+
+- a reader with no role registry, another role registry, no key registry,
+  or another key registry;
+- an authenticated principal with no grant, as promoter and as verifier;
+- the proposer verifying her own record;
+- an unauthorized policy publication, secret grant and egress grant;
+- a reader enforcing another registry than its log's;
+- a downgrade, by a pin and by a second declaration;
+- a registry substituted after the fact;
+- an archive of a governed history, which hands back nothing and restores
+  only through the gate;
+- the second reader with the primitive's gate removed, given no role
+  registry, another role registry or another key registry;
+- malformed declarations: written signed and refused for their shape,
+  and read from a signed genesis that names the real registries and is
+  wrong only in its shape;
+- an unsigned declaration.
+
+The control beside them is the same walk by the principals the registry
+grants, which every reader reads as PROMOTED.
+
+**Mutations.** GH1 to GH13 (`tools/mutations/governed_history.json`)
+remove each rule: the gate, either registry's comparison, the pinned
+profile's strength, the declaration's shape and its signing, the readers'
+binding, the declaration's content, and the second reader's restatement.
+Six existing mutations targeted lines this change rewrote, and their
+anchors were repaired to remove the same rule in the new code, not
+dropped:
+
+- EP5, EP7, RC1 and RC3 (authenticated history);
+- RV10 (replay origin view);
+- SA5 (signed append).
+
+The first run of GH1 to GH13 never started: GH2's replacement was
+empty, which the harness refuses (and a test of the suite refuses for
+every committed spec). GH2 now replaces the key registry's entry with a
+second role entry, so only the role registry is compared. The next run
+killed 11 of 13, and both survivors were gaps in the tests:
+
+- **GH5** (the declaration's shape is not checked) survived because the
+  malformed declarations were appended unsigned. An unsigned GOVERNED
+  declaration is refused for being unsigned, with the same exception, so
+  no test reached the shape rule. Each is now also written signed and
+  refused for its shape, and two are read from a signed genesis.
+- **GH13** (the second reader compares no digest) survived because the
+  second reader was only ever given no registry. It is now given another
+  role registry, which grants mallory PROMOTER, and another key
+  registry, which holds every key and one more.
+
+| Spec | Killed |
+|---|---|
+| governed_history (GH) | 13 of 13 |
+| authenticated_history | 26 of 26 |
+| signed_append_lifecycle | 33 of 33 |
+| replay_origin_view | 11 of 11 |
+| role_authority | 44 of 44 |
+
+The last four ran before the two tests were strengthened. No suite of
+theirs includes `tests/test_governed_history.py`, and no source file
+changed after they ran.
+
+**Not established, and not done.**
+
+- **Only histories that declare GOVERNED are bound.** A deployment must
+  pin GOVERNED to refuse the legacy profiles.
+- **No production key registry or role registry is provisioned**
+  (AUD-011, AUD-017).
+- **No checkpoints of authenticated histories.** A store checkpoint is
+  an unsigned record, which an authenticated history refuses. The
+  refusal is kept, and a signing checkpoint writer is not built.
+- **No governed writer signs.** No authority-layer writer holds a
+  signer. A REQUIRED or GOVERNED history is written only record by
+  record, by `principals.signed_append`. The governed run the assurance
+  package is built from is unsigned for this reason, and the portable
+  verifier reports ROLE_ENTITLEMENT as not established.
+- **Not every act is role-governed.** Agent registration, capability
+  issuance and research conclusions are not acts the role registry
+  governs. HUMAN_APPROVER and RELEASE_AUTHORITY are defined, and nothing
+  enforces them.
+
+Stage 1 is commit aa699b9. On that exact tree the full suite gave 6,775
+passed, 19 skipped, 0 failed and 0 errors. Two earlier runs, on
+intermediate trees, were stopped before they finished, and neither is
+claimed.
+
+### Stage 2, first part: the governed path writes a governed history, and the independent process reads it
+
+Portable authority (the directive's section 13) needs a decision whose
+history is signed and governed. Building one from the harness's own
+research run found three defects first, each reproduced before its fix.
+
+**AUD-021: no governed writer could write an authenticated history (P2).**
+On the Stage 1 tree, in a GOVERNED history, alice's `AuthorityStore.create`
+and owner's `PolicyStore.publish` were both refused as unsigned. Both
+principals were granted those acts. The refusal also named
+AUTHENTICATED_REQUIRED for a GOVERNED history.
+
+Signing was a property of one function, `signed_append`. A REQUIRED or
+GOVERNED history could be written only record by record, by code that
+bypassed every store's live checks. D-2026-92 named this as the next
+commit's work, and it was never done.
+
+The closure is `EventLog(..., signing=principals.Signing(attestations,
+signers))`. Every record any writer appends through the handle is signed
+with its actor's key, by the signed-append protocol, under the writer
+lock, before the record exists. Refused before a byte is written:
+
+- an actor the handle holds no key for;
+- a key the registry does not let sign that seq;
+- an attestation file the log's reader does not read;
+- a handle built with no key, with two keys for one principal, or with
+  something that is not a signer.
+
+A signature is not an authorization: mallory's genuine key writes nothing
+the registry does not grant her. A store checkpoint of an authenticated
+history is now written and restored this way.
+
+**AUD-022: the separate process reported a history clean while its own
+readers refused acts in it (P1, a false verification claim).** The child
+counted the readers' anomalies and dropped what they refuse. Two histories
+read `ok=True`, exit 0, in the separate process:
+
+- a record taken PROPOSED -> PROMOTED, an edge the machine does not have,
+  which the same reader refuses in-process;
+- an execution record appended after a task's verdict, by a party with no
+  lease.
+
+The child now counts what each reader refuses. `unverifiable` is not
+counted: it means the child was given no evidence, not that the history
+is at fault. The legitimate research scenario still succeeds, and both of
+its separate verifications pass.
+
+**AUD-023: the independent readers could not read a governed history
+(P2).** With the seam in place, a governed task run on a GOVERNED history
+was REJECTED by its own independent check. The reason given was "the
+reader was given no authenticator". The child may not import the key
+layer, and nothing handed it the roots.
+
+`derive_decision_proof` and `memory_trust.assess` built fresh readers
+without the roots too. A VERIFIED decision read as not accepted, and a
+held memory as inconsistently reconstructed.
+
+- **The parent hands over the public roots.** `verify_in_separate_process`
+  takes `authenticator` and `roles` and hands the child the attestation
+  file's path and both registry documents. An authenticator it cannot hand
+  over is refused, not dropped. `GovernedTasks` hands over its log's roots.
+- **The child authenticates with a restatement.** It uses a second
+  implementation of authentication, written into `tools/verify_assurance.py`
+  with the standard library alone: RFC 8032 verification, the key registry
+  and its lifecycle, and the attestation file. The portable verifier will
+  use the same code.
+- **The restatement is held to the producer.**
+  `tests/test_restated_authentication.py` (30 tests) checks it against the
+  RFC vectors and against signatures the producer made. It also checks one
+  real history under every finding kind the producer names, and the
+  registry documents the producer refuses. The two implementations agree
+  on findings, refusals and counts.
+- **The other readers take roots.** The decision proof takes roots and
+  reads each prefix as a catch-up, so the attestations of later records do
+  not read as dangling. `memory_trust` reads both of its readers under its
+  log's roots.
+
+| Run | On the Stage 1 tree with the seam | After |
+|---|---|---|
+| governed task run | REJECTED by its own independent check | VERIFIED, confirmed by the other process |
+| decision proof of a VERIFIED decision | not accepted | accepted |
+| memory, consistently reconstructed | NO | YES |
+
+**Tests.** All are real, signed, GOVERNED histories:
+
+- `tests/test_signing_seam.py`: 11 tests;
+- `tests/test_restated_authentication.py`: 30 tests;
+- `tests/test_separate_reads_governed.py`: 12 tests. Among them, the other
+  process reads nothing without the roots, without the role registry, or
+  with another registry of either kind. A signed, unauthorized promotion,
+  and a record its writer did not sign, are each findings there;
+- `tests/test_agent_separate_verify.py`: two more, for AUD-022.
+
+**Mutations.** SS1 to SS8 (`tools/mutations/signing_seam.json`) each
+remove a rule of the seam, and SG1 to SG18
+(`tools/mutations/separate_governed.json`) each remove a rule of the child,
+the hand-over, the restated authentication or the readers' roots.
+
+On a first snapshot, SG15 survived: the prefix read as a whole history.
+A whole-history read of a prefix calls the attestations of records more
+than one past it dangling, and nothing of that reaches the decision proof.
+The proof uses only what the prefix reconstruction folds. So the survivor
+showed a contract no test held, not a missing check in the proof. A test
+now holds the contract on a governed history with two records after the
+prefix, and shows that the whole-history read does report DANGLING there.
+
+Two existing anchors targeted lines this change rewrote. They were
+repaired to remove the same rule, not dropped: S9 (separate verification)
+and FR39 (freshness).
+
+| Spec | Killed | Tree |
+|---|---|---|
+| signing_seam (SS) | 8 of 8 | the final tree |
+| separate_governed (SG) | 18 of 18 | the final tree (17 of 18 before the SG15 test) |
+| agent_separate_verify (S9 repaired) | 13 of 13 | the first snapshot |
+| freshness (FR39 repaired) | 40 of 40 | the first snapshot |
+| signed_append_lifecycle | 33 of 33 | the first snapshot |
+| authenticated_history | 26 of 26 | the first snapshot |
+
+The first snapshot differs from the final tree in typing annotations, one
+wrapped line, one test's schema literal and the added test. None of these
+is in a mutated line or in those four specs' suites.
+
+On the way, the repository content audit flagged the literal
+`qta-agent/key-registry/v3` in a test. It is the retired programme's name,
+outside the exact protocol identifiers that are the only place it may
+appear. The test now uses `harness/key-registry/v3`.
+
+**Not established, and not done.**
+
+- **One RFC, two implementations.** The restated authentication and the
+  producer's follow one RFC and one verification equation. They are two
+  implementations, not two specifications.
+- **A signing handle holds every key it is given.** Separation between
+  parties is as strong as the custody of their keys. Every key here is a
+  TEST identity, and the child admits TEST keys only when the registry
+  document it is handed holds them.
+- **The research run is not yet governed.** The harness's research run
+  needs a role registry granting each of its parties its acts, and the
+  assurance package does not yet carry a governed history.
+- **The decision proof does not borrow roots.** It does not take them from
+  the log it is given. A caller of a governed history passes them.
+
+### Stage 2, second part: the research decision's authority, carried and checked from the package
+
+**The research task, run governed.** `tools/adversarial_eval.World(...,
+governed=True)` runs the evaluation's legitimate task unchanged on a
+history whose first record declares GOVERNED:
+
+- the owner's slab question;
+- the researcher's model run and its independent check;
+- the reviewer's verification;
+- the ledger's verdict.
+
+Each of the thirteen parties signs with its TEST identity through the log
+handle. Every role-governed act is held to eight grants, live and on
+every replay. Each grant was found by running the task under an empty
+registry and granting, for each refusal, the act it named at the
+narrowest scope that names it. Every scope is an exact policy, tool or
+record kind, never a wildcard.
+
+`tests/test_governed_research_run.py` removes each grant in turn, and
+without any one of them the task does not succeed. A registered party
+with a genuine key and no grant signs the result's first review in a
+copy of the history. Every reader refuses it: the store, the second
+reader, and the separate process.
+
+**A gap the first part left, found here.** The decision proof of the
+governed run's VERIFIED result was not accepted. A scientific result's
+admission is decided by the task reader, which takes its key registry
+from its log's authenticator. The prefix the proof re-reads had none, so
+the task reader folded nothing, and no verification task stood behind the
+admission. The first part's test proved a note, which needs no admission,
+so it did not see this. The prefix now carries the history's roots. GR1
+removes them, and AUD-023 records the gap.
+
+**The package carries the decision's authority.** The portable assurance
+package is now format 2, built from the governed run. Beside the
+history it carries each record's attestation and the two registries the
+history's first record declares, and its record states those roots.
+
+The standalone verifier is version 2, still the standard library alone.
+It adds two levels between HISTORY and DECISION:
+
+- **AUTHENTICATION.** The first record declares GOVERNED, with the
+  digests of the carried registries. Every record is attested by a key
+  that registry holds for its actor, valid at its position, its
+  signature verified with the restated RFC 8032 code. No attestation
+  names a record outside the history.
+- **AUTHORIZATION.** Every act the role registry governs was made by a
+  party a grant names, for that role, over that scope, at that position.
+  The rules are restated, not imported. The acts are each record's
+  proposal and transitions, each governed task's submission, execution
+  and verification, and each policy publication. A history holding a
+  governed act whose rules are not restated is refused: delegations,
+  secret or egress grants, and policy withdrawals.
+
+The committed package: VERIFIED at seven levels, 86 records
+authenticated against 13 keys (all TEST identities), 19 governed acts
+judged against 8 grants.
+
+| Forgery, with every digest recomputed and every record signed again with the TEST keys anyone can derive | Refused at |
+|---|---|
+| a verification signed with a genuine key and no grant | AUTHORIZATION |
+| the reviewer's grant revoked at the verification, expired before it, not yet valid, or out of scope | AUTHORIZATION |
+| the proposer verifying its own result, holding no grant to | AUTHORIZATION |
+| the proposer granted VERIFIER, verifying its own result | DECISION (separation of duties) |
+| a delegation in the history, a grant to no key, a root role made delegable, a role registry bound to another key registry | AUTHORIZATION |
+| an attestation removed, another principal's key, a torn or stray attestation, a substituted role registry | AUTHENTICATION |
+| a history that does not declare GOVERNED, or declares twice | AUTHENTICATION |
+| the temperature, consistently | RECHECK |
+| nothing changed | passes every level; only `--expect-package-digest` refuses it |
+
+**What the verifier now says it cannot establish.** ROLE_ENTITLEMENT is
+gone: entitlement is checked against the carried registry. In its place:
+
+- **ROOT_ORIGIN.** The registries are the history's own, pinned by its
+  first record, and a history assembled with its registries passes. An
+  independently obtained package digest or head establishes them.
+- **KEY_CUSTODY.** Every key is a TEST identity, so the signatures show
+  the protocol, not who acted.
+- **VERDICT_AUTHORITY.** A research conclusion is not an act the role
+  registry governs.
+
+**Not done.** The package carries no tree checkpoint and no witness
+cosignature, so HISTORY_ANCHORED stays not established. A Merkle range
+or inclusion proof would not be enough on its own: authority depends on
+every grant-relevant record before the decision, and on every record
+after it for "still stands". So the package keeps the full history.
+
+**Tests:**
+
+- `tests/test_governed_research_run.py`: 11;
+- `tests/test_assurance_package.py`: 160 in all.
+
+Six tests encoded format 1, and each was repaired without weakening:
+
+- the proposer verifying its own result, and the reviewer claiming
+  another role, now reach DECISION only by being granted the role, so
+  DECISION's own checks stay exercised;
+- a decision position pointing nowhere is refused at AUTHORIZATION, and
+  a question position pointing nowhere keeps DECISION's position check
+  covered.
+
+**Mutations:**
+
+| Spec | Killed |
+|---|---|
+| governed_run (GR1 to GR5) | 5 of 5 |
+| freshness, with FR39 repaired a second time | 40 of 40 |
+| verify_assurance, VA103 to VA122 (new) | 20 of 20 |
+
+The 102 earlier VA mutations run in CI's shards.
+
+### Stage 3: the RC network's counterfactual family, and the model it found wrong (AUD-024)
+
+**What was asked.** The slab cases (Phase D) ask one model's question and
+show one wrong verdict rule failing. Stage 3 asks the owner's question of
+the two-node RC network (`thermal.rc2_network`, the identifier checked
+against the catalog) in worlds that change:
+
+- the heat input;
+- the capacities;
+- each conductance;
+- the initial state.
+
+Thresholds sit above and below the answer. There is a case too close to
+call, and parameters that are no network. The computation is kept apart
+from the judgment. A rule that always says SUPPORTED and one that always
+says REFUTED must fail both families, and so must abstention where
+nothing justifies it.
+
+**The loop could not run the network.** The research loop asks, for each
+model, the independent check its table names. The table named none for
+the network: its one check, the FMU, needs a runtime this host lacks, and
+scenario TL1 relies on that absence.
+
+Two additions:
+
+- **An independent check.** `scientific/checks/rc2_rk4.py` integrates the
+  same two equations by classical RK4 in pure Python. Its step comes from
+  a Gershgorin bound on the matrix's rows, never its eigenvalues. It states
+  its own error as Richardson's estimate plus a bound on the rounding its
+  steps accumulate. Rounding is the larger part once the step is fine:
+  without it the stated error fell short by up to 150 times. The check is
+  admitted by the catalog and declared by the model, so a contract can
+  name it.
+- **A check table per deployment.** `ResearchController(checks=...)`
+  takes a deployment's table, defaulting to `research_loop.CHECKS`, which
+  is unchanged. Each entry is refused unless it names a model and one
+  check, and each contract is held to the table. Naming a check admits
+  nothing: a result is still admitted only as `result_rules` says.
+
+**The family.** `tools/adversarial_eval.RC_COUNTERFACTUALS` has ten cases.
+Each world changes one thing, and each change alone turns over the answer
+of the base case asking the same question. RC10 is a **tie**: the
+threshold is the network's own value, the answer is INCONCLUSIVE, and the
+loop must abstain. Every case is concluded, or abstained, exactly as its
+world answers.
+
+The computation is `tools/rc2_reference.py`, which imports nothing of the
+repository. It is another closed form: Sylvester's formula for the matrix
+exponential, integrated, applied to the initial rates. It states a bound
+on its own rounding, and a 90-digit evaluation holds it to that bound
+across the admitted bounds (worst 0.24 of the bound). The judgment is
+`rc_oracle`:
+
+- a case is clear at 1 µK beyond the reference's error;
+- a case is a tie when the threshold is within 128 eps |T| of the value,
+  error included: half the least resolution the model ever states;
+- anything between is refused, and so is anything that is no network.
+
+**AUD-024, found by the reference.** The model and the reference
+disagreed by up to 1.2e-6 K on ordinary parameters, while the model
+stated about 2e-11 K. A 90-digit evaluation settled which was wrong: the
+model.
+
+- Its slow eigenvalue was tr/2 + disc, and each eigenvector
+  (a12, lambda - a11). Both are differences of near-equals when the time
+  constants are far apart.
+- On runs whose every invariant held, outputs were 1.3e3 to 1.7e3 times
+  further from the exact value than their stated resolution.
+- 870 of 5000 networks drawn across the admitted bounds raised
+  ZeroDivisionError.
+
+The correction:
+
+- every eigen-quantity is computed without a difference of near-equals;
+- outputs are reached as increments from the initial state;
+- each resolution is stated against the scale of the terms the
+  evaluation passes through: states, modal amplitudes, how nearly
+  parallel the eigenvectors are.
+
+Over 6000 sampled networks no output misses its stated resolution. The
+worst is under 1 % of it.
+
+**The controls.** `adversarial_eval.STAMPS` names three wrong verdict
+rules: always SUPPORTED, always REFUTED, never decides. Each fails both
+families, exactly where the world's answer differs:
+
+| Verdict rule | Slab family fails | RC family fails |
+|---|---|---|
+| always SUPPORTED | CF1, CF3 (the task passes) | RC2, RC3, RC4, RC5, RC9, RC10 |
+| always REFUTED | the task, CF2, CF4 | RC1, RC6, RC7, RC8, RC10 |
+| never decides | the task, CF1 to CF4 | RC1 to RC9 |
+
+**Found and not fixed: AUD-025.** AUD-024 shows a deeper gap. The
+ledger decides with the resolution the producer states. Verification
+establishes agreement only within the sum of the producer's and the
+check's stated errors. A producer that understates its error, as the RC
+model did, passes any check whose own error is larger, and the verdict
+rests on a bound nothing verified.
+
+Reproduced at the documented point. A producer states T1 to 1e-13 K and
+is 5e-10 K off. The RK4 check passes it (ratio 0.42). The ledger then
+decides `T1 < exact + 2.5e-10 K` REFUTED, but the world's answer is
+SUPPORTED.
+
+The window is the check's own error, about 1e-10 K here. Closing it is a
+change to the verification schema, a new admission policy name, and the
+observation's resolution, with a migration for replay. It is proposed in
+the finding and left OPEN.
+
+**Tests:**
+
+- `tests/test_rc_counterfactuals.py`: 81 tests, cheapest first, so the
+  mutation harness stops early. Its AUD-024 points and sampled tests all
+  fail on the Stage 2 model.
+- `tests/test_counterfactual_eval.py`: 10, the other two stamps added.
+
+**Mutations:**
+
+| Spec | Killed |
+|---|---|
+| rc_counterfactuals (new) | 19 of 19 |
+| counterfactual_eval, CE5 and CE6 added | 6 of 6 |
+| research_science, GF5 re-anchored | 11 of 11 |
+
+The first run of rc_counterfactuals killed 18 of 20, and two survived:
+
+- **RCF15**, a check five times blunter. The check's rule puts 20 steps in
+  the fastest time constant and at least 400 in all. With 400 at the
+  least, the transient has decayed wherever the rule binds, so a blunter
+  step changes no verdict. A test of the stated rule now kills it, on a
+  run of that mutation alone.
+- **RCF18**, an eigenvector taken again as (a12, lambda - a11). It is
+  equivalent once the slow root is accurate. Across 4,500 sampled
+  networks, neither form comes within 1 % of the stated resolution, so it
+  was removed with its reason in the spec, following the repository's
+  rule for equivalent mutations.
+
+### Stage 5, first pass: critical and decision-path files reviewed in order of consequence (AUD-026 to AUD-031)
+
+**Order.** The security inventory rates these files CRITICAL, and the
+ledger held them NOT_REVIEWED. They were taken in order of consequence:
+
+1. the rule that admits a scientific result, which Stage 3 had just
+   exercised;
+2. the identity layer under every attestation;
+3. the refusals that keep learned output from authority;
+4. the execution boundary;
+5. the supply chain and its offline verifier;
+6. the workflows;
+7. then, of the files it rates HIGH: the decision path (the research
+   ledger that decides verdicts, the controller that drives it, the
+   separate process that checks both), the init every confined tool
+   runs under, the confined read the evidence store and the governed
+   reader are built on, the process identity recovery trusts, and
+   what a model is shown and retrieves.
+
+Each review is bound to the blob it read. Nothing is marked reviewed for
+having been written.
+
+| File | Read | Found |
+|---|---|---|
+| agent_substrate/result_rules.py | in full | AUD-027 |
+| agent_substrate/ed25519.py | in full | AUD-026 |
+| agent_substrate/signature.py | in full | a docstring claim AUD-026 contradicted, corrected |
+| agent_substrate/learned_rules.py | in full | nothing |
+| agent_substrate/learned_lifecycle.py | in full | a malformed document raises KeyError, not LedgerError (P3; nothing is written either way) |
+| agent_substrate/execution.py | in full | two P3 notes, below |
+| tools/supply_chain.py | in full | nothing |
+| tools/offline_verify.py | in full | nothing |
+| docs/supply_chain_ci_policy.json | in full | nothing |
+| integrations/supply_chain/sigstore.lock | checked as data, against PyPI | nothing; a P3 note, below |
+| the six workflows | in part: a targeted security scan | nothing |
+| agent_substrate/research.py | in full | AUD-028 |
+| agent_substrate/freshness.py | in full | nothing |
+| agent_substrate/invalidation.py | in full | a diamond reported as a cycle in a field nothing reads (P3) |
+| agent_substrate/research_loop.py | in full | a step outcome that overstates, below (P3) |
+| agent_substrate/separate_verify.py | in full | a malformed child answer raises rather than refusing (P3) |
+| tools/independent_verify.py | in full | AUD-029 |
+| agent_substrate/_ns_init.py | in full | nothing |
+| agent_substrate/safeio.py | in full | a docstring that calls a default-on refusal opt-in (left: R31's hosted evidence covers the file) |
+| agent_substrate/readpath.py | in full | nothing |
+| agent_substrate/evidence.py | in full | a P3 note, below |
+| agent_substrate/hostid.py | in full | AUD-030 |
+| agent_substrate/context.py | in full | nothing |
+| agent_substrate/rag_index.py | in full | AUD-031 |
+| agent_substrate/_inference_worker.py, _artifact_tool.py, _index_tool.py, __init__.py | in full | nothing |
+| agent_substrate/trust_labels.py | in full | nothing |
+| agent_substrate/memory_trust.py | in full | nothing |
+| agent_substrate/claim_check.py | in full | nothing |
+| agent_substrate/prov_export.py, assurance_graph.py | in full | nothing |
+| agent_substrate/evidence_terms.py | in full | nothing new; its entry for `research:evaluate` rests on the resolution AUD-025 leaves open |
+
+`agent_substrate/principals.py` was already reviewed in full. It now
+carries the AUD-026 refusal, reviewed as a diff, and its entry is
+re-recorded against the new blob.
+`agent_substrate/reconstruct.py`, reviewed in part, carries the
+restatements of AUD-028 and AUD-029, and the parts read for them are
+added to its entry.
+
+**The workflow scan, and what it was not.** It is not a line-by-line
+review. It checked:
+
+- triggers: no `pull_request_target` or `workflow_run`;
+- pinning: every `uses:` names a 40-hex commit;
+- permissions: none at the top of each workflow, granted per job;
+- secrets: `ANTHROPIC_API_KEY`, in `claude.yml` only;
+- what reaches a shell: only matrix values the workflows define, nothing
+  an event supplies.
+
+`claude.yml` on this branch gates its credentialed job on the author's
+association and checks out no fork head beside the secret. O-1 and O-2
+concern the copy on `main`, and remain the owner's.
+
+**AUD-026 (P2): a key no secret stands behind.** The key registry
+checked a public key only as 32 bytes. Neither Ed25519 verifier refused a
+key of SMALL ORDER, one of the eight points with [8]A = 0. Under such a
+key no secret is needed: [S]B = R + [k]A holds for R = [S]B whenever
+[k]A is the identity. So anyone could sign as the principal registered
+with it, and a principal could register one to make its own records
+deniable.
+
+The two implementations also disagreed on one encoding. The producer,
+transcribing the RFC's reference code, compared x^2 with zero before
+reducing it. So y = p - 1 with the sign bit set decoded as (0, -1), which
+RFC 8032 5.1.3 step 4 refuses and the restated verifier did refuse.
+
+`tests/test_ed25519_encodings.py` finds the eight points by search, not
+from memory, and checks them against libsodium's list. Without the fix
+all fifteen of its tests fail. One of them, the genuine-key control,
+fails only because it asks for the new `public_key_problem`. In the
+agreement test the producer said True, and the restated verifier False,
+on the same forged signature.
+
+Both registries now refuse a key that is not the canonical encoding of a
+point, or is of small order. Both verifiers refuse every signature under
+one, and the producer reduces before it compares.
+
+**AUD-027 (P3): numbers JSON does not have.** A bundle cited for
+admission could hold NaN, Infinity, -Infinity, or a numeral past the
+float range (read as infinity). The rule then raised CanonicalizationError
+instead of naming a problem. Live, the store's edge raised it in place of
+TransitionError. On replay, the reducer refused the history as unreadable
+rather than as an inadmissible admission. The second reader refused it as
+having no canonical form.
+
+It failed closed on every path, under the wrong name. The tokens are now
+refused while parsing, so they read as not JSON. A bundle with no
+canonical form is a problem. The eight new cases in
+`tests/test_agent_result_rules.py` all fail without the fix.
+
+**AUD-028 (P2): a verdict answered another objective's question.** An
+objective may state its question as data: a prediction and the documented
+point to ask it at. Then a run at another point cannot be observed for it
+(D-2026-179). But the verdict rule took any current observation as a
+basis, whichever objective held it, and so did the second reader.
+
+Reproduced. Objective `oq` asks its question at a point. Objective `o1`
+asks nothing as data, and observes a run at another point. A verdict on
+`oq`'s hypothesis, resting on `o1`'s observation, was accepted by the
+writer and on replay. `oq` was then CONCLUDED on it, and the second reader
+noted nothing.
+
+The honest controller never does this: it decides a hypothesis from its
+own objective's observations. So the gap was open to whoever writes status
+records: a faulty controller, or in an unauthenticated history anyone who
+can append. A verdict now rests only on its own objective's observations,
+in the ledger and in the second reader.
+
+**AUD-029 (P3): the separate process's evidence reader followed any
+name.** The separate process may not import the evidence store. Its own
+reader kept the store's layout and none of its rules. It built a path from
+whatever name the log carried, and read the file whole. A name of `..`
+and a path read a file outside the store. The second reader passed on any
+64 characters, so a record could have had a device read until memory ran
+out. That last case was established by reading, not executed.
+
+What it read was re-hashed afterwards, so nothing outside the store could
+pass as evidence. The reader now takes only a digest, opens without
+following a link or waiting on a FIFO, reads only a regular file, and
+stops at the store's bound.
+
+**AUD-030 (P2): a lease held on another machine read as held by a dead
+process.** Recovery reclaims a lease whose holder `liveness` calls GONE,
+even while the lease's sequence says it is live. `liveness` called GONE
+any boot id other than this host's, and its comment said "this also
+covers another host". But a process on another machine sharing the log
+records another boot id too, and may be running still. The module's own
+docstring says such a record is not evidence that its holder died. So did
+the test that guards the case, which patched `liveness` to UNKNOWN "as it
+would be off-host", replacing the function it was guarding.
+
+Reproduced with nothing patched: a supervisor's lease names a process
+under a boot id not this host's, and `recover()` reclaimed the task.
+
+A boot id other than ours is either a later boot of this machine or
+another machine. Only a machine id tells them apart, so the process record
+now carries one (`/etc/machine-id`). Another boot reads as GONE only when
+the record names this machine. Everything else is UNKNOWN: every record
+written before this change, and any record on a host that cannot name
+itself. The cost is stated in the finding. After a reboot, an old record's
+lease is no longer reclaimed automatically, and an operator resolves it.
+
+**AUD-031 (P3): a document named for retrieval skipped review.** The
+corpus is held to a committed allowlist: a document is retrievable
+because the allowlist names it, not because it exists. But membership was
+checked over the walked tree, which skips every dot-directory, while a
+caller's named paths were checked by shape alone, and the shape check
+refuses only three names. So a named document under any other
+dot-directory was indexed and quoted back with the reviewed corpus's
+provenance, and so was one a forged stored index named. No production
+caller names paths. Now every named document must land, once its links
+are resolved, on one the allowlist names. A link into reviewed text
+still reads that text, as an existing control requires. The change moved
+the anchor of two existing mutations, C7 and C8, and both are repaired
+to the same intent.
+
+**The new tests, on the code before the fixes.** Each was run in a
+worktree at cbc9bed holding only the new test files:
+
+| Finding | Without its fix |
+|---|---|
+| AUD-026 | all 15 of `tests/test_ed25519_encodings.py` fail; the genuine-key control only for want of the new `public_key_problem` |
+| AUD-027 | all 8 new cases in `tests/test_agent_result_rules.py` fail |
+| AUD-028 | both new cases in `tests/test_research_ledger.py` fail |
+| AUD-029 | the 7 name, bound and second-reader cases fail; the FIFO case blocks, and was stopped after 40 s |
+| AUD-030 | the 3 new recovery cases fail, the later-boot control only for want of the new field; the process record lacks a machine id |
+| AUD-031 | the new retrieval case fails |
+
+**Not findings, recorded for the owner (P3, by reading):**
+
+- `execution._collect_outputs` resolves a declared output's path, then
+  stats it, then opens it. A process outliving the tool could swap a path
+  component between the two and have another file hashed. That is
+  possible only where the host gives no PID namespace; elsewhere
+  `--kill-child` ends it. Opening with O_NOFOLLOW and comparing (dev, ino)
+  would close it.
+- `Executor.run(write_paths=...)` checks the capability against the
+  narrowed paths, while the run is confined to the spec's whole writable
+  scope. No caller passes `write_paths`, so the two agree today.
+- `research_loop._do_hypothesis` answers "RECORDED (already)" for any
+  record id that exists, even one another agent proposed for another
+  objective. Nothing is recorded, but the step says it was.
+- `separate_verify._run` raises on a child answer that is JSON but not
+  an object, and takes `ok` when truthy rather than True. The child is
+  this repository's own program, under its import guard.
+- `EvidenceStore.put_file` checks a path with `lstat`, then opens it by
+  name, twice, without `O_NOFOLLOW` or `O_NONBLOCK`. A process
+  outliving its tool could put a FIFO there and hang the capture, or
+  a link to a file the governed process can read, and have that
+  stored as the tool's artifact. Like the execution note above, that
+  needs a host with no PID namespace.
+- `integrations/supply_chain/sigstore.lock` pins 31 packages by 523
+  hashes. Each hash is the sha256 PyPI publishes for a file of that exact
+  release, and the pins are exactly the closure of sigstore 4.1.0's
+  requirements. But each release's sdist is listed beside its wheels. On
+  a platform with no matching wheel, pip would build the sdist: run its
+  build code, with build requirements the lock does not pin. Installing with
+  `--only-binary :all:` would refuse that path. Every pin has a wheel
+  for CPython 3.12 on manylinux x86_64, the hosted runner's platform,
+  and pip prefers a wheel, so the runner never takes that path.
+
+**Mutations, on the final tree:**
+
+| Spec | Killed |
+|---|---|
+| ed25519_encodings (new, ED1-ED8) | 8 of 8 |
+| authority_result_rules, RR18 and RR19 added | 19 of 19 |
+| research, RS27 and RR10 added | 45 of 45 |
+| agent_separate_verify, S14-S18 added | 18 of 18 |
+| agent_recovery, V7 and V8 added | 19 of 19 |
+| agent_execution, X63 added; the test X5 depends on strengthened, then rerun in full | 64 of 64 |
+| corpus_allowlist, C13 added, C7 and C8 re-anchored | 13 of 13 |
+
+**A mutation that survived, and the test that let it.** X5 is older than
+this stage. It removes the check that keeps a run cancelled before it
+began from starting a process. On this machine, with three mutation runs
+going at once, it survived: its one test passed with the check removed.
+
+That test looked only for a file the child writes. With the check gone,
+the child is spawned, and the executor next reads the token one poll
+(50 ms) later and kills it. A loaded host kills the child before it has
+written. A quiet one lets it finish first. That is how the hosted shard,
+which runs this spec and passed at cbc9bed, killed X5 until now.
+
+The production check was correct. The test was timing-bound. It now also
+asserts that nothing was started: no pid, no process group, no identity
+recorded. That does not depend on timing. The spec was then run again,
+in full, on the final tree.
+
+**Hosted CI at cbc9bed** (Stage 2's last commit): all eight workflow
+runs passed, read from the API.
+
+**The full suite, and what it found.** On tree 996cd2d, before the
+correction below: 7018 passed, 19 skipped, 2 failed. Both failures were
+the readiness matrix's. Row RUN-1 was HOSTED_TESTED on runs at 927b69c,
+and its evidence covers `tests/test_agent_execution.py`. This stage
+changes that file: the machine id, and X5's test. So those runs no longer
+describe it.
+
+RUN-1 returns to IMPLEMENTED, as CI-4 did in 29aedfb. Its 927b69c
+evidence is kept as `hosted_before`, and the 1586322 evidence as
+`hosted_earlier`. `tests/test_readiness_matrix.py` passes on the
+corrected tree. The full suite was not rerun on it before this commit;
+the next commit's full suite runs over it.
+
+### Stage 5, second pass: what decides a result, what explains it, and what says how it was built (AUD-032, AUD-033)
+
+**Order.** These are the HIGH files the first pass left, taken in three
+groups:
+
+1. what turns a run into a decided result: the governed model path, the
+   task machine and the tool contracts;
+2. the independent checks that a result's admission rests on;
+3. what explains a history afterwards, and what a model is asked and
+   charged: the audit queries and the inference gateway;
+4. what says what was built, and how: the manifest, the evidence tools,
+   the container and the dependencies.
+
+Each review is bound to the blob it read, at 7a18167.
+
+| File | Read | Found |
+|---|---|---|
+| agent_substrate/governed_model.py | in full | nothing |
+| agent_substrate/tasks.py | in full | a P3 note, below |
+| agent_substrate/tools.py | in full | a P3 note, below |
+| agent_substrate/actions.py | in full | nothing |
+| scientific/workspace.py | in full | nothing it does not say of itself |
+| scientific/checks/__init__.py, slab_series.py, slab_mol.py, langmuir_rk4.py, fmu_rc2.py | in full | nothing; one latent pattern, below |
+| scientific/checks/fenicsx_slab.py | in full | AUD-032 |
+| agent_substrate/audit.py | in full | AUD-033 |
+| agent_substrate/inference.py | in part | two P3 notes, below |
+| tools/isolated_runtime.py | in full | the sigstore lock's sdist note applies here too |
+| tools/attach_hosted_evidence.py | in full | a P3 note, below |
+| tools/harness_status.py | in full | nothing of consequence |
+| generate_manifest.py | in full | a P3 note, below |
+| Dockerfile, container_verify.sh | in full | a P3 note, below |
+| pyproject.toml | in full | nothing |
+| uv.lock | checked as data | a P3 note, below |
+| final_manifest.json, manifest_hash.txt, docs/harness_status.json, HARNESS_STATUS.md | checked as generated | each reproduced by its generator's check, the generator reviewed above |
+
+**AUD-032 (P3): the FEniCSx check passed on an answer that held
+nothing.** The FEniCSx slab check runs its solver out of process and
+reads the answer back as JSON. `run_runner` says the answer is "checked
+for the fields every caller relies on". It checked the answer's kind,
+its request digest and its provenance, but not the temperatures. The
+comparison then paired outputs with answers through `zip()`, which stops
+at the shorter side.
+
+Reproduced through the runner's own path, with a stand-in writing the
+answer:
+
+- an answer holding no temperatures: PASS, measured 0.0;
+- one point short: compared on four points;
+- a NaN temperature or lateral spread: it reached the comparison, where
+  `max()` drops a NaN term, and was refused only later, as an
+  `IdentityError` when the evidence digest could not be taken.
+
+The control, an answer 50 K off, FAILS.
+
+The runner in this repository answers one value per point or fails, so
+the case needs a runner that answers short: a defect in it, or a changed
+one. The answer is now refused unless it is a JSON object holding one
+finite temperature for every point asked for and a finite, non-negative
+lateral spread. The comparison pairs strictly.
+
+**AUD-033 (P3): the audit explained a record from its create's own
+claims.** The audit's `explain_record` tells a reader why an authority
+record is in its state, and what in its history is missing. It read the
+create record's proposer and state as the record claimed them. The
+store's replay refuses three kinds of create:
+
+- one in any state but PROPOSED;
+- one whose payload names a proposer other than the actor that appended
+  it;
+- a second create of one record.
+
+Reproduced with chain-valid histories, each of which the store refuses
+on load:
+
+- a record created straight into VERIFIED explained as VERIFIED, with no
+  gap;
+- a create naming `alice`, appended by `mallory`, who then moved the
+  record to VERIFIED, explained with no gap, because separation of
+  duties was judged against `alice`;
+- a record created twice explained with no gap.
+
+The control is the same self-verification written with an honest
+create. The audit reported it.
+
+The module refuses the same shape for tasks, and says why: an auditor
+that reports a state the enforcement path rejected is telling a reader
+the attack worked. The proposer is now who appended the create, and each
+of the three is a gap.
+
+**The new tests, on the code before the fixes.** Run in worktrees at
+7a18167 with each fix removed:
+
+- AUD-032: the ten refusal cases fail; both controls pass (an answer
+  that agrees reaches PASS, and a well-formed one is returned);
+- AUD-033: the three forged-history cases fail; the honest control
+  passes.
+
+**Not findings, recorded for the owner (P3, by reading):**
+
+- `tasks`: EXECUTING -> TIMED_OUT admits the WORKER role without the
+  lease. So an executor registered for a tool can time out another
+  executor's running task. Its completion is then refused, and nothing
+  becomes VERIFIED by it: a liveness cost, not an integrity one.
+- `tools`: the registry refuses a timeout of zero or less, but not
+  infinity or NaN. Such a spec fails only when its contract is digested,
+  which happens before anything spawns. It fails closed, under another
+  error.
+- `attach_hosted_evidence`: a run is accepted when it succeeded on the
+  exact commit with every job green. Nothing checks that it belongs to a
+  workflow that exercises the row: `hosted_ci` is prose.
+- `generate_manifest`: a tracked symlink would be hashed through to its
+  target, recording bytes the repository does not hold. None is tracked,
+  and nothing refuses one.
+- `Dockerfile`: the base image is pinned by digest, and the environment
+  by the lock's hashes. uv itself is installed by version alone, and git
+  from apt unpinned.
+- `uv.lock`: it holds 92 packages and 446 files, every one sha256-pinned
+  and on PyPI. But `connection-pool` 0.0.3, which snakemake requires, has
+  no wheel. Every `uv sync --all-groups`, in every workflow, builds it
+  from its pinned sdist, running a build backend the lock does not pin.
+- `inference`: `prompt_problems` reads a prompt with `json.loads`, which
+  takes NaN, then canonicalizes it, which raises on NaN. So such a prompt
+  raises instead of being reported: closed, under another error. The
+  provider's reply check (`isinstance(rep, dict)`) runs after `rep.get`
+  has already been called; the gateway turns the resulting exception into
+  an ERROR reply, so the outcome is right and the check is dead.
+- Every check folds its ratio with `max()`, which drops a NaN term.
+  Outside AUD-032 both sides of every comparison are Quantities, finite
+  by construction, so this is latent.
+
+**Mutations, on the final tree:**
+
+| Spec | Killed |
+|---|---|
+| harness_integrations, FE5 to FE10 added | 32 of 32 |
+| agent_audit, A24 to A27 added | 37 of 37 |
+
+**Hosted evidence.** R44 and R45 cite `audit.py`, and R62 the FEniCSx
+check. All three now predate their implementation, so the pinned count of
+rows whose evidence covers them goes from 15 to 12 until the evidence
+commit after hosted CI.
+
+**The full suite.** On tree a5ce7b7, which is this commit but for this
+paragraph and the files derived from it: 7036 passed, 19 skipped, none
+failed. That is 18 more than Stage 5's 7018: the two readiness tests RUN-1
+broke, and the sixteen new cases.
+
+### Hosted CI after Stage 5, and the container job's time budget
+
+**At 7a18167** (Stage 3), all eight workflow runs passed, read from the
+API. That includes every job of both agent-substrate runs, 13 each: the
+full suite, the second interpreter, dispatch sensitivity, the eight
+mutation shards and the shard check.
+
+**At 549e9a4 and 3ddce54**, seven of eight runs passed. container-verify
+was cancelled in both at its 60-minute job timeout. At 3ddce54 the
+in-container suite was at 91% when it was cut off, and still advancing.
+No test had failed or hung.
+
+The in-container suite took 42 minutes at 7a18167. At 3ddce54 every
+stretch of its progress ran 1.35 to 1.57 times slower. That includes the
+first stretch, which is heavy in ed25519 verification and where AUD-026
+changed code. A uniform slowdown like this is the signature of a slower
+runner, not of a slower test: a code regression would slow the files it
+touches and leave the others alone. Over the same commits the native
+full-suite job grew from 34 to 39 minutes.
+
+The container job's budget is now 90 minutes. R64 cites the workflow, so
+it predates its evidence until the evidence commit after hosted CI, and
+the pinned count goes from 12 to 11.
+
+### AUD-025: an observation claims no more than its check verified
+
+**The defect, again.** A PASS establishes that producer and check agree
+within the sum of both stated errors. The ledger observed each output with
+the producer's stated error alone. A producer that understated its error
+inside the check's own was observed more precisely than anything had
+verified, and the ledger decided verdicts there. At the RC network's
+documented point, a producer 5e-10 K off stating 1e-13 K passed the RK4
+check, and "T1 < exact + 2.5e-10 K" was decided REFUTED. The world answers
+SUPPORTED.
+
+**The correction, in four places.**
+
+1. *What a check says.* `VerificationResult.agreement`: for each output
+   the check compared, its own value and the error its criterion credits
+   it with. A check that compared nothing (NOT_RUN, INCONCLUSIVE) states
+   none, each output is named once, and every value carries a stated
+   error. A record written before this has no agreement and reads as
+   stating none. All six checks state it: three times their Richardson
+   estimate plus rounding (method of lines, RC RK4, FEniCSx), the
+   series and the pressure-form flux to rounding, the closed form's own
+   resolution (FMU), and RK4's 1e-10 relative error in the Langmuir
+   capture.
+2. *What admission asks.* `scientific_result.admission/2` asks everything
+   /1 does and the agreement: a list, each entry `[output, quantity]`,
+   each output once and an OK output of the bundle, a finite value and a
+   finite, non-negative error, in the output's unit. The store stamps /2
+   on every new admission. Replay decides each admission under the policy
+   it names, so a history admitted under /1 is decided under /1 and never
+   reread. The second reader restates the rule in its own code.
+3. *What the ledger observes.* For each output the check compared, the
+   producer's value with resolution max(r_producer, |v_producer - v_check|
+   + r_check), and no output the check did not compare. This holds at
+   observation and again on replay, where a planted observation at the
+   producer's precision is refused. Reuse re-derives a decision under the
+   policy that admitted it.
+4. *What the package verifier holds.* The agreement is read strictly. The
+   decision's policy must match the report's shape (/2 states an
+   agreement, /1 does not). The observation must carry the widened
+   resolution. The check's own values are rechecked against the
+   verifier's exact solution. A package decided under /1 still verifies.
+
+**Measured, at the package's point.** The producer gives T_at_half =
+331.01829807 +/- 1.116e-4 K. The method-of-lines check gives
+331.01841270 +/- 9.13e-6 K, 3.0e-6 K from the exact solution and inside
+its error. Producer and check differ by 1.146e-4 K, more than the
+producer's own error, so the observation is now +/- 1.238e-4 K. The
+producer's actual error is 1.116e-4 K. The verdict (T_at_half < 1000 K,
+margin 669 K) is unchanged.
+
+**What a check's error rests on.** The widened bound is only as good as
+r_check.
+
+- *Method of lines:* held against the exact series.
+- *RC RK4:* held against a 90-digit evaluation.
+- *Langmuir:* its 1e-10 was an estimate in the docstring, so it was
+  measured. Over 4000 draws of the admitted domain the worst error, at
+  k t near 2, is 2.49e-11 relative: a quarter of what it states. A test
+  holds 2000 draws to between a tenth and a half of the stated error.
+- *Not held:* the series check's 64 eps |T| is held only by two
+  implementations agreeing to 1e-9. It is an ANALYTIC_REFERENCE, which
+  no policy admits. The FMU and FEniCSx checks do not run on this host.
+
+**Two consumers the change reached, found by reading them.**
+
+- *The claim checker.* Its citation check compared an observation's
+  values with the bundle's exactly. Once an observation carries the
+  widened resolution, every citation of a result admitted under /2 would
+  have read BROKEN. The claim benchmark could not show this: its
+  placeholder reports state no agreement, so its observations keep the
+  producer's values. The check now asks whether the bytes say what the
+  observation records: each output is an OK output of the bundle, with
+  its value and unit, and a resolution no smaller than the bundle's own.
+- *The package tool's temperature control.* It moved T_at_half everywhere
+  it is stated, but not the resolution that move changes, so the verifier
+  would have refused it at DECISION instead of the RECHECK the control
+  expects. No test runs those controls, only CI's `--check`. The control
+  now recomputes the resolution by the rule.
+
+The second reader never re-derives an observation's values from its
+bundle, before or after this change. A planted observation is refused by
+the ledger's replay, not by the second reader. This is recorded as a
+limit, not changed here.
+
+**What changed beyond the defect.** These tests stated the old policy and
+now state the new facts, each still holding what it held:
+
+- the current policy is /2, and /3 is the unknown name;
+- the package writes the /2 report shape, and the /1 shape is still read;
+- both readers decide under /1 and /2.
+
+The replay tests' forged-transition helper wrote the /1 literal while its
+docstring said "shaped exactly as the store writes one". With the
+literal, the forged-promotion and auditor tests were refused by the
+fields rule before the origin rule they test, so they passed for the
+wrong reason. The helper now writes the current policy. The integration
+demonstration's forged line is stamped with it too.
+
+**Recorded artifacts, each by its own tool.**
+
+- *The assurance package* was rebuilt, and `--check` reports no problem.
+  Before it was replaced, the package decided under /1 still verified
+  under the new verifier.
+- *The integration demonstration* was regenerated. Every step holds and
+  every variant is refused, as before. The record now shows /2, the
+  widened observation, and the scripted agent's prompt 103 tokens
+  shorter, because the observation names only what the check compared.
+  One variant's refusal reason changed: two controllers race on one
+  objective in two processes. Run four times on this tree, the loser was
+  refused with AttemptOutstanding three times and with KeyHeld once, and
+  each run concluded the objective and accepted nothing. That is the
+  race's timing, not a change of rule. The record keeps the run it holds.
+- *The adversarial evaluation* regenerates byte-identical.
+- *The grounding experiment, the slab's UQ and the claim benchmark* each
+  pass `--check` as recorded. Their reports are placeholders that state
+  no agreement, so their observations keep the producer's values.
+- *The multi-agent run* regenerates with only its three timings changed,
+  so the recorded measurement is kept.
+- *The research-horizon record* (10,000 decisions) was not re-run. A
+  50-decision stage on this tree gives the same counters, duplicates,
+  objective states, recovery and second-reader anomalies as its first
+  stage.
+
+**Hosted evidence.** R43 cites `governed_model.py`, so it predates its
+implementation until the evidence commit after hosted CI. The pinned count
+of rows whose evidence covers them goes from 11 to 10. I left the
+Snakefile's comment as it was; it is still true. Changing it would have
+taken R69's evidence for nothing.
+
+**Mutations.** Each spec below was run in a worktree holding this change.
+Four anchors moved with the code, and each was repaired to the same
+intent: RR17 (the report's shape), GR9 (reuse re-derives the decision),
+SA7 (the store takes no unknown policy) and RX2 (the second reader reads
+content). Every anchor in every spec matched exactly once afterwards,
+2778 before the new ones.
+
+| Spec | Added | Killed |
+|---|---|---|
+| authority_result_rules | RR20 to RR34 | 34 of 34 |
+| scientific_interfaces | VR1 to VR9 | 34 of 34 |
+| scientific_authority_replay | RX10 to RX22 | 38 of 38 |
+| governed_model_reuse | GR23 | 21 of 21 |
+| research_science | OB1 to OB4 | 15 of 15 |
+| rc_counterfactuals | OV1 to OV10, RK10, RK11 | 31 of 31 |
+| verify_assurance | VA_AG1 to VA_AG17 | 139 of 139 |
+| scientific_slab_mol | MOL8, MOL9 | 8 of 8 |
+| harness_integrations | HI_AG1 to HI_AG4 | 36 of 36 |
+| external_models | EM_AG1, EM_AG2 | 7 of 7 |
+| surface_adsorption | SA_AG1 to SA_AG5 | 30 of 30 |
+| claim_check | CC19 to CC24 | 24 of 24 |
+
+Three first runs left survivors, and each named a test that did not tell:
+
+- *RX8 and RX16* (scientific_authority_replay). Under an unknown policy
+  the second reader's fallback field set refused a /2-shaped report
+  anyway, for the wrong reason. And an agreement on a failed output was
+  refused by the missing quantity before the status clause mattered. The
+  tests added are both readers under an unknown name with an older-shape
+  report, and a failed output that still carries its number.
+- *EM_AG1 and EM_AG2* (external_models). The FMU-shaped bundle was the
+  closed form's own, so its values were the reference's and swapping them
+  changed nothing. The FMU's answer now differs from the reference's.
+
+GR23 was first run under the name GR21. The replay spec already holds a
+GR21 and a GR22 on the same file, so it was renamed after the run; its
+find and replace are unchanged.
+
+**The anchors the type check moved.** After those runs, the type check
+found three errors in the new code. They were fixed by typing the
+finiteness tests as `TypeGuard`s, reading the agreement's value and error
+into locals, and annotating the content rule's rows. That moved the lines
+OV9 and RX17 to RX19 find, so the four were repaired to the same intent.
+
+**Two faults in this change, found after its mutation runs.**
+
+- *The second reader imported `math`.* Its number test used
+  `math.isfinite`. The reader's import allow-list holds the log, the
+  action names and five standard modules, and `math` is not one of them.
+  The full suite found it
+  (`test_the_second_reader_imports_only_the_log_and_the_action_names`).
+  The test of a number is now restated without that module.
+- *A number no float holds raised.* A 400-digit integer is valid JSON,
+  and it parses to a Python int that `math.isfinite` cannot convert. Each
+  of the five readers of an agreement raised `OverflowError` on one,
+  where each must refuse it: the store's admission rule, the ledger's
+  observation, the second reader, the package verifier and the claim
+  checker. This was found by reading the number tests after the first
+  fault, and reproduced against each reader. Each now refuses such a
+  number: the store at the edge, the ledger by observing nothing for
+  that output, the second reader by not admitting, the verifier at
+  CONSISTENCY, and the claim checker by reading the citation BROKEN.
+
+The older number tests that read a JSON number have the same fault.
+`research.check_prediction` was reproduced the same way. They are not
+AUD-025's, and are taken next as a finding of their own.
+
+On the code before the fix, in a worktree holding only the new tests,
+the import test fails, and so do the new integer cases of the store's
+rule, of the two readers' shared table and of the claim checker. The
+infinite value passes there, as it should: it is there for RX24, the
+second reader's restated range test. The ledger's and the verifier's new
+cases were not run there. OV11 and VA_AG18, which put the raise back,
+are what show those two tell.
+
+The new mutations are killed: one for each reader's overflow handling
+(RR35, OV11, RX23, VA_AG18 and CC25), and RX24 for the second reader's
+restated range test. RR27, OV9, RX21, VA_AG10, CC20 and CC24, whose
+lines the fix moved, were repaired to the same intent and are killed.
+
+**The final tree.** Twenty specs ran again in four worktrees, each
+holding exactly this tree:
+
+- the seven whose code or tests changed after they last ran: the
+  overflow fix, the type check and the planner's test;
+- thirteen others that mutate or test what AUD-025 changed most.
+
+| Spec | Killed |
+|---|---|
+| verify_assurance | 140 of 140 |
+| authority_result_rules | 35 of 35 |
+| scientific_authority_replay | 40 of 40 |
+| rc_counterfactuals | 32 of 32 |
+| claim_check | 25 of 25 |
+| research_science | 15 of 15 |
+| mutation_shards | 12 of 12 |
+| agent_second_reader | 112 of 112 |
+| research | 45 of 45 |
+| freshness | 40 of 40 |
+| separate_governed | 18 of 18 |
+| scientific_invalidation | 17 of 17 |
+| simulation | 15 of 15 |
+| decision_proof | 14 of 14 |
+| replay_origin_view | 11 of 11 |
+| adversarial_eval | 10 of 10 |
+| ed25519_encodings | 8 of 8 |
+| composed_campaigns | 7 of 7 |
+| counterfactual_eval | 6 of 6 |
+| governed_model | 6 of 6 |
+
+Every source was restored byte-identical. The other specs whose files
+this change touches mutate code it leaves as it was. Every anchor in the
+140 specs matches exactly once: 2,874 mutations, 96 of them new here.
+
+**The shard plan (D-2026-191).** AUD-025's new mutations changed what
+`tools/mutation_shards.py --emit` generates, so the workflow's matrix
+was regenerated. The hosted run at a5cf136 had put every shard at 62
+minutes, and they took between 61 and 119. Four specs placed by mutation
+count took 13 to 56 minutes each. The planner's weights are now the
+seconds each of the 140 specs took in that run, so the plan puts every
+shard at 80 minutes. No spec on disk is unmeasured now, so the test that
+an unmeasured spec is weighed makes that case itself. The planner's
+mutation spec: 12 of 12 killed.
+
+**Records.** Four reviews the ledger showed STALE at a5cf136 are bound
+again to the blobs they describe:
+
+- `agent_substrate/audit.py` and `container-verify.yml` were recorded
+  against the blob before the change their method already describes;
+- `tests/test_agent_substrate_isolation.py` and
+  `tools/adversarial_eval.py` describe reviews older than later changes,
+  which were read here as diffs.
+
+The FEniCSx check's note, overwritten when its record went stale, is
+restored.
+
+**The full suite.** A first run, before the overflow and shard fixes,
+gave 7,130 passed, 19 skipped and 4 failed: the second reader's import
+test, and the three that hold the workflow's shard matrix to the plan
+(two in `test_mutation_shards.py`, one in `test_repo_contract.py`). On
+tree d3c1806, which is this commit but for this paragraph and the
+files derived from it: 7,143 passed, 19 skipped, none failed.
+
+### Hosted CI at 998b468, and the fuzz floor (D-2026-192)
+
+**What passed.** Read from the API: every job of the agent-substrate push
+run but one. That includes the full suite, dispatch sensitivity, the
+second interpreter and all eight mutation shards. The shards took 51 to
+94 minutes on the re-measured weights, where the a5cf136 plan's took 61
+to 119.
+
+**What failed.** The agent-substrate job's fuzz step, in the push run and
+in the pull-request run. Its floor of 55 state transitions sits inside
+the campaign's own spread: seed 743177984 reaches 54 at a5cf136 too. The
+five steps after it did not run at 998b468:
+
+- the governed production path;
+- the read-only auditor;
+- the governed scientific-model path;
+- the two tree checks.
+
+**The repair (D-2026-192).** The campaign doubles to 4000 cases, and
+the floors stay where they are. Over 32 seeds it reaches 67 to 86
+transitions. The pull-request run's 47, at a seed that reaches 70 here
+on the same tree, is not reproduced, and its cause is not established.
+This change is the workflow alone. No test reads the step's arguments.
+Its checks are the workflow contract, the shard check, the tests that
+read the workflow file, and the fuzz step run as CI runs it.
+
+### AUD-034: a number no float holds is refused, not raised
+
+**The defect.** A 400-digit integer is valid JSON, and it parses to a
+Python int. `math.isfinite` and `float()` cannot convert one, and raise
+`OverflowError`. AUD-025 found this in its own new readers of an
+agreement. The older number tests that read a JSON number had it too.
+Each refuses every other number it cannot use with an error of its own,
+and raised `OverflowError` on this one. That is fail-closed, since
+nothing was accepted, but the path that should have named the refusal
+crashed instead.
+
+**Found by reading.** Every `math.isfinite` in the production code that
+can meet a JSON number was read, with the `float()` conversions beside
+it. Seven sites raise, each reproduced at the AUD-025 tree by calling it
+on `10 ** 400`:
+
+| Site | Refuses with | Here |
+|---|---|---|
+| `research.check_prediction`, the prediction's value | ResearchError | fixed |
+| `freshness.check_policy`, `params.seconds` | FreshnessError | fixed |
+| `rc2_reference.checked`, a network parameter | ValueError | fixed |
+| `verify_assurance._propagate`, a declared spread | RECHECK refusal | fixed |
+| `Quantity`, its value | QuantityError | AUD-035 |
+| `Quantity`, its resolution | QuantityError | AUD-035 |
+| `Parameter.coerce`, a numeric parameter | ModelError | AUD-035 |
+
+The spread test also took `true` as a spread of 1. Two other sites take
+floats only (`proposals._walk`, `result._check_inline`). The ranking and
+budget checks take values computed in code.
+
+Called through `verify()`, the package verifier's site did not reach its
+caller. The level's catch-all refused RECHECK as "the level ran to its
+end: OverflowError". What was missing there was the spread check's own
+refusal, and a refusal of the boolean, which was refused only because
+its recomputed spread differed from the recorded one.
+
+**Not every `float()` was read.** The reading took the conversions
+beside each `math.isfinite`, not all of them. The next pass found three
+more that raise `OverflowError` on such an integer read from a record,
+each reproduced at 0afa231 (AUD-039, open):
+
+- a capability record's `issued_wall_time`, in `capability_from_record`;
+- an evidence sidecar's `first_seen`, in `EvidenceStore.info`;
+- a policy document's `not_after`, in `document_from_record`.
+
+An implicit conversion, in arithmetic on a record's number, was not
+looked for.
+
+**The correction, at four sites.** Research and the package verifier
+use their number tests, which AUD-025 made overflow-safe. Freshness and
+the RC reference each have a test of their own, so no layer borrows
+another's code. The spread test now also refuses a boolean.
+
+**Three sites withdrawn (AUD-035).** The same fix was written for
+`Quantity`, at its value and its resolution, and for
+`Parameter.coerce`. Its tests passed and its four
+mutations (SI27 to SI30) were killed. The full suite then failed two
+tests:
+
+- `test_the_after_side_is_the_committed_evidence_and_the_code`;
+- `test_the_frozen_modules_are_the_closure_the_dataset_pins`.
+
+Both files are in the surface adsorption model's source closure, with
+six other modules. The development dataset's NF-1T re-identification
+record holds that closure's digest. A change there is a new generator
+identity, which only a re-identification may record: regenerate,
+show the dataset digest unmoved, retrain, and reproduce the checkpoint.
+That is the owner's decision, so the fix is withdrawn and both files are
+as committed. The record holds again.
+
+**The tests.** Each fixed site gains one case, in the table that already
+holds its other refusals:
+
+- the prediction table in `test_research_ledger.py`;
+- the malformed policies in `test_freshness.py`;
+- a new test of the RC reference in `test_rc_counterfactuals.py`;
+- the package's RECHECK forgeries in `test_assurance_package.py`, for
+  the integer and the boolean spread.
+
+On the code before the fix, in a worktree holding only the new tests,
+each of these fails.
+
+**Recorded artifacts.** The withdrawn fix had moved the model's
+implementation digest, which the slab's error budget records, so the
+budget and the assurance package had been re-derived by their tools.
+With it withdrawn, both are as committed, and their checks hold them
+against this code. The recorded-result checks CI runs all reproduce
+their records here.
+
+**The workflow contract.** Mutating `tools/rc2_reference.py` made the
+workflow contract count it as a verifier, since it has a `main`, and so
+require the workflow to run it. It is a reference computation, not a
+verifier: it has no verdict on the tree to take, like the grounding
+benchmark. It is now in the contract's exemption list with that reason.
+
+**Mutations.** Five new: RS28, FR41, RF1 and RF2 (the RC reference's
+site and its number test), and VA123. FR8, whose line the fix moved,
+was repaired to the same intent. Every spec whose mutations or tests
+the change touches ran on this tree:
+
+| Spec | Killed |
+|---|---|
+| verify_assurance | 141 of 141, in nine runs |
+| simulation | 15 of 15 |
+| rc_counterfactuals | 34 of 34 |
+| research | 46 of 46 |
+| adversarial_eval | 10 of 10 |
+| counterfactual_eval | 6 of 6 |
+| freshness | 41 of 41 |
+| separate_governed | 18 of 18 |
+| ed25519_encodings | 8 of 8 |
+| composed_campaigns | 7 of 7 |
+| research_science | 15 of 15 |
+| ci_authority | 18 of 18 |
+| repo_contract | 18 of 18 |
+| mutation_shards | 12 of 12 |
+
+Every source was restored byte-identical. Earlier runs, before the two
+sites were withdrawn, are not counted here. Two of their lanes, stopped
+by a restart of this session's worker, had left the harness's recovery
+file behind. Each snapshot in them was compared with the worktree's
+file, and all were the same. The harness's own `--recover` cleared them.
+
+A second restart of the worker stopped the verify_assurance run at 122
+of its 141 mutations, with one mutation still applied in its worktree.
+The harness's own `--recover` restored the file from its snapshot, which
+was the committed file byte for byte. The specification then ran again
+in parts, consecutive runs of its mutations, each with its own baseline,
+null control and anchor check, and the 122 verdicts are not counted. Its
+first two quarters finished. Restarts of the container stopped the rest
+twice. After each, the same recovery found every snapshot to be the file
+it was taken from, and every worktree's diff equal to this change's. The
+harness writes each mutation from the source as it read it at the start
+and restores it before the next, so a verdict it printed before a
+restart stands. Forty-seven verdicts are taken from the three runs the
+second restart stopped, each of which had a green baseline and null
+control, and the twenty-four those runs never reached ran in four more
+parts.
+
+### Stage 5, third pass: the workflows, idempotency and readiness
+
+The ledger held eleven CRITICAL and nine HIGH files read only in part. This
+pass took the smallest first, in risk order. Each was read line by line, and
+each record names its blob and what was read:
+
+- the six workflows, five in full; `agent-substrate.yml` in full but for
+  the generated spec lists, which `tools/mutation_shards.py --check` holds
+  to `--emit`;
+- `agent_substrate/idempotency.py`, now with its reducer's rules;
+- `tools/readiness.py`;
+- `agent_substrate/capability.py`, now with `Capability`, the check and
+  the scope rules;
+- `agent_substrate/policy.py`, now with the rule language, the documents
+  and decisions, and the rest of the decision recheck;
+- `agent_substrate/proposals.py`, now with the envelope's own rules and
+  the ingress;
+- `agent_substrate/secrets.py`, now with the grants, the handle, the
+  redactor, the providers and the resolution path;
+- `agent_substrate/memory.py`, now with its reducer's rules.
+
+Five findings, each reproduced at 0afa231 and fixed here. AUD-039,
+registered open by the commit before, is fixed here too. Four more are
+reproduced and registered open: AUD-040, found while closing AUD-039,
+and three in the memory store (AUD-043 to AUD-045). And one defect in
+the audit's own report.
+
+**AUD-036: stack-verify checked the tree before the steps it reported on.**
+The full leg ran the default target, whose last rule writes the tree
+check's report. Then it ran the opt-in explorations, `uq_sobol` and
+`mdao_doe`. Then came a step that only reads the report. So what OpenMDAO
+and SALib did to the tracked tree was never checked, and the step still
+printed that the tree was untouched. The workflow's header says those
+integrations leave it untouched.
+
+Reproduced with the workflow's own last step, its script taken from the
+file: the report written as the rule writes it on the clean tree, a
+tracked file changed afterwards, and the step printed `tracked tree
+untouched (675 entries)` and exited 0. The rule's check, run again, found
+the file. No tracked file is known to have been changed: the explorations
+write through the workspace guard. The check did not see them.
+
+The explorations now run before the default target, so its last rule
+checks the tree after every other step. A test in
+`tests/test_workflow_generic.py` holds the order: nothing runs between the
+tree check and the reading of its report. Its control puts the
+explorations back where they were and requires them reported.
+
+**AUD-037: the agent workflow's header said where its gate was, wrongly.**
+It said "The gate is in the action, not in this file". Since D-2026-146
+the job's `if:` admits only OWNER, MEMBER or COLLABORATOR, and the job's
+own comment says the authorization should not rest on the action's check.
+The header is where a maintainer reads what setting
+`allowed_non_write_users` would open. It now names the job's condition as
+the gate, with its three associations, and the action's check as a
+second one. A test in `tests/test_ci_authority.py` holds the header to the
+associations the job admits. The gate itself held throughout. The default
+branch's copy of this workflow is still ungated (O-1), and nothing here
+changes it.
+
+**AUD-038: the readiness verdict could read MET over a matrix its check
+refuses.** `summary()` counted statuses and never asked `problems()`. So
+a HOSTED_TESTED row with no run behind it, or with evidence older than its
+code, counted as hosted-tested. With every row of the shipped matrix made
+HOSTED_TESTED, `problems()` found 49 problems, `summary()` said MET, and
+`readiness.py summary` printed `PRODUCTION_READINESS_CONTRACT_MET` while
+it exited 1.
+
+The two tests that showed the verdict can be met built exactly that
+matrix. CI was not affected, since its step runs `check` first, and the
+shipped matrix is NOT_MET for its open rows.
+
+The verdict is now met only when `problems()` finds nothing, and the
+summary counts the problems. The controls now build matrices that hold,
+every row bound to hosted evidence as a run binds it:
+
+- the test that the verdict can be met;
+- the test that one open row keeps it unmet;
+- the deployment tests' regression and control.
+
+So each open condition is the only reason for its verdict. Were the
+controls left as they were, a mutation dropping the deployment condition
+(RM9) would survive them. The new condition is a line of its own, so RM4,
+RM5 and RM9 keep their anchors. RM12 deletes it.
+
+**AUD-039: three more `float()` conversions of a record's number.**
+Reading `capability.issue` found `float(issued_wall_time)` reached from a
+log record, with nothing before it to refuse a number no float holds.
+The same reading then took every `float()` in the production code, not
+only those beside a `math.isfinite`. Three raise on a record's number
+and are fixed here:
+
+- `capability_from_record` raised OverflowError on an integer no float
+  holds, and ValueError on a string, where it refuses every other
+  malformed record with CapabilityError;
+- `EvidenceStore.info` raised OverflowError out of a sidecar's
+  `first_seen`, where it ignores a sidecar it cannot use;
+- `document_from_record` raised OverflowError on a `not_after`, where it
+  refuses with PolicyError.
+
+A fourth, in the FEniCSx check, is reached through a bundle read back
+from its record, and is AUD-040's. The rest take values computed in
+code, convert a string, which gives infinity rather than an exception,
+or meet a record's number only after something else has handled it. A
+bundle's quantities pass through `Quantity` first, which raises on such
+a number itself (AUD-035). The package verifier reaches one through
+RECHECK's arithmetic on a consistent forgery of a parameter, and its
+level refuses it as "the level ran to its end".
+
+Each now refuses, or for the sidecar ignores, a value that is not a
+finite number, through a number test of its own. A caller's NaN and
+infinity go the same way. A canonical record cannot carry them, but a
+policy given NaN as its expiry would never have expired.
+
+The tests extend the tables that already hold each site's malformed
+inputs. On the code before the fix every case fails. The sidecar fix
+changes `agent_substrate/evidence.py`, which R31 cites, so R31's hosted
+evidence predates it: the matrix's covering count goes from 10 to 9
+until a later commit cites runs at this one.
+
+**AUD-040: the independent checks raise on a bundle parameter no float
+holds (open).** Following the FEniCSx check's `float()` to its source: a
+bundle read back from its record takes its parameters without a number
+test. With one set to `10 ** 400` and the parameter digest rewritten to
+match, `ResultBundle.from_record` accepts the bundle. Four checks then
+raise OverflowError:
+
+- the FEniCSx check, from `float()`;
+- the series, method-of-lines and RC RK4 checks, from arithmetic on the
+  parameter.
+
+In the governed path the check runs in a process of its own, which ends
+on the exception, so no verification result is written and nothing is
+admitted. A producer's model raises on such a parameter before it could
+write one (AUD-035), so the bundle has to come from a producer that
+wrote it some other way. The bundle's own boundary, `scientific/result.py`,
+is in the NF-1T closure, as AUD-035's sites are. The checks are outside
+it, and each could return NOT_RUN for a bundle it cannot compute from.
+That is not done here: it moves four checks, each with its own
+mutation specification. The Langmuir check, and any other reader of a
+bundle's parameters, was not probed.
+
+**AUD-041 (P2): a credential written as a key was stored.** The
+proposal parser refuses a proposal any of whose strings looks like a
+credential, and says it is not stored. It checked keys against the
+forbidden words only. A free-form map, such as a model run's parameters,
+takes any key.
+
+Reproduced at 0afa231: a MODEL_RUN whose parameters map has the key
+`sk-` followed by 24 letters was sealed, received, and appended to the
+log, while the same text as a value was refused. The authority log is
+hash-chained, so a record that reached it cannot be edited out.
+
+`_walk` now searches each key for the credential pattern before
+anything else is done with it, and refuses without naming the key. A
+history whose receipts hold such a key is refused when read, since each
+receipt's envelope is parsed again. The new test fails on the code
+before the fix. PI19 deletes the check, and PI2 and PI3 keep their
+anchors. The pattern is a list of known credential shapes: one of
+another shape passes as a key and as a value alike.
+
+**AUD-042: a grant record's purposes, sorted before they were checked.**
+`grant()` put the purposes in a set and sorted them, and only then
+checked that each was a non-empty string. A list among them is
+unhashable, and a number among strings has no order. So
+`grant_from_record` raised TypeError on either, where it refuses every
+other malformed grant with SecretError. The policy module checks before
+it sorts, and says why. Each purpose is now checked first. The new test
+fails on the code before the fix, S36 deletes the check, and S22 keeps
+its anchor.
+
+**AUD-043 to AUD-045: the memory store's reducer (open).** Reading
+`memory.py`'s reducer, which no earlier pass had, found three gaps, each
+reproduced at 0afa231:
+
+- AUD-043 (P2). A STALE move is open to every actor, so that
+  invalidating a source can cascade over entries with many authors.
+  Replay never checked that the entry rests on an invalidated source,
+  and it took `superseded_by` from any status record. A record from
+  mallory moving alice's note to STALE, with `superseded_by` naming
+  mallory's own, was projected. Alice's note left `current()`, and
+  readers were pointed at mallory's. That is the substitution the
+  SUPERSEDED authorship rule exists to stop. The public write path
+  cannot produce such a record, but the internal `_set_status`, which
+  decides by replay's rules, accepts it.
+- AUD-044 (P3). An invalidation of a source that nothing yet derives from
+  is kept in the process's own set and never logged. After a reload, a
+  new entry citing that source is born ACTIVE.
+- AUD-045 (P3). The reducer checks a record's keys, not the types of
+  its text, author or confidence. A write whose text is a number loads,
+  and then `live_bytes()`, and every later `remember()` by anyone, raises
+  AttributeError.
+
+None is fixed here. The independent reader restates the memory rules,
+and each fix belongs to both readers together.
+
+**D-2026-193: the report's coverage section had drifted.** It said 60
+files read in full, 29 in part and 874 not reviewed, and the ledger held
+65, 31 and 867. It said 52 of the 56 changed modules had been read, and
+the ledger held 53. Its list of modules read in full left out `audit`.
+
+Every difference understated the coverage, but nothing held the section
+to the ledger. It is restated from the ledger after this pass's records,
+and `tests/test_audit_ledger.py` now holds it count by count and module by
+module. On the report as it was, the test fails.
+
+**Read, and no finding:**
+
+- `container-verify.yml`. The base digest is read from the Dockerfile,
+  and an unpinned FROM fails closed. The native comparison exits non-zero
+  unless the results are equivalent, the outcomes agree and the scopes
+  match.
+- `harness-integrations.yml`. Each job holds `contents: read` and a
+  timeout. The demonstration rule is forced to run fresh.
+- `supply-chain.yml`. Only the signing job holds `id-token: write`, and it
+  runs only on a push to this branch. The release gate's refusal must be
+  exit 3. The offline job shows its workspace empty and its network gone
+  before it verifies.
+- `agent-substrate.yml`. Its tree checks follow every step that runs code.
+  Five of its seven jobs set no `timeout-minutes`, so a hang holds its
+  runner to GitHub's six-hour default. That is recorded, not changed.
+- `idempotency.py`. The owner comes from the event's actor. A rebinding is
+  refused on replay and in `bind`, which decides under the writer lock. A
+  new binding's position is its own.
+- `policy.py`'s rule language and decisions. Evaluation is
+  deny-overrides, with obligations gathered from every matching ALLOW, and
+  replay re-derives a recorded decision's verdict, rule, obligations and
+  policy digest. Its `version`, `reason` and `at_seq` are not re-derived.
+  The readers found take the verdict, the policy and the request, and the
+  audit derives the version from the published digest, so none of them is
+  misled. That is recorded, not changed.
+- `secrets.py`'s resolution path. The decision to reveal is made under
+  the writer lock, against the log as it is, and is recorded before the
+  value leaves the store. Two things are recorded, not changed.
+  `provision` logs the value's byte length beside its id and provider,
+  which its docstring does not list. A grant whose purposes are `*`
+  covers egress to every host, so the composition check holds only for
+  grants that name their purposes.
+- `readiness.py`'s other rules. A deployment row passes the contract-note
+  rule by naming DEPLOYMENT.md or cgroups. RUN-4 relies on the second, and
+  its deployment check must still be a real one.
+
+Whether each pinned action SHA is the commit its tag comment names is not
+established: the upstream repositories are outside this session's scope.
+
+**Mutations.** Seven new: RM12, X64 and X65 (the wall time's number test
+and its type test), E24, P31, PI19 and S36. Every spec whose mutations or
+tests the change touches ran on this tree:
+
+| Spec | Killed | New |
+|---|---|---|
+| agent_execution | 66 of 66 | X64, X65 |
+| agent_readpath | 21 of 21 |  |
+| decided_appends | 14 of 14 |  |
+| policy_binding | 29 of 29 |  |
+| history_time | 21 of 21 |  |
+| agent_policy | 30 of 30 | P31 |
+| agent_delegation | 28 of 28 |  |
+| ci_authority | 18 of 18 |  |
+| completion_matrix | 22 of 22 |  |
+| t2_closure | 41 of 41 |  |
+| agent_evidence | 24 of 24 | E24 |
+| performance_counters | 5 of 5 |  |
+| role_authority | 44 of 44 |  |
+| policy_semantics | 13 of 13 |  |
+| agent_incremental | 27 of 27 |  |
+| workflow_generic | 4 of 4 |  |
+| agent_snapshot_coherence | 20 of 20 |  |
+| agent_fault_injection | 11 of 11 |  |
+| deployment_evidence | 22 of 22 |  |
+| readiness | 12 of 12 | RM12 |
+| composed_campaigns | 7 of 7 |  |
+| harness_status | 21 of 21 |  |
+| proposal_ingress | 29 of 29 | PI19 |
+| agent_secrets | 36 of 36 | S36 |
+| agent_secret_provider | 18 of 18 |  |
+| inference_gateway | 45 of 45 |  |
+
+Twenty-two of these ran on this change before AUD-041 and AUD-042 were
+added to it. The nine that mutate or test `proposals.py` or `secrets.py`,
+five of them among the twenty-two, ran again on the final tree, and those
+runs are the ones counted. The other seventeen mutate and test nothing
+that AUD-041 or AUD-042 changed. A run of the AUD-041 specs begun before
+AUD-042 was written was stopped, and is not counted. A restart of the
+container stopped the nine's first run, and the harness's `--recover`
+restored the one file it had left mutated, from a snapshot that was the
+file byte for byte. A second restart stopped the rerun after six of the
+nine had finished, with `role_authority` part way. The same recovery
+again found its snapshots to be the files they were taken from.
+`role_authority` and `inference_gateway` then ran whole in that
+worktree, and `t2_closure` in a second one whose diff equals this
+change's. The stopped run's verdicts are not counted.
+
+### Hosted CI at 3edf855 and 0432885: the runner image moved the interpreter (D-2026-194)
+
+**What failed.** Read from the API: at both commits, in the push run and
+in the pull-request run, the same six agent-substrate checks. They are
+the full suite, dispatch sensitivity, mutation shards 2, 3 and 7, and
+the job that requires every shard. Two tests failed and nothing else:
+the confined run's fingerprint against the unconfined one's, and the
+governed model run's environment digest against a process like its
+worker. Each of the three shards holds one spec whose suite runs one of
+them, and the harness refused its red baseline.
+
+**What passed.** At 0432885, every other check: the agent-substrate job
+itself, the second interpreter, mutation shards 1, 4, 5, 6 and 8, and
+the four other workflows.
+
+**The cause.** The hosted runner's image is now Ubuntu 26.04, which has
+no Python 3.12 of its own, so uv downloads one into the runner's home
+directory. The confinement had granted `/sbin/ldconfig`, through which a
+run finds the C runtime it fingerprints, only as part of /usr, and only
+because the interpreter lived there. Neither commit touched the
+confinement or the fingerprint.
+
+**Reproduced here** with a uv-managed CPython 3.12.13 outside /usr and
+the locked environment built on it: both tests fail as hosted.
+
+**The repair.** `execution._LOADER_QUERY` grants the query's three files
+deliberately: read and execute, never write. Two new tests hold it, one
+on any host and one under an interpreter outside /usr where the host has
+one. On the code as committed both fail.
+
+**What was run.** The specs that mutate `agent_substrate/execution.py`
+or run the confinement tests, on a worktree holding this change's code,
+tests and specs:
+
+| Spec | Interpreter | Killed |
+|---|---|---|
+| filesystem_confinement | in /usr | 15 of 15 |
+| filesystem_confinement | outside /usr | 15 of 15 |
+| agent_execution | in /usr | 66 of 66 |
+| execution_containment | in /usr | 10 of 10 |
+| isolation_contract | in /usr | 13 of 13 |
+| agent_compensation | in /usr | 15 of 15 |
+| decided_appends | in /usr | 14 of 14 |
+
+Six specs and 133 mutations under the interpreter in /usr, all killed and
+every source restored. Under the interpreter outside /usr,
+`filesystem_confinement` ran again whole, and the baselines of
+`governed_model_reuse` and `scientific_authority_replay`, the other two
+specs hosted CI refused, are green. A restart of the container stopped
+four of these runs. The harness's `--recover` restored the one file each
+of three worktrees had left mutated, from snapshots that were the files
+byte for byte, and the four ran again from their start. The stopped
+runs' verdicts are not counted. `filesystem_confinement` ran once more
+under both interpreters after the any-host test lost a skip it did not
+need, and those runs are the ones counted.
+
+**What it moves.** `agent_substrate/execution.py` is one of the two
+files R21 cites, so R21's hosted evidence now predates its
+implementation. The matrix's covering count goes from 9 to 8 and the
+harness status from 51 unsatisfied to 52, until a later commit cites
+runs at this one.
+
+**What is not established.** That hosted CI is green on the new image:
+this commit's own runs are what show it. The image of the last green
+runs, at 0afa231, was not read.
+
+### Stage 5, the memory findings: AUD-043 to AUD-046
+
+The third pass registered three findings in the agent memory store,
+each a change to both of its readers: `agent_substrate/memory.py` and
+the independent reader's restatement in `agent_substrate/reconstruct.py`.
+They are fixed here, with a fourth found while fixing them.
+
+**AUD-043 (P2).** A STALE move is open to every actor, so that
+invalidating a source can cascade over entries with many authors. Replay
+checked the move's edge, and the author only for RETRACTED and
+SUPERSEDED. It never asked whether the entry rests on an invalidated
+source, and it took `superseded_by` from any status record. Replay and
+the write path now ask one more question of every move,
+`MemoryStore._move_refusal`:
+
+- only the author's SUPERSEDED move names a replacement, and one the
+  store holds;
+- only a STALE move carries an invalidated source;
+- a STALE move needs its entry to rest on a source the log has
+  invalidated, directly or through the entries it summarizes or derives
+  from, which is as far as the cascade reaches;
+- a write is ACTIVE when written and names no replacement, since a
+  status is derived from events and never asserted.
+
+The independent reader restates each rule, and now holds what each entry
+rests on. The both-readers table in `tests/test_memory_trust.py` had
+rows asserting the old rule, a STALE move with no premise accepted.
+Those rows now have a premise column. Each row whose setup moves the
+entry to STALE gives the entry a real invalidation, so a refusal is the
+move's and not the setup's, and the rows without one are refused.
+
+**AUD-044.** An invalidation travelled only on its cascade's first STALE
+record, so one that nothing rested on yet wrote nothing. The source went
+into the invalidating process's set and no other reader's, and after a
+reload an entry citing it was born ACTIVE. An invalidation is now a
+record of its own, `memory.invalidate`. It is written under the writer
+lock before its cascade, once per source, whether or not anything rests
+on it. Once, because `settle()` invalidates its sources again, and
+settling again must change nothing: the first draft wrote a record each
+time, and `test_an_interrupted_invalidation_is_settled` failed on it.
+The action registry, both readers and both inventories learn it. The
+second reader's coverage label, held by a test, reads 56 of 56. A
+history written before this change still replays: its cascade's first
+STALE record carries the invalidation and supplies its own premise.
+
+**AUD-045.** `entry_from_record` checked a record's keys and not what
+they held. A write whose text was a number loaded, and then every later
+write by any author raised AttributeError. Every field of an entry
+record is now held to its type when it is read. A status record's memory
+id and a moved source are checked before either is used as a key, since
+a list there raised a raw TypeError. The independent reader restates the
+checks, and notes a status of the wrong type, where it raised TypeError
+although it is to note what it cannot read and never raise.
+
+**AUD-046, found while fixing AUD-044.** On the code as committed, the
+second reader read past the new `memory.invalidate` record without a
+note. The action registry separates another subsystem's action, which a
+reducer skips, from one no module writes, which it refuses. The
+authority store refuses such an action and `reconstruct()` notes it.
+The memory store returned False for any action not its own, known or
+not, and `reconstruct_subsystems` had no branch for one. Reproduced at
+0afa231 with a `memory.rewrite` record: the memory store loads it and the
+subsystem reader notes nothing. `memory_trust.assess`, which asks those
+two, would call that memory consistently reconstructed. Now the store
+refuses it and the reader notes it. The other subsystem reducers were
+not probed in this pass.
+
+**Two tests that moved with the rules.** `tests/test_agent_second_reader.py`
+advanced its logs with `filler.tick`, an action no module writes, chosen
+so that no `_sub_*` reducer would handle it. Since AUD-046 the second
+reader notes such an action, so two anti-vacuity tests found an anomaly.
+The filler is now a note in its own author's name, a record every reader
+holds valid and that touches no job. And mutation T9, the cascade's
+check under the writer lock for an entry withdrawn meanwhile, survived
+its spec: `test_a_cascade_skips_an_entry_withdrawn_meanwhile` retracts
+the entry before the invalidation, which the invalidation record's own
+append now folds, so the cascade's first check skips it and the lock's
+is never reached. The check still matters for a retraction that lands
+after the invalidation record. A new test,
+`test_a_cascade_skips_an_entry_withdrawn_during_it`, puts it there, and
+the old one stays.
+
+**Tests.** Each new test, and each new row of the both-readers tables,
+fails on the code as committed. The two premise rows and the compatibility
+test pass there too, as controls.
+
+**Mutations.** Sixteen new in `agent_memory_context` (Y23 to Y38) and
+eleven in `memory_trust` (MT18 to MT28), each meant for a named test.
+Every existing anchor in the changed files still matches once.
+
+Every spec with a mutation in a function the change touches, or a
+suite holding a test or reading a file it changes, ran on this tree.
+The other specs that mutate `reconstruct.py` do so elsewhere in it,
+and their anchors were checked to match once:
+
+| Spec | Killed |
+|---|---|
+| agent_incremental | 27 of 27 |
+| agent_memory_context | 78 of 78 |
+| agent_second_reader | 112 of 112 |
+| agent_snapshot_coherence | 20 of 20 |
+| agent_toctou | 9 of 9 |
+| authority_inventory | 14 of 14 |
+| ci_authority | 18 of 18 |
+| governed_history | 13 of 13 |
+| history_time | 21 of 21 |
+| identity_inventory | 13 of 13 |
+| memory_trust | 28 of 28 |
+| mutation_shards | 12 of 12 |
+| repo_contract | 18 of 18 |
+| role_authority | 44 of 44 |
+| second_reader_audit_actions | 27 of 27 |
+| t2_closure | 41 of 41 |
+| workflow_generic | 4 of 4 |
+
+17 specs and 499 mutations, all killed and every source restored.
+Each spec ran first on this change applied to the tree before
+D-2026-194. Those runs found two faults in the change's own tests and
+specs: T9's survivor, described above, and Y31, whose replacement was
+empty, which the harness refuses; it now assigns None. All seventeen
+then ran again whole on this change applied to the commit that holds
+D-2026-194, and those runs are the ones counted. Ten ran before that
+tree's derived files were regenerated and seven after:
+`workflow_generic` refused its baseline on the first, whose corpus
+allowlist did not yet describe the changed documents. A restart of
+the container stopped four runs. The harness's `--recover` restored
+the one file each of four worktrees had left mutated, from snapshots
+that were the files byte for byte, and each stopped spec ran again
+from its start. The stopped runs' verdicts are not counted.
+
+### Stage 5, fourth pass: no independent reader raises on content (AUD-047, AUD-048)
+
+**What was claimed.** `reconstruct`, `reconstruct_tasks` and
+`reconstruct_subsystems` are the second implementation, read from the
+log alone. Each says a hostile history produces findings, not an
+exception that hides the rest of the log. One test held that, with eight
+payloads against six actions.
+
+**What was found (AUD-047, P2).** A sweep: one payload value of one
+record replaced by a value of another kind, on three governed histories
+and on every registered action alone, about 60,000 histories for each
+reader. It found 57 places that raise: 7 in `reconstruct`, 9 in
+`reconstruct_tasks` and 41 in `reconstruct_subsystems`. An id that is a
+list cannot be a key, a number cannot be iterated, a list has no `get`.
+One such record anywhere in a history and every consumer of the reader
+gets an exception where it wanted findings. AUD-045's second-reader part
+was one instance of it.
+
+**The repair.** The claim is structural now, and not kept site by site.
+`reconstruct._never_raising` folds a history so that a record whose
+reading raises is set aside, with a note naming it and the error's type.
+The history is then folded again from its start without it, so a reader
+reports the fold of the records it could read and never a half-applied
+one. Each record set aside costs a fold, so the number is bounded at 64:
+past it a reader folds up to the first record over the limit and says
+where it stopped. A chain that does not verify still raises before any
+record is folded. The 310 existing mutation anchors in `reconstruct.py`
+were checked to match once after the change, and none moved.
+
+**Tests.** `tests/test_agent_readers_never_raise.py` holds the two
+sweeps, and a control that takes the guard away and requires the sweeps
+to find all three readers raising. `tests/test_agent_second_reader.py`
+holds what the guard does, for each reader:
+
+- the record is noted and the honest record after it is folded;
+- past the limit the reader stops and says where;
+- within the limit every record is noted;
+- a checkpoint anchor naming an unreadable record is still held to its
+  hash;
+- a chain that does not verify still raises.
+
+**Found by the sweep (AUD-048, P3, open).** The declared security
+profile is read before any record is folded, and tested for membership.
+In the reader's restatement that test raised on a list, and the profile
+is now a string or nothing. The log's own verification has the same
+test: `EventLog.verify()` and `read_verified()` raise TypeError on a
+canonically encoded genesis declaration whose profile is a list or a
+dictionary, where they report any other unknown profile. That is
+fail-closed, but the caller gets no report. It is in `events.py`, and is
+not changed here.
+
+**Mutations.** Seventeen new, R113 to R129, in `agent_second_reader`.
+
+Every mutation anchored in `reconstruct.py` ran on this change, 327 in
+31 specs, since the guard changes what an error inside a reader becomes
+and a mutation killed by an exception could have turned into a note
+nothing looked at. Each spec ran as a part holding exactly its mutations
+in that file, with the spec's own suites. All were killed and every
+source restored. The other mutations of those specs, and the specs with
+none in that file, were not run here; hosted CI runs every spec whole.
+
+| Spec | Killed, of its mutations in `reconstruct.py` | Its mutations in all |
+|---|---|---|
+| actor_authentication | 1 of 1 | 19 |
+| agent_actions | 1 of 1 | 6 |
+| agent_delegation | 3 of 3 | 28 |
+| agent_idempotency | 2 of 2 | 20 |
+| agent_lease_renewal | 4 of 4 | 11 |
+| agent_second_reader | 129 of 129 | 129 |
+| agent_separate_verify | 1 of 1 | 18 |
+| agent_service_authority | 2 of 2 | 14 |
+| agent_snapshot_coherence | 3 of 3 | 20 |
+| agent_substrate | 14 of 14 | 64 |
+| authenticated_history | 3 of 3 | 26 |
+| composed_campaigns | 1 of 1 | 7 |
+| decision_proof | 14 of 14 | 14 |
+| freshness | 11 of 11 | 41 |
+| governed_history | 4 of 4 | 13 |
+| governed_run | 1 of 1 | 5 |
+| history_time | 9 of 9 | 21 |
+| inference_gateway | 7 of 7 | 45 |
+| memory_trust | 14 of 14 | 28 |
+| neural_authority | 1 of 1 | 23 |
+| policy_binding | 6 of 6 | 29 |
+| policy_semantics | 8 of 8 | 13 |
+| proposal_ingress | 8 of 8 | 29 |
+| replay_origin_view | 1 of 1 | 11 |
+| research | 10 of 10 | 46 |
+| role_authority | 8 of 8 | 44 |
+| scientific_authority_replay | 25 of 25 | 40 |
+| second_reader_audit_actions | 26 of 26 | 27 |
+| separate_governed | 2 of 2 | 18 |
+| t2_closure | 5 of 5 | 41 |
+| task_execution_phase | 3 of 3 | 10 |
+
+**What the guard did to older kills.** Five mutations that remove a
+shape check from a reader had been killed because the reader then
+raised. With the guard the reader notes the record instead, and two
+tests asked only that some anomaly be there. On the first run M63 in
+`agent_substrate`, and MT23, MT24, MT27 and MT28 in `memory_trust`,
+survived. Both tests now ask also that no note be the guard's, so a
+refusal has to be the reader's own, and all five are killed again.
+`agent_substrate` and `agent_service_authority` had first refused a
+red baseline: the isolation test lists every file allowed to import
+the package, and the new test file was not on it. Those three parts
+ran again after both repairs, and their later runs are the ones
+counted. The other twenty-eight ran before them, on this change
+without those three test files' repairs, which their suites do not
+run.
+
+**What is not established.** That each primary store refuses such a
+record with its own error: a store that meets one refuses the log or
+raises, and which of the two was not swept. `derive_decision_proof` and
+`verify_decision_proof` were not swept. The sweeps replace one value at
+a time, so a fault that needs two wrong values together is not covered.
+
+**Also corrected.** The report's readiness table and its list of
+unknowns said 874 files were not reviewed, the count D-2026-193 had
+already corrected in the coverage table. Both now say 867.
+
+### Stage 5, fifth pass: verification refuses in its own words (AUD-048 to AUD-050)
+
+**What was claimed.** Three verifiers each say what they do with what
+they cannot use. The log reports a problem and the history does not
+verify. The archive raises `ArchiveError`, and its docstrings say
+nothing else. The witness refuses with `WitnessError`, and its verifier
+says that anybody can hand it junk, and junk is a note.
+
+**AUD-048 (P3), fixed.** The log looked the declared security profile
+up in a set before asking what it was, and a list or a dictionary
+cannot be looked up. `TypeError` came out of every path that reads the
+profile:
+
+- `verify`, `read_verified`, and both anchored reads;
+- the head check an append makes, and a writer's own declaration.
+
+The archive asks the same rule of a sealed history's first record, so
+`verify_archive`, `restore` and `verify_segment` raised it too. And
+`verify_segment`'s own test of the profile a caller pins, which this
+audit wrote, had the same fault. Both tests now ask for a string
+first. A list, a dictionary, a number and nothing are each an unknown
+security profile, stated the way that path states a refusal.
+
+**AUD-049 (P2), fixed.** The witness was read in full, and then swept
+as AUD-047 swept the readers: one field of a proof record, a
+cosignature record or a checkpoint record replaced by a value of
+another kind, re-hashed where a hash covers it. In 585 runs, three
+places raised something that was not the witness's:
+
+- a proof record holding NaN raised the encoder's error, and one
+  nested too deep to encode raised `RecursionError`;
+- a record that hashes and whose link is not a string raised
+  `TypeError` where the witness names the fork;
+- a cosignature record whose `witness_id` is a list was accepted, and
+  raised `TypeError` when the verifier looked it up.
+
+Both verifiers also raised `AttributeError` on an item of their list
+that was not a cosignature of their protocol. That includes the other
+protocol's cosignature, which is genuine and signed by the same
+witness. In every case the witness kept its state and nothing was
+counted.
+
+The sweep also showed what the suite did not hold. No test read a
+cosignature or a checkpoint from its record form, and no mutation
+touched either, the checkpoint's shape, a checkpoint at the witnessed
+head, one state file under two names, the names of a log and a
+witness, or an empty log.
+
+**The repair.**
+
+- A cosignature is held to its shape when it is built, whoever builds
+  it: an id, whole seconds, a signature that is a string, and a
+  checkpoint of its own protocol. The record form states its keys and
+  builds the object.
+- The witness refuses a record it cannot hash, and names a link that is
+  not a string.
+- Each verifier notes what is not a cosignature of its protocol and
+  counts nothing for it.
+- A witness's id is a string before it is matched.
+
+**AUD-050 (P2), open.** Found by the same sweep. The defect ledger
+already holds the rule for the attestation reader and the registries:
+a line nested deep enough to exhaust the JSON parser is malformed, not
+a crash of every reader. The log's own line parser does not hold it.
+One line nested 100,000 deep is 600 KB, inside the bound on a record's
+size, and raises `RecursionError` out of `verify`, `read_verified`,
+`read_verified_from` and every append. The head witness file and the
+checkpoint store's two parsers do the same.
+
+How deep a record may nest is whatever the interpreter allows:
+
+| Interpreter | `json.loads` takes | `json.dumps` takes |
+|---|---|---|
+| 3.12.3 and 3.12.13 | 9,997 levels | 9,996 |
+| 3.13.17 | 9,998 | 9,997 |
+| 3.11.17 | 993, fewer from a deep call | 992 |
+
+So a line at 9,997 levels is parsed and encoded on 3.13 and cannot be
+encoded on 3.12, and a payload 2,000 deep is appended and read back on
+both. The repair is a rule the writer and the parser both hold, for how
+deep a record nests, and it is the next change. It is not in this one.
+
+**Tests.** `tests/test_authenticated_history.py` holds the six paths of
+the log for a list, a dictionary, a number and nothing.
+`tests/test_archive.py` holds the three archive paths and the pinned
+profile. `tests/test_witness.py` and `tests/test_witness_tree.py` hold
+the witness: the three refusals, the two verifiers' lists, both record
+forms with every field of every kind the sweep used, and the rules
+that had no test.
+
+**Mutations.** Thirty-six new:
+
+- EP12 in `authenticated_history`;
+- AR27 and AR28 in `archive`;
+- WT24 to WT53 in `witness`;
+- TW20 to TW22 in `witness_tree`.
+
+AR26 and WT4 were repaired to the lines the change rewrote, and each
+still removes the same rule.
+
+Every mutation anchored in `events.py`, `witness.py` or `archive.py`
+ran on this change: 203 in 19 specs. Five specs ran whole and
+the others as a part holding exactly their mutations in those files,
+with the spec's own suites. All were killed and every source restored.
+The other mutations of the part specs, and the specs with none in
+those files, were not run here; hosted CI runs every spec whole.
+
+| Spec | Killed, of its mutations in the three files | Its mutations in all | |
+|---|---|---|---|
+| agent_checkpoint | 9 of 9 | 51 | |
+| agent_cross_process | 2 of 2 | 11 | |
+| agent_fault_injection | 6 of 6 | 11 | |
+| agent_incremental | 8 of 8 | 27 | |
+| agent_recovery | 3 of 3 | 19 | |
+| agent_snapshot_coherence | 4 of 4 | 20 | |
+| agent_substrate | 15 of 15 | 64 | |
+| archive | 28 of 28 | 28 | whole |
+| authenticated_history | 27 of 27 | 27 | whole |
+| composed_campaigns | 1 of 1 | 7 | |
+| governed_history | 6 of 6 | 13 | |
+| history_time | 1 of 1 | 21 | |
+| signed_append_lifecycle | 5 of 5 | 33 | |
+| signing_seam | 1 of 1 | 8 | |
+| t2_closure | 6 of 6 | 41 | |
+| verified_read_guard | 3 of 3 | 12 | |
+| witness | 53 of 53 | 53 | whole |
+| witness_quorum | 3 of 3 | 3 | whole |
+| witness_tree | 22 of 22 | 22 | whole |
+
+**Reviews bound.** `agent_substrate/witness.py` (698 lines),
+`tests/test_witness.py` (379 lines) and `tools/mutations/witness.json`
+(23 mutations) were read in full at 2cbba91, and each change to them
+here was written and reviewed as a diff. The ledger now holds 80 files
+read in full, 18 in part and 865 not reviewed.
+
+**What is not established.**
+
+- A witness's own state file that is not JSON raises the parser's
+  error; that is the witness's own storage and was not swept.
+- A trust root is the owner's data and is checked for its quorum only.
+- `ReducerIdentity.from_record` and `ProcessIdentity.from_record` were
+  not checked for a test of each rule.
+- For AUD-050, the snapshot parser in `store.py`, the separate
+  verifier's reading of its child's answer and the recorded-fixture
+  adapter have the same handler and were read, not run.
+- The sweeps replace one value at a time.
+
+**Also corrected.** Section 5 of the report said the audit had added 45
+mutations, in the present tense. That was the count at d3cddc3. It now
+says so, and says where the later ones are listed.
+
+### Stage 5, sixth pass: a record has a depth and a kind of its own (AUD-050 to AUD-052)
+
+**AUD-050 (P2), fixed.** It was registered open in the pass before
+this one: a line nested past the interpreter's JSON parser raised
+`RecursionError` out of every read of a log and every append to it.
+Before repairing it, every JSON parse in the package was read: 36
+calls of `json.loads` and one of `json.load`. The same handler, written
+for "this is not JSON" and catching `ValueError`, stood at more
+boundaries than the log's:
+
+- **the gateway's reading of a model's answer.** `parse_response`
+  raised on a body of 40 KB, after the call was dispatched and before
+  it was settled, where a body that is not JSON is settled as
+  SCHEMA_REFUSED. The body is the model's;
+- **the result rules' reading of a cited bundle or report**, inside
+  the admission decision;
+- the checkpoint store's two parsers, the snapshot loader, the head
+  witness file;
+- the research ledger's report reader, the corpus allowlist and index,
+  an evidence sidecar, a recorded response, the separate verifier's
+  verdict, and a witness's own state file.
+
+**The repair has two parts.**
+
+*A record has a depth of its own.* `events.MAX_NESTING` is 64 levels,
+the record counted. The writer refuses a payload past it before
+anything is encoded. The line parser refuses a line past it, as a
+malformed line and not as a torn final append, which the next write
+would cut off. Depth is counted with a stack and no recursion. A line
+with no more brackets than the bound cannot nest past it, so only a
+line with more is walked. The standalone verifier restates the bound.
+
+*A boundary that refuses answers in its own words.* Past the parser's
+limit, each boundary named above makes the refusal it already made for
+bytes that are not JSON. Seven parses of evidence had no such refusal
+and have none now; they are listed with what is not established.
+`canonical_bytes` raises `CanonicalizationError` for a value too deep
+to encode. A witness whose state file is not a document says it has
+lost its state, which closes what AUD-049 left.
+
+**The sweep is kept as a test.** The earlier repair was made at three
+boundaries, where it was found, and the rest were left. A test now
+finds each of those 37 calls in the package from its source. Nineteen
+have a handler for nesting around them. The other eighteen are in
+fifteen functions, each listed with the reason it needs none. A parse
+added without either fails the test.
+
+**How deep real records go.** The suite passes with the bound in
+force, so no record its tests write and read back nests past 64
+levels. A sample was also measured, with the line parser wrapped in the
+test process: over 19 test files that write the richest records,
+366,471 lines were parsed, the deepest record nested 6 levels,
+and 0 of them carried more than 64 brackets and were walked.
+
+**AUD-051 (P1), found while fixing it, and fixed.** The question
+whether the writer could write a line of the wrong depth led to
+whether it could write a line of the wrong kind. It could. The reader
+states what a line is. The writer built a record from its caller's
+arguments and did not ask. An actor, an action, a target, an event id
+or a wall time of the wrong kind was encoded, hashed, written and
+synced, and `append` returned the event. No reader would read that
+record, so every read failed from then on and every append was
+refused. The log had ended at a write its own writer acknowledged.
+
+One writer of the package is known to reach it:
+`CapabilityLedger.anoint` wrote its root record under whatever actor it
+was given, then raised on its own record with the log already
+unreadable.
+
+The writer now hands the line it built to `_parse_line`, the reader's
+own rule, before an attestation is prepared and before a byte is
+written. The bound on a record's size had no test on either side, and
+has one on both now. On 2,000 appends of a small record and a read of
+them, five rounds, an append cost 945 microseconds where it cost 960,
+and a verified read 23.6 microseconds a record where it cost 23.1.
+Neither difference is outside the rounds' own spread.
+
+**AUD-052 (P2), found by a red baseline, and fixed.** A mutation
+baseline over `tests/test_agent_substrate_properties.py` went red
+twice in a row on this change, and green when run again elsewhere. The
+harness refuses a baseline that fails, and its refusal is what showed
+it. The failure is not this change's. The file's stateful machine
+presented one constant digest as the report at every verification.
+AUD-004's fix made the authority ask for fresh evidence, so a history
+that re-verifies a record after an invalidation was refused by the
+store and failed the test. Hypothesis draws such a history only
+sometimes, so the test failed at random on a tree with nothing wrong
+in it, and replayed the failure on the commit before this one.
+
+Each verification the machine performs now presents a report of its
+own. A second rule tries the report a record already carried and
+requires the refusal. The history Hypothesis drew is kept as a test
+that runs on every pass.
+
+**Tests.** `tests/test_json_nesting.py`, new, holds AUD-050: the bound
+on both sides for objects, arrays, tuples and a mix; a line past the
+parser on every read; each boundary; the standalone verifier; the
+fuzzer's seeds; and the scan. `tests/test_inference_gateway.py` holds
+the gateway settling a model's answer of brackets as SCHEMA_REFUSED.
+`tests/test_agent_substrate.py` holds AUD-051 for each field and
+kind, through the capability ledger, and the size bound.
+
+**Mutations.** Thirty-eight new: JN1 to JN35 in a new spec,
+`json_nesting`, and M72 to M74 in `agent_substrate`. F8 in
+`agent_fault_injection` and S7 in `agent_separate_verify` were repaired
+to the lines the change rewrote. The shard plan was regenerated for 141
+specs.
+
+One mutation survived its first run on this change, and was right to.
+WT25 in `witness` removed the witness's handler for the encoder's
+`RecursionError` on a proof record too deep to hash. The encoder no
+longer raises it, so the handler it removed could not be reached, and
+no test could tell it was gone. The witness now catches the encoder's
+one error.
+WT25 removes the encoder's refusal of nesting, which is where the rule
+now stands, and the witness's test of a record too deep to hash kills
+it. WT24, anchored on the same line, was repaired beside it.
+
+Run here, on this change: 262 mutations in 23 specs. That
+is every mutation anchored in `events.py`, `witness.py`,
+`checkpoint.py` or `canonical.py`, and four specs whole: `json_nesting`,
+`agent_fault_injection`, `agent_separate_verify` and `fuzz_harness`.
+All were killed and every source restored. They ran as 28 pieces
+of a few minutes each, because this session's container restarts
+during a run of the length a whole spec needs. A piece a restart
+stopped ran again from its start. One piece's baseline was refused on
+its first run, and correctly: its worktree held the audit report as
+edited and the corpus allowlist as generated before the edit, so a test
+that builds the index stopped at setup. The type check, run with the
+other fast checks before the suite, then refused two assignments in the
+new depth walks, and the walked variable was annotated. After that
+every piece ran again, on the regenerated tree this commit holds.
+
+Not run here: the mutations anchored in the other files this change
+touches, where it adds one exception to one handler (`store.py`,
+`inference.py`, `result_rules.py`, `research.py`, `rag_index.py`,
+`evidence.py`, `proposals.py`) or one check beside the others
+(`tools/verify_assurance.py`). Their anchors were checked to match
+once, as all 743 anchored in the changed files were, and all 3,005 of
+the 141 specs. Hosted CI runs every spec whole.
+
+| Spec | Killed, of its mutations run here | Its mutations in all | |
+|---|---|---|---|
+| agent_checkpoint | 32 of 32 | 51 | |
+| agent_cross_process | 2 of 2 | 11 | |
+| agent_fault_injection | 11 of 11 | 11 | whole |
+| agent_incremental | 10 of 10 | 27 | |
+| agent_recovery | 3 of 3 | 19 | |
+| agent_separate_verify | 18 of 18 | 18 | whole |
+| agent_snapshot_coherence | 4 of 4 | 20 | |
+| agent_substrate | 18 of 18 | 67 | |
+| archive | 1 of 1 | 28 | |
+| authenticated_history | 14 of 14 | 27 | |
+| checkpoint_recovery | 4 of 4 | 10 | |
+| composed_campaigns | 1 of 1 | 7 | |
+| fuzz_harness | 9 of 9 | 9 | whole |
+| governed_history | 6 of 6 | 13 | |
+| history_time | 1 of 1 | 21 | |
+| json_nesting | 35 of 35 | 35 | whole |
+| signed_append_lifecycle | 5 of 5 | 33 | |
+| signing_seam | 1 of 1 | 8 | |
+| t2_closure | 6 of 6 | 41 | |
+| verified_read_guard | 3 of 3 | 12 | |
+| witness | 53 of 53 | 53 | whole |
+| witness_quorum | 3 of 3 | 3 | whole |
+| witness_tree | 22 of 22 | 22 | whole |
+
+**What is not established.**
+
+- Seven of the eighteen listed parses, in six functions, read evidence
+  with no handler for bytes that are not JSON at all: three functions
+  of `research.py`, `learned_lifecycle.document`,
+  `governed_model._record_of` and `claim_check.check`. What a primary
+  answers to a record that cites such evidence is AUD-047's remainder,
+  and is not changed here.
+- The sweep is of `agent_substrate`. The 149 JSON parses in the rest of
+  the tracked code that is not a test were not read for nesting: 130 in
+  `tools`, 12 in `scientific`, 2 each in `integrations` and
+  `scientific_ai`, and 3 at the root.
+- The bound is the log's. A document that is not a log record is held
+  to the parser's limit, or to its own bound where it has one: a
+  proposal to eight levels.
+- Which other writers of the package pass an id on unchecked was not
+  swept. Each now gets the log's refusal, and none can end the log
+  that way.
+- A history already ended by such a write stays ended. Cutting it at
+  the last record that verifies is the owner's repair.
+- Other stateful or randomised tests may have models as stale as
+  AUD-052's. That one was found by its failure, not by a search.
+- A history holding a record nested past 64 levels no longer reads.
+  None is known.
+
+### Stage 5, seventh pass: the HDF5 reader outlives the file it reads (AUD-053)
+
+**AUD-053 (P2), fixed.** `scientific/hdf5_bundle.read` is where an
+HDF5 file is trusted or refused. Its docstring says nothing escapes it
+unnamed, and every library error on a corrupt file is an `Hdf5Refused`
+naming it. A file of 44,982 bytes, found by the substrate's fuzzer at
+0432885, makes h5py's attribute reader fault in native code. At
+ce93e58, with h5py 3.16.0 and HDF5 2.0.0, the fault handler names
+`h5py/_hl/attrs.py` line 77, reached from `_read` at
+`node.attrs.get`, and the process exits 139. No handler runs, so
+nothing is refused or recorded. A file that made the library loop would
+hold its caller the same way. The fuzzer is such a caller in CI, at a
+random seed, and a campaign that reaches such an input dies before it
+can record a finding.
+
+**The repair.** The library reads in a child process:
+
+- the interpreter in isolated mode, standing in an empty directory of
+  its own and handed the package's directory and the file's absolute
+  path. It compiles where its parent was told to keep bytecode, which
+  isolated mode would otherwise ignore, and the mutation harness relies
+  on;
+- the child does what `read()` did, every check of the file against
+  its own record included, and writes one line: the record, the
+  bundle's digest, the artefact bytes and the links, or its refusal;
+- a child that dies by a signal is a refusal naming the signal, and one
+  that has not answered in 60 seconds is a refusal;
+- one that ends any other way, or answers with what is not an answer,
+  is `Hdf5ReaderFault`. That is a `RuntimeError` and never a refusal,
+  so a caller handling refusals is not handed one, and the fuzzer
+  reports it as a finding;
+- the parent takes none of the answer on trust. It rebuilds the bundle
+  from the record and requires the digest the child named, re-hashes
+  each artefact against the digest the bundle cites, and requires the
+  links to be a list of text.
+
+The file is kept in the fuzz corpus as a finding record, written from
+the input and the fault because the harness could not write it, and is
+replayed on every run.
+
+**Tests.** `tests/test_hdf5_bundle.py` holds the kept file refused,
+with the test's own process still running. The rest stand a program of
+their own in the child's place, so none depends on a file that breaks
+one build of the library: a child killed by SIGSEGV, SIGKILL or a
+signal with no name; one that sleeps past the deadline; one that exits
+3, raises, writes what is not JSON, nests past the parser, or answers
+with a list or an empty object; an honest answer, accepted, and seven
+forged ones, each refused; a module planted in the caller's directory
+and environment, not imported; a file the child leaves, not left; a
+relative path, read; and the bytecode cache passed on. The file went
+from 19 tests in 2.0 seconds to 43 in 14.2.
+
+**Mutations.** Twenty-three new in `hdf5_bundle`, H9 to H31. H9 puts
+back the reader as it was, in the caller's process, and the kept file
+kills the suite with it. The others remove one rule each: the signal,
+the deadline, each way a child can fail, each check of an answer, the
+isolation, the directory, the path and the bytecode cache. A first run,
+before H9 was restated as the old reader and before the directory and
+the path were added, killed all 29 then in the spec. The type check
+then refused the child's answer, built as one kind of dictionary and
+filled as another, and the variable was annotated. Everything below
+ran again on the tree this commit holds.
+
+Run here, on this commit's tree: `hdf5_bundle` whole, 31 mutations,
+and `fuzz_harness` whole, 9, whose suite replays the corpus the kept
+file joined. All 40 were killed and every source restored. H9 was
+killed by the kept file: the suite's own process died reading it.
+
+**What it costs.** An honest bundle reads in 162 ms, the median of 30
+reads, where it read in 8.6 ms. A CI-sized fuzz campaign, 4,000 cases,
+takes 28 to 30 seconds where it took 8 to 13. The fuzzer no longer
+sees the lines the child runs, so its guidance at this target is
+weaker. Over six seeds the campaign reached 4,580 to 4,707 lines and 69
+to 80 transitions, against 4,650 to 4,720 lines and 69 to 78 transitions before, far above its floors of
+2,200 and 55.
+
+**The shard plan's weights.** Its comment said twelve specs had gained
+mutations since the hosted run that measured the weights. Thirty have
+now. The comment states the rule and the count, and the weights are
+unchanged, so the plan is too.
+
+**What is not established.**
+
+- The library still faults on the file. This contains the fault and
+  does not fix it, and whether a newer h5py or HDF5 does was not tried.
+- The child is a fault boundary and not a sandbox. It runs with its
+  parent's privileges, and what HDF5 itself opens for a file, an
+  external link among it, was not examined.
+- A child that a file could make lie could return only what the bundle
+  it names cites. A different bundle that holds to itself is not
+  detected, as it was not before.
+- The other native parser the package calls in process is expat,
+  through `xml.etree`, for an FMU's description and the VTK export. It
+  was not looked at for faults beyond the fuzzer's `fmu_description`
+  target.
+
+### Stage 5, eighth pass: an action no module writes is refused by every reducer (AUD-054)
+
+**AUD-054 (P3), fixed.** AUD-046 made the memory store refuse an
+action no module writes, and left the other reducers for a later pass
+to reproduce and decide. The action registry states the rule. Another
+subsystem's action is that subsystem's to fold, and a reducer over a
+shared log skips it. An action no module writes is a newer schema this
+build cannot read, or something with no business in the log, and a
+reducer that read past it would be missing whatever it recorded.
+
+Reproduced at 5339794. A log holding one record whose action is
+`<subsystem>.unheard_of` was loaded by all nine: the capability
+ledger, the role delegations, the policy store, the secret store, the
+scheduler, the agent directory, the network authority, the research
+ledger and the inference gateway. The authority store refused the same
+log. Five of the nine hold authority. A newer build's revocation of a
+grant, a delegation, a policy, a secret or an egress grant would have
+been dropped by an older reader, which would go on honouring what the
+history had withdrawn.
+
+**The repair.** `actions.unknown_refusal` states the refusal once.
+Each reducer asks it where it skipped an action, and raises its own
+error with it. A reducer folds what other writers appended before it
+decides, so one appended after a load is refused at the next fold.
+
+Two tests had written an action no module writes as filler, into logs
+the secret store and the scheduler read. They now write another
+subsystem's action, which those reducers skip.
+
+**Tests.** `tests/test_unknown_actions.py`, new: each of the nine
+refuses the action in its own error, and loads another subsystem's
+action as the control; the refusal's wording; and an action appended
+after a load. At 5339794, all nine refusals and both of the others
+fail, and every control passes.
+
+**Mutations.** Ten, in a new spec, `unknown_actions`: UA1 makes the
+one statement answer that every action is known, and UA2 to UA10 each
+remove one reducer's refusal. The shard plan was regenerated for 142
+specs.
+
+Run here, on this commit's tree: 90 mutations in 9 specs. That is
+`unknown_actions` whole, 10; `agent_secrets` whole, 36, and
+`agent_cross_process` whole, 11, whose suites' filler records changed;
+`stress_campaign_coverage` whole, 15, which mutates the cross-process
+test file; `mutation_shards` whole, 12; and every mutation anchored in
+`actions.py` or in the import list's test, in `agent_actions`,
+`authenticated_history`, `second_reader_audit_actions` and
+`agent_service_authority`. All were killed and every source restored.
+They ran on the tree this commit holds, after the type check, run with
+the other fast checks, refused the agent directory's refusal under a
+name the function had already given a string, and it was renamed.
+
+Not run here: the other 522 mutations anchored in the nine reducers'
+sources, where the change adds one refusal at the end of a fold. Their
+anchors were checked to match once, as all 3,038 were, and hosted CI
+runs every spec whole.
+
+**What is not established.**
+
+- Readers that hold no subsystem's state, such as the audit's
+  explanations, the provenance export and the assurance graph, were
+  not looked at for this.
+- No newer build exists to write an action this one cannot read, so
+  the consequence was for a history nobody has written yet.
+
+### Stage 5, ninth pass: evidence that is not a JSON object is refused in each primary's own words (AUD-055; AUD-056 registered)
+
+**AUD-055 (P3), fixed.** AUD-047 made the independent readers never
+raise on content, and left the primaries. AUD-050 listed seven parses of
+evidence, in six functions, with no handler for bytes that are not
+JSON. Evidence is content-addressed, so the bytes a record cites are the
+bytes it was written with; what they hold is still the writer's.
+
+Reproduced at 699b04b with five kinds of bytes: not JSON, a JSON list,
+a JSON number, a constant JSON does not have (NaN), and nesting past
+the parser. Where a reader raised, it failed closed, but not in its own
+words, so a caller handling a ledger's refusal was handed an error it
+does not catch:
+
+- The research ledger raised `JSONDecodeError`, `RecursionError` or
+  `AttributeError`, and not its own `ResearchError`, when it observed a
+  bundle that is not an object, when it loaded a history observing
+  one, and when it read such a report for an observation's context.
+- Its reader of outputs raised `AttributeError`, `KeyError` or
+  `TypeError` on an output or a quantity that is not one.
+- The learned-model ledger raised what the parser raised for a
+  document, and so did the governed model runs for a record their
+  tools wrote, and the claim check for the bundle a citation names.
+
+Where nothing raised, the bytes were read as if they were an object:
+
+- The research ledger observed a bundle holding NaN. Written at
+  699b04b with an honest output beside the NaN, the observation
+  recorded the output's value, and the history loaded.
+- Its reader of outputs read an OK output whose resolution is text,
+  with the text, and a history observing it loaded.
+- The claim check reported a citation of a bundle holding NaN intact.
+- The learned-model ledger and the governed model runs handed their
+  callers the list, the number or the object holding NaN as the
+  document or record.
+
+**The repair.** `canonical.json_object` states once what a reader of
+evidence may take as an object. The research ledger refuses a bundle
+that is not one, on replay and from its caller. It reads a record's
+report that is not one as stating nothing, as it already did for an
+observation, and its reader of outputs is total. The learned-model
+ledger refuses such a document with `LedgerError`, and the governed
+model runs such a record with `ModelRunRefused`. The claim check
+reports such a citation broken. The scan of the package's JSON parses
+no longer lists the six functions: it finds 31 parses, where it
+found 37, 20 with a handler and 11, in nine functions, listed with
+the reason they need none.
+The two histories written at 699b04b, above, are refused with the
+change, each in the ledger's own words.
+
+**Tests.** `tests/test_evidence_objects.py`, new, hands each reader the
+five kinds of bytes, with an honest bundle as the control. At 699b04b,
+35 of its 38 tests fail.
+
+**Mutations.** Thirteen, in a new spec, `evidence_objects`: EO1 to EO3
+in `canonical.json_object`, EO4 to EO10 in the research ledger, and one
+each in the learned-model ledger, the governed model runs and the claim
+check. The shard plan was regenerated for 143 specs.
+
+Two existing anchors moved with the lines the change rewrote:
+`claim_check` CC19 and `research` RS7. Each was re-anchored to the
+new line and still removes the same rule, under its old name and
+rationale. Every one of the 3,051 committed mutations' anchors
+occurs exactly once in its target.
+
+Run here, on this commit's tree: 139 mutations in 11 specs. That is
+`evidence_objects` whole, 13; `json_nesting` whole, 35, whose test no
+longer lists the six functions; `claim_check` whole, 25, and `research`
+whole, 46, whose sources the change rewrote and whose anchors moved;
+`mutation_shards` whole, 12; every mutation anchored in `canonical.py`,
+in `learned_lifecycle.py` or in the import list's test, in
+`agent_incremental`, `witness`, `neural_authority` and
+`agent_service_authority`; and the three of other specs anchored within
+three lines of a line the change wrote in the research ledger,
+`rc_counterfactuals` OV5 and `research_science` OB2 and OB3. All were
+killed and every source restored.
+
+Not run here: the other 106 mutations anchored in the five sources, 54
+in the research ledger and 52 in the governed model runs, each more
+than three lines from any line the change wrote. Their anchors were
+checked to match once, as all 3,051 were, and hosted CI runs every spec
+whole.
+
+**Hosted evidence.** R60 cites `agent_substrate/learned_lifecycle.py`,
+which this change edits, so the hosted run it cites no longer covers
+its implementation. The rows whose evidence covers their
+implementation go from 7 to 6, as `tests/test_completion_matrix.py`
+now states, until the evidence commit after hosted CI.
+
+**AUD-056 (P2), registered open.** Found while correcting this
+record: the reader of outputs was made total over values that are not
+numbers, and a number below zero is still read. A measurement record
+verified through the authority store, with a report that states no
+agreement and a bundle stating T = 300 K with a resolution of -5 K, is
+observed with that resolution, and the one evaluation holds the value
+to the interval from 305 K down to 295 K: `T > 302 K` is SUPPORTED by a
+value below 302 K. With 0.5 K it is REFUTED. Reproduced at 699b04b and
+with this change. The second reader's verdict computes the same
+interval, so it agrees. A quantity refuses a resolution below zero
+where it is made, so the package's own producers cannot write such a
+bundle, and under admission/2 the agreement a PASS must state replaces
+the producer's resolution with a bound that is never below zero; the
+reach is a report that states no agreement, under admission/1 or for a
+kind no admission rule reads. Not fixed in this commit.
+
+**What is not established.**
+
+- The reader of outputs reads each value's kind, not a number's sign:
+  a resolution below zero is still read, and is AUD-056, above. A JSON
+  object with the wrong contents elsewhere in these readers was not
+  swept.
+- The package's own producers write these documents as JSON objects
+  with no constant JSON lacks. The authority store admits a record of
+  a kind no admission rule reads, citing whatever bytes its proposer
+  stored, once a verifier verifies it; that, or a history or store
+  written some other way, is the reach.
+
+### Stage 5, tenth pass: a resolution below zero decides nothing (AUD-056)
+
+**AUD-056 (P2), fixed.** Registered open in the ninth pass. A quantity
+refuses a resolution below zero where it is made, and so does the
+ranking; the readers of a bundle did not. The research ledger observed
+a stated resolution of -5 K as it stood, and the one evaluation held
+the value to an interval whose lower end is above its upper, so that
+300 K supported `T > 302 K`. The claim check, which asks the same
+evaluation and computes the same interval for a claim of equality, and
+the second reader's verdict agreed with it.
+
+**The repair.** `research.holds_an_interval` states once what bounds an
+interval: a finite value, and a resolution that is a finite number no
+less than zero. The research ledger's reader of outputs leaves out an
+output whose resolution is below zero, as it does one that is not a
+number. The evaluation decides nothing on a value that bounds no
+interval, INCONCLUSIVE with its reason, and the claim check judges such
+a value INSUFFICIENT_EVIDENCE, a claim of equality too. The second
+reader's verdict restates the rule in its own code. A history an
+earlier build wrote observing such a value is refused on load: with an
+evidence store, for values its bundle does not hold; without one, for
+the verdict computed on them. The second reader reports that verdict.
+
+Every use of a stated resolution in the package's arithmetic was read
+for this: the evaluation, the claim check's interval and its test of a
+citation, the widening by a check's agreement, and the agreement checks
+in the admission rules and the second reader, which already refused a
+resolution below zero. The portable verifier computes its verdict from
+its own exact solution, not from a stated resolution, and was read and
+not changed.
+
+**Tests.** `tests/test_resolution_bound.py`, new: what bounds an
+interval; the reader of outputs; the evaluation, the claim check and
+the second reader's verdict, each on a prediction or claim the inside-
+out interval would decide the wrong way, with 0.5 K and 0 K as the
+controls; the ledger observing such a bundle and deciding nothing; a
+history written as an earlier build wrote it, refused with and without
+an evidence store and reported by the second reader. At 143c38f, 32
+of its 33 tests fail, fifteen of them because `holds_an_interval` is
+new; the ledger's control passes.
+
+**Mutations.** Five, in a new spec, `resolution_bound`: NB1 in the
+reader of outputs, NB2 in `holds_an_interval`, NB3 in the evaluation,
+NB4 in the claim check and NB5 in the second reader. The shard plan
+was regenerated for 144 specs.
+
+Run here, on this commit's tree: 47 mutations in 8 specs. That is
+`resolution_bound` whole, 5; `claim_check` whole, 25, whose judge the
+change guards; `mutation_shards` whole, 12; the four of other specs
+anchored within three lines of a line the change wrote, `research`
+RS15, `simulation` SM8, `evidence_objects` EO10 and
+`rc_counterfactuals` OV11; and the one anchored in the import list's
+test, in `agent_service_authority`. All were killed and every source
+restored.
+
+Not run here: the other 417 mutations anchored in the three sources,
+89 in the research ledger, 327 in the second reader and one in the
+claim check, each more than three lines from any line the change wrote.
+Their anchors were checked to match once, as all 3,056 were, and hosted
+CI runs every spec whole.
+
+**What is not established.**
+
+- A value that bounds no interval for another reason now decides
+  nothing too: a value no float holds, where the evaluation raised
+  `OverflowError`, and a value of true or false, which it took for one
+  or zero. Neither was found in a history.
+- Outside the package, the readers of a stated resolution in
+  `scientific/` were not swept for this; the quantity refuses one below
+  zero where it is made.
+
+### Stage 5, eleventh pass: the egress perimeter (AUD-057 to AUD-059)
+
+`agent_substrate/netauth.py`, CRITICAL in the inventory and read in part
+until now, was read in full, every line of its 1,829 at 2e8e7f2. Three
+defects were reproduced in it.
+
+**AUD-057 (P1), fixed.** A grant permits address classes, PUBLIC only by
+default. `classify_address` took PUBLIC to mean whatever was not
+unspecified, loopback, multicast, link-local, private or reserved by the
+standard library's flags. The shared address space 100.64.0.0/10 is
+none of those and is not global, so it read as PUBLIC, though
+`AddressClass.PRIVATE` lists it. A PUBLIC-only grant authorized a
+request resolved to 100.64.0.1, and the socket guard, resolving a granted
+name itself, connected to it: a probe in this session's container
+connected through the guard to 100.64.0.1:443, which is live there, and
+closed the connection without sending anything. No test makes such a
+connection; each records the connection the guard lets through instead.
+An IPv4 address carried in IPv6 was classified by its IPv6 flags:
+`::ffff:127.0.0.1` and `::ffff:0.0.0.0` read as PRIVATE, so a grant
+permitting private ranges and not loopback reached loopback. Rated P1
+rather than the scale's P0 for a security boundary because the host the
+grant names still bounds what is asked for; the inside network is
+reached when such a name resolves there, which is the case the class
+check exists for.
+
+`classify_address` now classifies a mapped address as the IPv4 address
+it carries, and an address that is none of the other classes and not
+global as PRIVATE. The decision and the guard both ask it.
+
+**AUD-058 (P3), fixed.** A revocation naming no grant, a grant record
+carrying no grant and a service record carrying no service raised
+`KeyError` out of the reducer, and a revocation naming its grant by a
+list raised `TypeError`. Each is refused with `NetworkError` naming its
+position. AUD-007's class, in a reducer it did not reach.
+
+**AUD-059 (P1), fixed.** A service contract narrows what a grant permits
+on the hosts it claims: the operations under contract and a per-task
+budget. Registering one asked nothing of its registrar, under a role
+registry too, and a request was decided by the first registered service,
+by name, among those claiming its host. An actor holding no role
+registered a contract for a host another principal's grant covered, and
+both readers took it. A wider contract under a name that sorts first
+lifted a narrower one's limits: beside a contract permitting
+`GET /v1/read` once per task, one permitting `GET /` a thousand times
+made `GET /v1/admin` allowed.
+
+A registration is now refused unless its registrar holds EGRESS_ISSUER
+over every host it claims, where it is written and on replay, when a role
+registry is in force. A registration claiming a host that a registered
+service's patterns also match is refused, with or without one, by
+`netauth.patterns_overlap`. The second reader restates both in its own
+code.
+
+**Tests.** `tests/test_egress_perimeter.py`, new, 39 tests: the classes,
+with the edges of 100.64.0.0/10; the decision and the guard on shared
+address space and on a mapped loopback address; the four malformed
+records; who may contract a host; when two patterns overlap; the
+displacement as it was; one host, one contract with no role registry.
+At 2e8e7f2, 28 of them fail, eight because the overlap matcher is new;
+two that need an IPv6 socket skip in this session's container, where
+none can be made.
+
+**Mutations.** Fourteen, in a new spec, `egress_perimeter`: NP1 and NP2
+in the classifier, NP3 to NP8 in the primary's contract rules and its
+matcher, NP9 to NP11 in the second reader's, and NP12 to NP14 in the
+reducer's refusals. The shard plan was regenerated for 145 specs. Two
+existing anchors moved with the lines the change rewrote:
+`agent_netauth` E43, on the revocation, and `unknown_actions` UA8, whose
+anchor came to match the new refusal as well as its own. Each was
+re-anchored and still removes the same rule.
+
+Run here, on this commit's tree: 118 mutations in 9 specs. That is
+`egress_perimeter` whole, 14; `agent_netauth` whole, 61, the egress
+authority's own spec, whose source the change rewrote in the classifier
+and the reducer; `unknown_actions` whole, 10, and `mutation_shards`
+whole, 12; and every other mutation anchored in `netauth.py` or in the
+import list's test, in `agent_service_authority`,
+`agent_snapshot_coherence`, `decided_appends`, `role_authority` and
+`t2_closure`. All were killed and every source restored.
+
+Not run here: the other 328 mutations anchored in the second reader,
+each more than three lines from any line the change wrote. Their
+anchors were checked to match once, as all 3,070 were, and hosted CI
+runs every spec whole.
+
+**What is not established.**
+
+- NAT64 and 6to4 addresses are still classified by their IPv6 flags,
+  which refuses them under a PUBLIC grant; the address a translator would
+  reach is not derived.
+- Which role registers a service contract is the owner's to provision
+  with the rest of the role registry; EGRESS_ISSUER over the claimed
+  hosts is what is asked here.
+- Other reducers were not swept for a bare `KeyError` on a malformed
+  record in this pass.
+
+### Stage 5, twelfth pass: an answer closes its question (AUD-060, AUD-061)
+
+`agent_substrate/agents.py`, HIGH in the inventory and read in part until
+now, was read in full, every line of its 1,396 at 219f377. Its
+registration of a principal that is not human asks nothing of the
+registrar, by design since AUD-011: a registration is not a grant, and
+under a role registry the roles are held there. Two defects were
+reproduced.
+
+**AUD-060 (P2), fixed.** An escalation answer moves the question to
+ANSWERED, or, from its asker, WITHDRAWN. The directory took any state but
+WITHDRAWN on the answer path. An answer whose state was OPEN recorded a
+person's answer and its author on a question still open, and the next
+answer, by another person, replaced it. `answer()` and `withdraw()` never
+write such a record. The second reader refused it, so the two readers
+disagreed about the history. The directory now refuses an answer that
+moves the question to any state but those two, and one naming a state
+that does not exist.
+
+**AUD-061 (P3), fixed.** Eight malformed directory records raised
+`KeyError`, `ValueError` or `TypeError` out of the reducer, where every
+refusal it makes is an `AgentError`. Each is refused with the
+directory's own error naming its position. AUD-058's class, in another
+reducer.
+
+**Tests.** `tests/test_agent_directory_records.py`, new, 12 tests. At
+219f377, 11 of them fail; the control passes.
+
+**Mutations.** Nine, in a new spec, `agent_directory_records`: AD1 and
+AD9 in the answer's state, AD2 to AD8 in the refusals of malformed
+records. The shard plan was regenerated for 146 specs.
+
+Run here, on this commit's tree: 91 mutations in 9 specs. That is
+`agent_directory_records` whole, 9; `mutation_shards` whole, 12; and
+every mutation anchored in `agents.py` or in the import list's test, in
+`agent_agents`, `agent_incremental`, `agent_service_authority`,
+`agent_snapshot_coherence`, `agent_toctou`, `t2_closure` and
+`unknown_actions`. All were killed and every source restored. No
+mutation anchored in the directory was left out.
+
+**What is not established.**
+
+- A quorum counts distinct instances, as `ConflictRule.REQUIRE_QUORUM`
+  says, so two runs of one agent make two. Separation of duties counts
+  them as one party. Nothing outside the directory resolves claims today;
+  whether a quorum should count agents is the owner's.
+- The remaining reducers were not swept for a bare `KeyError` on a
+  malformed record.
+
+### Hosted CI at 219f377: the mapped-address rule was held on one interpreter (D-2026-195)
+
+**What failed.** Read from the API at 16:33 UTC: in the pull-request run
+44113499718, mutation shard 2 failed. `egress_perimeter` exited 1 with
+NP1 SURVIVED, 13 of its 14 mutations killed; the shard's fifteen other
+specs passed. Every other check of the two runs that had finished had
+passed. The push run's shard 2 was still running.
+
+**The cause.** The interpreter, not the change. Asked of an IPv4 address
+carried in IPv6, CPython 3.12.13 and 3.13.17 answer each of the seven
+flags `classify_address` reads as the IPv4 address carried, for each of
+eleven addresses tried. CPython 3.12.3, which this container's
+environment is built on, answers six of them otherwise for at least one:
+`::ffff:127.0.0.1` is not loopback and `::ffff:0.0.0.0` is not
+unspecified. NP1 takes away the line that reads the address carried. On
+3.12.13 nothing a test can ask tells NP1 from the code; on 3.12.3 it
+does, and here NP1 was killed. The mapped-address half of AUD-057
+reproduces on 3.12.3 and not on 3.12.13, and its test held the rule only
+where the interpreter reads the address as IPv6. Hosted CI's shards run
+under the CPython 3.12 `uv sync` provides (D-2026-194 read 3.12.16).
+
+**Reproduced here** under CPython 3.12.13, with the locked
+environment built on it. At 0278dcf, whose classifier and egress tests
+are 219f377's, `egress_perimeter` kills 13 of its 14 mutations, NP1
+SURVIVED, as hosted. Under 3.12.3 it killed all 14 at 219f377.
+
+**The repair.** A test puts back the older answers, `is_loopback` and
+`is_unspecified` read as IPv6, and holds `::ffff:127.0.0.1` as LOOPBACK
+and `::ffff:0.0.0.0` as SPECIAL, with `::1` and `::` as controls. The
+classifier's code is as committed; its docstring, the test module's and
+AUD-057's register entry say which interpreter the mapped-address half
+reproduces on.
+
+**What was run.** `egress_perimeter` whole, on this commit's tree,
+under CPython 3.12.13 and under 3.12.3: 14 of 14 killed under each, NP1
+by the new test, and every source restored. No other mutation is
+anchored within three lines of a line the change wrote, and no other
+spec runs the changed test file. The shard plan is unchanged.
+
+### Stage 5, thirteenth pass: the second reader read in full (AUD-062 to AUD-067)
+
+`agent_substrate/reconstruct.py`, CRITICAL in the inventory and read in
+part until now, was read in full, every line of its 5,347 at 0278dcf.
+Six defects were reproduced. One of them is in the primary as well.
+
+**AUD-062 (P0), fixed.** An admission asks that the report be captured
+by a governed verification task standing VERIFIED before the
+transition. Both readers of origin took any `task.evidence` record
+naming the task as a capture of it, from any actor, at any position
+before the verdict. One record by another principal, naming a report it
+wrote itself, made that report read as the check's, and the store
+admitted a result on it. Reproduced in a governed run: the report was
+the genuine one with its agreement's resolutions divided by a thousand,
+and `decide` returned VERIFIED. A capture is now the runner's, made
+while its task executes, in the origin view, the duplicate's answer,
+the second reader's task replay and the decision proof. A check task
+whose history already holds such a record is refused by its own
+separate-process verification.
+
+**AUD-063 (P1), fixed.** Given an authenticator, the second reader
+refused the records it does not attest and decided admissions on a task
+replay, and research proofs on subsystem replays, that read the history
+without it. The authenticator now reaches both.
+
+**AUD-064 (P1), fixed.** The directory admits a HUMAN by the bootstrap
+or by an active human. The second reader also took one admitted by a
+name the log never admitted, or by a retired human, and that human's
+answer to an escalation.
+
+**AUD-065 (P2), fixed.** A transition naming a starting state the replay
+does not have is refused by the store and the task projection. Both
+independent readers applied it, judged from the state they had.
+
+**AUD-066 (P2), fixed.** The store counts a policy version that is an
+integer. The second reader counted any, and a bound promotion stood on
+a policy the store says was never published.
+
+**AUD-067 (P2), fixed.** The read path's check walks the capability
+chain. The second reader asked only of the capability a read cited, and
+counted a read under a child of a revoked grant.
+
+**Tests.** `tests/test_second_reader_rules.py`, new, 28 tests. At
+0278dcf, with the runner's name supplied where the constant is new, 21
+of them fail; the 7 controls pass. One existing case met the new rule:
+`tests/test_scientific_invalidation.py` attaches bytes to a check task
+after its verdict, under the runner's name, and asked that the second
+reader's task replay refuse nothing. That record is no capture now, so
+the case asks that the replay refuse it by name, at its position, and
+nothing else; what the case asked before it still asks. A run of the
+whole suite on this tree before that change failed there alone.
+
+**Mutations.** Twenty, in a new spec, `second_reader_rules`: SR1 to SR8
+the capture rule, SR9 to SR13 the authenticator, SR14 and SR15 the
+HUMAN rule, SR16 and SR17 the starting state, SR18 the version, SR19
+and SR20 the chain. Two existing anchors moved with lines the change
+rewrote, `agent_second_reader` D9 on the HUMAN rule and
+`replay_origin_view` RV10 on the admission's task view; each was
+re-anchored and still removes the same rule. A first run on this
+pass's tree left six alive, each a check the change had made
+redundant or a rule the cases struck twice:
+
+- `scientific_invalidation` SI10 and `scientific_authority_replay` SA9
+  and RX5 removed the check that a capture preceded its task's
+  verdict. The capture rule refused the same late record first: a
+  task executes only before its one verdict. The checks were removed,
+  leaving the capture rule the one guard; each of the three was
+  re-anchored on it and is killed by the case that names its intent,
+  and SI11 follows its rewritten line.
+- `governed_run` GR1 removed the prefix view's copy of the history's
+  roots, which no reader asks for now that the proof hands each one
+  the roots. The copy was removed and GR1 re-anchored on the
+  hand-off; SR13 and `freshness` FR39 follow the call as written.
+- SR5 and SR6 each removed one half of the store's capture rule, and
+  every forged record in the cases broke both halves. Two cases
+  break one half each: the runner's name outside the execution, and
+  another principal while the task executes, with the check's
+  separate verification, which refuses that run first, set aside.
+
+The shard plan was regenerated for 147 specs.
+
+Run here, on this commit's tree: 525 mutations in 51 specs. That is
+`second_reader_rules` whole, 20; `mutation_shards` whole, 12; and every
+other mutation anchored in `reconstruct.py`, `governed_model.py` or
+`governed_tasks.py`, 492, or in the import list's test, 1, in the 49
+other specs that hold one. All were killed and every source restored.
+
+**What is not established.**
+
+- The research ledger, and the second reader's research replay after
+  it, read a scientific record's state from its transitions unjudged,
+  by stated design ("Read, not judged: the store judges them"). A
+  consumer that loaded the research ledger without the store would take
+  an observation from a record whose transition the store refuses. The
+  readers here that decide on research also load the store, and the
+  decision proof reads the record's state from the authority replay.
+  Recorded, not changed.
+- On an unauthenticated log any writer may still record under the
+  runner's name. A governed history's attestations bind it.
+- `_attested` restates the two other readers' authentication beside
+  `reconstruct`'s own block rather than replacing it, which leaves the
+  mutations anchored on that block as they were.
+- The second reader's scheduler rules ask nothing of who dispatches a
+  job, bound neither a lease's end nor one renewal's length, and check
+  nothing of a priority change. Whether the scheduler's reducer holds
+  those is for the scheduler pass.
+- A capability expiry that is not an integer reads in the second reader
+  as one that never expires. The capability ledger builds every grant
+  through its validating constructor. Not reproduced.
+
+### Stage 5, fourteenth pass: the scheduler read in full (AUD-068 to AUD-071)
+
+`agent_substrate/scheduler.py`, read in part until now (its catch-up
+paths and the position bookkeeping), was read in full at c82541e, all
+1,901 lines, beside the second reader's scheduler rules. The questions
+the previous pass left for it are settled below. Four defects were
+reproduced, each a rule the writer held and its replay did not.
+
+**AUD-068 (P2), fixed.** `enqueue()` refuses a resource need that is
+not a whole, non-negative number of a named resource, and a citation
+that is not a digest; replay restated neither. An enqueue appended by
+its own submitter with a need of `'many'` slots made readiness, which
+is documented as total, raise, so `ready_queue()` and `reconcile()`
+raised for the whole queue. One needing -5 slots let five jobs be
+dispatched at a capacity of two. Both are refused on replay now, at
+their position, and the second reader restates both. It also read clean
+an enqueue naming a lease end, or waiting on a job never enqueued, on a
+cancelled one or on more jobs than the scheduler allows, all of which
+the primary refuses; it restates those rules now too.
+
+**AUD-069 (P2), fixed.** A lease may be renewed sixteen times, and
+nothing bounded how far one grant reached: `dispatch()` and a renewal
+each took 10**15 positions, and both readers took a dispatch's end from
+its record, so a dispatch appended by another principal, naming itself
+the holder and an end of 2**62, held the job past every reconcile.
+`MAX_LEASE_SEQS`, a million positions, now bounds one grant at the
+writer and on replay in both readers, so no attempt holds a job past
+seventeen million positions from its dispatch.
+
+**AUD-070 (P2), fixed.** Replay converted a priority with `int()` before
+checking it, so `'0'`, 0.7 and True were priorities the writer refuses;
+the second reader took any, so a history the primary refuses for a
+priority of 99 read clean there. Replay takes the form as written now,
+and the second reader restates the form and the bounds.
+
+**AUD-071 (P3), fixed.** Twelve malformed records raised KeyError,
+ValueError or TypeError out of the reducer, AUD-058's class again; a
+position or a count written as `'7'` or True was taken by conversion,
+and so were a dependency or citation list written as a map, and a
+resource map written as pairs. Each is refused in the reducer's words,
+at its position.
+
+**The previous pass's questions.**
+
+- Who dispatches a job is asked by neither reader, nor by the writer.
+  `dispatch()` takes its actor as given, and readiness asks the dispatch
+  policy about the job's submitter rather than about whoever dispatches.
+  A principal that can append a scheduler record can hand a READY job
+  to itself and, as its holder, report it SUCCEEDED. Under both shipped
+  policies every principal may dispatch, so no refusal is bypassed
+  today. A job's state moves the queue only: an admission asks the task
+  machine's verified tasks, not the scheduler's jobs. Whether a dispatch
+  is bound to a principal is an owner decision.
+- A lease's end and one renewal's length were bounded nowhere: AUD-069.
+- A priority change: the primary re-runs the policy gate on a raise at
+  the position it was made. The second reader cannot, because the policy
+  the scheduler asks is its constructor's and the log does not name it;
+  it now restates the form and the bounds (AUD-070).
+
+**Tests.** `tests/test_scheduler_replay_rules.py`, new, 56 tests. On
+the previous pass's tree, with the bound supplied where the constant is
+new, 51 of them fail; the 5 controls pass. Two existing cases met the
+restated rules: `tests/test_agent_differential.py` enqueued a job with no
+priority in its reproducer of D-2026-38 and in that reproducer's
+anti-vacuity control, and the second reader now refuses such an
+enqueue, as the primary does. Each now enqueues at priority 9, as the
+writer writes it, and asks what it asked before.
+
+**Mutations.** Thirty-six, in a new spec, `scheduler_replay_rules`:
+SK1 to SK6 the enqueue, SK7 to SK10 the bound on one grant, SK11 a
+priority's form, SK12 to SK18 the malformed records, SK19 to SK26 the
+second reader, SK27 to SK30 an enqueue's lease end and the forms of its
+lists and its map, and SK31 to SK36 the second reader's rules for an
+enqueue's lease end and what a job waits on. No existing anchor moved. The shard plan was regenerated
+for 148 specs.
+
+Run here, on this commit's tree: 156 mutations in 12 specs. That is
+`scheduler_replay_rules` whole, 36; `mutation_shards` whole, 12; and
+every other mutation anchored in `scheduler.py`, 91, in the second
+reader's scheduler rules, 16, or in the import list's test, 1, in the
+ten other specs that hold one. All were killed and every source
+restored.
+
+**What is not established.**
+
+- Who cancels is asked on the write path alone, as who dispatches is:
+  the `scheduler.cancel` gate is not re-run on replay. Both shipped
+  policies allow every principal to cancel.
+- The dependency half of readiness is not re-derived on replay: a
+  dispatch of a job whose dependency has not succeeded is accepted by
+  both readers, though the writer's `dispatch()` re-checks it. The
+  evidence, capability and policy halves cannot be re-derived by a
+  reducer that holds no resolver, capability set or policy binding.
+- Lowering a priority needs no reason on replay, where `set_priority`
+  asks one for every change. Not changed.
+- `dispatch()` computes a lease's end from the position it read before
+  taking the writer's lock, so under contention the lease is shorter
+  than asked by the records appended between. Not changed; the bound
+  holds for every end the writer can compute.
+
+### Stage 5, fifteenth pass: the governed task runner read in full (AUD-072 to AUD-074)
+
+`agent_substrate/governed_tasks.py`, read in part until now, was read in
+full at c82541e, all 2,788 lines, beside the second reader's task replay.
+Four findings were reproduced: three defects, fixed, and one question
+for the owner.
+
+**AUD-072 (P1), fixed.** The task projection folded every create into a
+new task under the id it named. A governed run standing VERIFIED,
+followed by a create reusing its id, by its submitter or by any actor
+naming itself submitter, read CREATED under the second record's tool and
+submitter, with no executor. `_tool_of`, which picks the spec a task is
+verified and compensated against, still read the first create. The
+second reader refused the second create, so the readers held different
+histories. The projection refuses it now.
+
+**AUD-073 (P3), fixed.** Fifteen malformed task records raised KeyError,
+ValueError or TypeError out of the projection, AUD-058's class once
+more. Each is refused in the projection's words, at its position.
+
+**AUD-074 (P2), fixed.** The second reader named a task by the record's
+target when the payload named none, where the primary names it by the
+payload alone, and folded creates naming no tool or no inputs digest,
+which the primary refuses. It notes each and folds none.
+
+**AUD-075 (P2), the owner's.** Under a role registry a task move
+claiming SUBMITTER, WORKER or VERIFIER needs PROPOSER, EXECUTOR or
+VERIFIER over the tool. One claiming SCHEDULER or SYSTEM needs nothing,
+by stated design: those roles move a task for the control plane. Their
+moves include rejecting and cancelling a task and moving a VERIFIED task
+to INVALIDATED, which withdraws the origin of every result resting on
+it. A principal no grant names did each, through `invalidate()` and by
+records appended directly, and both readers held every move. On a
+governed history, every record signed, a registered party no grant
+names signed the same invalidation, and the separate process confirmed
+the history as well. The record
+authority binds its own SYSTEM to VERIFIER or PROMOTER over the kind,
+and the trust-boundary matrix named only the three granted roles; it
+says now that no grant stands behind the other two. Which principal the
+control plane is, and which role stands behind it, is the owner's to
+decide. Nothing it reaches forges a verdict: no SCHEDULER or SYSTEM move
+ends in VERIFIED.
+
+**Tests.** `tests/test_task_projection_records.py`, new, 23 tests. On
+the previous pass's tree 20 of them fail; the 2 controls pass, and so
+does the one that measures AUD-075.
+
+Three existing tests met the new rules, and each still asks what it
+asked. `tests/test_agent_governed_tasks.py` read the transition rule's
+source for the record's claimed source state as `TaskState(p["src"])`;
+the claim is read now through `_task_state`, and the test reads that.
+The AUD-047 cases in `tests/test_agent_second_reader.py` set aside a
+task record whose id is a list, which the task replay now refuses in its
+own words before any lookup; for that reader the case is a create whose
+dependency list is a number, which still reaches the guard, and the
+honest create after it names its inputs. And the sweeps in
+`tests/test_agent_readers_never_raise.py` built every record under an
+actor no plain value names, so a create's submitter check stopped each
+one short: without the guard, the sweep of registered actions found
+nothing the task replay raised on. Its records are now the actor's own,
+and that sweep finds the task replay raising again.
+
+**Mutations.** Ten, in a new spec, `task_projection_records`: TP1 the
+second create, TP2 and TP3 a create's fields, TP4 to TP8 the malformed
+records, TP9 and TP10 the second reader. No existing anchor moved. The
+shard plan was regenerated for 149 specs. A first run on this pass's
+tree left one alive: it removed a check that a lease is a mapping, which
+the lease's own constructor, its refusal caught just below, already
+made. The check is removed, and that mutation with it.
+
+Run here, on this commit's tree: 160 mutations in 28 specs. That is
+`task_projection_records` whole, 10; `mutation_shards` whole, 12; and
+every other mutation anchored in `governed_tasks.py`, 109, in the second
+reader's task replay, 28, or in the import list's test, 1, in the 26
+other specs that hold one. All were killed and every source restored.
+
+**What is not established.**
+
+- `_execution_record` answers with the last `task.execution` record for
+  a task. On any history the projection accepts that is the lease
+  holder's, made while the task executed; on one it refuses, recovery
+  does not run.
+
+### The campaign baseline: 9a918a1
+
+The whole-PR campaign starts from the head of the pull request as pushed,
+9a918a1, with origin/main at 096fb90 as the merge base.
+
+- **The change set.** 313 commits and 1,081 changed files: 665 added,
+  384 deleted and 32 modified, with no renames. GitHub's count for the
+  pull request is the same: 1,081 files and 313 commits.
+- **The ledger.** `docs/audit/pr17_audit_ledger.json`, sha256
+  110482b4894195e7…, with `check` reporting 0 problems:
+
+  | Disposition | Files |
+  |---|---|
+  | REVIEWED_IN_FULL | 89 |
+  | REVIEWED_IN_PART | 22 |
+  | NOT_REVIEWED | 852 |
+  | AUDIT_ARTIFACT | 92 |
+  | INSPECTED_BINARY | 20 |
+  | CHECKED_GENERATED | 4 |
+  | CHECKED_DATA | 2 |
+
+  Of the 852 not reviewed, 365 are deletions.
+- **The register.** `docs/audit/findings.json`, sha256 7a26cb55ee3669f6…:
+  75 findings. 69 are FIXED, 5 are the owner's (AUD-001, AUD-010,
+  AUD-019, AUD-035 and AUD-075) and 1 is OPEN (AUD-040).
+- **The environment.** Linux 6.18 on 4 CPUs. CPython 3.12.3 in the
+  repository's `.venv`, and 3.12.13 as the second interpreter, each with
+  the same 72 distributions (sha256 of their sorted names and versions
+  8e311a57535b4bc5…). `uv.lock` has sha256 64ce13c43a2d3882….
+- **Verification at 9a918a1.** The full suite passed 7,699 tests and
+  skipped 22, in 12 chunks. On the hosted side, all 44 check runs were
+  green, read from the API.
+- **Regeneration.** The documented chain was run over the committed tree
+  in a clean worktree. It changed three derived files: the crate's size
+  of `final_manifest.json` (123,680 bytes stated, 124,050 held) and the
+  two manifest files' records of the crate. A second run changed nothing.
+  The committed tree was one round short of its fixed point, and every
+  check had passed. This is AUD-076, below.
+
+### Stage 5, sixteenth pass: the provenance chain (AUD-076 to AUD-078)
+
+These were read in full: `ro_crate_tools.py`,
+`tools/ro_crate_conformance.py` with its test and its mutations,
+`MANIFEST_BOUNDARY.md` and `RO_CRATE_PROFILE.md`. Three findings were
+reproduced at 9a918a1 and fixed.
+
+**AUD-076 (P2).** The crate states each file's size, the manifest's among
+them, and the manifest hashes the crate. The documented order built the
+crate first, so the crate stated the size the manifest had before. Six of
+the branch's forty latest commits were committed this way, the head among
+them. The validator compared no size with its file: a crate stating
+`uv.lock` as one byte validated. It now compares every stated size,
+including the manifest pair's. Section 4 of `MANIFEST_BOUNDARY.md` runs
+the crate and the manifest twice, and says to repeat the pair until both
+checks pass. The section also named seven of the ten generators that
+rewrite a tracked file on every change, and not the audit's ledger. It
+names each now, in an order whose second run changes nothing, with every
+check passing.
+
+**AUD-077 (P3).** Any data entity whose checksum began "not-embedded",
+the manifest pair's exemption, went unchecked. A crate marking every file
+so verified nothing and validated. A data entity at `/etc/hostname`, with
+its checksum and size, also validated. The exemption now belongs to the
+pair alone, and a data entity must name a path inside the tree.
+
+**AUD-078 (P3).** Twenty-five malformed crates raised out of the
+validator, whose own rule is that a crash is not a refusal. Two refusals
+made before its checks wrote no verdict, so the report kept the last one:
+VALID, over a crate just refused. Each is now refused in the validator's
+own words, and every verdict is written.
+
+**Tests.** `tests/test_ro_crate_conformance.py` gains 33 tests:
+
+- the crate rebuilt from the tree equals the committed one;
+- a stated size is held to its file;
+- the exemption;
+- the tree;
+- 25 malformed crates;
+- the verdict file;
+- the documented order, against the ledger's table of generators.
+
+All 33 fail at 9a918a1. The 14 tests already in the file pass at both
+commits. The control test now asks that each negative control be refused
+for its own reason: a control refused for anything else does not test
+what it is named for. In `tests/test_manifest_policy.py` the check of the
+validator's command line asserted `"VALID"` in the upper-cased output.
+That held whatever the verdict, since the first line reads "RO-Crate
+validation". It asserts the verdict line now.
+
+**Mutations.** Sixteen were added to `ro_crate_conformance`, RC10 to
+RC25. They cover:
+
+- the size check;
+- the exemption;
+- the tree;
+- the shape and the depth;
+- the parser's and the file system's errors;
+- the early verdict and its reason;
+- the builder's sizes and exemptions;
+- the descriptor, type and description reads;
+- the documented order: a generator left out, and the pair run once.
+
+The spec keeps its measured weight (`tools/mutation_shards.py` says why),
+so the shard plan is unchanged.
+
+Run here, on this commit's tree: 37 mutations in 2 specs,
+`ro_crate_conformance` whole (25) and `mutation_shards` whole (12). These
+are the only specs holding a mutation anchored in a file this pass
+changed. All were killed, and every source was restored.
+
+**Hosted evidence.** R65 is the row the crate's job evidences. It read
+COVERS_CURRENT_IMPLEMENTATION at 9a918a1 and reads
+PREDATES_CURRENT_IMPLEMENTATION now, because its code changed after the
+run that evidenced it. Its two stack rows, `ro-crate` and `slsa-sigstore`,
+read unsatisfied until a hosted run of this commit is attached: 57
+unsatisfied, up from 54. Nothing is attached here.
+`tests/test_completion_matrix.py` pins the number of rows whose
+evidence covers their code, so that it moves only deliberately. It
+falls from 6 to 5 here, and the test's comment says why.
+
+**What is not established.**
+
+- The community validator's verdict on this crate. That validator runs
+  only on a hosted runner (`tools/ro_crate_conformance.py`). The crate's
+  keys and entities are unchanged; only regenerated values differ.
+
+### Hosted CI at fddfdf6: SM4 was killed only by the harness's bound (D-2026-196)
+
+**What failed.** Read from the API: in the pull-request run 44392500106,
+mutation shard 4 failed. `simulation` exited 1, with SM4 killed only by
+the harness's 300-second bound and its other 14 mutations killed by
+tests, and the run's `mutation-matrices` check failed with it. The push
+run 44392484601 passed the same shard on the same commit. Of the
+commit's 44 check runs, those two failed. Gate I was not met at fddfdf6.
+
+**The cause.** The interpreter, through the search's seed. Hypothesis
+seeds the derandomized gateway simulation from a digest that takes in
+the machine's source as `tokenize.untokenize` rewrites it, and CPython
+3.12.3 and 3.12.13 rewrite its three backslash continuations
+differently. With SM4 in place, under 3.12.3 the search found the corner
+and shrank it in 28 seconds. Under 3.12.13 it found it by a longer
+program and shrank it for 300 seconds, until Hypothesis's own limit
+stopped it, and the run took 320. The shrink alone used the harness's
+whole bound.
+
+**The repair.** Fixed paths through the same machines, their rules and
+their invariants, each defined before its file's search, for the three
+kills the search took more than half the bound to make under 3.12.13:
+
+- SM4, a recovery outcome inside the lease, NOT_SENT before a dispatch
+  and LOST after it;
+- SM1, the budget as a ceiling;
+- SM9, disagreeing observations.
+
+The machines and their digests are unchanged.
+
+**What was run.** `simulation` whole, on this commit's tree, under
+CPython 3.12.13 and under 3.12.3: 15 of 15 killed under each, by the same
+tests, and every source restored. The new paths kill SM1, SM3, SM4, SM6
+and SM9; D-2026-169's path kills SM7; the searches kill the other nine.
+Every fixed path passes under three hash seeds on each interpreter.
+
+### Stage 5, seventeenth pass: the inference gateway read in full (AUD-079 to AUD-082)
+
+Wave A of the campaign. `agent_substrate/inference.py`, read in part
+until now, was read in full at fddfdf6, all 1,513 lines, with its test
+file, `tests/test_inference_gateway.py`, also read in full. The worker,
+`agent_substrate/_inference_worker.py`, was read again and is unchanged.
+The gateway's lifecycle was checked step by step against the second
+reader's restatement:
+
+- the budget;
+- the reservation, at its worst case;
+- the dispatch, written before the call;
+- the provider, behind its process boundary;
+- the response and its settlement;
+- the transcript;
+- the proposal and its binding.
+
+Four findings were reproduced. Three were fixed, and one is open.
+
+**AUD-079 (P2), open.** The gateway refuses a reservation only when its
+writer is the request's caller. Under a role registry it asks the
+registry nothing, and nor does the second reader. On the adversarial
+evaluation's governed world, after its legitimate run, the registered
+colleague whom no grant names signed three records for the run's agent
+under the run's budget: a reservation, its dispatch and an OK result.
+Every record authenticated. The gateway held the colleague's response
+as the request's answer. The second reader and the separate process
+noted nothing, and the binding check passed a proposal made from it.
+Filed under an objective's next step, such a request is the one the
+research controller resumes. The mechanism is fixable here: a grant over
+the budget, which the registry's scopes do not yet name. It is scheduled
+with AUD-075's scheme. No verdict is forged this way, since an answer is
+input to the governed path.
+
+**AUD-080 (P3), fixed.** Six malformed inference records raised
+TypeError out of the gateway's fold, AUD-058's class once more. Each is
+refused in the fold's words, at its position.
+
+**AUD-081 (P3), fixed.** If recovery settled an attempt between its
+reservation and the check for cancellation, infer() raised its internal
+_Settled. It now returns what the log holds, as it already did after a
+dispatch.
+
+**AUD-082 (P3), fixed.** The provider boundary read the worker's reply
+as a mapping before asking whether it was one, so the refusal written
+for that case was never reached. The gateway caught the exception and
+settled the attempt, so no attempt was left open. The reply is now
+refused in the boundary's words.
+
+**Tests.** `tests/test_inference_gateway.py` gains 12 tests. Eleven are
+regression tests, ten of which fail at fddfdf6 by raising. The eleventh,
+a body that is not base64, was refused there too, in the decoder's
+words, and is held to the boundary's. The twelfth measures AUD-079 and
+passes at both commits.
+
+**Mutations.** Seven were added to `inference_gateway`, MR1 to MR7:
+
+- the two names, and the names before their repeats;
+- the cancellation's settlement;
+- the reply's form, the body's form and the body's decoding.
+
+No existing anchor moved. The spec keeps its measured weight, so the
+shard plan is unchanged.
+
+Run here, on this commit's tree: 89 mutations in 8 specs. These are
+`inference_gateway` whole (52), `simulation` whole (15),
+`mutation_shards` whole (12), and every other mutation anchored in
+`inference.py` (10), held by the 5 other specs. All were killed, and
+every source was restored.
+
+**Read and not changed.** The reservation's arithmetic and lease, the
+settlement rule, the lease and outcome rules of the fold, the policy
+freshness check and the binding check each agree with the second
+reader's restatement. The input bound assumes no tokenizer emits more
+tokens than bytes, plus 256 for framing. It is stated as an assumption,
+and a provider reporting more is recorded as an overrun, not trimmed.
+
+**What is not established.**
+
+- How the gateway behaves with a live provider, which needs an owner
+  decision (OD-1).
+- Whether an escaped lone surrogate in raw text shown as context raises
+  out of the context builder, as `.encode("utf-8")` would. Through the
+  model's own answers it does not: the research state is shown
+  re-serialized as ASCII JSON, and a run carrying one in a hypothesis
+  concluded. Memory and retrieved text are Wave B's.
+
+### Stage 5, eighteenth pass: what a model is shown, read again (AUD-083 to AUD-086)
+
+Wave A of the campaign, its second part. `agent_substrate/proposals.py`
+and `agent_substrate/context.py`, each read in full in an earlier pass,
+were read in full again at 8f0714e, all 711 and 648 lines. They were read
+for what the inference lifecycle hands them: the context a model is
+shown, and the envelope its answer becomes. Four defects were reproduced,
+and all four are fixed.
+
+**AUD-083 (P3), fixed.** A citation's line numbers were checked with
+`isinstance(n, int)`, which a boolean passes. An envelope citing lines
+true..true parsed, true read as line 1. The envelope's other numbers
+each refuse a boolean, and these do now.
+
+**AUD-084 (P3), fixed.** A context item's text was asked to be a str,
+and a str need not encode as UTF-8. A lone surrogate, which an escaped
+one in JSON decodes to, has no UTF-8 bytes, and `build()` raised
+UnicodeEncodeError where it digested the text. Canonical JSON writes
+such a string as its escape, so a record in the log can carry one and
+read back with it. On the adversarial evaluation's world, a source item
+holding one made the research controller's step raise out of the
+controller, which records a refused context only for ContextError. The
+builder refuses the item where it is added, in its own words, and the
+step is the refusal; nothing is shown or sent. A source that is not a
+name is refused there too.
+
+**AUD-085 (P3), fixed.** A manifest read back was held to its key sets,
+its tiers and its summary claims, and taken as written otherwise. Each
+of 22 one-field changes no builder makes was read back as a manifest, a
+budget of true and a byte count of "18" among them, and so was a
+manifest past the item bound. The gateway held one with a byte count of
+true as a context a reservation could name. The reader refuses each in
+its own words now.
+
+**AUD-086 (P3), fixed.** The gateway and the second reader held
+different contexts. The gateway's test was its reader and the digest of
+what it read; the second reader's was the digest of the record, and
+nothing else. A table of 2,772 records was built from a builder's
+manifest, one field set to one of 18 values or taken out, under either
+digest a writer might state. The second reader held 849 of them that the
+gateway did not, an item of no tier and an unknown field among them, so
+a reservation the gateway refuses stood granted there. The gateway held
+20 that the second reader did not: a record leaving out a field its
+reader fills in, stating the full form's digest. The gateway now holds a
+context only when the stated digest is both the record's and its
+reading's. The second reader restates the manifest's form and rules in
+its own words (`_ctx_manifest_held`). On the table both hold the same
+205.
+
+**Tests.** 38 cases in 14 test functions, two of them controls:
+
+- `tests/test_agent_context.py`, 28;
+- `tests/test_proposal_ingress.py`, 3;
+- `tests/test_adversarial_scenarios.py`, 1;
+- `tests/test_inference_gateway.py`, 6, the table among them.
+
+Each of the 36 regression cases fails at 8f0714e: by not refusing, by
+refusing in other words, by the readers' disagreeing, or, in the
+controller's step, by raising UnicodeEncodeError. The two controls pass
+at both. `tests/test_completion_matrix.py` records that R34's hosted
+evidence now predates `context.py`, which it cites: 5 rows covered
+become 4.
+
+**Mutations.** 28 were added:
+
+- X34 to X45 in `agent_memory_context`, the builder's and the reader's
+  new refusals;
+- PI20 in `proposal_ingress`, the boolean line number;
+- MX1 to MX15 in `inference_gateway`: the gateway's digest of the
+  record, and each rule the second reader restates.
+
+No existing anchor moved. The three specs keep their measured weights,
+so the shard plan is unchanged. MX7, which takes away the second
+reader's own check of the budget, survived the first run: every budget
+the table set was refused by the rule that the use fits the budget as
+well. The table gained a budget of 1e9, a float no count is and above
+any use, which only the budget's own rule refuses, and kills MX7.
+
+Run here, on this commit's tree: 229 mutations in 12 specs. Whole specs:
+`adversarial_eval` (10), `agent_memory_context` (90), `inference_gateway`
+(67), `proposal_ingress` (30) and `mutation_shards` (12). Also every
+other mutation anchored in `inference.py`, `proposals.py` or
+`context.py` (19, in the 7 other specs that hold one), and HT16 in
+`history_time`, the one other mutation anchored in the second reader's
+inference readers. All were killed, and every source was restored.
+
+**Read and not changed.**
+
+- `ProposalEnvelope.parse` serializes a record before it bounds its
+  depth, and catches only TypeError and ValueError. At each depth
+  probed that `json.loads` reads, from 500 to 9,750, under CPython
+  3.12.3 and 3.12.13, it refused the record in its own words, nested
+  deeper than 8. From 10,000, `json.loads` itself raised RecursionError.
+  Not reproduced.
+- The receipt fold refuses a malformed envelope without naming its
+  position. It refuses, and in the parse's words.
+- The redactor is asked of each item before any text is digested.
+
+**What is not established.**
+
+- A manifest is not checked against the bytes it describes. An item's
+  byte count and digest are as its builder stated them, and the text is
+  not in the log.
+- The second reader's restatement holds the manifest's rules as they
+  stand. A change to the form is made in both readers, and the table
+  test is the check that they agree.
+
+### Stage 5, nineteenth pass: the cheap load held to the full one (Wave B, part 1; AUD-087, AUD-088)
+
+Wave B of the campaign is memory and replay. This pass takes its first
+part: the authority store's checkpointed load, `AuthorityStore.load_from`,
+held to a replay from genesis; what authenticates the anchors it rests on;
+and how long a record altered before a checkpoint goes unseen. No defect
+was found in the load. Two were found in what the mutation harness's
+matrices count, and both are fixed (AUD-087, AUD-088).
+
+**Hosted CI at 8f0714e and bd818f8.** Read from the API: at each commit,
+all 44 check runs completed and passed, in eight workflow runs, the 16
+mutation shards and both mutation-matrices aggregates among them. Gate I
+is met at both. At 8f0714e the runs are 44603516543, 44603516413,
+44603516457, 44603516778 and 44603516493 (push), and 44603531136,
+44603531178 and 44603531203 (pull request). At bd818f8 they are
+44624122611, 44624122897, 44624122628, 44624122641 and 44624122627 (push),
+and 44624135034, 44624135085 and 44624135088 (pull request). The mutation
+shard holding `agent_checkpoint` took 61 of its 150 minutes at bd818f8.
+
+**The differential.** `tests/test_agent_checkpoint.py` gains a search,
+`test_a_load_from_any_checkpoint_agrees_with_a_full_load`, and the fixed
+paths in front of it. A history is a short program of operations written
+through the stores: records created, moved along the model's edges, moved
+where no edge goes, and created again under their idempotency keys; one
+record made to rest on another, and the cascade through it; policy
+versions published, expiring and withdrawn, and a binding to their
+publisher; a wall clock set forward and back; checkpoints; and writers
+reopened from a full read or from their own newest checkpoint. The clock
+is the `time` the log, the policy store, the store and the checkpoint
+module read, replaced by one the history sets. Each checkpoint a history
+took is copied alone into a store of its own and loaded from it, a
+checkpoint required. The load is held to the full one twice: on the
+snapshot, and on what the store holds read past `snapshot()` (its records,
+keys, policy view, binding, the time the history reached, its position and
+its canonical set), since a field `snapshot()` itself dropped would be
+missing from both sides of the first comparison.
+
+Measured on the 200 histories the search draws, counted under CPython
+3.12.3 and again under 3.12.13, with the same counts under each: 2,724
+operations; 208 checkpoints in 135 histories; restored there, idempotency
+keys at all 208, evidence at 123, a record's policy at 93, policies at 87
+(both of the two at 32), dependencies at 22, stale reasons at 20, the
+binding at 12 and a withdrawal at 10; 1,327 moves, along 13 of the model's
+14 edges. No history took PROMOTED to REVOKED, four other edges were taken
+once or twice, no checkpoint was followed only by records earlier than the
+time it restored, and none was followed by a promotion under a binding it
+restored. So four fixed paths come first, collected before the search:
+
+- a policy published, bound and withdrawn before a checkpoint, and a
+  writer restarted from it asked to promote on that policy, which it
+  refuses;
+- a version expiring 60 seconds after it is published, the clock moved 100
+  seconds on and a record written, the clock set back 60 seconds and a
+  checkpoint taken, and a writer restarted from it asked to promote, which
+  it refuses, judging at the time the history reached;
+- a record made to rest on another, promoted, and cascaded STALE for a
+  stated reason, before a checkpoint;
+- every one of the 14 edges, by seven records, with four checkpoints
+  between them, the log checked to hold each edge.
+
+At every checkpoint of every history and path, the cheap load held what
+the full load held.
+
+**How long an altered record goes unseen.** A record before a checkpoint,
+altered in place and at its width
+(`test_how_long_an_altered_prefix_goes_unseen`, and the search's last
+block, reached in 135 histories):
+
+- the cheap load does not read it, and says so: `loaded_prefix_verified`
+  is False, and its snapshot is the full load's;
+- a writer holding an anchor past it does not see it: its appends check
+  what follows the anchor, and it extends the altered history, as the
+  log's module states;
+- the store `load_from` returns holds no anchor of its own, so its first
+  write reads the whole log, and refuses it;
+- a fresh handle's first append, a full load, `log.verify()` and the next
+  checkpoint each read the whole chain, and refuse it, and so does the
+  anchored writer once `full_verify_every` is 1.
+
+It goes unseen until the next read of the whole chain, which a live
+writer's own appends never make unless `full_verify_every` is set.
+
+**What authenticates the anchors.** Read, not changed. The checkpoint file
+is authenticated by nothing: its self-hash is recomputable by whoever can
+write it, and a test says so. The `checkpoint.state` record, under the
+hash chain, pins the snapshot's digest to its position (D-2026-30), and
+`load_from` refuses a checkpoint no such record names, or names with
+another digest. The record an anchor names must parse, sit at the anchor's
+seq and hash to its hash, at the anchor's offsets. Under an authenticator
+`load_from` reads every record, since a snapshot says nothing about who
+wrote the records before it.
+
+**Mutations.** CD1 to CD15 are added to `agent_checkpoint`: each takes one
+field out of the snapshot as it is written or restored, or keeps the cheap
+load from folding the checkpoint's own record. At bd818f8 the spec's five
+suites killed 2 of the 15, CD1 and CD5, by the one fixed differential they
+held, and 13 survived. Whether a test elsewhere caught them was then asked
+of every test a trace found reaching the restore, the snapshot or the
+cheap load at all: 59 tests in 23 files, traced in each test's process and
+in the subprocesses that keep its environment. Each of the 13 was run
+against them at bd818f8 by node id, the 42 that reach the restore or the
+cheap load for a mutation of either and all 59 for one of the snapshot,
+each run with its own bytecode cache, after a green baseline and an inert
+edit that kept it green, with the source restored after each and the
+baseline green again at the end. Nine were killed there, by the first test
+to fail: CD2, CD6 and CD7 by the long-horizon campaign's checkpointed
+load, CD4 by the resumable campaign, CD8 and CD14 by the harness
+demonstration's generic leg, and CD10, CD11 and CD12 by history_time's
+checkpoint test. Four were killed by none of them: CD3, a restore that
+drops what a record rests on; CD9 and CD13, a withdrawal forgotten as a
+snapshot is restored or as it is written; and CD15, a cheap load that does
+not fold the checkpoint's own record. On this pass's tree all 15 are
+killed, none by the search: CD1 and CD5 by that differential, which comes
+first in the file, and the other 13 by the new fixed paths, 8 by the
+withdrawal's, 3 by the dependency's and 2 by the clock's. CD11 is
+history_time's HT10, the same mutant, held here against this spec's
+suites.
+
+**Whole runs.** On this pass's code and tests, before its records were
+written: `agent_checkpoint`, 65 of 65, under CPython 3.12.3 and again
+under 3.12.13, each mutation killed by the same test under both and none
+by the search; `inference_gateway`, 66 of 66; `agent_execution`, 65 of 65;
+`mutation_shards`, 12 of 12; and `mutation_harness`, 22 of 22, run after
+AUD-088's move, each entry killed by a test of the harness's behaviour,
+H17 and H18 by the test of the timeout rule. Every source was restored
+byte-identical and every post-run baseline was green. The first four ran
+on tree 35b654af, which differs from this commit's in
+`tests/test_mutation_harness.py`, in lacking
+`tests/test_mutation_specs.py`, and in the completion matrix, the records
+and the files derived from them. Their suites read none of these but for
+three tests of `tests/test_agent_substrate_isolation.py`, a suite of
+`agent_checkpoint` and `agent_execution`: two read every Python file the
+repository holds for an import of the substrate, and one for a definition
+bound twice. No mutation changes either harness test file, and the three
+pass unmutated on this tree, so each says of each mutation what it said on
+35b654af.
+
+**AUD-087 (P3), fixed.** Three mutation specs each counted one mutant
+twice. Two entries of one spec can make the same mutated source while
+their names and anchors differ, and the harness ran both and counted two
+kills: it refused a duplicated name, a missing field and a replacement
+equal to its find, and never compared what two entries make. C34 was added
+with D-2026-51 on the line C1 had been re-anchored to, with the same
+replacement, and the ledger recorded it as a second mutation for the new
+condition. IG2 was re-anchored onto the one budget rule left when the
+writer's and the replay's were merged, with IG1's find and replacement.
+X62 had X11's. No fault went untested: each was its partner's fault, and
+its partner was killed. `validate_spec` now digests what each entry makes
+of its source and refuses a second entry making the same mutant, in its
+own words. The three are folded: C34, IG2 and X62 come out, and each one's
+rationale is kept, word for word, in its partner's. H20 in
+`mutation_harness` takes the refusal away. The test of the refusal fails
+against bd818f8's harness, which runs both entries, and the harness's own
+validation of every committed spec fails at bd818f8 for exactly the three
+specs. Across specs, 35 groups of identical mutants remain, 75 of the
+3,209 entries, none within one spec: each is one fault held against
+another spec's suites.
+
+**AUD-088 (P3), fixed.** The harness's own spec could not show a survivor.
+`tests/test_mutation_harness.py`, its one suite, held the static checks of
+every committed spec, and two of them read each spec's anchors in the
+files it names, the harness's own file among them. Each entry of
+`mutation_harness`, applied, takes its own anchor out of that file, so the
+anchor check and the no-op check failed under every entry, whatever the
+entry did, and the harness reports a run's first failure. This pass's run
+credited H17 and H18 to the anchor check, which comes before the test that
+observes them; with the two checks deselected, each was killed by that
+test. The null control appends a comment, which takes no anchor away, and
+could not see it. An entry HX that puts a trailing space in a message no
+test reads, held in a lane's copy of the spec and run alone, was reported
+KILLED at bd818f8, by
+`test_every_mutation_anchor_matches_exactly_once[mutation_harness.json]`,
+and SURVIVED on this pass's tree; it was never committed. The checks move
+to `tests/test_mutation_specs.py`, which no spec runs, and a test there
+holds that none does; they still run wherever the whole suite runs, and
+completion row R51 cites the new file.
+
+**Read in full.** `tests/test_agent_checkpoint.py`, all 1,811 lines at
+bd818f8, and this pass's additions. Its tables refuse each case by the
+rule the case is there for, each checked here by its message. Two refusals
+are asserted as `Exception` with a message. The concurrency test takes two
+checkpoints a turn, writes the first and lists the position of the second;
+what it holds, that every checkpoint written still describes the log, is
+unaffected. `tools/mutations/agent_checkpoint.json`, all 51 entries at
+bd818f8: AUD-087 was found there, and the prefixes E26 and E27 each begin
+two entries' names. Neither was changed. `tools/mutation_matrix.py`, all
+607 lines, and `tools/mutations/mutation_harness.json`, all 21 entries:
+AUD-087 and AUD-088 bear on them. A kill made by a collection error is
+reported without the test that made it. `tests/test_mutation_harness.py`,
+all 838 lines: two of its assertions named a heading the harness stopped
+printing with D-2026-43, so neither could fail, and each names the heading
+it prints now; the tests holding them were not vacuous, since each also
+asserts the run's exit status or the quarantine's absence.
+
+**Read and not changed.** The store `load_from` returns holds no anchor of
+its own, so its first write reads and hashes the whole log once, then
+holds one: counted here, one full verified read at the first write and an
+anchored advance at the second. That read is also what finds an altered
+prefix there. A checkpointed restart so saves the prefix's fold and not
+its read, which bears on AUD-010; a change to it is a change to the
+latency above. `loaded_prefix_verified` stays False once that read has
+verified the prefix, which errs the safe way.
+
+**What is not established.**
+
+- The histories hold claims, not scientific results, and no role registry:
+  the admissions a restore re-derives, and the roles a snapshot carries,
+  are not in them.
+- The memory projection and the other projections are not held to a
+  differential here; Wave B goes on to them.
+- Which histories a search draws moves with its source. The counts above
+  are for this source, measured under both interpreters.
+- Which tests reach the restore was found by tracing calls in each test's
+  process and in subprocesses that keep its environment. The tracing run
+  ended after its last test without pytest's summary line, every test
+  before it having passed; what it traced was written as each call was
+  made.
+
+### Stage 5, twentieth pass: the memory lifecycle from several writers (Wave B, part 2; AUD-089 to AUD-092)
+
+Wave B of the campaign is memory and replay. This pass takes the memory
+lifecycle: an entry remembered, summarized, derived from another, made
+stale by an invalidated source, superseded and retracted, by several
+writers on one log, each a store of its own holding an anchor. The memory
+store was read in full again, with three of its test files, the governed
+runtime's two-supervisor tests and the substrate's isolation test. Four
+defects were found, each reproduced at bd1a43a and fixed (AUD-089 to
+AUD-092).
+
+**Hosted CI at bd1a43a.** Read from the API: all 44 check runs completed
+and passed, in eight workflow runs, the 16 mutation shards and both
+mutation-matrices aggregates among them. Gate I is met at bd1a43a. The
+runs are 45364400321, 45364400416, 45364400393, 45364400341 and
+45364400386 (push), and 45364422478, 45364422544 and 45364422488 (pull
+request). The mutation shard holding `agent_checkpoint` took 100 of its
+150 minutes in the push run and 65 in the pull request's; the one holding
+`agent_memory_context` took 94 and 97.
+
+**The search.** `tests/test_agent_memory.py` gains
+`test_a_lifecycle_written_by_several_writers_agrees_everywhere`. Three
+writers, each a `MemoryStore` on its own handle of one log, write a
+history between them: entries remembered on three evidence sources and on
+one another, among them a name of a memory not yet written; summaries;
+retractions and supersessions, by the author and by others; sources
+invalidated; catch-ups along the anchored route and along the full read;
+and writers reopened. A move names an entry the log holds when it is made,
+and its actor is often that entry's author, so that moves are made and not
+only refused. After every operation, four things are held. Each writer
+holds what a load of the history up to its own position holds, read past
+its public view: each entry as a record, the index from source to entry,
+the invalidated sources, and its position and that record's hash. Each
+write is also made by a store just loaded from a copy of the log, beside
+it, and the two decide alike and write alike, a refusal costing the log
+nothing. A fresh load agrees with the second reader on every entry's
+status, with no anomaly. And no current entry rests on an invalidated
+source, by the test's own walk of what each entry names.
+
+Measured on the 200 histories the search draws, counted under CPython
+3.12.3 and again under 3.12.13, with the same counts under each: 2,298
+operations; 1,825 writes, each made beside a fresh store, 663 of them by a
+writer behind the log and 773 refused; 285 catch-ups, 162 along the
+anchored route and 123 along the full read, 97 of them by a writer behind
+the log; 188 reopenings; 69 entries born STALE on a source they name and
+44 through another entry; 26 moves to STALE, 23 by an invalidation's
+cascade and 3 by a stale birth's, 10 of them past a retracted or
+superseded entry; and all six edges of the lifecycle, ACTIVE to RETRACTED
+77 times, to STALE 26, to SUPERSEDED 61, STALE to RETRACTED 14 and to
+SUPERSEDED 35, and SUPERSEDED to RETRACTED 9, with 33 retractions and 18
+supersessions of an entry already so, which the rules allow. At bd1a43a
+the search fails with two distinct failures, each shrunk: an entry derived
+from a stale entry, current (AUD-089), and a writer behind the log
+refusing a retraction the store beside it accepted (AUD-091). Alone, it
+took 8.6 to 11.2 seconds in four runs here, two under each interpreter.
+
+**Every edge, and every edge it does not have.** Each of the six edges of
+`STATUS_EDGES` is taken on the write path by a writer that did not write
+the entry and had not read it, and replayed by a fresh load and by the
+second reader; at bd1a43a the three into RETRACTED fail (AUD-091). Each of
+the six moves between two statuses the table does not join is refused on
+the write path, where it costs the log nothing, and on replay by both
+readers, made by the author, naming a replacement the store holds, and to
+STALE on a premise that holds, so that the edge alone refuses it.
+`tests/test_memory_trust.py`'s table of moves holds three of the six.
+
+**AUD-089 (P3), fixed.** A memory resting on an invalidated source through
+another entry stayed current, by three paths. An entry derived from an
+invalidated source is born STALE, and invalidating a source moves to STALE
+what rests on it through the entries that summarize or derive from it. But
+a summary of an entry whose source was already invalidated, or an entry
+derived from such an entry, was born ACTIVE: birth asked only whether the
+entry's own sources were invalidated, while `_rests_on_invalidated`, the
+premise a STALE move is held to and documented as the cascade's reach,
+follows summaries and derivations, and the second reader restated the
+direct rule. The cascade stopped at an entry no longer current, so a
+summary of a retracted or superseded note on the source was never reached.
+And an entry that named a memory before it was written, as `derived_from`
+may, since it names authority records too, stayed current when that memory
+was born STALE: the cascade over its source had run before it existed.
+Each left a current note on a withdrawn premise, in `current()` and in
+recall, in a fresh load and in the second reader, and a second
+invalidation of the source moved nothing. One rule now decides birth in
+both readers: an entry is born STALE when it rests on an invalidated
+source, directly or through the entries it summarizes or derives from. One
+cascade serves an invalidation and a stale birth, and follows what rests
+on an entry it does not move, so that a writer whose entry is born STALE
+moves what already names it. The cascade is the write path's, as it was:
+replay holds each STALE move to its premise and supplies no move nobody
+wrote, so a history appended around the write path can still hold a
+current entry on a withdrawn premise. The born-stale reason reads "rests
+on an already-invalidated source" for both births; nothing outside the
+store reads it, and an entry's digest does not cover it.
+
+**AUD-090 (P3), fixed.** `test_the_authority_path_cannot_import_memory`
+and the layering test read an import of a sibling module only in its
+relative form, and the stdlib-only test lets the package's own name
+through, as it must. At bd1a43a each of `from agent_substrate.memory
+import MemoryStore`, `import agent_substrate.memory` and `from
+agent_substrate import memory`, written into a function of `authority.py`,
+passed all three; the control, `from .memory import MemoryStore`, failed
+the first two. MQ5, the first form as a mutation, run alone against
+`agent_memory_context`'s suites from a lane's copy of a spec that was
+never committed, SURVIVED at bd1a43a; in the spec on this pass's tree it
+is killed. The memory module's docstring says the layering test makes such
+an import impossible even by mistake, and `_scientific_imports`, in the
+same test file, already read the absolute forms. One reading of a module's
+imports, `package_imports`, now serves the layering, the memory guard and
+the reconstruct-independence check: relative imports, absolute imports of
+the package's modules in each form, and a module named by a constant to
+`importlib.import_module`. A control holds that it sees each form, lazily
+inside a body, and an import of another package not. With it, each of the
+four forms fails the memory guard and the layering test. A module named by
+a computed string is not seen; nothing in the package imports one.
+
+**AUD-091 (P3), fixed.** `retract()` and `supersede()` looked the entry up
+in the store's own projection before deciding, and a projection is only
+current until another process writes. At bd1a43a, a second store of
+alice's, loaded before her notes m1 and m2 were written, refused her
+retraction of m1 ("no memory 'm1'") and her supersession of m1 by m2 ("no
+memory 'm2'"), and the log grew by nothing; a store loaded afresh
+retracted m1. `remember()`, `summarize()` and `invalidate_source()` decide
+under the writer lock after folding what others appended, as every write
+of the authority store reads the log first; the two withdrawals now fold
+what was appended before they decide.
+
+**AUD-092 (P3), fixed.** The governed runner loads its memory store once,
+when it is constructed, and folds it only when it writes. A run's context
+took the last three current notes from that view. At bd1a43a, a governed
+run filed its note, written by its verifier; a second supervisor on the
+same log was constructed; the note's author retracted it through the first
+supervisor, and a fresh load held it RETRACTED; and the second
+supervisor's next run recorded a context naming it, as current memory. A
+run catches up its idempotency ledger and its scheduler before it decides
+(D-2026-117), and did not catch up its memory; the memory trust assessment
+reports such a view as disagreeing with the log, and nothing asked it.
+`MemoryStore.catch_up()` now folds what other writers appended, and the
+runner calls it before it reads current memory for a run. A note retracted
+between the catch-up and the context's record is still shown, as any read
+can be overtaken.
+
+**Mutations.** Y7, Y22 and Y33 in `agent_memory_context`, and MT25 in
+`memory_trust`, are re-anchored on the lines the corrections moved, each
+keeping its fault: Y7 on the one rule of birth, its rationale extended;
+Y22 on the cascade's move of a current entry; Y33 on the line after the
+invalidation's record; MT25 on the second reader's rule of birth. Added to
+`agent_memory_context`: MQ1, the cascade stopping at an entry no longer
+current; MQ2 and MQ3, a retraction and a supersession decided on a
+projection not caught up; MQ4, the second reader restating birth on direct
+sources only; MQ5, an absolute import of memory into `authority.check`;
+and MQ7, a stale birth that moves nothing that named it. MQ6, in
+`t2_closure`, shows a run memory as last read. Two entries drafted for
+this pass were dropped before any run, each the fault of an entry already
+in the spec: a cascade moving nothing past its first entry is Y6's, and a
+birth ignoring entries named is Y7's once birth is one rule.
+
+**Whole runs.** On this pass's tree: `agent_memory_context`, 96 of 96,
+under CPython 3.12.3 and again under 3.12.13, each mutation killed by the
+same test under both, MR8 by an error collecting
+`tests/test_agent_memory.py`, which the harness reports without a test
+(see below); `memory_trust`, 28 of 28; `t2_closure`, 42 of 42;
+`agent_incremental`, 27 of 27; `agent_toctou`, 9 of 9; and
+`mutation_shards`, 12 of 12. Every source was restored byte-identical and
+no post-run baseline was red. A restart of this session's worker stopped
+the first run of `agent_memory_context` under each interpreter, at 85 and
+87 entries with none surviving; the harness's own recovery restored both
+lanes and both runs were made again whole. The new entries were killed
+thus: MQ1 by the cascade past a retracted note, MQ2 by the edge ACTIVE to
+RETRACTED taken by a writer that had not read the entry, MQ3 by the test
+of a writer that had not caught up, MQ4 by a summary written after its
+detail went stale, MQ5 by the memory guard, MQ6 by the governed run's
+test, and MQ7 by an entry that named a memory before it was written; Y7 by
+an entry written after an invalidation, Y22 by confidence held to be
+commentary, Y33 by an invalidation that nothing rests on yet, and MT25 by
+both readers holding an entry written after its source went stale. The 14
+mutations anchored within three lines of a line this pass changes are all
+in the first three specs. The nine specs whose suites hold
+`tests/test_agent_substrate_isolation.py` were not run again: the scan
+this pass widens can only refuse more, and none of their 343 mutations
+adds an import. The search adds about eight seconds to a run of
+`tests/test_agent_memory.py` here, 2.4 seconds at bd1a43a and 10.3 on this
+pass's tree, and each of the 45 entries of `agent_memory_context` on the
+context module is killed in the suite run after it, so each pays it.
+
+**Read in full.** At bd1a43a: `agent_substrate/memory.py`, all 917 lines,
+again; `tests/test_agent_memory.py`, all 988;
+`tests/test_agent_incremental.py`, all 611; `tests/test_memory_trust.py`,
+all 469; `tests/test_t2_governed.py`, all 391; and
+`tests/test_agent_substrate_isolation.py`, all 1,194. AUD-089 and AUD-091
+were found in the store, AUD-090 in the two import scans, and AUD-092
+following AUD-091 to the store's readers. Each of this pass's changes was
+written and reviewed as a diff. The damaged-tail test in
+`tests/test_agent_incremental.py` held a fresh log's advance and not the
+projection it is named for; it now holds the projection's catch-up too.
+The nineteenth pass's last list, its statements of what is not
+established, was merged into one item by its wrapping; it is split again,
+its words unchanged, and the file's final newline, which that pass
+dropped, is restored.
+
+**Observations, not changed.**
+
+- A move to the status an entry already has passes the edge rule in both
+  readers. For ACTIVE it is accepted from anyone and sets the entry's
+  reason and its updated position, which nothing outside the store reads;
+  for a withdrawal it is the author's, and an author may supersede a note
+  with itself, or two notes with each other, leaving no current version.
+  Nothing follows `superseded_by` in a loop.
+- The read guard of the isolation test sees `open()`, `read_text()` and
+  `read_bytes()`, not `os.open` or `Path.open`. Outside the I/O layer,
+  `archive.restore` writes through `os.open` and `_ns_init` opens path
+  handles and a confinement probe; neither is an ungoverned read.
+- In `tests/test_agent_memory.py`, the reviewer-approval test asserts a
+  `TransitionError` with no message, so the separation-of-duties rule
+  could be what refuses; the hit's label test asserts `Exception`; several
+  malformed-record tables assert `MemoryError_` with no message. In
+  `tests/test_agent_incremental.py`, the fresh-load test asserts
+  `Exception`, the grown-log control asserts that both routes do not raise
+  rather than that they agree with a load, and the two-route tests write
+  `record.create` alone, which most projections skip.
+- MR8 is killed before any test runs. It writes the hit's evidence label
+  as a field with a default ahead of fields without one, which the
+  dataclass decorator refuses when the module is imported (`TypeError:
+  non-default argument 'memory_id' follows default argument`, seen on a
+  copy of this pass's tree), so it would be killed with no test of the
+  label at all. `test_the_evidence_label_on_a_hit_cannot_be_set` holds
+  that the label is not a field, and MR8 never reaches it. The harness
+  counts the kill as it counts any other.
+
+**What is not established.**
+
+- The search holds the memory store alone. The policy store, the
+  scheduler, the agent directory and the other projections that catch up
+  from an anchor are not held to a load of their history up to their
+  position here; Wave B goes on to them.
+- Which histories the search draws moves with its source; the counts above
+  are for this source, measured under both interpreters. Hypothesis
+  6.158.1 asserted inside its own unique-list draw while shrinking an
+  earlier form of the search, so the search draws plain lists and makes
+  them distinct where they are used.
+- The cascade is the write path's. A history appended around it, by a
+  writer that does not run it, can hold a current entry on a withdrawn
+  premise, and both readers project it so.
+- Whether other entries in the specs are killed by an error before any
+  test runs, as MR8 is, was not looked for in this pass.
+
+### Stage 5, twenty-first pass: what a kill is (AUD-093, AUD-094)
+
+The mutation matrices are this campaign's measure of whether a check is
+tested: an entry removes or weakens one check, and a kill says that a test
+noticed. This pass asks of each kill whether a test made it. In the
+twentieth pass, MR8's line in `agent_memory_context`'s report named no
+test; reading every such line in this session's logs, and then every entry
+for what its mutant does before any test runs, found two defects, each
+reproduced at 36767d3 and fixed (AUD-093, AUD-094).
+
+**Hosted CI at 36767d3.** Read from the API: all 44 check runs completed
+and passed, in eight workflow runs, the 16 mutation shards and both
+mutation-matrices aggregates among them. Gate I is met at 36767d3. The
+runs are 45423795852, 45423796051, 45423795924, 45423795950 and
+45423795794 (push), and 45423817515, 45423817271 and 45423817298 (pull
+request). The longest shard took 104 of its 150 minutes, in the push run;
+the one holding `mutation_harness` took 71 in the push run and 93 in the
+pull request's.
+
+**Kills no test made.** Eleven entries were reported killed with no test
+named, in 37 of this session's logs. Each was run again at 36767d3, with
+the harness's own flags, on a copy of the tree. MR8's suites end in an
+error collecting `tests/test_agent_memory.py`: the mutant makes the memory
+hit's evidence label a dataclass field with a default, ahead of fields
+with none, and the decorator refuses the class. H9's end with exit -11:
+the mutant makes the HDF5 library read in the reader's own process, and
+the file the fuzzer found faults it there. The other nine, AC2, G3, G16,
+G26, GR18, GR5, SA6, SA13 and WT22, each end in an error at the setup of a
+named test, a fixture that ran the scenario and met the fault; pytest
+writes those as ERROR lines, which the harness did not read. In eight of
+the nine the scenario meets the fault, refused by the code or caught by
+the fixture's own assertion on the outcome. G3's is `NameError: name
+'find_edge' is not defined`.
+
+**What each mutant loads, and what it reads.** Each of the 3,201 entries
+on a Python file at 36767d3 was loaded in a fresh interpreter, a package
+module by its name and any other file run under a name that is not
+`__main__`: MR8's mutant is the only one that does not load, and R106's
+loads without a name its original binds. Each was also compared with its
+original by the symbol table, for a global name the mutant reads that
+nothing defines: eight do. Two of them raise NameError on the path they
+were written to change, G3 and G14, and R106's mutant takes `judged_at`
+from the second reader's imports. R74 is a call no code makes, written for
+the call-graph guard to find. RR8, H9, RC15 and RC16 read their names only
+in code their own change makes unreachable.
+
+**AUD-093 (P3), fixed.** The harness read pytest's FAILED lines and its
+exit status, and counted any exit but 0 as a kill. A mutant whose module
+did not load, and a suite a signal ended, were counted, with no test
+named; and the nine kills made in a fixture's setup were reported with no
+test either. A suite that imports a module inside its tests would have
+failed in a test, named, under a mutant that does not load, and nothing
+told the two apart. `run_suite` now reads pytest's ERROR lines: an error
+in a test is a kill by that test, and the report names it as an error; a
+file pytest could not collect is no test at all. Each mutant of a Python
+file is loaded in a fresh interpreter, with a bytecode prefix of its own,
+before its suites run. A mutant that does not load, or under which the
+suites cannot be collected, is STILLBORN; a suite a signal ended is KILLED
+BY A SIGNAL; one that failed and named no test has NO VERDICT. None of
+these is counted, and each fails the run, as a kill only a timeout made
+already did. MR8 now adds the field after the last one, so that the class
+is made; H9's test reads the file in a child interpreter,
+`tests/test_hdf5_bundle.py`'s new
+`test_the_reader_survives_the_file_that_killed_it`, so that a reader that
+does not survive it fails the test by name. Against the harness at
+36767d3, eight of the ten new tests in `tests/test_mutation_harness.py`
+fail, and the two controls pass: the same fault written so that the class
+loads is killed by its test, and an entry that says why its unbound name
+never runs runs.
+
+**AUD-094 (P3), fixed.** G3 was to make replay stop reauthorizing a
+transition: its line called `find_edge`, which `governed_tasks.py` never
+imported, and named `_ANY_EDGE`, which nothing defines, from the commit
+that wrote it (0a47b67). G14 was to make the verifier re-run a tool under
+the worker's grant: its line read `capability_id`, which nothing in the
+method defines. R106 was to add an import of `result_rules` to the second
+reader: its anchor ended inside the events import, which later gained
+`judged_at`, so the mutant also moved that name into a comment. G3 and G14
+were counted as killed by a test that met the crash: G3's in a fixture's
+setup, and G14's,
+`test_the_second_tool_reaches_VERIFIED_over_real_workspace_files`, with
+`NameError: name 'capability_id' is not defined`. No test saw either
+fault. R106's kill was its own: under its old mutant as under its new one,
+`test_both_readers_agree_on_a_governed_run` sees its run end REJECTED, the
+separate verifier having refused the second reader's import of
+`result_rules`; but the mutant was more than its rationale, and would have
+crashed in any reader that reached `judged_at` first. `validate_spec` now
+refuses a mutant that reads a name nothing defines, unless the entry's
+`reads_undefined` says why its code never runs it, and refuses the reason
+where the mutant reads no such name. R74 says why. RR8, H9, RC15 and RC16
+bind the names their unreachable code reads, with no change in what they
+do. G3 now takes the edge the machine has with no question of role, lease
+or actor, and a move the machine lacks is still refused; G14 borrows the
+worker's grant for the task; R106 is anchored on the whole import line and
+adds the import alone. Over the specs at 36767d3, the new validation
+refuses six.
+
+**G3, written so, survived.** Run under this pass's harness, `agent_tasks`
+killed 31 of its 32 entries, and G3 survived: no test in its suites held
+that replay asks who made a move the machine has. The tests that forge a
+transition into the log forge pairs that are no edge from where the task
+stands, which the edge table refuses before any question of role, lease or
+actor. `tests/test_agent_governed_tasks.py` gains
+`test_a_forged_move_the_record_s_role_may_not_make_is_not_applied`: after
+an honest run, a record claiming WORKER for VERIFIED to INVALIDATED, an
+edge only SYSTEM may take, is refused on replay. It passes on the code and
+fails under G3 ('DID NOT RAISE TaskTransitionError'), and with it
+`agent_tasks` kills 32 of 32, G3 by that test. The code was right; nothing
+held it.
+
+**Mutations.** Added to `mutation_harness`: H21 to H35, one or more for
+each new rule, each killed by the test written for it. H1, H2, H12, H13,
+H14, H18 and H19 are re-anchored on the lines this pass's rewrite of the
+harness moved, each keeping its fault; H4 and H5 are kept as they were,
+the load check's own cache being written so as not to match them.
+
+**Whole runs.** Under this pass's harness, every entry of 54 specs: the 48
+whose entries had not all been run in this session, and the 8 this pass
+changes, `agent_tasks` and `governed_breadth` among both. 999 entries, in
+58 parts on four lanes, on a tree holding this pass's code, tests and
+specs before G3's test and before its records. 998 were killed, each by a
+test the report names, and one survived, G3. None was stillborn, none was
+ended by a signal, none had no verdict and none was killed by a timeout;
+no load check was skipped, and every source was restored byte-identical.
+Four of the kills were made by an error in a test, and the report names
+it: AC2, G16 and G26, and NU1 in a spec not run before in this session.
+MR8 is now killed by `test_the_evidence_label_on_a_hit_cannot_be_set`; H9
+by `test_the_reader_survives_the_file_that_killed_it`; G14 by
+`test_the_second_tool_reaches_VERIFIED_over_real_workspace_files`, whose
+run is now refused, the grant "was granted to 'stage10-worker', not
+'stage10-verifier'"; R106 by `test_both_readers_agree_on_a_governed_run`;
+R74 by `test_the_second_reader_calls_no_function_named_check`; RR8 by
+`test_evidence_that_is_not_json_is_a_problem_not_a_pass`; RC15 and RC16 by
+the test of a crate the checks cannot read; and H21 to H35 each by the
+test written for it. Then, on the tree with G3's test, `agent_tasks`
+again, 32 of 32; and on the tree with the harness as committed, its test
+for a star import made a line pattern and its new code given the types the
+type check asks for after those runs, `mutation_harness` again: 37 of 37,
+H21 to H35 each by the same test as before. The other eight specs whose
+suites hold `tests/test_agent_governed_tasks.py` were not run again after
+G3's test was added; a test that passes unmutated can add a kill and takes
+none away. Every entry of each of the other 95 specs has a verdict in this
+session's logs, from earlier trees and under the harness before this pass:
+in them a kill named no test only for the eleven entries above, and the
+only signal among those was H9's. Here, the harness spec took 70 minutes
+run whole beside three other lanes, and 66 alone; its hosted weight is
+1,132 seconds, for its 22 entries before this pass. The load check costs
+about 0.36 seconds a mutant here.
+
+**Read in full.** At 36767d3: `tools/mutation_matrix.py`, all 644 lines,
+again, where AUD-093 and AUD-094 were found. Read in part: the fixtures
+and the cache and timeout tests of `tests/test_mutation_harness.py`,
+unchanged since the nineteenth pass read it in full; lines 190 to 224 of
+`tests/test_hdf5_bundle.py`; lines 1155 to 1200 of
+`tests/test_agent_second_reader.py`; lines 42 to 100 and 340 to 390 of
+`tests/test_agent_governed_tasks.py`; the replay of a task transition,
+`check` and `apply_transition`; `_reexecute_and_compare` and the
+capability ledger's issued set; the independent verifier's list of the
+first readers it refuses; and the section of `AGENT_SUBSTRATE.md` on the
+harness's own blind spots, which now has a third, and whose reference to
+the static checks, moved to `tests/test_mutation_specs.py` in the
+nineteenth pass, is corrected. Each of this pass's changes was written and
+reviewed as a diff.
+
+**Observations, not changed.**
+
+- A kill made by an error in a test is the test's, whatever the error was.
+  G3's kill was a NameError in a fixture; the harness now refuses such a
+  mutant before the run, but a crash of another kind, an attribute nothing
+  sets or a call with arguments its callee does not take, still reads as a
+  kill by the test that met it.
+- The harness runs each suite with `-x`, so a kill names the first test
+  that failed and the report says nothing of the tests after it. R106's
+  old mutant was killed by the separate verifier refusing its import,
+  before anything reached the name it had taken away.
+- The substrate guide said the three static checks of the specs take about
+  a second over all of them; the parse check took 39 seconds here, at
+  bd1a43a as at this pass's tree, and the guide now gives the measured
+  times.
+
+**What is not established.**
+
+- A crash other than a name nothing defines, where a mutant's fault was to
+  act, is not told from a test of the fault.
+- The 95 specs not run under this pass's harness were last run under the
+  one before it, at earlier trees of this session. Hosted CI runs all 149
+  under this pass's harness at its head.
+- The load check's cost on a hosted runner is not measured; here it was
+  about 0.36 seconds a mutant, about 20 minutes over the 3,216 mutants of
+  Python files.
+- A file that does not load on its own, unmutated, is not load-checked. At
+  this tree every mutated Python file loads.
+- The undefined-name rule takes a line that begins with a star import as
+  one, so a docstring line that reads like one would make it pass that
+  file by; no mutated file holds such a line.
+
+### Stage 5, twenty-second pass: the other writers held to a full load (Wave B, part 3; AUD-095 to AUD-100)
+
+Wave B of the campaign is memory and replay. The twentieth pass held the
+memory store, written by several writers on one log, to a load of the
+history up to each writer's position. This pass holds four more of the
+projections that catch up from an anchor the same way: the capability
+ledger, the policy store, the agent directory and the scheduler.
+Searching them, and reading them and the authority store beside them,
+found six defects, each reproduced at fe3f9c3 and fixed (AUD-095 to
+AUD-100). The hosted runs at fe3f9c3 also showed the shard plan's
+weights out of date, and they are measured again (D-2026-197).
+
+**How this pass was made.** It was first built, and run, as two passes.
+Both builds, and the runs made on them, were lost with the session's
+container before either was committed. What this section reports was
+written again from the session's record of the design, and run again on
+this commit's tree, on fe3f9c3, and on a tree holding only the
+corrections of AUD-095 to AUD-098. The searches were written again too,
+and they draw other histories than the first build's did.
+
+**Hosted CI at fe3f9c3.** Read from the API: all 44 check runs completed
+and passed, in eight workflow runs, the 16 mutation shards and both
+mutation-matrices aggregates among them. Gate I is met at fe3f9c3. The
+runs are 45492796714, 45492796690, 45492796703, 45492796604 and
+45492796579 (push), and 45492807118, 45492807411 and 45492807031 (pull
+request). The longest shard took 124 of its 150 minutes, in the pull
+request's run, and 96 in the push run's: shard 6, which holds
+`mutation_harness`, weighed at its time for the 21 mutations it had at
+a5cf136 and run with 37. The plan is re-weighted on the push run's
+times (D-2026-197): every shard is now placed at 70 or 71 minutes, where
+the old plan placed each at 82 and they took 54 to 96 in that run.
+
+**The searches.** `tests/test_agent_writers.py` is new. For each of the
+four, a search draws 200 histories of writes by three writers, each a
+projection of its own on one log and holding its own anchor, with
+catch-ups along the anchored route and the full read, and writers
+reopened. After every operation every writer holds what a load of the
+history up to its own position holds, read past its public view. Each
+write is made beside a projection just loaded from a copy of the log,
+and the two decide alike and write alike. A refusal writes nothing but
+the record of a policy's denial, where the scheduler keeps one. And a
+fresh load of the whole history agrees with the second reader. Each
+scheduler holds a policy store of its own, as a second process does, and
+versions of the scheduling policy that open enqueueing, close it and
+suspend dispatch are published through any writer's store. On the
+tests' own seeds:
+
+- the capability ledger's search makes 2,112 operations: 1,645 writes,
+  985 of them refused and 516 made by a writer behind the log, 315
+  catch-ups and 152 reopens. Written: 427 issues, 111 delegations and
+  122 revocations.
+- the policy store's, 2,251: 1,648 writes (570 refused, 722 by a writer
+  behind), 465 catch-ups and 138 reopens. Written: 746 publications, 258
+  decisions and 74 withdrawals.
+- the agent directory's, 1,948: 1,654 writes (886 refused, 588 by a
+  writer behind), 209 catch-ups and 85 reopens. Written: 293
+  registrations, 176 messages, 132 escalations, 61 retirements, 54
+  claims, 26 answers and 26 withdrawals.
+- the scheduler's, 2,236: 1,999 writes (740 refused, 1,000 by a writer
+  behind), 147 catch-ups and 90 reopens. Written: 415 publications of
+  the scheduling policy, 367 enqueues, 200 jobs made ready, 92
+  dispatches, 59 priority changes, 52 reports, 47 cancellations, 17
+  invalidations and 10 lease renewals.
+
+The four take 47 seconds here, from 8 to 18 each.
+
+**What each search found.** At fe3f9c3 the capability ledger's fails on
+its first delegation by a writer behind the log, from a grant another
+writer had issued since. The scheduler's fails two ways there. A writer
+whose policy store had read a version closing enqueueing, and not the
+one opening it again, refused on catch-up a job enqueued under that one.
+And a writer whose store held the closing version denied an enqueue at
+its gate; recording the denial read the log, found the enqueue
+permitted, and wrote the permitted decision beside the enqueue, a record
+a scheduler just loaded does not write. On the tree with the corrections
+of AUD-095 to AUD-098 alone, the scheduler's search fails on a dispatch:
+a writer whose store held a version suspending dispatch, and not the one
+lifting it, refused a dispatch a scheduler just loaded makes. The policy
+store's and the agent directory's searches pass at fe3f9c3, and are kept
+as they are: neither found a defect.
+
+**AUD-095 (P3), fixed.** `delegate()` read the source grant from the
+ledger's projection as it was when the ledger last folded, before the
+writer lock. `issue()`, deciding under the lock, did not ask whether the
+source was revoked, and nor does the replay. A ledger behind the log
+refused to delegate from a grant another writer had issued since, as
+from no grant. It also delegated from a grant another writer had
+revoked since: the record was written, and a ledger just loaded holds
+the child, dead on arrival through the chain check. And it read and
+verified the whole log once per delegation, for a stamp `issue()` makes
+again under the lock. `delegate()` now folds before it decides and
+stamps the position it folded to, and `issue()` refuses, under the
+lock, a delegation whose source is revoked.
+
+**AUD-096 (P1), fixed.** The scheduler re-authorizes an enqueue and a
+priority raise by asking its policy store which version was in force at
+the record's position. `PolicyStore.in_force_at` answered from what the
+store had read when it last folded, which the scheduler's catch-up does
+not move. A scheduler whose store had loaded before the scheduling
+policy was published refused every history holding a job enqueued under
+it, on catch-up and on load alike. One whose store held an earlier
+version folded an enqueue, appended around the write path, that the
+version in force refuses and a fresh load refuses. And the same
+scheduler's `enqueue()`, whose gate asked the same store, wrote an
+enqueue the version in force refuses, after which every load of the log
+refused the whole history. In a governed run,
+`tests/test_agent_governed_tasks.py`'s new test publishes a version
+closing enqueueing, through another process's policy store, between the
+runner's decision and its enqueue. At fe3f9c3 the task reached VERIFIED
+with its enqueue written, and a fresh scheduler and a fresh runner each
+refused the log: "seq 8: stage10.governed@2 refuses to enqueue ...
+closed for maintenance". `in_force_at` now reads a position it has not
+read before it answers, as the capability ledger does (D-2026-156), and
+a store whose fold refused a later record answers for no position. The
+scheduler's gate asks the store at the head, so a denial is refused and
+recorded as a scheduler just loaded refuses and records it. In the
+governed run the enqueue is now refused, with nothing enqueued, and the
+log opens.
+
+**AUD-097 (P2), fixed.** `enqueue()` answered the idempotency key, the
+job id and the dependencies from the scheduler's projection as it was
+when it last folded. The dry run under the lock asks the replay's rules,
+which accept a second job under one key when the work is the same. A
+scheduler behind the log enqueued a second job for a request another
+writer had enqueued under the same key, where a scheduler just loaded
+answers the retry with the first, and both would run. It refused work
+depending on a job enqueued since; and `set_priority`, `cancel` and
+`invalidate` refused a job another writer had enqueued or moved since.
+The four now catch up before they decide, as `dispatch` and `report`
+did, and `enqueue()` asks under the lock whether the key was bound in
+between, answering such a retry with the job that holds it. The
+governed runner enqueues without a key, after catching up.
+
+**AUD-098 (P3), fixed.** Found by reading: the authority store is not
+among the searches. `AuthorityStore.create` and `transition` catch up,
+look the idempotency key up in the projection, and answer a retry with
+its record; `build()` then decides under the writer lock, and asked
+nothing more of the key. A retry whose request completed between the
+look-up and the lock was refused: `create()` with "record 'r1' already
+exists", `transition()` with the edge from the state the record had
+left, "REVOKED is terminal". A store just loaded answers the same retry
+with the record, and the store's own comment on the order of its checks
+says that retry is what the key is for. `build()` now asks, under the
+lock, whether a request under the key completed, and the write answers
+such a retry as a retry is answered, with the record.
+
+**AUD-099 (P3), fixed.** The write path's gate judges a policy's expiry,
+at the latest time the history has reached or the clock. The replay's
+re-authorization asked the store about the record's position and passed
+no time, so it judged none. An enqueue appended around the write path
+under an expired scheduling policy was folded by a fresh load, where the
+write path refuses it, "expired at 1.0". Judging the expiry on replay
+needs the time the record was decided at: the write path decides before
+the append, and the record carried the append's time, so judging at it
+would refuse, on every load, a record decided before an expiry and
+written after it. A policy decision carries the time it was judged at
+for this reason (D-2026-168). Now the scheduler's fold keeps the latest
+time the history has reached, and re-authorizes an enqueue and a
+priority raise at that or the record's own time, whichever is later.
+Every decided write takes one clock reading, dry-runs at it and writes
+it as the record's time, so the gate, the dry run and every replay judge
+the record at the same time. And the dry run's probe holds the
+history's latest time, so a record stamped later, landing before the
+lock, is judged there as replay will judge it. The second reader still
+folds such an enqueue: it restates no scheduling gate (AUD-070's
+residual). No committed history holds a policy with an expiry.
+
+**AUD-100 (P2), fixed.** Found by reading, after the searches, which
+then published no version suspending dispatch. `readiness()` asks
+whether the policy in force permits a dispatch, of the store with no
+position, so it was answered from what the store had last read; and
+nothing under the writer lock or on replay asked the dispatch policy
+again. A scheduler whose store had not read a version suspending
+dispatch dispatched the job, where a scheduler just loaded refuses, and
+every load of the log holds it dispatched. One whose store held the
+suspension, and had not read the version lifting it, moved a READY job
+to BLOCKED, where a scheduler just loaded moves nothing; BLOCKED is
+terminal. Now `dispatch()` and `reconcile()` ask the store at the head
+before readiness decides. Replay re-authorizes a move to DISPATCHED
+under the dispatch policy in force at its position and time, with the
+request readiness makes, and the dry run under the writer lock runs
+replay's rules, so a version published between readiness and the write
+refuses the dispatch there, with nothing written. `reconcile()` scans
+and then writes, and a block is now asked again under the lock: a
+version lifting a suspension, published mid-scan, does not block the
+job. The scheduler's search now publishes versions that suspend
+dispatch, and fails on the tree with AUD-095 to AUD-098 corrected.
+
+**Tests.** The four searches, and 27 regression tests:
+
+- for AUD-095, four in `tests/test_agent_delegation.py`;
+- for AUD-096, three in `tests/test_agent_scheduler.py`, two in
+  `tests/test_agent_policy.py`, and the governed run in
+  `tests/test_agent_governed_tasks.py`;
+- for AUD-097, four in `tests/test_agent_scheduler.py`;
+- for AUD-098, two in `tests/test_agent_substrate.py`;
+- for AUD-099, five in `tests/test_agent_scheduler.py`;
+- for AUD-100, six in `tests/test_agent_scheduler.py`.
+
+Two controls pass before the corrections and after them: a scheduler
+that has read every version enqueues under the one in force
+(`test_a_current_scheduler_enqueues_under_the_version_in_force`), and a
+record decided before an expiry is read after it
+(`test_a_record_decided_before_an_expiry_is_read_after_it`). The eight
+test files this pass changed hold 621 tests. Run together on fe3f9c3's
+code, 28 fail: 26 of the regression tests, and the capability ledger's
+and the scheduler's searches. The other 593 pass, the two controls among
+them, and so does
+`test_the_record_carries_the_reading_its_gate_was_judged_at`: it holds a
+record to the reading its gate judged it at, which only a replay that
+judges a policy's expiry depends on, and S74 is killed by it. On the
+tree with AUD-095 to AUD-098 corrected, 11 fail: the ten tests of
+AUD-099 and AUD-100 that fail at fe3f9c3, and the scheduler's search. On
+this pass's code all 621 pass, none skipped.
+`tests/test_refused_fold.py` gains a scheduler case decided by a move,
+`scheduler_move`. Its scheduler case was decided by an enqueue, and
+enqueue now catches up first, which holds the refusal that case reached.
+The isolation guard names the new search file among the substrate's
+legitimate importers.
+
+**Mutations.** Added:
+
+- G29 to G31 to `agent_delegation`, for AUD-095;
+- P32 and P33 to `agent_policy`, and S65 to `agent_scheduler`, for
+  AUD-096;
+- S66 to S70 to `agent_scheduler`, for AUD-097;
+- M75 and M76 to `agent_substrate`, for AUD-098;
+- S71 to S74 and S78 to `agent_scheduler`, for AUD-099;
+- S75 to S77 and S79 to `agent_scheduler`, for AUD-100.
+
+The corrections of AUD-099 and AUD-100 moved four anchored lines, and
+each entry was repaired to the line as it now stands, keeping its fault:
+X4 in `agent_cross_process`, and N50, N53 and N55 in `agent_scheduler`.
+Each new entry and each repaired one is killed by a test the report
+names; each new entry by the test written for it.
+
+**Whole runs.** Two, on this pass's tree as it stood before its records,
+in parts of up to 24 entries over four lanes, each lane a copy of the
+tree.
+
+*First*, every entry on the four source files this pass changed, in
+every spec that holds one: 361 entries of 30 specs, in 37 parts. 360
+were killed, each by a test the report names, one of them, SA6, by an
+error in its test. None was stillborn, none was ended by a signal, none
+had no verdict and none was killed by a timeout, and every source was
+restored byte-identical. S77 survived. It drops the head read that opens
+`reconcile()`, and no test asked what a scheduler behind its store does
+when the version it has not read suspends dispatch: the block a scan
+writes is asked again under the lock, at the head, and that check holds
+a stale scan's block, so the block a stale scan does not attempt was all
+S77 left to find.
+`test_a_scheduler_behind_its_store_blocks_what_the_version_in_force_suspends`
+asks it. It fails at fe3f9c3 and on the tree with AUD-095 to AUD-098
+corrected, passes here, and kills S77; S76 and S79, run again beside it,
+were killed as before.
+
+*Second*, every other entry of the 22 specs whose suites hold a test
+file this pass changed: 414 entries in 26 parts. All were killed, each
+by a test the report names, three of them, AC2, G16 and G26, by an error
+in their tests. One part's baseline was red in its lane:
+`repo_contract`'s, whose suites hold the workflow's contract test, in a
+lane copied before D-2026-197's re-weighting. There the new entries
+moved the planner's median rate per mutation, by which it weighed the
+nine specs no hosted run had measured, and with it the plan the
+committed matrix is held to; with every spec measured, the plan no
+longer turns on mutation counts. Run again on a copy holding the
+re-weighting, its 18 were killed, 18 of 18. None was stillborn, none was
+ended by a signal, none had no verdict and none was killed by a timeout,
+and every source was restored byte-identical.
+
+Every spec whose suites hold a test file this pass changed was run
+whole, and every entry on the four source files it changed was run. The
+runs were not repeated after S77's test was added, nor after the
+records and the re-weighting: a test that passes unmutated can add a
+kill and takes none away, and of the files those changed only
+`tools/mutation_shards.py` is mutated by a spec. That spec,
+`mutation_shards`, ran whole after D-2026-197's re-weighting: 12 of 12.
+
+**Read in part.** At fe3f9c3, each of the four files corrected here,
+read in full in an earlier pass; each file's ledger row says what this
+one read again:
+
+- lines 576 to 1037 of `agent_substrate/capability.py`: the projection,
+  `in_force`, `anoint`, `issue`, `delegate` and `revoke`, with
+  `CapabilitySet.check`;
+- lines 630 to 1054 of `agent_substrate/policy.py`: the load, the fold,
+  `apply` and its two re-checks, the reads and the writes, with the rule
+  evaluation and the decision record;
+- of `agent_substrate/scheduler.py`: the load, `catch_up` and the fold,
+  `apply`, the enqueue and priority re-authorizations, the probe and the
+  dry run, the gate, `readiness`, `enqueue`, `set_priority`,
+  `transition`, `dispatch`, `cancel`, `reconcile` and `invalidate`;
+- of `agent_substrate/store.py`: `catch_up`, the fold, the load,
+  `create` and `transition`.
+
+Also read: `ResearchLedger.observe`; `SecretStore.provision` and
+`issue`, whose reads before the lock are of the process's own values or
+of no log; the policy decision and the enqueue in `GovernedTasks`; the
+second reader's fold of the scheduler's records; the planner's weights
+and their comment in `tools/mutation_shards.py`; and, of the tests and
+specs changed, the parts their ledger rows name. Each of this pass's
+changes was written and reviewed as a diff.
+
+**Observations, not changed.**
+
+- `ResearchLedger.observe` derives an observation's values from the
+  ledger's view before the lock. Under the lock it derives them again
+  and refuses a mismatch, so a ledger behind the log refuses an
+  observation a fresh one makes, with a message about values its bundle
+  does not hold. The research loop folds the ledger just before it
+  observes.
+- The scheduler's and the authority store's `catch_up()`, unforced,
+  trusts the witness. The witness can lag the log after a crash between
+  an append and its update, and there a check made before the lock
+  answers from before it. Each says so, and under the lock only the key
+  is asked again.
+- The idempotency ledger and the proposal ingress rebuild from the log
+  as it is on the full-read route, where the others refuse a rewritten
+  history (AUD-006, as recorded there).
+- Measured once, the pull request's runs were slower than the push
+  run's on the same tree, shard 6 by 30 percent, 124 minutes to 96.
+
+**What is not established.**
+
+- The searches hold four projections. The authority store, the egress
+  authority, the secret store, the idempotency ledger, the proposal
+  ingress, the research ledger and the inference gateway's ledger are
+  not held to a load of their history up to their position here.
+  AUD-098 was found by reading.
+- The policy store is searched without a role registry, so the role
+  view it folds is not in its searches. Nor are the scheduler's
+  capacity, or its evidence and capability preconditions.
+- No mutation spec runs the searches. Each new entry is killed by a
+  regression test, and a fault only a search would find is not measured
+  by the matrices.
+- Which histories a search draws moves with its source; the counts above
+  are for this source.
+- A history written before these corrections may hold, as written, an
+  enqueue the version in force refuses, two jobs under one key, a child
+  delegated from a revoked grant, or a dispatch the version in force
+  suspended. A record written before them carries its append time, a
+  moment after its gate; an expiry falling in between makes replay
+  refuse it.
+- The re-weighted plan rests on one push run's times. At the pull
+  request's slower rate it puts the heaviest shard near 93 of its 150
+  minutes, and hosted CI at this pass's commit will show what it takes.
+
+### Stage 5, twenty-third pass: the authority store held to a full load (Wave B, part 4; AUD-101 and AUD-102)
+
+Wave B of the campaign is memory and replay. The twenty-second pass held
+four projections, written by several writers on one log, to a load of the
+history up to each writer's position, and named seven it did not hold.
+This pass holds the first of them, the authority store, with another
+subsystem's writer publishing and withdrawing on the same log the
+policies its promotions stand on. Its search, and reading the store and
+the second reader beside it, found two defects, each reproduced at
+82ebae2 and fixed (AUD-101 and AUD-102).
+
+**Hosted CI at 82ebae2.** Read from the API at 17:41 UTC, before this
+commit, in eight workflow runs: 45652517646, 45652517670, 45652517662,
+45652517617 and 45652519345 (push), and 45652527609, 45652527347 and
+45652527334 (pull request). Of the 44 check runs the commit's runs make,
+34 had completed, and every one passed. The other ten had not completed:
+eight mutation shards, still running, and the two mutation-matrices
+aggregates, which wait on them. Gate I at 82ebae2 is not claimed here.
+The eight shards that had finished took 66 to 76 minutes from the start
+of their job to its end, against a plan of 70 or 71 minutes of specs.
+Two of the push run's shards were still running at 83 minutes, and the
+pull request's shard 3 had started 37 minutes after its run began.
+
+**The search.** `tests/test_agent_writers.py` gains a fifth search,
+`_Authority`, on the same harness. Three writers, each an authority store
+of its own on one log and holding its own anchor, create records, move
+them, make them depend on others and declare the policy binding; a policy
+store loaded for each write publishes and withdraws two policies, by their
+owners and by others. Creates take a new id or one taken, with
+dependencies recorded and not, policies and idempotency keys. Moves
+mostly walk the record on, the way nothing refuses: picked up, verified,
+promoted, made stale with a reason, picked up again. Others take another
+edge, or any state. Each is made by another actor than the proposer or
+by the proposer, in the role the edge names or in any role, with the
+evidence the edge asks for, with what the record already carries or with
+none, and at no revision, the revision read or one passed. Catch-ups go
+along the anchored route and the full read, and writers reopen. After
+every operation every writer holds what a load of the history up to its
+own position holds: its records, its keys and what each key completed,
+the binding, its view of the policies, the latest time it has read and
+its position. Each write decides and writes as a store just loaded from a
+copy of the log decides and writes beside it. And the second reader,
+`reconstruct()`, agrees with a fresh load of the whole history: nothing
+unauthorized, no anomaly, `compare()` empty, every field the two readers
+both hold equal, and the same canonical set.
+
+Each history starts with a create and up to three bindings and
+publications, so that a binding and the policies it names often stand
+before the first promotion. Five fixed histories come first. In each, a
+writer behind the log promotes under a binding, and the binding answers
+in one of five ways: permitted, or refused for a policy withdrawn,
+expired, published by no authority the binding names, or never
+published. On the test's own seeds the search makes 2,087 writes: 912
+refused and 1,029 made by a writer behind the log, with 178 catch-ups and
+65 reopens. Written: 305 creates, 359 publications, 75 bindings, 27
+withdrawals, 7 dependencies, and 427 moves along 10 of the model's 14
+edges: 163 records picked up, 108 verified, 40 promoted (8 under a
+binding), 26 made stale with a reason and 20 picked up again, 35
+rejected, 7 revoked and 3 superseded. Promotions under a binding were
+refused 7 times for a policy withdrawn, 4 for one never published, and
+once each for one expired and one published by no authority the binding
+names. It takes 15 seconds here; the five searches together take 72.
+
+**How the search was shaped.** Its first form drew from four ids, one
+index choosing both the record a move takes and its destination. It
+passed at 82ebae2, and its counts showed why: no history reached a
+promotion, and none moved a record out of STALE. Drawn from three ids,
+with the walk and separate indices, it fails at 82ebae2 (AUD-101 below).
+A second count then showed no promotion written under a binding in any of
+the 200 histories, the binding falling late among the rest. That is why
+the histories now open with bindings and publications, and why the five
+fixed histories come first.
+
+**AUD-101 (P2), fixed.** The store folds a move's policy and stale
+reason from its payload wherever the payload has the key
+(`p.get(key, the record's own)`). Every move it writes carries both keys,
+and one that states no stale reason clears it. `reconstruct()` kept the
+record's own unless the payload named a value. Through the store alone,
+this matters for a record made stale with a reason and then picked up,
+verified and promoted again. The second reader holds that record stale
+for the reason; the store holds no reason. `compare()`, the diff of the
+two readers, did not hold the field, nor where a record was created or
+last moved. Past the gate, the policy matters too. A move whose payload
+states no policy clears the record's in the store. A later promotion that
+names none is then refused there (I5), and with it the history. The
+second reader judged I5 on the policy it had kept, and held the record
+PROMOTED and canonical with nothing reported. It is the only reader of a
+history the store will not load. At 82ebae2 (scratchpad `repro_v1.py`,
+`repro_v2.py`), picked up again after STALE, the store holds
+`stale_reason` None and the second reader `'a dependency moved'`, and
+`compare()` reports nothing. Past the gate, after the promotion naming
+no policy, the store refuses the history (`seq 7: 'r0' VERIFIED ->
+PROMOTED would be refused today: I5: promotion requires an explicit
+policy identity in force`). The second reader holds r0 PROMOTED under
+`'p0'`, canonical, with 0 unauthorized. The second reader now takes both
+fields from the payload wherever it has the key, as the store does, and
+`compare()` diffs the stale reason and where a record was created and
+last moved. The search found it, on its first history that moved a
+record out of STALE.
+
+**AUD-102 (P2), fixed.** The store mapped an idempotency key to the
+record it completed a request for, and refused the key for another
+record (S25). For the same record it answered any request under the key
+as the key's retry: it returned the record as it stood, wrote nothing
+and refused nothing. At 82ebae2 (scratchpad `repro_v3.py`), a pick-up of
+r1 under the key its create spent returned r1 PROPOSED. A revocation
+under the key its promotion spent returned r1 PROMOTED, still canonical,
+with nothing written, and its caller had no refusal to tell it so. The
+fold now records, for each key, the request its record states: the
+action, the actor, the record and the fields a retry carries again, and
+none the store derived, such as the source state. `create()` and
+`transition()` answer a spent key only for that request, and refuse any
+other as "a different request". A move that names no policy asks for the
+record's own, which its first attempt recorded however it named it, so
+its retry naming none is answered. A create's policy is held exactly.
+The snapshot, now version 5, carries the requests, and the restore
+requires one for every key. A version-4 snapshot is foreign to this
+reducer: a load from one replays the history, or refuses where a
+checkpoint is required. The search showed it, in its counts and not in
+its verdict: requests were answered with nothing written on moves no
+earlier request had made, 21 times on PROMOTED to STALE. Both writers
+answered alike, so the search passed. No package caller passes the store
+a key; the reach is the store's contract with its callers.
+
+**Tests.** The search, and 25 regression tests:
+
+- for AUD-101, nine in `tests/test_second_reader_rules.py`;
+- for AUD-102, 16 in `tests/test_agent_checkpoint.py`, with four
+  malformed snapshots added to the table of refusals and the valid base
+  snapshot made a version-5 one.
+
+Four of them are controls, passing before the corrections and after: a
+stale reason is held while the record is stale; a promotion naming its
+policy after a move cleared the record's stands in both readers; a
+payload stating neither field leaves the record's own in both; and a
+retry naming no policy is the retry of a move that named one. The three
+test files this pass changed hold 183 tests. Run on 82ebae2's code, 26
+fail: the search, six of AUD-101's tests, 15 of AUD-102's and the four
+new malformed snapshots. Each fails with its defect's symptom: 19 `DID
+NOT RAISE StoreError`; the second reader's `'a dependency moved'` and
+`'p0'` where the store holds None; `compare()` returning nothing for each
+of the three fields; and r0 PROMOTED where the store refuses its
+promotion. The search fails on its field-by-field agreement, its
+falsifying history a record verified, made stale with a reason and
+picked up again. The other 157 pass, the four controls among them. On
+this pass's code all 183 pass, none skipped.
+
+**Mutations.** Added:
+
+- SR21 to SR28 to `second_reader_rules`, for AUD-101;
+- CD16 to CD36 to `agent_checkpoint`, for AUD-102.
+
+The correction of AUD-102 moved three anchored blocks, and S25a, S25b and
+S26 were repaired to the blocks as they now stand, keeping their faults.
+Every anchor in all 149 specs matches its source exactly once on this
+pass's tree. Neither spec's weight changes: by the planner's rule, a spec
+that gained mutations is weighed at the time measured for its earlier
+form. The plan stays at 70 or 71 minutes a shard, and the planner's
+comment names the two.
+
+**Mutation runs.** On this pass's tree:
+
+- `second_reader_rules`, run whole: 28 of 28 killed, each of SR21 to SR28
+  by a test written for it.
+- `agent_checkpoint`, run whole: 86 of 86 killed by a named test, the new
+  entries and the repaired ones among them. CD18, CD19 and CD20 are
+  killed first by `test_a_checkpointed_load_agrees_with_a_full_load`,
+  which runs before the test written for them. CD35 and CD36 are killed
+  first by the store's earlier retry tests. Run by hand against
+  AUD-102's tests alone, each of the five is killed by them too.
+- every entry on `agent_substrate/store.py` and
+  `agent_substrate/reconstruct.py` in the 44 other specs that hold one:
+  444 entries in 52 parts, all killed by a named test, one of them (SA6)
+  by an error, not a failure.
+
+In all, 558 entries ran and all were killed. After every run the sources
+were restored byte-identical, verified by re-hashing, and no lane's tree
+was left changed. Each lane ran on a tree built from the pass's scripts
+alone, or on one held, file by file, to the final tree in every file its
+specs mutate or run.
+
+**Read.** At 82ebae2, of `agent_substrate/store.py`: the projection's
+fields, `load`, `catch_up`, `_fold_new`, `_append_decided`, the fold,
+`snapshot`, `_restore`, `load_from`, `canonical`, `create`, `transition`,
+the policy binding and `add_dependency`. Of `agent_substrate/reconstruct.py`:
+the replay of the authority records beside the store's fold
+(`_create_refusal`, `_auth_refusal`, `_bound_promotion_refusal`, and the
+binding, policy and record branches of `reconstruct`), with `compare()`.
+Also read: the state machine and its check in `authority.py`, the policy
+store's publish and withdraw, the scheduler's key rule, the readers of
+record moves elsewhere (the research ledger's and the assurance graph's
+folds, which hold neither field), and the in-package callers of the
+store's keys, of which there are none. Each of this pass's changes was
+written and reviewed as a diff.
+
+**Observations, not changed.**
+
+- `add_dependency()` refuses a record depending on itself. The store's
+  fold and the second reader both accept one written past the gate, and
+  agree on it. `canonical()` reads the cycle as not canonical in both,
+  which fails closed.
+- A history written past the gate may carry a second record under a
+  spent key. The fold takes the later request as the key's, as it took
+  the later record, and refuses neither. The key decides only how a retry
+  is answered; each record is re-authorized on its own terms.
+- The store's `bind_policies()` does not catch up before deciding. It
+  decides under the writer lock, after the fold there, so a writer
+  behind the log decides as a fresh one; the search holds it so.
+
+**What is not established.**
+
+- The search runs without a role registry, an authenticator, an evidence
+  store or a view of governed execution, and on one kind of record. Role
+  checks, authentication, evidence resolution, scientific admission and
+  learned kinds are not in it.
+- Four of the model's 14 edges are not taken on these seeds: PROMOTED to
+  REVOKED, STALE to SUPERSEDED, STALE to REVOKED and SUPERSEDED to
+  REVOKED.
+- The egress authority, the secret store, the idempotency ledger, the
+  proposal ingress, the research ledger and the inference gateway's
+  ledger are not held to a load of their history up to their position.
+- No mutation spec runs the searches, as before. Each new entry is killed
+  by a regression test.
+- Which histories a search draws moves with its source; the counts above
+  are for this source.

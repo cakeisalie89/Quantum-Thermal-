@@ -1,0 +1,81 @@
+{
+ "canonical_outputs": "removed with the retired hardware programme; the entry as recorded is in git history (this file at b8aac891f3d767b2598acaf413c099afcefcba30)",
+ "checkpointing": "agent_substrate.checkpoint checkpoints projections of the authority log; no model checkpoint format",
+ "datasets": {
+  "available_governed_sources": [
+   "surface.langmuir_capture"
+  ],
+  "generic": "none",
+  "note": "the other governed sources recorded at the time are retired: removed with the retired hardware programme; the entry as recorded is in git history (this file at b8aac891f3d767b2598acaf413c099afcefcba30)"
+ },
+ "decisions": {
+  "data_source": "surface.langmuir_capture through scientific.model.run_model",
+  "framework": "JAX 0.11.2 as the optional extra 'neural': download.pytorch.org refused by the network policy; the PyPI x86-64 torch wheel is the CUDA build",
+  "lifecycle": "existing record actions with learned_* kinds; a store-level refusal of VERIFIED/PROMOTED",
+  "package": "scientific_ai/neural, importing only scientific; JAX in one guarded module"
+ },
+ "distributed_compute": "none",
+ "edited": "2026-10-13: the entries that described the retired hardware programme's files were removed with that programme; every other entry is as recorded",
+ "event_integration": {
+  "actions": 39,
+  "authority_states": [
+   "PROPOSED",
+   "UNDER_REVIEW",
+   "VERIFIED",
+   "PROMOTED",
+   "STALE",
+   "SUPERSEDED",
+   "REVOKED",
+   "REJECTED"
+  ],
+  "learned_record_rule": "none: a record of any kind could take the generic edges",
+  "log": "agent_substrate.events.EventLog (hash-chained, append-only)",
+  "second_reader_coverage": "39 of 39"
+ },
+ "feature_representations": {
+  "learned_feature_encoding": "none",
+  "units": "unit strings on every Quantity; no unit-to-dimension parser"
+ },
+ "hardware_abstractions": "none",
+ "host": {
+  "backend_identity": "97b7772c0dbfe43fb69790d00d515240a5bb0e4d2a6de95788b99d047ff9d138",
+  "cores": 4,
+  "cpu": "GenuineIntel family 6 model 207 (AVX-512, AMX)",
+  "memory_gib": 15
+ },
+ "legacy_semantic_leakage_relevant": "removed with the retired hardware programme; the entry as recorded is in git history (this file at b8aac891f3d767b2598acaf413c099afcefcba30)",
+ "neural_and_ml_code": {
+  "frameworks_installed": {
+   "jax": false,
+   "safetensors": false,
+   "sklearn": false,
+   "torch": false
+  },
+  "generic_neural_code": "none",
+  "learned_code": "removed with the retired hardware programme; the entry as recorded is in git history (this file at b8aac891f3d767b2598acaf413c099afcefcba30)"
+ },
+ "numerical_backends": "removed with the retired hardware programme; the entry as recorded is in git history (this file at b8aac891f3d767b2598acaf413c099afcefcba30)",
+ "provenance_infrastructure": [
+  "scientific.identity (canonical digests, implementation digests)",
+  "scientific.run_identity (environment and backend identity)",
+  "scientific.result.ResultBundle",
+  "agent_substrate.evidence.EvidenceStore (content-addressed)"
+ ],
+ "recorded": "2026-10-06, before any NF-1T change",
+ "repository": {
+  "branch": "claude/scientific-python-stack-7rsq3m",
+  "head": "f303a73d991c2eef75a4ac8b66c88ad64fe717a6",
+  "hosted_ci_at_head": "agent-substrate push 36521596741 and pull_request 36521600871 success; stack-verify 36521600842 success",
+  "pull_request": 17,
+  "remote_head_equal": true,
+  "scratch_worktrees": "five detached worktrees under the session scratchpad, at older commits, unused",
+  "tracked_tree_clean": true
+ },
+ "schema": "nf1t-starting-inventory/1",
+ "training_infrastructure": "none generic",
+ "unresolved_programme_items": [
+  "tranche E not begun",
+  "vetted signature provider, production keys, registry pin, release signing EXTERNALLY_BLOCKED",
+  "the remaining items recorded at the time concerned the retired programme: removed with the retired hardware programme; the entry as recorded is in git history (this file at b8aac891f3d767b2598acaf413c099afcefcba30)"
+ ]
+}

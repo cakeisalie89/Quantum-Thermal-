@@ -1,0 +1,79 @@
+{
+ "title": "An action no module writes is refused by every reducer over a shared log",
+ "note": "AUD-054, the remainder of AUD-046. The action registry separates another subsystem's action, which a reducer skips, from one no module writes, which it refuses. UA1: the one statement of the refusal. UA2 to UA10: each of the nine reducers that read past such an action. tests/test_unknown_actions.py holds each, with another subsystem's action as the control.",
+ "suites": [
+  "tests/test_unknown_actions.py"
+ ],
+ "mutations": [
+  {
+   "name": "UA1_every_action_is_known",
+   "path": "agent_substrate/actions.py",
+   "find": "    if owner(ev.action) is not None:\n        return None\n",
+   "replace": "    if True:\n        return None\n",
+   "rationale": "the one statement of the refusal answers that every action is known, and every reducer reads past one no module writes"
+  },
+  {
+   "name": "UA2_capability_reads_past_an_unknown_action",
+   "path": "agent_substrate/capability.py",
+   "find": "                raise CapabilityError(why)\n",
+   "replace": "                pass\n",
+   "rationale": "an action no module writes is read past by the capability ledger: a newer schema's grant or revocation is dropped, and the grants it folds are confidently incomplete (AUD-054)"
+  },
+  {
+   "name": "UA3_roles_reads_past_an_unknown_action",
+   "path": "agent_substrate/roles.py",
+   "find": "        why = actions.unknown_refusal(ev)\n        if why is not None:\n            raise RoleError(why)\n",
+   "replace": "        why = actions.unknown_refusal(ev)\n        if why is not None:\n            pass\n",
+   "rationale": "an action no module writes is read past by the role delegations: a newer schema's delegation or revocation is dropped (AUD-054)"
+  },
+  {
+   "name": "UA4_policy_reads_past_an_unknown_action",
+   "path": "agent_substrate/policy.py",
+   "find": "            raise PolicyError(why)\n",
+   "replace": "            pass\n",
+   "rationale": "an action no module writes is read past by the policy store: a newer schema's publication or withdrawal is dropped (AUD-054)"
+  },
+  {
+   "name": "UA5_secrets_reads_past_an_unknown_action",
+   "path": "agent_substrate/secrets.py",
+   "find": "                raise SecretError(why)\n",
+   "replace": "                pass\n",
+   "rationale": "an action no module writes is read past by the secret store: a newer schema's grant or revocation is dropped (AUD-054)"
+  },
+  {
+   "name": "UA6_scheduler_reads_past_an_unknown_action",
+   "path": "agent_substrate/scheduler.py",
+   "find": "                raise SchedulerError(why)\n",
+   "replace": "                pass\n",
+   "rationale": "an action no module writes is read past by the scheduler: a newer schema's job record is dropped (AUD-054)"
+  },
+  {
+   "name": "UA7_agents_reads_past_an_unknown_action",
+   "path": "agent_substrate/agents.py",
+   "find": "                raise AgentError(refusal)\n",
+   "replace": "                pass\n",
+   "rationale": "an action no module writes is read past by the agent directory: a newer schema's identity, message, claim or escalation is dropped (AUD-054)"
+  },
+  {
+   "name": "UA8_netauth_reads_past_an_unknown_action",
+   "path": "agent_substrate/netauth.py",
+   "find": "        why = actions.unknown_refusal(ev)\n        if why is not None:\n            raise NetworkError(why)\n",
+   "replace": "        why = actions.unknown_refusal(ev)\n        if why is not None:\n            pass\n",
+   "rationale": "an action no module writes is read past by the network authority: a newer schema's service, grant or request is dropped (AUD-054)"
+  },
+  {
+   "name": "UA9_research_reads_past_an_unknown_action",
+   "path": "agent_substrate/research.py",
+   "find": "                raise ResearchError(why)\n",
+   "replace": "                pass\n",
+   "rationale": "an action no module writes is read past by the research ledger: a newer schema's objective, hypothesis or observation is dropped (AUD-054)"
+  },
+  {
+   "name": "UA10_inference_reads_past_an_unknown_action",
+   "path": "agent_substrate/inference.py",
+   "find": "                raise InferenceError(why)\n",
+   "replace": "                pass\n",
+   "rationale": "an action no module writes is read past by the inference gateway: a newer schema's budget, reservation or result is dropped (AUD-054)"
+  }
+ ]
+}

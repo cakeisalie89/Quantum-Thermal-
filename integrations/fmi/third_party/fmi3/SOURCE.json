@@ -1,0 +1,12 @@
+{
+ "what": "FMI 3.0 C headers, vendored unmodified",
+ "upstream": "https://github.com/modelica/fmi-standard",
+ "tag": "v3.0.2",
+ "license": "BSD-2-Clause (see LICENSE.txt in this directory)",
+ "files": {
+  "LICENSE.txt": "87d654ef1602042c46d240872f142c401291ac3da65ef1a9345717208c060939",
+  "fmi3FunctionTypes.h": "d247d1c5fbf58e32379f1d38e7f73990709e0501fc4a9b3901ce3f9638503a0f",
+  "fmi3Functions.h": "038358fb0209c3547fe8c6f03b80582960c93ce0a7d342b0d9348c8ce6137784",
+  "fmi3PlatformTypes.h": "1aa81efddeb84b0d9425f9226969525bd034cb63848c086b6696655179500616"
+ }
+}

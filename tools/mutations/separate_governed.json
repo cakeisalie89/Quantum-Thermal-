@@ -1,0 +1,137 @@
+{
+  "title": "The separate process reads a governed history under its roots, and reports what it refuses",
+  "note": "Stage 2, S2-2. SG1 and SG2 remove the child's report of what the second readers refuse (AUD-022). SG3 to SG8 remove each step that hands the child the history's public roots, from the run to the child (AUD-023). SG9 to SG14 and SG18 remove rules of the restated authentication. SG15 to SG17 remove the roots the decision proof and memory trust read under.",
+  "suites": [
+    "tests/test_separate_reads_governed.py",
+    "tests/test_restated_authentication.py",
+    "tests/test_agent_separate_verify.py"
+  ],
+  "mutations": [
+    {
+      "name": "SG1_the_child_drops_what_the_record_reader_refuses",
+      "path": "tools/independent_verify.py",
+      "find": "    findings.extend(getattr(recs, \"unauthorized\", ()) or ())\n",
+      "replace": "    findings.extend(())\n",
+      "rationale": "a transition the second reader refuses is reported as a clean log by the separate process"
+    },
+    {
+      "name": "SG2_the_child_drops_what_the_task_reader_refuses",
+      "path": "tools/independent_verify.py",
+      "find": "    findings.extend(getattr(tasks, \"unauthorized\", ()) or ())\n",
+      "replace": "    findings.extend(())\n",
+      "rationale": "a task record the second task reader refuses is reported as a clean log by the separate process"
+    },
+    {
+      "name": "SG3_the_parent_does_not_hand_over_the_authenticator",
+      "path": "agent_substrate/separate_verify.py",
+      "find": "        argv += _root_args(authenticator, roles, Path(roots_dir.name))\n",
+      "replace": "        argv += _root_args(None, roles, Path(roots_dir.name))\n",
+      "rationale": "the child reads a GOVERNED history with no authenticator, reads nothing, and refuses every governed run"
+    },
+    {
+      "name": "SG4_the_parent_does_not_hand_over_the_role_registry",
+      "path": "agent_substrate/separate_verify.py",
+      "find": "        argv += [\"--role-registry\", str(held)]\n",
+      "replace": "        argv += []\n",
+      "rationale": "the child reads a GOVERNED history with no role registry, reads nothing, and refuses every governed run"
+    },
+    {
+      "name": "SG5_an_authenticator_that_cannot_be_handed_over_is_dropped",
+      "path": "agent_substrate/separate_verify.py",
+      "find": "        if not callable(document) or att is None:\n            raise ValueError(",
+      "replace": "        if not callable(document) or att is None:\n            return argv\n            raise ValueError(",
+      "rationale": "an authenticator the child cannot be handed is dropped, and the child reads the history without it"
+    },
+    {
+      "name": "SG6_test_keys_are_not_admitted_for_a_test_registry",
+      "path": "agent_substrate/separate_verify.py",
+      "find": "            argv.append(\"--allow-test-keys\")\n",
+      "replace": "            argv.extend(())\n",
+      "rationale": "a registry of TEST keys is handed over without admitting them, and the child refuses every governed run"
+    },
+    {
+      "name": "SG7_the_run_does_not_hand_its_log_s_roots_to_the_child",
+      "path": "agent_substrate/governed_tasks.py",
+      "find": "                authenticator=getattr(self.log, \"authenticator\", None),\n                roles=getattr(self.log, \"roles\", None))",
+      "replace": "                authenticator=None,\n                roles=None)",
+      "rationale": "a governed task run on a GOVERNED history is refused by its own independent check"
+    },
+    {
+      "name": "SG8_the_child_ignores_the_role_registry_it_is_given",
+      "path": "tools/independent_verify.py",
+      "find": "        roles = restated.held_document(restated.strict_json(\n",
+      "replace": "        _ignored = restated.held_document(restated.strict_json(\n",
+      "rationale": "the child reads a GOVERNED history without the role registry it was handed"
+    },
+    {
+      "name": "SG9_the_restated_signature_check_accepts_anything",
+      "path": "tools/verify_assurance.py",
+      "find": "    lhs, rhs = _ed_times(s, _ED_B), _ed_add(r, _ed_times(k, a))\n    return ((lhs[0]",
+      "replace": "    lhs, rhs = _ed_times(s, _ED_B), _ed_add(r, _ed_times(k, a))\n    return True or ((lhs[0]",
+      "rationale": "the restated authentication takes any 64 bytes for a signature"
+    },
+    {
+      "name": "SG10_the_restated_key_lifecycle_is_not_consulted",
+      "path": "tools/verify_assurance.py",
+      "find": "            elif key_refusal_at(key, seq) is not None:\n                why.append(key_refusal_at(key, seq))\n",
+      "replace": "            elif False:\n                why.append(key_refusal_at(key, seq))\n",
+      "rationale": "a revoked, expired, compromised or not-yet-valid key authenticates in the restated reading"
+    },
+    {
+      "name": "SG11_the_restated_reading_ignores_whose_key_it_is",
+      "path": "tools/verify_assurance.py",
+      "find": "            elif key[\"principal\"] != actor:\n",
+      "replace": "            elif False:\n",
+      "rationale": "a record signed with another principal's key authenticates in the restated reading"
+    },
+    {
+      "name": "SG12_the_restated_registry_admits_test_keys_anywhere",
+      "path": "tools/verify_assurance.py",
+      "find": "        if test and not allow_test_keys:\n",
+      "replace": "        if False:\n",
+      "rationale": "a TEST key, whose secret anyone can derive from its name, is read where test keys are not admitted"
+    },
+    {
+      "name": "SG13_the_restated_registry_takes_a_chosen_key_id",
+      "path": "tools/verify_assurance.py",
+      "find": "        if kid != derived_key_id(public, test=test):\n",
+      "replace": "        if False:\n",
+      "rationale": "a registry naming a key by an id it chose, not the one derived from the key, is read"
+    },
+    {
+      "name": "SG14_the_restated_reading_calls_nothing_dangling",
+      "path": "tools/verify_assurance.py",
+      "find": "    for h in sorted(set(by_hash) - seen - aborted - pending) \\\n            if complete else ():",
+      "replace": "    for h in sorted(set(by_hash) - seen - aborted - pending) \\\n            if False else ():",
+      "rationale": "an attestation of no event in the history goes unreported by the restated reading"
+    },
+    {
+      "name": "SG15_a_prefix_is_read_as_a_whole_history",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "        return self._authenticator(events, complete=False)\n",
+      "replace": "        return self._authenticator(events, complete=True)\n",
+      "rationale": "the second reader reads a prefix of a governed history as a whole history, and calls the attestations of the records after it dangling: authentication findings of a history that has none"
+    },
+    {
+      "name": "SG16_the_decision_proof_drops_its_roots",
+      "path": "agent_substrate/reconstruct.py",
+      "find": "    roots = _prefix_roots(authenticator, roles)\n",
+      "replace": "    roots = _prefix_roots(None, None)\n",
+      "rationale": "a decision of a GOVERNED history is re-derived without its roots and never accepted"
+    },
+    {
+      "name": "SG17_memory_trust_drops_the_role_registry",
+      "path": "agent_substrate/memory_trust.py",
+      "find": "                     roles=getattr(log, \"roles\", None),\n",
+      "replace": "                     roles=None,\n",
+      "rationale": "a memory of a GOVERNED history is assessed as inconsistently reconstructed, its history unreadable to the primary"
+    },
+    {
+      "name": "SG18_the_restated_reading_misses_an_aborted_commit",
+      "path": "tools/verify_assurance.py",
+      "find": "                 for h in sorted(aborted & committed)]\n",
+      "replace": "                 for h in sorted(aborted & committed) if False]\n",
+      "rationale": "an abort naming a committed event goes unreported by the restated reading"
+    }
+  ]
+}

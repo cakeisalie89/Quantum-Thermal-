@@ -1,0 +1,1099 @@
+{
+ "growth": [
+  {
+   "from": 15,
+   "ratios": {
+    "anchor_at_calls": null,
+    "anchor_at_records": null,
+    "full_bytes": 2.13,
+    "full_calls": 1.46,
+    "full_records": 2.12,
+    "hashed": 1.98,
+    "tail_calls": 1.52,
+    "tail_records": 1.5
+   },
+   "size_ratio": 2.0,
+   "to": 30
+  },
+  {
+   "from": 30,
+   "ratios": {
+    "anchor_at_calls": null,
+    "anchor_at_records": null,
+    "full_bytes": 2.86,
+    "full_calls": 1.74,
+    "full_records": 2.85,
+    "hashed": 2.66,
+    "tail_calls": 1.76,
+    "tail_records": 1.67
+   },
+   "size_ratio": 2.0,
+   "to": 60
+  }
+ ],
+ "runs": [
+  {
+   "by_site": [
+    {
+     "bytes": 4606980,
+     "calls": 32,
+     "kind": "full",
+     "records": 5130,
+     "site": "governed_tasks:_verified_events"
+    },
+    {
+     "bytes": 1125991,
+     "calls": 7,
+     "kind": "full",
+     "records": 1274,
+     "site": "governed_model:_view"
+    },
+    {
+     "bytes": 864012,
+     "calls": 7,
+     "kind": "full",
+     "records": 996,
+     "site": "research:load"
+    },
+    {
+     "bytes": 371341,
+     "calls": 3,
+     "kind": "full",
+     "records": 428,
+     "site": "store:load"
+    },
+    {
+     "bytes": 369758,
+     "calls": 3,
+     "kind": "full",
+     "records": 426,
+     "site": "adversarial_eval:events"
+    },
+    {
+     "bytes": 0,
+     "calls": 74,
+     "kind": "tail",
+     "records": 418,
+     "site": "policy:_fold_new"
+    },
+    {
+     "bytes": 265550,
+     "calls": 4,
+     "kind": "full",
+     "records": 314,
+     "site": "policy:load"
+    },
+    {
+     "bytes": 254485,
+     "calls": 2,
+     "kind": "full",
+     "records": 279,
+     "site": "governed_tasks:_head_seq"
+    },
+    {
+     "bytes": 238566,
+     "calls": 1,
+     "kind": "full",
+     "records": 271,
+     "site": "checkpoint:create"
+    },
+    {
+     "bytes": 238566,
+     "calls": 1,
+     "kind": "full",
+     "records": 271,
+     "site": "reconstruct:reconstruct_subsystems"
+    },
+    {
+     "bytes": 238566,
+     "calls": 1,
+     "kind": "full",
+     "records": 271,
+     "site": "research_horizon:measure"
+    },
+    {
+     "bytes": 238566,
+     "calls": 1,
+     "kind": "full",
+     "records": 271,
+     "site": "store:checkpoint"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 242,
+     "site": "proposals:_catch_up"
+    },
+    {
+     "bytes": 0,
+     "calls": 48,
+     "kind": "tail",
+     "records": 220,
+     "site": "research:get"
+    },
+    {
+     "bytes": 0,
+     "calls": 11,
+     "kind": "tail",
+     "records": 220,
+     "site": "store:_fold_new"
+    },
+    {
+     "bytes": 0,
+     "calls": 4,
+     "kind": "tail",
+     "records": 216,
+     "site": "memory:_fold_new"
+    },
+    {
+     "bytes": 0,
+     "calls": 28,
+     "kind": "tail",
+     "records": 214,
+     "site": "scheduler:_fold_new"
+    },
+    {
+     "bytes": 0,
+     "calls": 12,
+     "kind": "tail",
+     "records": 180,
+     "site": "capability:issue"
+    },
+    {
+     "bytes": 0,
+     "calls": 8,
+     "kind": "tail",
+     "records": 176,
+     "site": "idempotency:catch_up"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 170,
+     "site": "inference:request_for"
+    },
+    {
+     "bytes": 140553,
+     "calls": 2,
+     "kind": "full",
+     "records": 165,
+     "site": "proposals:_catch_up"
+    },
+    {
+     "bytes": 132775,
+     "calls": 2,
+     "kind": "full",
+     "records": 157,
+     "site": "agents:load"
+    },
+    {
+     "bytes": 132775,
+     "calls": 2,
+     "kind": "full",
+     "records": 157,
+     "site": "capability:load"
+    },
+    {
+     "bytes": 132775,
+     "calls": 2,
+     "kind": "full",
+     "records": 157,
+     "site": "idempotency:load"
+    },
+    {
+     "bytes": 132775,
+     "calls": 2,
+     "kind": "full",
+     "records": 157,
+     "site": "inference:load"
+    },
+    {
+     "bytes": 132775,
+     "calls": 2,
+     "kind": "full",
+     "records": 157,
+     "site": "memory:load"
+    },
+    {
+     "bytes": 132775,
+     "calls": 2,
+     "kind": "full",
+     "records": 157,
+     "site": "netauth:load"
+    },
+    {
+     "bytes": 132775,
+     "calls": 2,
+     "kind": "full",
+     "records": 157,
+     "site": "scheduler:load"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 96,
+     "site": "governed_tasks:_head_seq"
+    },
+    {
+     "bytes": 0,
+     "calls": 6,
+     "kind": "tail",
+     "records": 26,
+     "site": "capability:in_force"
+    },
+    {
+     "bytes": 0,
+     "calls": 40,
+     "kind": "tail",
+     "records": 20,
+     "site": "research:steps"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 20,
+     "site": "inference:_budget_provider"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 20,
+     "site": "inference:_dispatch"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 20,
+     "site": "inference:_settle"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 20,
+     "site": "inference:binding_problems"
+    },
+    {
+     "bytes": 0,
+     "calls": 16,
+     "kind": "tail",
+     "records": 14,
+     "site": "research:evaluate_hypothesis"
+    },
+    {
+     "bytes": 0,
+     "calls": 58,
+     "kind": "tail",
+     "records": 2,
+     "site": "research:of"
+    },
+    {
+     "bytes": 0,
+     "calls": 1,
+     "kind": "tail",
+     "records": 1,
+     "site": "checkpoint:read_verified_with"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 0,
+     "site": "inference:_reserve"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 0,
+     "site": "inference:attempts_under"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 0,
+     "site": "inference:context_recorded"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:record_step"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:snapshot"
+    },
+    {
+     "bytes": 0,
+     "calls": 18,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:set_status"
+    },
+    {
+     "bytes": 0,
+     "calls": 16,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:hypothesize"
+    },
+    {
+     "bytes": 0,
+     "calls": 4,
+     "kind": "tail",
+     "records": 0,
+     "site": "governed_tasks:_projection_at_head"
+    },
+    {
+     "bytes": 0,
+     "calls": 2,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:observe"
+    },
+    {
+     "bytes": 0,
+     "calls": 2,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:register"
+    }
+   ],
+   "decisions": 15,
+   "seconds": 7.7,
+   "totals": {
+    "anchor_at_calls": 0,
+    "anchor_at_records": 0,
+    "full_bytes": 9882359,
+    "full_calls": 78,
+    "full_records": 11195,
+    "hashed": 14349,
+    "tail_calls": 598,
+    "tail_records": 2295
+   }
+  },
+  {
+   "by_site": [
+    {
+     "bytes": 9684437,
+     "calls": 48,
+     "kind": "full",
+     "records": 10791,
+     "site": "governed_tasks:_verified_events"
+    },
+    {
+     "bytes": 2387595,
+     "calls": 11,
+     "kind": "full",
+     "records": 2692,
+     "site": "governed_model:_view"
+    },
+    {
+     "bytes": 1812245,
+     "calls": 10,
+     "kind": "full",
+     "records": 2068,
+     "site": "research:load"
+    },
+    {
+     "bytes": 744254,
+     "calls": 6,
+     "kind": "full",
+     "records": 858,
+     "site": "policy:load"
+    },
+    {
+     "bytes": 726571,
+     "calls": 4,
+     "kind": "full",
+     "records": 829,
+     "site": "store:load"
+    },
+    {
+     "bytes": 724198,
+     "calls": 4,
+     "kind": "full",
+     "records": 826,
+     "site": "adversarial_eval:events"
+    },
+    {
+     "bytes": 0,
+     "calls": 126,
+     "kind": "tail",
+     "records": 627,
+     "site": "policy:_fold_new"
+    },
+    {
+     "bytes": 554735,
+     "calls": 3,
+     "kind": "full",
+     "records": 612,
+     "site": "governed_tasks:_head_seq"
+    },
+    {
+     "bytes": 383798,
+     "calls": 3,
+     "kind": "full",
+     "records": 441,
+     "site": "proposals:_catch_up"
+    },
+    {
+     "bytes": 372127,
+     "calls": 3,
+     "kind": "full",
+     "records": 429,
+     "site": "agents:load"
+    },
+    {
+     "bytes": 372127,
+     "calls": 3,
+     "kind": "full",
+     "records": 429,
+     "site": "capability:load"
+    },
+    {
+     "bytes": 372127,
+     "calls": 3,
+     "kind": "full",
+     "records": 429,
+     "site": "idempotency:load"
+    },
+    {
+     "bytes": 372127,
+     "calls": 3,
+     "kind": "full",
+     "records": 429,
+     "site": "inference:load"
+    },
+    {
+     "bytes": 372127,
+     "calls": 3,
+     "kind": "full",
+     "records": 429,
+     "site": "memory:load"
+    },
+    {
+     "bytes": 372127,
+     "calls": 3,
+     "kind": "full",
+     "records": 429,
+     "site": "netauth:load"
+    },
+    {
+     "bytes": 372127,
+     "calls": 3,
+     "kind": "full",
+     "records": 429,
+     "site": "scheduler:load"
+    },
+    {
+     "bytes": 354444,
+     "calls": 1,
+     "kind": "full",
+     "records": 400,
+     "site": "checkpoint:create"
+    },
+    {
+     "bytes": 354444,
+     "calls": 1,
+     "kind": "full",
+     "records": 400,
+     "site": "reconstruct:reconstruct_subsystems"
+    },
+    {
+     "bytes": 354444,
+     "calls": 1,
+     "kind": "full",
+     "records": 400,
+     "site": "research_horizon:measure"
+    },
+    {
+     "bytes": 354444,
+     "calls": 1,
+     "kind": "full",
+     "records": 400,
+     "site": "store:checkpoint"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 363,
+     "site": "proposals:_catch_up"
+    },
+    {
+     "bytes": 0,
+     "calls": 72,
+     "kind": "tail",
+     "records": 330,
+     "site": "research:get"
+    },
+    {
+     "bytes": 0,
+     "calls": 16,
+     "kind": "tail",
+     "records": 330,
+     "site": "store:_fold_new"
+    },
+    {
+     "bytes": 0,
+     "calls": 6,
+     "kind": "tail",
+     "records": 324,
+     "site": "memory:_fold_new"
+    },
+    {
+     "bytes": 0,
+     "calls": 42,
+     "kind": "tail",
+     "records": 321,
+     "site": "scheduler:_fold_new"
+    },
+    {
+     "bytes": 0,
+     "calls": 18,
+     "kind": "tail",
+     "records": 270,
+     "site": "capability:issue"
+    },
+    {
+     "bytes": 0,
+     "calls": 12,
+     "kind": "tail",
+     "records": 264,
+     "site": "idempotency:catch_up"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 255,
+     "site": "inference:request_for"
+    },
+    {
+     "bytes": 0,
+     "calls": 45,
+     "kind": "tail",
+     "records": 144,
+     "site": "governed_tasks:_head_seq"
+    },
+    {
+     "bytes": 0,
+     "calls": 9,
+     "kind": "tail",
+     "records": 39,
+     "site": "capability:in_force"
+    },
+    {
+     "bytes": 0,
+     "calls": 60,
+     "kind": "tail",
+     "records": 30,
+     "site": "research:steps"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 30,
+     "site": "inference:_budget_provider"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 30,
+     "site": "inference:_dispatch"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 30,
+     "site": "inference:_settle"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 30,
+     "site": "inference:binding_problems"
+    },
+    {
+     "bytes": 0,
+     "calls": 24,
+     "kind": "tail",
+     "records": 21,
+     "site": "research:evaluate_hypothesis"
+    },
+    {
+     "bytes": 0,
+     "calls": 87,
+     "kind": "tail",
+     "records": 3,
+     "site": "research:of"
+    },
+    {
+     "bytes": 0,
+     "calls": 1,
+     "kind": "tail",
+     "records": 1,
+     "site": "checkpoint:read_verified_with"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 0,
+     "site": "inference:_reserve"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 0,
+     "site": "inference:attempts_under"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 0,
+     "site": "inference:context_recorded"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:record_step"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:snapshot"
+    },
+    {
+     "bytes": 0,
+     "calls": 27,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:set_status"
+    },
+    {
+     "bytes": 0,
+     "calls": 24,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:hypothesize"
+    },
+    {
+     "bytes": 0,
+     "calls": 6,
+     "kind": "tail",
+     "records": 0,
+     "site": "governed_tasks:_projection_at_head"
+    },
+    {
+     "bytes": 0,
+     "calls": 3,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:observe"
+    },
+    {
+     "bytes": 0,
+     "calls": 3,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:register"
+    }
+   ],
+   "decisions": 30,
+   "seconds": 11.5,
+   "totals": {
+    "anchor_at_calls": 0,
+    "anchor_at_records": 0,
+    "full_bytes": 21040498,
+    "full_calls": 114,
+    "full_records": 23720,
+    "hashed": 28463,
+    "tail_calls": 911,
+    "tail_records": 3442
+   }
+  },
+  {
+   "by_site": [
+    {
+     "bytes": 25445632,
+     "calls": 80,
+     "kind": "full",
+     "records": 28337,
+     "site": "governed_tasks:_verified_events"
+    },
+    {
+     "bytes": 6667669,
+     "calls": 20,
+     "kind": "full",
+     "records": 7485,
+     "site": "governed_model:_view"
+    },
+    {
+     "bytes": 5115179,
+     "calls": 17,
+     "kind": "full",
+     "records": 5780,
+     "site": "research:load"
+    },
+    {
+     "bytes": 3112904,
+     "calls": 12,
+     "kind": "full",
+     "records": 3526,
+     "site": "policy:load"
+    },
+    {
+     "bytes": 2144062,
+     "calls": 7,
+     "kind": "full",
+     "records": 2422,
+     "site": "store:load"
+    },
+    {
+     "bytes": 1783503,
+     "calls": 6,
+     "kind": "full",
+     "records": 2015,
+     "site": "adversarial_eval:events"
+    },
+    {
+     "bytes": 1556452,
+     "calls": 6,
+     "kind": "full",
+     "records": 1763,
+     "site": "agents:load"
+    },
+    {
+     "bytes": 1556452,
+     "calls": 6,
+     "kind": "full",
+     "records": 1763,
+     "site": "capability:load"
+    },
+    {
+     "bytes": 1556452,
+     "calls": 6,
+     "kind": "full",
+     "records": 1763,
+     "site": "idempotency:load"
+    },
+    {
+     "bytes": 1556452,
+     "calls": 6,
+     "kind": "full",
+     "records": 1763,
+     "site": "inference:load"
+    },
+    {
+     "bytes": 1556452,
+     "calls": 6,
+     "kind": "full",
+     "records": 1763,
+     "site": "memory:load"
+    },
+    {
+     "bytes": 1556452,
+     "calls": 6,
+     "kind": "full",
+     "records": 1763,
+     "site": "netauth:load"
+    },
+    {
+     "bytes": 1556452,
+     "calls": 6,
+     "kind": "full",
+     "records": 1763,
+     "site": "scheduler:load"
+    },
+    {
+     "bytes": 1505613,
+     "calls": 5,
+     "kind": "full",
+     "records": 1667,
+     "site": "governed_tasks:_head_seq"
+    },
+    {
+     "bytes": 1220663,
+     "calls": 5,
+     "kind": "full",
+     "records": 1382,
+     "site": "proposals:_catch_up"
+    },
+    {
+     "bytes": 0,
+     "calls": 290,
+     "kind": "tail",
+     "records": 1045,
+     "site": "policy:_fold_new"
+    },
+    {
+     "bytes": 587610,
+     "calls": 1,
+     "kind": "full",
+     "records": 659,
+     "site": "checkpoint:create"
+    },
+    {
+     "bytes": 587610,
+     "calls": 1,
+     "kind": "full",
+     "records": 659,
+     "site": "reconstruct:reconstruct_subsystems"
+    },
+    {
+     "bytes": 587610,
+     "calls": 1,
+     "kind": "full",
+     "records": 659,
+     "site": "research_horizon:measure"
+    },
+    {
+     "bytes": 587610,
+     "calls": 1,
+     "kind": "full",
+     "records": 659,
+     "site": "store:checkpoint"
+    },
+    {
+     "bytes": 0,
+     "calls": 50,
+     "kind": "tail",
+     "records": 605,
+     "site": "proposals:_catch_up"
+    },
+    {
+     "bytes": 0,
+     "calls": 121,
+     "kind": "tail",
+     "records": 550,
+     "site": "research:get"
+    },
+    {
+     "bytes": 0,
+     "calls": 26,
+     "kind": "tail",
+     "records": 550,
+     "site": "store:_fold_new"
+    },
+    {
+     "bytes": 0,
+     "calls": 10,
+     "kind": "tail",
+     "records": 540,
+     "site": "memory:_fold_new"
+    },
+    {
+     "bytes": 0,
+     "calls": 70,
+     "kind": "tail",
+     "records": 535,
+     "site": "scheduler:_fold_new"
+    },
+    {
+     "bytes": 0,
+     "calls": 30,
+     "kind": "tail",
+     "records": 450,
+     "site": "capability:issue"
+    },
+    {
+     "bytes": 0,
+     "calls": 20,
+     "kind": "tail",
+     "records": 440,
+     "site": "idempotency:catch_up"
+    },
+    {
+     "bytes": 0,
+     "calls": 51,
+     "kind": "tail",
+     "records": 425,
+     "site": "inference:request_for"
+    },
+    {
+     "bytes": 0,
+     "calls": 75,
+     "kind": "tail",
+     "records": 240,
+     "site": "governed_tasks:_head_seq"
+    },
+    {
+     "bytes": 0,
+     "calls": 15,
+     "kind": "tail",
+     "records": 65,
+     "site": "capability:in_force"
+    },
+    {
+     "bytes": 0,
+     "calls": 101,
+     "kind": "tail",
+     "records": 50,
+     "site": "research:steps"
+    },
+    {
+     "bytes": 0,
+     "calls": 50,
+     "kind": "tail",
+     "records": 50,
+     "site": "inference:_budget_provider"
+    },
+    {
+     "bytes": 0,
+     "calls": 50,
+     "kind": "tail",
+     "records": 50,
+     "site": "inference:_dispatch"
+    },
+    {
+     "bytes": 0,
+     "calls": 50,
+     "kind": "tail",
+     "records": 50,
+     "site": "inference:_settle"
+    },
+    {
+     "bytes": 0,
+     "calls": 50,
+     "kind": "tail",
+     "records": 50,
+     "site": "inference:binding_problems"
+    },
+    {
+     "bytes": 0,
+     "calls": 40,
+     "kind": "tail",
+     "records": 35,
+     "site": "research:evaluate_hypothesis"
+    },
+    {
+     "bytes": 0,
+     "calls": 147,
+     "kind": "tail",
+     "records": 5,
+     "site": "research:of"
+    },
+    {
+     "bytes": 0,
+     "calls": 1,
+     "kind": "tail",
+     "records": 1,
+     "site": "checkpoint:read_verified_with"
+    },
+    {
+     "bytes": 0,
+     "calls": 51,
+     "kind": "tail",
+     "records": 0,
+     "site": "inference:attempts_under"
+    },
+    {
+     "bytes": 0,
+     "calls": 51,
+     "kind": "tail",
+     "records": 0,
+     "site": "inference:context_recorded"
+    },
+    {
+     "bytes": 0,
+     "calls": 51,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:snapshot"
+    },
+    {
+     "bytes": 0,
+     "calls": 50,
+     "kind": "tail",
+     "records": 0,
+     "site": "inference:_reserve"
+    },
+    {
+     "bytes": 0,
+     "calls": 50,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:record_step"
+    },
+    {
+     "bytes": 0,
+     "calls": 45,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:set_status"
+    },
+    {
+     "bytes": 0,
+     "calls": 40,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:hypothesize"
+    },
+    {
+     "bytes": 0,
+     "calls": 10,
+     "kind": "tail",
+     "records": 0,
+     "site": "governed_tasks:_projection_at_head"
+    },
+    {
+     "bytes": 0,
+     "calls": 5,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:observe"
+    },
+    {
+     "bytes": 0,
+     "calls": 5,
+     "kind": "tail",
+     "records": 0,
+     "site": "research:register"
+    }
+   ],
+   "decisions": 60,
+   "seconds": 21.6,
+   "totals": {
+    "anchor_at_calls": 0,
+    "anchor_at_records": 0,
+    "full_bytes": 60240829,
+    "full_calls": 198,
+    "full_records": 67591,
+    "hashed": 75581,
+    "tail_calls": 1605,
+    "tail_records": 5736
+   }
+  }
+ ],
+ "schema": "pr17-audit-work-counts/1",
+ "sizes": [
+  15,
+  30,
+  60
+ ],
+ "what": "counts of the event log's read paths under tools/research_horizon.py's scripted campaign; SCRIPTED DECISIONS, no model; counts, and this host's seconds as a measurement"
+}
